@@ -1,0 +1,38 @@
+{
+  "summary": "Le projet témoin : créé le 6 octobre 2025, passé en chiffrage le 3 novembre à l'ouverture de sa première révision, l'offre 100, puis en cours le 15 janvier 2026 à la désignation de sa référence, la commande reçue ; aucune ne porte de motif, aucune n'étant une sortie manuelle (WF-CYC-0090, WF-CYC-0130).",
+  "value": [
+    {
+      "from_state": null,
+      "to_state": "created",
+      "occurred_at": "2025-10-06T09:00:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": null
+    },
+    {
+      "from_state": "created",
+      "to_state": "pricing",
+      "occurred_at": "2025-11-03T08:30:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": null
+    },
+    {
+      "from_state": "pricing",
+      "to_state": "in_progress",
+      "occurred_at": "2026-01-15T11:00:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": null
+    }
+  ]
+}

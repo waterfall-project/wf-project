@@ -1,0 +1,8 @@
+{
+  "summary": "Un taux de 2026 saisi pour la sous-traitance, une catégorie des débours : refusé, les catégories hors main-d'œuvre ne portant pas de taux ; rien n'est écrit (WF-REF-0050).",
+  "value": {
+    "code": "LABOUR_CATEGORY_REQUIRED",
+    "status": 422,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001029"
+  }
+}

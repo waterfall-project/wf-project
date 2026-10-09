@@ -1,0 +1,13 @@
+{
+  "summary": "L'application de l'import du devis du Poste de commande (import_analysed, …0a11), aboutie à 14 h 08 min 30 s : ses lignes sont écrites.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000932",
+    "kind": "import_apply",
+    "status": "succeeded",
+    "progress": 100,
+    "submitted_at": "2026-06-03T14:06:00Z",
+    "finished_at": "2026-06-03T14:08:30Z",
+    "problem": null,
+    "result_url": null
+  }
+}

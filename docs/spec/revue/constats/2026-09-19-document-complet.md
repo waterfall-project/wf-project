@@ -30,7 +30,7 @@ perimetre: document complet (révision A)
 | C-012 | majeur | §3.1.2 | Des renvois entre exigences MS Project ont été décalés par la renumérotation | intégré |
 | C-013 | majeur | §3.4.5.4 | WF-DEV-0010 vérifie encore une condition que son corps ne pose plus | intégré |
 | C-014 | majeur | §3.3.1 | Le paragraphe sur les prérequis n'a pas d'introduction et se contredit sur l'inflation | intégré |
-| C-015 | majeur | §3.3.2 | WF-CYC-0040 n'est pas vérifiable tant que les paramètres requis ne sont pas listés | reporté : inscrit en PO-03 |
+| C-015 | majeur | §3.3.2 | WF-CYC-0040 n'est pas vérifiable tant que les paramètres requis ne sont pas listés | sans objet : l'état Initialisé et WF-CYC-0040 ont été retirés (C-028) |
 | C-016 | majeur | §3.1.2, §3.3.2 | Un import sans révision en cours d'élaboration n'a pas de comportement défini | intégré |
 | C-017 | majeur | §1.3 | Les impacts d'un risque sont décrits comme des « lignes de coût », c'est-à-dire des coûts réels | intégré |
 | C-018 | majeur | §1.3 | « Charge » est employé dans deux sens | intégré |
@@ -125,7 +125,7 @@ Tant que WF-INTF-0010 est ouverte, deux autres corrections s'imposent. Son corps
 
 **Proposition.** Ajouter au §3.4.5.2 une exigence qui énumère les paramètres requis, et faire renvoyer WF-CYC-0040 à son identifiant : « dès que ses paramètres requis (WF-PRJ-0010) sont renseignés ». Les éléments connus à ce jour sont le taux d'inflation et les codes de sous-projets. Le lotissement n'en fait pas partie, puisqu'il a une valeur par défaut. L'auteur a indiqué que la liste en comporte d'autres. Le code `PRJ` est une proposition : il faut l'ajouter au §1.4.2.
 
-**Statut.** reporté : inscrit en PO-03
+**Statut.** sans objet : l'état Initialisé et WF-CYC-0040 ont été retirés (C-028), et PO-03 ne figure plus en annexe D
 
 ---
 

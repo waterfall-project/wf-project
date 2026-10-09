@@ -1,0 +1,15 @@
+{
+  "summary": "Le même plan de charge sur les montants réestimés de la révision marquée « Référence », nommée par revision_id, à son marquage, aucune tâche n'étant terminée : l'ingénieur électricien, 132,50 h de mai 2026 à décembre 2026, en regard de sa capacité de 658 654,00 h par mois ; le technicien de mise en service, 120,00 h de juillet 2026 à janvier 2027, en regard de sa capacité de 485 324,00 h par mois ; le monteur câbleur, sans charge, avec sa capacité seule (WF-DEV-0070).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000101","revision_status":"marked","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "basis": "marked_remaining",
+    "org_node_id": null,
+    "org_node_label": null,
+    "roles": [
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","org_node_id":"01926f3a-7c00-7000-8000-000000000471","capacity_monthly_hours":"658654","months":[{"month":"2026-05","hours":"5.95","zone":"nominal"},{"month":"2026-06","hours":"6.55","zone":"nominal"},{"month":"2026-07","hours":"22.44","zone":"nominal"},{"month":"2026-08","hours":"20.49","zone":"nominal"},{"month":"2026-09","hours":"21.46","zone":"nominal"},{"month":"2026-10","hours":"21.46","zone":"nominal"},{"month":"2026-11","hours":"20.49","zone":"nominal"},{"month":"2026-12","hours":"13.66","zone":"nominal"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","label":"Technicien de mise en service","org_node_id":"01926f3a-7c00-7000-8000-000000000471","capacity_monthly_hours":"485324","months":[{"month":"2026-07","hours":"7.48","zone":"nominal"},{"month":"2026-08","hours":"6.83","zone":"nominal"},{"month":"2026-09","hours":"7.15","zone":"nominal"},{"month":"2026-10","hours":"7.16","zone":"nominal"},{"month":"2026-11","hours":"6.83","zone":"nominal"},{"month":"2026-12","hours":"76.55","zone":"nominal"},{"month":"2027-01","hours":"8","zone":"nominal"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"216662.5","months":[]}
+    ]
+  }
+}

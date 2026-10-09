@@ -1,0 +1,16 @@
+{
+  "summary": "L'autre issue du marquage de la révision courante demandé à 14 h 05 : échoué à 14 h 07, un rôle de la révision n'a pas de taux horaire pour l'année de ses charges.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000931",
+    "kind": "revision_mark",
+    "status": "failed",
+    "progress": 40,
+    "submitted_at": "2026-06-03T14:05:00Z",
+    "finished_at": "2026-06-03T14:07:00Z",
+    "problem": {
+      "code": "HOURLY_RATE_MISSING",
+      "status": 422
+    },
+    "result_url": null
+  }
+}

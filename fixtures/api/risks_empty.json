@@ -1,0 +1,13 @@
+{
+  "summary": "Un registre sans risque, ou dont les filtres n'en retiennent aucun : des totaux nuls (WF-RIS-0040).",
+  "value": {
+    "items": [],
+    "totals": {
+      "identified": "0.00",
+      "occurred": "0.00",
+      "dismissed": "0.00",
+      "total": "0.00",
+      "reserve": "0.00"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "summary": "La nature des débours désactivée depuis la version lue : elle n'est plus proposée à la saisie, reste lisible là où elle est employée, offre sa réactivation, et la modification de son type reste indisponible (WF-REF-0010, WF-REF-0150, WF-REF-0030).",
+  "value": {
+    "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
+    "code": "DEB",
+    "label": "Débours",
+    "kind": "non_labor",
+    "is_active": false,
+    "available_commands": [
+      {
+        "command": "reactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "change_kind",
+        "is_available": false,
+        "missing_conditions": [
+          "cost_type_unused"
+        ]
+      }
+    ],
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

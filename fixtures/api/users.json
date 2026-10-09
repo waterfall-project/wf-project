@@ -1,0 +1,308 @@
+{
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
+  "value": {
+    "items": [
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000302",
+        "last_name": "Bernard",
+        "first_name": "Dominique",
+        "email": "dominique.bernard@example.com",
+        "is_active": true,
+        "origin": "directory",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000702"
+        ],
+        "access_role_labels": [
+          "Manager"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "platform"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000304",
+        "last_name": "Lefèvre",
+        "first_name": "Sacha",
+        "email": "sacha.lefevre@example.com",
+        "is_active": true,
+        "origin": "identity_provider",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [],
+        "access_role_labels": [],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2026-03-12T08:30:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-03-12T08:30:00Z",
+          "updated_by": {
+            "kind": "platform"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "last_name": "Martin",
+        "first_name": "Camille",
+        "email": "camille.martin@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000701"
+        ],
+        "access_role_labels": [
+          "Direction de projet"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "last_administrator"
+            ]
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-06-03T14:05:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 3
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "last_name": "Moreau",
+        "first_name": "Alix",
+        "email": "alix.moreau@example.com",
+        "is_active": false,
+        "origin": "local",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+        "org_node_label": "Bureau d'études électricité",
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000703"
+        ],
+        "access_role_labels": [
+          "Chef de projet"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2026-01-12T10:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-03-02T16:20:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 4
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000305",
+        "last_name": "Petit",
+        "first_name": "Lucas",
+        "email": "lucas.petit@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000705"
+        ],
+        "access_role_labels": [
+          "Chiffreur"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-11-03T08:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-11-03T08:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000306",
+        "last_name": "Roux",
+        "first_name": "Inès",
+        "email": "ines.roux@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000706"
+        ],
+        "access_role_labels": [
+          "Pilotage de projet"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2026-01-15T10:30:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-01-15T10:30:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000307",
+        "last_name": "Vidal",
+        "first_name": "Noé",
+        "email": "noe.vidal@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000707"
+        ],
+        "access_role_labels": [
+          "Auditeur"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-10-06T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-10-06T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 7
+    }
+  }
+}

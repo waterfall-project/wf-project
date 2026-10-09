@@ -16,6 +16,7 @@ Project:
     - state
     - inflation_rate
     - win_probability
+    - available_commands
     - audit
     - lock_version
   properties:
@@ -45,8 +46,172 @@ Project:
     current_revision_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Révision en cours d'élaboration, s'il en existe une (WF-REV-0010).
+    available_commands:
+      type: array
+      description: >-
+        Commandes du projet que l'appelant a la permission d'exercer, chacune
+        disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une
+        commande absente de la liste n'est pas présentée. Seule exception, décidée par
+        l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un
+        devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
+        celle de créer une révision, indisponible, `may_create_revision` manquante.
+      items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ProjectListMeta:
+  description: >-
+    Où se tient la page dans les projets retenus, et les états retenus : ceux que la requête
+    nomme (`states`), ou, quand elle n'en nomme aucun, ceux du défaut, les projets en cours
+    (WF-PTF-0010), dans l'ordre de `ProjectState`. L'écran montre ainsi le filtre d'état que le
+    serveur a appliqué, sans le deviner (WF-IHM-0130).
+  allOf:
+    - $ref: ../common.yaml#/PaginationMeta
+    - type: object
+      required: [states]
+      properties:
+        states:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/ProjectState' }
+
+CommandCondition:
+  type: string
+  description: >-
+    Condition qu'une commande exige, nommée par le serveur quand elle manque, et
+    rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+    `is_project_manager` manque à qui n'est que contributeur pour une action structurante
+    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
+    `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
+    — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
+    soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
+    Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
+    saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un
+    différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les
+    imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles.
+    Pendant l'application d'un import de planning, de devis ou de reste à engager
+    (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
+    qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
+    dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`,
+    `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration
+    d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un
+    import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
+    coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090,
+    WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
+    cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une
+    commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
+    (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la
+    déclaration d'un
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
+    l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
+    manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
+    transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est
+    pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
+    cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son
+    409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme
+    (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le
+    parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé
+    (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant
+    qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans
+    leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme
+    (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une
+    nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans
+    son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme
+    (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une
+    nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des
+    taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409.
+    Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de
+    provision des risques prennent la catégorie (WF-REF-0030, #578) :
+    `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la
+    dernière nature provision active à porter une catégorie active, et
+    `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un
+    autre type de la seule catégorie active des natures provision actives ; les opérations
+    d'activation et de modification les nomment dans leur 409.
+    Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
+    `last_administrator` manque à la désactivation du dernier compte actif qui porte les
+    permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
+    `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
+    `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+  enum:
+    - is_contributor
+    - is_project_manager
+    - project_not_terminal
+    - project_in_progress
+    - project_in_pricing
+    - project_code_set
+    - reference_revision_designated
+    - at_least_one_task
+    - at_least_one_estimate_line
+    - no_current_revision
+    - revision_draft
+    - revision_marked
+    - reference_correctable
+    - unmerged_amendment_exists
+    - task_not_completed
+    - hourly_rates_set
+    - no_background_task_running
+    - may_create_revision
+    - risk_not_cited
+    - risk_not_occurred
+    - risk_identified
+    - org_node_parent_active
+    - org_node_active
+    - calendar_not_default
+    - cost_type_unused
+    - cost_category_unused
+    - cost_category_unrated
+    - cost_type_not_last_provision
+    - cost_category_not_last_provision
+    - last_administrator
+
+ProjectCommand:
+  type: string
+  enum:
+    - update
+    - manage_contributors
+    - create_revision
+    - complete
+    - lose
+    - abandon
+    - edit_risks
+    - declare_risk_occurrence
+    - import_actual_costs
+    - exclude_cost_lines
+    - import_planning
+    - import_estimate
+    - import_remaining
+  description: >-
+    Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
+    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
+    survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
+    fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
+    (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
+    `reference_revision_designated`, `no_background_task_running`), celles du risque sur le
+    risque (`RiskCommand.declare_occurrence`) ; importer les
+    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
+    planning MS Project, un devis, un reste à engager — une commande par nature, chacune
+    gardée par sa permission —, que l'import applique à la révision en cours et crée au
+    besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
+    révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
+    La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`,
+    WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
+    porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
+    marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
+    et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
+    est en cours, la commande n'est plus listée sur le projet, mais sur elle.
+
+ProjectCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/ProjectCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: '#/CommandCondition' }
 
 ProjectSummary:
   type: object
@@ -85,15 +250,21 @@ ProjectUpdate:
 
 StateTransition:
   type: object
-  required: [from_state, to_state, occurred_at, actor]
+  required: [from_state, to_state, occurred_at, actor, reason]
   description: >-
-    Transition datée du jour où elle s'est produite, non modifiable (WF-CYC-0130).
+    Transition datée du jour où elle s'est produite, avec son auteur et, pour une sortie
+    manuelle, le motif donné à sa confirmation ; non modifiable (WF-CYC-0130).
   properties:
     from_state:
       anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
     to_state: { $ref: '#/ProjectState' }
     occurred_at: { $ref: ../common.yaml#/Timestamp }
     actor: { $ref: ../common.yaml#/ActorRef }
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Motif donné à la sortie manuelle qui a produit la transition (WF-CYC-0090) ; nul
+        pour une transition automatique ou une sortie confirmée sans motif.
 
 NextState:
   type: object
@@ -111,13 +282,7 @@ NextState:
     missing_conditions:
       type: array
       description: Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050).
-      items:
-        type: string
-        enum:
-          - reference_revision_designated
-          - at_least_one_task
-          - at_least_one_estimate_line
-          - project_code_set
+      items: { $ref: '#/CommandCondition' }
 
 ProjectExit:
   type: object
@@ -136,18 +301,42 @@ ProjectExit:
       description: 'Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090.'
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
 
 WorkBreakdown:
   type: object
   required: [order_items, lock_version]
   description: >-
     Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son
-    absence, un poste, un lot, aucun livrable (WF-PRJ-0020).
+    absence, un poste, un lot, aucun livrable (WF-PRJ-0020). Le lotissement entier, que
+    `setWorkBreakdown` écrit et rend.
   properties:
     order_items:
       type: array
       items: { $ref: '#/OrderItem' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du lotissement lu entier (`WorkBreakdownReading.lock_version`) ; nul — celui
+        d'une lecture filtrée —, la saisie est refusée par 422, périmé par 412 (WF-IHM-0110).
+
+WorkBreakdownReading:
+  type: object
+  required: [order_items, lock_version]
+  description: >-
+    Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en
+    retiennent (WF-PRJ-0020, WF-IHM-0130).
+  properties:
+    order_items:
+      type: array
+      items: { $ref: '#/OrderItem' }
+    lock_version:
+      anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
+      description: >-
+        Le compteur du lotissement, que `setWorkBreakdown` exige, rendu par la seule lecture
+        entière ; nul pour une lecture filtrée (`search` ou `kinds`), qui omet des éléments : la
+        renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur
+        nul l'en empêche (422).
 
 OrderItem:
   type: object
@@ -175,6 +364,14 @@ Deliverable:
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
+
+WorkBreakdownKind:
+  type: string
+  enum: [order_item, work_package, deliverable]
+  description: >-
+    Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot,
+    livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que
+    `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
 
 Subproject:
   type: object
@@ -208,25 +405,74 @@ SubprojectUpdate:
       properties:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
+ContributorKind:
+  type: string
+  enum: [project_manager, contributor]
+  description: >-
+    Qualité d'un contributeur : chef de projet ou contributeur. Les actions structurantes
+    du catalogue et le paramétrage du projet sont réservés à ses chefs de projet, la
+    saisie à tous ses contributeurs (WF-PRJ-0060, WF-ADM-0110).
+
 Contributor:
   type: object
-  required: [user_id, display_name]
+  required: [user_id, display_name, kind, is_active]
   description: >-
-    Contributeur d'un projet. Toute saisie y est réservée aux contributeurs ; la
-    consultation ne dépend que des habilitations (WF-PRJ-0060).
+    Contributeur d'un projet, avec sa qualité. La consultation et la saisie sur un projet
+    sont réservées à ses contributeurs, chacune sous sa permission ; la permission
+    « consulter tous les projets » ouvre à la consultation les projets dont l'utilisateur
+    n'est pas contributeur (WF-PRJ-0060).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name: { type: string }
-    is_active: { type: boolean }
+    kind: { $ref: '#/ContributorKind' }
+    is_active:
+      type: boolean
+      description: >-
+        Faux pour un compte désactivé depuis son inscription, que la liste garde et signale
+        (WF-ADM-0060). Toujours rendu : l'écran ne devine rien d'une valeur absente.
+
+ContributorList:
+  type: object
+  required: [items, lock_version]
+  description: >-
+    La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste :
+    la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux
+    d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110).
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/Contributor' }
+    lock_version:
+      anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
+      description: >-
+        Le compteur de la liste, que `setContributors` exige tel qu'il a été lu, rendu par une
+        lecture de la liste entière, triée ou non ; nul pour une lecture filtrée (`search`,
+        `kinds`, `is_active`), qui omet des contributeurs : écrite telle quelle, la liste les
+        retirerait, et le compteur nul l'empêche (422).
+
+ContributorWrite:
+  type: object
+  required: [user_id, kind]
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    kind: { $ref: '#/ContributorKind' }
 
 ContributorsWrite:
   type: object
-  required: [user_ids, lock_version]
+  required: [contributors, lock_version]
+  description: >-
+    La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet
+    (WF-PRJ-0060).
   properties:
-    user_ids:
+    contributors:
       type: array
-      items: { $ref: ../common.yaml#/Uuid }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+      minItems: 1
+      items: { $ref: '#/ContributorWrite' }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la liste lue entière (`ContributorList.lock_version`) ; nul — celui d'une
+        lecture filtrée —, la liste est refusée par 422 ; périmé, par 412 (WF-IHM-0110).
 
 ContributorSuggestion:
   type: object

@@ -15,3 +15,45 @@ rules:
   operation-description: error
   no-unresolved-refs: error
   security-defined: error
+  # Une liste de la requête s'écrit en un seul paramètre, ses valeurs séparées par des
+  # virgules (`explode: false`, README, « Conventions ») : un paramètre de tableau qui ne le
+  # déclare pas, ou qui déclare `explode: true`, est refusé.
+  rule/array-parameter-explode-declared:
+    subject:
+      type: Schema
+      property: type
+    where:
+      - subject:
+          type: Parameter
+          property: explode
+        assertions:
+          defined: false
+    assertions:
+      notPattern: '^array$'
+    message: 'Un paramètre de tableau déclare `explode: false`.'
+  rule/array-parameter-not-exploded:
+    subject:
+      type: Parameter
+      property: explode
+    assertions:
+      const: false
+    message: 'Un paramètre déclare `explode: false`, jamais `explode: true`.'
+
+  # Toute opération gardée par la session peut répondre 401 — session absente, expirée ou
+  # révoquée (WF-SEC-0020) —, et le contrat déclare toute erreur qu'un client peut rencontrer
+  # (WF-ARC-0060) : une opération qui ne déclare pas `security: []` déclare sa 401. La règle
+  # ne voit qu'un `security` absent — la session héritée de la racine — : une opération
+  # publique le dit par `security: []`, et aucune n'écrit `security: [{ session: [] }]`, que
+  # la règle ne verrait pas.
+  rule/session-operation-declares-401:
+    subject:
+      type: Responses
+    where:
+      - subject:
+          type: Operation
+          property: security
+        assertions:
+          defined: false
+    assertions:
+      required: ['401']
+    message: 'Une opération gardée par la session déclare `401`.'

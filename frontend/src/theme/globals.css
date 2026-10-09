@@ -1,0 +1,178 @@
+/*
+ * SPDX-FileCopyrightText: 2026 waterfall-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * The graphic charter of the front: every colour, font, spacing and radius is a token here,
+ * and nowhere else (guide, « Charte graphique »). Tailwind and the components of shadcn/ui
+ * read them through the theme below; a component names a token (`bg-primary`), never a
+ * colour.
+ *
+ * The blues come from the logos of docs/assets (#027dc6, #1195e1), the neutrals from
+ * shadcn/ui. Each colour token holds its light and its dark value side by side, by
+ * `light-dark()`: the document follows the workstation (`color-scheme: light dark`), and the
+ * shell forces a mode with `data-theme` when the account asks for one. No component asks
+ * which mode shows: the `dark:` variant of Tailwind, which would follow the workstation
+ * alone, is refused by the linter. Every pair of text and background reaches the contrast
+ * of WCAG AA in both modes, which contrast.test.ts checks.
+ */
+@import "tailwindcss";
+
+/* No colour but the tokens: the default palette of Tailwind is withdrawn, so that a class
+   such as `bg-blue-500` produces nothing. */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --background: light-dark(#ffffff, #0a0a0a);
+  --foreground: light-dark(#0a0a0a, #fafafa);
+  --card: light-dark(#ffffff, #171717);
+  --card-foreground: light-dark(#0a0a0a, #fafafa);
+  /* The deep blue of the logo, darkened in light mode to carry white text at AA. */
+  --primary: light-dark(#0270b3, #1195e1);
+  --primary-foreground: light-dark(#ffffff, #0a0a0a);
+  /* A primary control under the pointer: darker in light mode, lighter in dark mode. */
+  --primary-hover: light-dark(#02609a, #3aa9ea);
+  --secondary: light-dark(#f5f5f5, #262626);
+  --secondary-foreground: light-dark(#171717, #fafafa);
+  --muted: light-dark(#f5f5f5, #262626);
+  --muted-foreground: light-dark(#6b6b6b, #a3a3a3);
+  --accent: light-dark(#e6f3fb, #0c2c40);
+  --accent-foreground: light-dark(#0a0a0a, #fafafa);
+  --destructive: light-dark(#b91c1c, #f87171);
+  --destructive-foreground: light-dark(#ffffff, #0a0a0a);
+  /* A border that only separates; the border of a field shows where to type, at 3:1. */
+  --border: light-dark(#e5e5e5, #2e2e2e);
+  --input: light-dark(#8c8c8c, #737373);
+  /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
+  --ring: light-dark(#027dc6, #1195e1);
+  /* The zones of a signal, one token each, drawn as the text and the icon of `Signal`. The
+     hues stay apart for a protanope and a deuteranope — green-blue, orange, red —, and the
+     lightness orders them in grey so that the alert stands out the most from the page in both
+     modes: the darkest in light mode, the lightest in dark mode, the nominal the least.
+     contrast.test.ts simulates the two views and measures the steps. */
+  --signal-nominal: light-dark(#1f756c, #07a1a3);
+  --signal-watch: light-dark(#923002, #f89228);
+  --signal-alert: light-dark(#6b1d24, #fdb299);
+  /* The states of a project (#523), each the fill of its badge and the text written on it, in
+     the palette the author chose: a light grey for created, a blue for pricing, a green for in
+     progress, a dark grey for completed, an orange for lost, a muted red for abandoned. A state
+     is a fill where a signal is a coloured text, and each stays apart from the zone of its hue, so
+     that a state is never read as an alert (contrast.test.ts). The colour never says a state alone: the badge
+     writes its word and draws its icon (`ProjectStateBadge`). */
+  --state-created: light-dark(#e5e5e5, #a3a3a3);
+  --state-created-foreground: light-dark(#262626, #0a0a0a);
+  --state-pricing: light-dark(#1d4ed8, #1e40af);
+  --state-pricing-foreground: light-dark(#ffffff, #fafafa);
+  --state-in-progress: light-dark(#15803d, #166534);
+  --state-in-progress-foreground: light-dark(#ffffff, #fafafa);
+  --state-completed: light-dark(#525252, #404040);
+  --state-completed-foreground: light-dark(#ffffff, #fafafa);
+  --state-lost: light-dark(#f97316, #9a3412);
+  --state-lost-foreground: light-dark(#0a0a0a, #fafafa);
+  --state-abandoned: light-dark(#b84d4d, #7a2e2e);
+  --state-abandoned-foreground: light-dark(#ffffff, #fafafa);
+  /* The series of a chart (US-0240), in the order a chart takes them: the blue of the logo,
+     then an amber, a purple and a green, apart in hue and told apart without their colour by
+     the symbol and the stroke of each series. Each draws on the page and on a card at 4.5:1. */
+  --chart-1: light-dark(#0270b3, #1195e1);
+  --chart-2: light-dark(#b45309, #f59e0b);
+  --chart-3: light-dark(#7e22ce, #c084fc);
+  --chart-4: light-dark(#047857, #34d399);
+  /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
+  /* The side bar of the shell: a neutral a step off the page, its current entry and the entry
+     under the pointer a step further, light enough to carry the muted text at AA. */
+  --sidebar: light-dark(#fafafa, #121212);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-accent: light-dark(#ededed, #262626);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  --radius: 0.5rem;
+  /* The widths of the side bar, unfolded and folded into a rail of icons. */
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-signal-nominal: var(--signal-nominal);
+  --color-signal-watch: var(--signal-watch);
+  --color-signal-alert: var(--signal-alert);
+  --color-state-created: var(--state-created);
+  --color-state-created-foreground: var(--state-created-foreground);
+  --color-state-pricing: var(--state-pricing);
+  --color-state-pricing-foreground: var(--state-pricing-foreground);
+  --color-state-in-progress: var(--state-in-progress);
+  --color-state-in-progress-foreground: var(--state-in-progress-foreground);
+  --color-state-completed: var(--state-completed);
+  --color-state-completed-foreground: var(--state-completed-foreground);
+  --color-state-lost: var(--state-lost);
+  --color-state-lost-foreground: var(--state-lost-foreground);
+  --color-state-abandoned: var(--state-abandoned);
+  --color-state-abandoned-foreground: var(--state-abandoned-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Geist, the typeface of the logo, loaded by the root layout; the system's until then. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+  --spacing: 0.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}

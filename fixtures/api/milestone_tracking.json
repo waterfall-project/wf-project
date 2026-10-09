@@ -1,0 +1,11 @@
+{
+  "summary": "Le diagramme temps/temps du projet au 3 juin 2026 : la réception des études, prévue au 24 avril 2026 par l'offre et par la référence, terminée ce jour-là, son dernier point sur la diagonale et aucun après ; la réception usine, ajoutée par l'avenant 1 — l'offre ne la porte pas —, prévue au 30 juin 2026 par la référence et toujours par la révision en cours : une horizontale. Aucune révision ne déplace un jalon (WF-IND-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "milestones": [
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000625","label":"Réception des études","completed_on":"2026-04-24","points":[{"marked_at":"2025-12-15T16:00:00Z","forecast_date":"2026-04-24"},{"marked_at":"2026-02-01T09:00:00Z","forecast_date":"2026-04-24"},{"marked_at":"2026-04-24T00:00:00Z","forecast_date":"2026-04-24"}]},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000656","label":"Réception usine","completed_on":null,"points":[{"marked_at":"2026-02-01T09:00:00Z","forecast_date":"2026-06-30"},{"marked_at":"2026-06-03T14:05:00Z","forecast_date":"2026-06-30"}]}
+    ]
+  }
+}

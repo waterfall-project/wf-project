@@ -11,7 +11,7 @@ import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 from wftools import REPOSITORY
 
@@ -64,22 +64,42 @@ class Excepted:
 
 
 @dataclass(frozen=True, slots=True)
+class Tests:
+    """A family of tests — front, end-to-end, back, tools — and the paths that hold them."""
+
+    name: str
+    paths: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Declaration:
     """Everything ``tools/paths.toml`` declares."""
 
     shared: tuple[str, ...]
     families: tuple[Family, ...]
     generated: tuple[Generated, ...]
-    tests: tuple[str, ...]
+    tests: tuple[Tests, ...]
     exceptions: tuple[Excepted, ...] = ()
+
+    @property
+    def test_families(self) -> tuple[str, ...]:
+        """The names of the families of tests, in declaration order."""
+        return tuple(family.name for family in self.tests)
+
+    def test_family(self, path: str) -> str | None:
+        """Return the family of tests this path belongs to — the first that matches — if any."""
+        for family in self.tests:
+            if matches(path, family.paths):
+                return family.name
+        return None
 
     def is_generated(self, path: str) -> bool:
         """Whether a tool writes this path."""
         return any(matches(path, entry.paths) for entry in self.generated)
 
     def is_test(self, path: str) -> bool:
-        """Whether this path holds tests."""
-        return matches(path, self.tests)
+        """Whether this path holds tests, whatever their family."""
+        return self.test_family(path) is not None
 
     def is_excepted(self, path: str) -> bool:
         """Whether this path is excepted, for a declared reason, from the rules of sources."""
@@ -105,8 +125,7 @@ def parse(text: str) -> Declaration:
     generated = tuple(
         _generated(number, entry) for number, entry in enumerate(data.get("generated", []), start=1)
     )
-    tests = data.get("tests", {})
-    _only(tests, {"paths"}, "[tests]")
+    tests = tuple(_tests(name, entry) for name, entry in data.get("tests", {}).items())
     exceptions = tuple(
         _exception(number, entry)
         for number, entry in enumerate(data.get("exceptions", []), start=1)
@@ -115,7 +134,7 @@ def parse(text: str) -> Declaration:
         shared=tuple(data.get("shared", ())),
         families=families,
         generated=generated,
-        tests=tuple(tests.get("paths", ())),
+        tests=tests,
         exceptions=exceptions,
     )
 
@@ -136,6 +155,15 @@ def _family(name: str, entry: dict[str, Any]) -> Family:
         message = f"family {name} needs either paths or always = true, not both"
         raise DeclarationError(message)
     return Family(name=name, target=entry["target"], paths=paths, always=always)
+
+
+def _tests(name: str, entry: Any) -> Tests:
+    items = cast("list[object]", entry) if isinstance(entry, list) else []
+    patterns = tuple(item for item in items if isinstance(item, str))
+    if not patterns or len(patterns) != len(items):
+        message = f"[tests] {name}: needs a non-empty list of paths"
+        raise DeclarationError(message)
+    return Tests(name=name, paths=patterns)
 
 
 def _generated(number: int, entry: dict[str, Any]) -> Generated:

@@ -1,0 +1,39 @@
+{
+  "summary": "La catégorie « Petites fournitures » créée aujourd'hui sous la nature des débours, son code comptable 606001, active, sa désactivation offerte et son rattachement à une nature d'un autre type disponible, aucune ligne ne l'employant ni aucun taux ne lui étant attaché (WF-REF-0040, WF-IHM-0090).",
+  "value": {
+    "cost_category_id": "01926f3a-7c00-7000-8000-000000000406",
+    "code": "FRN-001",
+    "label": "Petites fournitures",
+    "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
+    "cost_type_label": "Débours",
+    "accounting_code": "606001",
+    "is_active": true,
+    "available_commands": [
+      {
+        "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "change_cost_type",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2026-06-03T14:05:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 1
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "summary": "Le catalogue des permissions, livré : la consultation et la modification de chacune des vingt-quatre fonctions de second niveau, dans l'ordre de l'arborescence, et la consultation du journal d'audit après celles de l'administration — la fonction que #518 propose d'ajouter sous elle, FBS-1.5, sans permission de modifier un journal qui ne se modifie pas (WF-SEC-0030) —, puis les huit actions irréversibles — marquer, abandonner, désigner la référence, fusionner un différentiel, sortir du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer — et les deux permissions structurantes, créer un projet et consulter tous les projets (WF-ADM-0100).",
+  "value": [
+    {
+      "code": "users.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.1"
+    },
+    {
+      "code": "users.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-1.1"
+    },
+    {
+      "code": "access_roles.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.2"
+    },
+    {
+      "code": "access_roles.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-1.2"
+    },
+    {
+      "code": "system_status.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.3"
+    },
+    {
+      "code": "system_status.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-1.3"
+    },
+    {
+      "code": "backups.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.4"
+    },
+    {
+      "code": "backups.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-1.4"
+    },
+    {
+      "code": "audit_log.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.5"
+    },
+    {
+      "code": "portfolio_projects.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.1"
+    },
+    {
+      "code": "portfolio_projects.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.1"
+    },
+    {
+      "code": "portfolio_workload.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.2"
+    },
+    {
+      "code": "portfolio_workload.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.2"
+    },
+    {
+      "code": "portfolio_performance.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.3"
+    },
+    {
+      "code": "portfolio_performance.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.3"
+    },
+    {
+      "code": "portfolio_cost_structure.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.4"
+    },
+    {
+      "code": "portfolio_cost_structure.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.4"
+    },
+    {
+      "code": "portfolio_risks.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.5"
+    },
+    {
+      "code": "portfolio_risks.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.5"
+    },
+    {
+      "code": "portfolio_cost_curve.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.6"
+    },
+    {
+      "code": "portfolio_cost_curve.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.6"
+    },
+    {
+      "code": "portfolio_pilot_health.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-2.7"
+    },
+    {
+      "code": "portfolio_pilot_health.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-2.7"
+    },
+    {
+      "code": "cost_settings.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-3.1"
+    },
+    {
+      "code": "cost_settings.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-3.1"
+    },
+    {
+      "code": "resource_settings.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-3.2"
+    },
+    {
+      "code": "resource_settings.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-3.2"
+    },
+    {
+      "code": "risk_settings.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-3.3"
+    },
+    {
+      "code": "risk_settings.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-3.3"
+    },
+    {
+      "code": "indicator_settings.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-3.4"
+    },
+    {
+      "code": "indicator_settings.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-3.4"
+    },
+    {
+      "code": "revisions.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.1"
+    },
+    {
+      "code": "revisions.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.1"
+    },
+    {
+      "code": "project_settings.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.2"
+    },
+    {
+      "code": "project_settings.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.2"
+    },
+    {
+      "code": "planning.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.3"
+    },
+    {
+      "code": "planning.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.3"
+    },
+    {
+      "code": "estimate.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.4"
+    },
+    {
+      "code": "estimate.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.4"
+    },
+    {
+      "code": "remaining.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.5"
+    },
+    {
+      "code": "remaining.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.5"
+    },
+    {
+      "code": "risks.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.6"
+    },
+    {
+      "code": "risks.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.6"
+    },
+    {
+      "code": "actual_costs.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.7"
+    },
+    {
+      "code": "actual_costs.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.7"
+    },
+    {
+      "code": "project_indicators.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.8"
+    },
+    {
+      "code": "project_indicators.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.8"
+    },
+    {
+      "code": "lifecycle.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-4.9"
+    },
+    {
+      "code": "lifecycle.write",
+      "kind": "function_write",
+      "fbs_code": "FBS-4.9"
+    },
+    {
+      "code": "revision_mark",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "revision_abandon",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "reference_designate",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "structure_merge",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "project_exit",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "risk_occurrence",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "cost_line_exclude",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "platform_restore",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "project_create",
+      "kind": "structuring",
+      "fbs_code": null
+    },
+    {
+      "code": "all_projects_read",
+      "kind": "structuring",
+      "fbs_code": null
+    }
+  ]
+}

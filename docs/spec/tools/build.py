@@ -56,10 +56,17 @@ RE_ANCHOR = re.compile(r'<span id="[^"]*" class="anchor"></span>')
 RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r"^<img\s+(?P<attrs>.*?)\s*/?>$", re.DOTALL)
 RE_ATTR = re.compile(r'(\w+)="([^"]*)"')
-# A revision mark of Word: an insertion, a deletion, a move, or a change of properties.
+# A revision mark of Word: an insertion, a deletion, a move, a change of properties, or
+# the insertion, deletion or merge of a table cell — the requirement tables carry those.
 # The word boundary keeps w:delText and w:instrText out.
-RE_TRACKED_CHANGE = re.compile(r"<w:(?:ins|del|moveFrom|moveTo|\w+Change)\b")
+RE_TRACKED_CHANGE = re.compile(
+    r"<w:(?:ins|del|moveFrom|moveTo|cellIns|cellDel|cellMerge|\w+Change)\b"
+)
 RE_COMMENT_THREAD = re.compile(r"<w15:commentEx\b[^>]*>")
+# The parts of the archive that hold text a reviewer may change: the body, the footnotes
+# and endnotes pandoc projects with it, and the headers and footers, which carry the
+# version and the date of the document.
+RE_REVIEWED_PART = re.compile(r"word/(?:document|footnotes|endnotes|header\d*|footer\d*)\.xml")
 PAIR = 2
 """A requirement table has two columns: the label, and the value."""
 
@@ -105,9 +112,11 @@ def pending_review_marks(docx: Path) -> list[str]:
     projection built from a document under review would present as adopted what
     its author has not accepted yet. Each message is a warning, so that --strict
     refuses to publish until the changes are accepted or rejected and the comment
-    threads resolved in Word. A thread is a comment without a parent; Word marks
-    it done in commentsExtended.xml, and a document that has comments but no such
-    part has them all open.
+    threads resolved in Word. Tracked changes are counted in every part a reviewer
+    may change, and the message names the parts that hold them. A thread is a
+    comment without a parent, wherever it is anchored; Word marks it done in
+    commentsExtended.xml, and a document that has comments but no such part has
+    them all open.
     """
     with zipfile.ZipFile(docx) as archive:
         names = set(archive.namelist())
@@ -115,15 +124,20 @@ def pending_review_marks(docx: Path) -> list[str]:
         def part(name: str) -> str:
             return archive.read(name).decode("utf-8") if name in names else ""
 
-        document = part("word/document.xml")
+        changes_by_part = {
+            name: len(RE_TRACKED_CHANGE.findall(part(name)))
+            for name in sorted(names)
+            if RE_REVIEWED_PART.fullmatch(name)
+        }
         comments = part("word/comments.xml")
         extended = part("word/commentsExtended.xml")
     messages: list[str] = []
-    changes = len(RE_TRACKED_CHANGE.findall(document))
+    changes = sum(changes_by_part.values())
     if changes:
+        where = ", ".join(f"{name}: {count}" for name, count in changes_by_part.items() if count)
         messages.append(
-            f"{changes} tracked change(s) pending in the Word document: accept or reject "
-            "them in Word before publishing — pandoc accepts them all silently"
+            f"{changes} tracked change(s) pending in the Word document ({where}): accept or "
+            "reject them in Word before publishing — pandoc accepts them all silently"
         )
     if extended:
         threads = [
@@ -279,12 +293,33 @@ def load_figure_config(path: Path) -> list[FigureEntry]:
 
 
 @dataclass(frozen=True, slots=True)
+class Images:
+    """Where the images kept as they are go: staged first, published with the projection.
+
+    A strict build that refuses to write the projection must not touch the images beside
+    it either: the conversion copies them into ``staging``, and only ``publish`` moves them
+    into ``folder``, which the projection's links point to.
+    """
+
+    folder: Path
+    staging: Path
+
+    def publish(self) -> None:
+        """Move the staged images beside the projection."""
+        staged = sorted(path for path in self.staging.iterdir() if path.is_file())
+        if staged:
+            self.folder.mkdir(parents=True, exist_ok=True)
+        for path in staged:
+            shutil.move(path, self.folder / path.name)
+
+
+@dataclass(frozen=True, slots=True)
 class _Figures:
     """What every figure of the document is converted with."""
 
     drawio: Path
     pages: dict[str, drawio2mermaid.Element]
-    images_folder: Path
+    images: Images
     notes: BuildNotes
 
 
@@ -338,19 +373,19 @@ def _figure(
             f"{caption}: no Mermaid source (no matching entry in tools/figures.toml) "
             "— the image is kept as it is"
         )
-    return keep_image(attributes, caption, figures.images_folder)
+    return keep_image(attributes, caption, figures.images)
 
 
 def convert_figures(
     lines: list[str],
     drawio: Path,
     config: list[FigureEntry],
-    images_folder: Path,
+    images: Images,
     notes: BuildNotes,
 ) -> list[str]:
     """Replace every <img> with a Mermaid block, or keep the image when there is none."""
     pages = drawio2mermaid.load_pages(drawio) if drawio.exists() else {}
-    figures = _Figures(drawio, pages, images_folder, notes)
+    figures = _Figures(drawio, pages, images, notes)
     output: list[str] = []
     i = 0
     while i < len(lines):
@@ -404,15 +439,13 @@ def find_config_entry(config: list[FigureEntry], caption: str) -> FigureEntry | 
     return max(candidates, key=lambda e: len(e.get("legende", "")), default=None)
 
 
-def keep_image(attributes: dict[str, str], caption: str, images_folder: Path) -> list[str]:
-    """Copy an image beside the projection, and return the Markdown that shows it."""
+def keep_image(attributes: dict[str, str], caption: str, images: Images) -> list[str]:
+    """Stage an image to go beside the projection, and return the Markdown that shows it."""
     source = Path(attributes.get("src", ""))
     if not source.exists():
         return [f"<!-- image manquante : {source} -->"]
-    images_folder.mkdir(parents=True, exist_ok=True)
-    destination = images_folder / source.name
-    shutil.copy2(source, destination)
-    path = destination.relative_to(ROOT).as_posix()
+    shutil.copy2(source, images.staging / source.name)
+    path = (images.folder / source.name).relative_to(ROOT).as_posix()
     return [f"![{caption or source.name}]({path})"]
 
 
@@ -629,6 +662,7 @@ def validate_mermaid(lines: list[str], notes: BuildNotes) -> None:
         notes.warn("mmdc missing: Mermaid diagrams are not validated", "info")
         return
     blocks = _mermaid_blocks(lines)
+    failed = 0
     with tempfile.TemporaryDirectory() as temporary:
         folder = Path(temporary)
         for n, block in enumerate(blocks, 1):
@@ -641,38 +675,31 @@ def validate_mermaid(lines: list[str], notes: BuildNotes) -> None:
                 check=False,
             )
             if result.returncode != 0:
+                failed += 1
                 first_lines = (result.stderr or result.stdout).strip().split("\n")
                 notes.warn(
                     f"Mermaid diagram no. {n} does not compile: " + " ".join(first_lines[:3])
                 )
-    notes.warn(f"{len(blocks)} Mermaid diagram(s) validated by mmdc", "info")
-
-
-def main() -> int:
-    """Regenerate the projection; with --strict, fail on any warning."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--docx", default="stb-waterfall.docx")
-    parser.add_argument("--drawio", default="waterfall.visuels.drawio")
-    parser.add_argument("--output", default="waterfall-spec.md")
-    parser.add_argument("--config", default="tools/figures.toml")
-    parser.add_argument("--strict", action="store_true", help="fail if any warning is emitted")
-    parser.add_argument(
-        "--verbose", action="store_true", help="also print the traceability messages"
+    notes.warn(
+        f"{len(blocks) - failed} of {len(blocks)} Mermaid diagram(s) validated by mmdc, "
+        f"{failed} failed",
+        "info",
     )
-    arguments = parser.parse_args()
 
-    docx = ROOT / arguments.docx
-    drawio = ROOT / arguments.drawio
-    output_path = ROOT / arguments.output
-    if not docx.exists():
-        print(f"Word source not found: {docx}", file=sys.stderr)
-        return 1
 
-    notes = BuildNotes(verbose=arguments.verbose)
-    config = load_figure_config(ROOT / arguments.config)
-    for message in pending_review_marks(docx):
-        notes.warn(message)
+@dataclass(frozen=True, slots=True)
+class Projection:
+    """The text of the projection, and what its summary line counts."""
 
+    text: str
+    lines: int
+    requirements: int
+
+
+def project(
+    docx: Path, drawio: Path, config: list[FigureEntry], images: Images, notes: BuildNotes
+) -> Projection:
+    """Return the projection, its images staged, noting every warning the conversion emits."""
     with tempfile.TemporaryDirectory() as temporary:
         readable = Path(temporary) / docx.name
         unwrapped = unwrap_simple_fields(docx, readable)
@@ -689,22 +716,72 @@ def main() -> int:
         lines = drop_table_of_contents(lines)
         lines = [RE_ANCHOR.sub("", line) for line in lines]
         lines = number_headings(lines, word_numbers, unnumbered, notes)
-        lines = convert_figures(lines, drawio, config, ROOT / "images", notes)
+        lines = convert_figures(lines, drawio, config, images, notes)
 
     lines = html_tables_to_pipe(lines)
     lines, requirements = convert_requirements(lines, notes)
     lines = replace_requirement_index(lines, requirements)
     lines = tidy(lines)
     validate_mermaid(lines, notes)
+    text = "\n".join(front_matter(docx, drawio, len(requirements)) + lines) + "\n"
+    return Projection(text, len(lines), len(requirements))
 
-    output_path.write_text(
-        "\n".join(front_matter(docx, drawio, len(requirements)) + lines) + "\n",
-        encoding="utf-8",
-    )
-    print(f"{output_path.relative_to(ROOT)} — {len(lines)} lines, {len(requirements)} requirements")
+
+def refuse(notes: BuildNotes, output: str, reason: str) -> int:
+    """Report the warnings, say the projection is left as it was, and fail."""
     notes.report()
-    if notes.warnings and arguments.strict:
+    print(f"{output} left untouched: {reason}", file=sys.stderr)
+    return 1
+
+
+def main() -> int:
+    """Regenerate the projection; with --strict, fail on any warning and leave it as it was."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--docx", default="stb-waterfall.docx")
+    parser.add_argument("--drawio", default="waterfall.visuels.drawio")
+    parser.add_argument("--output", default="waterfall-spec.md")
+    parser.add_argument("--config", default="tools/figures.toml")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail if any warning is emitted, leaving the projection untouched",
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="also print the traceability messages"
+    )
+    arguments = parser.parse_args()
+
+    docx = ROOT / arguments.docx
+    drawio = ROOT / arguments.drawio
+    output_path = ROOT / arguments.output
+    if not docx.exists():
+        print(f"Word source not found: {docx}", file=sys.stderr)
         return 1
+
+    notes = BuildNotes(verbose=arguments.verbose)
+    config = load_figure_config(ROOT / arguments.config)
+    marks = pending_review_marks(docx)
+    for message in marks:
+        notes.warn(message)
+    if marks and arguments.strict:
+        # The previous projection stays as it is: it was built from an accepted document,
+        # and the one pandoc would build now would present as adopted what is not yet.
+        return refuse(notes, arguments.output, "the Word document is still under review")
+
+    with tempfile.TemporaryDirectory() as staging:
+        images = Images(ROOT / "images", Path(staging))
+        projection = project(docx, drawio, config, images, notes)
+        if notes.warnings and arguments.strict:
+            # A strict build publishes nothing it warns about: the previous projection and
+            # its images stay, rather than a projection with a figure, a number or a
+            # diagram missing.
+            return refuse(notes, arguments.output, "the conversion emitted warnings")
+        # The images first: one published for nothing breaks no link, a projection published
+        # without its images does.
+        images.publish()
+        output_path.write_text(projection.text, encoding="utf-8")
+    print(f"{arguments.output} — {projection.lines} lines, {projection.requirements} requirements")
+    notes.report()
     return 0
 
 

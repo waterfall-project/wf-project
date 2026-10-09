@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The interface contract: it lints, and its inventory is the one it produces.
+# The interface contract: it lints, its inventory is the one it produces, and the volumes
+# its examples cite are the ones make mock-data writes.
 name: contract
 
 on:

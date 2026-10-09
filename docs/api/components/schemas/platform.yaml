@@ -2,7 +2,7 @@
 
 SystemStatus:
   type: object
-  required: [version, components, storage, alerts]
+  required: [version, components, storage, last_backup_copy, alerts]
   description: >-
     Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente
     que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010).
@@ -16,6 +16,15 @@ SystemStatus:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
     last_backup:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+    last_backup_copy:
+      anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+      description: >-
+        Date et résultat de la dernière copie externe d'une sauvegarde planifiée, que la
+        planification règle (`BackupSchedule.external_copy`) : la copie hors plateforme se
+        vérifie ainsi (WF-ADM-0170, WF-EXP-0050). Nulle quand aucune copie n'est réglée ou
+        n'a encore été faite. Le motif d'une copie échouée est dans l'alerte en cours
+        (`scheduled_backup_copy_failed`), et non dans `problem`, le catalogue des erreurs ne
+        nommant pas les refus d'un emplacement.
     last_restore_test:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130).
@@ -27,14 +36,19 @@ ComponentHealth:
   type: object
   required: [component, is_available, checked_at]
   properties:
-    component:
-      type: string
-      enum: [api, worker, database, cache, object_storage, directory, metrics]
+    component: { $ref: '#/PlatformComponent' }
     is_available: { type: boolean }
     checked_at: { $ref: ../common.yaml#/Timestamp }
     version:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Version du composant employé, annoncée par WF-CMP-0020.
+
+PlatformComponent:
+  type: string
+  description: >-
+    Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et
+    qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
+  enum: [api, worker, database, cache, object_storage, directory, metrics]
 
 StorageUsage:
   type: object
@@ -65,6 +79,7 @@ Alert:
         - component_unavailable
         - task_queue_stalled
         - scheduled_backup_failed
+        - scheduled_backup_copy_failed
         - directory_sync_failed
         - storage_nearly_full
         - error_rate_abnormal
@@ -72,7 +87,22 @@ Alert:
     severity: { $ref: reference.yaml#/AlertZone }
     params:
       type: object
-      additionalProperties: true
+      description: >-
+        Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant
+        indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace
+        libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où
+        l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée
+        que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif,
+        `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde
+        échouée et la synchronisation échouée disent leur motif dans `last_backup` et
+        `last_directory_sync`.
+      properties:
+        component: { $ref: '#/PlatformComponent' }
+        used_bytes: { type: integer, minimum: 0 }
+        available_bytes: { type: integer, minimum: 0 }
+        backup_id: { $ref: ../common.yaml#/Uuid }
+        location: { $ref: '#/ExternalBackupLocationName' }
+        failure: { $ref: '#/ExternalBackupFailure' }
 
 Backup:
   type: object
@@ -116,10 +146,151 @@ BackupSchedule:
     at_time:
       type: string
       pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      description: >-
+        Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la
+        plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que
+        soit le fuseau du poste qui la lit.
     weekday:
       anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
+      description: >-
+        Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le
+        dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
+        sauvegarde quotidienne.
     retained_count: { type: integer, minimum: 1, maximum: 365 }
+    external_copy:
+      allOf: [{ $ref: '#/BackupExternalCopy' }]
+      description: >-
+        La copie automatique de chaque sauvegarde planifiée vers un emplacement externe
+        (WF-ADM-0170) ; absente, aucune copie n'est réglée — une installation qui ne déclare
+        aucun emplacement n'en offre pas. Une planification enregistrée sans elle retire la
+        copie réglée.
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+BackupExternalCopy:
+  type: object
+  required: [is_enabled, location, path, retained_count]
+  description: >-
+    Copie externe automatique des sauvegardes planifiées (WF-ADM-0170) : après chaque
+    sauvegarde planifiée et vérifiée, le serveur la copie vers un emplacement que
+    l'installation déclare dans sa configuration de déploiement (`ExternalBackupLocation`),
+    nommé ici et jamais décrit : aucun identifiant ni secret ne se saisit à l'écran. L'échec
+    d'une copie est une alerte de l'état du système, comme celui de la sauvegarde
+    (`scheduled_backup_copy_failed`, WF-OBS-0030). Une sauvegarde manuelle se copie hors de la
+    plateforme par son téléchargement (WF-ADM-0150).
+  properties:
+    is_enabled:
+      type: boolean
+      description: >-
+        Faux, la copie est suspendue et son réglage gardé, comme `BackupSchedule.is_enabled`.
+    location:
+      allOf: [{ $ref: '#/ExternalBackupLocationName' }]
+      description: >-
+        Le nom d'un emplacement déclaré par l'installation (`listExternalBackupLocations`) ;
+        un nom qu'elle ne déclare pas est refusé par 422 `VALIDATION_FAILED`, motif
+        `UNKNOWN_EXTERNAL_BACKUP_LOCATION` sur `/external_copy/location`.
+    path:
+      allOf: [{ $ref: '#/ExternalBackupPath' }]
+      description: >-
+        Le dossier, ou le préfixe, où les copies sont écrites dans l'emplacement ; un chemin
+        qui n'est pas relatif ou qui sort du dossier est refusé par 422 `VALIDATION_FAILED`,
+        motif `PATH_INVALID` sur `/external_copy/path`.
+    retained_count:
+      type: integer
+      minimum: 1
+      maximum: 365
+      description: >-
+        Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées
+        sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées
+        hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre
+        moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur
+        `/external_copy/retained_count`, `params.minimum` disant la rétention de la
+        plateforme. Au-delà, la plus ancienne copie de ce dossier est supprimée ; le marquage
+        à conserver ne vaut que pour les sauvegardes de la plateforme.
+
+ExternalBackupLocationName:
+  type: string
+  pattern: '^[a-z0-9][a-z0-9_-]{0,62}$'
+  description: >-
+    Nom d'un emplacement externe, tel que la configuration de déploiement le déclare : une clé
+    de configuration, et non un objet que le serveur crée, d'où un nom plutôt qu'un UUID.
+
+ExternalBackupPath:
+  type: string
+  minLength: 1
+  maxLength: 255
+  pattern: '^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$'
+  description: >-
+    Chemin relatif dans un emplacement externe : des segments séparés par `/`, sans `/` en tête
+    ni en fin, chacun commençant par une lettre, un chiffre ou `_` — ni `.` ni `..`, qui
+    sortiraient du dossier visé, ni segment vide. Le motif s'applique au texte entier, jusqu'à
+    sa fin : un retour à la ligne final (`a\n`) le rompt. Un chemin qui ne s'y conforme pas
+    est refusé par champ, 422 `VALIDATION_FAILED`, motif `PATH_INVALID`.
+
+ExternalBackupLocationKind:
+  type: string
+  enum: [s3, mounted_share]
+  description: >-
+    Ce qu'est un emplacement externe : un compartiment S3, d'un autre site, ou un partage
+    réseau monté sur le serveur. Le serveur l'atteint seul, jamais le navigateur.
+
+ExternalBackupLocation:
+  type: object
+  required: [name, kind, description]
+  description: >-
+    Un emplacement externe où copier les sauvegardes (WF-ADM-0170), déclaré par
+    l'installation dans sa configuration de déploiement — compartiment, point de montage,
+    identifiants — et lu ici sans aucun de ses secrets : ni identifiant, ni clé, ni adresse
+    qui en porterait. Il ne se crée ni ne se modifie par l'API.
+  properties:
+    name: { $ref: '#/ExternalBackupLocationName' }
+    kind: { $ref: '#/ExternalBackupLocationKind' }
+    description:
+      anyOf: [{ type: string, maxLength: 500 }, { type: 'null' }]
+      description: >-
+        Ce que la configuration en dit pour l'administrateur, telle qu'elle est écrite ;
+        nulle quand elle n'en dit rien.
+
+ExternalBackupLocationTestRequest:
+  type: object
+  description: >-
+    Ce que le test éprouve : l'emplacement, à la racine, ou dans le dossier que la copie
+    emploierait.
+  properties:
+    path:
+      allOf: [{ $ref: '#/ExternalBackupPath' }]
+      description: Le dossier où écrire le fichier témoin ; absent, la racine de l'emplacement.
+
+ExternalBackupFailure:
+  type: string
+  enum:
+    - location_unreachable
+    - access_denied
+    - write_failed
+    - delete_failed
+    - storage_full
+    - timed_out
+  description: >-
+    Pourquoi un emplacement externe a refusé une écriture : injoignable — compartiment ou
+    partage absent, réseau coupé —, accès refusé à ses identifiants, écriture ou effacement
+    du fichier refusés, espace épuisé, ou délai dépassé (WF-ARC-0110). Le motif d'un test
+    (`ExternalBackupLocationTest`) comme celui d'une copie échouée (`Alert.params`).
+
+ExternalBackupLocationTest:
+  type: object
+  required: [location, path, tested_at, failure]
+  description: >-
+    L'issue d'un test d'un emplacement externe : le serveur y a écrit puis effacé un fichier
+    témoin, avec les identifiants de la configuration (WF-ADM-0170). Réussi quand `failure`
+    est nul.
+  properties:
+    location: { $ref: '#/ExternalBackupLocationName' }
+    path:
+      anyOf: [{ $ref: '#/ExternalBackupPath' }, { type: 'null' }]
+      description: Le dossier éprouvé ; nul pour la racine de l'emplacement.
+    tested_at: { $ref: ../common.yaml#/Timestamp }
+    failure:
+      anyOf: [{ $ref: '#/ExternalBackupFailure' }, { type: 'null' }]
+      description: Le motif de l'échec ; nul quand le fichier a été écrit puis effacé.
 
 RestoreRequest:
   type: object
@@ -136,7 +307,9 @@ RestoreRequest:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160).
+      description: >-
+        Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration
+        (`FileUploadPurpose`, `external_backup`, WF-ADM-0160).
     acknowledged_backup_taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-

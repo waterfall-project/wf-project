@@ -1,0 +1,11 @@
+{
+  "summary": "La suppression du risque de reprise du câblage, cité par la révision de référence marquée le 1er février 2026, refusée : il ne se supprime plus, il s'écarte par un réexamen (WF-RIS-0020).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "risk_not_cited"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000961"
+  }
+}

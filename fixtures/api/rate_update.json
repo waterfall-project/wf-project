@@ -1,0 +1,11 @@
+{
+  "summary": "La mise à jour des taux présentée à la création de la révision 101, le 12 janvier 2026 — sa première saisie, l'identification des risques —, dont l'année de référence est 2026 quand celle de l'offre copiée était 2025 : catégorie par catégorie, chaque catégorie de main-d'œuvre de l'offre à son taux de 2026 de la grille des taux, celui de 2025 en regard — ingénierie électrique de 78,50 à 80,00, mise en service de 73,50 à 75,00 —, que l'utilisateur accepte ou refuse une à une (WF-REV-0060). La révision courante, ouverte la même année que la référence qu'elle copie, n'en a aucune.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "target_year": 2026,
+    "categories": [
+      {"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","previous_amount":"78.50","proposed_amount":"80.00","source":"reference_rate"},
+      {"cost_category_id":"01926f3a-7c00-7000-8000-000000000405","label":"Mise en service","previous_amount":"73.50","proposed_amount":"75.00","source":"reference_rate"}
+    ]
+  }
+}

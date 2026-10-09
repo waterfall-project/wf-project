@@ -1,0 +1,37 @@
+{
+  "summary": "Dominique Bernard, manager, compte importé de l'annuaire : son mot de passe est celui de l'annuaire, et ne se change pas dans Waterfall.",
+  "value": {
+    "user_id": "01926f3a-7c00-7000-8000-000000000302",
+    "last_name": "Bernard",
+    "first_name": "Dominique",
+    "email": "dominique.bernard@example.com",
+    "is_active": true,
+    "origin": "directory",
+    "org_node_id": null,
+    "org_node_label": null,
+    "access_role_ids": [
+      "01926f3a-7c00-7000-8000-000000000702"
+    ],
+    "access_role_labels": [
+      "Manager"
+    ],
+    "has_avatar": false,
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
+      },
+      "updated_at": "2025-09-01T09:00:00Z",
+      "updated_by": {
+        "kind": "platform"
+      }
+    },
+    "lock_version": 1,
+    "display_preferences": {
+      "language": "default",
+      "theme": "default",
+      "highlight_tasks_added_after_reference": false,
+      "grids": {}
+    }
+  }
+}

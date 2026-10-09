@@ -1,0 +1,38 @@
+{
+  "summary": "L'offre perdue : créée, passée en chiffrage, puis sortie à Perdu par son chef de projet, avec le motif donné à la confirmation ; les transitions automatiques n'en portent aucun (WF-CYC-0090, WF-CYC-0130).",
+  "value": [
+    {
+      "from_state": null,
+      "to_state": "created",
+      "occurred_at": "2025-11-03T09:10:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": null
+    },
+    {
+      "from_state": "created",
+      "to_state": "pricing",
+      "occurred_at": "2025-11-03T09:30:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": null
+    },
+    {
+      "from_state": "pricing",
+      "to_state": "lost",
+      "occurred_at": "2026-03-15T16:40:00Z",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "reason": "Offre non retenue : le client a préféré une solution sur étagère."
+    }
+  ]
+}

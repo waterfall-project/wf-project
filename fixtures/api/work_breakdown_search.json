@@ -1,0 +1,10 @@
+{
+  "summary": "Le lotissement du projet témoin cherché par « Montage », quels que soient la casse et les accents : le poste « Fourniture et montage des armoires », dont le libellé le contient, sans son lot « Armoires » ni son livrable, qui ne le contiennent pas ; une lecture filtrée n'a pas de compteur, pour qu'on ne la renvoie pas à setWorkBreakdown, qui écrit le lotissement entier (WF-IHM-0130, WF-PRJ-0020, WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "order_items": [
+      {"order_item_id":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","work_packages":[]}
+    ],
+    "lock_version": null
+  }
+}

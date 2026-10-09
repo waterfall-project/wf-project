@@ -1,0 +1,11 @@
+{
+  "summary": "Le refus de dire de quoi dépend la date de début de la tâche en mode manuel du planning : le serveur ne la calcule pas, elle se saisit (WF-IHM-0030, WF-PLA-0020).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "params": {
+      "field": "task.start"
+    },
+    "correlation_id": "4f1c2b9e-6a1d-4c8e-9b7a-2d5e8f0a1c33"
+  }
+}

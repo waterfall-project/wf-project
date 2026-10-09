@@ -13,14 +13,45 @@ Offset:
 Search:
   name: search
   in: query
-  description: Recherche sur le libellé.
+  description: >-
+    Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code
+    par exemple, le dit dans sa description. Le texte se compare comme toute recherche du
+    contrat, sans égard à la casse ni aux accents (README, « Une recherche… »).
   schema: { type: string, minLength: 1, maxLength: 200 }
+
+SortOrder:
+  name: sort_order
+  in: query
+  description: Sens du tri demandé par `sort_by`.
+  schema: { $ref: common.yaml#/SortOrder }
+
+SubprojectFilter:
+  name: subproject_id
+  in: query
+  description: '`unassigned` pour ce qui ne relève d''aucun sous-projet (WF-IND-0020, WF-CRE-0020).'
+  schema:
+    anyOf:
+      - type: string
+        enum: [unassigned]
+      - $ref: common.yaml#/Uuid
 
 IncludeInactive:
   name: include_inactive
   in: query
   description: Inclut les objets désactivés, qui restent lisibles (WF-REF-0150).
   schema: { type: boolean, default: false }
+
+IsActive:
+  name: is_active
+  in: query
+  description: >-
+    Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée
+    (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la
+    permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui
+    ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide.
+    `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans
+    effet : la permission se juge sur la requête, non sur ce qu'elle rendrait.
+  schema: { type: boolean }
 
 ProjectId:
   name: project_id
@@ -100,6 +131,16 @@ RiskId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+RiskRevision:
+  name: revision_id
+  in: query
+  description: >-
+    Révision dont on lit les risques, chacune figeant la version de leur devis propre,
+    de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou
+    la dernière révision marquée quand aucune n'est en cours. La provision d'un risque
+    survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050).
+  schema: { $ref: common.yaml#/Uuid }
+
 TimelineId:
   name: timeline_id
   in: path
@@ -124,6 +165,13 @@ BackupId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+ExternalBackupLocationName:
+  name: location_name
+  in: path
+  required: true
+  description: Le nom d'un emplacement externe que l'installation déclare.
+  schema: { $ref: schemas/platform.yaml#/ExternalBackupLocationName }
+
 TaskId:
   name: task_id
   in: path
@@ -135,6 +183,24 @@ RateYear:
   in: path
   required: true
   schema: { $ref: common.yaml#/Year }
+
+IndicatorsRevision:
+  name: revision_id
+  in: query
+  description: >-
+    La révision du calcul, pour les indicateurs du projet comme pour les courbes :
+    absente, ou la révision en cours, le calcul au jour courant ; une révision marquée,
+    le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage
+    a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien
+    ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel
+    connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une
+    pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les
+    indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored`
+    signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée
+    avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur
+    projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui
+    choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`.
+  schema: { $ref: common.yaml#/Uuid }
 
 AsOf:
   name: as_of
@@ -150,12 +216,25 @@ Scope:
   in: query
   description: >-
     Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors
-    sous-projet » compris (WF-IND-0020).
+    sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un
+    identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant
+    `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune
+    lecture nulle ne tient lieu de refus.
   schema:
     anyOf:
       - type: string
         enum: [project, unassigned]
       - $ref: common.yaml#/Uuid
+
+WorkloadBasis:
+  name: basis
+  in: query
+  required: true
+  description: >-
+    Base du plan de charge : les montants budgétés de la révision de référence, les
+    montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la
+    révision en cours (WF-DEV-0070).
+  schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 PortfolioStates:
   name: states
@@ -169,18 +248,31 @@ PortfolioStates:
 PortfolioFrom:
   name: from
   in: query
-  description: Début de la période, pour les projets terminés et les statistiques de période.
+  description: >-
+    Début de la période, inclus, pour les projets terminés et les statistiques de période.
+    Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période
+    par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`,
+    `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les
+    statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des
+    projets aucune période ; `scope.from` et `scope.to` disent la période retenue.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:
   name: to
   in: query
+  description: >-
+    Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par
+    422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut :
+    la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain —
+    le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui
+    lui est antérieure est refusée de même, `params.minimum` le début complété.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioOrgNode:
   name: org_node_id
   in: query
   description: >-
-    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un
-    projet n'appartient à aucun service (WF-PTF-0010).
+    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à
+    lui ou à l'un de ses descendants ; un projet n'appartient à aucun service
+    (WF-PTF-0010).
   schema: { $ref: common.yaml#/Uuid }

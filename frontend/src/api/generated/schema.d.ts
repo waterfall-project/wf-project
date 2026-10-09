@@ -73,9 +73,49 @@ export interface paths {
         };
         /**
          * Écran d'état du système
-         * @description Disponibilité de chaque composant, espace de stockage, version installée, dernières synchronisation, sauvegarde et test de restauration, et alertes en cours. Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+         * @description Disponibilité de chaque composant, espace de stockage, version installée, dernières synchronisation, sauvegarde et test de restauration, et alertes en cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030, WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
          */
         get: operations["getSystemStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ce que le front doit savoir de l'installation avant toute session
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe oublié.
+         */
+        get: operations["getInstallation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tâches de fond de l'appelant
+         * @description Les tâches que l'appelant a lancées, les plus récentes d'abord : celles qui courent, et celles qui ont abouti ou échoué depuis la date donnée (WF-ARC-0090, WF-IHM-0080). Le suivi d'un onglet, d'un autre onglet ou d'un autre poste les retrouve ainsi, au-delà des seules références qu'il a gardées. La liste ne dit pas quelle commande a lancé une tâche : une tâche échouée qu'elle fait trouver se relance depuis l'écran de son objet. Une tâche qu'un autre utilisateur a lancée n'y figure pas ; les commandes qu'elle rend caduques le disent (`no_background_task_running`).
+         */
+        get: operations["listBackgroundTasks"];
         put?: never;
         post?: never;
         delete?: never;
@@ -153,7 +193,7 @@ export interface paths {
         };
         /**
          * Session courante
-         * @description Le compte, ses permissions effectives — évaluées à chaque requête — et la langue retenue (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
+         * @description Le compte, ses préférences — dont la langue choisie, que le front résout —, et ses permissions effectives, évaluées à chaque requête (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
          */
         get: operations["getCurrentSession"];
         put?: never;
@@ -223,7 +263,7 @@ export interface paths {
         put?: never;
         /**
          * Demander un lien de réinitialisation
-         * @description Envoie un lien valable une heure et à usage unique, dans la langue du compte si elle est connue, sinon dans celle de la requête (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe.
+         * @description Envoie un lien valable une heure et à usage unique, dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe. Le lien est `<adresse publique du front>/login/reset?token=<jeton>` : l'adresse publique du front est un paramètre de l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne sert pas ; le jeton se confirme par `confirmPasswordReset`. C'est le même lien que `createPasswordSetupLink` remet à un utilisateur habilité (`PasswordSetupLink`).
          */
         post: operations["requestPasswordReset"];
         delete?: never;
@@ -322,7 +362,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1).
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -345,13 +385,14 @@ export interface paths {
         };
         /**
          * Comptes utilisateurs
-         * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030).
+         * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
+         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus.
          */
         get: operations["listUsers"];
         put?: never;
         /**
          * Créer un compte local
-         * @description Il n'existe aucune inscription libre : un compte est créé ici, importé de l'annuaire, ou créé à sa première connexion par le fournisseur d'identité (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Le mot de passe est fixé par l'utilisateur au premier accès.
+         * @description Il n'existe aucune inscription libre : un compte est créé ici, importé de l'annuaire, ou créé à sa première connexion par le fournisseur d'identité (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Un compte local naît sans mot de passe et ne peut pas se connecter avant que son porteur n'en ait fixé un par le lien envoyé à son adresse — ou remis par un utilisateur habilité, qui l'obtient de `createPasswordSetupLink` (WF-ADM-0140).
          */
         post: operations["createUser"];
         delete?: never;
@@ -414,7 +455,7 @@ export interface paths {
         get?: never;
         /**
          * Attribuer les rôles d'habilitation d'un compte
-         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020).
+         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés.
          */
         put: operations["setUserAccessRoles"];
         post?: never;
@@ -513,7 +554,7 @@ export interface paths {
         };
         /**
          * Rôles d'habilitation
-         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090).
+         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris.
          */
         get: operations["listAccessRoles"];
         put?: never;
@@ -633,15 +674,55 @@ export interface paths {
         };
         /**
          * Planification et rétention des sauvegardes
-         * @description Fréquence, heure et nombre de sauvegardes conservées (WF-ADM-0170).
+         * @description Fréquence, heure et nombre de sauvegardes conservées, et la copie automatique de chaque sauvegarde planifiée vers un emplacement externe déclaré par l'installation (WF-ADM-0170).
          */
         get: operations["getBackupSchedule"];
         /**
          * Régler la planification et la rétention
-         * @description Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles marquées à conserver. Un échec est signalé sur l'écran d'état (WF-ADM-0170).
+         * @description Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles marquées à conserver. La copie externe, si elle est réglée, nomme un emplacement que l'installation déclare et un dossier relatif dans cet emplacement, et garde au moins autant de copies que la plateforme garde de sauvegardes (WF-EXP-0050). Un échec, de la sauvegarde ou de sa copie, est signalé sur l'écran d'état (WF-ADM-0170, WF-OBS-0030). Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         put: operations["setBackupSchedule"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/external-backup-locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Emplacements externes des sauvegardes
+         * @description Les emplacements où une sauvegarde planifiée peut être copiée automatiquement (WF-ADM-0170), tels que l'installation les déclare dans sa configuration de déploiement, dans l'ordre de leurs noms : leur nom, leur nature et leur description, jamais leurs identifiants ni aucun secret. Le serveur les atteint seul. Aucune opération ne les crée ni ne les modifie : leur déclaration est une affaire d'exploitation. Lisible sous la permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+         */
+        get: operations["listExternalBackupLocations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/external-backup-locations/{location_name}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Éprouver un emplacement externe des sauvegardes
+         * @description Le serveur écrit puis efface un fichier témoin dans l'emplacement, à sa racine ou dans le dossier donné, avec les identifiants de la configuration, et rend l'issue : réussie, ou le motif de l'échec, en code (WF-ADM-0170, WF-ARC-0110). Rien n'est conservé : le test n'a pas d'état, et un échec n'est pas une alerte, que seule une copie planifiée déclenche (WF-OBS-0030). Le test attend un emplacement qui ne répond pas trente secondes au plus, et dit leur dépassement comme un échec (`timed_out`). Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
+         */
+        post: operations["testExternalBackupLocation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -662,6 +743,46 @@ export interface paths {
          * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
          */
         post: operations["startRestore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal d'audit
+         * @description La consultation du journal d'audit (WF-ADM-0190) : ses inscriptions, chacune avec sa date, son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (WF-ADM-0160, #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`) portant sur le libellé de l'objet que l'inscription garde, et les cinq filtres de WF-ADM-0190 sont la période (`from`, `to`), l'auteur (`user_id`, `actor_kind`), l'action (`actions`), le projet (`project_id`) et l'objet (`object_kind`, `object_id`) ; une table plate, qui se trie sur chacune de ses colonnes — la date, l'auteur, l'action, la nature de l'objet, son libellé, le projet et la corrélation (WF-IHM-0060) : sans tri, par date, les plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur inscription, inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne égale, dans cet ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs et les projets que nomme le journal se lisent par `listAuditFacets`. Lisible sous la seule permission de consulter le journal (`audit_log.read`, WF-ADM-0100, WF-ADM-0190), sans condition de contributeur et sans qu'aucun projet soit ouvert — le chemin n'en nomme aucun —, qui ouvre le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non ; l'inscription ne mène qu'à un projet qu'il peut ouvrir (WF-ADM-0110), et qu'à un objet qu'il peut consulter ; un projet qui n'existe plus — créé après la sauvegarde qu'une restauration a remise en place — se nomme de même, sans mener à lui (WF-ADM-0190).
+         */
+        get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-events/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Auteurs et projets du journal d'audit
+         * @description Les comptes et les projets que nomme le journal d'audit entier, chacun une fois, pour choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-ADM-0190, WF-IHM-0130) : les comptes auteurs d'au moins une inscription, désactivés compris (WF-ADM-0060), et les projets d'au moins une inscription, consultables ou non par l'appelant. Le journal entier, quels que soient les filtres de `listAuditEvents`, que l'opération ne prend pas : une liste de choix ne se vide pas au gré des autres filtres. Lisible sous la seule permission de consulter le journal (`audit_log.read`), sans condition de contributeur ni projet ouvert : une fonction en lecture seule n'a que la permission de consulter (WF-ADM-0100, WF-ADM-0190), et un auditeur qui ne lit ni les comptes ni tous les projets filtre ainsi le journal par auteur et par projet. Sans pagination : il y a au plus autant d'auteurs que de comptes et de projets que l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de 50 inscriptions en pèse une vingtaine.
+         */
+        get: operations["listAuditFacets"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -721,13 +842,13 @@ export interface paths {
         };
         /**
          * Arbre d'organisation
-         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070).
+         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé, comparé caractère par caractère dans l'ordre des points de code Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Un arbre ne se trie pas et ne se lit pas par pages : une page couperait un nœud de ses descendants. La recherche (`search`) porte sur le libellé et sur le code du nœud (WF-REF-0070) ; chaque colonne se filtre (WF-IHM-0060, WF-IHM-0130) — le code (`code`), la profondeur (`level`, ou ses bornes `level_min` et `level_max`) et l'état (`is_active`) —, et les filtres se cumulent avec elle. Ils rendent les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou ; un ancêtre rendu pour cela seul peut ne pas les satisfaire. Chaque nœud porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la réactivation d'un nœud dont le parent est désactivé est indisponible (WF-REF-0080).
          */
         get: operations["listOrgNodes"];
         put?: never;
         /**
          * Créer un nœud d'organisation
-         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070).
+         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Créé actif, il ne prend pas place sous un parent désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
          */
         post: operations["createOrgNode"];
         delete?: never;
@@ -751,7 +872,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un nœud d'organisation
-         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130).
+         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas actif.
          */
         patch: operations["updateOrgNode"];
         trace?: never;
@@ -766,7 +887,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un nœud
-         * @description La désactivation d'un nœud désactive ses sous-nœuds et les rôles qui lui sont rattachés (WF-REF-0080). Aucune suppression n'est offerte (WF-REF-0010).
+         * @description La désactivation d'un nœud désactive ses descendants et les rôles qui sont rattachés à lui ou à l'un d'eux (WF-REF-0080). La réactivation ne rend actif que le nœud : ses descendants et leurs rôles restent désactivés, et se réactivent un à un, chacun sous un parent redevenu actif ; elle est refusée tant que le parent du nœud est désactivé (WF-REF-0080), ce que la commande `reactivate` du nœud dit d'avance (`available_commands`). Aucune suppression n'est offerte (WF-REF-0010). Relève de la permission de modification des paramètres de ressources (WF-ADM-0100). L'écriture change la disponibilité des commandes d'autres objets — la réactivation des enfants du nœud et de ses rôles —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setOrgNodeActivation"];
         post?: never;
@@ -785,13 +906,13 @@ export interface paths {
         };
         /**
          * Rôles de ressources
-         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150).
+         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`, `is_active` faux) et toute écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle, l'un et l'autre sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du rôle ; le nœud, la catégorie, le calendrier et l'état se filtrent, les heures mensuelles et l'effectif de la capacité se bornent (`<colonne>_min`, `<colonne>_max`, inclusives), et `meta.total` compte les rôles retenus. Chaque rôle porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la réactivation d'un rôle dont le nœud est désactivé est indisponible (WF-REF-0080).
          */
         get: operations["listResourceRoles"];
         put?: never;
         /**
          * Créer un rôle de ressource
-         * @description Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100).
+         * @description Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100). Le nœud est fixé à la création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1). Créé actif, il ne naît pas sous un nœud désactivé (WF-REF-0080).
          */
         post: operations["createResourceRole"];
         delete?: never;
@@ -815,7 +936,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un rôle de ressource
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080).
          */
         patch: operations["updateResourceRole"];
         trace?: never;
@@ -830,9 +951,33 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un rôle de ressource
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Un rôle ne se réactive que si son nœud est actif (WF-REF-0080), ce que sa commande `reactivate` dit d'avance (`available_commands`) ; sa catégorie et son calendrier, eux, peuvent rester désactivés, aucune exigence ne conditionnant la réactivation à leur état. Relève de la permission de modification des paramètres de ressources (WF-ADM-0100).
          */
         put: operations["setResourceRoleActivation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reference/duration-units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Constantes de conversion des unités de durée
+         * @description Heures par jour, heures par semaine et jours par mois, par lesquelles les jours, les semaines et les mois de travail se convertissent en heures sur tous les projets de l'installation, et que l'export MS Project transporte (WF-PLA-0160). Lisibles par quiconque consulte un projet : la grille de planning en a besoin pour dire ce que vaut une durée.
+         */
+        get: operations["getDurationUnits"];
+        /**
+         * Régler les constantes de conversion des unités de durée
+         * @description Les trois constantes de l'installation, communes à tous les projets, sous la permission des paramètres de ressources, comme les calendriers (WF-PLA-0160, WF-ADM-0100). Une révision marquée garde les heures qu'elle a calculées (WF-REF-0130).
+         */
+        put: operations["setDurationUnits"];
         post?: never;
         delete?: never;
         options?: never;
@@ -849,7 +994,7 @@ export interface paths {
         };
         /**
          * Calendriers
-         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120).
+         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le tri par `is_default` met en tête. Chaque calendrier porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la désactivation du calendrier par défaut est indisponible (WF-REF-0120).
          */
         get: operations["listCalendars"];
         put?: never;
@@ -894,7 +1039,7 @@ export interface paths {
         get?: never;
         /**
          * Désigner le calendrier par défaut
-         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120).
+         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans une révision en cours. L'écriture change la disponibilité de la désactivation des deux calendriers, que la réponse ne porte que pour l'un (`calendar_not_default`) : le client relit la liste.
          */
         put: operations["setDefaultCalendar"];
         post?: never;
@@ -914,7 +1059,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un calendrier
-         * @description La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné (WF-REF-0120).
+         * @description La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné (WF-REF-0120), ce que sa commande `deactivate` dit d'avance (`available_commands`). Aucune suppression n'est offerte (WF-REF-0010). Relève de la permission de modification des paramètres de ressources (WF-ADM-0100).
          */
         put: operations["setCalendarActivation"];
         post?: never;
@@ -933,13 +1078,13 @@ export interface paths {
         };
         /**
          * Natures de coût
-         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150).
+         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son type, indisponible dès qu'une de ses catégories est employée (WF-REF-0030).
          */
         get: operations["listCostTypes"];
         put?: never;
         /**
          * Créer une nature de coût
-         * @description Nature de coût de l'installation (WF-REF-0030).
+         * @description Nature de coût de l'installation, de l'un des trois types (WF-REF-0030). Son code est unique : un code déjà porté par une autre nature, active ou désactivée, est refusé par 409, `ALREADY_EXISTS`. Créée, elle porte ses commandes (`available_commands`) : la modification de son type est disponible tant qu'aucune de ses catégories n'est employée.
          */
         post: operations["createCostType"];
         delete?: never;
@@ -963,7 +1108,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une nature de coût
-         * @description Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée (WF-REF-0030).
+         * @description Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté par une autre nature est refusé par 409, `ALREADY_EXISTS`. Un type changé vers ou depuis la provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement des catégories provision —, que la réponse ne porte pas : le client relit les listes.
          */
         patch: operations["updateCostType"];
         trace?: never;
@@ -978,7 +1123,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une nature de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible. La désactivation l'est aussi, sauf pour la dernière nature provision active à porter une catégorie active : il en reste toujours une, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que la commande `deactivate` de la nature dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement de leurs catégories —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setCostTypeActivation"];
         post?: never;
@@ -997,13 +1142,13 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150).
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des taux (WF-REF-0030, WF-REF-0050).
          */
         get: operations["listCostCategories"];
         put?: never;
         /**
          * Créer une catégorie de coût
-         * @description La catégorie se rattache à une nature de coût (WF-REF-0040).
+         * @description La catégorie se rattache à une nature de coût, active, et porte un code comptable unique (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit lequel des deux champs la porte. Créée sous une nature provision, elle change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision, la dernière ne l'étant plus —, que la réponse ne porte pas : le client relit les listes.
          */
         post: operations["createCostCategory"];
         delete?: never;
@@ -1027,7 +1172,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une catégorie de coût
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130). Le code et le code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même type, le rattachement est toujours permis. Un changement de nature change la disponibilité des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature, et, vers ou depuis une nature provision, la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
          */
         patch: operations["updateCostCategory"];
         trace?: never;
@@ -1042,9 +1187,29 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une catégorie de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La désactivation l'est aussi, sauf pour la seule catégorie active des natures provision actives : il en reste toujours une, que portent les lignes de provision des risques (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que sa commande `deactivate` dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une catégorie d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setCostCategoryActivation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reference/hourly-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Grille des taux horaires
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). Une table plate, triée et paginée par le serveur comme les autres listes du référentiel (WF-IHM-0060) : `search` retient les catégories dont le code ou le libellé contient le texte cherché (WF-IHM-0130), l'état se filtre (`is_active`), le taux d'une année se borne (`rate_year`, `rate_min`, `rate_max`), `sort_by` les ordonne, et `meta.total` compte les catégories retenues ; les années restent celles de toute la grille, quels que soient la page, la recherche, les filtres et le tri.
+         */
+        get: operations["getHourlyRateGrid"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1082,7 +1247,7 @@ export interface paths {
         get?: never;
         /**
          * Fixer le taux horaire d'une année
-         * @description Réservé aux catégories de main-d'œuvre. La correction d'un taux n'affecte aucune révision marquée (WF-REF-0050, WF-REF-0130).
+         * @description Réservé aux catégories de main-d'œuvre : les catégories des autres natures ne portent pas de taux (WF-REF-0050). Au plus un taux par année : la première saisie se fait sans compteur, une correction avec la version lue. La correction d'un taux n'affecte aucune révision marquée (WF-REF-0050, WF-REF-0130). Le taux est positif. Le premier taux d'une catégorie rend indisponible son rattachement à une nature d'un autre type (`cost_category_unrated`, #577), que la réponse ne porte pas : le client relit la liste des catégories.
          */
         put: operations["setHourlyRate"];
         post?: never;
@@ -1101,13 +1266,13 @@ export interface paths {
         };
         /**
          * Projets
-         * @description La consultation ne dépend que des habilitations, jamais de la qualité de contributeur (WF-PRJ-0060, WF-PTF-0030).
+         * @description Les projets que l'appelant peut ouvrir, et eux seuls : ceux dont il est contributeur et, s'il porte la permission « consulter tous les projets », tous les autres (WF-PRJ-0060, WF-ADM-0110) — le portefeuille, lui, compte tous les projets du périmètre (WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total` compte les projets retenus (WF-IHM-0130). La recherche (`search`) porte sur le libellé et sur le code du projet ; la période (`from`, `to`), sur l'instant de sa dernière modification (`audit.updated_at`), la colonne de date de la liste, comme celle du journal d'audit : deux instants, le début inclus, la fin exclue, que l'écran tire des jours de son lecteur. Sans `states`, les projets en cours seuls, le défaut du périmètre du portefeuille (WF-PTF-0010) que le paramètre partage : un accueil qui liste tous les projets ouvrables nomme les six états. `meta.states` dit toujours les états retenus, nommés ou par défaut, pour que l'écran montre le filtre que le serveur a appliqué.
          */
         get: operations["listProjects"];
         put?: never;
         /**
          * Créer un projet
-         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
+         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
          */
         post: operations["createProject"];
         delete?: never;
@@ -1135,7 +1300,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier les paramètres d'un projet
-         * @description Réservé aux contributeurs (WF-PRJ-0060) et refusé sur un projet terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée (WF-PRJ-0040).
+         * @description Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée (WF-PRJ-0040).
          */
         patch: operations["updateProject"];
         trace?: never;
@@ -1149,7 +1314,7 @@ export interface paths {
         };
         /**
          * Historique daté des états
-         * @description Chaque transition est datée du jour où elle s'est produite et n'est pas modifiable (WF-CYC-0130). C'est d'elle que dépendent les statistiques de portefeuille par période (WF-PTF-0050).
+         * @description Chaque transition est datée du jour où elle s'est produite, porte son auteur et, pour une sortie manuelle, le motif donné à sa confirmation ; rien n'y est modifiable (WF-CYC-0130, WF-CYC-0090). C'est d'elle que dépendent les statistiques de portefeuille par période (WF-PTF-0050).
          */
         get: operations["listProjectStateTransitions"];
         put?: never;
@@ -1191,7 +1356,7 @@ export interface paths {
         put?: never;
         /**
          * Sortie manuelle du cycle de vie
-         * @description Les trois seules transitions commandées : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non modifiable (WF-CYC-0090), et inscrite au journal d'audit (WF-SEC-0030).
+         * @description Les trois seules transitions commandées : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non modifiable et propose un motif, que la transition conserve (WF-CYC-0090, WF-CYC-0130), réservée aux chefs de projet (WF-PRJ-0060), et inscrite au journal d'audit (WF-SEC-0030).
          */
         post: operations["exitProject"];
         delete?: never;
@@ -1209,12 +1374,12 @@ export interface paths {
         };
         /**
          * Lotissement
-         * @description En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020).
+         * @description En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020). Une grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments qu'ils contiennent. Une lecture filtrée rend un compteur nul : `setWorkBreakdown` écrit le lotissement entier, et un renvoi tel quel, qui supprimerait ce qu'elle omet, est refusé par 422 (`WorkBreakdownReading`).
          */
         get: operations["getWorkBreakdown"];
         /**
          * Saisir le lotissement
-         * @description Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020).
+         * @description Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un poste ou un lot que la saisie omet est supprimé : les tâches de la révision en cours qui le portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080). Un lot que la saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0170) : si le lot et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la tâche du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les révisions marquées n'entrent pas dans ce jugement : leurs tâches ne se déplacent plus.
          */
         put: operations["setWorkBreakdown"];
         post?: never;
@@ -1233,7 +1398,7 @@ export interface paths {
         };
         /**
          * Sous-projets
-         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
+         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets par projet.
          */
         get: operations["listSubprojects"];
         put?: never;
@@ -1281,12 +1446,12 @@ export interface paths {
         };
         /**
          * Contributeurs du projet
-         * @description Toute saisie est réservée aux contributeurs ; la consultation ne dépend que des habilitations (WF-PRJ-0060).
+         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2 compte cinquante contributeurs par projet. Le compteur est celui de toute la liste, quel que soit le tri ; une lecture filtrée le rend nul, pour qu'elle ne soit pas renvoyée à `setContributors`, qui écrit la liste entière et retirerait ce qu'elle omet (`ContributorList.lock_version`).
          */
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste vaut habilitation à saisir sur le projet (WF-PRJ-0060).
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ; un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
          */
         put: operations["setContributors"];
         post?: never;
@@ -1369,13 +1534,13 @@ export interface paths {
         };
         /**
          * Historique des révisions
-         * @description Nom de version, description, date de marquage et caractère de référence ; chacune est consultable dans son intégralité (WF-REV-0070).
+         * @description Nom de version, description, état, date de marquage, année de référence et caractère de référence — les attributs d'une révision (WF-REV-0090) ; chacune est consultable dans son intégralité (WF-REV-0070).
          */
         get: operations["listRevisions"];
         put?: never;
         /**
          * Ouvrir la révision en cours
-         * @description Un projet comporte au plus une révision en cours ; sa création copie les structures de la dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010, WF-DAT-0010). La mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
+         * @description Un projet comporte au plus une révision en cours ; sa création copie les structures de la dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010, WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un poste ou à un lot marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
          */
         post: operations["createRevision"];
         delete?: never;
@@ -1481,7 +1646,7 @@ export interface paths {
         };
         /**
          * Comparer deux révisions marquées
-         * @description Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030).
+         * @description Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030). Une paire identique — la même révision deux fois — rend une comparaison vide, jamais un refus.
          */
         get: operations["compareRevisions"];
         put?: never;
@@ -1527,7 +1692,7 @@ export interface paths {
         put?: never;
         /**
          * Fusionner un différentiel dans la structure principale
-         * @description La fusion ne touche que les montants budgétés des lignes que le différentiel désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la référence (WF-REV-0050). Confiée au worker et inscrite au journal d'audit (WF-ARC-0090, WF-SEC-0030).
+         * @description La fusion ne touche que les montants budgétés des lignes que le différentiel désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et les tâches en cause (WF-PLA-0010).
          */
         post: operations["mergeCostStructure"];
         delete?: never;
@@ -1545,13 +1710,17 @@ export interface paths {
         };
         /**
          * Arbre commun de la structure
-         * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050).
+         * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches inscrites (WF-PLA-0140).
+         *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien. Une grille arborescente ne se trie pas : les tâches gardent l'ordre de l'arbre, et le tri n'y est qu'un tri des lignes de devis sous chaque tâche, chaque ligne restant sous la sienne (WF-IHM-0060). Un filtre sur une tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140). Les totaux sont ceux des lignes retenues. Le filtre par poste ou par lot (`order_item_id`, `work_package_id`) retient le sous-arbre de la tâche rattachée au poste ou au lot : le lotissement sert de grille de lecture par ce seul rattachement, que seule la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
+         *     L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine (WF-PLA-0110), et offre les niveaux que `meta.summary_depth` dit exister, celui de la plus profonde récapitulative de la structure, quels que soient les filtres ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne sélectionne rien de ce qu'il reçoit.
+         *     `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le rend pas (`predecessor_row_number`, WF-PLA-0080).
+         *     `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est rendue entière — ou une propriété d'une facette, `task.<propriété>` ou `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ; `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` : une lecture qui en nomme ne rend que ce qu'elle nomme.
          */
         get: operations["listNodes"];
         put?: never;
         /**
          * Créer une tâche ou une ligne de devis
-         * @description Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). Une tâche ajoutée après la référence porte un montant budgété nul (WF-RAE-0050).
+         * @description Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). Une tâche ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine — son calendrier ne recoupant jamais ceux des autres rôles de la tâche — est refusée par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ; une tâche créée rattachée à un poste ou à un lot suit les règles du rattachement (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type provision n'est créée que par la déclaration d'un risque : sa création à la main est refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010).
          */
         post: operations["createNode"];
         delete?: never;
@@ -1572,9 +1741,29 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un nœud
-         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070.
+         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement (WF-PLA-0170). Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs montants corrigés dans `reinflated` (WF-DEV-0040).
          */
         delete: operations["deleteNode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ce dont dépend une valeur calculée
+         * @description Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas pour ce nœud — il se saisit — est refusé (422, `VALIDATION_FAILED`, `params.field`).
+         */
+        get: operations["getComputedValueDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1595,7 +1784,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette temps d'une tâche
-         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150).
+         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150). Le rattachement à un poste ou à un lot du lotissement se pose, se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
          */
         patch: operations["updateTaskFacet"];
         trace?: never;
@@ -1615,7 +1804,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette argent d'une ligne de devis
-         * @description Les deux montants sont calculés et non saisissables : le budgété par la référence, le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est calculée depuis son risque (WF-RIS-0010).
+         * @description Les montants sont calculés et non saisissables : celui à l'année de référence par la ligne, le budgété par la référence, le réestimé par les revues, le corrigé de l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated` chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches.
          */
         patch: operations["updateEstimateLine"];
         trace?: never;
@@ -1630,7 +1819,7 @@ export interface paths {
         get?: never;
         /**
          * Remplacer les prédécesseurs d'une tâche
-         * @description Les quatre types de liaison, avec décalage (WF-PLA-0030). Une liaison entre une récapitulative et l'une de ses subordonnées est refusée (WF-PLA-0040).
+         * @description Les quatre types de liaison, avec un décalage positif ou négatif dans l'unité de sa saisie — temps de travail, temps écoulé ou pourcentage de la durée du prédécesseur (WF-PLA-0030, WF-PLA-0160). Une liaison entre une récapitulative et l'une de ses subordonnées est refusée (WF-PLA-0040).
          */
         put: operations["setPredecessors"];
         post?: never;
@@ -1670,7 +1859,7 @@ export interface paths {
         get?: never;
         /**
          * Réestimer une ligne
-         * @description Réservé aux lignes portées par une tâche démarrée ; un reste à engager nul termine la tâche (WF-RAE-0010, WF-RAE-0040).
+         * @description Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine, à la date demandée à la validation (`completed_on`, WF-RAE-0040, WF-PLA-0130) ; une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, démarrée et terminée à cette même date (WF-RAE-0030). La ligne dit elle-même si elle accepte la réestimation (`remaining_entry`).
          */
         put: operations["setLineRemaining"];
         post?: never;
@@ -1711,7 +1900,7 @@ export interface paths {
         put?: never;
         /**
          * Déplacer des nœuds dans l'arbre
-         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040).
+         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated` (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement ; un déplacement qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste est refusé (WF-PLA-0170, `NodeMove`).
          */
         post: operations["moveNodes"];
         delete?: never;
@@ -1731,7 +1920,7 @@ export interface paths {
         put?: never;
         /**
          * Aperçu d'un collage depuis un tableur
-         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050).
+         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par sa ligne et sa colonne (`PastePreview`).
          */
         post: operations["previewPaste"];
         delete?: never;
@@ -1751,7 +1940,7 @@ export interface paths {
         put?: never;
         /**
          * Appliquer un collage
-         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050).
+         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux (`NodesWritten`, WF-IHM-0110).
          */
         post: operations["applyPaste"];
         delete?: never;
@@ -1771,7 +1960,7 @@ export interface paths {
         put?: never;
         /**
          * Annuler la dernière modification
-         * @description Annule les modifications de la session, une par une et dans l'ordre inverse, sur au moins cinquante niveaux. Une annulation est une modification comme une autre : elle s'inscrit dans les colonnes d'audit et est refusée si une modification postérieure porte sur le même objet (WF-IHM-0110).
+         * @description Annule les modifications de la session, une par une et dans l'ordre inverse, sur au moins cinquante niveaux : les saisies des grilles comme celles des risques — création, modification, réexamen, suppression d'un risque —, saisies de la révision en cours (WF-RIS-0020). Une annulation est une modification comme une autre : elle s'inscrit dans les colonnes d'audit et est refusée si une modification postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule un import appliqué, un marquage, une fusion, la désignation de la référence, une sortie du cycle de vie, la déclaration d'un risque survenu ni l'exclusion d'une ligne de coût.
          */
         post: operations["undoLastChange"];
         delete?: never;
@@ -1811,7 +2000,7 @@ export interface paths {
         put?: never;
         /**
          * Engendrer le squelette de planning depuis le lotissement
-         * @description Une récapitulative par poste et par lot, une feuille par livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Proposé seulement sur une structure sans tâche, et sans créer de lien durable avec le lotissement (WF-PRJ-0030).
+         * @description Une récapitulative par poste et par lot, chacune rattachée au poste ou au lot qu'elle représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0170), une feuille par livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Engendré sur la structure principale de la révision, seule à porter des rattachements — jamais sur un différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170).
          */
         post: operations["generatePlanningSkeleton"];
         delete?: never;
@@ -1829,7 +2018,7 @@ export interface paths {
         };
         /**
          * Indicateurs de devis
-         * @description Total, ventilations par nature et par sous-projet, provisions, et écart avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010).
+         * @description Total, ventilations par nature de coût, par sous-projet et par poste du lotissement — le total du sous-arbre de la tâche rattachée au poste (WF-PLA-0170) —, provisions, écart avec la révision de référence et avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010). Un taux horaire manquant pour l'année de référence ne rend pas un budget faux : les montants concernés ne se calculent pas, et disent quelles catégories et quelles années manquent (`hourly_rate_missing`, WF-DEV-0010).
          */
         get: operations["getEstimateIndicators"];
         put?: never;
@@ -1849,7 +2038,7 @@ export interface paths {
         };
         /**
          * Taux horaires manquants pour le calcul
-         * @description Les taux ne sont exigés que pour les catégories qu'un devis emploie réellement, et pour son année de référence (WF-DEV-0010, WF-CYC-0120).
+         * @description Les taux ne sont exigés que pour les catégories qu'un devis emploie réellement, et pour l'année de référence de sa révision (`Revision.reference_year`, WF-REV-0060 ; WF-DEV-0010, WF-CYC-0120) : chaque catégorie sans taux pour cette année est nommée.
          */
         get: operations["getMissingRates"];
         put?: never;
@@ -1869,7 +2058,7 @@ export interface paths {
         };
         /**
          * Plan de charge du projet
-         * @description Par rôle et par mois, sur le devis d'une révision ou sur le reste à engager courant, avec la capacité de chaque rôle en regard (WF-DEV-0070).
+         * @description Par rôle et par mois, au choix sur les montants budgétés de la révision de référence, sur les montants réestimés d'une révision marquée, nommée par `revision_id`, ou sur ceux de la révision en cours, avec la capacité de chaque rôle en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la révision en cours est une base : les deux autres sont refusées (409, `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id` ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`). Le plan nomme le nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
          */
         get: operations["getProjectWorkload"];
         put?: never;
@@ -1908,8 +2097,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tâches à démarrer, pour le Kanban
-         * @description Les tâches non démarrées dont les prédécesseurs sont terminés, et les tâches démarrées dont le reste à engager est à réestimer (WF-RAE-0030).
+         * Tâches du Kanban, par état
+         * @description Les tâches de la structure principale de la révision courante, réparties selon leur état — non démarrée, démarrée, terminée —, chaque colonne dans l'ordre du plan, jamais une récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040). Toutes les tâches non démarrées, chacune disant si ses prédécesseurs sont tous terminés (`predecessors_completed`) : le Kanban signale par lui les jalons à terminer, et ne déduit rien des liaisons ; les tâches démarrées, dont le reste à engager est à réestimer ; les tâches terminées, avec leur date de terminaison (`task.completed_on`), que le Kanban rouvre en les repassant à l'état démarré (`setTaskProgress`).
          */
         get: operations["listStartableTasks"];
         put?: never;
@@ -1929,7 +2118,7 @@ export interface paths {
         };
         /**
          * Indicateurs de valeur acquise
-         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les valeurs conservées de la dernière révision marquée antérieure (WF-DAT-0040).
+         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une révision marquée nommée, celles de son marquage (WF-DAT-0040).
          */
         get: operations["getProjectIndicators"];
         put?: never;
@@ -1949,7 +2138,7 @@ export interface paths {
         };
         /**
          * Diagramme temps/temps
-         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage ; la courbe s'arrête à la terminaison (WF-IND-0090).
+         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage ; la courbe s'arrête à la terminaison (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un sous-projet n'a pas (WF-IND-0020).
          */
         get: operations["getMilestoneTracking"];
         put?: never;
@@ -1969,7 +2158,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet. Les changements du budget apparaissent comme des marches datées (WF-IND-0100).
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -1989,7 +2178,7 @@ export interface paths {
         };
         /**
          * Courbes de valeur acquise
-         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110).
+         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes recalculées à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elles peuvent différer des indicateurs conservés (WF-DAT-0040), `context.is_stored` faux.
          */
         get: operations["getEarnedValueCurves"];
         put?: never;
@@ -2000,7 +2189,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project_id}/indicators/cash-out": {
+    "/projects/{project_id}/indicators/index-history": {
         parameters: {
             query?: never;
             header?: never;
@@ -2008,10 +2197,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Projection de décaissement
-         * @description Le passé par mois de date de pièce, l'avenir en étalant le reste à engager puis en décalant chaque part de son délai de paiement ; les provisions des risques identifiés y figurent : la lecture en décaissements de la courbe en S (WF-IND-0100).
+         * Évolution des indices
+         * @description Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de marquage, tel que son marquage l'a conservé (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que `context.scope` nomme (WF-IND-0020).
          */
-        get: operations["getProjectCashOut"];
+        get: operations["getIndexHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2029,13 +2218,13 @@ export interface paths {
         };
         /**
          * Registre des risques
-         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040).
+         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
          */
         get: operations["listRisks"];
         put?: never;
         /**
          * Déclarer un risque
-         * @description La création ouvre la structure de coûts propre du risque et sa ligne de provision dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque identifié ne fait pas partie du budget de référence (WF-RIS-0050).
+         * @description La création ouvre la structure de coûts propre du risque et sa ligne de provision dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks` (`RevisionCommand`).
          */
         post: operations["createRisk"];
         delete?: never;
@@ -2053,17 +2242,21 @@ export interface paths {
         };
         /**
          * Un risque
-         * @description Attributs du risque et état où il se trouve (WF-RIS-0010, WF-RIS-0020).
+         * @description Attributs du risque et état où il se trouve dans la révision lue (`revision_id`, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030).
          */
         get: operations["getRisk"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Supprimer un risque
+         * @description Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression d'un risque cité par une révision marquée est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est le réexamen (`reviewRisk`) qui l'écarte. Un risque survenu ne se supprime pas non plus : aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à `risk_not_occurred`. `missing_condition` n'en nomme qu'une : quand les deux manquent, `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et s'annule (WF-RIS-0020, WF-IHM-0110) ; la commande `delete` du risque dit d'avance s'il se supprime.
+         */
+        delete: operations["deleteRisk"];
         options?: never;
         head?: never;
         /**
          * Modifier un risque
-         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030).
+         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et annulable (WF-RIS-0020, WF-IHM-0110) ; refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le disait déjà indisponible.
          */
         patch: operations["updateRisk"];
         trace?: never;
@@ -2077,13 +2270,13 @@ export interface paths {
         };
         /**
          * Historique des réexamens
-         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010).
+         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige (WF-RIS-0030).
          */
         get: operations["listRiskReviews"];
         put?: never;
         /**
          * Réexaminer un risque
-         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050).
+         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050). Une saisie de la révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son état précédents (WF-RIS-0020, WF-IHM-0110).
          */
         post: operations["reviewRisk"];
         delete?: never;
@@ -2103,7 +2296,7 @@ export interface paths {
         put?: never;
         /**
          * Déclarer un risque survenu
-         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050). Définitif, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110, WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la révision en cours sont indisponibles (`no_background_task_running`).
          */
         post: operations["declareRiskOccurrence"];
         delete?: never;
@@ -2121,7 +2314,7 @@ export interface paths {
         };
         /**
          * Matrice de risques du projet
-         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040). Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
+         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
          */
         get: operations["getProjectRiskMatrix"];
         put?: never;
@@ -2141,7 +2334,7 @@ export interface paths {
         };
         /**
          * Couverture des risques
-         * @description La réserve pour risques de la révision de référence, face aux provisions des risques identifiés dans la révision courante et au coût réestimé des risques survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020).
+         * @description La réserve pour risques de la révision de référence, face aux provisions des risques identifiés dans la révision courante et au coût réestimé des risques survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020). Dans la révision nommée, ou la révision courante.
          */
         get: operations["getProjectRiskCoverage"];
         put?: never;
@@ -2161,7 +2354,7 @@ export interface paths {
         };
         /**
          * Coûts réels du projet
-         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010).
+         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010), ligne par ligne (`passthrough`), et leur union nommée une fois pour toute la lecture (`meta.passthrough_columns`) : la grille les présente toutes, à toutes les pages. Le tri et les filtres sont faits par le serveur, et les totaux comme cette union sont ceux de toutes les lignes retenues, pas de la seule page rendue.
          */
         get: operations["listActualCosts"];
         put?: never;
@@ -2223,7 +2416,7 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`).
          */
         post: operations["uploadFile"];
         delete?: never;
@@ -2241,13 +2434,13 @@ export interface paths {
         };
         /**
          * Imports du projet
-         * @description Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté (WF-INTF-0080, WF-ARC-0100).
+         * @description Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté (WF-INTF-0080, WF-ARC-0100), du plus récent au plus ancien par leur ouverture (`created_at`), comme les autres journaux.
          */
         get: operations["listImports"];
         put?: never;
         /**
          * Ouvrir un import et lancer son analyse
-         * @description L'analyse lit le fichier, contrôle son format et sa version, compare aux données existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070, WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels (WF-INTF-0140). Confiée au worker (WF-ARC-0090).
+         * @description L'analyse lit le fichier, contrôle son format et sa version, compare aux données existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070, WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son rattachement au lotissement ; sur la structure principale, seule à porter des rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040, WF-PLA-0170). Confiée au worker (WF-ARC-0090).
          */
         post: operations["openImport"];
         delete?: never;
@@ -2265,7 +2458,7 @@ export interface paths {
         };
         /**
          * Compte rendu d'un import
-         * @description Lignes lues, lignes rejetées avec leur motif, et écarts avec les données existantes. Le compte rendu est conservé sous forme de codes et rendu dans la langue du lecteur (WF-INTF-0080, WF-ARC-0110).
+         * @description Lignes lues, lignes rejetées avec leur motif, écarts avec les données existantes, objets conservés et signalés, éléments ignorés, tâches terminées et écarts de dates ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-PLA-0130). Le compte rendu est conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
          */
         get: operations["getImport"];
         put?: never;
@@ -2311,7 +2504,7 @@ export interface paths {
         put?: never;
         /**
          * Demander un export
-         * @description Planning MS Project avec ses calendriers (WF-INTF-0050), devis (WF-INTF-0110), reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180).
+         * @description Planning MS Project avec ses calendriers (WF-INTF-0050), devis (WF-INTF-0110), reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). La révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans révision par 422.
          */
         post: operations["requestExport"];
         delete?: never;
@@ -2329,7 +2522,7 @@ export interface paths {
         };
         /**
          * Liste des projets du portefeuille
-         * @description Libellé, code, état, budget de référence ou devis courant et probabilité, projection du chef de projet, indices avec leur zone, et date de la dernière révision marquée (WF-PTF-0040).
+         * @description Libellé, code, état, budget de référence ou devis courant et probabilité, projection du chef de projet et, pour un projet en cours, son écart au budget de référence, indices avec leur zone, et date de la dernière révision marquée (WF-PTF-0040). La liste se filtre par état, par période, par zone et par recherche sur le libellé ; le tri est fait par le serveur, et `meta.total` compte les projets retenus (WF-IHM-0130).
          */
         get: operations["getPortfolioProjects"];
         put?: never;
@@ -2449,29 +2642,9 @@ export interface paths {
         };
         /**
          * Courbe en S du portefeuille
-         * @description Somme, mois par mois, des courbes de coûts cumulés des projets (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de gain. Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+         * @description Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de gain. Sur demande (`payment_delays`), ce sont les décaissements que chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
          */
         get: operations["getPortfolioCostCurve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/portfolio/cash-out": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Courbe en S du portefeuille, lecture en décaissements
-         * @description Le mode décaissement de la courbe en S du portefeuille : somme des décaissements passés et à venir des projets, par la règle de WF-IND-0100 appliquée à chacun ; rien n'y est recalculé (WF-PTF-0100).
-         */
-        get: operations["getPortfolioCashOut"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2504,36 +2677,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
+         * @enum {string}
+         */
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        /**
+         * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
+         * @enum {string}
+         */
+        StateEnumeration: "ProjectState";
         FieldProblem: {
-            /** @description Pointeur JSON vers le champ en défaut. */
+            /** @description Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901), `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération. */
             pointer: string;
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             params?: {
                 [key: string]: unknown;
             };
         };
         /** @description Enveloppe unique des refus et des erreurs. Elle ne porte aucune phrase destinée à être lue : `code` et `params` suffisent au front pour rendre le texte dans la langue du lecteur (WF-ARC-0110). `params` nomme la condition manquante, ce que WF-ADM-0110 et WF-IHM-0090 exigent. */
         Problem: {
-            /** @description Code machine, stable, appartenant au catalogue des codes d'erreur. */
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code : `missing_permission`, `missing_condition`, `conflicting_object_id`, `expected_lock_version`, `component`, selon le cas. */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040). */
             params?: {
+                state_enum?: components["schemas"]["StateEnumeration"];
+            } & {
                 [key: string]: unknown;
             };
-            /** @description Erreurs par champ, pour une entité refusée à la validation. */
+            /** @description Erreurs par champ, pour une entité refusée à la validation (422), ou par une unicité (409 `ALREADY_EXISTS`), chaque champ dont la valeur est déjà portée désigné. Une clé portée par le chemin, et non par le corps — la catégorie et l'année d'un taux horaire (`setHourlyRate`) —, n'a pas de champ à désigner : son `ALREADY_EXISTS` n'a pas de `fields`. */
             fields?: components["schemas"]["FieldProblem"][];
-            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020). */
+            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) : engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel dans un chemin ou un digest. */
             correlation_id?: string;
         };
+        /**
+         * @description Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
+         * @enum {string}
+         */
+        PlatformComponent: "api" | "worker" | "database" | "cache" | "object_storage" | "directory" | "metrics";
         /**
          * Format: date-time
          * @description Horodatage en temps universel (WF-DAT-0100).
          */
         Timestamp: string;
         ComponentHealth: {
-            /** @enum {string} */
-            component: "api" | "worker" | "database" | "cache" | "object_storage" | "directory" | "metrics";
+            component: components["schemas"]["PlatformComponent"];
             is_available: boolean;
             checked_at: components["schemas"]["Timestamp"];
             /** @description Version du composant employé, annoncée par WF-CMP-0020. */
@@ -2553,14 +2741,32 @@ export interface components {
          * @enum {string}
          */
         AlertZone: "nominal" | "watch" | "alert";
+        /**
+         * Format: uuid
+         * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
+         */
+        Uuid: string;
+        /** @description Nom d'un emplacement externe, tel que la configuration de déploiement le déclare : une clé de configuration, et non un objet que le serveur crée, d'où un nom plutôt qu'un UUID. */
+        ExternalBackupLocationName: string;
+        /**
+         * @description Pourquoi un emplacement externe a refusé une écriture : injoignable — compartiment ou partage absent, réseau coupé —, accès refusé à ses identifiants, écriture ou effacement du fichier refusés, espace épuisé, ou délai dépassé (WF-ARC-0110). Le motif d'un test (`ExternalBackupLocationTest`) comme celui d'une copie échouée (`Alert.params`).
+         * @enum {string}
+         */
+        ExternalBackupFailure: "location_unreachable" | "access_denied" | "write_failed" | "delete_failed" | "storage_full" | "timed_out";
         /** @description Alerte en cours, sur une situation qui a une conséquence pour les utilisateurs (WF-OBS-0030). Elle disparaît dès que sa cause cesse. */
         Alert: {
             /** @enum {string} */
-            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
+            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "scheduled_backup_copy_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
             since: components["schemas"]["Timestamp"];
             severity: components["schemas"]["AlertZone"];
+            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif, `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_directory_sync`. */
             params?: {
-                [key: string]: unknown;
+                component?: components["schemas"]["PlatformComponent"];
+                used_bytes?: number;
+                available_bytes?: number;
+                backup_id?: components["schemas"]["Uuid"];
+                location?: components["schemas"]["ExternalBackupLocationName"];
+                failure?: components["schemas"]["ExternalBackupFailure"];
             };
         };
         /** @description Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010). */
@@ -2570,22 +2776,36 @@ export interface components {
             storage: components["schemas"]["StorageUsage"];
             last_directory_sync?: components["schemas"]["OperationOutcome"] | null;
             last_backup?: components["schemas"]["OperationOutcome"] | null;
+            /** @description Date et résultat de la dernière copie externe d'une sauvegarde planifiée, que la planification règle (`BackupSchedule.external_copy`) : la copie hors plateforme se vérifie ainsi (WF-ADM-0170, WF-EXP-0050). Nulle quand aucune copie n'est réglée ou n'a encore été faite. Le motif d'une copie échouée est dans l'alerte en cours (`scheduled_backup_copy_failed`), et non dans `problem`, le catalogue des erreurs ne nommant pas les refus d'un emplacement. */
+            last_backup_copy: components["schemas"]["OperationOutcome"] | null;
             /** @description Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130). */
             last_restore_test?: components["schemas"]["OperationOutcome"] | null;
             alerts: components["schemas"]["Alert"][];
         };
         /**
-         * Format: uuid
-         * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
+         * @description Langue offerte par l'interface (WF-INTF-0160).
+         * @enum {string}
          */
-        Uuid: string;
+        Language: "fr" | "en";
+        /** @description Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant d'ouvrir une session, ou pour régler ce qu'il laisse passer. */
+        Installation: {
+            default_language: components["schemas"]["Language"];
+            /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
+            avatar_max_bytes: number;
+            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
+            external_backup_max_bytes: number;
+        };
+        /**
+         * @description Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090, WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
+         * @enum {string}
+         */
+        BackgroundTaskStatus: "queued" | "running" | "succeeded" | "failed";
         /** @description Référence d'une tâche de fond. Une requête qui déclenche un traitement long rend la main immédiatement en renvoyant cette référence (WF-ARC-0090, WF-IHM-0080). */
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
             /** @enum {string} */
-            kind: "import_analysis" | "import_apply" | "revision_mark" | "export" | "backup" | "restore" | "directory_sync";
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
+            kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "directory_sync";
+            status: components["schemas"]["BackgroundTaskStatus"];
             progress?: number;
             submitted_at?: components["schemas"]["Timestamp"];
             finished_at?: components["schemas"]["Timestamp"] | null;
@@ -2593,6 +2813,11 @@ export interface components {
             problem?: components["schemas"]["Problem"] | null;
             /** @description Où lire le résultat, lorsque la tâche en produit un. */
             result_url?: string | null;
+        };
+        PaginationMeta: {
+            limit: number;
+            offset: number;
+            total: number;
         };
         /** @enum {string} */
         AuthProviderKind: "local" | "ldap" | "oidc";
@@ -2623,9 +2848,10 @@ export interface components {
             updated_at: components["schemas"]["Timestamp"];
             updated_by: components["schemas"]["ActorRef"];
         };
-        /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). */
+        /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative, le montant corrigé des lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le compteur d'aucun nœud. */
         LockVersion: number;
-        User: {
+        /** @description Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table des comptes complète des siennes (`User`). */
+        UserAccount: {
             user_id: components["schemas"]["Uuid"];
             last_name: string;
             first_name: string;
@@ -2634,17 +2860,26 @@ export interface components {
              * @description Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
              */
             email: string;
+            /** @description L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour « désactivé » (`deactivated`). Un compte désactivé ne peut plus ouvrir de session. */
             is_active: boolean;
             origin: components["schemas"]["UserOrigin"];
             /** @description Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030). */
             org_node_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du nœud de rattachement, résolu à la lecture, actif ou désactivé (WF-REF-0150) ; nul sans rattachement. Le front ne rapproche pas l'organisation des comptes (WF-ARC-0020). */
+            org_node_label: string | null;
             /** @description Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090). */
             access_role_ids: components["schemas"]["Uuid"][];
-            language?: string;
+            /** @description Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020). */
+            access_role_labels: string[];
             has_avatar?: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Sens d'un tri demandé au serveur ; croissant par défaut.
+         * @enum {string}
+         */
+        SortOrder: "asc" | "desc";
         GridPreferences: {
             hidden_columns?: string[];
             column_widths?: {
@@ -2652,32 +2887,42 @@ export interface components {
             };
             sort?: {
                 column: string;
-                /** @enum {string} */
-                direction: "asc" | "desc";
-            }[];
+                order: components["schemas"]["SortOrder"];
+            } | null;
             filters?: {
                 [key: string]: unknown;
             };
         };
-        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). */
+        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. */
         DisplayPreferences: {
-            language?: string;
+            /**
+             * @description Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du compte : le front résout la langue à chaque requête, l'API n'en localise aucune réponse (WF-ARC-0110).
+             * @enum {string}
+             */
+            language?: "default" | "fr" | "en";
+            /**
+             * @description Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation (WF-ADM-0040).
+             * @enum {string}
+             */
+            theme?: "default" | "light" | "dark";
             highlight_tasks_added_after_reference?: boolean;
             grids?: {
-                [key: string]: components["schemas"]["GridPreferences"];
+                [key: string]: components["schemas"]["GridPreferences"] | null;
             };
         };
-        UserSelf: components["schemas"]["User"] & {
+        /** @description Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les commandes de la table des comptes : la session ne s'administre pas par elle. */
+        UserSelf: components["schemas"]["UserAccount"] & {
             display_preferences?: components["schemas"]["DisplayPreferences"];
         };
-        /** @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, plus une permission propre par action irréversible ou structurante (WF-ADM-0100). */
-        PermissionCode: string;
+        /**
+         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait que sa permission de consulter. L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
+         * @enum {string}
+         */
+        PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "audit_log.read" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cost_curve.read" | "portfolio_cost_curve.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "revision_abandon" | "reference_designate" | "structure_merge" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore" | "project_create" | "all_projects_read";
         /** @description Session conservée en base, révocable immédiatement (WF-SEC-0020). Les permissions effectives sont évaluées à chaque requête et renvoyées ici pour que le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090). */
         Session: {
             user: components["schemas"]["UserSelf"];
             permissions: components["schemas"]["PermissionCode"][];
-            /** @description Langue retenue pour cette session (WF-INTF-0160). */
-            language: string;
             expires_at: components["schemas"]["Timestamp"];
             idle_expires_at?: components["schemas"]["Timestamp"];
         };
@@ -2686,7 +2931,7 @@ export interface components {
             email: string;
             password: string;
         };
-        /** @description Demande un lien de réinitialisation, valable une heure et à usage unique (WF-ADM-0140). Le courriel part dans la langue du compte si elle est connue, sinon dans celle de la requête (WF-ARC-0110). */
+        /** @description Demande un lien de réinitialisation, valable une heure et à usage unique (WF-ADM-0140). Le courriel part dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ARC-0110). */
         PasswordResetRequest: {
             /** Format: email */
             email: string;
@@ -2699,10 +2944,26 @@ export interface components {
             current_password: string;
             new_password: string;
         };
-        PaginationMeta: {
-            limit: number;
-            offset: number;
-            total: number;
+        /**
+         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
+         * @enum {string}
+         */
+        UserCommand: "deactivate" | "reactivate" | "set_access_roles";
+        /**
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @enum {string}
+         */
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator";
+        UserCommandAvailability: {
+            command: components["schemas"]["UserCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Un compte tel que la table des comptes le lit : le compte, et ses commandes (`available_commands`, WF-IHM-0090). */
+        User: components["schemas"]["UserAccount"] & {
+            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            available_commands: components["schemas"]["UserCommandAvailability"][];
         };
         UserCreate: {
             last_name: string;
@@ -2737,8 +2998,11 @@ export interface components {
         };
         Permission: {
             code: components["schemas"]["PermissionCode"];
-            /** @enum {string} */
-            kind: "function_read" | "function_write" | "irreversible";
+            /**
+             * @description Consultation ou modification d'une fonction, action irréversible, ou permission structurante — créer un projet, consulter tous les projets (WF-ADM-0100).
+             * @enum {string}
+             */
+            kind: "function_read" | "function_write" | "irreversible" | "structuring";
             /** @description Fonction de second niveau couverte, pour les deux premières natures. */
             fbs_code?: string | null;
         };
@@ -2777,26 +3041,132 @@ export interface components {
         BackupRetain: {
             is_retained: boolean;
         };
+        /** @description Chemin relatif dans un emplacement externe : des segments séparés par `/`, sans `/` en tête ni en fin, chacun commençant par une lettre, un chiffre ou `_` — ni `.` ni `..`, qui sortiraient du dossier visé, ni segment vide. Le motif s'applique au texte entier, jusqu'à sa fin : un retour à la ligne final (`a\n`) le rompt. Un chemin qui ne s'y conforme pas est refusé par champ, 422 `VALIDATION_FAILED`, motif `PATH_INVALID`. */
+        ExternalBackupPath: string;
+        /** @description Copie externe automatique des sauvegardes planifiées (WF-ADM-0170) : après chaque sauvegarde planifiée et vérifiée, le serveur la copie vers un emplacement que l'installation déclare dans sa configuration de déploiement (`ExternalBackupLocation`), nommé ici et jamais décrit : aucun identifiant ni secret ne se saisit à l'écran. L'échec d'une copie est une alerte de l'état du système, comme celui de la sauvegarde (`scheduled_backup_copy_failed`, WF-OBS-0030). Une sauvegarde manuelle se copie hors de la plateforme par son téléchargement (WF-ADM-0150). */
+        BackupExternalCopy: {
+            /** @description Faux, la copie est suspendue et son réglage gardé, comme `BackupSchedule.is_enabled`. */
+            is_enabled: boolean;
+            /** @description Le nom d'un emplacement déclaré par l'installation (`listExternalBackupLocations`) ; un nom qu'elle ne déclare pas est refusé par 422 `VALIDATION_FAILED`, motif `UNKNOWN_EXTERNAL_BACKUP_LOCATION` sur `/external_copy/location`. */
+            location: components["schemas"]["ExternalBackupLocationName"];
+            /** @description Le dossier, ou le préfixe, où les copies sont écrites dans l'emplacement ; un chemin qui n'est pas relatif ou qui sort du dossier est refusé par 422 `VALIDATION_FAILED`, motif `PATH_INVALID` sur `/external_copy/path`. */
+            path: components["schemas"]["ExternalBackupPath"];
+            /** @description Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/external_copy/retained_count`, `params.minimum` disant la rétention de la plateforme. Au-delà, la plus ancienne copie de ce dossier est supprimée ; le marquage à conserver ne vaut que pour les sauvegardes de la plateforme. */
+            retained_count: number;
+        };
         /** @description Planification et rétention des sauvegardes (WF-ADM-0170). */
         BackupSchedule: {
             is_enabled: boolean;
             /** @enum {string} */
             frequency?: "daily" | "weekly";
+            /** @description Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que soit le fuseau du poste qui la lit. */
             at_time?: string;
+            /** @description Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. */
             weekday?: number | null;
             retained_count: number;
+            /** @description La copie automatique de chaque sauvegarde planifiée vers un emplacement externe (WF-ADM-0170) ; absente, aucune copie n'est réglée — une installation qui ne déclare aucun emplacement n'en offre pas. Une planification enregistrée sans elle retire la copie réglée. */
+            external_copy?: components["schemas"]["BackupExternalCopy"];
             lock_version: components["schemas"]["LockVersion"];
+        };
+        /**
+         * @description Ce qu'est un emplacement externe : un compartiment S3, d'un autre site, ou un partage réseau monté sur le serveur. Le serveur l'atteint seul, jamais le navigateur.
+         * @enum {string}
+         */
+        ExternalBackupLocationKind: "s3" | "mounted_share";
+        /** @description Un emplacement externe où copier les sauvegardes (WF-ADM-0170), déclaré par l'installation dans sa configuration de déploiement — compartiment, point de montage, identifiants — et lu ici sans aucun de ses secrets : ni identifiant, ni clé, ni adresse qui en porterait. Il ne se crée ni ne se modifie par l'API. */
+        ExternalBackupLocation: {
+            name: components["schemas"]["ExternalBackupLocationName"];
+            kind: components["schemas"]["ExternalBackupLocationKind"];
+            /** @description Ce que la configuration en dit pour l'administrateur, telle qu'elle est écrite ; nulle quand elle n'en dit rien. */
+            description: string | null;
+        };
+        /** @description Ce que le test éprouve : l'emplacement, à la racine, ou dans le dossier que la copie emploierait. */
+        ExternalBackupLocationTestRequest: {
+            /** @description Le dossier où écrire le fichier témoin ; absent, la racine de l'emplacement. */
+            path?: components["schemas"]["ExternalBackupPath"];
+        };
+        /** @description L'issue d'un test d'un emplacement externe : le serveur y a écrit puis effacé un fichier témoin, avec les identifiants de la configuration (WF-ADM-0170). Réussi quand `failure` est nul. */
+        ExternalBackupLocationTest: {
+            location: components["schemas"]["ExternalBackupLocationName"];
+            /** @description Le dossier éprouvé ; nul pour la racine de l'emplacement. */
+            path: components["schemas"]["ExternalBackupPath"] | null;
+            tested_at: components["schemas"]["Timestamp"];
+            /** @description Le motif de l'échec ; nul quand le fichier a été écrit puis effacé. */
+            failure: components["schemas"]["ExternalBackupFailure"] | null;
         };
         /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
         RestoreRequest: {
             backup_id?: components["schemas"]["Uuid"];
-            /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160). */
+            /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). */
             external_backup_upload_id?: components["schemas"]["Uuid"];
             /** @description Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160). */
             acknowledged_backup_taken_at: components["schemas"]["Timestamp"];
             /** @constant */
             confirmed: true;
         } & (unknown | unknown);
+        /**
+         * @description L'auteur d'une inscription, un compte ou la plateforme, comme `ActorRef.kind` le dit : nommé pour filtrer le journal.
+         * @enum {string}
+         */
+        AuditActorKind: "user" | "platform";
+        /**
+         * @description Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur désactivation et leur réactivation, et le lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
+         * @enum {string}
+         */
+        AuditAction: "revision_mark" | "reference_designate" | "amendment_merge" | "risk_occurrence" | "project_exit" | "cost_line_exclude" | "cost_line_reinstate" | "import_apply" | "user_create" | "user_update" | "user_deactivate" | "user_reactivate" | "password_link_create" | "access_role_create" | "access_role_update" | "access_role_delete" | "user_access_roles_set" | "backup" | "restore";
+        /**
+         * @description La nature de l'objet qu'une inscription concerne : le projet d'une sortie du cycle de vie, la révision marquée ou désignée, le différentiel d'un avenant, le risque survenu, la ligne de coût exclue ou réintégrée, l'import appliqué, le compte, le rôle, la sauvegarde prise ou restaurée, et le dépôt d'une sauvegarde copiée hors de la plateforme qu'une restauration remet en place (`external_backup_upload`, l'identifiant du dépôt, `RestoreRequest.external_backup_upload_id` ; WF-SEC-0030, WF-ADM-0160).
+         * @enum {string}
+         */
+        AuditObjectKind: "project" | "revision" | "cost_structure" | "risk" | "cost_line" | "import" | "user" | "access_role" | "backup" | "external_backup_upload";
+        /** @description La révision d'un objet du journal, par son identifiant et son libellé au moment de l'action (WF-SEC-0030). */
+        AuditRevision: {
+            revision_id: components["schemas"]["Uuid"];
+            /** @description Le nom de version de la révision au moment de l'action ; nul pour une révision en cours d'élaboration, qui n'en a pas encore (WF-REV-0010). */
+            label: string | null;
+        };
+        /** @description L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis — ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets (WF-SEC-0030). Un objet qui vit dans une révision la nomme (`revision`), pour que l'écran y mène. */
+        AuditObject: {
+            kind: components["schemas"]["AuditObjectKind"];
+            object_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription. */
+            label: string | null;
+            /** @description La révision où l'objet vit, au moment de l'action : celle dont le registre porte le risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, celle du différentiel d'un avenant (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090), un compte, un rôle, une sauvegarde, un dépôt. */
+            revision: components["schemas"]["AuditRevision"] | null;
+        };
+        /** @description Un projet du journal, par son identifiant, son code et son libellé : ceux du moment de l'action dans une inscription (`AuditEvent.project`), ceux d'aujourd'hui dans les facettes (`AuditFacets.projects`) — pour un projet qui n'existe plus, créé après la sauvegarde qu'une restauration a remise en place, ceux de sa dernière inscription. */
+        AuditProject: {
+            project_id: components["schemas"]["Uuid"];
+            code: string;
+            label: string;
+        };
+        /** @description Une inscription du journal d'audit : la date, l'auteur, l'action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030), et l'identifiant de corrélation de la requête ou de la tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son inscription `restore` s'écrit une fois la restauration faite (WF-ADM-0160, #539). Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même corrélation : la fusion d'un avenant inscrit `amendment_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050). */
+        AuditEvent: {
+            audit_event_id: components["schemas"]["Uuid"];
+            /** @description L'instant où l'action a pris effet : pour une action confiée au worker — marquage, fusion, survenance, application d'un import, restauration —, celui où la tâche a abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle copie. */
+            occurred_at: components["schemas"]["Timestamp"];
+            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture de l'annuaire —, et ce que l'installation crée. */
+            actor: components["schemas"]["ActorRef"];
+            action: components["schemas"]["AuditAction"];
+            object: components["schemas"]["AuditObject"];
+            /** @description Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde. */
+            project: components["schemas"]["AuditProject"] | null;
+            /** @description L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme. */
+            correlation_id: string;
+        };
+        /** @description Un compte auteur d'au moins une inscription du journal. */
+        AuditActorFacet: {
+            user_id: components["schemas"]["Uuid"];
+            /** @description Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060). */
+            display_name: string;
+        };
+        /** @description Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les lire, sans celle de lire les comptes ni les projets (WF-ADM-0100). */
+        AuditFacets: {
+            /** @description Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant ; la plateforme n'y est pas : `actor_kind` la retient. */
+            actors: components["schemas"]["AuditActorFacet"][];
+            /** @description Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par l'appelant, comme le journal les nomme. */
+            projects: components["schemas"]["AuditProject"][];
+        };
         /** @description Référentiel minimal exigé pour créer un projet (WF-CYC-0120). Le refus nomme chaque prérequis manquant. */
         ReferenceReadiness: {
             is_complete: boolean;
@@ -2810,6 +3180,7 @@ export interface components {
         RiskMatrixSettings: {
             probability_bounds: components["schemas"]["Percent"][];
             severity_bounds: components["schemas"]["Percent"][];
+            /** @description La zone de chaque case, rangée par niveau de probabilité puis par niveau de gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et de gravité g, de 1 à 4, est la zone de rang 4 × (p − 1) + (g − 1), en comptant depuis zéro. */
             zones: components["schemas"]["AlertZone"][];
         };
         /** @description Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). */
@@ -2823,30 +3194,52 @@ export interface components {
         ReferenceSettings: {
             /** @description Devise unique, choisie à l'installation et non modifiable (WF-REF-0140). */
             currency_code: string;
-            default_language: string;
+            default_language: components["schemas"]["Language"];
             risk_matrix: components["schemas"]["RiskMatrixSettings"];
             index_thresholds: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews: number;
             lock_version: components["schemas"]["LockVersion"];
         };
         ReferenceSettingsWrite: {
-            default_language?: string;
+            default_language?: components["schemas"]["Language"];
             risk_matrix?: components["schemas"]["RiskMatrixSettings"];
             index_thresholds?: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews?: number;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070). */
+        /**
+         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource, calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+         * @enum {string}
+         */
+        ReferenceCommand: "deactivate" | "reactivate";
+        ReferenceCommandAvailability: {
+            command: components["schemas"]["ReferenceCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit l'objet sans la permission de modifier sa fonction — un rôle lu pour choisir celui d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        ReferenceCommands: components["schemas"]["ReferenceCommandAvailability"][];
+        /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). */
         OrgNode: {
             org_node_id: components["schemas"]["Uuid"];
+            /** @description Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est refusé par 409, `ALREADY_EXISTS` (WF-REF-0070). */
+            code: string;
             label: string;
             parent_id: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150) ; nul pour une racine. */
+            parent_label: string | null;
+            /** @description Profondeur du nœud dans l'arbre, résolue à la lecture : 1 pour une racine, celle de son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6 (WF-REF-0070). */
+            level: number;
             is_active: boolean;
+            available_commands: components["schemas"]["ReferenceCommands"];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
         OrgNodeWrite: {
+            code: string;
             label: string;
+            /** @description Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`. */
             parent_id?: components["schemas"]["Uuid"] | null;
         };
         /** @description Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas. */
@@ -2860,27 +3253,61 @@ export interface components {
             monthly_hours: components["schemas"]["Hours"];
             headcount: components["schemas"]["Decimal"];
         };
-        /** @description Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). */
-        ResourceRole: {
+        /** @description Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        ResourceRoleImage: {
             resource_role_id: components["schemas"]["Uuid"];
             label: string;
             org_node_id: components["schemas"]["Uuid"];
+            /** @description Le libellé du nœud, résolu à la lecture, actif ou désactivé (WF-REF-0150). */
+            org_node_label: string;
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de la catégorie, résolu à la lecture, active ou désactivée (WF-REF-0150). */
+            cost_category_label: string;
             calendar_id: components["schemas"]["Uuid"];
+            /** @description Le libellé du calendrier, résolu à la lecture, actif ou désactivé (WF-REF-0150). */
+            calendar_label: string;
             capacity: components["schemas"]["RoleCapacity"];
             is_active: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image figée par une révision marquée n'en porte pas (`EmployedReference`). */
+        ReferenceObjectCommands: {
+            available_commands: components["schemas"]["ReferenceCommands"];
+        };
+        /** @description Rôle de ressource tel que le référentiel le lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        ResourceRole: components["schemas"]["ResourceRoleImage"] & components["schemas"]["ReferenceObjectCommands"];
         ResourceRoleWrite: {
             label: string;
+            /** @description Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080). */
             org_node_id: components["schemas"]["Uuid"];
             cost_category_id: components["schemas"]["Uuid"];
             calendar_id: components["schemas"]["Uuid"];
             capacity: components["schemas"]["RoleCapacity"];
         };
-        /** @description Modification d'un rôle de ressource : porte le compteur lu, qu'une création n'a pas. */
-        ResourceRoleUpdate: components["schemas"]["ResourceRoleWrite"] & {
+        /** @description Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). */
+        ResourceRoleUpdate: {
+            label: string;
+            cost_category_id: components["schemas"]["Uuid"];
+            calendar_id: components["schemas"]["Uuid"];
+            capacity: components["schemas"]["RoleCapacity"];
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Les trois constantes de l'installation par lesquelles les jours, les semaines et les mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par défaut, « 2 j » vaut seize heures, « 1 sem » quarante et « 1 m » cent soixante. Communes à tous les projets, comme la devise l'est aux montants. */
+        DurationUnits: {
+            /** @description 8 par défaut. */
+            hours_per_day: components["schemas"]["Decimal"];
+            /** @description 40 par défaut. */
+            hours_per_week: components["schemas"]["Decimal"];
+            /** @description 20 par défaut. */
+            days_per_month: components["schemas"]["Decimal"];
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160) : le motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant. */
+        DurationUnitsWrite: {
+            hours_per_day: components["schemas"]["Decimal"];
+            hours_per_week: components["schemas"]["Decimal"];
+            days_per_month: components["schemas"]["Decimal"];
             lock_version: components["schemas"]["LockVersion"];
         };
         WeeklyHours: {
@@ -2892,8 +3319,8 @@ export interface components {
             saturday: components["schemas"]["Hours"];
             sunday: components["schemas"]["Hours"];
         };
-        /** @description Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). */
-        Calendar: {
+        /** @description Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        CalendarImage: {
             calendar_id: components["schemas"]["Uuid"];
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
@@ -2902,6 +3329,8 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Calendrier tel que le référentiel le lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        Calendar: components["schemas"]["CalendarImage"] & components["schemas"]["ReferenceObjectCommands"];
         CalendarWrite: {
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
@@ -2911,17 +3340,32 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée est employée.
+         * @description Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
          * @enum {string}
          */
         CostTypeKind: "labor" | "non_labor" | "provision";
+        /**
+         * @description Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused` manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé, se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa désactivation et la modification de son type indisponibles, `cost_type_not_last_provision` manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @enum {string}
+         */
+        CostTypeCommand: "deactivate" | "reactivate" | "change_kind";
+        CostTypeCommandAvailability: {
+            command: components["schemas"]["CostTypeCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au plus deux, celle qui change son état et la modification de son type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        CostTypeCommands: components["schemas"]["CostTypeCommandAvailability"][];
         /** @description Nature de coût (WF-REF-0030). */
         CostType: {
             cost_type_id: components["schemas"]["Uuid"];
+            /** @description Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030). */
             code: string;
             label: string;
             kind: components["schemas"]["CostTypeKind"];
             is_active: boolean;
+            available_commands: components["schemas"]["CostTypeCommands"];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -2930,27 +3374,48 @@ export interface components {
             label: string;
             kind: components["schemas"]["CostTypeKind"];
         };
-        /** @description Modification d'un type de coût : porte le compteur lu, qu'une création n'a pas. */
+        /** @description Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind` autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien. */
         CostTypeUpdate: components["schemas"]["CostTypeWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Catégorie de coût, rattachée à une nature (WF-REF-0040). */
-        CostCategory: {
+        /** @description Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        CostCategoryImage: {
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`. */
             code: string;
             label: string;
             cost_type_id: components["schemas"]["Uuid"];
-            /** @description Code comptable, documentaire (WF-REF-0040). */
-            accounting_code?: string | null;
+            /** @description Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150). */
+            cost_type_label: string;
+            /** @description Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040). */
+            accounting_code: string;
             is_active: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une catégorie ne porte que celle qui change son état —, et la rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante, dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et, `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09, #577). Il reste toujours une catégorie active rattachée à une nature provision active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision` manquante ; un rattachement à une autre nature provision active la laisse provision, et reste permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @enum {string}
+         */
+        CostCategoryCommand: "deactivate" | "reactivate" | "change_cost_type";
+        CostCategoryCommandAvailability: {
+            command: components["schemas"]["CostCategoryCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        CostCategoryCommands: components["schemas"]["CostCategoryCommandAvailability"][];
+        /** @description Catégorie de coût telle que le référentiel la lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        CostCategory: components["schemas"]["CostCategoryImage"] & {
+            available_commands: components["schemas"]["CostCategoryCommands"];
+        };
         CostCategoryWrite: {
             code: string;
             label: string;
+            /** @description La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même, `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type, elle est toujours permise. */
             cost_type_id: components["schemas"]["Uuid"];
-            accounting_code?: string | null;
+            accounting_code: string;
         };
         /** @description Modification d'une catégorie de coût : porte le compteur lu, qu'une création n'a pas. */
         CostCategoryUpdate: components["schemas"]["CostCategoryWrite"] & {
@@ -2967,8 +3432,26 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. */
+        /** @description Une ligne de la grille : la catégorie, nommée pour que la grille n'ait rien à joindre, et une cellule par année de `years`, dans le même ordre. */
+        HourlyRateRow: {
+            cost_category_id: components["schemas"]["Uuid"];
+            code: string;
+            label: string;
+            is_active: boolean;
+            /** @description Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux (WF-REF-0060). */
+            cells: (components["schemas"]["HourlyRate"] | null)[];
+        };
+        /** @description Une page de la grille des taux horaires : une ligne par catégorie de main-d'œuvre, une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les colonnes sont celles de toute la grille, quelles que soient la page, la recherche et le tri : une colonne ne disparaît pas d'une page à l'autre. */
+        HourlyRateGrid: {
+            /** @description Les années de toute la grille, croissantes ; les colonnes. Elles ne dépendent que de la portée de la lecture : les années où une catégorie active porte un taux, et où une catégorie active ou désactivée en porte un quand `include_inactive` est vrai ou `is_active` faux. Elles ne dépendent jamais d'`is_active` vrai, de la recherche, des bornes, du tri ni de la page : une colonne ne disparaît pas d'une page ou d'un filtre à l'autre. */
+            years: components["schemas"]["Year"][];
+            /** @description Les catégories de main-d'œuvre de la page, dans l'ordre demandé (`sort_by`) — absent, celui du code. */
+            rows: components["schemas"]["HourlyRateRow"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. Une première saisie, sans compteur, pour une année qui porte déjà un taux en serait un second : refusée par 409, `ALREADY_EXISTS` (WF-REF-0050). */
         HourlyRateWrite: {
+            /** @description Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit. */
             amount: components["schemas"]["Money"];
             lock_version?: components["schemas"]["LockVersion"];
         };
@@ -2982,6 +3465,17 @@ export interface components {
          * @description Date sans heure, en ISO 8601 (WF-DAT-0100).
          */
         PlanningDate: string;
+        /**
+         * @description Commandes portées par le projet : modifier ses paramètres, ses contributeurs, ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge` (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`, `reference_revision_designated`, `no_background_task_running`), celles du risque sur le risque (`RiskCommand.declare_occurrence`) ; importer les coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un planning MS Project, un devis, un reste à engager — une commande par nature, chacune gardée par sa permission —, que l'import applique à la révision en cours et crée au besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer. La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`, WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020), et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision est en cours, la commande n'est plus listée sur le projet, mais sur elle.
+         * @enum {string}
+         */
+        ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines" | "import_planning" | "import_estimate" | "import_remaining";
+        ProjectCommandAvailability: {
+            command: components["schemas"]["ProjectCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
         /** @description Attributs d'un projet (WF-PRJ-0080). */
         Project: {
             project_id: components["schemas"]["Uuid"];
@@ -2999,8 +3493,14 @@ export interface components {
             reference_revision_id?: components["schemas"]["Uuid"] | null;
             /** @description Révision en cours d'élaboration, s'il en existe une (WF-REV-0010). */
             current_revision_id?: components["schemas"]["Uuid"] | null;
+            /** @description Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante. */
+            available_commands: components["schemas"]["ProjectCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Où se tient la page dans les projets retenus, et les états retenus : ceux que la requête nomme (`states`), ou, quand elle n'en nomme aucun, ceux du défaut, les projets en cours (WF-PTF-0010), dans l'ordre de `ProjectState`. L'écran montre ainsi le filtre d'état que le serveur a appliqué, sans le deviner (WF-IHM-0130). */
+        ProjectListMeta: components["schemas"]["PaginationMeta"] & {
+            states: components["schemas"]["ProjectState"][];
         };
         ProjectCreate: {
             label: string;
@@ -3016,12 +3516,14 @@ export interface components {
             order_received_on?: components["schemas"]["PlanningDate"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Transition datée du jour où elle s'est produite, non modifiable (WF-CYC-0130). */
+        /** @description Transition datée du jour où elle s'est produite, avec son auteur et, pour une sortie manuelle, le motif donné à sa confirmation ; non modifiable (WF-CYC-0130). */
         StateTransition: {
             from_state: components["schemas"]["ProjectState"] | null;
             to_state: components["schemas"]["ProjectState"];
             occurred_at: components["schemas"]["Timestamp"];
             actor: components["schemas"]["ActorRef"];
+            /** @description Motif donné à la sortie manuelle qui a produit la transition (WF-CYC-0090) ; nul pour une transition automatique ou une sortie confirmée sans motif. */
+            reason: string | null;
         };
         /** @description Prochain état, son fait déclencheur et les conditions restantes, consultables à tout moment avant En cours (WF-CYC-0050). */
         NextState: {
@@ -3030,7 +3532,7 @@ export interface components {
             /** @description Code du fait déclencheur, rendu par le front (WF-ARC-0110). */
             trigger: string | null;
             /** @description Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050). */
-            missing_conditions: ("reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "project_code_set")[];
+            missing_conditions: components["schemas"]["CommandCondition"][];
         };
         /** @description Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et appliquée après confirmation explicite (WF-CYC-0090). */
         ProjectExit: {
@@ -3041,8 +3543,14 @@ export interface components {
              * @constant
              */
             confirmed: true;
+            /** @description Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130). */
             reason?: string | null;
         };
+        /**
+         * @description Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot, livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
+         * @enum {string}
+         */
+        WorkBreakdownKind: "order_item" | "work_package" | "deliverable";
         Deliverable: {
             deliverable_id: components["schemas"]["Uuid"];
             label: string;
@@ -3057,9 +3565,16 @@ export interface components {
             label: string;
             work_packages: components["schemas"]["WorkPackage"][];
         };
-        /** @description Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son absence, un poste, un lot, aucun livrable (WF-PRJ-0020). */
+        /** @description Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en retiennent (WF-PRJ-0020, WF-IHM-0130). */
+        WorkBreakdownReading: {
+            order_items: components["schemas"]["OrderItem"][];
+            /** @description Le compteur du lotissement, que `setWorkBreakdown` exige, rendu par la seule lecture entière ; nul pour une lecture filtrée (`search` ou `kinds`), qui omet des éléments : la renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur nul l'en empêche (422). */
+            lock_version: components["schemas"]["LockVersion"] | null;
+        };
+        /** @description Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son absence, un poste, un lot, aucun livrable (WF-PRJ-0020). Le lotissement entier, que `setWorkBreakdown` écrit et rend. */
         WorkBreakdown: {
             order_items: components["schemas"]["OrderItem"][];
+            /** @description Le compteur du lotissement lu entier (`WorkBreakdownReading.lock_version`) ; nul — celui d'une lecture filtrée —, la saisie est refusée par 422, périmé par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050). */
@@ -3079,14 +3594,33 @@ export interface components {
         SubprojectUpdate: components["schemas"]["SubprojectWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Contributeur d'un projet. Toute saisie y est réservée aux contributeurs ; la consultation ne dépend que des habilitations (WF-PRJ-0060). */
+        /**
+         * @description Qualité d'un contributeur : chef de projet ou contributeur. Les actions structurantes du catalogue et le paramétrage du projet sont réservés à ses chefs de projet, la saisie à tous ses contributeurs (WF-PRJ-0060, WF-ADM-0110).
+         * @enum {string}
+         */
+        ContributorKind: "project_manager" | "contributor";
+        /** @description Contributeur d'un projet, avec sa qualité. La consultation et la saisie sur un projet sont réservées à ses contributeurs, chacune sous sa permission ; la permission « consulter tous les projets » ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-PRJ-0060). */
         Contributor: {
             user_id: components["schemas"]["Uuid"];
             display_name: string;
-            is_active?: boolean;
+            kind: components["schemas"]["ContributorKind"];
+            /** @description Faux pour un compte désactivé depuis son inscription, que la liste garde et signale (WF-ADM-0060). Toujours rendu : l'écran ne devine rien d'une valeur absente. */
+            is_active: boolean;
         };
+        /** @description La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste : la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110). */
+        ContributorList: {
+            items: components["schemas"]["Contributor"][];
+            /** @description Le compteur de la liste, que `setContributors` exige tel qu'il a été lu, rendu par une lecture de la liste entière, triée ou non ; nul pour une lecture filtrée (`search`, `kinds`, `is_active`), qui omet des contributeurs : écrite telle quelle, la liste les retirerait, et le compteur nul l'empêche (422). */
+            lock_version: components["schemas"]["LockVersion"] | null;
+        };
+        ContributorWrite: {
+            user_id: components["schemas"]["Uuid"];
+            kind: components["schemas"]["ContributorKind"];
+        };
+        /** @description La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet (WF-PRJ-0060). */
         ContributorsWrite: {
-            user_ids: components["schemas"]["Uuid"][];
+            contributors: components["schemas"]["ContributorWrite"][];
+            /** @description Le compteur de la liste lue entière (`ContributorList.lock_version`) ; nul — celui d'une lecture filtrée —, la liste est refusée par 422 ; périmé, par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Proposition fondée sur les nœuds d'organisation des rôles employés par le planning ; jamais appliquée sans confirmation (WF-PRJ-0070). */
@@ -3106,11 +3640,11 @@ export interface components {
          * @enum {string}
          */
         RevisionStatus: "draft" | "marked";
-        /** @description Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130). */
+        /** @description Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130) : sans les commandes qu'un objet lu aujourd'hui porte, qu'une image n'a pas. */
         EmployedReference: {
-            resource_roles: components["schemas"]["ResourceRole"][];
-            calendars: components["schemas"]["Calendar"][];
-            cost_categories: components["schemas"]["CostCategory"][];
+            resource_roles: components["schemas"]["ResourceRoleImage"][];
+            calendars: components["schemas"]["CalendarImage"][];
+            cost_categories: components["schemas"]["CostCategoryImage"][];
             hourly_rates: components["schemas"]["HourlyRate"][];
         };
         /** @description Ce que la révision conserve de son contexte : les paramètres du projet qui ont servi à la calculer et les seules valeurs du référentiel qu'elle emploie (WF-REV-0030). */
@@ -3118,6 +3652,18 @@ export interface components {
             inflation_rate: components["schemas"]["Percent"];
             win_probability: components["schemas"]["Percent"];
             employed_reference: components["schemas"]["EmployedReference"];
+        };
+        /**
+         * @description Commandes portées par la révision : saisir le planning, le devis, le reste à engager, les risques — une commande par fonction, chacune gardée par sa permission (WF-ADM-0100) —, ouvrir un différentiel (WF-REV-0100) et le fusionner (WF-REV-0050), la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020, WF-REV-0040) — la fusion, le marquage, la désignation et l'abandon chacun gardés par sa permission propre, `structure_merge`, `revision_mark`, `reference_designate`, `revision_abandon` : un rôle qui marque sans fusionner voit `mark` et non `merge_structure` (WF-ADM-0100) ; en exporter le planning MS Project, le devis, le reste à engager ou l'image de l'arborescence de tâches — une commande par nature d'export (`ExportRequest.kind`), dans l'ordre de l'énumération (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120). Un export se dit de la révision qu'il lit, marquée comme en cours ; un import, qui écrit dans la révision en cours ou la crée, est une commande du projet (`ProjectCommand`). Un export relève de la consultation (WF-CYC-0110) : il est gardé par la permission de consulter la fonction de sa nature — le planning et l'image de l'arborescence celle du planning (FBS-4.3), le devis celle du devis (FBS-4.4), le reste à engager celle du reste à engager (FBS-4.5) — et ne manque d'aucune condition : sur une révision marquée, pendant un marquage, sur un projet terminal, il reste disponible. Un export est présent ou absent.
+         *     `edit_risks` est la saisie des risques — déclarer, modifier, réexaminer, supprimer un risque (`createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`), sous `risks.write` —, une saisie de la révision en cours comme les trois autres, annulable par le même historique (WF-RIS-0020, WF-IHM-0110). Seule la révision en cours la porte : une révision marquée ne la liste jamais, pas même indisponible comme les trois autres saisies — elle est immuable (WF-DAT-0020), et l'écran ne doit pas montrer deux commandes de saisie des risques quand le projet la porte. Tant que le projet n'a pas de révision en cours, c'est le projet qui la porte (`ProjectCommand.edit_risks`), la saisie créant la révision en cours (WF-RIS-0020). La déclaration de survenance n'en relève pas : c'est une commande du projet et du risque (`ProjectCommand.declare_risk_occurrence`, `RiskCommand.declare_occurrence`).
+         * @enum {string}
+         */
+        RevisionCommand: "edit_planning" | "edit_estimate" | "edit_remaining" | "edit_risks" | "create_structure" | "merge_structure" | "mark" | "designate_reference" | "abandon" | "export_planning" | "export_estimate" | "export_remaining" | "export_task_tree_image";
+        RevisionCommandAvailability: {
+            command: components["schemas"]["RevisionCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
         };
         Revision: {
             revision_id: components["schemas"]["Uuid"];
@@ -3129,7 +3675,11 @@ export interface components {
             marked_at?: components["schemas"]["Timestamp"] | null;
             /** @description Caractère de révision de référence (WF-REV-0040, WF-REV-0090). */
             is_reference: boolean;
+            /** @description Année de référence de la révision, un de ses attributs (WF-REV-0090) : l'année dont les taux horaires chiffrent ses lignes. Fixée par le serveur à la création de la révision, à l'année courante, conservée par la révision et son instantané (WF-REV-0060, WF-REV-0030), jamais saisie. C'est l'année pour laquelle le calcul exige un taux horaire de chaque catégorie employée (WF-DEV-0010, `getMissingRates`), celle des montants « à l'année de référence » de la grille de devis (`base_amount`, WF-DEV-0050), et celle que la mise à jour des taux vise (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026. */
+            readonly reference_year: components["schemas"]["Year"];
             snapshot?: components["schemas"]["RevisionSnapshot"] | null;
+            /** @description Commandes de la révision que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille dont la commande de saisie est absente ou indisponible se présente en lecture seule. */
+            available_commands: components["schemas"]["RevisionCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3154,11 +3704,14 @@ export interface components {
             /** @constant */
             confirmed: true;
         };
-        /** @description Écart de taux proposé catégorie par catégorie à la création d'une révision. Une catégorie sans taux pour l'année retenue conserve son taux précédent, projeté par le taux d'inflation (WF-REV-0060). */
+        /** @description Écart de taux proposé catégorie par catégorie à la création d'une révision, quand son année de référence diffère de celle de la révision précédente. Une catégorie sans taux pour l'année retenue conserve son taux précédent, projeté par le taux d'inflation (WF-REV-0060). */
         RateUpdateProposal: {
+            /** @description L'année de référence de la révision créée (`Revision.reference_year`), pour laquelle les taux sont proposés ; les taux précédents sont ceux de l'année de référence de la révision dont elle est la copie (WF-REV-0060). */
             target_year?: components["schemas"]["Year"];
             categories: {
                 cost_category_id: components["schemas"]["Uuid"];
+                /** @description Le libellé de la catégorie, résolu à la lecture, pour que l'écran ne joigne rien. */
+                label: string;
                 previous_amount: components["schemas"]["Money"];
                 proposed_amount: components["schemas"]["Money"];
                 /** @enum {string} */
@@ -3183,10 +3736,15 @@ export interface components {
             added: components["schemas"]["ComparedNode"][];
             removed: components["schemas"]["ComparedNode"][];
             changed: components["schemas"]["ComparedNode"][];
+            /** @description Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). */
             amount_deltas: {
                 /** @enum {string} */
                 dimension: "cost_type" | "subproject";
+                /** @description L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020). */
                 key: string;
+                /** @description Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme. */
+                label: string | null;
+                /** @description L'écart de montant de la nature ou du sous-projet, à l'année de référence de chaque révision : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`). */
                 delta: components["schemas"]["Money"];
             }[];
         };
@@ -3204,6 +3762,7 @@ export interface components {
             risk_id?: components["schemas"]["Uuid"] | null;
             /** @description Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050). */
             is_merged: boolean;
+            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Crée un différentiel ou le devis propre d'un risque. La structure principale n'est jamais créée ici : elle existe dès la création de la révision (WF-REV-0100). */
@@ -3220,29 +3779,74 @@ export interface components {
             version_name: string;
         };
         /**
+         * @description État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
+         * @enum {string}
+         */
+        TaskProgress: "not_started" | "started" | "completed";
+        /**
+         * @description Colonne d'une grille de la structure, nommée comme `sort_by` de `listNodes` et `PastePreview.target_column` la nomment : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0170) ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et de reste à engager trient, par les colonnes de la ligne : la grille de planning n'en trie aucune (`sort_by`, WF-IHM-0060).
+         * @enum {string}
+         */
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "work_breakdown" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_quantity" | "previous_hours" | "previous_unit_disbursement" | "previous_reestimated_amount";
+        /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
          */
         SchedulingMode: "automatic" | "manual";
         /**
-         * @description État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
+         * @description Unité d'une durée, conservée telle qu'elle a été saisie ou importée (WF-PLA-0160) : minutes, heures, jours, semaines et mois de travail, que les constantes de l'installation convertissent en heures (`DurationUnits`) ; minutes, heures, jours, semaines et mois écoulés, qui se convertissent sans calendrier — un jour écoulé vaut vingt-quatre heures, une semaine sept jours, un mois trente jours. Le front l'écrit par le suffixe de Microsoft Project dans la langue du lecteur (`j`, `sem`, `ej`…).
          * @enum {string}
          */
-        TaskProgress: "not_started" | "started" | "completed";
+        DurationUnit: "min" | "h" | "d" | "w" | "mo" | "emin" | "eh" | "ed" | "ew" | "emo";
+        /** @description Durée, en temps de travail ou en temps écoulé : celle d'une tâche, dans l'unité de sa saisie (WF-PLA-0160), nulle pour un jalon (WF-PLA-0050) ; ou une marge totale, calculée en jours ouvrés (WF-PLA-0100). */
+        Duration: {
+            /** @description Jamais négative pour la durée d'une tâche ; signée pour une marge totale, négative quand un prédécesseur ne peut pas finir à temps pour une tâche en mode manuel (WF-PLA-0100). */
+            value: components["schemas"]["Decimal"];
+            unit: components["schemas"]["DurationUnit"];
+        };
+        /** @description Début ou fin d'une tâche : une date sans heure et le nombre d'heures de travail écoulées ce jour-là sur le calendrier applicable, sans fuseau (WF-DAT-0100). Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour : la première finit à `4`, la seconde commence à `4` et finit à `8`. */
+        WorkInstant: {
+            date: components["schemas"]["PlanningDate"];
+            hours: components["schemas"]["Hours"];
+        };
+        /**
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010).
+         * @enum {string}
+         */
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "hourly_rate_missing";
+        /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
+        MissingRate: {
+            cost_category_id: components["schemas"]["Uuid"];
+            label?: string;
+            year: components["schemas"]["Year"];
+        };
+        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010). */
+        Computable: {
+            is_computable: boolean;
+            value?: components["schemas"]["Decimal"] | null;
+            /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, quand il nomme quelque chose : `missing_rates`, les catégories et les années sans taux horaire (`hourly_rate_missing`, WF-DEV-0010). Absent sinon. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
+        };
         TrackingEntry: {
             /** @enum {string} */
             kind: "timeline" | "milestone_tracking";
             timeline_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique, dates et durée d'une récapitulative, marge, criticité, avancement physique — ne sont pas saisissables (WF-IHM-0030). */
+        /** @description Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique, dates et durée d'une récapitulative, marge, criticité, avancement physique, fin dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut porter le rattachement à un poste ou à un lot du lotissement (`order_item_id`, `work_package_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le fichier lui donnait (`external_id`, WF-INTF-0040). */
         TaskFacet: {
             label: string;
             description?: string | null;
             scheduling_mode: components["schemas"]["SchedulingMode"];
-            duration_days: number;
-            start_date: components["schemas"]["PlanningDate"] | null;
-            finish_date: components["schemas"]["PlanningDate"] | null;
+            duration: components["schemas"]["Duration"];
+            start: components["schemas"]["WorkInstant"] | null;
+            finish: components["schemas"]["WorkInstant"] | null;
             progress: components["schemas"]["TaskProgress"];
+            /** @description Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon. */
+            finish_overdue: boolean;
             started_on?: components["schemas"]["PlanningDate"] | null;
             /** @description Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030). */
             completed_on?: components["schemas"]["PlanningDate"] | null;
@@ -3252,34 +3856,80 @@ export interface components {
             is_milestone: boolean;
             /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
             calendar_id?: components["schemas"]["Uuid"] | null;
-            total_float_days?: number | null;
-            /** @description Appartenance au chemin critique, calculée (WF-PLA-0100). */
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float?: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
             is_critical?: boolean;
-            /** @description Avancement physique d'une récapitulative, calculé (WF-IND-0060). */
-            physical_progress?: components["schemas"]["Percent"] | null;
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            physical_progress?: components["schemas"]["Computable"] | null;
+            /** @description Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent. */
+            base_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020). */
+            budgeted_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants réestimés, à l'année de référence. */
+            reestimated_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050). */
+            inflated_amount: components["schemas"]["Money"];
             /** @description Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060). */
             tracking?: components["schemas"]["TrackingEntry"][];
+            /** @description Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) : posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de `work_package_id`. Un poste n'est porté que par une tâche à la fois ; c'est par elle que le devis présente le total par poste, celui de son sous-arbre (WF-DEV-0060), et que les grilles filtrent par poste. Une récapitulative qui perd sa dernière subordonnée garde son rattachement. Nul sans rattachement. */
+            order_item_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le lot du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `order_item_id`, exclusif de lui : une tâche porte un poste ou un lot, jamais les deux ; un lot n'est porté que par une tâche à la fois. Quand le poste du lot est rattaché, la tâche du lot est dans le sous-arbre de la tâche de ce poste. Les grilles filtrent par lot sur ce rattachement (WF-DEV-0050, WF-RAE-0040). */
+            work_package_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du poste ou du lot porté, résolu à la lecture, que la colonne `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul sans rattachement. */
+            work_breakdown_label?: string | null;
+            /** @description L'identifiant que MS Project donnait à la tâche dans le fichier dont l'import l'a créée, conservé comme identifiant externe (WF-INTF-0040) : c'est par lui qu'un fichier remanié avant le premier export se rapproche de la tâche. Nul pour une tâche créée dans Waterfall, jamais saisi. */
+            external_id?: string | null;
         };
-        /** @description Facette argent d'un nœud. Les deux montants sont calculés et non saisissables : le budgété est fixé par la révision de référence et nul pour une ligne ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030). */
+        /** @description Si une saisie est ouverte sur cet objet, et sinon les conditions qui lui manquent (WF-IHM-0090). */
+        EntryAvailability: {
+            is_available: boolean;
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Facette argent d'un nœud. Les quatre montants sont calculés et non saisissables : le montant à l'année de référence est celui de la ligne telle qu'elle est chiffrée (WF-DEV-0030), le budgété est fixé par la révision de référence et nul pour une ligne ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-RAE-0040) — tous trois à l'année de référence —, et le montant corrigé de l'inflation, seul à porter l'inflation, est le montant projeté sur l'année de consommation de la ligne (WF-DEV-0040). La grille de devis présente le premier et le dernier, jamais le budgété ni le réestimé (WF-DEV-0050). La catégorie, le rôle et le sous-projet sont nommés par leur libellé, que le serveur résout à la lecture, l'objet actif ou désactivé, pour que la grille ne rapproche aucune liste (WF-ARC-0020, WF-REF-0150). Une ligne qui emploie un objet du référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis et de reste à engager la signalent (WF-REF-0010). */
         EstimateLineFacet: {
             label: string;
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée. */
+            cost_category_label: string;
             quantity: components["schemas"]["Decimal"];
             /** @description Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020). */
             resource_role_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une ligne sans rôle. */
+            resource_role_label: string | null;
             hours?: components["schemas"]["Hours"] | null;
             /** @description Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020). */
             unit_disbursement?: components["schemas"]["Money"] | null;
-            /** @description Délai de paiement, employé par la lecture en décaissements de la courbe en S (WF-IND-0100). */
+            /** @description Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100). */
             payment_delay_days?: number | null;
             /** @description Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet. */
+            subproject_label: string | null;
+            /** @description Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050). */
+            base_amount: components["schemas"]["Money"];
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
             budgeted_amount: components["schemas"]["Money"];
+            /** @description Montant réestimé, à l'année de référence. */
             reestimated_amount: components["schemas"]["Money"];
+            /** @description Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
+            inflated_amount: components["schemas"]["Money"];
+            /** @description Quantité au reste à engager précédent, que la grille de reste à engager présente à côté de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision (WF-ARC-0020) ; nulle avant la première revue. */
+            previous_quantity?: components["schemas"]["Decimal"] | null;
+            /** @description Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et pour une ligne sans charge, comme `hours`. */
+            previous_hours?: components["schemas"]["Hours"] | null;
+            /** @description Débours unitaire au reste à engager précédent (WF-RAE-0040) ; nul avant la première revue, et pour une ligne de main-d'œuvre, comme `unit_disbursement`. */
+            previous_unit_disbursement?: components["schemas"]["Money"] | null;
+            /** @description Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue. */
+            previous_reestimated_amount?: components["schemas"]["Money"] | null;
             /** @description Année de consommation, déduite du planning (WF-DEV-0040). */
             consumption_year?: components["schemas"]["Year"] | null;
             /** @description Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010). */
             is_computed: boolean;
+            /** @description Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`). */
+            uses_inactive_object: boolean;
+            /** @description Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement. */
+            remaining_entry: components["schemas"]["EntryAvailability"];
             /** @description Tâche porteuse, résolue à la lecture. */
             bearing_task_node_id?: components["schemas"]["Uuid"] | null;
             bearing_task_label?: string | null;
@@ -3289,11 +3939,33 @@ export interface components {
          * @enum {string}
          */
         LinkType: "finish_to_start" | "start_to_start" | "finish_to_finish" | "start_to_finish";
-        Predecessor: {
+        /**
+         * @description Unité du décalage d'une liaison (WF-PLA-0030) : celles d'une durée, et le pourcentage de la durée du prédécesseur — un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de travail.
+         * @enum {string}
+         */
+        LagUnit: "min" | "h" | "d" | "w" | "mo" | "emin" | "eh" | "ed" | "ew" | "emo" | "percent";
+        /** @description Décalage d'une liaison dans l'unité de sa saisie, positif ou négatif — négatif, c'est une avance —, conservé sans conversion (WF-PLA-0030, WF-PLA-0160). */
+        Lag: {
+            value: components["schemas"]["Decimal"];
+            unit: components["schemas"]["LagUnit"];
+        };
+        /** @description Liaison d'une tâche à l'un de ses prédécesseurs, avec son décalage dans son unité : négatif, c'est une avance (WF-PLA-0030). */
+        PredecessorWrite: {
             predecessor_node_id: components["schemas"]["Uuid"];
             link_type: components["schemas"]["LinkType"];
-            lag_days: number;
+            lag: components["schemas"]["Lag"];
         };
+        /** @description Liaison telle que la lecture la rend : le numéro de ligne du prédécesseur, calculé comme `row_number` dans la numérotation de toute la structure, qu'il soit ou non retenu par la recherche et les filtres (WF-PLA-0080). */
+        Predecessor: components["schemas"]["PredecessorWrite"] & {
+            readonly predecessor_row_number: number;
+        };
+        /** @enum {string} */
+        ComputedField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
+        /**
+         * @description Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche, récapitulative ou feuille (WF-PLA-0170).
+         * @enum {string}
+         */
+        EditableField: "task.label" | "task.description" | "task.scheduling_mode" | "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.order_item_id" | "task.work_package_id" | "estimate_line.label" | "estimate_line.cost_category_id" | "estimate_line.resource_role_id" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.payment_delay_days" | "estimate_line.subproject_id";
         /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
         Node: {
             node_id: components["schemas"]["Uuid"];
@@ -3301,24 +3973,45 @@ export interface components {
             kind: components["schemas"]["NodeKind"];
             parent_id: components["schemas"]["Uuid"] | null;
             position: number;
+            /** @description Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. */
             row_number: number;
             level: number;
             task?: components["schemas"]["TaskFacet"] | null;
             estimate_line?: components["schemas"]["EstimateLineFacet"] | null;
             predecessors?: components["schemas"]["Predecessor"][];
+            /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
+            computed_fields: components["schemas"]["ComputedField"][];
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées. */
+        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. Chaque montant est la somme du montant de même nom des lignes retenues (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision comprises : ce n'est pas le budget de référence, diminué des provisions selon WF-RIS-0050. */
+        NodeTotals: {
+            task_count: number;
+            estimate_line_count: number;
+            hours: components["schemas"]["Hours"];
+            base_amount: components["schemas"]["Money"];
+            budgeted_amount: components["schemas"]["Money"];
+            reestimated_amount: components["schemas"]["Money"];
+            inflated_amount: components["schemas"]["Money"];
+        };
+        /** @description Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les filtres, la recherche, `kinds` et `fields` n'y changent rien. */
+        NodeListMeta: {
+            /** @description Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110). */
+            summary_depth: number;
+        };
+        /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un lot reste sous celle de son poste. */
         TaskFacetWrite: {
             label: string;
             description?: string | null;
             scheduling_mode?: components["schemas"]["SchedulingMode"];
-            duration_days?: number;
-            start_date?: components["schemas"]["PlanningDate"] | null;
-            finish_date?: components["schemas"]["PlanningDate"] | null;
-            lock_version: components["schemas"]["LockVersion"];
+            duration?: components["schemas"]["Duration"];
+            start?: components["schemas"]["WorkInstant"] | null;
+            finish?: components["schemas"]["WorkInstant"] | null;
+            order_item_id?: components["schemas"]["Uuid"] | null;
+            work_package_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Champs saisissables d'une ligne de devis (WF-DEV-0020). */
+        /** @description Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre. */
         EstimateLineWrite: {
             label: string;
             cost_category_id: components["schemas"]["Uuid"];
@@ -3328,7 +4021,6 @@ export interface components {
             unit_disbursement?: components["schemas"]["Money"] | null;
             payment_delay_days?: number | null;
             subproject_id?: components["schemas"]["Uuid"] | null;
-            lock_version: components["schemas"]["LockVersion"];
         };
         NodeCreate: {
             kind: components["schemas"]["NodeKind"];
@@ -3337,8 +4029,97 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
+        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste celui que la grille a lu (`LockVersion`). */
+        NodeSchedule: {
+            node_id: components["schemas"]["Uuid"];
+            start: components["schemas"]["WorkInstant"];
+            finish: components["schemas"]["WorkInstant"];
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique, une marge totale nulle ou négative (WF-PLA-0100) ; fausse pour une tâche en mode manuel. */
+            is_critical: boolean;
+            /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
+            finish_overdue: boolean;
+        };
+        /** @description Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des dates, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`, `TaskFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050). Sans `lock_version`, comme `NodeSchedule` : un recalcul ne fait pas avancer le compteur du nœud (`LockVersion`). */
+        NodeInflation: {
+            node_id: components["schemas"]["Uuid"];
+            /** @description Le montant corrigé de l'inflation, comme `EstimateLineFacet.inflated_amount` pour une ligne et `TaskFacet.inflated_amount` pour une tâche — la somme de ses lignes. */
+            inflated_amount: components["schemas"]["Money"];
+            /** @description L'année de consommation d'une ligne, comme `EstimateLineFacet.consumption_year` ; nulle pour une tâche, dont la facette n'en porte pas. */
+            consumption_year: components["schemas"]["Year"] | null;
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, le montant corrigé des autres lignes et tâches qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        NodesWritten: {
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
+            nodes: components["schemas"]["Node"][];
+            /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
+            ancestors: components["schemas"]["Node"][];
+            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. */
+            rescheduled: components["schemas"]["NodeSchedule"][];
+            /** @description Chaque nœud dont le montant corrigé de l'inflation, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent le montant corrigé, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant à l'année de référence ne dépend pas des dates et ne change pas. */
+            reinflated: components["schemas"]["NodeInflation"][];
+            /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
+            totals: components["schemas"]["NodeTotals"];
+            /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
+            structure_lock_version: components["schemas"]["LockVersion"];
+        };
+        /**
+         * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
+         * @enum {string}
+         */
+        ComputedValueField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.physical_progress" | "task.total_float" | "task.base_amount" | "task.budgeted_amount" | "task.reestimated_amount" | "task.inflated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.base_amount" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount" | "estimate_line.inflated_amount";
+        /**
+         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du montant de la ligne, du taux d'inflation du projet et de son année de consommation (WF-DEV-0040, WF-DEV-0050) ; `own_estimate`, la gravité d'un risque, total de son devis propre, et `severity_and_probability`, sa provision, cette gravité pondérée par sa probabilité (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
+         * @enum {string}
+         */
+        ComputedDependency: "subordinates" | "lines_and_subordinates" | "scheduling" | "float_dates" | "manual_mode" | "hourly_rate" | "unit_disbursement" | "risk" | "reference_revision" | "remaining_reviews" | "inflation" | "own_estimate" | "severity_and_probability";
+        /** @description Une ligne dont dépend une valeur calculée, nommée comme la grille la nomme : son numéro dans la numérotation de toute la structure, et son libellé. */
+        DependencyRow: {
+            node_id: components["schemas"]["Uuid"];
+            row_number: number;
+            label: string;
+        };
+        /** @description Ce dont dépend la valeur calculée d'un champ d'un nœud (WF-IHM-0030) : les règles qui la calculent, dans l'ordre où les dire, et les lignes dont elle est tirée — les subordonnées directes d'une récapitulative, les lignes et les subordonnées directes d'une tâche —, toutes, que la recherche ou les filtres d'une lecture les retiennent ou non. Aucune ligne pour une valeur qui n'est tirée d'aucune. */
+        ComputedValueDependencies: {
+            node_id: components["schemas"]["Uuid"];
+            field: components["schemas"]["ComputedValueField"];
+            /** @description Chaque règle une fois, dans l'ordre où la dire. */
+            depends_on: components["schemas"]["ComputedDependency"][];
+            /** @description Chaque ligne une fois, dans l'ordre du plan. */
+            rows: components["schemas"]["DependencyRow"][];
+        };
+        /**
+         * @description Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030).
+         *     Le rattachement au lotissement (WF-PLA-0170) : `order_item_id` ou `work_package_id` rattache la tâche, récapitulative ou feuille, à ce poste ou à ce lot, `null` retire le rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id: X}` sur une tâche qui porte un poste retire le poste et rattache le lot. Le refus est un 422 `VALIDATION_FAILED`, `fields` sur le champ envoyé : `UNKNOWN_WORK_BREAKDOWN_ITEM` quand le lotissement du projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` quand les deux sont envoyés non nuls, ou que l'un est envoyé non nul quand l'autre est porté et n'est pas mis à `null` dans le même corps — « le rattachement d'une même tâche à un poste et à un lot » ; `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce poste ou ce lot, `fields[].params.attached_node_id` la nommant — « le rattachement d'une tâche à un lot déjà porté par une autre est refusé » ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` quand le rattachement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste — un lot rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste rattaché à une tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —, `fields[].params.order_item_node_id` nommant la tâche du poste et `work_package_node_ids` celles des lots en cause (Vérif de WF-PLA-0170).
+         */
+        TaskFacetUpdate: {
+            label?: string;
+            description?: string | null;
+            scheduling_mode?: components["schemas"]["SchedulingMode"];
+            duration?: components["schemas"]["Duration"];
+            start?: components["schemas"]["WorkInstant"] | null;
+            finish?: components["schemas"]["WorkInstant"] | null;
+            /** @description Le poste du lotissement à porter, ou `null` pour retirer le rattachement. */
+            order_item_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le lot du lotissement à porter, ou `null` pour retirer le rattachement. */
+            work_package_id?: components["schemas"]["Uuid"] | null;
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours ou le délai de paiement d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par 422 (WF-DEV-0020, §3.2.5), et le nœud dit lesquels il accepte (`editable_fields`). */
+        EstimateLineUpdate: {
+            label?: string;
+            cost_category_id?: components["schemas"]["Uuid"];
+            quantity?: components["schemas"]["Decimal"];
+            resource_role_id?: components["schemas"]["Uuid"] | null;
+            hours?: components["schemas"]["Hours"] | null;
+            unit_disbursement?: components["schemas"]["Money"] | null;
+            payment_delay_days?: number | null;
+            subproject_id?: components["schemas"]["Uuid"] | null;
+            lock_version: components["schemas"]["LockVersion"];
+        };
         PredecessorsReplace: {
-            predecessors: components["schemas"]["Predecessor"][];
+            predecessors: components["schemas"]["PredecessorWrite"][];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Démarre ou termine une tâche. La date est celle du geste par défaut, et la terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Une tâche terminée se rouvre en la repassant à « démarrée » ; aucun geste ne la ramène à « non démarrée », que le Kanban n'offre pas (WF-RAE-0030). Le passage direct de non démarrée à terminée n'est ouvert qu'à un jalon, et l'opération est refusée sur une récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050). */
@@ -3348,7 +4129,7 @@ export interface components {
             occurred_on?: components["schemas"]["PlanningDate"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Réestime une ligne portée par une tâche démarrée ; un reste à engager nul termine la tâche (WF-RAE-0040, WF-RAE-0010). */
+        /** @description Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour toutes les lignes d'une tâche la termine, à la date portée par `completed_on` (WF-RAE-0040, WF-RAE-0010, WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon passe alors par l'état démarré, démarrée et terminée à cette même date : seul un jalon va directement de non démarré à terminé (WF-RAE-0030). */
         RemainingUpdate: {
             /** @description Les grandeurs saisies dont le montant réestimé est recalculé. */
             reestimated_amount_basis: {
@@ -3357,42 +4138,57 @@ export interface components {
                 unit_disbursement?: components["schemas"]["Money"] | null;
             };
             reason?: string | null;
+            /** @description Date de terminaison de la tâche, demandée à la validation quand la saisie la termine — la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande la date et rejoue la saisie. Pour une tâche non démarrée qui n'est pas un jalon, la même date est aussi celle de son démarrage (`started_on`) : la tâche passe par l'état démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas la tâche. */
+            completed_on?: components["schemas"]["PlanningDate"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.order_item_node_id` et `work_package_node_ids` nommant les tâches du poste et des lots. */
         NodeMove: {
             node_ids: components["schemas"]["Uuid"][];
             parent_id: components["schemas"]["Uuid"] | null;
             position?: number | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Bloc collé depuis un tableur. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050). */
+        /**
+         * @description Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050).
+         *     La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge, le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas — un champ calculé pour ce nœud, un champ que sa nature refuse, une colonne qu'aucune écriture ne porte comme les montants — est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien. Un bloc plus large que les colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`, `params.max_columns`).
+         */
         PastePreview: {
-            target_node_id?: components["schemas"]["Uuid"];
-            target_column?: string;
+            target_node_id: components["schemas"]["Uuid"];
+            /** @description La colonne de la cellule visée, que la première colonne du bloc remplit. */
+            target_column: components["schemas"]["NodeColumn"];
             rows: string[][];
         };
+        /** @description Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il tient à une cellule, sa colonne (WF-IHM-0050). */
         PastePlan: {
             paste_id: components["schemas"]["Uuid"];
             accepted: number;
             rejected: {
+                /** @description La ligne du bloc refusée, comptée de zéro. */
                 row: number;
-                code: string;
+                /** @description La colonne de la cellule refusée ; absente quand le refus porte sur la ligne entière. */
+                column?: components["schemas"]["NodeColumn"];
+                code: components["schemas"]["ErrorCode"];
                 params?: {
                     [key: string]: unknown;
                 };
             }[];
         };
+        /** @description Confirme un plan de collage. Le compteur est celui de la structure dans laquelle le bloc s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien n'est écrit (WF-IHM-0050, WF-IHM-0110). */
         PasteApply: {
             paste_id: components["schemas"]["Uuid"];
             /** @constant */
             confirmed: true;
+            /** @description Le compteur de la structure lue, que le collage écrit. */
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Annule ou rétablit la dernière modification de la session. Une annulation est une modification comme une autre ; elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). */
+        /** @description Annule ou rétablit la dernière modification de la session. Une annulation est une modification comme une autre ; elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création, modification, réexamen, suppression — sont dans le même historique que celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. */
         UndoResult: {
             undone: {
                 kind?: string;
                 node_ids?: components["schemas"]["Uuid"][];
+                /** @description Les risques que l'annulation, ou le rétablissement, rend à leur état précédent (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles. */
+                risk_ids?: components["schemas"]["Uuid"][];
             };
             remaining_depth: number;
         };
@@ -3406,32 +4202,55 @@ export interface components {
             /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
             is_stored?: boolean;
         };
-        AmountByKey: {
+        /** @description Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`. */
+        ComputableMoney: {
+            is_computable: boolean;
+            value?: components["schemas"]["Money"] | null;
+            /** @description Pourquoi le montant n'est pas calculable, en code ; nul pour un montant calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, comme pour `Computable` — `missing_rates` pour `hourly_rate_missing`. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
+        };
+        /** @description Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui. */
+        ComputableAmountByKey: {
             key: string;
             label?: string;
-            amount: components["schemas"]["Money"];
-            share?: components["schemas"]["Percent"];
+            amount: components["schemas"]["ComputableMoney"];
+            share?: components["schemas"]["Computable"];
         };
-        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). */
+        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont à l'année de référence de la révision — `total`, ses ventilations par nature, par sous-projet et par poste, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure : seul le montant corrigé de l'inflation de la grille (`NodeTotals.inflated_amount`, WF-DEV-0040, WF-DEV-0050) porte l'inflation, et les indicateurs n'en ont pas de second total, la somme des parts ne valant cent que sur une même base (WF-DEV-0060). */
         EstimateIndicators: {
             context: components["schemas"]["CalculationContext"];
-            total: components["schemas"]["Money"];
-            by_cost_type: components["schemas"]["AmountByKey"][];
-            by_subproject: components["schemas"]["AmountByKey"][];
+            total: components["schemas"]["ComputableMoney"];
+            by_cost_type: components["schemas"]["ComputableAmountByKey"][];
+            by_subproject: components["schemas"]["ComputableAmountByKey"][];
+            /** @description Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche, récapitulative ou feuille, qui porte chacun — le total de son sous-arbre (WF-PLA-0170) ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060). */
+            by_order_item: components["schemas"]["ComputableAmountByKey"][] | null;
             provisions_identified?: components["schemas"]["Money"];
-            delta_to_previous_revision?: components["schemas"]["Money"] | null;
+            /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) : le devis en cours moins celui de la référence, positif quand il le dépasse ; nul quand le projet n'a pas de révision de référence. */
+            delta_to_reference: components["schemas"]["ComputableMoney"] | null;
+            /** @description L'écart avec la révision marquée précédente : le devis en cours moins le sien, positif quand il le dépasse ; nul sans elle. */
+            delta_to_previous_revision?: components["schemas"]["ComputableMoney"] | null;
         };
-        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
-        Computable: {
-            is_computable: boolean;
-            value?: components["schemas"]["Decimal"] | null;
-            reason?: string | null;
-        };
+        /**
+         * @description Zone d'un mois du plan de charge d'un projet : en alerte, quand ses heures dépassent la capacité du rôle ; nominal sinon. Jamais en vigilance : la vigilance du plan de charge est la sous-charge, un taux de charge sous le seuil que l'utilisateur choisit (WF-PTF-0060), et le plan d'un projet ne présente pas de taux de charge, la capacité étant celle de toute l'installation (WF-DEV-0070) ; le plan agrégé du portefeuille le porte (`PortfolioWorkload`). Ses valeurs sont celles d'`AlertZone`, et le front les dit de même (WF-IHM-0070).
+         * @enum {string}
+         */
+        WorkloadZone: "nominal" | "alert";
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
             context: components["schemas"]["CalculationContext"];
-            /** @enum {string} */
-            basis: "estimate" | "remaining";
+            /**
+             * @description La base retenue : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070). `context.revision_id` nomme la révision lue.
+             * @enum {string}
+             */
+            basis: "reference_budget" | "marked_remaining" | "current_remaining";
+            /** @description Le nœud d'organisation retenu par le filtre (`org_node_id` de `getProjectWorkload`), nul sans filtre (WF-DEV-0070). */
+            org_node_id: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du nœud retenu, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150), que l'en-tête du plan de charge nomme sans lire l'arbre d'organisation (WF-ARC-0020) ; nul sans nœud. */
+            org_node_label: string | null;
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
@@ -3440,29 +4259,53 @@ export interface components {
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
-                    load_ratio?: components["schemas"]["Computable"];
-                    zone?: components["schemas"]["AlertZone"];
+                    zone?: components["schemas"]["WorkloadZone"];
                 }[];
             }[];
         };
-        /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). */
+        /** @description Les quatre montants de la couverture des risques : la réserve pour risques de la révision de référence, la somme des provisions des risques identifiés dans la révision courante, le montant réestimé des lignes issues des risques survenus, et l'écart de couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). */
+        RiskCoverageTotals: {
+            reserve: components["schemas"]["Money"];
+            remaining_provisions: components["schemas"]["Money"];
+            occurred_cost: components["schemas"]["Money"];
+            /** @description L'écart de couverture (WF-RIS-0050) : la réserve moins la somme des provisions restantes et du coût des risques survenus, positif quand la réserve couvre encore, négatif quand elle est dépassée — le sens de la marge du reste à engager (`RemainingIndicators.delta_to_reference`). */
+            coverage_variance: components["schemas"]["Money"];
+        };
+        AmountByKey: {
+            key: string;
+            label?: string;
+            amount: components["schemas"]["Money"];
+            share?: components["schemas"]["Percent"];
+        };
+        /** @description Marge entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
             key: string;
             label?: string;
             budget: components["schemas"]["Money"];
             actual_cost: components["schemas"]["Money"];
             remaining: components["schemas"]["Money"];
+            /** @description La marge du sous-projet : son budget moins la somme de son coût réel et de son reste à engager, positive quand il en reste, négative quand le sous-projet dépasse son budget (WF-RAE-0020) — le sens de `RemainingIndicators.delta_to_reference`. */
             variance: components["schemas"]["Money"];
             is_over_budget: boolean;
+            zone: components["schemas"]["AlertZone"];
         };
-        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010). */
+        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Le reste à engager parle de marge, au budget de référence (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le budget moins la somme du coût réel et du reste à engager, positive quand il en reste, négative au-delà du budget — le sens de l'écart de couverture des risques (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille et les projections parlent d'écart, positif au-delà du budget (`PortfolioProject.delta_to_reference`, `Projections`). */
         RemainingIndicators: {
             context: components["schemas"]["CalculationContext"];
             total: components["schemas"]["Money"];
+            /** @description La couverture des risques à la date de calcul (WF-RAE-0020, WF-RIS-0050). */
+            coverage: components["schemas"]["RiskCoverageTotals"];
             by_cost_type: components["schemas"]["AmountByKey"][];
             by_subproject: components["schemas"]["SubprojectBalance"][];
+            /** @description La marge sur le budget de référence (WF-RAE-0020) : le budget de référence moins la somme du coût réel et du reste à engager, positive quand il en reste, négative quand le projet dépasse son budget — budget 1 000, coût réel 500, reste à engager 550, marge -50 ; nulle quand le projet n'a pas de révision de référence. */
             delta_to_reference?: components["schemas"]["Money"] | null;
+            /** @description L'écart avec le reste à engager de la révision marquée précédente, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran l'omet alors (WF-RAE-0020). */
             delta_to_previous_revision?: components["schemas"]["Money"] | null;
+        };
+        /** @description Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et si tous ses prédécesseurs sont terminés. */
+        NotStartedTask: components["schemas"]["Node"] & {
+            /** @description Vrai quand tous les prédécesseurs de la tâche sont terminés, ou qu'elle n'en a aucun. C'est ce qui fait signaler un jalon, pour inviter à le terminer — rien ne se termine seul (WF-RAE-0030) ; ce n'est pas une condition du démarrage, dont WF-RAE-0030 ne fait pas dépendre les prédécesseurs. */
+            readonly predecessors_completed: boolean;
         };
         /** @description Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170). */
         IndexValue: {
@@ -3473,9 +4316,12 @@ export interface components {
         Projections: {
             at_budget: components["schemas"]["Money"];
             project_manager: components["schemas"]["Money"];
-            at_observed_rate: components["schemas"]["Computable"];
+            at_observed_rate: components["schemas"]["ComputableMoney"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
             variance_at_budget?: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
             variance_project_manager?: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas. */
             variance_at_observed_rate?: components["schemas"]["Money"] | null;
         };
         /** @description Les indicateurs de valeur acquise. Calculés à partir de l'état En cours seulement ; avant, seuls les indicateurs de devis existent (WF-IND-0010). */
@@ -3495,7 +4341,9 @@ export interface components {
             physical_progress?: components["schemas"]["Computable"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
+            /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire). */
             cost_variance?: components["schemas"]["Money"];
+            /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire). */
             schedule_variance?: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
         };
@@ -3512,9 +4360,17 @@ export interface components {
                 }[];
             }[];
         };
-        /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). */
+        /** @description Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois qui précède celui de la date de calcul ne porte que le passé, un mois qui le suit que l'avenir, l'autre montant nul ; le mois de la date de calcul porte les deux — le décaissé jusqu'à elle, le reste à décaisser après (WF-IND-0100, WF-PTF-0100). */
+        CashOutMonth: {
+            month: string;
+            past: components["schemas"]["Money"];
+            forecast: components["schemas"]["Money"];
+        };
+        /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans point plutôt que de tracer un zéro. */
         CurveSeries: {
             context: components["schemas"]["CalculationContext"];
+            /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon. */
+            payment_delays: boolean;
             series: {
                 /** @enum {string} */
                 name: "reference_budget" | "planned_value" | "earned_value" | "actual_cost" | "project_manager_projection";
@@ -3526,19 +4382,37 @@ export interface components {
             /** @description Marches du budget de référence, datées et motivées : seuls les avenants le déplacent (WF-IND-0100, WF-RIS-0050). */
             steps?: {
                 date: components["schemas"]["PlanningDate"];
+                /** @description Le montant de la marche, signé : ce dont le budget de référence change à sa date — l'avenant contractualisé, seul événement qui le déplace (WF-REV-0040, WF-RIS-0050) —, pas le budget après elle, que porte la série `reference_budget`. */
                 amount: components["schemas"]["Money"];
                 /** @enum {string} */
                 cause: "amendment";
             }[];
+            /** @description Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon. */
+            cash_out_by_month: components["schemas"]["CashOutMonth"][] | null;
         };
-        /** @description Projection de décaissement : le passé par mois de date de pièce, l'avenir en étalant le reste à engager puis en décalant chaque part de son délai de paiement : la lecture en décaissements de la courbe en S (WF-IND-0100). */
-        CashOut: {
+        /** @description Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a conservés (WF-DAT-0040) ; au jour courant pour la révision en cours, dont `version_name` est nul (WF-IND-0130). */
+        IndexHistoryPoint: {
+            at: components["schemas"]["Timestamp"];
+            revision_id: components["schemas"]["Uuid"];
+            version_name: string | null;
+            cost_index: components["schemas"]["IndexValue"];
+            schedule_index: components["schemas"]["IndexValue"];
+        };
+        /** @description Les courbes d'une maille de calcul (WF-IND-0020, WF-IND-0130). */
+        IndexHistoryScope: {
+            /** @description `project`, `unassigned`, ou l'identifiant d'un sous-projet (WF-IND-0020). */
+            scope: string;
+            /** @description Le libellé du sous-projet ; nul pour le projet et pour « hors sous-projet ». */
+            label: string | null;
+            /** @description Du plus ancien marquage au jour courant. */
+            points: components["schemas"]["IndexHistoryPoint"][];
+        };
+        /** @description Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque sous-projet : un point par révision marquée, à sa date de marquage, et le dernier au jour courant pour la révision en cours, avec les seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées, chaque courbe porte quatre points. */
+        IndexHistory: {
             context: components["schemas"]["CalculationContext"];
-            months: {
-                month: string;
-                past: components["schemas"]["Money"];
-                forecast: components["schemas"]["Money"];
-            }[];
+            thresholds: components["schemas"]["IndexThresholds"];
+            /** @description Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet » ; la seule maille demandée par `scope`. */
+            scopes: components["schemas"]["IndexHistoryScope"][];
         };
         /**
          * @description Identifié, survenu, écarté. Un risque écarté peut redevenir identifié ; la survenance est définitive (WF-RIS-0020).
@@ -3550,7 +4424,25 @@ export interface components {
             severity_level: number;
             zone: components["schemas"]["AlertZone"];
         };
-        /** @description La gravité est le total de la structure propre du risque et la provision cette gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies (WF-RIS-0010). */
+        /** @description Un champ calculé d'un risque, et ce dont il dépend (WF-IHM-0030). */
+        RiskComputedField: {
+            /** @enum {string} */
+            field: "severity" | "provision_amount";
+            /** @description Chaque règle une fois, dans l'ordre où la dire. */
+            dependencies: components["schemas"]["ComputedDependency"][];
+        };
+        /**
+         * @description Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), le réexaminer — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). Les trois saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles, `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ; indisponible pour un risque qui n'est pas identifié, `risk_identified` manquante, et, quand le projet n'a pas de révision en cours, pour qui n'a pas `revisions.write`, `may_create_revision` manquante : elle la créerait (WF-RIS-0060).
+         * @enum {string}
+         */
+        RiskCommand: "update" | "review" | "declare_occurrence" | "delete";
+        RiskCommandAvailability: {
+            command: components["schemas"]["RiskCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description La gravité est le total de la structure propre du risque et la provision cette gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090). */
         Risk: {
             risk_id: components["schemas"]["Uuid"];
             label: string;
@@ -3562,17 +4454,22 @@ export interface components {
             /** @description Calculée, gravité pondérée par la probabilité ; celle que portait la révision de référence compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050). */
             provision_amount: components["schemas"]["Money"];
             state: components["schemas"]["RiskState"];
-            /** @description Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030). */
+            /** @description Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en fige une version (WF-RIS-0030). */
             structure_id: components["schemas"]["Uuid"];
             /** @description Ligne de provision portée par la structure principale (WF-RIS-0010). */
             provision_node_id?: components["schemas"]["Uuid"] | null;
             matrix_cell?: components["schemas"]["RiskMatrixCell"];
             last_review_on?: components["schemas"]["PlanningDate"] | null;
+            /** @description Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre, pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —, ils se lisent avec le risque, sans appel au refus. */
+            computed_fields: components["schemas"]["RiskComputedField"][];
+            /** @description Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et, pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            available_commands: components["schemas"]["RiskCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Les trois totaux de provisions, distincts — les identifiés pour leur provision courante, les survenus et les écartés pour celle qu'ils portaient dans la révision de référence —, et la réserve pour risques en regard (WF-RIS-0040, WF-RIS-0050). */
+        /** @description Les trois totaux de provisions, distincts — les identifiés pour leur provision courante, les survenus et les écartés pour celle qu'ils portaient dans la révision de référence —, leur total général, et la réserve pour risques de la révision de référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les risques retenus. */
         ProvisionTotals: {
+            total: components["schemas"]["Money"];
             identified: components["schemas"]["Money"];
             occurred: components["schemas"]["Money"];
             dismissed: components["schemas"]["Money"];
@@ -3608,8 +4505,18 @@ export interface components {
             /** @constant */
             confirmed: true;
         };
-        /** @description Matrice remplie par les risques du projet (WF-RIS-0040, WF-REF-0160). */
+        /** @description Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) : la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la matrice du portefeuille. */
+        RiskMatrixLevel: {
+            level: number;
+            lower: components["schemas"]["Percent"];
+            upper: components["schemas"]["Percent"] | null;
+        };
+        /** @description Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des projets retenus pour celle du portefeuille. */
         RiskMatrix: {
+            /** @description Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage. */
+            probability_levels: components["schemas"]["RiskMatrixLevel"][];
+            /** @description Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget de référence. */
+            severity_levels: components["schemas"]["RiskMatrixLevel"][];
             cells: {
                 probability_level: number;
                 severity_level: number;
@@ -3618,13 +4525,9 @@ export interface components {
             }[];
             totals: components["schemas"]["ProvisionTotals"];
         };
-        /** @description Couverture des risques : la réserve pour risques de la révision de référence, face aux provisions des risques identifiés dans la révision courante et au montant réestimé des lignes issues des risques survenus ; l'écart, signé, est reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). */
-        RiskCoverage: {
+        /** @description La couverture des risques d'un projet, à une date et dans une révision (WF-RIS-0050, WF-RAE-0020). */
+        RiskCoverage: components["schemas"]["RiskCoverageTotals"] & {
             context: components["schemas"]["CalculationContext"];
-            reserve: components["schemas"]["Money"];
-            remaining_provisions: components["schemas"]["Money"];
-            occurred_cost: components["schemas"]["Money"];
-            coverage_variance: components["schemas"]["Money"];
         };
         /** @description Ligne de coût réel. Quatre attributs significatifs ; les autres colonnes du fichier sont conservées à titre d'information et n'entrent dans aucun calcul (WF-CRE-0010). L'imputation est déduite de l'élément d'OTP (WF-CRE-0020). */
         ActualCostLine: {
@@ -3635,8 +4538,12 @@ export interface components {
             /** @description Montant signé ; un montant négatif diminue le coût réel (WF-CRE-0010). */
             amount: components["schemas"]["Money"];
             project_id: components["schemas"]["Uuid"];
-            /** @description Nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » (WF-CRE-0020). */
+            /** @description Le sous-projet imputé ; nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » — sans partie sous-projet dans son élément d'OTP, ou avec un code qu'aucun sous-projet du projet ne porte (WF-CRE-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le code de sous-projet lu dans l'élément d'OTP de la ligne, conservé tel quel, qu'il corresponde ou non à un sous-projet déclaré (WF-CRE-0010) : toujours renseigné quand l'OTP en donne un, nul seulement pour une ligne sans partie sous-projet. Une ligne au code inconnu est imputée au seul projet (`subproject_id` nul) et présentée avec son code (WF-CRE-0020) ; c'est par ce code que la création du sous-projet lui impute aussitôt les lignes qui l'attendaient, et qu'un réimport qui change l'élément d'OTP recalcule son imputation — un écart `updated` du compte rendu sur la colonne `subproject` (`ActualCostColumn`, WF-INTF-0140). */
+            subproject_code: string | null;
+            /** @description Libellé du sous-projet imputé, résolu à la lecture ; nul pour une ligne hors sous-projet, code inconnu compris. */
+            subproject_label: string | null;
             /** @description Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030). */
             is_in_tracked_scope: boolean;
             excluded_reason?: string | null;
@@ -3651,6 +4558,11 @@ export interface components {
             tracked: components["schemas"]["Money"];
             excluded: components["schemas"]["Money"];
             overall: components["schemas"]["Money"];
+        };
+        /** @description La pagination de la consultation des coûts réels, et l'union des colonnes conservées des fichiers de toutes les lignes retenues par les filtres, et non de la seule page (WF-CRE-0010). */
+        ActualCostListMeta: components["schemas"]["PaginationMeta"] & {
+            /** @description Les colonnes conservées, nommées comme `passthrough` les nomme, chacune une fois : dans l'ordre où les imports les ont déclarées — les imports dans l'ordre où ils ont été appliqués, les colonnes d'un import dans l'ordre de son fichier, une colonne à sa première déclaration. Une ligne qui n'en porte pas l'une la présente vide ; vide quand aucune ligne n'est retenue. */
+            passthrough_columns: string[];
         };
         /** @description Exclut ou réintègre une ligne. L'exclusion est conservée lors des imports ultérieurs, même quand les périodes se recouvrent (WF-CRE-0030). */
         ScopeExclusion: {
@@ -3668,9 +4580,15 @@ export interface components {
             updated_count: number;
             ignored_count: number;
         };
+        /**
+         * @description L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus 10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`.
+         * @enum {string}
+         */
+        FileUploadPurpose: "import" | "external_backup";
         /** @description Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué, abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). */
         FileUpload: {
             upload_id: components["schemas"]["Uuid"];
+            purpose: components["schemas"]["FileUploadPurpose"];
             filename: string;
             size_bytes: number;
             uploaded_at: components["schemas"]["Timestamp"];
@@ -3681,34 +4599,81 @@ export interface components {
          * @enum {string}
          */
         ExchangeKind: "ms_project_schedule" | "estimate" | "remaining" | "actual_costs";
+        /** @description Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs : une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), une ligne de devis d'une catégorie de nature provision, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. */
         ImportRejection: {
             row: number;
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             params?: {
                 [key: string]: unknown;
             };
         };
+        /** @description Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier. */
+        ActualCostColumn: string | ("document_date" | "document_number" | "amount" | "subproject");
         ImportDifference: {
-            /** @enum {string} */
-            change: "added" | "removed" | "updated";
+            /**
+             * @description Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100). Un `kept` n'a pas de `fields`.
+             * @enum {string}
+             */
+            change: "added" | "removed" | "updated" | "kept";
             /** @enum {string} */
             target: "task" | "estimate_line" | "link" | "actual_cost_line";
+            /** @description La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien. */
             lineage_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une autre ligne. */
             label?: string | null;
-            fields?: string[];
+            /** @description Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet. */
+            predecessor_label?: string | null;
+            /** @description Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`. */
+            fields?: (components["schemas"]["NodeColumn"] | components["schemas"]["ActualCostColumn"])[];
         };
-        /** @description Compte rendu présenté avant application : lignes lues, lignes rejetées avec leur motif, et écarts avec les données existantes (WF-INTF-0080). */
+        /**
+         * @description Ce qu'un import MS Project ne lit jamais (WF-INTF-0040) : les ressources et les calendriers, gérés par Waterfall seul ; l'avancement, les coûts et les champs personnalisés ; et les contraintes de date des tâches, importées en mode manuel aux dates du fichier, chaque tâche signalée.
+         * @enum {string}
+         */
+        ImportIgnoredKind: "resources" | "calendars" | "progress" | "costs" | "custom_fields" | "date_constraints";
+        /** @description Une nature d'éléments ignorés par l'import, leur nombre, et leurs noms quand ils en ont. */
+        ImportIgnored: {
+            kind: components["schemas"]["ImportIgnoredKind"];
+            /** @description Combien d'éléments de cette nature le fichier portait. */
+            count: number;
+            /** @description Leurs noms, dans l'ordre du fichier, quand ils en ont — le nom d'une ressource ou d'un calendrier, le libellé d'une tâche à contrainte de date ; vide pour ce qui ne se nomme pas, l'avancement ou les coûts. Jamais plus de `count`. */
+            labels: string[];
+        };
+        /** @description Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120). */
+        ImportCompletedTask: {
+            lineage_id: components["schemas"]["Uuid"];
+            label: string;
+            /** @description Le jour de l'application de l'import, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas appliqué. */
+            completed_on: components["schemas"]["PlanningDate"] | null;
+        };
+        /** @description Une tâche dont le fichier date ou dure autrement que Waterfall ne la recalcule (WF-INTF-0040) : la tâche, et les colonnes qui diffèrent. */
+        ImportDateMismatch: {
+            /** @description La lignée de la tâche ; nulle pour une tâche que l'import crée. */
+            lineage_id: components["schemas"]["Uuid"] | null;
+            label: string;
+            /** @description Les colonnes qui diffèrent, parmi la durée, le début et la fin (`duration`, `start`, `finish`), nommées comme les colonnes de la grille de planning. */
+            fields: components["schemas"]["NodeColumn"][];
+        };
+        /** @description Compte rendu présenté avant application, et relu après elle : lignes lues, lignes rejetées avec leur motif, écarts avec les données existantes (WF-INTF-0080), ce que l'import a ignoré, les tâches qu'il termine et les écarts de dates ou de durées qu'il constate (WF-INTF-0040, WF-PLA-0130). Un import est un aller-retour fondé sur l'identifiant que l'export a écrit : un objet du fichier qui le porte met à jour l'objet existant, un objet sans identifiant est créé, un objet existant absent du fichier est retiré — ou conservé et signalé (`kept`) quand sa tâche est démarrée ou terminée (WF-INTF-0040, WF-INTF-0100) ; un reste à engager laisse inchangées, sans les signaler, les lignes absentes du fichier (WF-INTF-0120). Un planning exporté puis réimporté sans modification ne présente aucun écart : `differences` et `date_mismatches` sont vides (WF-INTF-0060). Les quatre tableaux sont toujours rendus, vides quand il n'y a rien à dire, pour que l'écran n'ait pas à distinguer un compte rendu qui n'en parle pas d'un compte rendu où il n'y a rien. */
         ImportReport: {
             format_version?: string | null;
             read_count: number;
             rejected: components["schemas"]["ImportRejection"][];
             differences: components["schemas"]["ImportDifference"][];
-            /** @description Motifs d'une confirmation explicite, dont l'écart entre les dates du fichier et celles recalculées par Waterfall (WF-INTF-0040). */
-            requires_confirmation_reasons?: ("date_or_duration_mismatch" | "lines_outside_project" | "unknown_subproject")[];
+            /** @description Ce que l'import a lu sans l'importer, par nature, nommé quand il se nomme (WF-INTF-0040) : les ressources et les calendriers du fichier, gérés par Waterfall seul, l'avancement, les coûts, les champs personnalisés, et les contraintes de date des tâches importées en mode manuel aux dates du fichier. Vide pour un import Excel, qui ne lit que ses colonnes. */
+            ignored: components["schemas"]["ImportIgnored"][];
+            /** @description Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date de terminaison est le jour de l'application (WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon passe par l'état démarré : démarrée et terminée le jour de l'application (`started_on` égal à `completed_on`), seul un jalon allant directement de non démarré à terminé (WF-RAE-0030). Vide pour les autres natures d'import. */
+            completed_tasks: components["schemas"]["ImportCompletedTask"][];
+            /** @description Les tâches dont les dates ou la durée du fichier diffèrent de celles que Waterfall recalcule à partir des durées, des liaisons et des calendriers (WF-INTF-0040) : une information du compte rendu, pas un motif de confirmation — ce que Waterfall recalcule fait foi, et l'écart dit que les deux moteurs ne datent pas de même. Vide sur un aller-retour sans modification (WF-INTF-0060), et pour les imports Excel. */
+            date_mismatches: components["schemas"]["ImportDateMismatch"][];
+            /** @description Motifs d'une confirmation explicite, propres aux coûts réels : des lignes d'un autre projet, rejetées, ou un sous-projet inconnu, conservé par son code (WF-CRE-0020). Un écart de dates ou de durées n'en est plus un : il est dit par `date_mismatches`. */
+            requires_confirmation_reasons?: ("lines_outside_project" | "unknown_subproject")[];
         };
         Import: {
             import_id: components["schemas"]["Uuid"];
             kind: components["schemas"]["ExchangeKind"];
+            /** @description Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120). */
+            filename: string;
             /** @enum {string} */
             status: "analysing" | "analysed" | "applying" | "applied" | "abandoned" | "expired" | "failed";
             created_at: components["schemas"]["Timestamp"];
@@ -3720,6 +4685,7 @@ export interface components {
         /** @description Ouvre un import : l'analyse lit le fichier, contrôle son format et sa version, compare aux données existantes et produit un compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070, WF-INTF-0080). L'import s'applique à la révision en cours, créée au besoin (WF-INTF-0090). */
         ImportRequest: {
             kind: components["schemas"]["ExchangeKind"];
+            /** @description Un dépôt fait pour un import (`FileUploadPurpose`, `import`). */
             upload_id: components["schemas"]["Uuid"];
             /** @description Structure visée ; la structure principale par défaut. */
             structure_id?: components["schemas"]["Uuid"] | null;
@@ -3735,7 +4701,8 @@ export interface components {
         ExportRequest: {
             /** @enum {string} */
             kind: "ms_project_schedule" | "estimate" | "remaining" | "task_tree_image";
-            revision_id?: components["schemas"]["Uuid"] | null;
+            /** @description La révision exportée, en cours ou marquée, exigée : c'est sa commande `export_*` qui juge l'export (`RevisionCommand`, WF-INTF-0110, WF-INTF-0130). Aucune révision n'est prise par défaut. */
+            revision_id: components["schemas"]["Uuid"];
             structure_id?: components["schemas"]["Uuid"] | null;
             /** @description Niveau retenu pour l'image d'arborescence (WF-PLA-0120). */
             depth?: number | null;
@@ -3747,19 +4714,26 @@ export interface components {
             from?: components["schemas"]["PlanningDate"] | null;
             to?: components["schemas"]["PlanningDate"] | null;
             org_node_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du nœud d'organisation retenu, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150), que l'en-tête de la vue nomme ; nul sans nœud. */
+            org_node_label: string | null;
             project_count: number;
         };
-        /** @description Ligne de la liste des projets (WF-PTF-0040). */
+        /** @description Ligne de la liste des projets (WF-PTF-0040). Un projet que l'appelant ne peut pas ouvrir y figure sous son libellé et son code, compte dans les totaux, et `can_open` est faux (WF-PTF-0030). */
         PortfolioProjectRow: {
             project_id: components["schemas"]["Uuid"];
             label: string;
             code?: string | null;
             state: components["schemas"]["ProjectState"];
+            /** @description Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en déduit rien des permissions de la session. */
+            can_open: boolean;
             reference_budget?: components["schemas"]["Money"] | null;
             /** @description Devis courant, présenté à la place du budget pour un projet en chiffrage. */
             current_estimate?: components["schemas"]["Money"] | null;
             win_probability?: components["schemas"]["Percent"] | null;
+            /** @description Projection à terminaison du chef de projet, coût réel et reste à engager (WF-IND-0050) ; nulle hors d'un projet en cours. */
             project_manager_projection?: components["schemas"]["Money"] | null;
+            /** @description Écart de cette projection au budget de référence, positif quand elle le dépasse : budget 1 000, coût réel 500, reste à engager 550, projection 1 050, écart 50 (WF-PTF-0040). Nul hors d'un projet en cours. */
+            delta_to_reference?: components["schemas"]["Money"] | null;
             cost_index?: components["schemas"]["IndexValue"] | null;
             schedule_index?: components["schemas"]["IndexValue"] | null;
             last_marked_at: components["schemas"]["Timestamp"] | null;
@@ -3776,11 +4750,15 @@ export interface components {
         /** @description Charges sommées par rôle et par mois : sur le reste à engager pour les projets en cours, sur le devis pondéré pour les projets en chiffrage inclus (WF-PTF-0060). */
         PortfolioWorkload: {
             scope: components["schemas"]["PortfolioScope"];
-            under_load_threshold?: components["schemas"]["Percent"];
+            /** @description Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou, sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060). */
+            under_load_threshold: components["schemas"]["Percent"];
+            /** @description Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre. */
+            months: string[];
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
                 capacity_monthly_hours?: components["schemas"]["Hours"];
+                /** @description Un mois par mois de `months`, dans le même ordre, un mois sans charge compris. */
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
@@ -3795,7 +4773,9 @@ export interface components {
             reference_budget?: components["schemas"]["Money"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
+            /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre. */
             cost_variance?: components["schemas"]["Money"];
+            /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre. */
             schedule_variance?: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
             zone_distribution: {
@@ -3826,50 +4806,51 @@ export interface components {
                 label: string;
                 project_id: components["schemas"]["Uuid"];
                 project_label: string;
+                /** @description Si l'appelant peut ouvrir le projet du risque (WF-ADM-0110), comme `PortfolioProjectRow.can_open` ; faux, le risque est nommé avec son projet, sans lien (WF-PTF-0030). */
+                can_open: boolean;
                 provision_amount: components["schemas"]["Money"];
             }[];
             matrix: components["schemas"]["RiskMatrix"];
-            /** @description Somme des couvertures des projets : réserve de référence, provisions des risques identifiés, coût réestimé des risques survenus, et écart signé reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). */
-            coverage: {
-                reserve: components["schemas"]["Money"];
-                remaining_provisions: components["schemas"]["Money"];
-                occurred_cost: components["schemas"]["Money"];
-                coverage_variance: components["schemas"]["Money"];
-            };
+            /** @description Couverture des risques agrégée : la somme des réserves de référence des projets en cours, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes (WF-PTF-0090, WF-RIS-0050). */
+            coverage: components["schemas"]["RiskCoverageTotals"];
             period_outcome: {
                 occurred_provisions: components["schemas"]["Money"];
                 dismissed_provisions: components["schemas"]["Money"];
             };
         };
-        /** @description Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés des projets du périmètre (WF-IND-0100). Le coût réel s'arrête à la date de calcul, la projection commence au-delà (WF-PTF-0100). */
+        /** @description Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés des projets du périmètre (WF-IND-0100) — le budget de référence, le coût réel jusqu'à la date de calcul, la projection du chef de projet au-delà. Demandée avec les délais de paiement, elle somme les décaissements des projets et `cash_out_by_month` les détaille par mois (WF-PTF-0100). */
         PortfolioCostCurve: {
             scope: components["schemas"]["PortfolioScope"];
-            months: {
-                month: string;
-                reference_budget: components["schemas"]["Money"];
-                actual_cost?: components["schemas"]["Money"] | null;
-                project_manager_projection?: components["schemas"]["Money"] | null;
+            /** @description Vrai quand les séries sont celles des décaissements, chaque projet rendant les siennes avec ses délais de paiement et les provisions de ses risques identifiés (WF-IND-0100). Faux sinon. */
+            payment_delays: boolean;
+            series: {
+                /** @enum {string} */
+                name: "reference_budget" | "actual_cost" | "project_manager_projection";
+                points: {
+                    date: components["schemas"]["PlanningDate"];
+                    amount: components["schemas"]["Money"];
+                }[];
             }[];
+            /** @description Les décaissements par mois, sommes de ceux des projets, rendus quand `payment_delays` est vrai ; nul sinon (WF-PTF-0100). */
+            cash_out_by_month: components["schemas"]["CashOutMonth"][] | null;
         };
-        /** @description Lecture en décaissements de la courbe en S du portefeuille : somme des décaissements passés et à venir des projets du périmètre (WF-PTF-0100). */
-        PortfolioCashOut: {
-            scope: components["schemas"]["PortfolioScope"];
-            months: {
-                month: string;
-                past: components["schemas"]["Money"];
-                forecast: components["schemas"]["Money"];
-            }[];
-        };
-        /** @description Quatre signaux qui se constatent sans jugement, et dont l'absence rend les autres vues trompeuses (WF-PTF-0110). */
+        /** @description Quatre signaux qui se constatent sans jugement, et dont l'absence rend les autres vues trompeuses (WF-PTF-0110). Chacun porte sa zone dans l'échelle commune des signalements, que le serveur classe et dont le front ne déduit rien (WF-IHM-0070). */
         PilotHealth: {
             scope: components["schemas"]["PortfolioScope"];
             signals: {
                 project_id: components["schemas"]["Uuid"];
                 project_label: string;
+                /** @description Si l'appelant peut ouvrir le projet du signal (WF-ADM-0110), comme `PortfolioProjectRow.can_open` ; faux, le signal nomme son projet sans lien (WF-PTF-0030). */
+                can_open: boolean;
+                zone: components["schemas"]["AlertZone"];
                 /** @enum {string} */
                 code: "review_overdue" | "risks_not_reviewed" | "no_actual_cost_since_last_review" | "contractual_milestone_overdue";
+                /** @description Ce que le signal nomme, selon son code : `review_overdue`, `weeks_since_last_mark`, les semaines écoulées depuis la dernière révision marquée, que le délai maximal du référentiel ne tient plus (WF-REF-0180) ; `contractual_milestone_overdue`, le jalon dépassé — `lineage_id`, `milestone_label` — et sa date de référence, `reference_date`. Les deux autres ne nomment que leur projet, et n'en portent pas. */
                 params?: {
-                    [key: string]: unknown;
+                    weeks_since_last_mark?: number;
+                    lineage_id?: components["schemas"]["Uuid"];
+                    milestone_label?: string;
+                    reference_date?: components["schemas"]["PlanningDate"];
                 };
             }[];
         };
@@ -3902,7 +4883,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description L'état courant interdit l'opération, ou une unicité est violée. */
+        /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -3947,8 +4928,17 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture. `params` porte l'objet en conflit (WF-IHM-0110). */
+        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
         PreconditionFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Une période du portefeuille refusée, selon la règle de toute période du contrat (WF-IHM-0130) : une fin qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne seule se complète par celle de la période par défaut — la fin, la date de calcul ; le début, la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — et la période complétée suit la même règle : le refus désigne la borne envoyée, `params` nommant la borne complétée — un début postérieur à la date de calcul, `/query/from` par `VALUE_OUT_OF_RANGE`, `params.maximum` la fin complétée ; une fin antérieure au début par défaut, `/query/to`, `params.minimum` le début complété. Aucune vue vide ne tient lieu de refus. */
+        PortfolioPeriodRefused: {
             headers: {
                 [name: string]: unknown;
             };
@@ -3958,16 +4948,22 @@ export interface components {
         };
     };
     parameters: {
-        TaskId: components["schemas"]["Uuid"];
         Limit: number;
         Offset: number;
-        /** @description Recherche sur le libellé. */
-        Search: string;
+        TaskId: components["schemas"]["Uuid"];
         /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
         IncludeInactive: boolean;
+        /** @description Sens du tri demandé par `sort_by`. */
+        SortOrder: components["schemas"]["SortOrder"];
         UserId: components["schemas"]["Uuid"];
+        /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+        Search: string;
         AccessRoleId: components["schemas"]["Uuid"];
         BackupId: components["schemas"]["Uuid"];
+        /** @description Le nom d'un emplacement externe que l'installation déclare. */
+        ExternalBackupLocationName: components["schemas"]["ExternalBackupLocationName"];
+        /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+        IsActive: boolean;
         OrgNodeId: components["schemas"]["Uuid"];
         ResourceRoleId: components["schemas"]["Uuid"];
         CalendarId: components["schemas"]["Uuid"];
@@ -3981,18 +4977,27 @@ export interface components {
         TimelineId: components["schemas"]["Uuid"];
         RevisionId: components["schemas"]["Uuid"];
         StructureId: components["schemas"]["Uuid"];
+        /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+        SubprojectFilter: "unassigned" | components["schemas"]["Uuid"];
         NodeId: components["schemas"]["Uuid"];
-        /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+        /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
+        /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
+        WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
+        /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+        IndicatorsRevision: components["schemas"]["Uuid"];
         /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
+        /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+        RiskRevision: components["schemas"]["Uuid"];
         RiskId: components["schemas"]["Uuid"];
         CostLineId: components["schemas"]["Uuid"];
         ImportId: components["schemas"]["Uuid"];
-        /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+        /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
         PortfolioFrom: components["schemas"]["PlanningDate"];
+        /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
         PortfolioTo: components["schemas"]["PlanningDate"];
-        /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+        /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
         PortfolioOrgNode: components["schemas"]["Uuid"];
     };
     requestBodies: never;
@@ -4093,6 +5098,58 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paramètres publics de l'installation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Installation"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listBackgroundTasks: {
+        parameters: {
+            query?: {
+                /** @description Les statuts retenus ; absents, tous. */
+                status?: components["schemas"]["BackgroundTaskStatus"][];
+                /** @description Ne retient, des tâches finies, que celles qui ont abouti ou échoué depuis cette date ; celles qui courent sont toujours retenues. */
+                finished_since?: components["schemas"]["Timestamp"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tâches de l'appelant, les plus récentes d'abord. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["BackgroundTaskRef"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     getBackgroundTask: {
         parameters: {
             query?: never;
@@ -4128,13 +5185,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contenu du résultat. */
+            /** @description Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) : un devis ou un reste à engager en classeur Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), un planning MS Project en XML (`application/xml`, `.xml`), l'image de l'arborescence en PNG (`image/png`, `.png`) (WF-INTF-0110, WF-INTF-0130, WF-INTF-0050, WF-PLA-0120). */
             200: {
                 headers: {
+                    /** @description `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec l'extension de sa nature. Un nom qui n'est pas en ASCII s'écrit aussi en `filename*`, en UTF-8 encodé en pourcentage (RFC 6266, RFC 8187), `filename` portant alors son équivalent ASCII. */
+                    "Content-Disposition": string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/octet-stream": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    "application/xml": string;
+                    "image/png": string;
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -4457,10 +5518,22 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
-                search?: components["parameters"]["Search"];
+                /** @description Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom affiché, qu'aucune colonne ne porte entier. */
+                search?: string;
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état filtrée (WF-IHM-0130, WF-ADM-0060) : vrai, les seuls comptes actifs ; faux, les seuls désactivés, qui restent lisibles. Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. */
+                is_active?: boolean;
+                /** @description Restreint aux comptes de ces origines (WF-IHM-0130). */
+                origins?: components["schemas"]["UserOrigin"][];
+                /** @description Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à l'un de ses descendants (WF-IHM-0130, WF-REF-0070). */
+                org_node_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. */
+                access_role_ids?: components["schemas"]["Uuid"][];
+                /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode. */
+                sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -4507,8 +5580,9 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050). */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4567,9 +5641,18 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Le nom, le prénom ou l'adresse d'un compte venu d'un fournisseur externe (`origin` autre que `local`), qui ne se modifient pas ici (WF-ADM-0050) : `STATE_FORBIDS_OPERATION`, sans paramètre — l'origine du compte, que la lecture porte, le dit, et aucune condition du catalogue ne la nomme. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -4600,9 +5683,10 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Dernier compte portant les permissions d'administration (WF-ADM-0120). */
+            /** @description La désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la commande `deactivate` du compte dit d'avance (`available_commands`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4637,9 +5721,18 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Des rôles qui retireraient au dernier compte actif qui les porte la permission de modifier les comptes ou celle de modifier les rôles d'habilitation, refusés, rien n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, comme `LAST_PROJECT_MANAGER` — le refus dépend des rôles envoyés, qu'aucune commande ne dit d'avance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -4664,6 +5757,7 @@ export interface operations {
                     "image/jpeg": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4685,6 +5779,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Aucun annuaire activé (WF-ADM-0180). */
             409: {
@@ -4716,6 +5811,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectorySyncResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4742,7 +5838,20 @@ export interface operations {
     };
     listAccessRoles: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint à l'une des deux natures, la colonne de la nature filtrée (WF-IHM-0130) : vrai, les seuls rôles prédéfinis livrés avec la plateforme (WF-ADM-0010) ; faux, les seuls rôles composés ensuite (WF-ADM-0090). Absent, ne restreint rien. */
+                is_predefined?: boolean;
+                /** @description Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au moins autant de comptes (WF-IHM-0130). */
+                holder_count_min?: number;
+                /** @description Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130). Inférieure à `holder_count_min`, elle est refusée par 422. */
+                holder_count_max?: number;
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs. */
+                sort_by?: "label" | "is_predefined" | "holder_count";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4760,6 +5869,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createAccessRole: {
@@ -4785,6 +5903,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -4809,6 +5928,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4830,6 +5950,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Rôle encore porté par un compte (WF-ADM-0090). */
@@ -4867,9 +5988,10 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Le rôle est le dernier à porter les permissions d'administration (WF-ADM-0120). */
+            /** @description Une modification qui retirerait au dernier compte actif qui les porte la permission de modifier les comptes ou celle de modifier les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, le refus dépendant des permissions envoyées. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4905,7 +6027,7 @@ export interface operations {
                     };
                 };
             };
-            403: components["responses"]["Forbidden"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4927,6 +6049,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -4951,6 +6074,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4978,6 +6102,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5002,6 +6127,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5024,6 +6150,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5049,8 +6176,89 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Une copie externe refusée, `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un emplacement que l'installation ne déclare pas (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une rétention moindre que celle de la plateforme (`/external_copy/retained_count`, `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listExternalBackupLocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Emplacements déclarés ; une liste vide quand l'installation n'en déclare aucun. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalBackupLocation"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testExternalBackupLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Le nom d'un emplacement externe que l'installation déclare. */
+                location_name: components["parameters"]["ExternalBackupLocationName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ExternalBackupLocationTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Issue du test, réussi ou non. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalBackupLocationTest"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Emplacement que l'installation ne déclare pas, ou lecture des sauvegardes refusée, sans distinction (WF-ADM-0110). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Un dossier qui n'est pas relatif ou qui sort de l'emplacement : `VALIDATION_FAILED`, `fields` désignant `/path` par `PATH_INVALID`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     startRestore: {
@@ -5076,8 +6284,101 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAuditEvents: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                /** @description Retient les inscriptions faites à cet instant ou après lui. */
+                from?: components["schemas"]["Timestamp"];
+                /** @description Retient les inscriptions faites avant cet instant, exclu. */
+                to?: components["schemas"]["Timestamp"];
+                /** @description Retient les inscriptions dont l'auteur est ce compte, désactivé compris (WF-ADM-0060). */
+                user_id?: components["schemas"]["Uuid"];
+                /** @description Retient les inscriptions d'un compte (`user`) ou de la plateforme (`platform`) ; absent, les deux. */
+                actor_kind?: components["schemas"]["AuditActorKind"];
+                /** @description Retient les inscriptions de ces actions ; absent, toutes. */
+                actions?: components["schemas"]["AuditAction"][];
+                /** @description Retient les inscriptions de ce projet ; un projet qu'aucune inscription ne nomme ne retient rien, qu'il existe encore ou non. */
+                project_id?: components["schemas"]["Uuid"];
+                /** @description Retient les inscriptions dont l'objet est de cette nature. */
+                object_kind?: components["schemas"]["AuditObjectKind"];
+                /** @description Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de coût, d'un compte. */
+                object_id?: components["schemas"]["Uuid"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une corrélation que le journal ne porte pas ne retient rien. */
+                correlation_id?: string;
+                /** @description Colonne du tri ; absente, la date. Les colonnes du journal qui se trient (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, la plateforme, qui n'en a pas, après les comptes dans l'ordre croissant ; l'action et la nature de l'objet, dans l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans libellé — une sauvegarde — après les autres dans l'ordre croissant ; le projet, par son code, une inscription sans projet après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par caractère dans l'ordre des points de code Unicode. */
+                sort_by?: "occurred_at" | "actor" | "action" | "object_kind" | "object_label" | "project" | "correlation_id";
+                /** @description Sens du tri ; absent, décroissant pour la date — les inscriptions les plus récentes d'abord —, croissant pour toute autre colonne. */
+                sort_order?: components["schemas"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inscriptions retenues, une page, et leur nombre. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AuditEvent"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat) ; un instant mal formé, `/query/from` ou `/query/to` par `DATE_INVALID`. Aucune liste vide ne tient lieu de refus. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAuditFacets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Auteurs et projets du journal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditFacets"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     getReferenceReadiness: {
@@ -5145,6 +6446,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferenceSettings"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
@@ -5155,6 +6457,18 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint aux nœuds dont le code contient le texte donné, comparé comme la recherche (WF-IHM-0130). */
+                code?: string;
+                /** @description Restreint aux nœuds de cette profondeur, 1 pour une racine : l'égalité, que le filtre de la colonne choisit parmi les profondeurs de l'arbre (WF-IHM-0130). Avec `level_min` ou `level_max`, les deux s'appliquent. */
+                level?: number;
+                /** @description Borne inférieure, incluse, de la profondeur : restreint aux nœuds au moins aussi profonds (WF-IHM-0130). */
+                level_min?: number;
+                /** @description Borne supérieure, incluse, de la profondeur : restreint aux nœuds qui ne sont pas plus profonds (WF-IHM-0130). Inférieure à `level_min`, elle est refusée par 422. */
+                level_max?: number;
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
             };
             header?: never;
             path?: never;
@@ -5162,7 +6476,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœuds, sans limite de profondeur. */
+            /** @description Nœuds, sans limite de profondeur, dans l'ordre de l'arbre. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5173,6 +6487,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne de la profondeur mal formée, `/query/<borne>` par `NUMBER_INVALID`, ou `level_max` inférieure à `level_min`, `/query/level_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée : `VALIDATION_FAILED`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createOrgNode: {
@@ -5197,8 +6520,26 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateOrgNode: {
@@ -5225,9 +6566,28 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setOrgNodeActivation: {
@@ -5248,7 +6608,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Activation modifiée, avec la cascade appliquée. */
+            /** @description Activation modifiée : les nœuds et les rôles dont l'état a changé, la cascade appliquée à une désactivation ; le nœud seul à une réactivation. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5260,16 +6620,58 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La réactivation d'un nœud dont le parent est désactivé, refusée, rien n'étant écrit (WF-REF-0080) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `org_node_parent_active`, `params.conflicting_object_id` le parent désactivé, à réactiver d'abord. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du nœud : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listResourceRoles: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux rôles rattachés à cette catégorie de coût (WF-IHM-0130). */
+                cost_category_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux rôles rattachés à ce calendrier (WF-IHM-0130). */
+                calendar_id?: components["schemas"]["Uuid"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Borne inférieure, incluse, des heures mensuelles de la capacité : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                monthly_hours_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures mensuelles de la capacité : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `monthly_hours_min`, elle est refusée par 422. */
+                monthly_hours_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, de l'effectif de la capacité : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                headcount_min?: components["schemas"]["Decimal"];
+                /** @description Borne supérieure, incluse, de l'effectif de la capacité : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `headcount_min`, elle est refusée par 422. */
+                headcount_max?: components["schemas"]["Decimal"];
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —, les heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés après les actifs dans l'ordre croissant (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "label" | "org_node" | "cost_category" | "calendar" | "monthly_hours" | "headcount" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -5283,11 +6685,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResourceRole"][];
+                    "application/json": {
+                        items: components["schemas"]["ResourceRole"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`monthly_hours`, `headcount`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createResourceRole: {
@@ -5312,8 +6727,17 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé, `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateResourceRole: {
@@ -5340,9 +6764,19 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Le calendrier donné au rôle laisserait une tâche d'une révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause (WF-PLA-0010). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setResourceRoleActivation: {
@@ -5372,15 +6806,121 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La réactivation d'un rôle dont le nœud est désactivé, refusée, rien n'étant écrit (WF-REF-0080) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `org_node_active`, `params.conflicting_object_id` le nœud désactivé, à réactiver d'abord. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du rôle : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDurationUnits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les trois constantes, 8, 40 et 20 par défaut (WF-PLA-0160). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurationUnits"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setDurationUnits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DurationUnitsWrite"];
+            };
+        };
+        responses: {
+            /** @description Constantes enregistrées. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurationUnits"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listCalendars: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Borne inférieure, incluse, des heures du lundi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                monday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du lundi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `monday_min`, elle est refusée par 422. */
+                monday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du mardi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                tuesday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du mardi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `tuesday_min`, elle est refusée par 422. */
+                tuesday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du mercredi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                wednesday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du mercredi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `wednesday_min`, elle est refusée par 422. */
+                wednesday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du jeudi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                thursday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du jeudi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `thursday_min`, elle est refusée par 422. */
+                thursday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du vendredi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                friday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du vendredi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `friday_min`, elle est refusée par 422. */
+                friday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du samedi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                saturday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du samedi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `saturday_min`, elle est refusée par 422. */
+                saturday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du dimanche : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                sunday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du dimanche : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `sunday_min`, elle est refusée par 422. */
+                sunday_max?: components["schemas"]["Hours"];
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des calendriers : le libellé, les heures de chaque jour, du lundi (`monday`) au dimanche (`sunday`), les heures de la semaine — leur somme —, le calendrier par défaut en premier dans l'ordre croissant, et l'état, les désactivés après les actifs (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "label" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday" | "weekly_hours" | "is_default" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -5394,11 +6934,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Calendar"][];
+                    "application/json": {
+                        items: components["schemas"]["Calendar"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`monday` à `sunday`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createCalendar: {
@@ -5423,6 +6975,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5451,9 +7004,19 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Les heures données au calendrier laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause — `resource_role_ids` vide pour les tâches sans ligne de main-d'œuvre (WF-PLA-0010). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setDefaultCalendar: {
@@ -5476,9 +7039,19 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            /** @description Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide, `params.tasks` nommant les tâches (WF-PLA-0010). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setCalendarActivation: {
@@ -5508,16 +7081,46 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description La désactivation du calendrier par défaut, refusée, rien n'étant écrit (WF-REF-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_not_default` ; un autre calendrier se désigne d'abord par défaut (`setDefaultCalendar`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCostTypes: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Restreint aux natures de ces types (WF-IHM-0130). */
+                kinds?: components["schemas"]["CostTypeKind"][];
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des natures : le code, le libellé, le type et l'état, les natures désactivées après les actives dans l'ordre croissant (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "code" | "label" | "kind" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -5531,7 +7134,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CostType"][];
+                    "application/json": {
+                        items: components["schemas"]["CostType"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -5560,9 +7166,26 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un code déjà porté par une autre nature, active ou désactivée (WF-REF-0030) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides, `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet — vingt caractères pour le code, deux cents pour le libellé —, par `VALUE_TOO_LONG` ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateCostType: {
@@ -5589,10 +7212,28 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un autre type pour une nature dont une catégorie est employée (WF-REF-0030), ou pour la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_kind` dit manquantes, `cost_type_unused` avant `cost_type_not_last_provision`. Un code déjà porté par une autre nature, active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou `/label` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setCostTypeActivation: {
@@ -5622,17 +7263,46 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La désactivation de la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCostCategories: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint aux catégories d'une nature de coût (WF-IHM-0130). */
+                cost_type_id?: components["schemas"]["Uuid"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code, le libellé, la nature — par son libellé —, le code comptable, que chaque catégorie porte (WF-REF-0040), et l'état, les catégories désactivées après les actives (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "code" | "label" | "cost_type" | "accounting_code" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -5646,10 +7316,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CostCategory"][];
+                    "application/json": {
+                        items: components["schemas"]["CostCategory"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5675,9 +7349,26 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040) : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la catégorie qui la porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un code, un libellé ou un code comptable vides, `/code`, `/label` ou `/accounting_code` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; une nature absente ou nulle — une catégorie sans nature (WF-REF-0040) —, `/cost_type_id` par `VALUE_REQUIRED` ; une nature que le référentiel n'a pas, `/cost_type_id` par `UNKNOWN_COST_TYPE` ; une nature désactivée, qui n'est plus proposée à la saisie, `/cost_type_id` par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateCostCategory: {
@@ -5704,9 +7395,28 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, qui porte des taux (#577), ou seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_cost_type` dit manquantes, dans l'ordre `cost_category_unused`, `cost_category_unrated`, `cost_category_not_last_provision`. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code`, `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie ne reste pas sans nature (WF-REF-0040) —, inconnue, par `UNKNOWN_COST_TYPE`, ou par `INACTIVE_REFERENCE_OBJECT` quand la modification change la catégorie de nature pour une nature désactivée (WF-REF-0010). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setCostCategoryActivation: {
@@ -5736,8 +7446,78 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La désactivation de la seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_category_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHourlyRateGrid: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description L'année dont `rate_min` et `rate_max` bornent le taux, la colonne que `rate.<année>` trie ; exigée avec l'une d'elles, refusée par 422 sinon (`VALUE_REQUIRED`). Seule, sans borne, elle est sans effet : elle ne filtre ni ne trie. Une catégorie sans taux cette année-là n'est retenue par aucune borne. */
+                rate_year?: components["schemas"]["Year"];
+                /** @description Borne inférieure, incluse, du taux de l'année `rate_year` : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                rate_min?: components["schemas"]["Money"];
+                /** @description Borne supérieure, incluse, du taux de l'année `rate_year` : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `rate_min`, elle est refusée par 422. */
+                rate_max?: components["schemas"]["Money"];
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la grille : le code, le libellé, l'état — les catégories désactivées après les actives dans l'ordre croissant —, et le taux d'une année, `rate.<année>`, `rate.2026` par exemple : une catégorie sans taux cette année-là vient après les autres dans l'ordre croissant, avant dans le décroissant, et des catégories au même taux, ou sans taux, restent dans l'ordre du code — une année que la grille ne porte pas laisse donc l'ordre du code (WF-IHM-0060). Les textes se comparent dans l'ordre des points de code Unicode. À égalité, l'ordre de la grille sans tri, puis l'identifiant. */
+                sort_by?: ("code" | "label" | "is_active") | string;
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La grille, catégories en lignes et années en colonnes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourlyRateGrid"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`rate`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée ; une borne sans son année, `/query/rate_year` par `VALUE_REQUIRED`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listHourlyRates: {
@@ -5789,10 +7569,36 @@ export interface operations {
                     "application/json": components["schemas"]["HourlyRate"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Une première saisie, sans `lock_version`, pour une année qui porte déjà un taux : un second taux pour la même catégorie et la même année (WF-REF-0050). `ALREADY_EXISTS`, rien n'étant écrit ; le taux de l'année se relit, et se corrige avec sa version. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du taux de l'année : il a été corrigé depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante ; le taux, sans identifiant propre, est celui que nomment la catégorie et l'année du chemin. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Un montant nul ou négatif : `VALIDATION_FAILED`, `fields` désignant `/amount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0.01`, le plus petit taux admis. Une catégorie dont la nature ne relève pas de la main-d'œuvre, qui ne porte pas de taux (WF-REF-0050) : `LABOUR_CATEGORY_REQUIRED`, sans `fields` — la catégorie est celle du chemin. Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listProjects: {
@@ -5800,10 +7606,20 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
+                /** @description Vrai, les seuls projets dont l'appelant est contributeur. */
+                is_contributor?: boolean;
+                /** @description Début de la période, inclus : restreint aux projets dont la dernière modification (`audit.updated_at`) est à cet instant ou après lui (WF-IHM-0130). */
+                from?: components["schemas"]["Timestamp"];
+                /** @description Fin de la période, exclue : restreint aux projets modifiés avant cet instant (WF-IHM-0130). Antérieure à `from`, elle est refusée par 422 ; égale, la période est vide. */
+                to?: components["schemas"]["Timestamp"];
+                /** @description Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. Le libellé et le code se comparent dans l'ordre des points de code Unicode, un projet sans code après les autres dans l'ordre croissant ; l'état, dans l'ordre de `ProjectState`, celui du cycle de vie (WF-CYC-0010). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "label" | "code" | "state" | "updated_at";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -5811,7 +7627,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Projets. */
+            /** @description Projets, et les états retenus. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5819,12 +7635,21 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["Project"][];
-                        meta: components["schemas"]["PaginationMeta"];
+                        meta: components["schemas"]["ProjectListMeta"];
                     };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat ; un instant mal formé, `/query/from` ou `/query/to` par `DATE_INVALID`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createProject: {
@@ -5849,8 +7674,9 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010). */
+            /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5910,9 +7736,18 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5937,6 +7772,7 @@ export interface operations {
                     "application/json": components["schemas"]["StateTransition"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5960,6 +7796,7 @@ export interface operations {
                     "application/json": components["schemas"]["NextState"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5987,6 +7824,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080). */
@@ -6003,7 +7841,12 @@ export interface operations {
     };
     getWorkBreakdown: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Recherche sur le libellé des postes, des lots et des livrables — le seul texte que chacun porte (WF-PRJ-0020) —, comparé comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). Un élément dont le libellé contient le texte est retenu, non ce qu'il contient. */
+                search?: string;
+                /** @description Restreint aux éléments de ces natures, la colonne de la nature filtrée (WF-IHM-0130) : `kinds=deliverable`, les livrables, sous leurs lots et leurs postes. */
+                kinds?: components["schemas"]["WorkBreakdownKind"][];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -6012,15 +7855,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Lotissement du projet. */
+            /** @description Lotissement du projet, ou ce que les filtres en retiennent. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkBreakdown"];
+                    "application/json": components["schemas"]["WorkBreakdownReading"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6048,14 +7892,33 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) : `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`. Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et `work_package_node_ids` les tâches du poste et du lot. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listSubprojects: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Recherche sur le code et le libellé, comparés comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). */
+                search?: string;
+                /** @description Vrai, les seuls sous-projets auxquels des coûts réels sont imputés, qui ne se suppriment plus ; faux, les autres (WF-PRJ-0050, WF-IHM-0130). */
+                has_actual_costs?: boolean;
+                /** @description Colonne du tri ; absente, le code. Le code et le libellé se comparent dans l'ordre des points de code Unicode ; la colonne des coûts réels range les sous-projets qui en portent avant les autres dans l'ordre croissant, comme l'état des comptes range les actifs. À égalité, l'ordre de la liste sans tri, puis l'identifiant (WF-IHM-0060). */
+                sort_by?: "code" | "label" | "has_actual_costs";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -6073,6 +7936,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6100,8 +7964,9 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Code déjà employé dans ce projet (WF-PRJ-0050). */
+            /** @description Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6131,6 +7996,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sous-projet portant des coûts réels ou cité par une révision marquée. */
@@ -6169,14 +8035,35 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
     listContributors: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de la liste, comparé comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). */
+                search?: string;
+                /** @description Restreint aux contributeurs de ces qualités (WF-IHM-0130). */
+                kinds?: components["schemas"]["ContributorKind"][];
+                /** @description Vrai, les seuls contributeurs dont le compte est actif ; faux, ceux dont le compte a été désactivé depuis leur inscription, que la liste garde (WF-ADM-0060, WF-IHM-0130). */
+                is_active?: boolean;
+                /** @description Colonne du tri ; absente, les chefs de projet d'abord, puis le nom de famille et le prénom du compte, comme les comptes (`listUsers`). Le nom affiché se compare dans l'ordre des points de code Unicode ; la qualité, dans l'ordre de `ContributorKind`, les chefs de projet d'abord dans l'ordre croissant ; l'état du compte, les actifs avant les désactivés dans l'ordre croissant. À égalité, l'ordre de la liste sans tri, puis l'identifiant du compte (WF-IHM-0060). */
+                sort_by?: "display_name" | "kind" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -6185,15 +8072,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contributeurs. */
+            /** @description Contributeurs, et le compteur de la liste. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6212,18 +8100,29 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liste enregistrée. */
+            /** @description Liste enregistrée. Une écriture rend toujours la liste entière avec son compteur suivant, jamais nul : `ContributorList` n'admet un compteur nul que pour une lecture filtrée (WF-IHM-0110). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listContributorSuggestions: {
@@ -6246,6 +8145,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorSuggestion"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6269,6 +8169,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6298,6 +8199,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6321,6 +8223,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6330,6 +8233,10 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
+                /** @description Les états retenus, en cours ou marquée ; absents, toutes (WF-IHM-0130). */
+                status?: components["schemas"]["RevisionStatus"][];
+                /** @description Recherche sur le nom de version et la description, comparés comme toute recherche du contrat (README, « Une recherche… »). */
+                search?: string;
             };
             header?: never;
             path: {
@@ -6379,6 +8286,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une révision en cours existe déjà (WF-REV-0010). */
@@ -6413,6 +8321,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6435,6 +8344,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6465,9 +8375,10 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020). */
+            /** @description Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`, `fields` désignant `/version_name` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la révision qui le porte. Ou révision déjà marquée (WF-REV-0020). Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6503,6 +8414,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Désignation manuelle plus permise, ou révision non marquée (WF-REV-0040). */
@@ -6537,6 +8449,7 @@ export interface operations {
                     "application/json": components["schemas"]["RateUpdateProposal"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6568,6 +8481,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6596,6 +8510,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevisionComparison"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6620,6 +8535,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6648,6 +8564,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6679,6 +8596,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6689,8 +8607,35 @@ export interface operations {
             query?: {
                 /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
                 kinds?: components["schemas"]["NodeKind"][];
-                limit?: components["parameters"]["Limit"];
-                offset?: components["parameters"]["Offset"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
+                subtree_of?: components["schemas"]["Uuid"];
+                /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
+                /** @description Restreint aux lignes d'une nature de coût (WF-DEV-0050). */
+                cost_type_id?: components["schemas"]["Uuid"];
+                /** @description Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient rien. */
+                order_item_id?: components["schemas"]["Uuid"];
+                /** @description Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, elle comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien. */
+                work_package_id?: components["schemas"]["Uuid"];
+                cost_category_id?: components["schemas"]["Uuid"];
+                resource_role_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre par défaut que leurs lignes (WF-RAE-0040). */
+                progress?: components["schemas"]["TaskProgress"][];
+                is_critical?: boolean;
+                /** @description Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne restreint rien. */
+                summaries_only?: boolean;
+                /** @description Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110). Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau. */
+                max_level?: number;
+                /** @description Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans inscription, ou qui n'est pas une chronologie du projet, ne retient rien. */
+                timeline_id?: components["schemas"]["Uuid"];
+                /** @description Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number` (WF-IHM-0060) : trié par montant croissant, le devis rend sous chaque tâche ses lignes du plus petit montant au plus grand, et ses tâches à leur place, celle de montant nul comprise (`estimate_sorted`). Un nombre se compare par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Les grilles de devis et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le contrat. */
+                sort_by?: components["schemas"]["NodeColumn"];
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
+                /** @description Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une propriété inconnue est refusée (400). */
+                fields?: string[];
             };
             header?: never;
             path: {
@@ -6702,7 +8647,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœuds, en parcours profondeur d'abord. */
+            /** @description Nœuds, en parcours profondeur d'abord, leurs totaux, et ce que la lecture dit de la structure elle-même. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6710,10 +8655,12 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["Node"][];
-                        meta: components["schemas"]["PaginationMeta"];
+                        totals: components["schemas"]["NodeTotals"];
+                        meta: components["schemas"]["NodeListMeta"];
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
@@ -6735,19 +8682,28 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœud créé. */
+            /** @description Nœud créé, avec ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     deleteNode: {
@@ -6764,17 +8720,59 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœud supprimé. */
-            204: {
+            /** @description Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NodesWritten"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+        };
+    };
+    getComputedValueDependencies: {
+        parameters: {
+            query: {
+                /** @description Le champ calculé dont la saisie a été tentée. */
+                field: components["schemas"]["ComputedValueField"];
+            };
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                revision_id: components["parameters"]["RevisionId"];
+                structure_id: components["parameters"]["StructureId"];
+                node_id: components["parameters"]["NodeId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ce dont dépend la valeur. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputedValueDependencies"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Le serveur ne calcule pas ce champ pour ce nœud : il se saisit. `VALIDATION_FAILED`, et `params.field` nomme le champ demandé. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateTaskFacet: {
@@ -6791,24 +8789,33 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TaskFacetWrite"];
+                "application/json": components["schemas"]["TaskFacetUpdate"];
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées. */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés, les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé — poste ou lot inconnu, poste et lot ensemble, poste ou lot déjà porté par une autre tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0170, `TaskFacetUpdate`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateEstimateLine: {
@@ -6825,24 +8832,25 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EstimateLineWrite"];
+                "application/json": components["schemas"]["EstimateLineUpdate"];
             };
         };
         responses: {
-            /** @description Ligne modifiée, avec son montant recalculé. */
+            /** @description Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les totaux de la structure (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020). */
+            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6871,15 +8879,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liaisons enregistrées, dates recalculées. */
+            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec (`NodesWritten`, WF-PLA-0020, WF-PLA-0100). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Cycle de liaisons, ou liaison interdite (WF-PLA-0030, WF-PLA-0040). */
@@ -6912,15 +8921,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description État enregistré. */
+            /** @description État enregistré ; l'avancement des récapitulatives au-dessus recalculé (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6945,19 +8955,29 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Réestimation enregistrée. */
+            /** @description Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux recalculés (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED` : une saisie qui termine la tâche sans date de terminaison — motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche (WF-RAE-0040, WF-PLA-0130) ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setNodeTracking: {
@@ -6981,15 +9001,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Inscriptions enregistrées. */
+            /** @description Inscriptions enregistrées (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -7011,19 +9032,29 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœuds déplacés. */
+            /** @description Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche (WF-PLA-0010). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     previewPaste: {
@@ -7052,9 +9083,19 @@ export interface operations {
                     "application/json": components["schemas"]["PastePlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
+            /** @description Bloc plus large que les colonnes de la facette à partir de la colonne visée (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit (WF-IHM-0050). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     applyPaste: {
@@ -7074,18 +9115,20 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Collage appliqué. */
+            /** @description Collage appliqué ; le compteur de la structure a avancé. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            412: components["responses"]["PreconditionFailed"];
         };
     };
     undoLastChange: {
@@ -7109,6 +9152,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une modification postérieure porte sur le même objet, ou l'historique de la session est vide (WF-IHM-0110). */
@@ -7143,6 +9187,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7169,6 +9214,7 @@ export interface operations {
                     "application/json": components["schemas"]["Node"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La structure comporte déjà une tâche (WF-PRJ-0030). */
@@ -7186,7 +9232,7 @@ export interface operations {
         parameters: {
             query?: {
                 revision_id?: components["schemas"]["Uuid"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -7208,6 +9254,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getMissingRates: {
@@ -7229,21 +9284,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        cost_category_id: components["schemas"]["Uuid"];
-                        label?: string;
-                        year: components["schemas"]["Year"];
-                    }[];
+                    "application/json": components["schemas"]["MissingRate"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
     getProjectWorkload: {
         parameters: {
             query: {
-                basis: "estimate" | "remaining";
+                /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
+                basis: components["parameters"]["WorkloadBasis"];
+                /** @description La révision marquée dont les montants réestimés font la base ; exigée avec `marked_remaining`, ignorée sinon. */
                 revision_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-DEV-0070, WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
             };
             header?: never;
@@ -7263,7 +9318,26 @@ export interface operations {
                     "application/json": components["schemas"]["WorkloadPlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à `ProjectState`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` : `marked_remaining` sans révision marquée — `revision_id` absent, inconnu ou non marqué —, ou un nœud d'organisation inconnu ; `fields` désigne le paramètre refusé, `/query/revision_id` ou `/query/org_node_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getRemainingIndicators: {
@@ -7288,6 +9362,7 @@ export interface operations {
                     "application/json": components["schemas"]["RemainingIndicators"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7309,20 +9384,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        not_started: components["schemas"]["Node"][];
+                        not_started: components["schemas"]["NotStartedTask"][];
                         started: components["schemas"]["Node"][];
+                        completed: components["schemas"]["Node"][];
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
     getProjectIndicators: {
         parameters: {
             query?: {
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -7344,8 +9423,17 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). */
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant l'état du projet et `params.state_enum` `ProjectState` ; ou révision nommée par `revision_id` marquée avant lui, sans `params.state`, le projet étant en cours. Dans les deux cas, seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7375,14 +9463,21 @@ export interface operations {
                     "application/json": components["schemas"]["MilestoneTracking"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
     getCostCurve: {
         parameters: {
             query?: {
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
+                scope?: components["parameters"]["Scope"];
+                /** @description Vrai, les séries sont décalées des délais de paiement et portent les provisions des risques identifiés : ce sont les décaissements (WF-IND-0100). */
+                payment_delays?: boolean;
             };
             header?: never;
             path: {
@@ -7392,7 +9487,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Séries cumulées. */
+            /** @description Séries cumulées, décaissements par mois compris quand `payment_delays` est vrai. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7401,15 +9496,36 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée par `revision_id` marquée avant lui — seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getEarnedValueCurves: {
         parameters: {
             query?: {
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -7429,13 +9545,33 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée par `revision_id` marquée avant lui — seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
-    getProjectCashOut: {
+    getIndexHistory: {
         parameters: {
             query?: {
-                horizon_months?: number;
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
+                scope?: components["parameters"]["Scope"];
             };
             header?: never;
             path: {
@@ -7445,22 +9581,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Décaissements par mois. */
+            /** @description Courbes des indices par maille, et les seuils. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CashOut"];
+                    "application/json": components["schemas"]["IndexHistory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listRisks: {
         parameters: {
             query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
                 states?: components["schemas"]["RiskState"][];
+                /** @description Restreint aux risques dont la case de matrice est dans l'une de ces zones. */
+                zones?: components["schemas"]["AlertZone"][];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Colonne du tri ; absente, l'ordre de déclaration. */
+                sort_by?: "label" | "probability" | "severity" | "provision_amount" | "state" | "last_review_on";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -7510,6 +9666,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
@@ -7517,7 +9674,10 @@ export interface operations {
     };
     getRisk: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -7536,7 +9696,41 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    deleteRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                risk_id: components["parameters"]["RiskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Risque supprimé, son devis propre et sa ligne de provision avec lui. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred` est nommée. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateRisk: {
@@ -7564,6 +9758,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7572,7 +9767,10 @@ export interface operations {
     };
     listRiskReviews: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -7591,6 +9789,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskReview"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7619,9 +9818,10 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). */
+            /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7658,6 +9858,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7665,7 +9866,10 @@ export interface operations {
     };
     getProjectRiskMatrix: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -7683,12 +9887,16 @@ export interface operations {
                     "application/json": components["schemas"]["RiskMatrix"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
     getProjectRiskCoverage: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -7706,6 +9914,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskCoverage"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7714,11 +9923,15 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description `unassigned` pour les lignes imputées au seul projet (WF-CRE-0020). */
-                subproject_id?: "unassigned" | components["schemas"]["Uuid"];
+                /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
                 from?: components["schemas"]["PlanningDate"];
                 to?: components["schemas"]["PlanningDate"];
                 in_tracked_scope?: boolean;
+                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. Chaque colonne de la grille se trie (WF-IHM-0060). `in_tracked_scope` range dans l'ordre croissant les lignes exclues avant les lignes suivies. `excluded_reason` range par motif, et `passthrough.<colonne>` par la valeur d'une colonne conservée du fichier, nommée comme `passthrough` la nomme : l'un et l'autre comparés en texte, caractère par caractère dans l'ordre des points de code Unicode, sans lire un nombre ni une date qu'ils écriraient ; une ligne sans valeur — suivie, donc sans motif, ou sans cette colonne — vient après les autres dans l'ordre croissant, avant dans le décroissant. */
+                sort_by?: ("document_date" | "document_number" | "amount" | "subproject" | "in_tracked_scope" | "excluded_reason") | string;
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -7737,13 +9950,22 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ActualCostLine"][];
                         totals: components["schemas"]["ActualCostTotals"];
-                        last_import_at?: components["schemas"]["Timestamp"] | null;
-                        meta: components["schemas"]["PaginationMeta"];
+                        last_import_at: components["schemas"]["Timestamp"] | null;
+                        meta: components["schemas"]["ActualCostListMeta"];
                     };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans `fields` — une période dont la fin précède le début (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat), une date mal formée (`/query/from` ou `/query/to`, `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de refus. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setActualCostTrackedScope: {
@@ -7771,6 +9993,7 @@ export interface operations {
                     "application/json": components["schemas"]["ActualCostLine"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -7801,6 +10024,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7816,6 +10040,7 @@ export interface operations {
                 "multipart/form-data": {
                     /** Format: binary */
                     file: string;
+                    purpose: components["schemas"]["FileUploadPurpose"];
                 };
             };
         };
@@ -7848,7 +10073,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Imports, analysés, appliqués ou abandonnés. */
+            /** @description Imports, analysés, appliqués ou abandonnés, du plus récent au plus ancien. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7860,6 +10085,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7887,6 +10113,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Projet terminal, ou fichier déjà consommé (WF-CYC-0100). */
@@ -7898,7 +10125,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070). */
+            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et `params.expected_version` sa version. Ou un dépôt qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7930,6 +10157,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7952,6 +10180,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -7981,6 +10210,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a cessé d'être vraie depuis l'analyse (WF-ARC-0100). */
@@ -8018,9 +10248,27 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description Projet invisible, ou révision inconnue ou d'un autre projet (WF-ADM-0110) : `NOT_FOUND`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Conflict"];
+            /** @description Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getPortfolioProjects: {
@@ -8028,17 +10276,24 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130). */
+                zones?: components["schemas"]["AlertZone"][];
+                /** @description Colonne du tri ; absente, le libellé. */
+                sort_by?: "label" | "code" | "state" | "reference_budget" | "current_estimate" | "win_probability" | "project_manager_projection" | "delta_to_reference" | "cost_index" | "schedule_index" | "last_marked_at";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -8061,6 +10316,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioValue: {
@@ -8068,12 +10324,13 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -8091,7 +10348,9 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioValue"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioWorkload: {
@@ -8101,7 +10360,7 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 horizon_months?: number;
                 /** @description Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060). */
@@ -8122,6 +10381,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioWorkload"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8130,12 +10390,13 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -8153,7 +10414,9 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioPerformance"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioCostStructure: {
@@ -8163,7 +10426,7 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -8181,6 +10444,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8189,8 +10453,9 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -8210,7 +10475,9 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioRisks"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioCostCurve: {
@@ -8221,6 +10488,8 @@ export interface operations {
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 horizon_months?: number;
+                /** @description Vrai, les séries sont celles des décaissements des projets, décalées des délais de paiement et portant les provisions des risques identifiés (WF-IND-0100, WF-PTF-0100). */
+                payment_delays?: boolean;
             };
             header?: never;
             path?: never;
@@ -8228,7 +10497,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Séries cumulées par mois. */
+            /** @description Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est vrai. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8237,33 +10506,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCostCurve"];
                 };
             };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getPortfolioCashOut: {
-        parameters: {
-            query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
-                states?: components["parameters"]["PortfolioStates"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
-                as_of?: components["parameters"]["AsOf"];
-                horizon_months?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Décaissements par mois. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PortfolioCashOut"];
-                };
-            };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8290,6 +10533,7 @@ export interface operations {
                     "application/json": components["schemas"]["PilotHealth"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

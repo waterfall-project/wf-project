@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the reader of the specification projection."""
 
+from collections import Counter
+
 import pytest
 
 from wftools import projection
@@ -153,3 +155,107 @@ class TestTheDocument:
             ),
             "L'API et le worker d'une installation portent la même version.",
         )
+
+    def test_the_tree_of_the_functions_has_its_four_blocks_and_their_leaves(self) -> None:
+        tree = projection.read_functions()
+        assert [fn.code for fn in tree if "." not in fn.code] == [
+            "FBS-1",
+            "FBS-2",
+            "FBS-3",
+            "FBS-4",
+        ]
+        leaves = {fn.code: fn.label for fn in projection.leaves(tree)}
+        assert len(leaves) == 49
+        assert leaves["FBS-1.5"] == "Journal d'audit"
+        assert leaves["FBS-4.9"] == "Cycle de vie du projet"
+        assert leaves["FBS-4.3.5"] == "Arborescence de tâches (WBS)"
+        assert "FBS-4.3" not in leaves
+
+    def test_every_function_below_the_blocks_is_the_child_of_exactly_one_checked_arrow(
+        self,
+    ) -> None:
+        text = projection.PROJECTION.read_text(encoding="utf-8")
+        children = Counter(child for _parent, child in projection.arrows(text))
+        below = [fn.code for fn in projection.read_functions() if "." in fn.code]
+        assert len(below) == 57
+        assert {code: children[code] for code in below} == dict.fromkeys(below, 1)
+        assert sum(children.values()) == len(below)
+
+    def test_every_function_a_requirement_cites_is_a_function_of_the_tree(
+        self, requirements: tuple[Requirement, ...]
+    ) -> None:
+        tree = {fn.code for fn in projection.read_functions()}
+        cited = {
+            code.strip()
+            for requirement in requirements
+            if not requirement.is_example
+            for code in requirement.fbs.split(",")
+        }
+        assert cited
+        assert cited - tree == set()
+
+
+FUNCTIONS = """\
+### 3.4.5. FBS-4 : Projets
+
+```mermaid
+flowchart LR
+    Waterfall["Waterfall"]
+    FBS_4_Projets["FBS-4<br>Projets"]
+    FBS_4_3_Planification["FBS-4.3<br>Planification"]
+    FBS_4_9_Cycle["FBS-4.9<br>Cycle de vie du projet"]
+
+    Waterfall --> FBS_4_Projets
+    FBS_4_Projets --> FBS_4_3_Planification
+    FBS_4_Projets --> FBS_4_9_Cycle
+```
+
+##### 3.4.5.3.5. FBS-4.3.5 : Arborescence de tâches (WBS)
+
+##### 3.4.5.3.1. FBS-4.3.1 : Chronologie
+
+Une phrase qui cite FBS-4.3.2 Grille de planning n'en fait pas une fonction.
+"""
+
+
+def test_the_functions_are_those_of_the_headings_and_of_the_figures_in_the_order_of_codes() -> None:
+    tree = projection.functions(FUNCTIONS)
+    assert [(fn.code, fn.label) for fn in tree] == [
+        ("FBS-4", "Projets"),
+        ("FBS-4.3", "Planification"),
+        ("FBS-4.3.1", "Chronologie"),
+        ("FBS-4.3.5", "Arborescence de tâches (WBS)"),
+        ("FBS-4.9", "Cycle de vie du projet"),
+    ]
+
+
+def test_the_leaves_are_the_functions_no_other_is_under() -> None:
+    tree = projection.functions(FUNCTIONS)
+    assert [fn.code for fn in projection.leaves(tree)] == ["FBS-4.3.1", "FBS-4.3.5", "FBS-4.9"]
+    assert tree[1].is_under(tree[0])
+    assert not tree[0].is_under(tree[1])
+    assert projection.Function("FBS-4.10", "").is_under(tree[0])
+    assert not projection.Function("FBS-4.10", "").is_under(projection.Function("FBS-4.1", ""))
+
+
+def test_a_projection_without_functions_is_refused() -> None:
+    with pytest.raises(ProjectionError, match="names no function of the FBS"):
+        projection.functions(BLOCK)
+
+
+@pytest.mark.parametrize(
+    ("arrow", "child"),
+    [
+        ("FBS_4_3_Planification --> FBS_4_9_Cycle", "FBS-4.9"),
+        ("FBS_4_Projets --> FBS_4_3_1", "FBS-4.3.1"),
+    ],
+)
+def test_an_arrow_whose_child_does_not_extend_the_code_of_its_parent_is_refused(
+    arrow: str, child: str
+) -> None:
+    text = FUNCTIONS.replace(
+        "    FBS_4_Projets --> FBS_4_9_Cycle\n",
+        f'    FBS_4_3_1["FBS-4.3.1<br>Chronologie"]\n    {arrow}\n',
+    )
+    with pytest.raises(ProjectionError, match=f"puts {child} under FBS-4"):
+        projection.functions(text)

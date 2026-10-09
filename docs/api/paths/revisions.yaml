@@ -4,12 +4,26 @@
     tags: [revisions]
     summary: Historique des révisions
     description: >-
-      Nom de version, description, date de marquage et caractère de référence ; chacune
-      est consultable dans son intégralité (WF-REV-0070).
+      Nom de version, description, état, date de marquage, année de référence et caractère
+      de référence — les attributs d'une révision (WF-REV-0090) ; chacune est consultable dans
+      son intégralité (WF-REV-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
+      - name: status
+        in: query
+        description: Les états retenus, en cours ou marquée ; absents, toutes (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/revisions.yaml#/RevisionStatus }
+        explode: false
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le nom de version et la description, comparés comme toute recherche du
+          contrat (README, « Une recherche… »).
+        schema: { type: string, minLength: 1, maxLength: 200 }
     responses:
       '200':
         description: Révisions, de la plus récente à la plus ancienne.
@@ -25,6 +39,8 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/revisions.json }
+              empty: { $ref: ../../../fixtures/api/revisions_empty.json }
+              marked: { $ref: ../../../fixtures/api/revisions_marked.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -32,10 +48,12 @@
     tags: [revisions]
     summary: Ouvrir la révision en cours
     description: >-
-      Un projet comporte au plus une révision en cours ; sa création copie les
-      structures de la dernière révision marquée et les valeurs du référentiel
-      qu'elles emploient (WF-REV-0010, WF-DAT-0010). La mise à jour des taux est
-      proposée, jamais imposée (WF-REV-0060).
+      Un projet comporte au plus une révision en cours ; sa création copie les structures de la
+      dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010,
+      WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un poste ou à un lot
+      marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
+      de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
+      révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -49,6 +67,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -73,6 +92,15 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+            examples:
+              witness: { $ref: ../../../fixtures/api/revision.json }
+              marked: { $ref: ../../../fixtures/api/revision_marked.json }
+              offer: { $ref: ../../../fixtures/api/revision_offer.json }
+              reader: { $ref: ../../../fixtures/api/revision_reader.json }
+              estimator: { $ref: ../../../fixtures/api/revision_estimator.json }
+              marking: { $ref: ../../../fixtures/api/revision_marking.json }
+              importing: { $ref: ../../../fixtures/api/revision_importing.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonRevision
@@ -88,6 +116,7 @@
     responses:
       '204':
         description: Révision abandonnée.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -117,10 +146,18 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_mark_queued.json }
+              relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020).
+        description: >-
+          Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`,
+          `fields` désignant `/version_name` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la révision qui le porte. Ou révision déjà
+          marquée (WF-REV-0020). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -151,6 +188,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -177,6 +215,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RateUpdateProposal }
+            examples:
+              none: { $ref: ../../../fixtures/api/rate_update_none.json }
+              reference_created: { $ref: ../../../fixtures/api/rate_update.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: applyRateUpdate
@@ -205,6 +247,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -217,6 +260,8 @@
     description: >-
       Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par
       sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030).
+      Une paire identique — la même révision deux fois — rend une comparaison vide,
+      jamais un refus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: from_revision_id
@@ -233,6 +278,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RevisionComparison }
+            examples:
+              witness: { $ref: ../../../fixtures/api/comparison.json }
+              identical: { $ref: ../../../fixtures/api/comparison_identical.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/revisions/{revision_id}/structures:
@@ -256,6 +305,8 @@
               items: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
             examples:
               witness: { $ref: ../../../fixtures/api/structures.json }
+              amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createCostStructure
@@ -278,6 +329,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -291,8 +343,14 @@
       La fusion ne touche que les montants budgétés des lignes que le différentiel
       désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est
       jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en
-      résulte devient la référence (WF-REV-0050). Confiée au worker et inscrite au
-      journal d'audit (WF-ARC-0090, WF-SEC-0030).
+      résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun
+      rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que
+      le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au
+      journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la
+      structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
+      heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
+      échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et
+      les tâches en cause (WF-PLA-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -308,6 +366,7 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -323,7 +382,50 @@
       à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est
       la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme
       de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et
-      grille de devis (WF-DEV-0050).
+      grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches
+      inscrites (WF-PLA-0140).
+
+      La structure est rendue entière, sans pagination : une révision porte au plus dix
+      mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et
+      les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien. Une
+      grille arborescente ne se trie pas : les tâches gardent l'ordre de l'arbre, et le tri
+      n'y est qu'un tri des lignes de devis sous chaque tâche, chaque ligne restant sous la
+      sienne (WF-IHM-0060). Un filtre sur une
+      tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie —
+      retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur
+      une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le
+      satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par
+      elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
+      sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
+      n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
+      Les totaux sont ceux des lignes retenues. Le filtre par poste ou par lot
+      (`order_item_id`, `work_package_id`) retient le sous-arbre de la tâche rattachée au poste
+      ou au lot : le lotissement sert de grille de lecture par ce seul rattachement, que seule
+      la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
+      que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
+      pas avec lui.
+
+      L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules
+      récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine
+      (WF-PLA-0110), et offre les niveaux que `meta.summary_depth` dit exister, celui de la
+      plus profonde récapitulative de la structure, quels que soient les filtres ; une
+      chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne
+      sélectionne rien de ce qu'il reçoit.
+
+      `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du
+      plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche
+      et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le
+      rend pas (`predecessor_row_number`, WF-PLA-0080).
+
+      `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que
+      ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets
+      (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est
+      rendue entière — ou une propriété d'une facette, `task.<propriété>` ou
+      `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ;
+      `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette
+      dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les
+      propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` :
+      une lecture qui en nomme ne rend que ce qu'elle nomme.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -335,23 +437,140 @@
           type: array
           items: { $ref: ../components/schemas/revisions.yaml#/NodeKind }
         explode: false
-      - $ref: ../components/parameters.yaml#/Limit
-      - $ref: ../components/parameters.yaml#/Offset
+      - $ref: ../components/parameters.yaml#/Search
+      - name: subtree_of
+        in: query
+        description: >-
+          Restreint au sous-arbre d'une tâche récapitulative, elle comprise
+          (WF-PLA-0080, WF-DEV-0050).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - $ref: ../components/parameters.yaml#/SubprojectFilter
+      - name: cost_type_id
+        in: query
+        description: Restreint aux lignes d'une nature de coût (WF-DEV-0050).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: order_item_id
+        in: query
+        description: >-
+          Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, elle
+          comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient
+          rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: work_package_id
+        in: query
+        description: >-
+          Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, elle comprise
+          — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
+          WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: cost_category_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: resource_role_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: progress
+        in: query
+        description: >-
+          Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la
+          grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre
+          par défaut que leurs lignes (WF-RAE-0040).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/revisions.yaml#/TaskProgress }
+        explode: false
+      - name: is_critical
+        in: query
+        schema: { type: boolean }
+      - name: summaries_only
+        in: query
+        description: >-
+          Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que
+          l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne
+          restreint rien.
+        schema: { type: boolean }
+      - name: max_level
+        in: query
+        description: >-
+          Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier
+          niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les
+          récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110).
+          Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau.
+        schema: { type: integer, minimum: 1 }
+      - name: timeline_id
+        in: query
+        description: >-
+          Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet
+          (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans
+          inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne
+          que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et
+          leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number`
+          (WF-IHM-0060) : trié par montant croissant, le devis rend sous chaque tâche
+          ses lignes du plus petit montant au plus grand, et ses tâches à leur place, celle de
+          montant nul comprise (`estimate_sorted`). Un nombre se compare par sa valeur ; le
+          libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé,
+          caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans
+          valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans
+          l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une
+          même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la
+          seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y
+          laisse toutes. Les grilles de devis
+          et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes
+          qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les
+          lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou
+          une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le
+          contrat.
+        schema: { $ref: ../components/schemas/revisions.yaml#/NodeColumn }
+      - $ref: ../components/parameters.yaml#/SortOrder
+      - name: fields
+        in: query
+        description: >-
+          Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une
+          propriété inconnue est refusée (400).
+        schema:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            pattern: '^((task|estimate_line)\.)?[a-z_]+$'
+        explode: false
     responses:
       '200':
-        description: Nœuds, en parcours profondeur d'abord.
+        description: >-
+          Nœuds, en parcours profondeur d'abord, leurs totaux, et ce que la lecture dit de la
+          structure elle-même.
         content:
           application/json:
             schema:
               type: object
-              required: [items, meta]
+              required: [items, totals, meta]
               properties:
                 items:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
+                meta: { $ref: ../components/schemas/revisions.yaml#/NodeListMeta }
             examples:
+              volume: { $ref: ../../../fixtures/api/volume/nodes_thousand.json }
               witness: { $ref: ../../../fixtures/api/nodes.json }
+              milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
+              estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
+              estimate_sorted: { $ref: ../../../fixtures/api/nodes_estimate_sorted.json }
+              estimate_hours: { $ref: ../../../fixtures/api/nodes_estimate_hours.json }
+              installation: { $ref: ../../../fixtures/api/nodes_installation.json }
+              core: { $ref: ../../../fixtures/api/nodes_core.json }
+              planning: { $ref: ../../../fixtures/api/nodes_planning.json }
+              risk_occurred: { $ref: ../../../fixtures/api/nodes_risk_occurred.json }
+              nested: { $ref: ../../../fixtures/api/nodes_nested.json }
+              summaries: { $ref: ../../../fixtures/api/nodes_summaries.json }
+              summaries_leaves: { $ref: ../../../fixtures/api/nodes_summaries_leaves.json }
+              timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -359,9 +578,16 @@
     tags: [revisions]
     summary: Créer une tâche ou une ligne de devis
     description: >-
-      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal
-      (WF-CYC-0100). Une tâche ajoutée après la référence porte un montant budgété nul
-      (WF-RAE-0050).
+      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). Une
+      tâche ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de
+      main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine
+      — son calendrier ne recoupant jamais ceux des autres rôles de la tâche — est refusée par
+      422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ;
+      une tâche créée rattachée à un poste ou à un lot suit les règles du rattachement
+      (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type
+      provision n'est créée que par la déclaration d'un risque : sa création à la main est
+      refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
+      `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -373,14 +599,27 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/NodeCreate }
     responses:
       '201':
-        description: Nœud créé.
+        description: >-
+          Nœud créé, avec ses ancêtres recalculés et les totaux de la structure
+          (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
+          nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
+          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170) ; ou une ligne qui
+          laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
   delete:
@@ -388,21 +627,83 @@
     tags: [revisions]
     summary: Supprimer un nœud
     description: >-
-      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070,
-      WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon
-      WF-PLA-0070.
+      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090).
+      Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
+      récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement
+      (WF-PLA-0170). Une écriture de grille comme les autres : elle rend ses ancêtres
+      recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour
+      que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110).
+      Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin
+      critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs
+      montants corrigés dans `reinflated` (WF-DEV-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
       - $ref: ../components/parameters.yaml#/StructureId
       - $ref: ../components/parameters.yaml#/NodeId
     responses:
-      '204':
-        description: Nœud supprimé.
+      '200':
+        description: >-
+          Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              deleted: { $ref: ../../../fixtures/api/node_deleted.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies:
+  get:
+    operationId: getComputedValueDependencies
+    tags: [revisions]
+    summary: Ce dont dépend une valeur calculée
+    description: >-
+      Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur
+      calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par
+      leur numéro et leur libellé, que la recherche ou les filtres de la grille les
+      retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
+      nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
+      sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
+      pour ce nœud — il se saisit — est refusé (422, `VALIDATION_FAILED`, `params.field`).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+      - $ref: ../components/parameters.yaml#/NodeId
+      - name: field
+        in: query
+        required: true
+        description: Le champ calculé dont la saisie a été tentée.
+        schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueField }
+    responses:
+      '200':
+        description: Ce dont dépend la valeur.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueDependencies }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }
+              summary: { $ref: ../../../fixtures/api/dependencies_summary.json }
+              summary_moved: { $ref: ../../../fixtures/api/dependencies_summary_moved.json }
+              labour: { $ref: ../../../fixtures/api/dependencies_labour.json }
+              task_amount: { $ref: ../../../fixtures/api/dependencies_task_amount.json }
+              provision: { $ref: ../../../fixtures/api/dependencies_provision.json }
+              manual_float: { $ref: ../../../fixtures/api/dependencies_manual_float.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Le serveur ne calcule pas ce champ pour ce nœud : il se saisit.
+          `VALIDATION_FAILED`, et `params.field` nomme le champ demandé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              entered: { $ref: ../../../fixtures/api/dependencies_entered.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
   patch:
@@ -412,7 +713,12 @@
     description: >-
       Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
-      (WF-PLA-0050). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150).
+      (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
+      écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
+      quinze ans (WF-PLA-0150). Le rattachement à un poste ou à un lot du lotissement se pose,
+      se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
+      de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
+      envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -422,18 +728,38 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/revisions.yaml#/TaskFacetWrite }
+          schema: { $ref: ../components/schemas/revisions.yaml#/TaskFacetUpdate }
     responses:
       '200':
-        description: Tâche modifiée, avec les dates et la criticité recalculées.
+        description: >-
+          Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
+          les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
+          déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à
+          l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              renamed: { $ref: ../../../fixtures/api/task_renamed.json }
+              lengthened: { $ref: ../../../fixtures/api/volume/task_lengthened.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
+          calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
+          poste ou lot inconnu, poste et lot ensemble, poste ou lot déjà porté par une autre
+          tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0170,
+          `TaskFacetUpdate`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
+              attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_order_item.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
   patch:
@@ -441,9 +767,15 @@
     tags: [estimate]
     summary: Modifier la facette argent d'une ligne de devis
     description: >-
-      Les deux montants sont calculés et non saisissables : le budgété par la référence,
-      le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est
-      calculée depuis son risque (WF-RIS-0010).
+      Les montants sont calculés et non saisissables : celui à l'année de référence par la
+      ligne, le budgété par la référence, le réestimé par les revues, le corrigé de
+      l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une
+      ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est
+      exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
+      (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
+      (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
+      chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes
+      qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -453,13 +785,20 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/revisions.yaml#/EstimateLineWrite }
+          schema: { $ref: ../components/schemas/revisions.yaml#/EstimateLineUpdate }
     responses:
       '200':
-        description: Ligne modifiée, avec son montant recalculé.
+        description: >-
+          Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les
+          totaux de la structure (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
+              updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
+              redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -467,7 +806,12 @@
       '422':
         description: >-
           Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne
-          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020).
+          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne
+          recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée
+          dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
+          `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
+          catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`,
+          `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -478,8 +822,10 @@
     tags: [planning]
     summary: Remplacer les prédécesseurs d'une tâche
     description: >-
-      Les quatre types de liaison, avec décalage (WF-PLA-0030). Une liaison entre une
-      récapitulative et l'une de ses subordonnées est refusée (WF-PLA-0040).
+      Les quatre types de liaison, avec un décalage positif ou négatif dans l'unité de sa
+      saisie — temps de travail, temps écoulé ou pourcentage de la durée du prédécesseur
+      (WF-PLA-0030, WF-PLA-0160). Une liaison entre une récapitulative et l'une de ses
+      subordonnées est refusée (WF-PLA-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -492,10 +838,16 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PredecessorsReplace }
     responses:
       '200':
-        description: Liaisons enregistrées, dates recalculées.
+        description: >-
+          Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison
+          redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec
+          (`NodesWritten`, WF-PLA-0020, WF-PLA-0100).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              set: { $ref: ../../../fixtures/api/predecessor_set.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -525,10 +877,13 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/ProgressUpdate }
     responses:
       '200':
-        description: État enregistré.
+        description: >-
+          État enregistré ; l'avancement des récapitulatives au-dessus recalculé
+          (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -540,8 +895,12 @@
     tags: [remaining]
     summary: Réestimer une ligne
     description: >-
-      Réservé aux lignes portées par une tâche démarrée ; un reste à engager nul
-      termine la tâche (WF-RAE-0010, WF-RAE-0040).
+      Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime
+      aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine, à la
+      date demandée à la validation (`completed_on`, WF-RAE-0040, WF-PLA-0130) ; une tâche non
+      démarrée qui n'est pas un jalon passe par l'état démarré, démarrée et terminée à cette
+      même date (WF-RAE-0030). La ligne dit elle-même si elle accepte la réestimation
+      (`remaining_entry`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -554,14 +913,29 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/RemainingUpdate }
     responses:
       '200':
-        description: Réestimation enregistrée.
+        description: >-
+          Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux
+          recalculés (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              reestimated: { $ref: ../../../fixtures/api/remaining_reestimated.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une saisie qui termine la tâche sans date de terminaison —
+          motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id`
+          nommant la tâche (WF-RAE-0040, WF-PLA-0130) ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              completion_date_required: { $ref: ../../../fixtures/api/remaining_completion_date_required.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking:
   put:
@@ -590,10 +964,11 @@
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '200':
-        description: Inscriptions enregistrées.
+        description: Inscriptions enregistrées (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -605,7 +980,12 @@
     description: >-
       Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui
       est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de
-      tâches et de récapitulatives (WF-PLA-0040).
+      tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de
+      l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
+      rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
+      (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
+      rattachement au lotissement ; un déplacement qui sortirait la tâche d'un lot du
+      sous-arbre de la tâche de son poste est refusé (WF-PLA-0170, `NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -617,16 +997,29 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/NodeMove }
     responses:
       '200':
-        description: Nœuds déplacés.
+        description: >-
+          Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux
+          (`NodesWritten`).
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste
+          (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
+          `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée
+          change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
+          heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
+          (WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
   post:
@@ -635,7 +1028,11 @@
     summary: Aperçu d'un collage depuis un tableur
     description: >-
       Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien
-      n'est écrit à cette étape (WF-IHM-0050).
+      n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne
+      visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre
+      des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule
+      non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
+      sa ligne et sa colonne (`PastePreview`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -651,16 +1048,34 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }
+            examples:
+              planned: { $ref: ../../../fixtures/api/paste_plan.json }
+              unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422':
+        description: >-
+          Bloc plus large que les colonnes de la facette à partir de la colonne visée
+          (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit
+          (WF-IHM-0050).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              too_wide: { $ref: ../../../fixtures/api/paste_too_wide.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste:
   post:
     operationId: applyPaste
     tags: [revisions]
     summary: Appliquer un collage
-    description: Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050).
+    description: >-
+      Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée
+      (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et
+      rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux
+      (`NodesWritten`, WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -672,15 +1087,17 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PasteApply }
     responses:
       '200':
-        description: Collage appliqué.
+        description: Collage appliqué ; le compteur de la structure a avancé.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              applied: { $ref: ../../../fixtures/api/paste_applied.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
 /projects/{project_id}/revisions/{revision_id}/undo:
   post:
@@ -689,9 +1106,14 @@
     summary: Annuler la dernière modification
     description: >-
       Annule les modifications de la session, une par une et dans l'ordre inverse, sur
-      au moins cinquante niveaux. Une annulation est une modification comme une autre :
+      au moins cinquante niveaux : les saisies des grilles comme celles des risques —
+      création, modification, réexamen, suppression d'un risque —, saisies de la révision en
+      cours (WF-RIS-0020). Une annulation est une modification comme une autre :
       elle s'inscrit dans les colonnes d'audit et est refusée si une modification
-      postérieure porte sur le même objet (WF-IHM-0110).
+      postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule un
+      import appliqué, un marquage, une fusion, la désignation de la référence, une sortie
+      du cycle de vie, la déclaration d'un risque survenu ni l'exclusion d'une ligne de
+      coût.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -701,6 +1123,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -727,6 +1150,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -737,9 +1161,14 @@
     tags: [planning]
     summary: Engendrer le squelette de planning depuis le lotissement
     description: >-
-      Une récapitulative par poste et par lot, une feuille par livrable, un jalon de fin
-      par lot et par poste, avec leurs liaisons. Proposé seulement sur une structure
-      sans tâche, et sans créer de lien durable avec le lotissement (WF-PRJ-0030).
+      Une récapitulative par poste et par lot, chacune rattachée au poste ou au lot qu'elle
+      représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0170), une feuille par
+      livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Engendré sur la
+      structure principale de la révision, seule à porter des rattachements — jamais sur un
+      différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et
+      proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le
+      lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
+      supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -751,6 +1180,7 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/revisions.yaml#/Node }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The front: strict types, unit tests.
+# The front but its end-to-end paths: the client is the contract's, lint, strict types, the
+# catalogues, then its production build with no API to reach and the unit tests in the fast
+# tier, the coverage in the full one (make check-front-code). The paths run beside it, in
+# e2e.yml, in the full tier only (#492).
 name: front
 
 on:
@@ -18,7 +21,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The paths, the longer half, went to e2e.yml with the browser (#492). What is left, in the
+    # full tier, took about 6 minutes on a 4-core workstation busy with other work by October
+    # 2026, the coverage being most of it: less on a hosted runner, and 12 leaves it room.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,18 +36,12 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-      # The coverage thresholds are held by the repository tools, in Python.
+      # The check of the catalogues and the coverage thresholds are held by the repository
+      # tools, in Python.
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: tools/uv.lock
-      # The browsers of the end-to-end tests, in the full tier only.
-      - if: inputs.tier == 'full'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-      - run: make check-front
+      - run: make check-front-code
         env:
           TIER: ${{ inputs.tier }}
-          PLAYWRIGHT_INSTALL: --with-deps

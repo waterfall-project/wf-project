@@ -15,6 +15,9 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/access.yaml#/AuthProvider }
+            examples:
+              witness: { $ref: ../../../fixtures/api/auth_providers.json }
+              local_only: { $ref: ../../../fixtures/api/auth_providers_local.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /session:
@@ -23,14 +26,26 @@
     tags: [session]
     summary: Session courante
     description: >-
-      Le compte, ses permissions effectives — évaluées à chaque requête — et la langue
-      retenue (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
+      Le compte, ses préférences — dont la langue choisie, que le front résout —, et ses
+      permissions effectives, évaluées à chaque requête (WF-SEC-0020, WF-ADM-0110,
+      WF-INTF-0160).
     responses:
       '200':
         description: Session valide.
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/Session }
+            examples:
+              witness: { $ref: ../../../fixtures/api/session.json }
+              english: { $ref: ../../../fixtures/api/session_english.json }
+              without_preferences: { $ref: ../../../fixtures/api/session_without_preferences.json }
+              dark: { $ref: ../../../fixtures/api/session_dark.json }
+              without_administration: { $ref: ../../../fixtures/api/session_without_administration.json }
+              grid_settings: { $ref: ../../../fixtures/api/session_grid_settings.json }
+              estimator: { $ref: ../../../fixtures/api/session_estimator.json }
+              without_roles: { $ref: ../../../fixtures/api/session_without_roles.json }
+              manager: { $ref: ../../../fixtures/api/session_manager.json }
+              auditor: { $ref: ../../../fixtures/api/session_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
   post:
     operationId: openSession
@@ -53,6 +68,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/Session }
+            examples:
+              witness: { $ref: ../../../fixtures/api/session.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '429':
@@ -115,9 +132,14 @@
     security: []
     summary: Demander un lien de réinitialisation
     description: >-
-      Envoie un lien valable une heure et à usage unique, dans la langue du compte si
-      elle est connue, sinon dans celle de la requête (WF-ADM-0140, WF-ARC-0110). La
-      réponse ne révèle pas si l'adresse existe.
+      Envoie un lien valable une heure et à usage unique, dans la langue que le compte a
+      choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte
+      que demande la requête, et à défaut dans la langue par défaut de l'installation
+      (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe. Le lien est
+      `<adresse publique du front>/login/reset?token=<jeton>` : l'adresse publique du front
+      est un paramètre de l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne
+      sert pas ; le jeton se confirme par `confirmPasswordReset`. C'est le même lien que
+      `createPasswordSetupLink` remet à un utilisateur habilité (`PasswordSetupLink`).
     requestBody:
       required: true
       content:
@@ -167,6 +189,12 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/UserSelf }
+            examples:
+              witness: { $ref: ../../../fixtures/api/me.json }
+              english: { $ref: ../../../fixtures/api/me_english.json }
+              without_preferences: { $ref: ../../../fixtures/api/me_without_preferences.json }
+              with_avatar: { $ref: ../../../fixtures/api/me_with_avatar.json }
+              directory: { $ref: ../../../fixtures/api/me_directory.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /me/preferences:
@@ -189,6 +217,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+            examples:
+              witness: { $ref: ../../../fixtures/api/preferences.json }
+              dark: { $ref: ../../../fixtures/api/preferences_dark.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
@@ -219,7 +250,10 @@
     summary: Déposer ou remplacer mon avatar
     description: >-
       L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base
-      avec le compte (WF-ADM-0080, §4.4.1).
+      avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation :
+      `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne,
+      au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse
+      jamais 8 Mio.
     requestBody:
       required: true
       content:

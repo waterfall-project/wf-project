@@ -11,30 +11,122 @@ ActiveFlag:
       type: boolean
       description: Faux pour un objet désactivé, qui n'est plus proposé à la saisie (WF-REF-0010).
 
+ReferenceCommand:
+  type: string
+  enum: [deactivate, reactivate]
+  description: >-
+    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource,
+    calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et
+    `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le
+    désactiver et le réactiver, par
+    l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`,
+    `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le
+    supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il
+    est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de
+    modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les
+    calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La
+    réactivation d'un nœud dont le parent est désactivé est indisponible,
+    `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé,
+    `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut,
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute
+    autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation
+    d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+
+ReferenceCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/ReferenceCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+ReferenceCommands:
+  type: array
+  maxItems: 1
+  description: >-
+    Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle
+    qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide
+    pour qui lit l'objet sans la permission de modifier sa fonction — un rôle lu pour choisir
+    celui d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son
+    code d'erreur.
+  items: { $ref: '#/ReferenceCommandAvailability' }
+
+ReferenceObjectCommands:
+  type: object
+  required: [available_commands]
+  description: >-
+    Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image
+    figée par une révision marquée n'en porte pas (`EmployedReference`).
+  properties:
+    available_commands: { $ref: '#/ReferenceCommands' }
+
 OrgNode:
   type: object
-  required: [org_node_id, label, parent_id, is_active, audit, lock_version]
-  description: Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070).
+  required:
+    - org_node_id
+    - code
+    - label
+    - parent_id
+    - parent_label
+    - level
+    - is_active
+    - available_commands
+    - audit
+    - lock_version
+  description: >-
+    Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte
+    aucune habilitation (WF-REF-0070).
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est
+        refusé par 409, `ALREADY_EXISTS` (WF-REF-0070).
     label: { type: string, minLength: 1, maxLength: 200 }
     parent_id:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
+    parent_label:
+      anyOf:
+        - { type: string, minLength: 1, maxLength: 200 }
+        - type: 'null'
+      description: >-
+        Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé
+        (WF-REF-0150) ; nul pour une racine.
+    level:
+      type: integer
+      minimum: 1
+      description: >-
+        Profondeur du nœud dans l'arbre, résolue à la lecture : 1 pour une racine, celle de
+        son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6
+        (WF-REF-0070).
     is_active: { type: boolean }
+    available_commands: { $ref: '#/ReferenceCommands' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 OrgNodeWrite:
   type: object
-  required: [label]
+  required: [code, label]
   properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     parent_id:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
+      description: >-
+        Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous
+        un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
+        Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`.
 
 OrgNodeUpdate:
   description: >-
@@ -48,17 +140,53 @@ OrgNodeUpdate:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ResourceRole:
+  description: >-
+    Rôle de ressource tel que le référentiel le lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/ResourceRoleImage'
+    - $ref: '#/ReferenceObjectCommands'
+
+ResourceRoleImage:
   type: object
-  required: [resource_role_id, label, org_node_id, cost_category_id, calendar_id, capacity, is_active, audit, lock_version]
+  required:
+    - resource_role_id
+    - label
+    - org_node_id
+    - org_node_label
+    - cost_category_id
+    - cost_category_label
+    - calendar_id
+    - calendar_label
+    - capacity
+    - is_active
+    - audit
+    - lock_version
   description: >-
     Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
-    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100).
+    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image
+    seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 200 }
     org_node_id: { $ref: ../common.yaml#/Uuid }
+    org_node_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé du nœud, résolu à la lecture, actif ou désactivé (WF-REF-0150).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
+    cost_category_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé de la catégorie, résolu à la lecture, active ou désactivée (WF-REF-0150).
     calendar_id: { $ref: ../common.yaml#/Uuid }
+    calendar_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé du calendrier, résolu à la lecture, actif ou désactivé (WF-REF-0150).
     capacity: { $ref: '#/RoleCapacity' }
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
@@ -77,29 +205,47 @@ ResourceRoleWrite:
   required: [label, org_node_id, cost_category_id, calendar_id, capacity]
   properties:
     label: { type: string, minLength: 1, maxLength: 200 }
-    org_node_id: { $ref: ../common.yaml#/Uuid }
+    org_node_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à
+        l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif,
+        ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur
+        `/org_node_id` (WF-REF-0080).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
 
 ResourceRoleUpdate:
+  type: object
+  required: [label, cost_category_id, calendar_id, capacity, lock_version]
   description: >-
-    Modification d'un rôle de ressource : porte le compteur lu,
-    qu'une création n'a pas.
-  allOf:
-    - $ref: '#/ResourceRoleWrite'
-    - type: object
-      required: [lock_version]
-      properties:
-        lock_version: { $ref: ../common.yaml#/LockVersion }
+    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le
+    compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
+    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 200 }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    capacity: { $ref: '#/RoleCapacity' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Calendar:
+  description: >-
+    Calendrier tel que le référentiel le lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/CalendarImage'
+    - $ref: '#/ReferenceObjectCommands'
+
+CalendarImage:
   type: object
   required: [calendar_id, label, weekly_hours, is_default, is_active, audit, lock_version]
   description: >-
     Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
     temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
-    (WF-REF-0120).
+    (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige
+    (`EmployedReference`).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 200 }
@@ -143,19 +289,66 @@ CostTypeKind:
   type: string
   enum: [labor, non_labor, provision]
   description: >-
-    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une
-    catégorie rattachée est employée.
+    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée
+    est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
+
+CostTypeCommand:
+  type: string
+  enum: [deactivate, reactivate, change_kind]
+  description: >-
+    Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par
+    `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne
+    porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un
+    autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused`
+    manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne
+    d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé,
+    se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie
+    active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa
+    désactivation et la modification de son type indisponibles, `cost_type_not_last_provision`
+    manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de
+    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+
+CostTypeCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CostTypeCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CostTypeCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au
+    plus deux, celle qui change son état et la modification de son type. Une commande absente de
+    la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission
+    de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est
+    employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son
+    code d'erreur.
+  items: { $ref: '#/CostTypeCommandAvailability' }
 
 CostType:
   type: object
-  required: [cost_type_id, code, label, kind, is_active, audit, lock_version]
+  required: [cost_type_id, code, label, kind, is_active, available_commands, audit, lock_version]
   description: Nature de coût (WF-REF-0030).
   properties:
     cost_type_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 20 }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté
+        est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030).
     label: { type: string, minLength: 1, maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
     is_active: { type: boolean }
+    available_commands: { $ref: '#/CostTypeCommands' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -169,8 +362,9 @@ CostTypeWrite:
 
 CostTypeUpdate:
   description: >-
-    Modification d'un type de coût : porte le compteur lu,
-    qu'une création n'a pas.
+    Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind`
+    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que
+    sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien.
   allOf:
     - $ref: '#/CostTypeWrite'
     - type: object
@@ -179,34 +373,125 @@ CostTypeUpdate:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostCategory:
+  description: >-
+    Catégorie de coût telle que le référentiel la lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/CostCategoryImage'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands: { $ref: '#/CostCategoryCommands' }
+
+CostCategoryCommand:
+  type: string
+  enum: [deactivate, reactivate, change_cost_type]
+  description: >-
+    Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver,
+    par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une
+    catégorie ne porte que celle qui change son état —, et la
+    rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le
+    `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou
+    la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante,
+    dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et,
+    `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors
+    main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
+    #577). Il reste toujours une catégorie active rattachée à une nature provision active
+    (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son
+    rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision`
+    manquante ; un rattachement à une autre nature provision active la laisse provision, et reste
+    permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend
+    indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la
+    catégorie. Toutes relèvent de la permission de modification des paramètres de coûts
+    (`cost_settings.write`, WF-ADM-0100).
+
+CostCategoryCommandAvailability:
   type: object
-  required: [cost_category_id, code, label, cost_type_id, is_active, audit, lock_version]
-  description: Catégorie de coût, rattachée à une nature (WF-REF-0040).
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CostCategoryCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CostCategoryCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au
+    plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une
+    commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
+    catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit
+    la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est
+    employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré
+    la liste est refusé par son code d'erreur.
+  items: { $ref: '#/CostCategoryCommandAvailability' }
+
+CostCategoryImage:
+  type: object
+  required:
+    - cost_category_id
+    - code
+    - label
+    - cost_type_id
+    - cost_type_label
+    - accounting_code
+    - is_active
+    - audit
+    - lock_version
+  description: >-
+    Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes :
+    celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 20 }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui
+        d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`.
     label: { type: string, minLength: 1, maxLength: 200 }
     cost_type_id: { $ref: ../common.yaml#/Uuid }
+    cost_type_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150).
     accounting_code:
-      anyOf:
-        - type: string
-        - type: 'null'
-      description: Code comptable, documentaire (WF-REF-0040).
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code
+        comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est
+        documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040).
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostCategoryWrite:
   type: object
-  required: [code, label, cost_type_id]
+  required: [code, label, cost_type_id, accounting_code]
   properties:
     code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
-    cost_type_id: { $ref: ../common.yaml#/Uuid }
-    accounting_code:
-      anyOf:
-        - type: string
-        - type: 'null'
+    cost_type_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est
+        refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel
+        n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature
+        désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même,
+        `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature
+        — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une
+        nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des
+        taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type,
+        elle est toujours permise.
+    accounting_code: { type: string, minLength: 1, maxLength: 20 }
 
 CostCategoryUpdate:
   description: >-
@@ -232,15 +517,101 @@ HourlyRate:
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+HourlyRateGrid:
+  type: object
+  required: [years, rows, meta]
+  description: >-
+    Une page de la grille des taux horaires : une ligne par catégorie de main-d'œuvre, une
+    colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour
+    une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année
+    s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les colonnes sont celles de toute
+    la grille, quelles que soient la page, la recherche et le tri : une colonne ne disparaît pas
+    d'une page à l'autre.
+  properties:
+    years:
+      type: array
+      description: >-
+        Les années de toute la grille, croissantes ; les colonnes. Elles ne dépendent que de la
+        portée de la lecture : les années où une catégorie active porte un taux, et où une
+        catégorie active ou désactivée en porte un quand `include_inactive` est vrai ou
+        `is_active` faux. Elles ne dépendent jamais d'`is_active` vrai, de la recherche, des
+        bornes, du tri ni de la page : une colonne ne disparaît pas d'une page ou d'un filtre à
+        l'autre.
+      items: { $ref: ../common.yaml#/Year }
+    rows:
+      type: array
+      description: >-
+        Les catégories de main-d'œuvre de la page, dans l'ordre demandé (`sort_by`) — absent,
+        celui du code.
+      items: { $ref: '#/HourlyRateRow' }
+    meta: { $ref: ../common.yaml#/PaginationMeta }
+
+HourlyRateRow:
+  type: object
+  required: [cost_category_id, code, label, is_active, cells]
+  description: >-
+    Une ligne de la grille : la catégorie, nommée pour que la grille n'ait rien à joindre,
+    et une cellule par année de `years`, dans le même ordre.
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    is_active: { type: boolean }
+    cells:
+      type: array
+      description: >-
+        Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux
+        (WF-REF-0060).
+      items:
+        anyOf: [{ $ref: '#/HourlyRate' }, { type: 'null' }]
+
 HourlyRateWrite:
   description: >-
     Le compteur est absent à la première saisie de l'année, où le taux n'existe
-    pas encore, et obligatoire pour corriger un taux déjà saisi.
+    pas encore, et obligatoire pour corriger un taux déjà saisi. Une première saisie, sans
+    compteur, pour une année qui porte déjà un taux en serait un second : refusée par 409,
+    `ALREADY_EXISTS` (WF-REF-0050).
   type: object
   required: [amount]
   properties:
-    amount: { $ref: ../common.yaml#/Money }
+    amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422,
+        `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit
+        montant positif qu'un `Money` écrit.
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+Installation:
+  type: object
+  required: [default_language, avatar_max_bytes, external_backup_max_bytes]
+  description: >-
+    Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant
+    d'ouvrir une session, ou pour régler ce qu'il laisse passer.
+  properties:
+    default_language: { $ref: ../common.yaml#/Language }
+    avatar_max_bytes:
+      type: integer
+      minimum: 1
+      maximum: 8388608
+      description: >-
+        La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) :
+        un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et
+        que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio
+        (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer
+        au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une
+        image trop lourde vienne de l'API et se dise par son code.
+    external_backup_max_bytes:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      description: >-
+        La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée
+        pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un
+        réglage de l'installation, la spécification ne fixant pas la taille d'une
+        sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1
+        (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON
+        garde exact quand le front le lit.
 
 ReferenceSettings:
   type: object
@@ -260,9 +631,7 @@ ReferenceSettings:
       type: string
       pattern: '^[A-Z]{3}$'
       description: Devise unique, choisie à l'installation et non modifiable (WF-REF-0140).
-    default_language:
-      type: string
-      pattern: '^[a-z]{2}$'
+    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
@@ -272,7 +641,7 @@ ReferenceSettingsWrite:
   type: object
   required: [lock_version]
   properties:
-    default_language: { type: string, pattern: '^[a-z]{2}$' }
+    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
@@ -300,6 +669,11 @@ RiskMatrixSettings:
       type: array
       minItems: 16
       maxItems: 16
+      description: >-
+        La zone de chaque case, rangée par niveau de probabilité puis par niveau de
+        gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et
+        de gravité g, de 1 à 4, est la zone de rang 4 × (p − 1) + (g − 1), en comptant
+        depuis zéro.
       items: { $ref: '#/AlertZone' }
 
 IndexThresholds:
@@ -311,6 +685,44 @@ IndexThresholds:
     cost_alert: { $ref: ../common.yaml#/Decimal }
     schedule_watch: { $ref: ../common.yaml#/Decimal }
     schedule_alert: { $ref: ../common.yaml#/Decimal }
+
+DurationUnits:
+  type: object
+  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  description: >-
+    Les trois constantes de l'installation par lesquelles les jours, les semaines et les
+    mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par
+    défaut, « 2 j » vaut seize heures, « 1 sem » quarante et « 1 m » cent soixante.
+    Communes à tous les projets, comme la devise l'est aux montants.
+  properties:
+    hours_per_day:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 8 par défaut.
+    hours_per_week:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 40 par défaut.
+    days_per_month:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 20 par défaut.
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+DurationUnitsWrite:
+  type: object
+  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  description: >-
+    Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160) : le
+    motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant.
+  properties:
+    hours_per_day:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
+    hours_per_week:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
+    days_per_month:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 AlertZone:
   type: string

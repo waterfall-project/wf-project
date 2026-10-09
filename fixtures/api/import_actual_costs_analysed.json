@@ -1,0 +1,55 @@
+{
+  "summary": "Une nouvelle extraction d'avril, déposée le 2 juin 2026 à 9 h et analysée à 9 h 01, telle que son analyse la laissa, pas encore appliquée — elle a expiré ce matin à 9 h 01 sans l'être (imports) : deux lignes lues, déjà importées par leur numéro de pièce. L'avoir AV-2026-0388, dont l'élément d'OTP porte désormais WF.PRJ-001/SP-CMD, serait réimputé au sous-projet Poste de commande — un écart sur sa colonne de sous-projet (WF-CRE-0020) — ; la facture FA-2026-0412, dont l'ERP porte désormais 1 850 au lieu de 1 800, serait mise à jour sur son montant et sur son fournisseur, une colonne conservée du fichier (`passthrough.Fournisseur`, WF-CRE-0010, WF-INTF-0140, WF-INTF-0080) ; le code de sous-projet SP-CAB de la facture n'étant celui d'aucun sous-projet du projet, l'application demande une confirmation explicite (WF-CRE-0020).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a12",
+    "kind": "actual_costs",
+    "filename": "couts-reels-2026-04-correction.xlsx",
+    "status": "analysed",
+    "created_at": "2026-06-02T09:00:05Z",
+    "expires_at": "2026-06-03T09:01:00Z",
+    "report": {
+      "format_version": "1",
+      "read_count": 2,
+      "rejected": [],
+      "differences": [
+        {
+          "change": "updated",
+          "target": "actual_cost_line",
+          "lineage_id": null,
+          "label": "AV-2026-0388",
+          "predecessor_label": null,
+          "fields": [
+            "subproject"
+          ]
+        },
+        {
+          "change": "updated",
+          "target": "actual_cost_line",
+          "lineage_id": null,
+          "label": "FA-2026-0412",
+          "predecessor_label": null,
+          "fields": [
+            "amount",
+            "passthrough.Fournisseur"
+          ]
+        }
+      ],
+      "ignored": [],
+      "completed_tasks": [],
+      "date_mismatches": [],
+      "requires_confirmation_reasons": [
+        "unknown_subproject"
+      ]
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000920",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-02T09:00:05Z",
+      "finished_at": "2026-06-02T09:01:00Z",
+      "problem": null,
+      "result_url": null
+    }
+  }
+}

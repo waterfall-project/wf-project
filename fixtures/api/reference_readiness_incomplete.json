@@ -1,0 +1,10 @@
+{
+  "summary": "Une installation neuve : il manque un calendrier par défaut pourvu d'heures travaillées et une catégorie de coût active ; un rôle de ressource actif existe déjà.",
+  "value": {
+    "is_complete": false,
+    "missing": [
+      "default_calendar_with_hours",
+      "active_cost_category"
+    ]
+  }
+}

@@ -3,6 +3,7 @@ id: EP-09
 titre: Suivre ce qui a été dépensé, et réestimer ce qui reste à engager
 statut: à planifier
 depend_de: EP-07
+famille: front, back
 issue:
 ---
 
@@ -12,12 +13,12 @@ issue:
 
 Le Kanban de démarrage des tâches, la grille de reste à engager, sa composition et ses
 indicateurs ; les coûts réels importés de l'ERP (FLX-07), leur imputation par élément d'OTP,
-l'exclusion du périmètre suivi, la consultation et le journal des imports. Ce premier import
-construit la mécanique en deux temps — analyse, compte rendu, confirmation, application en une
-transaction, expiration, fichier en transit sur le stockage objet — qu'EP-12 reprend pour les
-six autres flux.
+l'exclusion du périmètre suivi, la consultation et le journal des imports ; l'import et l'export
+du reste à engager au format Excel de l'annexe B (FLX-05, FLX-06), dont l'aller-retour se valide
+ici. Ces imports reprennent la mécanique en deux temps qu'EP-06 a construite pour MS Project
+(revue de la ventilation, 2026-10-09 : EP-12 abandonné).
 
-L'import des coûts est ici, et non en EP-12, parce qu'une ligne de coût n'existe que par import
+L'import des coûts est ici parce qu'une ligne de coût n'existe que par import
 (WF-CRE-0010) : sans lui, cet EPIC n'aurait aucun coût réel et EP-10 aucun indice de coût. Il
 vient avant les risques parce que la survenance d'un risque se chiffre par le reste à engager,
 et que la fusion d'un différentiel conserve les montants réestimés et épargne les tâches
@@ -35,15 +36,15 @@ démarrées.
   et numéro de pièce ;
 - l'imputation par élément d'OTP, l'exclusion et la réintégration d'une ligne, la consultation,
   le journal des imports ;
-- la mécanique d'import en deux temps, et la purge des fichiers d'import sur le stockage
-  objet ;
+- l'import et l'export du reste à engager (FLX-05, FLX-06), sur la mécanique d'import d'EP-06,
+  et tous les formats de l'annexe B, avec leur version ;
 - les écrans du reste à engager et des coûts réels de la maquette, branchés sur le service.
 
 ## Ce qui n'en fait pas partie
 
-- les imports et exports FLX-01 à FLX-06 — EP-12, qui reprend la mécanique d'ici ;
+- l'échange MS Project — EP-06 ; celui du devis — EP-07 ;
 - les indicateurs de projet, dont l'indice de coût que dégradent les tâches ajoutées — EP-10 ;
-- les sauvegardes, second compartiment du stockage objet — EP-13.
+- les sauvegardes, second compartiment du stockage objet — EP-03 et EP-13.
 
 ## Exigences réalisées
 
@@ -53,8 +54,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-INTF-0070-A` | Formats d’échange Excel | début — close en EP-12 | — |
-| `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | début — close en EP-12 | — |
+| `WF-INTF-0070-A` | Formats d’échange Excel | fin — amorcée en EP-07 | — |
 | `WF-INTF-0140-A` | Import des coûts réels (FLX-07) | entière | — |
 | `WF-PLA-0070-A` | Suppression d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-DEV-0070-A` | Plan de charge du projet | fin — amorcée en EP-07 | — |
@@ -68,10 +68,10 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-CRE-0030-A` | Exclusion du périmètre suivi | entière | — |
 | `WF-CRE-0040-A` | Consultation des coûts réels | entière | — |
 | `WF-CRE-0050-A` | Journal des imports | entière | — |
-| `WF-ARC-0100-A` | Import en deux temps | entière | — |
 | `WF-DAT-0070-A` | Colonnes d’audit | fin — amorcée en EP-03 | — |
-| `WF-DAT-0110-A` | Idempotence garantie par la base | début — close en EP-12 | — |
-| `WF-DAT-0120-A` | Contenu et purge du stockage objet | début — close en EP-13 | — |
+| `WF-DAT-0110-A` | Idempotence garantie par la base | fin — amorcée en EP-07 | — |
+| `WF-INTF-0120-A` | Import du reste à engager (FLX-05) | entière | — |
+| `WF-INTF-0130-A` | Export du reste à engager (FLX-06) | entière | — |
 
 ## Opérations du contrat
 
@@ -79,17 +79,17 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (12) :
+Servies ici pour la première fois (6) :
 
 - `revisions` : `setLineRemaining` ;
 - `analysis` : `getRemainingIndicators`, `listStartableTasks` ;
-- `costs` : `listActualCosts`, `setActualCostTrackedScope`, `listCostImports` ;
-- `exchanges` : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`, `applyImport`.
+- `costs` : `listActualCosts`, `setActualCostTrackedScope`, `listCostImports`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (3) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
 
 - `revisions` : `deleteNode`, `setTaskProgress` ;
-- `analysis` : `getProjectWorkload`.
+- `analysis` : `getProjectWorkload` ;
+- `exchanges` : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`, `applyImport`, `requestExport` — le reste à engager et les coûts réels.
 
 ## Préalables
 

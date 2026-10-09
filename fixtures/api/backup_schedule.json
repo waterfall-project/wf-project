@@ -1,0 +1,17 @@
+{
+  "summary": "La planification des sauvegardes : chaque nuit à une heure en temps universel, l'heure des sauvegardes de `backups`, sept conservées sur la plateforme, et chacune copiée vers le compartiment S3 du site de secours de Lyon que l'installation déclare (`external_backup_locations`), dans le dossier « waterfall/sauvegardes », où trente copies sont gardées (WF-ADM-0170).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "daily",
+    "at_time": "01:00",
+    "weekday": null,
+    "retained_count": 7,
+    "external_copy": {
+      "is_enabled": true,
+      "location": "secours-lyon",
+      "path": "waterfall/sauvegardes",
+      "retained_count": 30
+    },
+    "lock_version": 2
+  }
+}

@@ -7,7 +7,10 @@ services dont une réponse s'en écarte (WF-ARC-0060, annexe C de la spécificat
 
 La spécification est dans `../spec`. Chaque opération cite dans ses propres mots — résumé
 ou description — les exigences qu'elle réalise : c'est ce qui rend la traçabilité vérifiable
-dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune.
+dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune. Il échoue
+aussi, avant d'écrire, sur un fichier de `paths/` dont il ne déclare pas la famille, ou une famille
+déclarée sans fichier : une famille nouvelle se déclare dans `tools/inventory.py`, sous son titre,
+pour que ses opérations n'échappent pas à ce contrôle (#538).
 
 ## Organisation
 
@@ -35,11 +38,19 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | `snake_case` pour les chemins, les champs et les paramètres | — |
 | `camelCase` pour l'`operationId`, qui devient un nom de méthode dans les clients générés | `listProjects` |
 | Les noms du tableau de correspondance du §4.4.1 : `estimate_line` est une ligne de devis, `cost_line` une ligne de coût réel | §4.4.1 |
-| Décimaux exacts transportés en chaîne, dates de planning sans heure, horodatages en temps universel | WF-DAT-0100 |
+| Décimaux exacts transportés en chaîne, dates de planning sans heure, début et fin d'une tâche en date et heures de travail écoulées (`WorkInstant`), horodatages en temps universel | WF-DAT-0100 |
 | Une seule enveloppe d'erreur, portant un code machine et ses paramètres, jamais une phrase | WF-ARC-0110 |
 | 404 lorsque la permission de consultation manque, 403 lorsque c'est l'écriture ou la qualité de contributeur | WF-ADM-0110 |
-| `lock_version` sur les écritures concurrentes, refus par 412 | WF-IHM-0110 |
+| `lock_version` sur les écritures concurrentes, refus par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante, et rien d'autre | WF-IHM-0110 |
+| Une valeur unique déjà portée est refusée par 409 `ALREADY_EXISTS`, `fields[]` désignant chaque champ dont la valeur est prise, `fields[].params.conflicting_object_id` l'objet qui la porte ; une clé portée par le chemin — la catégorie et l'année d'un taux (`setHourlyRate`) — n'a pas de `fields` | WF-REF-0030, WF-REF-0040 |
 | Un seul préfixe de version, `/api/v1` | — |
+| Une liste de la requête en un seul paramètre, ses valeurs séparées par des virgules (`explode: false`) : `kinds=task,estimate_line` ; `make lint-openapi` le vérifie (`rule/array-parameter-*` de `redocly.yaml`) | — |
+| Une colonne de nombres se filtre par deux bornes, `<colonne>_min` et `<colonne>_max`, incluses, dans le type de la colonne ; une borne mal formée est refusée par 422 `NUMBER_INVALID`, une borne supérieure inférieure à l'inférieure par 422 `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max` | WF-IHM-0130 |
+| Une période se filtre par `from` et `to`, le début inclus ; un instant (`Timestamp`) a sa fin exclue, une date de planning sa fin incluse. Une fin qui précède le début est refusée par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal formés, `/query/from` ou `/query/to` par `DATE_INVALID` | WF-IHM-0130 |
+| Un tri à égalité se départage par l'ordre de la liste sans tri, puis par l'identifiant | WF-IHM-0060 |
+| Une recherche (`search`, et tout filtre qui retient un texte qui contient le texte donné, comme `code` des nœuds d'organisation) ignore la casse et les accents : un texte est retenu dès qu'il contient le texte cherché, l'un et l'autre translittérés comme par la fonction `unaccent` de PostgreSQL avec sa table livrée (lettres accentuées, ligatures et lettres barrées), puis mis en minuscules — « etudes », « ETUDES » et « Études » trouvent « Études », « ines » trouve « Inès », « main-d'oeuvre » trouve « Main-d'œuvre », « strasse » trouve « Straße ». Un tri, lui, compare les textes dans l'ordre des points de code Unicode, accents et casse compris : ranger n'est pas trouver | WF-IHM-0130, WF-IHM-0060 |
+| Toute écriture de grille — cellule, collage, déplacement, création, liaison, avancement, réestimation, inscription, suppression — rend `NodesWritten` : nœuds écrits, ancêtres recalculés, tâches redatées (`NodeSchedule`), totaux de la structure, compteur de la structure | WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020 |
+| Toute opération gardée par la session déclare le `401` ; une opération publique le dit par `security: []` ; `make lint-openapi` le vérifie (`rule/session-operation-declares-401` de `redocly.yaml`) | WF-SEC-0020, WF-ARC-0060 |
 | Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
 | L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
 

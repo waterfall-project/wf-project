@@ -1,0 +1,86 @@
+{
+  "summary": "L'offre v1.0 du projet, marquée le 15 décembre 2025 pendant le chiffrage, avant l'état En cours : son marquage n'a conservé que le total du devis (WF-REV-0020, WF-DAT-0040) ; créée en 2025, elle porte l'année de référence 2025 (WF-REV-0060).",
+  "value": {
+    "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+    "project_id": "01926f3a-7c00-7000-8000-000000000001",
+    "version_name": "Offre v1.0",
+    "description": "Offre remise au client avant la commande.",
+    "status": "marked",
+    "marked_at": "2025-12-15T16:00:00Z",
+    "is_reference": false,
+    "reference_year": 2025,
+    "available_commands": [
+      {
+        "command": "edit_planning",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "edit_estimate",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "edit_remaining",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "create_structure",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "merge_structure",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "mark",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
+        "command": "designate_reference",
+        "is_available": false,
+        "missing_conditions": [
+          "reference_correctable"
+        ]
+      },
+      {
+        "command": "abandon",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      }
+    ],
+    "audit": {
+      "created_at": "2025-11-03T08:30:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2025-12-15T16:00:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 1
+  }
+}

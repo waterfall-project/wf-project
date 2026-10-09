@@ -1,0 +1,7 @@
+{
+  "summary": "Les sous-projets auxquels des coûts réels sont imputés (has_actual_costs) : « Poste de commande », qui ne se supprime plus ; les autres sont écartés (WF-PRJ-0050, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": [
+    {"subproject_id":"01926f3a-7c00-7000-8000-000000000801","code":"SP-CMD","label":"Poste de commande","has_actual_costs":true,"audit":{"created_at":"2026-01-20T10:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-01-20T10:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1}
+  ]
+}

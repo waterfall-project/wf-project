@@ -27,7 +27,9 @@ paths = ["docs/api/INVENTORY.md", "**/uv.lock"]
 by = "make inventory"
 
 [tests]
-paths = ["tools/tests/**", "frontend/**/*.test.ts"]
+end-to-end = ["frontend/e2e/**"]
+front = ["frontend/**/*.test.ts"]
+tools = ["tools/tests/**"]
 """
 
 
@@ -84,6 +86,27 @@ def test_test_paths(declaration: paths.Declaration, path: str, test: bool) -> No
     assert declaration.is_test(path) is test
 
 
+@pytest.mark.parametrize(
+    ("path", "family"),
+    [
+        ("tools/tests/test_paths.py", "tools"),
+        ("frontend/src/grid/grid.test.ts", "front"),
+        ("frontend/e2e/grid.test.ts", "end-to-end"),
+        ("frontend/src/grid/grid.ts", None),
+    ],
+)
+def test_a_test_belongs_to_the_first_family_that_matches(
+    declaration: paths.Declaration, path: str, family: str | None
+) -> None:
+    assert declaration.test_family(path) == family
+
+
+def test_the_families_of_tests_keep_their_declaration_order(
+    declaration: paths.Declaration,
+) -> None:
+    assert declaration.test_families == ("end-to-end", "front", "tools")
+
+
 def test_a_star_stays_within_a_directory() -> None:
     assert paths.matches("docs/spec/README.md", ["docs/spec/*"])
     assert not paths.matches("docs/spec/tools/build.py", ["docs/spec/*"])
@@ -98,6 +121,8 @@ def test_a_star_stays_within_a_directory() -> None:
         ('[families.x]\ntarget = "t"\npaths = ["a"]\ncolour = "red"\n', r"unknown \['colour'\]"),
         ('[[generated]]\npaths = ["a"]\n', "needs paths and the command"),
         ('colour = "red"\n', r"unknown \['colour'\]"),
+        ("[tests]\nfront = []\n", "needs a non-empty list of paths"),
+        ('[tests]\nfront = "frontend/**"\n', "needs a non-empty list of paths"),
     ],
 )
 def test_a_malformed_declaration_is_refused(text: str, message: str) -> None:

@@ -10,7 +10,8 @@ which ones it does not, with for each domain the reason it has no reason to.
 
 Fails when an operation cites no requirement and is not declared below as one
 that realises none, so that the traceability rule is checked and not merely asked
-for in CONTRIBUTING.
+for in CONTRIBUTING; and, before writing anything, when a file of `paths/` is no
+declared family, or a declared family has no file, so that no operation escapes it.
 
 The document itself is written in French, like the specification it mirrors; only
 this program and its console output are in English.
@@ -32,6 +33,7 @@ FAMILIES: list[tuple[str, str]] = [
     ("session", "Session, compte courant et préférences"),
     ("access", "Comptes, rôles et permissions"),
     ("platform", "Sauvegarde et restauration"),
+    ("audit", "Journal d'audit"),
     ("reference", "Référentiel commun"),
     ("projects", "Projets, cycle de vie, lotissement, contributeurs"),
     ("revisions", "Révisions, structures et arbre commun"),
@@ -51,14 +53,8 @@ REASONS: dict[str, str] = {
     "DAT": "Partitionnement et migrations : propriétés du schéma, invisibles du contrat.",
     "EXP": "Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune "
     "n'est une opération d'API.",
-    "IHM": "Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils "
-    "vivent dans le front.",
-    "IND": "WF-IND-0130, l'évolution des indices, attend la mise à jour du contrat qui suit "
-    "la revue de la spécification du 2026-10-03 : une lecture des courbes d'indices y "
-    "entrera, et la projection de décaissement, devenue la lecture en décaissements de la "
-    "courbe en S (WF-IND-0100), y est rattachée.",
-    "PLA": "WF-PLA-0160, les unités de durée, attend la même mise à jour : les constantes "
-    "de conversion de l'installation entrent dans le référentiel du contrat.",
+    "IHM": "Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent "
+    "dans le front.",
     "INTF": "Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par "
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
@@ -71,12 +67,15 @@ NO_REQUIREMENT: dict[str, str] = {
     "getLiveness": "Sonde de vivacité : elle ne touche à rien et ne réalise rien.",
 }
 
-# Where an operation stops describing itself and starts describing its interface.
-RE_HEAD = re.compile(r"\n    (?:parameters|requestBody|responses|security|tags):")
 RE_OPERATION = re.compile(
     r"^  (get|post|put|patch|delete):\n(.*?)(?=\n  [a-z]+:\n|\Z)", re.DOTALL | re.MULTILINE
 )
-RE_OWN_WORDS = re.compile(r"\n    (?:summary|description): [^\n]*(?:\n      [^\n]*)*")
+# The summary and the description of an operation, wherever they come among its keys: the key,
+# then every line indented under it, the blank lines between the paragraphs of a folded
+# description included, up to the next key at the indentation of the operation's own keys.
+RE_OWN_WORDS = re.compile(
+    r"^    (?:summary|description):[^\n]*(?:\n(?: {6}[^\n]*| *(?=\n|\Z)))*", re.MULTILINE
+)
 RE_REQUIREMENT = re.compile(r"WF-[A-Z]+-\d{4}")
 
 
@@ -97,6 +96,39 @@ def _first(pattern: str, text: str) -> str:
     return found.group(1) if found else ""
 
 
+def _hidden(path: Path) -> bool:
+    """Say whether a file of `paths/` is hidden, or under a hidden directory: an editor's own."""
+    return any(part.startswith(".") for part in path.relative_to(ROOT / "paths").parts)
+
+
+def unknown_path_files() -> list[str]:
+    """Return the YAML files of `paths/` no family declares, and the families without a file.
+
+    Only the visible YAML files count: a file an editor leaves beside them — a swap file, a hidden
+    backup — is no family.
+
+    The inventory reads its families, each under its title, from the list above: a file of
+    `paths/` it did not know would leave its operations out of the table and out of the check
+    that each cites a requirement, without a word (#538).
+    """
+    present = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "paths").rglob("*")
+        if path.is_file() and path.suffix in {".yaml", ".yml"} and not _hidden(path)
+    }
+    declared = {f"paths/{family}.yaml" for family, _ in FAMILIES}
+    return sorted(present ^ declared)
+
+
+def own_words(body: str) -> str:
+    """Return what an operation says of itself: its summary and its whole description.
+
+    Only the operation's own words count: a requirement cited by a parameter, a shared response
+    or a schema says nothing about what this operation realises.
+    """
+    return "\n".join(RE_OWN_WORDS.findall(body))
+
+
 def operations() -> Iterator[Operation]:
     """Yield every operation of the contract, by family then by path."""
     for family, _ in FAMILIES:
@@ -107,9 +139,6 @@ def operations() -> Iterator[Operation]:
                 continue
             for found in RE_OPERATION.finditer(block):
                 body = found.group(2)
-                # Only the operation's own words count: a requirement cited by a shared
-                # response or schema says nothing about what this operation realises.
-                head = "".join(RE_HEAD.split("\n" + body)[:1] + RE_OWN_WORDS.findall(body))
                 identifier = _first(r"operationId: (\w+)", body)
                 yield Operation(
                     family=family,
@@ -117,8 +146,22 @@ def operations() -> Iterator[Operation]:
                     method=found.group(1).upper(),
                     identifier=identifier,
                     operation=_first(r"summary: (.*)", body).strip().strip("'") or identifier,
-                    requirements=tuple(sorted(set(RE_REQUIREMENT.findall(head)))),
+                    requirements=tuple(sorted(set(RE_REQUIREMENT.findall(own_words(body))))),
                 )
+
+
+def contract_sources() -> list[Path]:
+    """Return the files the contract is written in, never a bundle built from them.
+
+    `make build-openapi` writes the bundle beside them, ignored by git and embedding the
+    examples of `fixtures/api/`: read with them, a requirement cited only by an example
+    would count or not depending on whether a bundle, perhaps stale, lies on the machine.
+    """
+    return [
+        ROOT / "openapi.yaml",
+        *sorted((ROOT / "paths").rglob("*.yaml")),
+        *sorted((ROOT / "components").rglob("*.yaml")),
+    ]
 
 
 def requirements_of_the_document() -> dict[str, str]:
@@ -130,10 +173,11 @@ def _table(ops: list[Operation]) -> list[str]:
     lines: list[str] = []
     for family, title in FAMILIES:
         of_family = [o for o in ops if o.family == family]
+        counted = "opération" if len(of_family) == 1 else "opérations"
         lines += [
             f"## {title}",
             "",
-            f"`paths/{family}.yaml` — {len(of_family)} opérations",
+            f"`paths/{family}.yaml` — {len(of_family)} {counted}",
             "",
             "| Méthode | Chemin | Opération | Exigences citées |",
             "|---|---|---|---|",
@@ -189,11 +233,16 @@ def _document(ops: list[Operation], cited: set[str], everything: dict[str, str])
 
 def main() -> int:
     """Regenerate INVENTORY.md, and fail on an undeclared silence."""
+    unknown = unknown_path_files()
+    for name in unknown:
+        print(f"  ! family and path file do not match: {name}", file=sys.stderr)
+    if unknown:
+        return 1
     if not projection.PROJECTION.exists():
         print(f"specification not found: {projection.PROJECTION}", file=sys.stderr)
         return 1
     ops = list(operations())
-    contract = "".join(f.read_text(encoding="utf-8") for f in ROOT.rglob("*.yaml"))
+    contract = "".join(f.read_text(encoding="utf-8") for f in contract_sources())
     cited = set(RE_REQUIREMENT.findall(contract))
     everything = requirements_of_the_document()
     lines = _document(ops, cited, everything)

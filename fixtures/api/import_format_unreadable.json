@@ -1,0 +1,12 @@
+{
+  "summary": "Un devis du Poste de commande déposé dans un fichier sans numéro de version : l'import est refusé, et le format et la version attendus sont nommés — le format « Devis », dans sa version 1 (WF-INTF-0070, WF-INTF-0100).",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "params": {
+      "expected_format": "estimate",
+      "expected_version": "1"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000981"
+  }
+}

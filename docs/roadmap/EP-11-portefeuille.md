@@ -2,7 +2,8 @@
 id: EP-11
 titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
 statut: à planifier
-depend_de: EP-10
+depend_de: EP-08
+famille: front, back
 issue:
 ---
 
@@ -62,8 +63,9 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PRJ-0090-A` | Probabilité de gain | fin — amorcée en EP-04 | — |
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
-| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | entière | — |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03 | — |
 | `WF-IHM-0140-A` | Aide en ligne | entière | — |
+| `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 
 ## Opérations du contrat
 
@@ -71,18 +73,27 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (9) :
+Servies ici pour la première fois (8) :
 
-- `portfolio` : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`, `getPortfolioCashOut`, `getPortfolioPilotHealth`.
+- `portfolio` : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`, `getPortfolioPilotHealth`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 
 - `reference` : `getReferenceSettings` ;
 - `projects` : `listProjects`, `updateProject`, `listProjectStateTransitions`.
 
+## Constats reçus
+
+- #301 — les tables du référentiel n'offrent aucun filtre ; WF-IHM-0130, les filtres de toute
+  table, se clôt ici, reportée d'EP-02 (2026-10-07).
+- #313 — la liste du portefeuille n'offre pas le filtre par zone (WF-IHM-0130), reportée
+  d'EP-02 (2026-10-07), puis rangée dans EP-02/L41 (2026-10-08) : fait par EP-02/L41, qui offre
+  le filtre par zone au-dessus de la grille des projets, porté par l'adresse (`zones`).
+
 ## Préalables
 
-EP-10 livré : le portefeuille agrège les indicateurs, conservés ou calculés.
+EP-08 livré, et EP-10 avant lui : le portefeuille agrège les indicateurs, conservés ou
+calculés, et les risques, leurs provisions et leur couverture.
 
 ## Définition de fini
 

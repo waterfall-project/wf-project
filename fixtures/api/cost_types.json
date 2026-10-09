@@ -1,0 +1,123 @@
+{
+  "summary": "Les trois natures de coût de l'installation, une de chaque type : la main-d'œuvre, les débours et la provision, par lesquelles le devis du projet témoin se ventile, chacune avec la commande qui la désactive, et la modification de son type indisponible, ses catégories étant employées par ce devis ; la provision, seule nature provision active, garde sa catégorie active, et sa désactivation est indisponible (WF-REF-0030, WF-IHM-0090).",
+  "value": {
+    "items": [
+      {
+        "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
+        "code": "DEB",
+        "label": "Débours",
+        "kind": "non_labor",
+        "is_active": true,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused"
+            ]
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "cost_type_id": "01926f3a-7c00-7000-8000-000000000461",
+        "code": "MO",
+        "label": "Main-d'œuvre",
+        "kind": "labor",
+        "is_active": true,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused"
+            ]
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "cost_type_id": "01926f3a-7c00-7000-8000-000000000463",
+        "code": "PRV",
+        "label": "Provision",
+        "kind": "provision",
+        "is_active": true,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_not_last_provision"
+            ]
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused",
+              "cost_type_not_last_provision"
+            ]
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    }
+  }
+}

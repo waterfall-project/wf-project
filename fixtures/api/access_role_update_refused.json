@@ -1,0 +1,8 @@
+{
+  "summary": "« Direction de projet » privé de la permission de modifier les comptes, refusé : Camille Martin, qui le porte, est le dernier compte actif à tenir cette permission et celle de modifier les rôles d'habilitation ; rien n'est écrit (WF-ADM-0120).",
+  "value": {
+    "code": "LAST_ADMINISTRATOR",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001015"
+  }
+}

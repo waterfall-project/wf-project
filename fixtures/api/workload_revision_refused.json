@@ -1,0 +1,14 @@
+{
+  "summary": "Le plan de charge demandé sur les montants réestimés d'une révision marquée, nommée par revision_id, quand la révision nommée est la révision courante, en brouillon : le paramètre est refusé, désigné par /query/revision_id (WF-DEV-0070).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/revision_id",
+        "code": "VALIDATION_FAILED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000976"
+  }
+}

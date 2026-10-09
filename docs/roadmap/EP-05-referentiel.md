@@ -3,6 +3,7 @@ id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: à planifier
 depend_de: EP-03
+famille: front, back
 issue:
 ---
 
@@ -72,6 +73,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-REF-0170-A` | Seuils d’alerte des indices | début — close en EP-10 | — |
 | `WF-REF-0180-A` | Délai maximal entre deux revues | début — close en EP-11 | — |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | — |
+| `WF-ADM-0020-A` | Aucune action réservée à un acteur | fin — amorcée en EP-03 | — |
 
 ## Opérations du contrat
 
@@ -79,13 +81,58 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (25) :
+Servies ici pour la première fois (28) :
 
-- `reference` : `getReferenceSettings`, `updateReferenceSettings`, `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `listResourceRoles`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation`, `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`, `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `listHourlyRates`, `setHourlyRate`.
+- `reference` : `getReferenceSettings`, `updateReferenceSettings`, `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `listResourceRoles`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation`, `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`, `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`, `setDurationUnits`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 - `access` : `listUsers`, `getUser`.
+
+## Constats reçus
+
+- #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
+  la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
+  cadrage (2026-10-07).
+- #299 — ajouter une année à la grille des taux horaires (WF-REF-0060) : la commande appartient
+  au référentiel réel, reportée d'EP-02 (2026-10-07). Rangé le 2026-10-08 dans EP-02/L41 (#506),
+  qui fait la part de la maquette (L41b) : la grille offre, à qui peut saisir les taux, d'ajouter
+  la colonne d'une année qu'elle n'a pas, vide, refusée pour une année déjà présente ou hors des
+  bornes de `Year`. Le contrat n'a aucune opération pour créer une colonne — une année entre dans
+  la grille par le premier taux qu'on y saisit (`getHourlyRateGrid`) — : la colonne est celle du
+  front jusqu'à ce premier taux, écrit par `setHourlyRate` sans version. Reste à EP-05 la part
+  du service : refuser un second taux pour la même année (WF-REF-0050) et rendre l'année dans
+  `years` dès son premier taux, que le parcours éprouvera contre le service réel. Le refus d'une
+  colonne déjà présente reste au front, faute d'opération qui crée une colonne.
+- #300 — les écrans du référentiel ne montrent ni ne réactivent les objets désactivés
+  (WF-REF-0150), reportée d'EP-02 (2026-10-07). Rangé le 2026-10-08 dans EP-02/L41 (#506),
+  qui fait la part de la maquette (L41b) : les paramètres de coûts et de ressources lisent les
+  objets actifs seuls, et les désactivés aussi quand l'adresse le demande (`include_inactive`), à
+  une session qui porte la permission de lecture de leur partie du référentiel ; un objet
+  désactivé s'y réactive par la commande d'activation de sa nature, pour qui peut modifier
+  cette partie. Le faux back ignorant `include_inactive` et ne gardant rien, la maquette
+  n'éprouve que ce que l'écran demande. Reste à EP-05 la part du service : ne rendre les
+  désactivés qu'avec `include_inactive`, refuser celui-ci sans la permission (403), et appliquer
+  la réactivation, que le parcours éprouvera contre le service réel.
+- #512 — les commandes d'écriture du référentiel dans la maquette, sur décision de l'auteur du
+  2026-10-08 (EP-02/L43), une entorse assumée au cadrage qui laissait les formulaires à cet EPIC.
+  EP-02/L43a fait les paramètres de coûts : créer et modifier une nature ou une catégorie dans un
+  formulaire validé côté front, désactiver et réactiver comme l'objet le liste, saisir un taux dans
+  la grille ; un succès remplace la ligne par ce que le serveur rend, un refus se dit au champ ou
+  sous le formulaire, et l'écran dit que le faux back ne garde rien (`MockupNotice`). Restent à
+  EP-05 : le back de ces écritures ; la conformité de leurs réponses au contrat, refus compris — code
+  déjà pris, code comptable déjà pris, type d'une nature dont une catégorie est employée, nature
+  absente, inconnue ou désactivée, version périmée —, que les « Interface contract issue » relevées
+  par L43a précisent d'abord ; les parcours contre le service, une création qui apparaît dans la
+  liste relue ; et le retrait de l'avis de la maquette, l'écran branché sur le service.
+  EP-02/L43b fait de même les paramètres de ressources : créer et modifier un nœud — le déplacer
+  sous un parent actif —, un rôle — sans changer de nœud — et un calendrier, désactiver et réactiver
+  chacun comme il le liste, désigner le calendrier par défaut. Restent à EP-05 : le back de ces
+  écritures, la cascade d'une désactivation (WF-REF-0080) comprise ; la conformité de leurs réponses
+  au contrat, refus compris — code déjà pris, parent ou nœud désactivé, nœud déplacé sous lui-même ou
+  ses descendants, catégorie hors main-d'œuvre ou rattachement désactivé d'un rôle (WF-REF-0090),
+  heures hors bornes, version périmée —, que les « Interface contract issue » relevées par L43b
+  précisent d'abord ; les parcours contre le service ; et le retrait de l'avis de la maquette.
 
 ## Préalables
 

@@ -1,0 +1,681 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { act, render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { type ReactNode, startTransition } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
+import { ROW_REM } from "@/components/grid/dense-grid";
+import { ListPages } from "@/components/grid/list-pages";
+import { PendingAddress } from "@/components/grid/pending-address";
+import type { GridQuery } from "@/components/grid/query";
+import { CATALOGUES } from "@/i18n/catalogues";
+import { expectAccessible } from "@/test/axe";
+import { example, fakeClient } from "@/test/fixtures";
+
+import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
+import { type AuditEvent, auditReach, type AuditSort, NEWEST_FIRST } from "./audit-columns";
+import { AuditFilterBar, type AuditFilterBarProps } from "./audit-filters";
+import { AuditGrid } from "./audit-grid";
+
+// The server of Next, as far as the screen needs it: the fake back, which keeps the settings of
+// the grid a sort writes, the address it reads and the navigations it asks.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const page = vi.hoisted(() => ({ path: "/admin/audit-log", search: "" }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => page.path,
+  useSearchParams: () => new URLSearchParams(page.search),
+}));
+
+interface Journal {
+  items: AuditEvent[];
+  meta: components["schemas"]["PaginationMeta"];
+}
+
+const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const CAMILLE = "01926f3a-7c00-7000-8000-000000000301";
+const witness = example("audit_events") as Journal;
+const applied = example("audit_events_import_applied") as Journal;
+const CURRENT = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102`;
+
+/** The permissions of a session the contract gives as its example. */
+function permissionsOf(name: string): readonly components["schemas"]["PermissionCode"][] {
+  return (example(name) as components["schemas"]["Session"]).permissions;
+}
+const second = example("audit_events_page") as Journal;
+const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
+const facets = example("audit_facets") as components["schemas"]["AuditFacets"];
+const AUTHORS: AuditFilterBarProps["users"] = facets.actors.map((actor) => ({
+  id: actor.user_id,
+  name: actor.display_name,
+}));
+const PROJECTS: AuditFilterBarProps["projects"] = facets.projects.map((project) => ({
+  id: project.project_id,
+  code: project.code,
+  label: project.label,
+}));
+const MERGE = "01926f3a-7c00-7000-8000-000800000018";
+const NAMED: AuditFilterBarProps["named"] = {
+  user: undefined,
+  project: undefined,
+  object: undefined,
+};
+
+/** The filters an address asks. */
+function filtersOf(search: string): AuditFilters {
+  return readAuditFilters(new URLSearchParams(search));
+}
+
+/** The screen of the journal, in French, as the page composes it. */
+function journal({
+  shown = witness,
+  query = NEWEST,
+  openable = [PROJECT],
+  session = "session",
+  filters = filtersOf(page.search),
+  named = NAMED,
+  users = AUTHORS,
+  refused,
+}: {
+  shown?: Journal;
+  query?: GridQuery<AuditSort>;
+  openable?: readonly string[];
+  /** The example of the session, whose permissions say which screens the links lead to. */
+  session?: string;
+  filters?: AuditFilters;
+  named?: AuditFilterBarProps["named"];
+  users?: AuditFilterBarProps["users"];
+  refused?: AuditFilterBarProps["refused"];
+} = {}): ReactNode {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PendingAddress>
+        <AuditFilterBar
+          filters={filters}
+          users={users}
+          projects={PROJECTS}
+          named={named}
+          refused={refused}
+        />
+        <AuditGrid
+          events={shown.items}
+          page={shown.meta}
+          query={query}
+          preferences={undefined}
+          reach={auditReach(permissionsOf(session), openable)}
+        />
+        <ListPages
+          list={AUDIT_LIST}
+          texts="admin.pages"
+          page={shown.meta}
+          shown={shown.items.length}
+        />
+      </PendingAddress>
+    </NextIntlClientProvider>
+  );
+}
+
+/** The address of the last navigation the screen asked. */
+function lastAddress(): unknown {
+  return router.push.mock.calls.at(-1)?.[0];
+}
+
+/** The grid of the journal. */
+function grid() {
+  return screen.getByRole("grid", { name: "Journal d’audit" });
+}
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
+  page.search = "";
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  router.push.mockClear();
+});
+
+describe("the grid of the journal", () => {
+  it("presents each inscription by the names it keeps, and says in its totals how many the server retained", () => {
+    render(journal());
+    const row = within(grid()).getAllByRole("row")[1];
+    expect(row?.textContent).toMatch(
+      /^.+Camille MartinApplication d’un importImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000034$/,
+    );
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("36 inscriptions");
+    // The header of every column is grey, as that of every table (#508).
+    expect(grid().querySelector("thead th")?.className).toContain("bg-muted");
+  });
+
+  // Each sort is a test of its own, one render and one press, under a window of two rows — some
+  // fourteen rendered with the margin of the grid, the press rendering them anew: the six columns
+  // and both ways in a single test, under a screenful, went past its time under load (EP-02/L46).
+  describe("its sorts", () => {
+    beforeEach(() => {
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_REM * 16);
+    });
+
+    it.each([
+      ["descending", "ascending", "offset=50", "sort_by=occurred_at&sort_order=asc"],
+      [
+        "ascending",
+        "descending",
+        "sort_by=occurred_at&sort_order=asc&offset=50",
+        "sort_by=occurred_at&sort_order=desc",
+      ],
+    ] as const)(
+      "asks the server for the dates both ways, never lifting the sort, back to the first page: %s, then %s [WF-IHM-0060-A]",
+      async (shown, _asked, search, address) => {
+        page.search = search;
+        const order = shown === "ascending" ? "asc" : "desc";
+        render(journal({ query: { sort: { ...NEWEST_FIRST, order }, search: undefined } }));
+        const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
+        expect(header).toHaveAttribute("aria-sort", shown);
+        await userEvent.click(within(header).getByRole("button"));
+        expect(lastAddress()).toBe(`/admin/audit-log?${address}`);
+      },
+    );
+
+    it.each([
+      ["Auteur", "actor"],
+      ["Action", "action"],
+      ["Nature de l’objet", "object_kind"],
+      ["Objet", "object_label"],
+      ["Projet", "project"],
+      ["Corrélation", "correlation_id"],
+    ] as const)(
+      "asks the server for the column %s ascending first, its filters kept, back to the first page [WF-IHM-0060-A]",
+      async (name, column) => {
+        page.search = "actions=backup&offset=50";
+        render(journal());
+        await userEvent.click(
+          within(within(grid()).getByRole("columnheader", { name })).getByRole("button"),
+        );
+        expect(lastAddress()).toBe(
+          `/admin/audit-log?actions=backup&sort_by=${column}&sort_order=asc`,
+        );
+      },
+    );
+
+    it.each([
+      ["asc", "ascending", "desc"],
+      ["desc", "descending", "asc"],
+    ] as const)(
+      "asks the server for a column the other way, its sort %s [WF-IHM-0060-A]",
+      async (order, shown, asked) => {
+        page.search = `sort_by=actor&sort_order=${order}`;
+        render(journal({ query: { sort: { column: "actor", order }, search: undefined } }));
+        const header = within(grid()).getByRole("columnheader", { name: "Auteur" });
+        expect(header).toHaveAttribute("aria-sort", shown);
+        await userEvent.click(within(header).getByRole("button"));
+        expect(lastAddress()).toBe(`/admin/audit-log?sort_by=actor&sort_order=${asked}`);
+      },
+    );
+
+    it("asks the most recent first for the dates from another sort, as the server gives them unasked [WF-IHM-0060-A]", async () => {
+      page.search = "sort_by=actor&sort_order=desc";
+      render(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
+      const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
+      await userEvent.click(within(header).getByRole("button"));
+      expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
+    });
+  });
+
+  it("is searched by the server on the label of the object, back to the first page, its filters kept", async () => {
+    page.search = "actions=import_apply&offset=50";
+    render(journal());
+    const search = screen.getByRole("searchbox", { name: "Rechercher un libellé" });
+    // A short search: each character typed renders the screen anew (EP-02/L46).
+    await userEvent.type(search, "reels{Enter}");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=import_apply&search=reels");
+  });
+
+  it("names a backup, which has no label, by its nature, never by its identifier", () => {
+    render(journal());
+    // The scheduled backup of 3 June, by the correlation of its inscription.
+    const backup = within(grid()).getByRole("row", {
+      name: /01926f3a-7c00-7000-8000-000800000033$/,
+    });
+    expect(backup).toHaveTextContent(/La plateformeSauvegardeSauvegardeSauvegardeHors projet/);
+    expect(backup).not.toHaveTextContent("01926f3a-7c00-7000-8000-000000000907");
+    expect(
+      within(backup).getByRole("link", {
+        name: "Histoire de «\u00a0Sauvegarde\u00a0»",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("links the object and the project the session may open, and names them alone otherwise", () => {
+    const { rerender } = render(journal());
+    const revision = within(grid()).getAllByRole("link", { name: "Référence" })[0];
+    expect(revision).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000101`,
+    );
+    expect(
+      within(grid()).getAllByRole("link", {
+        name: "PRJ-001 · Modernisation du poste de commande",
+      })[0],
+    ).toHaveAttribute("href", `/projects/${PROJECT}`);
+    // An object that lives in a revision leads to its own screen in the one the inscription
+    // names: the risk 752 to the risks of the revision in progress, its detail open; the
+    // differential of the amendment to the cost structures of the reference, on the screen of the
+    // revisions read in it.
+    expect(
+      within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102/risks?risk=01926f3a-7c00-7000-8000-000000000752`,
+    );
+    expect(
+      within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
+    );
+    // The import of actual costs belongs to the project and to no revision: its name alone.
+    expect(within(grid()).queryByRole("link", { name: "couts-reels-2026-05.xlsx" })).toBeNull();
+    rerender(journal({ openable: [] }));
+    expect(within(grid()).queryByRole("link", { name: "Référence" })).toBeNull();
+    expect(
+      within(grid()).queryByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toBeNull();
+    expect(
+      within(grid()).queryByRole("link", { name: "PRJ-001 · Modernisation du poste de commande" }),
+    ).toBeNull();
+    // The twelve inscriptions of the project still name it, by its code and its label.
+    expect(
+      within(grid()).getAllByText("PRJ-001 · Modernisation du poste de commande"),
+    ).toHaveLength(12);
+  });
+
+  it("leads to the whole history of an object, every other filter lifted, its sort kept, back to the first page", async () => {
+    page.search = `sort_by=occurred_at&sort_order=asc&from=2026-01-01T00%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z&user_id=${CAMILLE}&actor_kind=user&actions=import_apply&project_id=${PROJECT}&offset=10`;
+    render(journal({ shown: second }));
+    const history = within(grid()).getByRole("link", {
+      name: "Histoire de «\u00a0couts-reels-2026-04.xlsx\u00a0»",
+    });
+    const address =
+      "/admin/audit-log?sort_by=occurred_at&sort_order=asc&object_kind=import&object_id=01926f3a-7c00-7000-8000-000000000a07";
+    expect(history).toHaveAttribute("href", address);
+    await userEvent.click(history);
+    expect(lastAddress()).toBe(address);
+  });
+
+  it("leads the import of an estimate applied to a revision to the exchanges of that revision, its report shown", () => {
+    render(journal({ shown: applied }));
+    expect(
+      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+    ).toHaveAttribute("href", `${CURRENT}/exchanges?import=01926f3a-7c00-7000-8000-000000000a11`);
+  });
+
+  it("leads an object whose screen the session may not read to its revision, and to nothing without a function of a revision to read [WF-ADM-0110-A]", () => {
+    // An estimator reads neither the risks nor the planning, of which the exchanges are a leaf,
+    // but reads the revisions and the estimate: the risk and the import lead to the revision,
+    // which leads to the estimate; the amendment, to the screen of the revisions.
+    const { rerender } = render(journal({ shown: applied, session: "session_estimator" }));
+    expect(
+      within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toHaveAttribute("href", CURRENT);
+    expect(
+      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+    ).toHaveAttribute("href", CURRENT);
+    expect(
+      within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
+    );
+    // An auditor reads no function of a revision: none of its objects is a link.
+    rerender(journal({ shown: applied, session: "session_auditor" }));
+    for (const name of [
+      "Retard de livraison des armoires",
+      "devis-poste-de-commande.xlsx",
+      "Avenant 1 — extension du poste",
+      "Référence",
+    ]) {
+      expect(within(grid()).queryByRole("link", { name })).toBeNull();
+    }
+  });
+
+  it("leads to the inscriptions of one request, every other filter and the search lifted, its sort kept, back to the first page", async () => {
+    page.search = `sort_by=action&sort_order=asc&search=avenant&user_id=${CAMILLE}&object_kind=revision&offset=10`;
+    render(journal());
+    const correlated = within(grid()).getAllByRole("link", {
+      name: `Les inscriptions de la corrélation ${MERGE}`,
+    });
+    // The merge of the amendment, its marking and its designation: three inscriptions, one request.
+    expect(correlated).toHaveLength(3);
+    const address = `/admin/audit-log?sort_by=action&sort_order=asc&correlation_id=${MERGE}`;
+    for (const link of correlated) {
+      expect(link).toHaveAttribute("href", address);
+    }
+    const merge = within(grid()).getByRole("row", { name: /Contractualisation d’un avenant/ });
+    await userEvent.click(within(merge).getByRole("link", { name: /^Les inscriptions/ }));
+    expect(lastAddress()).toBe(address);
+  });
+
+  it("leads to the pages before and after the one shown, its filters and its sort kept, and breaks no rule of accessibility", async () => {
+    page.search = "actions=backup&sort_by=occurred_at&sort_order=asc&offset=10";
+    const { container } = render(journal({ shown: second }));
+    const pages = screen.getByRole("navigation", { name: "Pages de la liste" });
+    expect(within(pages).getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
+      "href",
+      "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc",
+    );
+    expect(within(pages).getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+      "href",
+      "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc&offset=20",
+    );
+    await expectAccessible(container);
+  });
+
+  it("turns a page from a filter under way to the first page of the journal", async () => {
+    page.search = "offset=10";
+    render(journal({ shown: second }));
+    const kinds = screen.getByRole("group", { name: "Filtrer par nature d’auteur" });
+    await userEvent.click(within(kinds).getByRole("button", { name: "La plateforme" }));
+    expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
+    // The filter asked and not arrived: the journal read otherwise starts from its first page.
+    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
+  });
+
+  it("keeps its grid when the filters retain no inscription", () => {
+    const none = { items: [], meta: { limit: 50, offset: 0, total: 0 } };
+    page.search = "actions=restore";
+    render(journal({ shown: none }));
+    expect(grid()).toHaveTextContent("Aucune ligne ne répond à la demande.");
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("Aucune inscription");
+  });
+});
+
+describe("the filters of the journal", () => {
+  // None reads the rows: a window of two rows, some fourteen rendered, which each gesture renders
+  // anew, rather than a screenful (EP-02/L46).
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_REM * 16);
+  });
+
+  describe("by period, in the local time of the workstation", () => {
+    const original = process.env.TZ;
+
+    beforeEach(() => {
+      process.env.TZ = "Europe/Paris";
+    });
+
+    afterEach(() => {
+      process.env.TZ = original;
+    });
+
+    /** Enter a start of the period, and apply it. */
+    async function enterFrom(local: string) {
+      const period = screen.getByRole("form", { name: "Période" });
+      await userEvent.type(within(period).getByLabelText("Depuis le"), local);
+      await userEvent.click(within(period).getByRole("button", { name: "Appliquer" }));
+    }
+
+    it("sends an instant entered in summer in universal time, two hours earlier, back to the first page", async () => {
+      page.search = "sort_by=occurred_at&sort_order=asc&offset=50";
+      render(journal());
+      await enterFrom("2026-05-01T08:00");
+      expect(lastAddress()).toBe(
+        "/admin/audit-log?sort_by=occurred_at&sort_order=asc&from=2026-05-01T06%3A00%3A00.000Z",
+      );
+    });
+
+    it("sends an instant entered in winter an hour earlier", async () => {
+      render(journal());
+      await enterFrom("2026-01-15T08:00");
+      expect(lastAddress()).toBe("/admin/audit-log?from=2026-01-15T07%3A00%3A00.000Z");
+    });
+
+    it("sends the hour that comes twice on the day the clocks go back as its first time", async () => {
+      render(journal());
+      await enterFrom("2026-10-25T02:30");
+      expect(lastAddress()).toBe("/admin/audit-log?from=2026-10-25T00%3A30%3A00.000Z");
+    });
+
+    it("shows the instants of the address in the local time once hydrated, and lifts a bound emptied", async () => {
+      page.search = "from=2026-05-01T06%3A00%3A00Z&offset=50";
+      render(journal());
+      const field = screen.getByLabelText("Depuis le");
+      expect(field).toHaveValue("2026-05-01T08:00");
+      expect(screen.getByLabelText("Avant le")).toHaveAttribute("min", "2026-05-01T08:00");
+      await userEvent.clear(field);
+      await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+      expect(lastAddress()).toBe("/admin/audit-log");
+    });
+
+    it("sends a bound left untouched as the address names it, never through its field", async () => {
+      page.search = "from=2026-05-01T06%3A00%3A30.250Z";
+      render(journal({ filters: filtersOf(page.search) }));
+      const period = screen.getByRole("form", { name: "Période" });
+      await userEvent.type(within(period).getByLabelText("Avant le"), "2026-06-01T00:00");
+      await userEvent.click(within(period).getByRole("button", { name: "Appliquer" }));
+      expect(lastAddress()).toBe(
+        "/admin/audit-log?from=2026-05-01T06%3A00%3A30.250Z&to=2026-05-31T22%3A00%3A00.000Z",
+      );
+    });
+
+    it("says at its field the end the API refused, by the start it names in the local time, which takes the focus", () => {
+      page.search = "from=2026-06-03T14%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z";
+      render(
+        journal({
+          refused: { to: { code: "VALUE_OUT_OF_RANGE", minimum: "2026-06-03T14:00:00Z" } },
+        }),
+      );
+      const end = screen.getByLabelText("Avant le");
+      expect(end).toHaveAttribute("aria-invalid", "true");
+      expect(end).toHaveFocus();
+      expect(end).toHaveAccessibleDescription(
+        /^La fin de la période ne peut précéder son début, 3 juin 2026.*16:00\.$/,
+      );
+    });
+
+    it("shows anew a period the address changes, the form kept and the focus with it", async () => {
+      page.search = "from=2026-05-01T06%3A00%3A00Z";
+      const { rerender } = render(journal());
+      const field = screen.getByLabelText("Depuis le");
+      await userEvent.clear(field);
+      await userEvent.type(field, "2026-02-01T10:00");
+      expect(field).toHaveFocus();
+      // Back in the history: the address names another period, which the field shows.
+      page.search = "from=2026-03-01T06%3A00%3A00Z";
+      rerender(journal());
+      expect(screen.getByLabelText("Depuis le")).toBe(field);
+      expect(field).toHaveValue("2026-03-01T07:00");
+      expect(field).toHaveFocus();
+      // Forward again, to the period the entry was made over: it shows that period, the entry
+      // given up.
+      page.search = "from=2026-05-01T06%3A00%3A00Z";
+      rerender(journal());
+      expect(field).toHaveValue("2026-05-01T08:00");
+    });
+  });
+
+  it("filter by kind of author under the name of the contract, back to the first page", async () => {
+    page.search = "offset=50";
+    render(journal());
+    const kinds = screen.getByRole("group", { name: "Filtrer par nature d’auteur" });
+    expect(within(kinds).getByRole("button", { name: "Tous les auteurs" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await userEvent.click(within(kinds).getByRole("button", { name: "La plateforme" }));
+    expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
+  });
+
+  it("filter by author, an account the journal names, back to the first page", async () => {
+    page.search = "offset=50";
+    render(journal());
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Auteur" }), CAMILLE);
+    expect(lastAddress()).toBe(`/admin/audit-log?user_id=${CAMILLE}`);
+  });
+
+  it("keep an author no choice offers under the name the inscriptions give, to be cleared", async () => {
+    page.search = `user_id=${CAMILLE}&offset=50`;
+    render(journal({ users: [], named: { ...NAMED, user: "Camille Martin" } }));
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(author).toHaveValue(CAMILLE);
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Camille Martin",
+    );
+    await userEvent.selectOptions(author, "");
+    expect(lastAddress()).toBe("/admin/audit-log");
+  });
+
+  it("filter by actions, checked in a menu in the order of the contract, back to the first page", async () => {
+    page.search = "actions=backup&offset=50";
+    render(journal());
+    const opener = screen.getByRole("button", { name: "Filtrer par action\u00a0: 1 action" });
+    await userEvent.click(opener);
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Sauvegarde" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await userEvent.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Marquage d’une révision" }),
+    );
+    expect(lastAddress()).toBe("/admin/audit-log?actions=revision_mark%2Cbackup");
+    // The menu stays open while actions are checked; one lifts them all.
+    await userEvent.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Toutes les actions" }),
+    );
+    expect(lastAddress()).toBe("/admin/audit-log");
+  });
+
+  it("keep the actions asked checked while the server reads the journal anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementationOnce(() => {
+      startTransition(() => navigation);
+    });
+    const { rerender } = render(journal());
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filtrer par action\u00a0: Toutes les actions" }),
+    );
+    const backup = () =>
+      within(screen.getByRole("menu")).getByRole("menuitemcheckbox", { name: "Sauvegarde" });
+    await userEvent.click(backup());
+    expect(lastAddress()).toBe("/admin/audit-log?actions=backup");
+    // The address has not changed yet: the menu, still open, shows the action asked checked, and
+    // its button — hidden from the tree of accessibility while the menu is open — the count asked,
+    // never the address before them.
+    expect(backup()).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("button", { name: "Filtrer par action\u00a0: 1 action", hidden: true }),
+    ).toBeInTheDocument();
+    // The server answers: the address names the action, which the menu goes on showing checked.
+    page.search = "actions=backup";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(journal());
+    expect(backup()).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("filter by project, one the journal names, back to the first page", async () => {
+    page.search = "offset=50";
+    render(journal());
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Projet" }), PROJECT);
+    expect(lastAddress()).toBe(`/admin/audit-log?project_id=${PROJECT}`);
+  });
+
+  it("filter by kind of object, back to the first page", async () => {
+    page.search = "offset=50";
+    render(journal());
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Nature de l’objet" }),
+      "revision",
+    );
+    expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
+  });
+
+  it("name the object whose history the address asks, and lift it, its kind kept, the focus given to the filter of the kind", async () => {
+    const object = "01926f3a-7c00-7000-8000-000000000101";
+    page.search = `object_kind=revision&object_id=${object}&offset=50`;
+    render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
+    const lift = screen.getByRole("link", {
+      name: "Lever le filtre sur «\u00a0Référence\u00a0»",
+    });
+    expect(lift).toHaveAttribute("href", "/admin/audit-log?object_kind=revision");
+    await userEvent.click(lift);
+    expect(lastAddress()).toBe("/admin/audit-log?object_kind=revision");
+    expect(screen.getByRole("combobox", { name: "Nature de l’objet" })).toHaveFocus();
+  });
+
+  it("leave the focus where it is when the lifting opens in a tab, the browser's to follow", async () => {
+    page.search = "object_kind=revision&object_id=01926f3a-7c00-7000-8000-000000000101";
+    render(journal({ named: { ...NAMED, object: { label: "Référence", kind: "revision" } } }));
+    const lift = screen.getByRole("link", {
+      name: "Lever le filtre sur «\u00a0Référence\u00a0»",
+    });
+    // The page lets the browser follow a click with Ctrl: no navigation of its own, no focus moved.
+    const user = userEvent.setup();
+    await user.keyboard("{Control>}");
+    await user.click(lift);
+    await user.keyboard("{/Control}");
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("combobox", { name: "Nature de l’objet" })).not.toHaveFocus();
+  });
+
+  it("name a backup whose history the address asks by its nature", () => {
+    page.search = "object_kind=backup&object_id=01926f3a-7c00-7000-8000-000000000907";
+    render(journal({ named: { ...NAMED, object: { label: null, kind: "backup" } } }));
+    expect(
+      screen.getByRole("link", { name: "Lever le filtre sur «\u00a0Sauvegarde\u00a0»" }),
+    ).toBeInTheDocument();
+  });
+
+  it("filter by correlation, entered and sent as the contract takes it, back to the first page, the filter lifted when emptied", async () => {
+    page.search = "actions=amendment_merge&offset=50";
+    const { rerender } = render(journal());
+    const field = screen.getByRole("searchbox", { name: "Corrélation" });
+    // A correlation pasted, blanks around it: trimmed, as the contract takes it.
+    await userEvent.type(field, ` ${MERGE} {Enter}`);
+    expect(lastAddress()).toBe(`/admin/audit-log?actions=amendment_merge&correlation_id=${MERGE}`);
+    expect(field).toHaveFocus();
+    page.search = `actions=amendment_merge&correlation_id=${MERGE}`;
+    rerender(journal());
+    expect(field).toHaveValue(MERGE);
+    await userEvent.clear(field);
+    await userEvent.type(field, "{Enter}");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=amendment_merge");
+  });
+
+  it("send no correlation the contract would refuse: the browser says why, and the address stays", async () => {
+    page.search = "actions=amendment_merge";
+    render(journal());
+    const field = screen.getByRole("searchbox", { name: "Corrélation" });
+    await userEvent.type(field, "a b{Enter}");
+    expect(field).toBeInvalid();
+    // The browser says the form it asks.
+    expect(field).toHaveAttribute(
+      "title",
+      "Lettres, chiffres, «\u00a0.\u00a0», «\u00a0_\u00a0», «\u00a0-\u00a0»\u00a0; 64 au plus.",
+    );
+    expect(router.push).not.toHaveBeenCalled();
+    expect(field).toHaveAttribute("maxLength", "64");
+  });
+
+  it("offer no filter of authors when no account may be chosen and none is", () => {
+    render(journal({ users: [] }));
+    expect(screen.queryByRole("combobox", { name: "Auteur" })).toBeNull();
+  });
+});

@@ -41,6 +41,24 @@ Timestamp:
   format: date-time
   description: Horodatage en temps universel (WF-DAT-0100).
 
+WorkInstant:
+  type: object
+  required: [date, hours]
+  description: >-
+    Début ou fin d'une tâche : une date sans heure et le nombre d'heures de travail
+    écoulées ce jour-là sur le calendrier applicable, sans fuseau (WF-DAT-0100). Deux
+    tâches de quatre heures liées fin à début, sur un calendrier de huit heures,
+    commencent et finissent le même jour : la première finit à `4`, la seconde commence
+    à `4` et finit à `8`.
+  properties:
+    date: { $ref: '#/PlanningDate' }
+    hours: { $ref: '#/Hours' }
+
+Language:
+  type: string
+  enum: [fr, en]
+  description: Langue offerte par l'interface (WF-INTF-0160).
+
 Year:
   type: integer
   minimum: 2000
@@ -52,7 +70,12 @@ LockVersion:
   description: >-
     Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une
     création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend
-    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060).
+    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit
+    les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne
+    l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin
+    critique déplace, les montants et les dates d'une récapitulative, le montant corrigé des
+    lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le
+    compteur d'aucun nœud.
 
 Audit:
   type: object
@@ -85,10 +108,7 @@ Problem:
     texte dans la langue du lecteur (WF-ARC-0110). `params` nomme la condition
     manquante, ce que WF-ADM-0110 et WF-IHM-0090 exigent.
   properties:
-    code:
-      type: string
-      pattern: '^[A-Z][A-Z0-9_]*$'
-      description: Code machine, stable, appartenant au catalogue des codes d'erreur.
+    code: { $ref: '#/ErrorCode' }
     status:
       type: integer
       minimum: 400
@@ -96,16 +116,193 @@ Problem:
     params:
       type: object
       additionalProperties: true
+      properties:
+        state_enum: { $ref: '#/StateEnumeration' }
+      dependentRequired:
+        state: [state_enum]
+        state_enum: [state]
       description: >-
-        Paramètres du code : `missing_permission`, `missing_condition`,
-        `conflicting_object_id`, `expected_lock_version`, `component`, selon le cas.
+        Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
+        `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
+        `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412
+        `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une
+        récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
+        calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
+        `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui
+        interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat
+        dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans
+        l'autre : seul `ProjectState` en relève
+        aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande
+        les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan
+        de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une
+        modification du contrat),
+        `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur
+        admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un
+        champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
+        plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop
+        grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
+        portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`,
+        WF-EXP-0040),
+        `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
+        fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
+        WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche
+        sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
+        calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
+        tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son
+        nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par
+        champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà
+        le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
+        WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
+        celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+        WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
+        un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
+        qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
+        WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
+        déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
+        dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
+        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040).
     fields:
       type: array
-      description: Erreurs par champ, pour une entité refusée à la validation.
+      description: >-
+        Erreurs par champ, pour une entité refusée à la validation (422), ou par une unicité
+        (409 `ALREADY_EXISTS`), chaque champ dont la valeur est déjà portée désigné. Une clé
+        portée par le chemin, et non par le corps — la catégorie et l'année d'un taux horaire
+        (`setHourlyRate`) —, n'a pas de champ à désigner : son `ALREADY_EXISTS` n'a pas de
+        `fields`.
       items: { $ref: '#/FieldProblem' }
     correlation_id:
       type: string
-      description: Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020).
+      pattern: '^[A-Za-z0-9._-]{1,64}$'
+      description: >-
+        Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) :
+        engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant
+        repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le
+        front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel
+        dans un chemin ou un digest.
+
+StateEnumeration:
+  type: string
+  enum: [ProjectState]
+  description: >-
+    Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec
+    lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une
+    énumération qu'un refus nommerait de plus est une modification du contrat.
+
+ErrorCode:
+  type: string
+  description: >-
+    Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque
+    motif de rejet d'une ligne collée ou importée, y a son code, que le front rend
+    en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est
+    une modification du contrat ; le front n'en rencontre aucun qu'il ne sache
+    rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
+  enum:
+    # 400 — requête mal formée ou confirmation absente.
+    - MALFORMED_REQUEST
+    - CONFIRMATION_REQUIRED
+    # 401 — aucune session valide (WF-SEC-0020).
+    - SESSION_REQUIRED
+    - SESSION_EXPIRED
+    - INVALID_CREDENTIALS
+    # 403 — permission présente, condition manquante : `params.missing_permission`
+    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
+    # structurante ou le paramétrage du projet exigent la qualité de chef de projet
+    # (WF-PRJ-0060).
+    - PERMISSION_MISSING
+    - NOT_CONTRIBUTOR
+    - NOT_PROJECT_MANAGER
+    - PROJECT_TERMINAL
+    - REVISION_MARKED
+    # 404 — objet inexistant ou invisible, sans distinction (WF-ADM-0110).
+    - NOT_FOUND
+    # 409 — l'état courant interdit l'opération ; `params` nomme l'objet ou l'état.
+    - STATE_FORBIDS_OPERATION
+    # Une valeur unique déjà portée par un autre objet ; aussi motif par champ du 409 qui dit
+    # quel champ la porte, `fields[].params.conflicting_object_id` nommant l'objet qui la porte
+    # (WF-REF-0030, WF-REF-0040) — sans `fields` quand la clé est celle du chemin, le taux d'une
+    # catégorie et d'une année (`setHourlyRate`).
+    - ALREADY_EXISTS
+    - CURRENT_REVISION_EXISTS
+    - REFERENCE_NOT_CORRECTABLE
+    - UNDO_CONFLICT
+    # Des rôles envoyés, ou un rôle modifié, qui retireraient au dernier compte actif qui les
+    # porte la permission de modifier les comptes ou les rôles d'habilitation (WF-ADM-0120) ;
+    # la désactivation de ce compte, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
+    - LAST_ADMINISTRATOR
+    - LAST_PROJECT_MANAGER
+    - ACCESS_ROLE_IN_USE
+    - HAS_ACTUAL_COSTS
+    - TASK_ALREADY_STARTED
+    - TASK_COMPLETED
+    - WIN_PROBABILITY_FROZEN
+    - REFERENCE_INCOMPLETE
+    - PASSWORD_RESET_TOKEN_INVALID
+    # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
+    - ACCOUNT_LOCKED
+    # 412 — `lock_version` périmé ; `params.expected_lock_version`, la version courante de
+    # l'objet que le chemin nomme (WF-IHM-0110).
+    - STALE_LOCK_VERSION
+    # 413 — fichier au-delà de la taille admise (WF-CMP-0020).
+    - FILE_TOO_LARGE
+    # 422 — règle métier ; `params` ou `fields` localise le refus.
+    - VALIDATION_FAILED
+    - COMPUTED_VALUE
+    - SUMMARY_TASK_DERIVED
+    - LINK_CYCLE
+    - LINK_FORBIDDEN
+    - RESOURCE_ROLE_REQUIRED
+    - LABOUR_CATEGORY_REQUIRED
+    - HOURLY_RATE_MISSING
+    - PROJECT_CODE_REQUIRED
+    - PASTE_TOO_WIDE
+    - FILE_FORMAT_UNREADABLE
+    # Une saisie de rôle ou de calendrier qui laisserait une tâche sans aucune heure travaillée
+    # dans la semaine ; aussi motif de rejet d'une ligne collée ou importée (WF-PLA-0010).
+    - TASK_WITHOUT_WORKING_HOURS
+    # Motifs par champ, par ligne collée ou importée (`fields`, `PastePlan`,
+    # `ImportRejection`).
+    - VALUE_REQUIRED
+    - VALUE_TOO_LONG
+    - VALUE_OUT_OF_RANGE
+    - NUMBER_INVALID
+    - DATE_INVALID
+    - UNKNOWN_COST_CATEGORY
+    # Une nature de coût que le référentiel n'a pas, donnée à une catégorie (`/cost_type_id`,
+    # WF-REF-0040).
+    - UNKNOWN_COST_TYPE
+    - UNKNOWN_RESOURCE_ROLE
+    - UNKNOWN_SUBPROJECT
+    - UNKNOWN_TASK
+    - INACTIVE_REFERENCE_OBJECT
+    # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
+    # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
+    # `FileUploadPurpose`).
+    - UPLOAD_PURPOSE_MISMATCH
+    # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
+    # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
+    - PROVISION_CATEGORY_RESERVED
+    # Une réestimation qui termine la tâche sans la date de terminaison que la validation
+    # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
+    - COMPLETION_DATE_REQUIRED
+    # Une copie externe des sauvegardes vers un emplacement que l'installation ne déclare pas
+    # (`setBackupSchedule`, `BackupExternalCopy.location`, WF-ADM-0170) ; `params.location`
+    # le nomme.
+    - UNKNOWN_EXTERNAL_BACKUP_LOCATION
+    # Un chemin dans un emplacement externe qui n'est pas relatif, ou qui en sortirait
+    # (`ExternalBackupPath`, WF-ADM-0170).
+    - PATH_INVALID
+    # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
+    # (`TaskFacetUpdate`, WF-PLA-0170) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
+    # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la
+    # tâche d'un lot du sous-arbre de celle de son poste.
+    - UNKNOWN_WORK_BREAKDOWN_ITEM
+    - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
+    - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
+    - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
+    # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
+    # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
+    - COMPONENT_UNAVAILABLE
+    - INTERNAL_ERROR
 
 FieldProblem:
   type: object
@@ -113,13 +310,20 @@ FieldProblem:
   properties:
     pointer:
       type: string
-      description: Pointeur JSON vers le champ en défaut.
-    code:
-      type: string
-      pattern: '^[A-Z][A-Z0-9_]*$'
+      description: >-
+        Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901),
+        `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son
+        nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un
+        pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération.
+    code: { $ref: '#/ErrorCode' }
     params:
       type: object
       additionalProperties: true
+
+SortOrder:
+  type: string
+  enum: [asc, desc]
+  description: Sens d'un tri demandé au serveur ; croissant par défaut.
 
 PaginationMeta:
   type: object
@@ -128,6 +332,13 @@ PaginationMeta:
     limit: { type: integer, minimum: 1, maximum: 500 }
     offset: { type: integer, minimum: 0 }
     total: { type: integer, minimum: 0 }
+
+BackgroundTaskStatus:
+  type: string
+  enum: [queued, running, succeeded, failed]
+  description: >-
+    Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090,
+    WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
 
 BackgroundTaskRef:
   type: object
@@ -143,13 +354,13 @@ BackgroundTaskRef:
         - import_analysis
         - import_apply
         - revision_mark
+        - structure_merge
+        - risk_occurrence
         - export
         - backup
         - restore
         - directory_sync
-    status:
-      type: string
-      enum: [queued, running, succeeded, failed]
+    status: { $ref: '#/BackgroundTaskStatus' }
     progress:
       type: integer
       minimum: 0

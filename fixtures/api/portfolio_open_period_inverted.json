@@ -1,0 +1,17 @@
+{
+  "summary": "Les vues du portefeuille demandées à partir du 1er septembre 2026, sans fin, le 3 juin 2026 : la fin se complète par la date de calcul, celle de la période par défaut, et le début, postérieur, est refusé, désigné par /query/from, la fin complétée nommée (WF-PTF-0010, WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/from",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": "2026-06-03"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001021"
+  }
+}

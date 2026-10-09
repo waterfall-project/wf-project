@@ -1,0 +1,218 @@
+{
+  "summary": "Les révisions marquées du projet, celles que retient le filtre status=marked : la référence et l'offre v1.0, de la plus récente à la plus ancienne.",
+  "value": {
+    "items": [
+      {
+        "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "version_name": "Référence",
+        "description": null,
+        "status": "marked",
+        "marked_at": "2026-02-01T09:00:00Z",
+        "is_reference": true,
+        "reference_year": 2026,
+        "available_commands": [
+          {
+            "command": "edit_planning",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_estimate",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_remaining",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "create_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "mark",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "designate_reference",
+            "is_available": false,
+            "missing_conditions": [
+              "reference_correctable"
+            ]
+          },
+          {
+            "command": "abandon",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "export_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_remaining",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_task_tree_image",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2026-01-12T10:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-02-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "version_name": "Offre v1.0",
+        "description": "Offre remise au client avant la commande.",
+        "status": "marked",
+        "marked_at": "2025-12-15T16:00:00Z",
+        "is_reference": false,
+        "reference_year": 2025,
+        "available_commands": [
+          {
+            "command": "edit_planning",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_estimate",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_remaining",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "create_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "mark",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "designate_reference",
+            "is_available": false,
+            "missing_conditions": [
+              "reference_correctable"
+            ]
+          },
+          {
+            "command": "abandon",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "export_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_remaining",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_task_tree_image",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-11-03T08:30:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-12-15T16:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    }
+  }
+}

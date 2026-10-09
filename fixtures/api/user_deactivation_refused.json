@@ -1,0 +1,11 @@
+{
+  "summary": "La désactivation de Camille Martin refusée : c'est le dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, et l'installation n'aurait plus personne pour attribuer des droits ; rien n'est écrit (WF-ADM-0120).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "last_administrator"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001010"
+  }
+}

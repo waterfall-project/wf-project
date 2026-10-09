@@ -1,0 +1,369 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * One background task the tracker follows (WF-IHM-0080): what it is — its kind, and what the
+ * user named it after —, where it stands, how far it has gone while it runs, and, failed, its
+ * motive in a sentence of the catalogue and the offer to run the same command again — or,
+ * without the command, the way to do it from the screen of its object —; succeeded, the offer
+ * to read the screen anew, and to download its result when it made one — an export —, which
+ * the server of Next hands on from the API as a stream (`app/tasks/[taskId]/result`). Before each
+ * download, the entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the
+ * task unknown, the session lost — is told by the notice of the entry, and a task that no longer
+ * gives a result (`result_url` none) is said so in place of the offer; only a task that still gives
+ * one lets the download leave, and only if the entry is still there. What the route refuses
+ * afterwards — the result expired or not ready between the read and the download (409) — sends the
+ * browser back to the screen, where the tracker tells it by the same notice (#416). While the task
+ * runs, the entry asks the server where it stands, by a server action, every so often; it stops once
+ * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
+ * entry says so —, and when it is dismissed or the shell goes away.
+ *
+ * The ends are read out apart, in a log (`EndLog`): a progress that moves is not read out at
+ * every step, an end is, and the ends add up.
+ */
+"use client";
+
+import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useMessages, useTranslations } from "next-intl";
+import {
+  type Dispatch,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useTransition,
+} from "react";
+
+import { readBackgroundTask } from "@/api/actions/tasks";
+import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
+import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { problemMessage } from "@/i18n/problem";
+
+import { resultHref, withoutRefusal } from "./result-refusal";
+import {
+  type EndKind,
+  type EndLine,
+  isPolled,
+  type Refusal,
+  type TrackedTask,
+  type TrackingEvent,
+} from "./tracking";
+
+/** How long an entry waits before asking again where its running task stands, in ms. */
+export const POLL_INTERVAL = 2000;
+
+/** The sentence of each end, by how it ended. */
+const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interruptedLine">> = {
+  succeeded: "succeeded",
+  failed: "failed",
+  interrupted: "interruptedLine",
+};
+
+/** What a task is called: its kind, and what the user named it after when there is one. */
+function useTaskName({ task, subject }: Pick<TrackedTask, "task" | "subject">): string {
+  const t = useTranslations();
+  const kind = t(`enums.BackgroundTaskRef.kind.${task.kind}`);
+  return subject === undefined ? kind : t("tasks.named", { kind, subject });
+}
+
+/** The sentence of a motive — of a failure, of a refusal —, from its envelope. */
+function Motive({ problem }: { readonly problem: Problem | null | undefined }) {
+  const locale = useLocale();
+  const messages = useMessages();
+  return problem == null ? null : <p>{problemMessage(problem, { locale, messages })}</p>;
+}
+
+/** One end of the log: the sentence of the end, and its motive when it has one. */
+function End({ line }: { readonly line: EndLine }) {
+  const t = useTranslations("tasks");
+  const task = useTaskName(line);
+  return (
+    <div>
+      <p>{t(END_SENTENCE[line.end], { task })}</p>
+      <Motive problem={line.problem} />
+    </div>
+  );
+}
+
+/**
+ * The log of the ends of the tasks — succeeded, failed with its motive, follow-up interrupted
+ * —, a live region mounted with the shell, before it ever speaks: each end is added, and read
+ * out, while the entry shows the same state.
+ */
+export function EndLog({ log }: { readonly log: readonly EndLine[] }) {
+  return (
+    <div role="log" className="sr-only">
+      {log.map((line) => (
+        <End key={line.id} line={line} />
+      ))}
+    </div>
+  );
+}
+
+/** How far a running task has gone, when the API says it; a bar without a value otherwise. */
+function Progress({
+  name,
+  progress,
+}: {
+  readonly name: string;
+  readonly progress: number | undefined;
+}) {
+  const t = useTranslations("tasks");
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        role="progressbar"
+        aria-label={name}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
+      >
+        {progress === undefined ? null : (
+          <div className="h-full bg-primary" style={{ width: `${String(progress)}%` }} />
+        )}
+      </div>
+      {progress === undefined ? null : <span>{t("progress", { progress })}</span>}
+    </div>
+  );
+}
+
+/**
+ * The offer to read the screen anew once a task has succeeded: what it changed shows only then.
+ * The tracker never reloads by itself — the screen may hold what the user is typing —: the user
+ * decides.
+ */
+function ReloadScreen() {
+  const t = useTranslations("tasks");
+  const router = useRouter();
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        router.refresh();
+      }}
+    >
+      <RefreshCw aria-hidden="true" />
+      {t("reload")}
+    </Button>
+  );
+}
+
+/** The screen shown, from which a download leaves, without a refusal it may carry. */
+function useShownScreen(): string {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  return withoutRefusal({ pathname, search });
+}
+
+/**
+ * The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). The
+ * link leaves once the server has said the result is still there: its refusal is told by the
+ * notice of the entry, the answer applied to the task as a read of its progress is. The link has no
+ * `download`: a refusal of the route brings the browser back to the screen, which a download would
+ * save as a file.
+ */
+function DownloadResult({
+  entry,
+  name,
+  dispatch,
+}: {
+  readonly entry: TrackedTask;
+  readonly name: string;
+  readonly dispatch: Dispatch<TrackingEvent>;
+}) {
+  const t = useTranslations("tasks");
+  const [pending, startTransition] = useTransition();
+  const from = useShownScreen();
+  // Whether the click is the one the check lets through, to the browser.
+  const checked = useRef(false);
+  // Whether the entry is still shown: dismissed during the read, it downloads nothing.
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
+  const { key, task } = entry;
+  const download = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (checked.current) {
+      checked.current = false;
+      return;
+    }
+    event.preventDefault();
+    if (pending) {
+      return;
+    }
+    const link = event.currentTarget;
+    startTransition(async () => {
+      const outcome = await readBackgroundTask(task.task_id).catch(rejected);
+      dispatch({ type: "answer", source: "download", key, taskId: task.task_id, outcome });
+      if (shown.current && outcome.kind === "done" && outcome.data.result_url != null) {
+        checked.current = true;
+        link.click();
+      }
+    });
+  };
+  return (
+    <a
+      href={resultHref(task.task_id, from)}
+      aria-label={t("downloadLabel", { task: name })}
+      aria-busy={pending}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+      onClick={download}
+    >
+      <Download aria-hidden="true" />
+      {t("download")}
+    </a>
+  );
+}
+
+/** Why the follow-up stopped: the refusal of the API, and the way to sign in without a session. */
+function Interruption({ refusal }: { readonly refusal: Refusal }) {
+  return (
+    <>
+      <Motive problem={refusal.problem} />
+      {refusal.kind === "signed_out" ? <SignIn /> : null}
+    </>
+  );
+}
+
+/**
+ * Ask the server where a task stands, a while after each answer, as long as it is polled. The
+ * answer is applied to the task it was asked for: dismissed or relaunched meanwhile, it is
+ * dropped — the tracker checks the task, and an entry gone asks nothing more.
+ */
+function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
+  useEffect(() => {
+    if (!isPolled(entry)) {
+      return undefined;
+    }
+    const { key } = entry;
+    const taskId = entry.task.task_id;
+    let live = true;
+    const answered = (outcome: Outcome<BackgroundTask>) => {
+      if (live) {
+        dispatch({ type: "answer", source: "read", key, taskId, outcome });
+      }
+    };
+    const timer = setTimeout(() => {
+      void readBackgroundTask(taskId).then(answered, (error: unknown) => {
+        answered(rejected(error));
+      });
+    }, POLL_INTERVAL);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [entry, dispatch]);
+}
+
+/** What the entry of a task shows, and what it does. */
+export interface TaskEntryProps {
+  readonly entry: TrackedTask;
+  readonly dispatch: Dispatch<TrackingEvent>;
+  /** Stop following the task: the panel takes the focus to where it should go. */
+  readonly onDismiss: (key: string) => void;
+  /** Hand the panel the button that dismisses the task, to give it the focus. */
+  readonly dismissRef: (key: string, button: HTMLButtonElement | null) => void;
+}
+
+/** Show a task the tracker follows, follow it while it runs, and offer to run it again failed. */
+export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryProps) {
+  const t = useTranslations();
+  const [pending, startTransition] = useTransition();
+  const dismiss = useRef<HTMLButtonElement | null>(null);
+  const { key, task, command, interrupted } = entry;
+  const setDismiss = useCallback(
+    (button: HTMLButtonElement | null) => {
+      dismiss.current = button;
+      dismissRef(key, button);
+    },
+    [key, dismissRef],
+  );
+  usePolling(entry, dispatch);
+  const name = useTaskName(entry);
+  const relaunch = () => {
+    if (command === undefined || pending) {
+      return;
+    }
+    startTransition(async () => {
+      const outcome = await command().catch(rejected);
+      dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
+      if (outcome.kind === "done" || outcome.kind === "stale") {
+        // The button pressed goes — with the failure, or with the command refused as stale —:
+        // the focus stays within the entry, on its dismissal.
+        dismiss.current?.focus();
+      }
+    });
+  };
+  const failed = task.status === "failed";
+  return (
+    <div className="space-y-1 text-sm">
+      <div className="flex items-center gap-2">
+        <p className="mr-auto font-medium">{name}</p>
+        <p className="text-muted-foreground">
+          {interrupted === undefined
+            ? t(`enums.BackgroundTaskStatus.${task.status}`)
+            : t("tasks.interrupted")}
+        </p>
+        {/* Dismissed while it runs again, the task relaunched would be lost: it waits. */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          ref={setDismiss}
+          aria-label={t("tasks.dismiss", { task: name })}
+          aria-disabled={pending ? true : undefined}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          onClick={() => {
+            if (!pending) {
+              onDismiss(key);
+            }
+          }}
+        >
+          <X aria-hidden />
+        </Button>
+      </div>
+      {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
+      {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
+      {task.status === "succeeded" ? <ReloadScreen /> : null}
+      {task.status === "succeeded" && task.result_url != null ? (
+        <DownloadResult entry={entry} name={name} dispatch={dispatch} />
+      ) : null}
+      {entry.resultUnavailable === true ? (
+        <p role="alert" className="text-destructive">
+          {t("tasks.resultUnavailable")}
+        </p>
+      ) : null}
+      {failed ? <Motive problem={task.problem} /> : null}
+      {failed && command !== undefined ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={t("tasks.relaunchLabel", { task: name })}
+          aria-busy={pending}
+          onClick={relaunch}
+        >
+          <RotateCcw aria-hidden="true" />
+          {t("tasks.relaunch")}
+        </Button>
+      ) : null}
+      {failed && command === undefined ? (
+        <p className="text-muted-foreground">{t("tasks.relaunchFromScreen")}</p>
+      ) : null}
+      <OutcomeNotice
+        outcome={entry.outcome}
+        onClear={() => {
+          dispatch({ type: "clear", key });
+        }}
+      />
+    </div>
+  );
+}

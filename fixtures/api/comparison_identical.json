@@ -1,0 +1,11 @@
+{
+  "summary": "La même révision comparée à elle-même, l'offre v1.0 : identique par construction, la comparaison est vide — rien d'ajouté, de retiré ni de modifié, aucun écart de montant —, jamais un refus.",
+  "value": {
+    "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
+    "to_revision_id": "01926f3a-7c00-7000-8000-000000000100",
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "amount_deltas": []
+  }
+}

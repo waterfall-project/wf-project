@@ -1,0 +1,13 @@
+{
+  "summary": "L'export du devis de la révision courante, demandé aujourd'hui à 14 h 06 min 30 s et mis en file : il n'a pas encore commencé.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000935",
+    "kind": "export",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:06:30Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

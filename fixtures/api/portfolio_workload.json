@@ -1,0 +1,21 @@
+{
+  "summary": "Le plan de charge agrégé du portefeuille au 3 juin 2026, sur six mois, au seuil de sous-charge de 50 % : les projets en cours sur leur reste à engager — le projet témoin aux heures de son propre plan de charge — et, ajoutées par la requête au périmètre par défaut, les offres en chiffrage sur leur devis pondéré par leur probabilité de gain ; l'ingénieur électricien, 3 800 personnes, en alerte en juillet 2026 et août 2026 ; le technicien de mise en service, 2 800 personnes, en sous-charge en novembre 2026 ; le monteur câbleur, 1 250 personnes, sans charge — aucun projet ne l'emploie —, sa capacité seule, en sous-charge. La capacité d'un rôle est ses heures mensuelles, tout son effectif compris, seules comparées à la charge — l'effectif n'est qu'une information (WF-REF-0100) — ; chaque mois porte sa zone, que le serveur classe (WF-PTF-0060, WF-IHM-0070).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "scope": {"states":["in_progress","pricing"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":300},
+    "under_load_threshold": "0.5",
+    "months": [
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+      "2026-11"
+    ],
+    "roles": [
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658654","months":[{"month":"2026-06","hours":"634787.84","load_ratio":{"is_computable":true,"value":"0.9638","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"730721.95","load_ratio":{"is_computable":true,"value":"1.1094","reason":null},"zone":"alert"},{"month":"2026-08","hours":"664160.42","load_ratio":{"is_computable":true,"value":"1.0084","reason":null},"zone":"alert"},{"month":"2026-09","hours":"555041.47","load_ratio":{"is_computable":true,"value":"0.8427","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"504399.09","load_ratio":{"is_computable":true,"value":"0.7658","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"446943.08","load_ratio":{"is_computable":true,"value":"0.6786","reason":null},"zone":"nominal"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","label":"Technicien de mise en service","capacity_monthly_hours":"485324","months":[{"month":"2026-06","hours":"348851.23","load_ratio":{"is_computable":true,"value":"0.7188","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"400771.29","load_ratio":{"is_computable":true,"value":"0.8258","reason":null},"zone":"nominal"},{"month":"2026-08","hours":"357415.1","load_ratio":{"is_computable":true,"value":"0.7364","reason":null},"zone":"nominal"},{"month":"2026-09","hours":"293217.54","load_ratio":{"is_computable":true,"value":"0.6042","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"266049.91","load_ratio":{"is_computable":true,"value":"0.5482","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"236358.01","load_ratio":{"is_computable":true,"value":"0.487","reason":null},"zone":"watch"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","capacity_monthly_hours":"216662.5","months":[{"month":"2026-06","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-07","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-08","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-09","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-10","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-11","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"}]}
+    ]
+  }
+}

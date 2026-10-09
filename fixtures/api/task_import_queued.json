@@ -1,0 +1,13 @@
+{
+  "summary": "L'application de l'import du devis du Poste de commande (import_analysed, …0a11), confirmée aujourd'hui à 14 h 06 et mise en file : elle n'a pas encore commencé.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000932",
+    "kind": "import_apply",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:06:00Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

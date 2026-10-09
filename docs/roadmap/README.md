@@ -21,7 +21,7 @@ c'est le fichier qu'on relira dans cinq ans.
 **Les EPIC couvrent tout l'horizon ; les US ne sont détaillées qu'un EPIC à l'avance.**
 Détailler aujourd'hui les US de la dernière tranche coûterait le prix de les réécrire :
 ce que le premier incrément apprend change le découpage du suivant. Ce qui est fixé pour
-tout l'horizon, ce sont les 203 exigences — pas leur découpage en travaux.
+tout l'horizon, ce sont les 211 exigences — pas leur découpage en travaux.
 
 ## Organisation
 
@@ -87,6 +87,31 @@ D'une US, cinq également :
 
 Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir GitHub.
 
+## Familles
+
+Le champ `famille` du front matter d'un EPIC dit ce qu'il ajoute au produit et qui prouve
+ses exigences, d'après le découpage PBS du document — pas tout ce qu'il touche :
+
+| Famille | Ce qu'elle couvre |
+|---|---|
+| `front` | l'application web, son client engendré et ses composants (PBS-1) |
+| `back` | le service d'API, le worker, le noyau métier, le contrat et l'intégration du fournisseur d'identité (PBS-2) |
+| `plateforme` | un composant que l'EPIC ajoute à ce qui porte et fait tourner les deux : composants de données, observabilité, empaquetage, chaîne, tâches planifiées, fournisseur d'identité (PBS-3 à PBS-5) ; et l'outillage du dépôt, quand il est l'objet de l'EPIC (EP-01) |
+
+Un composant que l'EPIC emploie sans l'ajouter ne change pas sa famille : un EPIC fonctionnel
+écrit dans PostgreSQL ou dépose un fichier sur le stockage objet sans être `plateforme`,
+puisque c'est un autre EPIC qui ajoute le composant : EP-03 pour PostgreSQL et Redis, EP-13
+pour l'empaquetage de la plateforme. De même, un outil écrit en
+passant par un lot ne change pas la famille de son EPIC : EP-02 reste `front`.
+
+Un EPIC qui en construit plusieurs les déclare toutes, séparées par des virgules —
+`famille: front, back` pour une tranche verticale. `make roadmap` échoue sur un EPIC qui
+n'en déclare aucune, qui en déclare une autre, ou la même deux fois.
+
+La famille dit quels tests prouvent ce que l'EPIC clôt : une exigence close par un EPIC dont
+la seule famille est `front` est prouvée par les tests du front ; close par un autre, elle
+ne l'est pas tant que seuls le front et le bout en bout la citent (`make requirements`).
+
 ## Ordre des EPIC
 
 <!-- Un EPIC par ligne, dans l'ordre où ils se démarrent. -->
@@ -94,24 +119,34 @@ Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir Git
 | EPIC | Titre | Statut | Dépend de |
 |---|---|---|---|
 | [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | livré | rien |
-| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | en cours | EP-01 |
-| [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | à planifier | EP-01 |
+| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
+| [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | en cours | EP-01, EP-02 |
+| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | à planifier | EP-02 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | à planifier | EP-07 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-09 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-08 |
-| [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-10 |
-| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | à planifier | EP-09 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-09 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
+| [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
+| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
 
 L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
 renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —
 un projet ne se crée pas sans lui (WF-CYC-0120) —, l'import des coûts réels dans EP-09 — une
-ligne de coût n'existe que par import (WF-CRE-0010) —, et les risques après le reste à
-engager — la survenance se chiffre par lui, et fusionne comme un avenant.
+ligne de coût n'existe que par import (WF-CRE-0010) —, les indicateurs dès qu'il y a des coûts
+réels et un reste à engager, et les risques après eux — la survenance se chiffre par le reste
+à engager, fusionne comme un avenant, et les indicateurs se lisent alors devant elle (revue de
+la ventilation, 2026-10-09). Les échanges de
+fichiers n'ont plus d'EPIC propre (revue de la ventilation, 2026-10-09) : chaque aller-retour
+se valide dans son bloc fonctionnel — MS Project en EP-06, qui construit la mécanique d'import,
+le devis en EP-07, le reste à engager en EP-09 —, et EP-03 rend la plateforme déployable et
+sauvegardable dès le premier service, pour des démonstrations.
+
+EP-14 achève les écrans d'EP-02, fusionné dans `main` le 2026-10-09 pour qu'EP-03 démarre sans
+attendre : il avance en parallèle d'EP-03, sans toucher à son domaine.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -134,9 +169,9 @@ qui permet de confier le reste à un agent.
    prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
 3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
    qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
-4. **Ouvrir les issues** : une issue pour l'EPIC, une par US, une par lot en sous-issue de
-   son US ; reporter dans le fichier les numéros des issues de l'EPIC et des US. L'EPIC passe
-   `en cours`.
+4. **Ouvrir les issues**, dans la hiérarchie de « Suivi sur GitHub » : l'issue de l'EPIC et
+   son tableau, une par US, une par lot sous son US ; reporter dans le fichier les numéros des
+   issues de l'EPIC et des US. L'EPIC passe `en cours`.
 5. **Livrer** : au premier lot, tirer `epic/EP-nn` de `main`, ce qui attend que les EPIC dont
    celui-ci dépend soient livrés ; livrer les lots ; quand toutes les US sont finies,
    constater la définition de fini sur la branche de l'EPIC, puis la fusionner dans `main` —
@@ -152,7 +187,7 @@ Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit 
 
 Un lot est l'unité de revue : **un lot, une issue, une branche, une pull request**. Une US
 tient en un lot ou en plusieurs ; un lot qui ne ferme aucun critère d'acceptation se déclare
-lot technique et nomme les US qu'il prépare.
+lot technique, se range sous la première US qu'il prépare, et nomme les autres.
 
 | Règle | Pourquoi |
 |---|---|
@@ -160,16 +195,62 @@ lot technique et nomme les US qu'il prépare.
 | le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client paraîtrait gros sans rien contenir à relire |
 | la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
 | un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
-| un constat de revue hors du périmètre du lot devient une issue, et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
+| un constat de revue hors du périmètre du lot devient une issue, rattachée et tranchée selon « Suivi sur GitHub », et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
 | la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
 
 Ce tableau est la seule définition de la taille visée : le gabarit de pull request, celui
 des lots et les agents y renvoient, et aucun ne la recopie.
 
-Un lot porte le titre `[US-nnnn/Ln] …` ou, pour un lot technique, `[EP-nn/Ln] …` ; `Ln`
-numérote les lots d'une même US ou d'un même EPIC, sans réemploi. Les lots vivent sur GitHub
-et nulle part ailleurs : ils sont une façon de faire le travail, pas son intention, et le
-fichier de l'EPIC ne les recopie pas.
+Un lot porte le titre `[US-nnnn/Ln] …` ; `Ln` numérote les lots d'une même US, dans l'ordre
+où ils se livrent, sans réemploi. Une US réalisée par un seul lot n'a qu'une issue, `[US-nnnn]`,
+qui est aussi celle du lot, et sa branche `lot/US-nnnn`. Les lots vivent sur GitHub et nulle
+part ailleurs : ils sont une façon de faire le travail, pas son intention, et le fichier de
+l'EPIC ne les recopie pas.
+
+## Suivi sur GitHub
+
+Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
+lots `[EP-nn/Ln]` leur titre, y compris ceux qu'EP-14 reprend d'EP-02.
+
+L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
+sous-issues suit le découpage :
+
+```
+[EP-nn] l'EPIC — son tableau de suivi
+├── [US-nnnn] une US à un seul lot — elle est aussi le lot
+├── [US-nnnn] une US à plusieurs lots
+│   ├── [US-nnnn/L1] un lot — technique ou non
+│   │   └── [EP-nn] <nature> : un constat que ce lot a relevé
+│   └── [US-nnnn/L2] …
+└── [EP-nn] <nature> : un constat relevé hors de tout lot
+```
+
+**Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
+et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
+US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties :
+
+- **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
+  issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
+  dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —
+  et sa pull request ;
+- **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
+  sa décision.
+
+**Un constat** — de revue, de contrat, de spécification, d'outil — relevé pendant un EPIC
+s'ouvre en sous-issue du lot qui le relève, ou de l'EPIC s'il ne vient d'aucun lot, sous le
+titre `[EP-nn] <nature> : …`, où la nature est `contrat`, `spec`, `front`, `back` ou `outil`.
+Il porte dès son ouverture une décision, écrite dans son corps et dans le tableau :
+
+| Décision | Ce qu'elle fait de l'issue |
+|---|---|
+| `corrigé par <lot>` | elle passe sous ce lot, et se ferme à sa fusion |
+| `bloque <lot>` | elle reste sous le lot relevé ; le lot bloqué le dit dans le tableau |
+| `reporté → EP-nn` | elle passe sous l'issue de cet EPIC ; si elle n'existe pas encore, le constat se note dans son fichier, section « Constats reçus », et se rattachera à son ouverture |
+| `à trancher` | une personne doit décider ; c'est la seule décision provisoire, et le tableau la montre |
+
+Aucune issue de l'EPIC n'est sans parent. **Une issue se ferme quand ce qu'elle suit est
+fait** : un lot à sa fusion, une US quand le lot qui la passe `fini` est fusionné, l'EPIC à sa
+livraison.
 
 ## Branches
 

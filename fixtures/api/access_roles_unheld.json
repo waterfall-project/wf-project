@@ -1,0 +1,7 @@
+{
+  "summary": "Les rôles d'habilitation que personne ne porte (holder_count_max=0, borne incluse) : « Administrateur » ; ceux qu'un compte au moins porte sont écartés (WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": [
+    {"access_role_id":"01926f3a-7c00-7000-8000-000000000704","label":"Administrateur","permissions":["users.read","users.write","access_roles.read","access_roles.write","system_status.read","system_status.write","backups.read","backups.write","audit_log.read","platform_restore"],"is_predefined":true,"holder_count":0,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"platform"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"platform"}},"lock_version":1}
+  ]
+}

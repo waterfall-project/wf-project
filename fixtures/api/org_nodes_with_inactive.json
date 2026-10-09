@@ -1,0 +1,193 @@
+{
+  "summary": "L'arbre d'organisation lu avec les nœuds désactivés (include_inactive), dans l'ordre de l'arbre : sous la direction technique, le bureau d'études automatismes, fermé, et sous lui la cellule robotique, désactivée avec lui par la cascade, avant le bureau d'études électricité, l'atelier de câblage et le service des achats, actifs. Le bureau d'études automatismes se réactive, son parent étant actif ; la cellule robotique non, tant que son parent reste désactivé, la condition nommée (WF-REF-0080, WF-REF-0150, WF-IHM-0090).",
+  "value": [
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
+      "code": "DT",
+      "label": "Direction technique",
+      "parent_id": null,
+      "parent_label": null,
+      "level": 1,
+      "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000474",
+      "code": "BE-AUTO",
+      "label": "Bureau d'études automatismes",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000470",
+      "parent_label": "Direction technique",
+      "level": 2,
+      "is_active": false,
+      "available_commands": [
+        {
+          "command": "reactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000475",
+      "code": "CEL-ROBOT",
+      "label": "Cellule robotique",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000474",
+      "parent_label": "Bureau d'études automatismes",
+      "level": 3,
+      "is_active": false,
+      "available_commands": [
+        {
+          "command": "reactivate",
+          "is_available": false,
+          "missing_conditions": [
+            "org_node_parent_active"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+      "code": "BE-ELEC",
+      "label": "Bureau d'études électricité",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000470",
+      "parent_label": "Direction technique",
+      "level": 2,
+      "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+      "code": "AT-CABL",
+      "label": "Atelier de câblage",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000471",
+      "parent_label": "Bureau d'études électricité",
+      "level": 3,
+      "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000473",
+      "code": "ACHATS",
+      "label": "Service des achats",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000470",
+      "parent_label": "Direction technique",
+      "level": 2,
+      "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-09-01T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}

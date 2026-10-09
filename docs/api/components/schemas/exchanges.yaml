@@ -5,16 +5,26 @@
 
 FileUpload:
   type: object
-  required: [upload_id, filename, size_bytes, uploaded_at, expires_at]
+  required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at]
   description: >-
     Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué,
     abandonné ou expiré (WF-DAT-0120, WF-ARC-0100).
   properties:
     upload_id: { $ref: ../common.yaml#/Uuid }
+    purpose: { $ref: '#/FileUploadPurpose' }
     filename: { type: string }
     size_bytes: { type: integer, minimum: 1 }
     uploaded_at: { $ref: ../common.yaml#/Timestamp }
     expires_at: { $ref: ../common.yaml#/Timestamp }
+
+FileUploadPurpose:
+  type: string
+  enum: [import, external_backup]
+  description: >-
+    L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus
+    10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer
+    (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus
+    `Installation.external_backup_max_bytes`.
 
 ExchangeKind:
   type: string
@@ -37,7 +47,9 @@ ImportRequest:
     cours, créée au besoin (WF-INTF-0090).
   properties:
     kind: { $ref: '#/ExchangeKind' }
-    upload_id: { $ref: ../common.yaml#/Uuid }
+    upload_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: Un dépôt fait pour un import (`FileUploadPurpose`, `import`).
     structure_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Structure visée ; la structure principale par défaut.
@@ -48,10 +60,15 @@ ImportRequest:
 
 Import:
   type: object
-  required: [import_id, kind, status, created_at, expires_at]
+  required: [import_id, kind, filename, status, created_at, expires_at]
   properties:
     import_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/ExchangeKind' }
+    filename:
+      type: string
+      description: >-
+        Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu
+        et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120).
     status:
       type: string
       enum: [analysing, analysed, applying, applied, abandoned, expired, failed]
@@ -65,10 +82,21 @@ Import:
 
 ImportReport:
   type: object
-  required: [read_count, rejected, differences]
+  required: [read_count, rejected, differences, ignored, completed_tasks, date_mismatches]
   description: >-
-    Compte rendu présenté avant application : lignes lues, lignes rejetées avec
-    leur motif, et écarts avec les données existantes (WF-INTF-0080).
+    Compte rendu présenté avant application, et relu après elle : lignes lues, lignes
+    rejetées avec leur motif, écarts avec les données existantes (WF-INTF-0080), ce que
+    l'import a ignoré, les tâches qu'il termine et les écarts de dates ou de durées qu'il
+    constate (WF-INTF-0040, WF-PLA-0130). Un import est un aller-retour fondé sur
+    l'identifiant que l'export a écrit : un objet du fichier qui le porte met à jour l'objet
+    existant, un objet sans identifiant est créé, un objet existant absent du fichier est
+    retiré — ou conservé et signalé (`kept`) quand sa tâche est démarrée ou terminée
+    (WF-INTF-0040, WF-INTF-0100) ; un reste à engager laisse inchangées, sans les signaler,
+    les lignes absentes du fichier (WF-INTF-0120). Un planning exporté puis réimporté sans
+    modification ne présente aucun écart : `differences` et `date_mismatches` sont vides
+    (WF-INTF-0060). Les quatre tableaux sont toujours rendus, vides quand il n'y a rien à
+    dire, pour que l'écran n'ait pas à distinguer un compte rendu qui n'en parle pas d'un
+    compte rendu où il n'y a rien.
   properties:
     format_version:
       anyOf: [{ type: string }, { type: 'null' }]
@@ -79,21 +107,120 @@ ImportReport:
     differences:
       type: array
       items: { $ref: '#/ImportDifference' }
+    ignored:
+      type: array
+      description: >-
+        Ce que l'import a lu sans l'importer, par nature, nommé quand il se nomme
+        (WF-INTF-0040) : les ressources et les calendriers du fichier, gérés par Waterfall
+        seul, l'avancement, les coûts, les champs personnalisés, et les contraintes de date
+        des tâches importées en mode manuel aux dates du fichier. Vide pour un import Excel,
+        qui ne lit que ses colonnes.
+      items: { $ref: '#/ImportIgnored' }
+    completed_tasks:
+      type: array
+      description: >-
+        Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à
+        engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date
+        de terminaison est le jour de l'application (WF-PLA-0130). Une tâche non démarrée qui
+        n'est pas un jalon passe par l'état démarré : démarrée et terminée le jour de
+        l'application (`started_on` égal à `completed_on`), seul un jalon allant directement de
+        non démarré à terminé (WF-RAE-0030). Vide pour les autres natures d'import.
+      items: { $ref: '#/ImportCompletedTask' }
+    date_mismatches:
+      type: array
+      description: >-
+        Les tâches dont les dates ou la durée du fichier diffèrent de celles que Waterfall
+        recalcule à partir des durées, des liaisons et des calendriers (WF-INTF-0040) : une
+        information du compte rendu, pas un motif de confirmation — ce que Waterfall recalcule
+        fait foi, et l'écart dit que les deux moteurs ne datent pas de même. Vide sur un
+        aller-retour sans modification (WF-INTF-0060), et pour les imports Excel.
+      items: { $ref: '#/ImportDateMismatch' }
     requires_confirmation_reasons:
       type: array
       description: >-
-        Motifs d'une confirmation explicite, dont l'écart entre les dates du fichier
-        et celles recalculées par Waterfall (WF-INTF-0040).
+        Motifs d'une confirmation explicite, propres aux coûts réels : des lignes d'un autre
+        projet, rejetées, ou un sous-projet inconnu, conservé par son code (WF-CRE-0020). Un
+        écart de dates ou de durées n'en est plus un : il est dit par `date_mismatches`.
       items:
         type: string
-        enum: [date_or_duration_mismatch, lines_outside_project, unknown_subproject]
+        enum: [lines_outside_project, unknown_subproject]
+
+ImportIgnoredKind:
+  type: string
+  enum: [resources, calendars, progress, costs, custom_fields, date_constraints]
+  description: >-
+    Ce qu'un import MS Project ne lit jamais (WF-INTF-0040) : les ressources et les
+    calendriers, gérés par Waterfall seul ; l'avancement, les coûts et les champs
+    personnalisés ; et les contraintes de date des tâches, importées en mode manuel aux dates
+    du fichier, chaque tâche signalée.
+
+ImportIgnored:
+  type: object
+  required: [kind, count, labels]
+  description: Une nature d'éléments ignorés par l'import, leur nombre, et leurs noms quand ils en ont.
+  properties:
+    kind: { $ref: '#/ImportIgnoredKind' }
+    count:
+      type: integer
+      minimum: 1
+      description: Combien d'éléments de cette nature le fichier portait.
+    labels:
+      type: array
+      description: >-
+        Leurs noms, dans l'ordre du fichier, quand ils en ont — le nom d'une ressource ou d'un
+        calendrier, le libellé d'une tâche à contrainte de date ; vide pour ce qui ne se nomme
+        pas, l'avancement ou les coûts. Jamais plus de `count`.
+      items: { type: string }
+
+ImportCompletedTask:
+  type: object
+  required: [lineage_id, label, completed_on]
+  description: Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120).
+  properties:
+    lineage_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    completed_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: >-
+        Le jour de l'application de l'import, la date de terminaison que la tâche prend
+        (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas
+        un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas
+        appliqué.
+
+ImportDateMismatch:
+  type: object
+  required: [lineage_id, label, fields]
+  description: >-
+    Une tâche dont le fichier date ou dure autrement que Waterfall ne la recalcule
+    (WF-INTF-0040) : la tâche, et les colonnes qui diffèrent.
+  properties:
+    lineage_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: La lignée de la tâche ; nulle pour une tâche que l'import crée.
+    label: { type: string }
+    fields:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: >-
+        Les colonnes qui diffèrent, parmi la durée, le début et la fin (`duration`, `start`,
+        `finish`), nommées comme les colonnes de la grille de planning.
+      items: { $ref: revisions.yaml#/NodeColumn }
 
 ImportRejection:
   type: object
   required: [row, code]
+  description: >-
+    Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs :
+    une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
+    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du
+    sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+    WF-PLA-0170), une ligne de devis d'une catégorie de nature provision, que seule la
+    déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les
+    paramètres qu'il porte dans un refus.
   properties:
     row: { type: integer, minimum: 1 }
-    code: { type: string }
+    code: { $ref: ../common.yaml#/ErrorCode }
     params:
       type: object
       additionalProperties: true
@@ -104,17 +231,67 @@ ImportDifference:
   properties:
     change:
       type: string
-      enum: [added, removed, updated]
+      enum: [added, removed, updated, kept]
+      description: >-
+        Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou
+        terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que
+        l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100). Un `kept` n'a pas
+        de `fields`.
     target:
       type: string
       enum: [task, estimate_line, link, actual_cost_line]
     lineage_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une
+        ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche
+        successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien.
     label:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût,
+        son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure
+        donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une
+        autre ligne.
+    predecessor_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte
+        rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080,
+        WF-ARC-0020) ; nul pour tout autre objet.
     fields:
       type: array
-      items: { type: string }
+      description: >-
+        Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet
+        conservé, nommés
+        comme les colonnes de leur grille, que le front rend par son catalogue
+        (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une
+        liaison changée de type ou de décalage par `predecessors`, la colonne qui la
+        présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du
+        fichier par `passthrough.<colonne>`.
+      items:
+        anyOf:
+          - $ref: revisions.yaml#/NodeColumn
+          - $ref: '#/ActualCostColumn'
+
+ActualCostColumn:
+  type: string
+  description: >-
+    Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de
+    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son
+    montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un
+    réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un
+    écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du
+    fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`,
+    comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce —
+    est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la
+    ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le
+    motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.
+  anyOf:
+    - type: string
+      enum: [document_date, document_number, amount, subproject]
+    - type: string
+      pattern: '^passthrough\..+$'
 
 ImportApply:
   type: object
@@ -130,7 +307,7 @@ ImportApply:
 
 ExportRequest:
   type: object
-  required: [kind]
+  required: [kind, revision_id]
   description: >-
     Demande un export. Le fichier est engendré à la demande et transmis sans être
     stocké (WF-DAT-0120). Les en-têtes des formats Excel ne dépendent pas de la
@@ -144,7 +321,11 @@ ExportRequest:
         - remaining
         - task_tree_image
     revision_id:
-      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La révision exportée, en cours ou marquée, exigée : c'est sa commande `export_*` qui
+        juge l'export (`RevisionCommand`, WF-INTF-0110, WF-INTF-0130). Aucune révision n'est
+        prise par défaut.
     structure_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     depth:

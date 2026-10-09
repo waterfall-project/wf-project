@@ -1,25 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The list of projects, first step of the witness path of the end-to-end harness (US-0080).
- * Scaffolding without text of its own: EP-02 replaces it and keeps the path.
+ * The former address of the list of projects, which is the home now (US-0210): it leads there,
+ * on the server, so that a bookmark kept from before still finds the list.
  */
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { serverClient } from "@/api/server";
+import { HOME } from "@/navigation/home";
 
-/** Render the projects the API lists. */
-export default async function ProjectsPage() {
-  const { data } = await serverClient().GET("/projects");
-  return (
-    <main>
-      <ul>
-        {data?.items.map((project) => (
-          <li key={project.project_id}>
-            <Link href={`/projects/${project.project_id}`}>{project.label}</Link>
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
+/** Lead to the home, the list of projects. */
+export default function ProjectsPage(): never {
+  redirect(HOME);
 }

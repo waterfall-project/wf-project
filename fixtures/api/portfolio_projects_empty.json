@@ -1,0 +1,22 @@
+{
+  "summary": "La liste des projets filtrée sur les projets terminés au 3 juin 2026 : aucun projet du portefeuille n'est terminé, la liste n'en retient aucun (WF-PTF-0040, WF-IHM-0130).",
+  "value": {
+    "scope": {
+      "states": [
+        "completed"
+      ],
+      "as_of": "2026-06-03",
+      "from": null,
+      "to": null,
+      "org_node_id": null,
+      "org_node_label": null,
+      "project_count": 0
+    },
+    "items": [],
+    "meta": {
+      "limit": 500,
+      "offset": 0,
+      "total": 0
+    }
+  }
+}

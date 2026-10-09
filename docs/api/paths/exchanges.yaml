@@ -9,21 +9,32 @@
     description: >-
       Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
       il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
+      Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse
+      pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des
+      imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration
+      désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413,
+      `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
+      que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le
+      champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`,
+      `startRestore`).
     requestBody:
       required: true
       content:
         multipart/form-data:
           schema:
             type: object
-            required: [file]
+            required: [file, purpose]
             properties:
               file: { type: string, format: binary }
+              purpose: { $ref: ../components/schemas/exchanges.yaml#/FileUploadPurpose }
     responses:
       '201':
         description: Fichier déposé.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
+            examples:
+              estimate: { $ref: ../../../fixtures/api/file_upload.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -35,14 +46,15 @@
     summary: Imports du projet
     description: >-
       Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté
-      (WF-INTF-0080, WF-ARC-0100).
+      (WF-INTF-0080, WF-ARC-0100), du plus récent au plus ancien par leur ouverture
+      (`created_at`), comme les autres journaux.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
     responses:
       '200':
-        description: Imports, analysés, appliqués ou abandonnés.
+        description: Imports, analysés, appliqués ou abandonnés, du plus récent au plus ancien.
         content:
           application/json:
             schema:
@@ -53,6 +65,11 @@
                   type: array
                   items: { $ref: ../components/schemas/exchanges.yaml#/Import }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              imports: { $ref: ../../../fixtures/api/imports.json }
+              page: { $ref: ../../../fixtures/api/imports_page.json }
+              empty: { $ref: ../../../fixtures/api/imports_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: openImport
@@ -60,11 +77,16 @@
     summary: Ouvrir un import et lancer son analyse
     description: >-
       L'analyse lit le fichier, contrôle son format et sa version, compare aux données
-      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100,
-      WF-INTF-0070, WF-INTF-0080). Les imports de planning, de devis et de reste à
-      engager s'appliquent à la révision en cours, créée au besoin (WF-INTF-0090).
-      Selon le flux : planning MS Project (WF-INTF-0040), devis (WF-INTF-0100), reste à
-      engager (WF-INTF-0120), coûts réels (WF-INTF-0140). Confiée au worker (WF-ARC-0090).
+      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070,
+      WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la
+      révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project
+      (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
+      (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
+      rattachement au lotissement ; sur la structure principale, seule à porter des
+      rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste
+      de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040,
+      WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -78,6 +100,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            examples:
+              analysing: { $ref: ../../../fixtures/api/import_analysing.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -86,10 +111,19 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '422':
-        description: Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070).
+        description: >-
+          Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) :
+          `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
+          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Ou un dépôt
+          qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration
+          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par
+          `UPLOAD_PURPOSE_MISMATCH`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
+              purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
 
 /projects/{project_id}/imports/{import_id}:
   get:
@@ -97,9 +131,10 @@
     tags: [exchanges]
     summary: Compte rendu d'un import
     description: >-
-      Lignes lues, lignes rejetées avec leur motif, et écarts avec les données
-      existantes. Le compte rendu est conservé sous forme de codes et rendu dans la
-      langue du lecteur (WF-INTF-0080, WF-ARC-0110).
+      Lignes lues, lignes rejetées avec leur motif, écarts avec les données existantes,
+      objets conservés et signalés, éléments ignorés, tâches terminées et écarts de dates
+      ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-PLA-0130). Le compte rendu est
+      conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -109,6 +144,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            examples:
+              analysed: { $ref: ../../../fixtures/api/import_analysed.json }
+              analysing: { $ref: ../../../fixtures/api/import_analysing.json }
+              planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
+              remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
+              actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonImport
@@ -122,6 +164,7 @@
     responses:
       '204':
         description: Import abandonné.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -150,6 +193,9 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_import_queued.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -170,7 +216,10 @@
       reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans
       modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches
       (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké
-      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180).
+      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). La
+      révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge
+      l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans
+      révision par 422.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -184,6 +233,21 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_export_queued.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Projet invisible, ou révision inconnue ou d'un autre projet (WF-ADM-0110) :
+          `NOT_FOUND`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422':
+        description: >-
+          Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }

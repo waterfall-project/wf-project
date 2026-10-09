@@ -9,8 +9,11 @@
     summary: Liste des projets du portefeuille
     description: >-
       Libellé, code, état, budget de référence ou devis courant et probabilité, projection
-      du chef de projet, indices avec leur zone, et date de la dernière révision marquée
-      (WF-PTF-0040).
+      du chef de projet et, pour un projet en cours, son écart au budget de référence,
+      indices avec leur zone, et date de la dernière révision marquée (WF-PTF-0040). La
+      liste se filtre par état, par période, par zone et par recherche sur le libellé ;
+      le tri est fait par le serveur, et `meta.total` compte les projets retenus
+      (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -20,6 +23,33 @@
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
+      - name: zones
+        in: query
+        description: >-
+          Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une
+          de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
+        explode: false
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, le libellé.
+        schema:
+          type: string
+          enum:
+            - label
+            - code
+            - state
+            - reference_budget
+            - current_estimate
+            - win_probability
+            - project_manager_projection
+            - delta_to_reference
+            - cost_index
+            - schedule_index
+            - last_marked_at
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Projets du périmètre.
@@ -34,8 +64,13 @@
                   type: array
                   items: { $ref: ../components/schemas/portfolio.yaml#/PortfolioProjectRow }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_projects.json }
+              page: { $ref: ../../../fixtures/api/volume/portfolio_projects_page.json }
+              empty: { $ref: ../../../fixtures/api/portfolio_projects_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/value:
   get:
@@ -58,7 +93,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioValue }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_value.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/workload:
   get:
@@ -86,6 +125,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
+            examples:
+              witness: { $ref: ../../../fixtures/api/portfolio_workload.json }
+              org_node: { $ref: ../../../fixtures/api/portfolio_workload_org_node.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/performance:
@@ -109,7 +152,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioPerformance }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_performance.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/cost-structure:
   get:
@@ -130,6 +177,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostStructure }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_cost_structure.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/risks:
@@ -153,7 +203,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_risks.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/cost-curve:
   get:
@@ -161,46 +215,37 @@
     tags: [portfolio]
     summary: Courbe en S du portefeuille
     description: >-
-      Somme, mois par mois, des courbes de coûts cumulés des projets (WF-IND-0100) :
-      budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef
-      de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de
-      gain. Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent
-      la même histoire (WF-PTF-0100).
+      Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre
+      (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis
+      projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa
+      probabilité de gain. Sur demande (`payment_delays`), ce sont les décaissements que
+      chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les
+      détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le
+      portefeuille et les projets racontent la même histoire (WF-PTF-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
       - name: horizon_months
         in: query
         schema: { type: integer, minimum: 1, maximum: 240 }
+      - name: payment_delays
+        in: query
+        description: >-
+          Vrai, les séries sont celles des décaissements des projets, décalées des délais
+          de paiement et portant les provisions des risques identifiés (WF-IND-0100,
+          WF-PTF-0100).
+        schema: { type: boolean, default: false }
     responses:
       '200':
-        description: Séries cumulées par mois.
+        description: Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est vrai.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostCurve }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
-
-/portfolio/cash-out:
-  get:
-    operationId: getPortfolioCashOut
-    tags: [portfolio]
-    summary: Courbe en S du portefeuille, lecture en décaissements
-    description: >-
-      Le mode décaissement de la courbe en S du portefeuille : somme des décaissements
-      passés et à venir des projets, par la règle de WF-IND-0100 appliquée à chacun ;
-      rien n'y est recalculé (WF-PTF-0100).
-    parameters:
-      - $ref: ../components/parameters.yaml#/PortfolioStates
-      - $ref: ../components/parameters.yaml#/AsOf
-      - name: horizon_months
-        in: query
-        schema: { type: integer, minimum: 1, maximum: 240 }
-    responses:
-      '200':
-        description: Décaissements par mois.
-        content:
-          application/json:
-            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
+            examples:
+              witness: { $ref: ../../../fixtures/api/portfolio_cost_curve.json }
+              payment_delays: { $ref: ../../../fixtures/api/portfolio_cost_curve_payment_delays.json }
+              credit: { $ref: ../../../fixtures/api/portfolio_cost_curve_credit.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/pilot-health:
@@ -221,4 +266,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PilotHealth }
+            examples:
+              witness: { $ref: ../../../fixtures/api/pilot_health.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -1,0 +1,100 @@
+{
+  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation d'Alix Moreau disponible (WF-ADM-0120, WF-IHM-0090).",
+  "value": {
+    "items": [
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "last_name": "Martin",
+        "first_name": "Camille",
+        "email": "camille.martin@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000701"
+        ],
+        "access_role_labels": [
+          "Direction de projet"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "last_administrator"
+            ]
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-06-03T14:05:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 3
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "last_name": "Moreau",
+        "first_name": "Alix",
+        "email": "alix.moreau@example.com",
+        "is_active": false,
+        "origin": "local",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+        "org_node_label": "Bureau d'études électricité",
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000703"
+        ],
+        "access_role_labels": [
+          "Chef de projet"
+        ],
+        "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2026-01-12T10:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-03-02T16:20:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 4
+      }
+    ],
+    "meta": {
+      "limit": 2,
+      "offset": 2,
+      "total": 7
+    }
+  }
+}

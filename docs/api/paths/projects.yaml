@@ -4,16 +4,59 @@
     tags: [projects]
     summary: Projets
     description: >-
-      La consultation ne dépend que des habilitations, jamais de la qualité de
-      contributeur (WF-PRJ-0060, WF-PTF-0030).
+      Les projets que l'appelant peut ouvrir, et eux seuls : ceux dont il est
+      contributeur et, s'il porte la permission « consulter tous les projets », tous les
+      autres (WF-PRJ-0060, WF-ADM-0110) — le portefeuille, lui, compte tous les projets du
+      périmètre (WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets
+      dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur
+      voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et
+      rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total`
+      compte les projets retenus (WF-IHM-0130). La recherche (`search`) porte sur le libellé
+      et sur le code du projet ; la période (`from`, `to`), sur l'instant de sa dernière
+      modification (`audit.updated_at`), la colonne de date de la liste, comme celle du journal
+      d'audit : deux instants, le début inclus, la fin exclue, que l'écran tire des jours de son
+      lecteur.
+      Sans `states`, les projets en cours seuls, le défaut du périmètre du portefeuille
+      (WF-PTF-0010) que le paramètre partage : un accueil qui liste tous les projets
+      ouvrables nomme les six états. `meta.states` dit toujours les états retenus, nommés ou
+      par défaut, pour que l'écran montre le filtre que le serveur a appliqué.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
       - $ref: ../components/parameters.yaml#/PortfolioStates
+      - name: is_contributor
+        in: query
+        description: Vrai, les seuls projets dont l'appelant est contributeur.
+        schema: { type: boolean, default: false }
+      - name: from
+        in: query
+        description: >-
+          Début de la période, inclus : restreint aux projets dont la dernière modification
+          (`audit.updated_at`) est à cet instant ou après lui (WF-IHM-0130).
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: to
+        in: query
+        description: >-
+          Fin de la période, exclue : restreint aux projets modifiés avant cet instant
+          (WF-IHM-0130). Antérieure à `from`, elle est refusée par 422 ; égale, la période est
+          vide.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. Le libellé
+          et le code se comparent dans l'ordre des points de code Unicode, un projet sans code
+          après les autres dans l'ordre croissant ; l'état, dans l'ordre de `ProjectState`, celui
+          du cycle de vie (WF-CYC-0010). À égalité, l'ordre de la liste sans tri, puis
+          l'identifiant.
+        schema:
+          type: string
+          enum: [label, code, state, updated_at]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Projets.
+        description: Projets, et les états retenus.
         content:
           application/json:
             schema:
@@ -23,18 +66,33 @@
                 items:
                   type: array
                   items: { $ref: ../components/schemas/projects.yaml#/Project }
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                meta: { $ref: ../components/schemas/projects.yaml#/ProjectListMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/projects.json }
+              empty: { $ref: ../../../fixtures/api/projects_empty.json }
+              default_states: { $ref: ../../../fixtures/api/projects_default_states.json }
+              search_code: { $ref: ../../../fixtures/api/projects_search_code.json }
+              period: { $ref: ../../../fixtures/api/projects_period.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une période dont la fin précède le début, `fields[]` désignant
+          `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de
+          toute période du contrat ; un instant mal formé, `/query/from` ou `/query/to` par
+          `DATE_INVALID`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/projects_period_inverted.json }
   post:
     operationId: createProject
     tags: [projects]
     summary: Créer un projet
     description: >-
       Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque
-      prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur
+      prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet
       (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
     requestBody:
       required: true
@@ -47,9 +105,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
-        description: Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010).
+        description: >-
+          Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) :
+          `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` le projet qui le porte.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -73,6 +135,10 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               witness: { $ref: ../../../fixtures/api/project.json }
+              pricing: { $ref: ../../../fixtures/api/project_pricing.json }
+              without_current_revision: { $ref: ../../../fixtures/api/project_without_current_revision.json }
+              pricing_estimator: { $ref: ../../../fixtures/api/project_pricing_estimator.json }
+              reader: { $ref: ../../../fixtures/api/project_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -80,8 +146,8 @@
     tags: [projects]
     summary: Modifier les paramètres d'un projet
     description: >-
-      Réservé aux contributeurs (WF-PRJ-0060) et refusé sur un projet terminal
-      (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
+      Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet
+      terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
       (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune
       révision marquée (WF-PRJ-0040).
     parameters:
@@ -97,9 +163,17 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields`
+          désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet
+          qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -109,9 +183,10 @@
     tags: [projects]
     summary: Historique daté des états
     description: >-
-      Chaque transition est datée du jour où elle s'est produite et n'est pas
-      modifiable (WF-CYC-0130). C'est d'elle que dépendent les statistiques de
-      portefeuille par période (WF-PTF-0050).
+      Chaque transition est datée du jour où elle s'est produite, porte son auteur et,
+      pour une sortie manuelle, le motif donné à sa confirmation ; rien n'y est
+      modifiable (WF-CYC-0130, WF-CYC-0090). C'est d'elle que dépendent les statistiques
+      de portefeuille par période (WF-PTF-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -122,6 +197,10 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/StateTransition }
+            examples:
+              witness: { $ref: ../../../fixtures/api/state_transitions.json }
+              exited: { $ref: ../../../fixtures/api/state_transitions_exited.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/next-state:
@@ -141,6 +220,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/NextState }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/exit:
@@ -152,7 +232,9 @@
       Les trois seules transitions commandées : Terminé depuis En cours, Perdu depuis
       Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible
       (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non
-      modifiable (WF-CYC-0090), et inscrite au journal d'audit (WF-SEC-0030).
+      modifiable et propose un motif, que la transition conserve (WF-CYC-0090,
+      WF-CYC-0130), réservée aux chefs de projet (WF-PRJ-0060), et inscrite au journal
+      d'audit (WF-SEC-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -166,6 +248,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+            examples:
+              completed: { $ref: ../../../fixtures/api/project_completed.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -181,22 +266,60 @@
     tags: [projects]
     summary: Lotissement
     description: >-
-      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020).
+      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020). Une
+      grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre
+      sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature
+      — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu
+      s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu
+      sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments
+      qu'ils contiennent. Une lecture filtrée rend un compteur nul : `setWorkBreakdown` écrit
+      le lotissement entier, et un renvoi tel quel, qui supprimerait ce qu'elle omet, est
+      refusé par 422 (`WorkBreakdownReading`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le libellé des postes, des lots et des livrables — le seul texte que
+          chacun porte (WF-PRJ-0020) —, comparé comme toute recherche du contrat (README,
+          « Une recherche… » ; WF-IHM-0130). Un élément dont
+          le libellé contient le texte est retenu, non ce qu'il contient.
+        schema: { type: string, minLength: 1, maxLength: 200 }
+      - name: kinds
+        in: query
+        description: >-
+          Restreint aux éléments de ces natures, la colonne de la nature filtrée (WF-IHM-0130) :
+          `kinds=deliverable`, les livrables, sous leurs lots et leurs postes.
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownKind }
+        explode: false
     responses:
       '200':
-        description: Lotissement du projet.
+        description: Lotissement du projet, ou ce que les filtres en retiennent.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownReading }
+            examples:
+              witness: { $ref: ../../../fixtures/api/work_breakdown.json }
+              default: { $ref: ../../../fixtures/api/work_breakdown_default.json }
+              search: { $ref: ../../../fixtures/api/work_breakdown_search.json }
+              work_packages: { $ref: ../../../fixtures/api/work_breakdown_work_packages.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
     operationId: setWorkBreakdown
     tags: [projects]
     summary: Saisir le lotissement
     description: >-
-      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020).
+      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un poste
+      ou un lot que la saisie omet est supprimé : les tâches de la révision en cours qui le
+      portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et
+      le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080). Un lot que la
+      saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0170) : si le lot
+      et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la tâche
+      du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les
+      révisions marquées n'entrent pas dans ce jugement : leurs tâches ne se déplacent plus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -210,9 +333,22 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) :
+          `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
+          Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son
+          nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0170) : `VALIDATION_FAILED`, `fields`
+          sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+          `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et
+          `work_package_node_ids` les tâches du poste et du lot.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/subprojects:
   get:
@@ -220,9 +356,36 @@
     tags: [projects]
     summary: Sous-projets
     description: >-
-      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
+      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une
+      table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060,
+      WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels
+      se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets
+      par projet.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le code et le libellé, comparés comme toute recherche du contrat
+          (README, « Une recherche… » ; WF-IHM-0130).
+        schema: { type: string, minLength: 1, maxLength: 200 }
+      - name: has_actual_costs
+        in: query
+        description: >-
+          Vrai, les seuls sous-projets auxquels des coûts réels sont imputés, qui ne se
+          suppriment plus ; faux, les autres (WF-PRJ-0050, WF-IHM-0130).
+        schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le code. Le code et le libellé se comparent dans l'ordre des
+          points de code Unicode ; la colonne des coûts réels range les sous-projets qui en
+          portent avant les autres dans l'ordre croissant, comme l'état des comptes range les
+          actifs. À égalité, l'ordre de la liste sans tri, puis l'identifiant (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [code, label, has_actual_costs]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Sous-projets, identifiés par leur code ERP (WF-PRJ-0050).
@@ -231,6 +394,11 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/Subproject }
+            examples:
+              witness: { $ref: ../../../fixtures/api/subprojects.json }
+              by_label: { $ref: ../../../fixtures/api/subprojects_by_label.json }
+              with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createSubproject
@@ -251,9 +419,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
-        description: Code déjà employé dans ce projet (WF-PRJ-0050).
+        description: >-
+          Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant
+          `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le
+          porte.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -279,8 +451,19 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le sous-projet qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
   delete:
     operationId: deleteSubproject
@@ -295,6 +478,7 @@
     responses:
       '204':
         description: Sous-projet supprimé.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -309,25 +493,77 @@
     tags: [projects]
     summary: Contributeurs du projet
     description: >-
-      Toute saisie est réservée aux contributeurs ; la consultation ne dépend que des
-      habilitations (WF-PRJ-0060).
+      Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet
+      nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte
+      son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
+      Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes
+      (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se
+      filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis
+      l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2
+      compte cinquante contributeurs par projet. Le compteur est celui de toute la liste,
+      quel que soit le tri ; une lecture filtrée le rend nul, pour qu'elle ne soit pas
+      renvoyée à `setContributors`, qui écrit la liste entière et retirerait ce qu'elle omet
+      (`ContributorList.lock_version`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de
+          la liste, comparé comme toute recherche du contrat (README, « Une recherche… » ;
+          WF-IHM-0130).
+        schema: { type: string, minLength: 1, maxLength: 200 }
+      - name: kinds
+        in: query
+        description: Restreint aux contributeurs de ces qualités (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/projects.yaml#/ContributorKind }
+        explode: false
+      - name: is_active
+        in: query
+        description: >-
+          Vrai, les seuls contributeurs dont le compte est actif ; faux, ceux dont le compte a
+          été désactivé depuis leur inscription, que la liste garde (WF-ADM-0060, WF-IHM-0130).
+        schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, les chefs de projet d'abord, puis le nom de famille et le
+          prénom du compte, comme les comptes (`listUsers`). Le nom affiché se compare dans
+          l'ordre des points de code Unicode ; la qualité, dans l'ordre de `ContributorKind`,
+          les chefs de projet d'abord dans l'ordre croissant ; l'état du compte, les actifs
+          avant les désactivés dans l'ordre croissant. À égalité, l'ordre de la liste sans tri,
+          puis l'identifiant du compte (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [display_name, kind, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Contributeurs.
+        description: Contributeurs, et le compteur de la liste.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+            schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+            examples:
+              witness: { $ref: ../../../fixtures/api/contributors.json }
+              by_name: { $ref: ../../../fixtures/api/contributors_by_name.json }
+              search: { $ref: ../../../fixtures/api/contributors_search.json }
+              inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
     operationId: setContributors
     tags: [projects]
     summary: Inscrire ou retirer des contributeurs
     description: >-
-      La liste vaut habilitation à saisir sur le projet (WF-PRJ-0060).
+      La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
+      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
+      garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
+      inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste
+      lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ;
+      un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant
+      `/lock_version` par `VALUE_REQUIRED`.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -337,15 +573,23 @@
           schema: { $ref: ../components/schemas/projects.yaml#/ContributorsWrite }
     responses:
       '200':
-        description: Liste enregistrée.
+        description: >-
+          Liste enregistrée. Une écriture rend toujours la liste entière avec son compteur
+          suivant, jamais nul : `ContributorList` n'admet un compteur nul que pour une lecture
+          filtrée (WF-IHM-0110).
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+            schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /projects/{project_id}/contributors/suggestions:
   get:
@@ -365,6 +609,7 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/ContributorSuggestion }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/timelines:
@@ -383,6 +628,10 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+            examples:
+              witness: { $ref: ../../../fixtures/api/timelines.json }
+              none: { $ref: ../../../fixtures/api/timelines_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createTimeline
@@ -408,6 +657,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -424,5 +674,6 @@
     responses:
       '204':
         description: Chronologie supprimée ; les inscriptions le sont avec elle.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

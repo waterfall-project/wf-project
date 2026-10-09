@@ -1,0 +1,17 @@
+{
+  "summary": "La grille des taux demandée pour les taux de 2026 entre 100 et 90 : la borne supérieure précède la borne inférieure, et rate_max est refusée, désignée par /query/rate_max, la borne inférieure nommée (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/rate_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "100"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000974"
+  }
+}

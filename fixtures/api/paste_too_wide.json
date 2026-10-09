@@ -1,0 +1,10 @@
+{
+  "summary": "Un bloc de 18 colonnes collé sur le libellé d'une ligne de devis, quand sa facette n'en a que 17 à partir de lui (NodeColumn) : le collage est refusé, et rien n'est écrit (WF-IHM-0050).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "PASTE_TOO_WIDE",
+    "status": 422,
+    "params": {"max_columns":17},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000973"
+  }
+}

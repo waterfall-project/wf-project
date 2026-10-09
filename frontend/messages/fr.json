@@ -1,0 +1,2337 @@
+{
+  "app": {
+    "name": "Waterfall",
+    "title": "{screen} — Waterfall",
+    "projectTitle": "{screen} · {project} — Waterfall"
+  },
+  "languageSelector": {
+    "label": "Langue"
+  },
+  "themeSelector": {
+    "label": "Mode d’affichage"
+  },
+  "sidebar": {
+    "label": "Barre latérale",
+    "description": "Les fonctions de Waterfall, et le projet ouvert.",
+    "collapse": "Replier la barre latérale",
+    "expand": "Déplier la barre latérale"
+  },
+  "navigation": {
+    "label": "Fonctions",
+    "returnToProject": "Retour au projet",
+    "scopes": {
+      "platform": "Plateforme",
+      "project": "Projet",
+      "revision": "Révision en cours"
+    }
+  },
+  "projectSwitcher": {
+    "none": "Aucun projet ouvert",
+    "unnamed": "Projet ouvert",
+    "allProjects": "Tous les projets",
+    "projectPage": "Page du projet",
+    "myProjects": "Mes projets"
+  },
+  "breadcrumbs": {
+    "label": "Fil d’Ariane",
+    "revision": "Révision"
+  },
+  "search": {
+    "label": "Rechercher",
+    "placeholder": "Rechercher une fonction, un projet…",
+    "comingSoon": "La recherche est à venir : elle arrive avec les écrans qui listent les fonctions et les projets."
+  },
+  "accountMenu": {
+    "label": "Compte de {name}",
+    "name": "{first} {last}",
+    "preferences": "Préférences",
+    "account": "Mon compte",
+    "password": "Changer le mot de passe",
+    "avatar": "Changer l’avatar",
+    "signOut": "Se déconnecter"
+  },
+  "signIn": {
+    "title": "Connexion",
+    "local": "Avec votre compte Waterfall.",
+    "directory": "Avec votre compte Waterfall ou celui de l’annuaire de l’entreprise.",
+    "namedDirectory": "Avec votre compte Waterfall ou celui de l’annuaire « {directory} ».",
+    "email": "Adresse électronique",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "or": "ou",
+    "identityProvider": "Se connecter avec le fournisseur d’identité",
+    "namedIdentityProvider": "Se connecter avec {provider}",
+    "forgotten": "Mot de passe oublié ?"
+  },
+  "passwordReset": {
+    "title": "Mot de passe oublié",
+    "request": "Indiquez l’adresse électronique de votre compte : un lien pour choisir un nouveau mot de passe lui sera envoyé.",
+    "email": "Adresse électronique",
+    "send": "Envoyer le lien",
+    "sent": "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
+    "chooseTitle": "Nouveau mot de passe",
+    "choose": "Choisissez le nouveau mot de passe de votre compte.",
+    "newPassword": "Nouveau mot de passe",
+    "save": "Enregistrer le mot de passe",
+    "saved": "Votre mot de passe est enregistré : vous pouvez vous connecter.",
+    "askAgain": "Demander un nouveau lien",
+    "back": "Retour à la connexion",
+    "signIn": "Se connecter"
+  },
+  "account": {
+    "details": "Informations du compte",
+    "name": "Nom",
+    "email": "Adresse électronique",
+    "origin": "Origine du compte",
+    "preferences": "Préférences d’affichage",
+    "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
+    "save": "Enregistrer",
+    "saved": "Vos préférences sont enregistrées.",
+    "password": {
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "submit": "Changer le mot de passe",
+      "changed": "Votre mot de passe est changé.",
+      "external": "Votre mot de passe est celui de l’annuaire ou du fournisseur d’identité dont vient votre compte : il ne se change pas dans Waterfall."
+    },
+    "avatar": {
+      "current": "Votre avatar",
+      "initials": "Aucune image : vos initiales en tiennent lieu.",
+      "file": "Image PNG ou JPEG",
+      "limit": "Une image de {size} au plus.",
+      "wrongType": "Choisissez une image PNG ou JPEG.",
+      "tooLarge": "Cette image dépasse {size} : choisissez-en une plus légère.",
+      "upload": "Déposer l’image",
+      "remove": "Retirer l’avatar",
+      "uploaded": "Votre avatar est enregistré.",
+      "removed": "Votre avatar est retiré."
+    }
+  },
+  "rowNature": {
+    "summary": "Tâche récapitulative",
+    "task": "Tâche",
+    "milestone": "Jalon",
+    "labour": "Ligne de main-d’œuvre",
+    "disbursement": "Ligne de débours",
+    "provision": "Ligne de provision"
+  },
+  "grid": {
+    "names": {
+      "estimate": "Grille de devis",
+      "planning": "Grille de planning",
+      "risks": "Registre des risques",
+      "actualCosts": "Coûts réels",
+      "hourlyRates": "Grille des taux horaires",
+      "orgNodes": "Arbre d’organisation",
+      "resourceRoles": "Rôles de ressources",
+      "calendars": "Calendriers",
+      "costTypes": "Natures de coût",
+      "costCategories": "Catégories de coût",
+      "subprojects": "Sous-projets",
+      "contributors": "Contributeurs",
+      "workBreakdown": "Lotissement",
+      "users": "Comptes utilisateurs",
+      "accessRoles": "Rôles d’habilitation",
+      "auditLog": "Journal d’audit",
+      "portfolioProjects": "Projets du portefeuille",
+      "remaining": "Grille de reste à engager",
+      "projects": "Liste des projets"
+    },
+    "columns": {
+      "rowNumber": "N°",
+      "label": "Libellé",
+      "category": "Catégorie",
+      "role": "Rôle",
+      "quantity": "Qté",
+      "hours": "Charge (h)",
+      "unitDisbursement": "Débours unit.",
+      "paymentDelay": "Délai de paiement (j)",
+      "referenceAmount": "Montant (année de réf.)",
+      "inflatedAmount": "Montant corrigé de l’inflation",
+      "inactiveObject": "Objet désactivé",
+      "startDate": "Début",
+      "finishDate": "Fin",
+      "schedulingMode": "Mode de planification",
+      "duration": "Durée",
+      "progress": "Avancement",
+      "totalFloat": "Marge",
+      "predecessors": "Prédécesseurs",
+      "probability": "Probabilité",
+      "severity": "Gravité",
+      "provisionAmount": "Provision",
+      "state": "État",
+      "lastReview": "Dernier réexamen",
+      "matrixCell": "Case de la matrice",
+      "documentNumber": "N° de pièce",
+      "documentDate": "Date de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet",
+      "trackedScope": "Périmètre suivi",
+      "excludedReason": "Motif de l’exclusion",
+      "passthrough": "Colonnes conservées du fichier",
+      "code": "Code",
+      "hourlyRate": "Taux horaire",
+      "level": "Niveau",
+      "orgNode": "Nœud d’organisation",
+      "costCategory": "Catégorie de coût",
+      "calendar": "Calendrier",
+      "monthlyHours": "Heures par mois",
+      "headcount": "Effectif",
+      "monday": "Lun.",
+      "tuesday": "Mar.",
+      "wednesday": "Mer.",
+      "thursday": "Jeu.",
+      "friday": "Ven.",
+      "saturday": "Sam.",
+      "sunday": "Dim.",
+      "defaultCalendar": "Par défaut",
+      "costTypeKind": "Type",
+      "costType": "Nature",
+      "accountingCode": "Code comptable",
+      "erpCode": "Code ERP",
+      "actualCosts": "Coûts réels",
+      "name": "Nom",
+      "contributorKind": "Qualité",
+      "account": "Compte",
+      "breakdownKind": "Nature",
+      "lastName": "Nom",
+      "firstName": "Prénom",
+      "email": "Adresse électronique",
+      "origin": "Origine",
+      "accessRoles": "Rôles d’habilitation",
+      "attachment": "Rattachement",
+      "roleKind": "Nature",
+      "holders": "Comptes porteurs",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "activation": "Activation",
+      "assignRoles": "Attribution des rôles",
+      "referenceBudget": "Budget de référence",
+      "currentEstimate": "Devis courant",
+      "winProbability": "Probabilité de gain",
+      "projectManagerProjection": "Projection du chef de projet",
+      "deltaToReference": "Écart à la référence",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "lastMarkedAt": "Dernière révision marquée",
+      "finishOverdue": "Fin dépassée",
+      "budgetedAmount": "Montant budgété",
+      "previousQuantity": "Qté à la revue précédente",
+      "previousHours": "Charge (h) à la revue précédente",
+      "previousUnitDisbursement": "Débours unit. à la revue précédente",
+      "previousReestimatedAmount": "Réestimé à la revue précédente",
+      "reestimatedAmount": "Montant réestimé",
+      "description": "Description",
+      "physicalProgress": "Avancement physique",
+      "gantt": "Gantt",
+      "updatedAt": "Modifié le",
+      "occurredAt": "Date",
+      "author": "Auteur",
+      "auditAction": "Action",
+      "objectKind": "Nature de l’objet",
+      "auditObject": "Objet",
+      "objectHistory": "Histoire de l’objet",
+      "project": "Projet",
+      "correlation": "Corrélation"
+    },
+    "computed": "Calculé",
+    "entry": {
+      "none": "Aucun",
+      "codedChoice": "{code} — {label}",
+      "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
+      "required": "Cette cellule ne peut pas rester vide.",
+      "tooLong": "{max} caractères au plus.",
+      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}."
+    },
+    "resize": "Largeur de la colonne {column}",
+    "empty": "Aucune ligne ne répond à la demande.",
+    "search": {
+      "label": "Rechercher un libellé",
+      "labelIn": "Rechercher dans « {grid} »",
+      "placeholder": "Rechercher un libellé"
+    },
+    "undo": {
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "menu": "Menu de la cellule",
+      "shortcut": {
+        "undo": "Ctrl+Z",
+        "redo": "Ctrl+Maj+Z"
+      },
+      "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+      "told": {
+        "undo": "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.",
+        "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
+      }
+    },
+    "columnsMenu": {
+      "open": "Colonnes",
+      "openIn": "Colonnes de « {grid} »",
+      "title": "Colonnes affichées"
+    },
+    "fold": {
+      "open": "Arbre",
+      "title": "Plier et déplier l’arbre",
+      "expandAll": "Tout déplier",
+      "expandAllKeys": "Alt+*",
+      "collapseAll": "Tout plier",
+      "level": "Jusqu’au niveau {level}",
+      "collapse": "Plier",
+      "expand": "Déplier",
+      "collapseRow": "Plier la ligne",
+      "expandRow": "Déplier la ligne",
+      "collapseAbove": "Plier « {label} »"
+    },
+    "paste": {
+      "title": "Coller depuis un tableur",
+      "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
+      "reading": "Lecture du compte rendu…",
+      "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
+      "validRows": "{count, plural, =0 {Aucune ligne n’est valide} one {# ligne est valide} other {# lignes sont valides}} ; rien ne sera écrit tant qu’une ligne est refusée.",
+      "noneRejected": "Aucune ligne n’est refusée.",
+      "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
+      "rejectedRow": "Ligne {row} du bloc — {reason}",
+      "blocked": "Un collage dont une ligne est refusée ne s’applique pas : la grille reste inchangée. Corrigez le bloc dans le tableur, puis collez-le à nouveau.",
+      "apply": "Appliquer le collage",
+      "abandon": "Abandonner",
+      "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
+      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
+      "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
+      "sortedRows": "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
+      "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
+      "beyondRows": "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut."
+    },
+    "range": {
+      "min": "{column}, min.",
+      "max": "{column}, max.",
+      "minShort": "min.",
+      "maxShort": "max.",
+      "apply": "Filtrer",
+      "lift": "Lever les bornes",
+      "inverted": "La borne supérieure ne peut précéder la borne inférieure, {minimum}.",
+      "money": "Deux décimales au plus."
+    },
+    "period": {
+      "from": "Du",
+      "to": "Au",
+      "apply": "Filtrer",
+      "inverted": "La fin de la période ne peut précéder son début, {minimum}.",
+      "invertedUndated": "La fin de la période ne peut précéder son début.",
+      "late": "Le début de la période ne peut suivre sa fin, {maximum}.",
+      "lateUndated": "Le début de la période ne peut suivre sa fin.",
+      "invertedDefault": "La fin de la période ne peut précéder son début par défaut, {minimum}.",
+      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}."
+    }
+  },
+  "estimateGrid": {
+    "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
+    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
+    "usesInactiveObject": "Emploie un objet désactivé"
+  },
+  "planningGrid": {
+    "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "duration": "{value} {unit}",
+    "critical": "Chemin critique",
+    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessorSeparator": ";",
+    "notComputableReason": " — {reason}"
+  },
+  "gantt": {
+    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
+  },
+  "taskTree": {
+    "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",
+    "name": "Arborescence des tâches récapitulatives",
+    "depths": "Niveau affiché",
+    "depth": "Niveau {level}",
+    "noSummary": "Ce planning n’a aucune tâche récapitulative : l’arborescence se réduit au projet."
+  },
+  "timelines": {
+    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet — en lecture.",
+    "choice": "Chronologie affichée",
+    "none": "Ce projet n’a aucune chronologie.",
+    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie."
+  },
+  "remainingGrid": {
+    "finishOverdue": "Tâche démarrée dont la fin est dépassée",
+    "showNotStarted": "Montrer aussi les tâches non démarrées",
+    "startedOnly": "Ne montrer que les tâches démarrées"
+  },
+  "risks": {
+    "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
+    "generalTotal": "Total général",
+    "filter": "Filtrer par état",
+    "everyState": "Tous les états",
+    "provisions": {
+      "title": "Provisions des risques retenus",
+      "identified": "Risques identifiés",
+      "occurred": "Risques survenus",
+      "dismissed": "Risques écartés",
+      "total": "Total général"
+    },
+    "coverage": {
+      "title": "Couverture des risques",
+      "reserve": "Réserve pour risques",
+      "remainingProvisions": "Provisions restantes",
+      "occurredCost": "Coût des risques survenus",
+      "coverageVariance": "Écart de couverture"
+    },
+    "matrix": {
+      "title": "Matrice des risques",
+      "probability": "Probabilité",
+      "severity": "Gravité, en part du budget de référence",
+      "between": "{lower} à moins de {upper}",
+      "from": "{lower} et plus"
+    },
+    "detail": {
+      "hint": "Choisissez un risque dans le registre pour lire sa description, ses actions de mitigation et l’historique de ses réexamens.",
+      "close": "Fermer le détail du risque",
+      "description": "Description",
+      "mitigation": "Actions de mitigation",
+      "notSet": "Non renseignée",
+      "neverReviewed": "Jamais réexaminé",
+      "provisionLine": {
+        "title": "Ligne de provision",
+        "present": "Présente dans la structure principale : la provision pèse sur le devis.",
+        "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent la provision.",
+        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis."
+      },
+      "reviews": {
+        "title": "Historique des réexamens",
+        "none": "Aucun réexamen.",
+        "reviewedOn": "Date",
+        "probability": "Probabilité",
+        "severity": "Gravité",
+        "state": "État",
+        "actor": "Par"
+      }
+    }
+  },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "refused": {
+      "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
+      "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
+      "invalid": "Les coûts réels ne se lisent pas : l’API refuse les filtres demandés."
+    },
+    "generalTotal": "Total général des lignes retenues",
+    "totals": {
+      "title": "Totaux des lignes retenues",
+      "tracked": "Périmètre suivi",
+      "excluded": "Exclu du périmètre suivi",
+      "overall": "Total général"
+    },
+    "lastImport": {
+      "label": "Dernier import",
+      "never": "Aucun import"
+    },
+    "scope": {
+      "tracked": "Suivie",
+      "excluded": "Exclue"
+    },
+    "filters": {
+      "label": "Filtres des coûts réels",
+      "scope": "Périmètre",
+      "everyLine": "Toutes les lignes",
+      "tracked": "Suivies",
+      "excluded": "Exclues",
+      "subproject": "Sous-projet",
+      "everySubproject": "Tous les sous-projets",
+      "subprojectChoice": "{code} — {label}",
+      "unknownSubproject": "Sous-projet inconnu",
+      "period": "Période des pièces",
+      "from": "Pièces du",
+      "to": "Pièces jusqu’au",
+      "apply": "Filtrer"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages des coûts réels",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Lignes précédentes",
+        "next": "Lignes suivantes"
+      },
+      "imports": {
+        "label": "Pages du journal des imports",
+        "beyond": "La page demandée est au-delà de la fin du journal.",
+        "previous": "Imports plus récents",
+        "next": "Imports plus anciens"
+      },
+      "exchanges": {
+        "label": "Pages des imports du projet",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Imports précédents",
+        "next": "Imports suivants"
+      }
+    },
+    "imports": {
+      "title": "Journal des imports",
+      "none": "Aucun coût réel n’a encore été importé.",
+      "importedAt": "Date",
+      "actor": "Par",
+      "period": "Période extraite",
+      "created": "Créées",
+      "updated": "Mises à jour",
+      "ignored": "Ignorées",
+      "periodRange": "du {from} au {to}",
+      "periodFrom": "à partir du {from}",
+      "periodTo": "jusqu’au {to}",
+      "periodUnknown": "Non renseignée"
+    },
+    "line": {
+      "title": "Ligne {document}",
+      "close": "Fermer la ligne",
+      "reason": "Motif de l’exclusion",
+      "excludedWithoutReason": "Exclue du périmètre suivi, sans motif.",
+      "excludedBecause": "Exclue du périmètre suivi : {reason}",
+      "exclude": "Exclure du périmètre suivi",
+      "reinstate": "Réintégrer dans le périmètre suivi"
+    }
+  },
+  "portfolio": {
+    "perimeter": {
+      "label": "Périmètre du portefeuille",
+      "states": "États retenus",
+      "period": "Période et date de calcul",
+      "from": "Du",
+      "to": "Au",
+      "asOf": "Calculé au",
+      "apply": "Appliquer",
+      "orgNode": "Nœud d’organisation et ses descendants",
+      "everyNode": "Tous les nœuds",
+      "byDefault": "Par défaut",
+      "horizon": "Horizon",
+      "months": "{months} mois",
+      "threshold": "Seuil de sous-charge"
+    },
+    "scope": {
+      "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
+      "period": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période du {from} au {to} · calculé au {asOf}",
+      "since": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période à partir du {from} · calculé au {asOf}",
+      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}",
+      "node": "Main-d’œuvre de {node} et de ses descendants"
+    },
+    "projects": {
+      "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
+      "reason": " — {reason}",
+      "zones": "Filtre par zone des indices",
+      "everyZone": "Toutes les zones"
+    },
+    "pages": {
+      "label": "Pages des projets",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
+      "previous": "Projets précédents",
+      "next": "Projets suivants"
+    },
+    "value": {
+      "title": "Valeur du portefeuille",
+      "orderBook": "Carnet",
+      "pipelineGross": "Pipeline brut",
+      "pipelineWeighted": "Pipeline pondéré",
+      "delivered": "Réalisé",
+      "conversionRate": "Taux de transformation",
+      "period": "Réalisé et taux de transformation sur la période du {from} au {to}",
+      "since": "Réalisé et taux de transformation sur la période à partir du {from}",
+      "until": "Réalisé et taux de transformation sur la période jusqu’au {to}",
+      "noPeriod": "Réalisé et taux de transformation sans période"
+    },
+    "performance": {
+      "indices": "Indices agrégés",
+      "projections": "Projections à terminaison",
+      "atBudget": "Au budget",
+      "projectManager": "Du chef de projet",
+      "atObservedRate": "Au rythme constaté",
+      "distribution": "Répartition des projets par zone",
+      "index": "Indice",
+      "zone": "Zone",
+      "projects": "Projets",
+      "quarterly": "Évolution trimestrielle des indices",
+      "exportTitle": "Évolution trimestrielle des indices du portefeuille",
+      "quarterlyDescription": "Courbes de l’indice de coût et de l’indice de délai agrégés du portefeuille, un point par trimestre, calculés aux dates passées.",
+      "quarterColumn": "Trimestre",
+      "quarter": "T{number} {year}",
+      "cost_index": "Indice de coût",
+      "schedule_index": "Indice de délai",
+      "file": "evolution-des-indices"
+    },
+    "costStructure": {
+      "noActualCost": "Le coût réel ne se ventile pas par nature : l’ERP ne le fournit pas.",
+      "budget": "Budget de référence par nature",
+      "remaining": "Reste à engager par nature",
+      "labor": "Main-d’œuvre par nœud d’organisation",
+      "nature": "Nature de coût",
+      "orgNode": "Nœud d’organisation",
+      "amount": "Montant",
+      "share": "Part",
+      "unnamed": "Sans nom"
+    },
+    "risks": {
+      "identifiedTotal": "Provisions des risques identifiés",
+      "occurred": "Provisions survenues sur la période",
+      "dismissed": "Provisions écartées sur la période",
+      "heaviest": "Risques les plus lourds",
+      "risk": "Risque",
+      "project": "Projet",
+      "provision": "Provision",
+      "coverage": "Couverture des risques",
+      "reserve": "Réserve de référence",
+      "remainingProvisions": "Provisions restantes",
+      "occurredCost": "Coût des risques survenus",
+      "coverageVariance": "Écart de couverture"
+    },
+    "workload": {
+      "title": "Charge par rôle et par mois",
+      "none": "Aucune charge sur le périmètre et l’horizon choisis.",
+      "role": "Rôle",
+      "capacity": "Capacité mensuelle",
+      "hours": "{hours} h"
+    },
+    "pilotHealth": {
+      "none": "Aucun signal : le pilotage des projets du périmètre est tenu.",
+      "signals": "Signaux de santé du pilotage",
+      "project": "Projet",
+      "signal": "Signal",
+      "zone": "Zone",
+      "detail": {
+        "reviewOverdue": "{weeks, plural, one {# semaine} other {# semaines}} depuis la dernière révision marquée",
+        "milestoneOverdue": "{milestone}, date de référence du {date}"
+      }
+    },
+    "costCurve": {
+      "chartTitle": "Coûts cumulés du portefeuille",
+      "chartTitleDelayed": "Décaissements cumulés du portefeuille",
+      "description": "Courbes cumulées, mois par mois, du budget de référence des projets du périmètre, de leur coût réel jusqu’à la date de calcul, puis de la projection de leurs chefs de projet : chaque point est la somme des points des projets, telle que le serveur la calcule.",
+      "descriptionDelayed": "Les mêmes courbes, chaque projet décalé de ses délais de paiement et portant les provisions de ses risques identifiés : les décaissements cumulés du portefeuille, passés et à venir.",
+      "delay": "Lire en décaissements",
+      "undelay": "Revenir aux coûts cumulés",
+      "series": "Courbe",
+      "date": "Date",
+      "amount": "Montant",
+      "file": "couts-cumules",
+      "fileDelayed": "decaissements-cumules"
+    },
+    "cashOut": {
+      "chartTitle": "Décaissements par mois",
+      "exportTitle": "Décaissements du portefeuille par mois",
+      "description": "Lecture en décaissements de la courbe en S du portefeuille : les décaissements passés, sommes des coûts réels des projets par mois de date de pièce décalée, et les décaissements à venir, sommes de leurs projections décalées, mois par mois.",
+      "month": "Mois",
+      "past": "Décaissé",
+      "forecast": "À décaisser",
+      "file": "decaissements-par-mois"
+    },
+    "periodRefused": "La vue n’est pas lue : le serveur refuse la période demandée."
+  },
+  "computedValue": {
+    "title": "Valeur calculée",
+    "refused": "{column} ne se saisit pas : Waterfall calcule cette valeur.",
+    "dependsOn": "Elle dépend de :",
+    "pending": "Lecture de ce dont elle dépend…"
+  },
+  "estimateSummary": {
+    "title": "Indicateurs du devis",
+    "total": "Total du devis",
+    "provisions": "Provisions identifiées",
+    "delta": "Écart avec la révision marquée précédente",
+    "deltaToReference": "Écart avec la référence",
+    "byCostType": "Par nature de coût",
+    "bySubproject": "Par sous-projet",
+    "byOrderItem": "Par poste",
+    "shareOf": " ({share})",
+    "notComputable": "Non calculable — {reason}",
+    "unavailable": "Les indicateurs du devis sont indisponibles.",
+    "unnamed": "Sans libellé",
+    "missingRates": {
+      "title": "Taux horaires manquants",
+      "explanation": "Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence :",
+      "rate": "{category} — {year}",
+      "enter": "Renseigner les taux horaires",
+      "see": "Voir les taux horaires"
+    }
+  },
+  "remainingSummary": {
+    "title": "Indicateurs du reste à engager",
+    "unavailable": "Les indicateurs du reste à engager sont indisponibles.",
+    "unnamed": "Sans nom",
+    "total": "Reste à engager",
+    "deltaToReference": "Marge sur le budget de référence",
+    "deltaToPrevious": "Écart à la revue précédente",
+    "byCostType": "Par nature de coût",
+    "bySubproject": "Reste à engager par sous-projet, et marge sur le budget",
+    "amount": "{name} : {amount}",
+    "amountShare": "{name} : {amount} ({share})",
+    "balance": "{name} : {remaining}, marge {variance}"
+  },
+  "kanban": {
+    "summary": "Les tâches de la révision en cours, non démarrées, démarrées et terminées. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se saisit.",
+    "inProgressOnly": "Le Kanban présente les tâches de la révision en cours d’élaboration : une révision marquée n’en a aucune à démarrer.",
+    "notStarted": "Non démarrées",
+    "started": "Démarrées",
+    "completed": "Terminées",
+    "empty": "Aucune tâche.",
+    "milestone": "Jalon",
+    "milestoneDue": "Ses prédécesseurs sont terminés : jalon à terminer.",
+    "finish": "Fin le {date}",
+    "finishOverdue": "Fin dépassée",
+    "completedOn": "Terminée le {date}"
+  },
+  "contextBanner": {
+    "label": "Contexte de lecture",
+    "project": "Projet",
+    "revision": "Révision",
+    "currentRevision": "Révision en cours",
+    "reference": "Révision de référence",
+    "readOnly": "Lecture seule : aucune saisie n’est proposée sur cette révision.",
+    "filters": "Filtres actifs",
+    "subproject": "Sous-projet : {subproject}",
+    "subprojectName": "{code} — {label}",
+    "asOf": "Date de calcul : {date}",
+    "computedOn": "Révision du calcul",
+    "unnamedRevision": "sans nom",
+    "removeFilter": "Lever le filtre « {filter} »",
+    "restricts": {
+      "grid": "{filter}, sur la grille seulement",
+      "exceptMilestones": "{filter}, hors suivi des jalons"
+    }
+  },
+  "indicator": {
+    "names": {
+      "financialProgress": "Avancement financier",
+      "budgetConsumption": "Consommation du budget",
+      "physicalProgress": "Avancement physique",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "projectionAtObservedRate": "Projection au rythme constaté"
+    },
+    "notComputable": "Non calculable",
+    "computedAt": "Calculé le <time></time>"
+  },
+  "chart": {
+    "values": "Valeurs du graphique",
+    "exportPng": "Exporter en PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Révision : {revision} · Calculé le {date}",
+    "exportSubtitleWith": "Révision : {revision} · {detail} · Calculé le {date}",
+    "fileName": "{file}-{code}.png",
+    "exportPortfolioSubtitleWith": "{scope} · {node}",
+    "portfolioFileName": "{file}-portefeuille-{asOf}.png"
+  },
+  "projectIndicators": {
+    "notInProgress": {
+      "title": "Indicateurs indisponibles",
+      "explanation": "Les indicateurs du projet se calculent à partir de l’état En cours ; avant, seuls les indicateurs du devis existent."
+    },
+    "unknownScope": {
+      "title": "Indicateurs indisponibles",
+      "explanation": "Le sous-projet demandé n’existe pas dans ce projet : aucun indicateur ne se calcule pour lui. Levez le filtre du sous-projet, ou choisissez-en un autre."
+    },
+    "elsewhere": {
+      "title": "Calculé sur une autre révision",
+      "history": "L’évolution des indices est calculée sur la révision « {revision} », et non sur celle des indicateurs."
+    },
+    "financial": {
+      "title": "Avancement financier"
+    },
+    "projections": {
+      "title": "Projection à terminaison",
+      "hypothesis": "Hypothèse",
+      "amount": "Montant",
+      "variance": "Écart au budget",
+      "atBudget": "Au budget",
+      "projectManager": "Du chef de projet",
+      "varianceAtObservedRate": "Écart au budget de la projection au rythme constaté : {variance}"
+    },
+    "physical": {
+      "title": "Avancement physique"
+    },
+    "cost": {
+      "title": "Indicateur de coûts (CPI)"
+    },
+    "schedule": {
+      "title": "Indicateur de délais (SPI)"
+    },
+    "figures": {
+      "referenceBudget": "Budget de référence",
+      "plannedValue": "Valeur planifiée",
+      "earnedValue": "Valeur acquise",
+      "actualCost": "Coût réel",
+      "remaining": "Reste à engager",
+      "costVariance": "Écart de coût",
+      "scheduleVariance": "Écart de délai"
+    },
+    "notComputable": "Non calculable — {reason}",
+    "unnamedSubproject": "Sous-projet sans libellé",
+    "history": {
+      "costTitle": "Évolution de l’indice de coût",
+      "scheduleTitle": "Évolution de l’indice de délai",
+      "costDescription": "Courbes de l’indice de coût du projet et de chacune de ses mailles, un point par révision marquée et le dernier au jour courant, avec le seuil de vigilance à {watch} et le seuil d’alerte à {alert}.",
+      "scheduleDescription": "Courbes de l’indice de délai du projet et de chacune de ses mailles, un point par révision marquée et le dernier au jour courant, avec le seuil de vigilance à {watch} et le seuil d’alerte à {alert}.",
+      "watch": "Seuil de vigilance",
+      "alert": "Seuil d’alerte",
+      "thresholds": "Seuils",
+      "scope": "Maille",
+      "revision": "Révision",
+      "date": "Date",
+      "value": "Indice",
+      "zone": "Zone",
+      "currentRevision": "Révision en cours"
+    },
+    "milestones": {
+      "title": "Suivi des jalons",
+      "chartTitle": "Diagramme temps/temps",
+      "description": "Pour chaque jalon inscrit au suivi, la date que prévoyait chaque révision marquée, en fonction de sa date de marquage, et le dernier point au jour courant, avec la diagonale des dates égales.",
+      "milestone": "Jalon",
+      "markedAt": "Révision du",
+      "forecast": "Date prévue",
+      "completedOn": "Terminé le",
+      "notCompleted": "Non terminé",
+      "diagonal": "Dates égales",
+      "none": "Aucun jalon n’est inscrit au suivi.",
+      "file": "suivi-des-jalons"
+    },
+    "costCurve": {
+      "title": "Coûts cumulés",
+      "chartTitle": "Courbe en S",
+      "chartTitleDelayed": "Décaissements",
+      "description": "Courbes cumulées du budget de référence selon les dates de la référence, du coût réel selon les dates de pièce jusqu’à la date de calcul, puis de la projection du chef de projet, avec les marches datées du budget de référence.",
+      "descriptionDelayed": "Les mêmes courbes décalées du délai de paiement de chaque ligne, les provisions des risques identifiés ajoutées à la date de leur tâche : les décaissements, passés et à venir.",
+      "delay": "Décaler des délais de paiement",
+      "undelay": "Retirer le décalage des délais de paiement",
+      "file": "courbe-en-s",
+      "fileDelayed": "decaissements"
+    },
+    "earnedValue": {
+      "title": "Courbes de valeur acquise",
+      "chartTitle": "Valeur planifiée, valeur acquise et coût réel",
+      "description": "Courbes cumulées de la valeur planifiée, prolongée jusqu’à la fin de la référence, de la valeur acquise selon les dates de terminaison et du coût réel selon les dates de pièce, jusqu’à la date de calcul.",
+      "file": "valeur-acquise"
+    },
+    "curves": {
+      "series": "Courbe",
+      "date": "Date",
+      "amount": "Montant",
+      "beforeStep": "{series}, avant la marche",
+      "afterStep": "{series}, après la marche",
+      "steps": "Marches du budget de référence",
+      "cause": "Motif",
+      "stepAmount": "Montant de la marche",
+      "cashOut": "Décaissements par mois",
+      "month": "Mois",
+      "past": "Décaissé",
+      "forecast": "À décaisser",
+      "empty": "Rien à tracer : aucune ligne ni aucun coût réel ne relève de cette maille.",
+      "seriesEmpty": "{series} : rien à tracer pour cette maille."
+    },
+    "wholeProject": {
+      "milestones": "Ce suivi porte sur le projet entier : il suit des jalons, qu’un sous-projet n’a pas."
+    },
+    "provenance": {
+      "subproject": "Sous-projet : {subproject}",
+      "wholeProject": "Projet entier, non restreint au sous-projet filtré"
+    }
+  },
+  "workload": {
+    "title": "Plan de charge du projet",
+    "chartTitle": "Charge par rôle et par mois",
+    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
+    "basis": "Base",
+    "markedRevision": "Révision marquée",
+    "unnamedRevision": "Révision marquée sans nom",
+    "orgNode": "Nœud d’organisation et ses descendants",
+    "allOrgNodes": "Tous les nœuds",
+    "unknownOrgNode": "nœud inconnu",
+    "show": "Afficher",
+    "reading": "Base : {basis} — révision « {revision} »",
+    "role": "Rôle",
+    "month": "Mois",
+    "hours": "Charge (h)",
+    "capacity": "Capacité (h par mois)",
+    "zone": "Zone",
+    "noLoad": "Aucune charge",
+    "none": "Aucun rôle n’a de charge sur cette base.",
+    "noneInNode": "Aucun rôle du nœud « {node} » ni de ses descendants n’a de charge sur cette base.",
+    "refused": {
+      "noReference": "Le plan de charge n’est pas disponible sur cette base : le projet n’a pas de révision de référence, seule la révision en cours en est une.",
+      "markedRevision": "Le plan de charge n’est pas disponible sur cette base : la révision marquée demandée manque, ou n’est pas marquée.",
+      "orgNode": "Le plan de charge n’est pas disponible : le nœud d’organisation demandé n’existe pas.",
+      "invalid": "Le plan de charge n’est pas disponible : l’API refuse ce qui est demandé."
+    },
+    "exportDetail": "Base : {basis} · Nœud d’organisation et ses descendants : {node}",
+    "file": "plan-de-charge"
+  },
+  "commands": {
+    "label": "Commandes",
+    "unmet": "{count, plural, one {Condition non remplie} other {Conditions non remplies}} : {conditions}."
+  },
+  "outcome": {
+    "unreachable": "Le service est injoignable ; réessayez dans un instant.",
+    "conflictingObject": "Objet en conflit : {name}.",
+    "reload": "Recharger",
+    "signIn": "Se connecter",
+    "dismiss": "Fermer l’avis"
+  },
+  "mockup": {
+    "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
+  },
+  "tasks": {
+    "label": "Tâches de fond",
+    "named": "{kind} « {subject} »",
+    "progress": "{progress} %",
+    "succeeded": "Tâche terminée : {task}.",
+    "failed": "Tâche échouée : {task}.",
+    "relaunch": "Relancer",
+    "reload": "Recharger l’écran",
+    "relaunchLabel": "Relancer : {task}",
+    "relaunchFromScreen": "Pour relancer cette tâche, repartez de l’écran de son objet.",
+    "interrupted": "Suivi interrompu",
+    "interruptedLine": "Suivi interrompu : {task}.",
+    "dismiss": "Retirer du suivi : {task}",
+    "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
+    "none": "Aucune tâche de fond suivie.",
+    "download": "Télécharger le résultat",
+    "downloadLabel": "Télécharger le résultat : {task}",
+    "resultUnavailable": "Le résultat de cette tâche n’est plus disponible.",
+    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé."
+  },
+  "markRevision": {
+    "versionName": "Nom de version",
+    "versionNameRequired": "Le nom de version est obligatoire.",
+    "description": "Description (facultative)",
+    "submit": "Marquer",
+    "cancel": "Annuler"
+  },
+  "projectList": {
+    "count": "{count, plural, one {# projet} other {# projets}}",
+    "filter": {
+      "label": "Filtre de la liste",
+      "mine": "Projets dont vous êtes contributeur",
+      "lift": "Voir tous les projets",
+      "apply": "N’afficher que mes projets",
+      "states": "Filtre par état",
+      "everyState": "Tous les états",
+      "period": "Période de modification"
+    },
+    "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée."
+  },
+  "projectFacts": {
+    "label": "Le projet",
+    "settings": "Paramètres du projet",
+    "code": "Code",
+    "state": "État",
+    "orderReceivedOn": "Commande reçue le",
+    "description": "Description",
+    "missing": "Non renseigné",
+    "inflationRate": "Taux d’inflation annuel",
+    "winProbability": "Probabilité de gain",
+    "revisions": "Révisions"
+  },
+  "projectLists": {
+    "subprojects": {
+      "title": "Sous-projets",
+      "none": "Ce projet n’a aucun sous-projet.",
+      "charged": "Imputés",
+      "notCharged": "Aucun",
+      "count": "{count, plural, =0 {Aucun sous-projet} one {# sous-projet} other {# sous-projets}}",
+      "actualCostsFilter": "Coûts réels",
+      "everyActualCosts": "Tous les sous-projets",
+      "withActualCosts": "Avec coûts réels imputés",
+      "withoutActualCosts": "Sans coût réel imputé"
+    },
+    "contributors": {
+      "title": "Contributeurs",
+      "none": "Ce projet n’a aucun contributeur.",
+      "count": "{count, plural, =0 {Aucun contributeur} one {# contributeur} other {# contributeurs}}",
+      "kindFilter": "Filtrer par qualité",
+      "everyKind": "Toutes les qualités",
+      "accountFilter": "État du compte",
+      "everyAccount": "Tous les comptes",
+      "activeAccounts": "Comptes actifs",
+      "inactiveAccounts": "Comptes désactivés"
+    },
+    "workBreakdown": {
+      "title": "Lotissement",
+      "none": "Ce projet n’a aucun poste.",
+      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}",
+      "kindFilter": "Filtrer par nature",
+      "everyKind": "Toutes les natures",
+      "partial": "Les postes et les lots ne montrent que ce que la recherche et le filtre retiennent.",
+      "partialSearch": "Les postes et les lots ne montrent que ce que la recherche retient.",
+      "partialKinds": "Les postes et les lots ne montrent que ce que le filtre par nature retient."
+    },
+    "transitions": {
+      "title": "Historique des états",
+      "none": "Aucune transition n’est inscrite.",
+      "occurredAt": "Date",
+      "change": "Transition",
+      "actor": "Par",
+      "creation": "Création",
+      "to": "vers",
+      "reason": "Motif"
+    }
+  },
+  "revisionScreen": {
+    "history": {
+      "title": "Historique des révisions",
+      "none": "Ce projet n’a aucune révision.",
+      "version": "Version",
+      "status": "État",
+      "markedAt": "Marquée le",
+      "description": "Description",
+      "consult": "Consultation",
+      "reference": "Référence",
+      "notMarked": "Non marquée",
+      "open": "Ouvrir",
+      "openRevision": "Ouvrir la révision « {name} »"
+    },
+    "comparison": {
+      "title": "Comparaison de deux révisions",
+      "needsTwo": "La comparaison demande deux révisions marquées.",
+      "from": "De la révision",
+      "to": "À la révision",
+      "compare": "Comparer",
+      "added": "Ajouts",
+      "removed": "Retraits",
+      "changed": "Modifications",
+      "noneAdded": "Rien n’a été ajouté.",
+      "noneRemoved": "Rien n’a été retiré.",
+      "noneChanged": "Rien n’a été modifié.",
+      "label": "Libellé",
+      "kind": "Nature",
+      "changes": "Ce qui change",
+      "deltas": "Écarts de montants",
+      "noDeltas": "Aucun écart de montant.",
+      "dimension": "Axe",
+      "key": "Poste",
+      "delta": "Écart",
+      "unnamed": "Sans nom"
+    },
+    "structures": {
+      "title": "Structures de coûts",
+      "none": "Cette révision n’a aucune structure de coûts.",
+      "kind": "Nature",
+      "label": "Libellé",
+      "state": "État",
+      "merged": "Fusionnée"
+    },
+    "rateUpdate": {
+      "title": "Mise à jour des taux proposée",
+      "year": "Taux de l’année {year}",
+      "notImposed": "Une proposition, jamais imposée : les taux de la révision ne changent pas tant qu’elle n’est pas appliquée.",
+      "none": "Le référentiel n’a pas changé : aucune mise à jour des taux n’est proposée.",
+      "category": "Catégorie",
+      "previous": "Taux précédent",
+      "proposed": "Taux proposé",
+      "source": "Origine"
+    }
+  },
+  "exitProject": {
+    "statement": "Cette sortie est définitive : le projet passera à l’état « {state} », et lui comme toutes ses données — plannings, devis, restes à engager, coûts réels — passeront en lecture seule. Aucune transition ne part d’un état terminal.",
+    "reason": "Motif (facultatif)",
+    "submit": "Confirmer la sortie",
+    "cancel": "Annuler",
+    "done": "Le projet est passé à l’état « {state} »."
+  },
+  "notFound": {
+    "title": "Introuvable",
+    "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
+    "home": "Retour à l’accueil"
+  },
+  "failure": {
+    "unreachable": {
+      "title": "Service injoignable",
+      "explanation": "Le service ne répond pas : l’écran n’a pas pu lire ses données. Réessayez dans un instant."
+    },
+    "signedOut": {
+      "title": "Session requise",
+      "explanation": "L’écran demande une session ouverte : connectez-vous, vous y reviendrez ensuite."
+    },
+    "unexpected": {
+      "title": "Erreur inattendue",
+      "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
+    },
+    "reference": "Référence : {reference}",
+    "retry": "Réessayer"
+  },
+  "loading": {
+    "label": "Chargement de l’écran"
+  },
+  "emptyStates": {
+    "noProjects": "Aucun projet.",
+    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
+    "noRevisions": "Ce projet n’a encore aucune révision.",
+    "revisions": "Aller aux révisions du projet"
+  },
+  "referenceReadiness": {
+    "title": "Référentiel incomplet",
+    "explanation": "Aucun projet ne peut être créé tant que le référentiel commun n’a pas :"
+  },
+  "reference": {
+    "currency": "Montants exprimés en {currency}, devise unique de l’installation.",
+    "state": {
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "reactivate": "Réactiver « {name} »",
+      "reactivateShort": "Réactiver",
+      "unavailable": "La réactivation de « {name} » est indisponible. {unmet}",
+      "deactivate": "Désactiver « {name} »",
+      "deactivateShort": "Désactiver",
+      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}"
+    },
+    "inactive": {
+      "show": "Afficher aussi les désactivés",
+      "hide": "Masquer les désactivés"
+    },
+    "stateFilter": {
+      "of": "État des objets de « {list} »",
+      "every": "Tous les états",
+      "active": "Actifs",
+      "inactive": "Désactivés"
+    },
+    "pages": {
+      "label": "Pages de « {list} »",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "beyond": "La page demandée est au-delà de la fin de la liste."
+    },
+    "codedChoice": "{code} · {label}",
+    "modify": "Modifier",
+    "modifyNamed": "Modifier « {name} »",
+    "form": {
+      "choose": "Choisir…",
+      "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
+      "takenBy": "Déjà porté par « {name} ».",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} other {Déjà porté par un autre objet.}}",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "sending": "Envoi…",
+      "cancel": "Annuler",
+      "created": "« {name} » {kind, select, cost_type {créée} cost_category {créée} other {créé}}.",
+      "saved": "« {name} » {kind, select, cost_type {enregistrée} cost_category {enregistrée} other {enregistré}}.",
+      "deactivated": "« {name} » {kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}}.",
+      "reactivated": "« {name} » {kind, select, cost_type {réactivée} cost_category {réactivée} other {réactivé}}.",
+      "designated": "« {name} » désigné calendrier par défaut."
+    },
+    "costForm": {
+      "createCostType": "Nouvelle nature de coût",
+      "createCostCategory": "Nouvelle catégorie de coût",
+      "costTypeHint": "Le code, unique, le libellé et le type sont requis.",
+      "costTypeFixedHint": "Le code, unique, et le libellé sont requis ; le type de cette nature ne se modifie pas.",
+      "costCategoryHint": "Le code et le code comptable, uniques l’un et l’autre, le libellé et la nature sont requis.",
+      "kindFixed": "Le type ne se modifie pas.",
+      "kindFixedFor": "Le type ne se modifie pas. {unmet}",
+      "sameKind": "Seules les natures du même type sont proposées.",
+      "sameKindFor": "Seules les natures du même type sont proposées. {unmet}",
+      "ownOnly": "Le type de la nature désactivée n’est pas lisible : seule elle est proposée.",
+      "ownOnlyFor": "Le type de la nature désactivée n’est pas lisible : seule elle est proposée. {unmet}"
+    },
+    "orgNodeForm": {
+      "create": "Nouveau nœud d’organisation",
+      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud actif ne prend place que sous un nœud actif.",
+      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants ; actif, il ne prend place que sous un nœud actif.",
+      "parent": "Parent",
+      "root": "Aucun — racine"
+    },
+    "roleForm": {
+      "create": "Nouveau rôle de ressource",
+      "createHint": "Le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "modifyHint": "Le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+    },
+    "calendarForm": {
+      "create": "Nouveau calendrier",
+      "hint": "Le libellé et les heures travaillées de chacun des sept jours, du lundi au dimanche, sont requis ; rien d’autre n’est demandé."
+    },
+    "rates": {
+      "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
+      "addYear": {
+        "label": "Ajouter une année à la grille",
+        "year": "Année",
+        "submit": "Ajouter la colonne",
+        "remove": "Retirer la colonne {year}",
+        "added": "Colonne {year} ajoutée : elle reste vide jusqu’à son premier taux, que la saisie d’une cellule enregistre.",
+        "present": "L’année {year} a déjà sa colonne dans la grille.",
+        "outOfRange": "Une année va de {min} à {max}."
+      },
+      "bounds": {
+        "year": "Année du taux",
+        "rate": "Taux horaire"
+      }
+    },
+    "costTypes": {
+      "title": "Natures de coût",
+      "none": "Aucune nature de coût.",
+      "kindFilter": "Types de nature",
+      "everyKind": "Tous les types",
+      "count": "{count, plural, one {# nature} other {# natures}}",
+      "create": "Nouvelle nature"
+    },
+    "costCategories": {
+      "title": "Catégories de coût",
+      "none": "Aucune catégorie de coût.",
+      "costTypeFilter": "Nature",
+      "everyCostType": "Toutes les natures",
+      "count": "{count, plural, one {# catégorie} other {# catégories}}",
+      "create": "Nouvelle catégorie"
+    },
+    "orgNodes": {
+      "title": "Arbre d’organisation",
+      "choice": "{code} · {label}",
+      "none": "Aucun nœud d’organisation.",
+      "count": "{count, plural, one {# nœud} other {# nœuds}}",
+      "codeFilter": "Code du nœud",
+      "levelFilter": "Niveau",
+      "everyLevel": "Tous les niveaux",
+      "create": "Nouveau nœud"
+    },
+    "resourceRoles": {
+      "title": "Rôles de ressources",
+      "none": "Aucun rôle de ressource.",
+      "orgNodeFilter": "Nœud d’organisation",
+      "everyNode": "Tous les nœuds",
+      "costCategoryFilter": "Catégorie de coût",
+      "everyCostCategory": "Toutes les catégories",
+      "calendarFilter": "Calendrier",
+      "everyCalendar": "Tous les calendriers",
+      "count": "{count, plural, one {# rôle} other {# rôles}}",
+      "create": "Nouveau rôle"
+    },
+    "calendars": {
+      "title": "Calendriers",
+      "isDefault": "Calendrier par défaut",
+      "none": "Aucun calendrier.",
+      "count": "{count, plural, one {# calendrier} other {# calendriers}}",
+      "create": "Nouveau calendrier",
+      "designate": "Désigner « {name} » par défaut",
+      "designateShort": "Désigner"
+    },
+    "durationUnits": {
+      "title": "Unités de durée",
+      "hoursPerDay": "Heures par jour",
+      "hoursPerWeek": "Heures par semaine",
+      "daysPerMonth": "Jours par mois"
+    },
+    "riskMatrix": {
+      "title": "Bornes de la matrice de risques",
+      "axis": "Axe",
+      "first": "Première borne",
+      "second": "Deuxième borne",
+      "third": "Troisième borne",
+      "probability": "Probabilité",
+      "severity": "Gravité, en pourcentage du budget de référence"
+    },
+    "riskZones": {
+      "title": "Zones de la matrice de risques",
+      "axes": "Probabilité, puis gravité",
+      "probability": "Probabilité, niveau {level}",
+      "severity": "Gravité, niveau {level}"
+    },
+    "indices": {
+      "title": "Seuils d’alerte des indices",
+      "index": "Indice",
+      "watch": "Seuil de vigilance",
+      "alert": "Seuil d’alerte",
+      "cost": "Indice de coût",
+      "schedule": "Indice de délai"
+    },
+    "reviews": {
+      "title": "Rythme des revues",
+      "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
+    },
+    "boundsOf": "Bornes de « {list} »",
+    "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
+  },
+  "admin": {
+    "pages": {
+      "label": "Pages de la liste",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "beyond": "Cette page est au-delà de la fin de la liste."
+    },
+    "commands": {
+      "later": "{command} : disponible avec EP-03.",
+      "unmet": "{command} : {condition}"
+    },
+    "users": {
+      "title": "Comptes utilisateurs",
+      "noRole": "Aucun rôle",
+      "noOrgNode": "Aucun",
+      "none": "Aucun compte.",
+      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
+      "originFilter": "Filtrer par origine",
+      "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
+      "modify": "Modifier",
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver",
+      "assignRoles": "Attribuer les rôles",
+      "named": "{firstName} {lastName}",
+      "modifyUser": "Modifier « {name} »",
+      "deactivateUser": "Désactiver « {name} »",
+      "reactivateUser": "Réactiver « {name} »",
+      "assignRolesUser": "Attribuer les rôles de « {name} »",
+      "roleFilter": "Filtrer par rôle",
+      "everyRole": "Tous les rôles",
+      "stateFilter": "État du compte",
+      "everyState": "Tous les états",
+      "activeAccounts": "Comptes actifs",
+      "inactiveAccounts": "Comptes désactivés"
+    },
+    "accessRoles": {
+      "title": "Rôles d’habilitation",
+      "predefined": "Prédéfini",
+      "composed": "Composé",
+      "none": "Aucun rôle d’habilitation.",
+      "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
+      "create": "Créer un rôle",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "modifyRole": "Modifier « {name} »",
+      "deleteRole": "Supprimer « {name} »",
+      "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte.",
+      "kindFilter": "Nature",
+      "everyKind": "Toutes les natures",
+      "predefinedRoles": "Rôles prédéfinis",
+      "composedRoles": "Rôles composés",
+      "bounds": "Bornes des rôles d’habilitation"
+    },
+    "permissions": {
+      "title": "Permissions par fonction",
+      "function": "Fonction",
+      "permission": "Permission",
+      "held": "Accordée",
+      "notHeld": "Non accordée"
+    },
+    "status": {
+      "version": "Version installée : {version}",
+      "components": "Composants",
+      "component": "Composant",
+      "availability": "Disponibilité",
+      "available": "Disponible",
+      "unavailable": "Indisponible",
+      "checkedAt": "Dernière vérification",
+      "componentVersion": "Version",
+      "storage": "Espace de stockage",
+      "used": "Utilisé",
+      "free": "Disponible",
+      "storageDetail": "{used} employés, {available} libres",
+      "copyDetail": "{location} : {failure}",
+      "operations": "Dernières opérations",
+      "operation": "Opération",
+      "at": "Date",
+      "outcome": "Résultat",
+      "motive": "Motif",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "never": "Jamais effectuée",
+      "directorySync": "Lecture des comptes du fournisseur d’identité",
+      "backup": "Sauvegarde",
+      "backupCopy": "Copie externe de la sauvegarde",
+      "restoreTest": "Test de restauration",
+      "alerts": "Alertes en cours",
+      "alert": "Alerte",
+      "severity": "Niveau",
+      "since": "Depuis",
+      "noAlert": "Aucune alerte en cours."
+    },
+    "backups": {
+      "title": "Sauvegardes",
+      "takenAt": "Date",
+      "size": "Taille",
+      "verification": "Vérification",
+      "origin": "Déclenchement",
+      "retention": "Conservation",
+      "retained": "Marquée à conserver",
+      "none": "Aucune sauvegarde.",
+      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}"
+    },
+    "schedule": {
+      "title": "Planification",
+      "state": "État",
+      "enabled": "Active",
+      "disabled": "Désactivée",
+      "frequency": "Fréquence",
+      "weekday": "Jour",
+      "at": "Heure",
+      "universalTime": "{time} UTC",
+      "retained": "Rétention",
+      "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
+      "externalCopy": "Copie externe",
+      "externalCopyNone": "Aucune",
+      "externalCopyTo": "Vers {location}, dossier {path} — {count, plural, one {# copie gardée} other {# copies gardées}}",
+      "externalCopySuspended": "Suspendue — vers {location}, dossier {path}, {count, plural, one {# copie gardée} other {# copies gardées}}",
+      "weekdays": {
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi",
+        "sunday": "Dimanche"
+      }
+    },
+    "auditLog": {
+      "count": "{count, plural, =0 {Aucune inscription} one {# inscription} other {# inscriptions}}",
+      "none": "Le journal ne tient aucune inscription.",
+      "noProject": "Hors projet",
+      "project": "{code} · {label}",
+      "history": "Histoire de « {object} »",
+      "correlated": "Les inscriptions de la corrélation {correlation}",
+      "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "filters": {
+        "label": "Filtres du journal",
+        "period": "Période",
+        "from": "Depuis le",
+        "to": "Avant le",
+        "apply": "Appliquer",
+        "actorKind": "Filtrer par nature d’auteur",
+        "everyActor": "Tous les auteurs",
+        "user": "Auteur",
+        "everyUser": "Tous les comptes",
+        "everyAction": "Toutes les actions",
+        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
+        "actionsNamed": "Filtrer par action : {chosen}",
+        "project": "Projet",
+        "everyProject": "Tous les projets",
+        "objectKind": "Nature de l’objet",
+        "everyObjectKind": "Toutes les natures",
+        "object": "Objet : {object}",
+        "lift": "Lever",
+        "liftObject": "Lever le filtre sur « {object} »",
+        "correlation": "Corrélation",
+        "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
+      }
+    }
+  },
+  "functionGroups": {
+    "administration": "Administration",
+    "portfolio": "Portefeuille",
+    "applicationSettings": "Paramètres applicatifs",
+    "projects": "Projets"
+  },
+  "functions": {
+    "users": "Gestion des utilisateurs",
+    "accessRoles": "Gestion des rôles d’habilitation",
+    "systemStatus": "Surveillance de l’état du système",
+    "backups": "Sauvegarde et restauration",
+    "auditLog": "Journal d’audit",
+    "portfolioProjects": "Portefeuille de projets",
+    "portfolioWorkload": "Plan de charge agrégé",
+    "portfolioPerformance": "Performance du portefeuille",
+    "portfolioCostStructure": "Structure des coûts du portefeuille",
+    "portfolioRisks": "Risques du portefeuille",
+    "portfolioCostCurve": "Courbe en S du portefeuille",
+    "portfolioPilotHealth": "Santé du pilotage",
+    "costSettings": "Paramètres de coûts",
+    "resourceSettings": "Paramètres de ressources",
+    "riskSettings": "Paramètres de risques",
+    "indicatorSettings": "Paramètres d’indicateurs",
+    "revisions": "Gestion des révisions",
+    "projectSettings": "Paramètres de projets",
+    "planning": "Planification",
+    "estimate": "Chiffrage et devis",
+    "workload": "Plan de charge",
+    "remaining": "Estimation du reste à engager",
+    "risks": "Gestion des risques",
+    "actualCosts": "Coûts réels",
+    "projectIndicators": "Indicateurs projets",
+    "lifecycle": "Cycle de vie du projet",
+    "exchanges": "Imports et exports",
+    "kanban": "Kanban — démarrage des tâches",
+    "timelines": "Chronologies",
+    "taskTree": "Arborescence de tâches"
+  },
+  "errors": {
+    "MALFORMED_REQUEST": "La requête est mal formée.",
+    "CONFIRMATION_REQUIRED": "Cette opération demande une confirmation explicite.",
+    "SESSION_REQUIRED": "Vous devez vous connecter.",
+    "SESSION_EXPIRED": "Votre session a expiré ; reconnectez-vous.",
+    "INVALID_CREDENTIALS": "Adresse électronique ou mot de passe incorrect.",
+    "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
+    "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
+    "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",
+    "PROJECT_TERMINAL": "Le projet est clos : il ne se modifie plus.",
+    "REVISION_MARKED": "La révision est marquée : elle ne se modifie plus.",
+    "NOT_FOUND": "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
+    "STATE_FORBIDS_OPERATION": "L’état actuel ne permet pas cette opération.",
+    "ALREADY_EXISTS": "Cet élément existe déjà.",
+    "CURRENT_REVISION_EXISTS": "Le projet a déjà une révision en cours d’élaboration.",
+    "REFERENCE_NOT_CORRECTABLE": "La révision de référence ne peut plus être corrigée.",
+    "UNDO_CONFLICT": "Impossible d’annuler : la donnée a été modifiée depuis.",
+    "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
+    "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
+    "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
+    "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
+    "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
+    "TASK_COMPLETED": "La tâche est terminée.",
+    "WIN_PROBABILITY_FROZEN": "La probabilité de gain ne se modifie plus une fois le projet en cours.",
+    "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
+    "PASSWORD_RESET_TOKEN_INVALID": "Ce lien de réinitialisation n’est plus valable.",
+    "ACCOUNT_LOCKED": "Compte verrouillé après trop d’échecs ; réessayez dans quinze minutes.",
+    "STALE_LOCK_VERSION": "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+    "FILE_TOO_LARGE": "Le fichier dépasse la taille admise.",
+    "VALIDATION_FAILED": "Les données saisies ne sont pas valides.",
+    "COMPUTED_VALUE": "Cette valeur est calculée : elle ne se saisit pas.",
+    "SUMMARY_TASK_DERIVED": "Une tâche récapitulative tient ses valeurs de ses subordonnées.",
+    "LINK_CYCLE": "Cette liaison créerait une boucle.",
+    "LINK_FORBIDDEN": "Cette liaison n’est pas permise.",
+    "RESOURCE_ROLE_REQUIRED": "Un rôle de ressource est requis.",
+    "LABOUR_CATEGORY_REQUIRED": "Une catégorie de coût de main-d’œuvre est requise.",
+    "HOURLY_RATE_MISSING": "Aucun taux horaire n’est défini pour ce rôle et cette année.",
+    "PROJECT_CODE_REQUIRED": "Le code projet doit être renseigné.",
+    "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
+    "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
+    "TASK_WITHOUT_WORKING_HOURS": "Les calendriers des rôles de cette tâche ne se recoupent aucun jour : elle n’aurait aucune heure travaillée dans la semaine.",
+    "VALUE_REQUIRED": "Une valeur est requise.",
+    "VALUE_TOO_LONG": "La valeur est trop longue.",
+    "VALUE_OUT_OF_RANGE": "La valeur sort des limites admises.",
+    "NUMBER_INVALID": "Ce n’est pas un nombre valide.",
+    "DATE_INVALID": "Ce n’est pas une date valide.",
+    "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
+    "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
+    "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
+    "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
+    "UNKNOWN_TASK": "Tâche inconnue.",
+    "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
+    "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
+    "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
+    "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
+    "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
+    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
+    "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
+    "INTERNAL_ERROR": "Erreur inattendue du service."
+  },
+  "problemDetails": {
+    "missing_permission": "Permission requise : {permission}.",
+    "missing_condition": "Condition non remplie : {condition}.",
+    "missing_prerequisites": "À compléter : {prerequisites}.",
+    "projectState": "État du projet : {state}.",
+    "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
+    "minimum": "Valeur minimale : {minimum}.",
+    "component": "Composant indisponible : {component}.",
+    "expected_format": "Format attendu : {format}.",
+    "expected_version": "Version attendue : {version}."
+  },
+  "permissions": {
+    "users": {
+      "read": "Consulter les utilisateurs",
+      "write": "Modifier les utilisateurs"
+    },
+    "access_roles": {
+      "read": "Consulter les rôles d’habilitation",
+      "write": "Modifier les rôles d’habilitation"
+    },
+    "system_status": {
+      "read": "Consulter l’état du système",
+      "write": "Modifier l’état du système"
+    },
+    "backups": {
+      "read": "Consulter les sauvegardes",
+      "write": "Modifier les sauvegardes"
+    },
+    "audit_log": {
+      "read": "Consulter le journal d’audit"
+    },
+    "portfolio_projects": {
+      "read": "Consulter le portefeuille de projets",
+      "write": "Modifier le portefeuille de projets"
+    },
+    "portfolio_workload": {
+      "read": "Consulter le plan de charge agrégé",
+      "write": "Modifier le plan de charge agrégé"
+    },
+    "portfolio_performance": {
+      "read": "Consulter la performance du portefeuille",
+      "write": "Modifier la performance du portefeuille"
+    },
+    "portfolio_cost_structure": {
+      "read": "Consulter la structure des coûts du portefeuille",
+      "write": "Modifier la structure des coûts du portefeuille"
+    },
+    "portfolio_risks": {
+      "read": "Consulter les risques du portefeuille",
+      "write": "Modifier les risques du portefeuille"
+    },
+    "portfolio_cost_curve": {
+      "read": "Consulter la courbe en S du portefeuille",
+      "write": "Modifier la courbe en S du portefeuille"
+    },
+    "portfolio_pilot_health": {
+      "read": "Consulter la santé du pilotage",
+      "write": "Modifier la santé du pilotage"
+    },
+    "cost_settings": {
+      "read": "Consulter les paramètres de coûts",
+      "write": "Modifier les paramètres de coûts"
+    },
+    "resource_settings": {
+      "read": "Consulter les paramètres de ressources",
+      "write": "Modifier les paramètres de ressources"
+    },
+    "risk_settings": {
+      "read": "Consulter les paramètres de risques",
+      "write": "Modifier les paramètres de risques"
+    },
+    "indicator_settings": {
+      "read": "Consulter les paramètres d’indicateurs",
+      "write": "Modifier les paramètres d’indicateurs"
+    },
+    "revisions": {
+      "read": "Consulter les révisions",
+      "write": "Modifier les révisions"
+    },
+    "project_settings": {
+      "read": "Consulter les paramètres de projets",
+      "write": "Modifier les paramètres de projets"
+    },
+    "planning": {
+      "read": "Consulter la planification",
+      "write": "Modifier la planification"
+    },
+    "estimate": {
+      "read": "Consulter le chiffrage et le devis",
+      "write": "Modifier le chiffrage et le devis"
+    },
+    "remaining": {
+      "read": "Consulter l’estimation du reste à engager",
+      "write": "Modifier l’estimation du reste à engager"
+    },
+    "risks": {
+      "read": "Consulter la gestion des risques",
+      "write": "Modifier la gestion des risques"
+    },
+    "actual_costs": {
+      "read": "Consulter les coûts réels",
+      "write": "Modifier les coûts réels"
+    },
+    "project_indicators": {
+      "read": "Consulter les indicateurs projets",
+      "write": "Modifier les indicateurs projets"
+    },
+    "lifecycle": {
+      "read": "Consulter le cycle de vie du projet",
+      "write": "Modifier le cycle de vie du projet"
+    },
+    "project_create": "Créer un projet",
+    "revision_mark": "Marquer une révision",
+    "revision_abandon": "Abandonner une révision en cours",
+    "reference_designate": "Désigner la révision de référence",
+    "structure_merge": "Fusionner un différentiel",
+    "project_exit": "Clore un projet : terminé, perdu ou abandonné",
+    "risk_occurrence": "Déclarer la survenance d’un risque",
+    "cost_line_exclude": "Exclure des lignes de coût réel",
+    "platform_restore": "Restaurer la plateforme",
+    "all_projects_read": "Consulter tous les projets"
+  },
+  "enums": {
+    "PlatformComponent": {
+      "api": "Service d’API",
+      "worker": "Traitements de fond",
+      "database": "Base de données",
+      "cache": "Cache",
+      "object_storage": "Stockage des fichiers",
+      "directory": "Annuaire",
+      "metrics": "Métriques"
+    },
+    "AlertZone": {
+      "nominal": "Nominal",
+      "watch": "Vigilance",
+      "alert": "Alerte"
+    },
+    "Alert": {
+      "code": {
+        "component_unavailable": "Composant indisponible",
+        "task_queue_stalled": "File des traitements bloquée",
+        "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
+        "scheduled_backup_copy_failed": "Échec de la copie externe d’une sauvegarde planifiée",
+        "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
+        "storage_nearly_full": "Stockage presque plein",
+        "error_rate_abnormal": "Taux d’erreur anormal"
+      }
+    },
+    "Language": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "BackgroundTaskRef": {
+      "kind": {
+        "import_analysis": "Analyse d’un import",
+        "import_apply": "Application d’un import",
+        "revision_mark": "Marquage d’une révision",
+        "structure_merge": "Fusion d’une structure",
+        "risk_occurrence": "Survenance d’un risque",
+        "export": "Export",
+        "backup": "Sauvegarde",
+        "restore": "Restauration",
+        "directory_sync": "Synchronisation de l’annuaire"
+      }
+    },
+    "BackgroundTaskStatus": {
+      "queued": "En attente",
+      "running": "En cours",
+      "succeeded": "Réussie",
+      "failed": "Échouée"
+    },
+    "AuthProviderKind": {
+      "local": "Compte local",
+      "ldap": "Annuaire LDAP",
+      "oidc": "Fournisseur d’identité (OIDC)"
+    },
+    "UserOrigin": {
+      "local": "Créé dans Waterfall",
+      "directory": "Importé de l’annuaire",
+      "identity_provider": "Créé par le fournisseur d’identité"
+    },
+    "ActorRef": {
+      "kind": {
+        "user": "Utilisateur",
+        "platform": "Traitement automatique"
+      }
+    },
+    "SortOrder": {
+      "asc": "Croissant",
+      "desc": "Décroissant"
+    },
+    "DisplayPreferences": {
+      "language": {
+        "default": "Langue du navigateur",
+        "fr": "Français",
+        "en": "English"
+      },
+      "theme": {
+        "default": "Réglage du poste",
+        "light": "Clair",
+        "dark": "Sombre"
+      }
+    },
+    "Permission": {
+      "kind": {
+        "function_read": "Consultation d’une fonction",
+        "function_write": "Modification d’une fonction",
+        "irreversible": "Action irréversible",
+        "structuring": "Permission structurante"
+      }
+    },
+    "Backup": {
+      "verification": {
+        "pending": "Vérification en attente",
+        "passed": "Vérifiée",
+        "failed": "Vérification échouée"
+      },
+      "scope": {
+        "database": "Base de données"
+      },
+      "origin": {
+        "manual": "Manuelle",
+        "scheduled": "Planifiée"
+      }
+    },
+    "BackupSchedule": {
+      "frequency": {
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire"
+      }
+    },
+    "ExternalBackupLocationKind": {
+      "s3": "Compartiment S3",
+      "mounted_share": "Partage réseau monté"
+    },
+    "ExternalBackupFailure": {
+      "location_unreachable": "Emplacement injoignable",
+      "access_denied": "Accès refusé",
+      "write_failed": "Écriture refusée",
+      "delete_failed": "Effacement refusé",
+      "storage_full": "Espace épuisé",
+      "timed_out": "Délai dépassé"
+    },
+    "AuditAction": {
+      "revision_mark": "Marquage d’une révision",
+      "reference_designate": "Désignation de la référence",
+      "amendment_merge": "Contractualisation d’un avenant",
+      "risk_occurrence": "Survenance d’un risque",
+      "project_exit": "Sortie du cycle de vie",
+      "cost_line_exclude": "Exclusion d’une ligne de coût",
+      "cost_line_reinstate": "Réintégration d’une ligne de coût",
+      "import_apply": "Application d’un import",
+      "user_create": "Création d’un compte",
+      "user_update": "Modification d’un compte",
+      "user_deactivate": "Désactivation d’un compte",
+      "user_reactivate": "Réactivation d’un compte",
+      "password_link_create": "Lien de mot de passe engendré",
+      "access_role_create": "Création d’un rôle",
+      "access_role_update": "Modification d’un rôle",
+      "access_role_delete": "Suppression d’un rôle",
+      "user_access_roles_set": "Attribution des rôles d’un compte",
+      "backup": "Sauvegarde",
+      "restore": "Restauration"
+    },
+    "AuditActorKind": {
+      "user": "Un compte",
+      "platform": "La plateforme"
+    },
+    "AuditObjectKind": {
+      "project": "Projet",
+      "revision": "Révision",
+      "cost_structure": "Structure de coûts",
+      "risk": "Risque",
+      "cost_line": "Ligne de coût",
+      "import": "Import",
+      "user": "Compte",
+      "access_role": "Rôle d’habilitation",
+      "backup": "Sauvegarde",
+      "external_backup_upload": "Sauvegarde déposée"
+    },
+    "ReferenceReadiness": {
+      "missing": {
+        "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",
+        "active_cost_category": "une catégorie de coût active",
+        "active_resource_role": "un rôle de ressource actif"
+      }
+    },
+    "CostTypeKind": {
+      "labor": "Main-d’œuvre",
+      "non_labor": "Hors main-d’œuvre",
+      "provision": "Provision"
+    },
+    "StateEnumeration": {
+      "ProjectState": "État du projet"
+    },
+    "ProjectState": {
+      "created": "Créé",
+      "pricing": "Chiffrage",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "lost": "Perdu",
+      "abandoned": "Abandonné"
+    },
+    "ProjectCommand": {
+      "update": "Modifier le projet",
+      "manage_contributors": "Gérer les contributeurs",
+      "create_revision": "Créer une révision",
+      "complete": "Terminer le projet",
+      "lose": "Déclarer le projet perdu",
+      "abandon": "Abandonner le projet",
+      "edit_risks": "Modifier les risques",
+      "declare_risk_occurrence": "Déclarer la survenance d’un risque",
+      "import_actual_costs": "Importer les coûts réels",
+      "exclude_cost_lines": "Exclure des lignes de coût",
+      "import_planning": "Importer un planning MS Project",
+      "import_estimate": "Importer un devis",
+      "import_remaining": "Importer un reste à engager"
+    },
+    "CommandCondition": {
+      "is_contributor": "être contributeur du projet",
+      "is_project_manager": "être chef de projet",
+      "project_not_terminal": "projet non clos",
+      "project_in_progress": "projet en cours",
+      "project_in_pricing": "projet en chiffrage",
+      "project_code_set": "code projet renseigné",
+      "reference_revision_designated": "révision de référence désignée",
+      "at_least_one_task": "au moins une tâche",
+      "at_least_one_estimate_line": "au moins une ligne de devis",
+      "no_current_revision": "aucune révision en cours d’élaboration",
+      "revision_draft": "révision en cours d’élaboration",
+      "revision_marked": "révision marquée",
+      "reference_correctable": "référence encore corrigeable",
+      "unmerged_amendment_exists": "un avenant non fusionné",
+      "task_not_completed": "tâche non terminée",
+      "hourly_rates_set": "taux horaires renseignés",
+      "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
+      "may_create_revision": "avoir la permission de créer une révision",
+      "risk_not_cited": "risque cité par aucune révision marquée",
+      "risk_not_occurred": "risque non survenu",
+      "risk_identified": "risque identifié",
+      "org_node_parent_active": "nœud parent actif",
+      "org_node_active": "nœud d’organisation actif",
+      "calendar_not_default": "calendrier autre que celui par défaut",
+      "cost_type_unused": "aucune catégorie de la nature employée",
+      "cost_category_unused": "catégorie employée par aucune ligne",
+      "cost_category_unrated": "catégorie sans taux horaire",
+      "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
+      "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
+      "last_administrator": "un autre compte actif portant les permissions d’administration"
+    },
+    "ProjectExit": {
+      "to_state": {
+        "completed": "Terminé",
+        "lost": "Perdu",
+        "abandoned": "Abandonné"
+      }
+    },
+    "ContributorKind": {
+      "project_manager": "Chef de projet",
+      "contributor": "Contributeur"
+    },
+    "WorkBreakdownKind": {
+      "order_item": "Poste",
+      "work_package": "Lot",
+      "deliverable": "Livrable"
+    },
+    "RevisionStatus": {
+      "draft": "En cours d’élaboration",
+      "marked": "Marquée"
+    },
+    "RevisionCommand": {
+      "edit_planning": "Modifier le planning",
+      "edit_estimate": "Modifier le devis",
+      "edit_remaining": "Réestimer le reste à engager",
+      "edit_risks": "Modifier les risques",
+      "create_structure": "Créer une structure",
+      "merge_structure": "Fusionner une structure",
+      "mark": "Marquer la révision",
+      "designate_reference": "Désigner comme référence",
+      "abandon": "Abandonner la révision",
+      "export_planning": "Exporter le planning MS Project",
+      "export_estimate": "Exporter le devis",
+      "export_remaining": "Exporter le reste à engager",
+      "export_task_tree_image": "Exporter l’image de l’arborescence de tâches"
+    },
+    "RateUpdateProposal": {
+      "categories": {
+        "source": {
+          "reference_rate": "Taux du référentiel",
+          "inflated_previous": "Taux précédent, projeté par l’inflation"
+        }
+      }
+    },
+    "NodeKind": {
+      "task": "Tâche",
+      "estimate_line": "Ligne de devis"
+    },
+    "ComparedNode": {
+      "changes": {
+        "dates": "Dates",
+        "duration": "Durée",
+        "progress": "Avancement",
+        "budgeted_amount": "Montant budgété",
+        "reestimated_amount": "Montant réestimé",
+        "parent": "Rattachement"
+      }
+    },
+    "RevisionComparison": {
+      "amount_deltas": {
+        "dimension": {
+          "cost_type": "Nature de coût",
+          "subproject": "Sous-projet"
+        }
+      }
+    },
+    "StructureKind": {
+      "main": "Structure principale",
+      "amendment": "Avenant",
+      "risk": "Devis de risque"
+    },
+    "StructureCreate": {
+      "kind": {
+        "amendment": "Avenant",
+        "risk": "Devis de risque"
+      }
+    },
+    "TaskProgress": {
+      "not_started": "Non démarrée",
+      "started": "Démarrée",
+      "completed": "Terminée"
+    },
+    "SchedulingMode": {
+      "automatic": "Automatique",
+      "manual": "Manuel"
+    },
+    "TrackingEntry": {
+      "kind": {
+        "timeline": "Chronologie",
+        "milestone_tracking": "Suivi de jalon"
+      }
+    },
+    "LinkType": {
+      "finish_to_start": "Fin à début (FD)",
+      "start_to_start": "Début à début (DD)",
+      "finish_to_finish": "Fin à fin (FF)",
+      "start_to_finish": "Début à fin (DF)"
+    },
+    "DurationUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "j",
+      "w": "sem",
+      "mo": "m",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ej",
+      "ew": "esem",
+      "emo": "em"
+    },
+    "LagUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "j",
+      "w": "sem",
+      "mo": "m",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ej",
+      "ew": "esem",
+      "emo": "em",
+      "percent": "%"
+    },
+    "ComputedField": {
+      "task": {
+        "duration": "Durée",
+        "start": "Début",
+        "finish": "Fin",
+        "progress": "Avancement"
+      },
+      "estimate_line": {
+        "quantity": "Quantité",
+        "hours": "Heures",
+        "unit_disbursement": "Débours unitaire"
+      }
+    },
+    "EditableField": {
+      "task": {
+        "label": "Libellé de la tâche",
+        "description": "Description de la tâche",
+        "scheduling_mode": "Mode de planification de la tâche",
+        "duration": "Durée de la tâche",
+        "start": "Début de la tâche",
+        "finish": "Fin de la tâche",
+        "progress": "Avancement de la tâche",
+        "order_item_id": "Poste de la tâche",
+        "work_package_id": "Lot de la tâche"
+      },
+      "estimate_line": {
+        "label": "Libellé de la ligne",
+        "cost_category_id": "Catégorie de coût de la ligne",
+        "resource_role_id": "Rôle de ressource de la ligne",
+        "quantity": "Quantité de la ligne",
+        "hours": "Charge de la ligne",
+        "unit_disbursement": "Débours unitaire de la ligne",
+        "payment_delay_days": "Délai de paiement de la ligne",
+        "subproject_id": "Sous-projet de la ligne"
+      }
+    },
+    "NodeColumn": {
+      "label": "Libellé",
+      "description": "Description",
+      "scheduling_mode": "Mode de planification",
+      "duration": "Durée",
+      "start": "Début",
+      "finish": "Fin",
+      "progress": "Avancement",
+      "physical_progress": "Avancement physique",
+      "total_float": "Marge totale",
+      "is_critical": "Chemin critique",
+      "predecessors": "Prédécesseurs",
+      "work_breakdown": "Poste ou lot",
+      "cost_category": "Catégorie de coût",
+      "resource_role": "Rôle de ressource",
+      "quantity": "Quantité",
+      "hours": "Charge",
+      "unit_disbursement": "Débours unitaire",
+      "subproject": "Sous-projet",
+      "payment_delay_days": "Délai de paiement",
+      "consumption_year": "Année de consommation",
+      "base_amount": "Montant à l’année de référence",
+      "budgeted_amount": "Montant budgété",
+      "reestimated_amount": "Montant réestimé",
+      "inflated_amount": "Montant corrigé de l’inflation",
+      "previous_quantity": "Quantité précédente",
+      "previous_hours": "Charge précédente",
+      "previous_unit_disbursement": "Débours unitaire précédent",
+      "previous_reestimated_amount": "Montant réestimé précédent"
+    },
+    "ComputedValueField": {
+      "task": {
+        "duration": "Durée de la tâche",
+        "start": "Début de la tâche",
+        "finish": "Fin de la tâche",
+        "progress": "Avancement de la tâche",
+        "physical_progress": "Avancement physique de la tâche",
+        "total_float": "Marge totale de la tâche",
+        "base_amount": "Montant à l’année de référence de la tâche",
+        "budgeted_amount": "Montant budgété de la tâche",
+        "reestimated_amount": "Montant réestimé de la tâche",
+        "inflated_amount": "Montant corrigé de l’inflation de la tâche"
+      },
+      "estimate_line": {
+        "quantity": "Quantité de la ligne",
+        "hours": "Charge de la ligne",
+        "unit_disbursement": "Débours unitaire de la ligne",
+        "base_amount": "Montant à l’année de référence de la ligne",
+        "budgeted_amount": "Montant budgété de la ligne",
+        "reestimated_amount": "Montant réestimé de la ligne",
+        "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
+        "inflated_amount": "Montant corrigé de l’inflation de la ligne"
+      }
+    },
+    "ComputedDependency": {
+      "subordinates": "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
+      "lines_and_subordinates": "Le montant d’une tâche est celui des lignes qu’elle porte et de ses subordonnées.",
+      "scheduling": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
+      "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
+      "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
+      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
+      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
+      "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
+      "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
+      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
+      "own_estimate": "La gravité d’un risque est le total de son devis propre.",
+      "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
+    },
+    "ProgressUpdate": {
+      "progress": {
+        "started": "Démarrée",
+        "completed": "Terminée"
+      }
+    },
+    "WorkloadPlan": {
+      "basis": {
+        "reference_budget": "Budget de la révision de référence",
+        "marked_remaining": "Reste à engager d’une révision marquée",
+        "current_remaining": "Reste à engager de la révision en cours"
+      }
+    },
+    "WorkloadZone": {
+      "nominal": "Nominal",
+      "alert": "Alerte"
+    },
+    "NotComputableReason": {
+      "no_actual_cost": "Aucun coût réel à la date de calcul.",
+      "no_earned_value": "Aucune valeur acquise : l’indice de coût est nul.",
+      "no_planned_value": "Aucune valeur planifiée à la date de calcul.",
+      "no_reference_budget": "Aucun budget de référence.",
+      "no_budgeted_amount": "Aucun montant budgété dans le sous-arbre de la tâche.",
+      "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
+      "no_capacity": "Aucune capacité pour ce rôle sur la période.",
+      "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
+      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence."
+    },
+    "CurveSeries": {
+      "series": {
+        "name": {
+          "reference_budget": "Budget de référence",
+          "planned_value": "Valeur planifiée",
+          "earned_value": "Valeur acquise",
+          "actual_cost": "Coût réel",
+          "project_manager_projection": "Projection du chef de projet"
+        }
+      },
+      "steps": {
+        "cause": {
+          "amendment": "Avenant"
+        }
+      }
+    },
+    "PortfolioCostCurve": {
+      "series": {
+        "name": {
+          "reference_budget": "Budget de référence",
+          "actual_cost": "Coût réel",
+          "project_manager_projection": "Projection du chef de projet"
+        }
+      }
+    },
+    "RiskState": {
+      "identified": "Identifié",
+      "occurred": "Survenu",
+      "dismissed": "Écarté"
+    },
+    "RiskCommand": {
+      "update": "Modifier le risque",
+      "review": "Réexaminer le risque",
+      "declare_occurrence": "Déclarer le risque survenu",
+      "delete": "Supprimer le risque"
+    },
+    "ReferenceCommand": {
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver"
+    },
+    "CostTypeCommand": {
+      "deactivate": "Désactiver la nature",
+      "reactivate": "Réactiver la nature",
+      "change_kind": "Modifier le type de la nature"
+    },
+    "CostCategoryCommand": {
+      "deactivate": "Désactiver la catégorie",
+      "reactivate": "Réactiver la catégorie",
+      "change_cost_type": "Rattacher la catégorie à une nature d’un autre type"
+    },
+    "UserCommand": {
+      "deactivate": "Désactiver le compte",
+      "reactivate": "Réactiver le compte",
+      "set_access_roles": "Attribuer les rôles du compte"
+    },
+    "RiskComputedField": {
+      "field": {
+        "severity": "Gravité",
+        "provision_amount": "Provision"
+      }
+    },
+    "RiskReviewWrite": {
+      "state": {
+        "identified": "Identifié",
+        "dismissed": "Écarté"
+      }
+    },
+    "ExchangeKind": {
+      "ms_project_schedule": "Planning MS Project",
+      "estimate": "Devis",
+      "remaining": "Reste à engager",
+      "actual_costs": "Coûts réels"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "Sauvegarde externe à restaurer"
+    },
+    "ImportDifference": {
+      "change": {
+        "added": "Ajouté",
+        "removed": "Retiré",
+        "updated": "Modifié",
+        "kept": "Conservé"
+      },
+      "target": {
+        "task": "Tâche",
+        "estimate_line": "Ligne de devis",
+        "link": "Liaison",
+        "actual_cost_line": "Ligne de coût réel"
+      }
+    },
+    "ImportIgnoredKind": {
+      "resources": "Ressources",
+      "calendars": "Calendriers",
+      "progress": "Avancement",
+      "costs": "Coûts",
+      "custom_fields": "Champs personnalisés",
+      "date_constraints": "Contraintes de date, tâches importées en mode manuel"
+    },
+    "ActualCostColumn": {
+      "document_date": "Date de pièce",
+      "document_number": "N° de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet"
+    },
+    "ImportReport": {
+      "requires_confirmation_reasons": {
+        "lines_outside_project": "Lignes hors du projet",
+        "unknown_subproject": "Sous-projet inconnu"
+      }
+    },
+    "Import": {
+      "status": {
+        "analysing": "Analyse en cours",
+        "analysed": "Analysé",
+        "applying": "Application en cours",
+        "applied": "Appliqué",
+        "abandoned": "Abandonné",
+        "expired": "Expiré",
+        "failed": "Échoué"
+      }
+    },
+    "ExportRequest": {
+      "kind": {
+        "ms_project_schedule": "Planning MS Project",
+        "estimate": "Devis",
+        "remaining": "Reste à engager",
+        "task_tree_image": "Image de l’arborescence de tâches"
+      }
+    },
+    "PortfolioPerformance": {
+      "zone_distribution": {
+        "index": {
+          "cost": "Indice de coût",
+          "schedule": "Indice de délai"
+        }
+      }
+    },
+    "PilotHealth": {
+      "signals": {
+        "code": {
+          "review_overdue": "Revue périodique en retard",
+          "risks_not_reviewed": "Risques non réexaminés",
+          "no_actual_cost_since_last_review": "Aucun coût réel depuis la dernière revue",
+          "contractual_milestone_overdue": "Jalon contractuel dépassé"
+        }
+      }
+    },
+    "Scope": {
+      "project": "Projet entier",
+      "unassigned": "Hors sous-projet"
+    },
+    "SubprojectFilter": {
+      "unassigned": "Hors sous-projet"
+    },
+    "WorkloadBasis": {
+      "reference_budget": "Budget de la révision de référence",
+      "marked_remaining": "Reste à engager d’une révision marquée",
+      "current_remaining": "Reste à engager de la révision en cours"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "import": {
+      "title": "Importer un fichier",
+      "none": "Aucun import ne vous est offert sur ce projet.",
+      "kinds": {
+        "ms_project_schedule": "Importer un planning MS Project",
+        "estimate": "Importer un devis",
+        "remaining": "Importer un reste à engager",
+        "actual_costs": "Importer des coûts réels"
+      },
+      "file": "Fichier à importer",
+      "fileRequired": "Choisissez le fichier à importer.",
+      "analyse": "Analyser le fichier",
+      "cancel": "Annuler",
+      "period": "Période extraite",
+      "periodFrom": "Du",
+      "periodTo": "Au",
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+    },
+    "report": {
+      "title": "Compte rendu de l’import « {file} »",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le",
+      "expiresAt": "Applicable jusqu’au",
+      "formatVersion": "Version du format",
+      "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
+      "none": "Cet import n’a pas de compte rendu.",
+      "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
+      "reasons": "Confirmation explicite demandée",
+      "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
+      "rejectedTable": "Lignes rejetées",
+      "row": "Ligne",
+      "motive": "Motif",
+      "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
+      "differencesTable": "Écarts avec les données existantes",
+      "change": "Changement",
+      "target": "Objet",
+      "label": "Libellé",
+      "fields": "Champs",
+      "unnamed": "Sans libellé",
+      "apply": "Appliquer l’import",
+      "abandon": "Abandonner l’import",
+      "confirmTitle": "Confirmation de l’application",
+      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
+      "confirm": "Confirmer l’application",
+      "cancel": "Annuler"
+    },
+    "list": {
+      "title": "Imports du projet",
+      "none": "Aucun import n’a encore été ouvert sur ce projet.",
+      "file": "Fichier",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le"
+    },
+    "export": {
+      "title": "Demander un export",
+      "kind": "Fichier à exporter",
+      "request": "Demander l’export",
+      "depth": "Niveau de l’arborescence",
+      "none": "Aucun export ne vous est offert sur cette révision."
+    }
+  }
+}

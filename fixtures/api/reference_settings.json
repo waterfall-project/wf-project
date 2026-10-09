@@ -1,0 +1,45 @@
+{
+  "summary": "Les paramètres communs de l'installation : l'euro, sa devise unique ; le français, sa langue par défaut ; la matrice de risques bornée à 10, 30 et 60 % de probabilité et à 1, 5 et 10 % du budget de référence, ses seize zones celles des cases de `risk_matrix`, rangées par probabilité puis par gravité ; les seuils de vigilance et d'alerte des deux indices, 0,9 et 0,8 ; huit semaines au plus entre deux révisions marquées, que le projet témoin, revu il y a onze semaines, dépasse (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180).",
+  "value": {
+    "currency_code": "EUR",
+    "default_language": "fr",
+    "risk_matrix": {
+      "probability_bounds": [
+        "0.1",
+        "0.3",
+        "0.6"
+      ],
+      "severity_bounds": [
+        "0.01",
+        "0.05",
+        "0.1"
+      ],
+      "zones": [
+        "nominal",
+        "nominal",
+        "nominal",
+        "watch",
+        "nominal",
+        "nominal",
+        "watch",
+        "watch",
+        "nominal",
+        "watch",
+        "watch",
+        "alert",
+        "watch",
+        "watch",
+        "alert",
+        "alert"
+      ]
+    },
+    "index_thresholds": {
+      "cost_watch": "0.9",
+      "cost_alert": "0.8",
+      "schedule_watch": "0.9",
+      "schedule_alert": "0.8"
+    },
+    "max_weeks_between_reviews": 8,
+    "lock_version": 1
+  }
+}

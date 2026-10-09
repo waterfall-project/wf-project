@@ -1,0 +1,8 @@
+{
+  "summary": "Les rôles de Camille Martin remplacés par le seul rôle « Pilotage de projet », refusés : ils lui retireraient les permissions de modifier les comptes et les rôles d'habilitation, dont elle est la dernière titulaire active ; rien n'est écrit. Le refus dépend des rôles envoyés, qu'aucune commande ne dit d'avance : l'attribution reste offerte (WF-ADM-0120).",
+  "value": {
+    "code": "LAST_ADMINISTRATOR",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001011"
+  }
+}

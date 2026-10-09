@@ -55,9 +55,17 @@ qui est tranché contre une décision antérieure s'écrit dans la conception.
 
 Une fois le plan validé :
 
-- une issue pour l'EPIC (gabarit « Epic »), une par US (« User story »), sous-issues de
-  celle de l'EPIC, et une par lot (« Lot »), sous-issue de son US — un lot technique, de
-  l'EPIC ; le corps suit les rubriques du gabarit, le titre porte l'identifiant ;
+- la hiérarchie de « Suivi sur GitHub » (README de la roadmap) : une issue pour l'EPIC
+  (gabarit « Epic ») ; une par US (« User story »), sous-issue de celle de l'EPIC, dans
+  l'ordre de réalisation ; une par lot (« Lot »), sous-issue de son US — un lot technique,
+  de la première US qu'il prépare —, sauf pour une US à un seul lot, dont l'issue porte aussi
+  les rubriques du lot ; le corps suit les rubriques du gabarit, le titre porte
+  l'identifiant ;
+- le tableau de suivi, dans le corps de l'issue de l'EPIC : l'ordre de réalisation, chaque
+  US avec ses lots, leurs dépendances, leurs états `à faire` ; et les constats que le cadrage
+  laisse ouverts — issues de contrat ou de spécification —, chacun avec sa décision ;
+- les constats déjà ouverts que le cadrage reprend, rattachés selon leur décision, et ceux
+  que le fichier de l'EPIC note dans « Constats reçus » ;
 - les numéros de l'EPIC et des US reportés dans le fichier, puis l'EPIC `en cours`, dans le
   fichier et dans le tableau du README ; aucun autre statut que ceux du README ;
 - tout cela sur la branche `roadmap/EP-nn-cadrage`, dans la pull request vers `main`.

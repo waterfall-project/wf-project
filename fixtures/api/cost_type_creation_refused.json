@@ -1,0 +1,18 @@
+{
+  "summary": "Une nature créée sans libellé, sous le code FOURNITURES-DIVERSES-ET-CONSOMMABLES, de trente-six caractères quand un code en admet vingt : chaque champ refusé par son motif ; rien n'est écrit (WF-REF-0030).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "VALUE_TOO_LONG"
+      },
+      {
+        "pointer": "/label",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001039"
+  }
+}

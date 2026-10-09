@@ -1,0 +1,21 @@
+{
+  "summary": "Les indicateurs du devis de l'offre v1.0, tels que son marquage du 15 décembre 2025 les a calculés et conservés, pendant le chiffrage (WF-DAT-0040) : 117 669,56 au total, aux taux de 2025, sans provision — aucun risque n'était identifié —, par nature en montant et en part du total, dont la somme vaut cent pour cent ; tout dans l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le poste du lotissement que porte le lot « Poste de commande ». Ni révision de référence ni révision marquée avant elle : aucun écart (WF-DEV-0060).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000100","revision_status":"marked","computed_at":"2025-12-15T16:00:00Z","scope":"project","is_stored":true},
+    "total": {"is_computable":true,"value":"117669.56","reason":null},
+    "by_cost_type": [
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":{"is_computable":true,"value":"16085.00","reason":null},"share":{"is_computable":true,"value":"0.1367","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"101584.56","reason":null},"share":{"is_computable":true,"value":"0.8633","reason":null}}
+    ],
+    "by_subproject": [
+      {"key":"unassigned","amount":{"is_computable":true,"value":"117669.56","reason":null},"share":{"is_computable":true,"value":"1","reason":null}}
+    ],
+    "by_order_item": [
+      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":true,"value":"2019.56","reason":null},"share":{"is_computable":true,"value":"0.0172","reason":null}}
+    ],
+    "provisions_identified": "0.00",
+    "delta_to_reference": null,
+    "delta_to_previous_revision": null
+  }
+}

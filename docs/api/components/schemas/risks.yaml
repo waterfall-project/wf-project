@@ -17,12 +17,15 @@ Risk:
     - provision_amount
     - state
     - structure_id
+    - computed_fields
+    - available_commands
     - audit
     - lock_version
   description: >-
     La gravité est le total de la structure propre du risque et la provision cette
     gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
-    (WF-RIS-0010).
+    (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il
+    porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -43,15 +46,85 @@ Risk:
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030).
+      description: >-
+        Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en
+        fige une version (WF-RIS-0030).
     provision_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Ligne de provision portée par la structure principale (WF-RIS-0010).
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    computed_fields:
+      type: array
+      description: >-
+        Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le
+        refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre,
+        pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —,
+        ils se lisent avec le risque, sans appel au refus.
+      minItems: 2
+      maxItems: 2
+      items: { $ref: '#/RiskComputedField' }
+    available_commands:
+      type: array
+      description: >-
+        Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou
+        non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
+        `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne
+        nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et,
+        pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la
+        révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`,
+        `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code
+        d'erreur.
+      items: { $ref: '#/RiskCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskCommand:
+  type: string
+  enum:
+    - update
+    - review
+    - declare_occurrence
+    - delete
+  description: >-
+    Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), le réexaminer
+    — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer
+    survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). Les trois saisies relèvent
+    de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
+    `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
+    suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La
+    déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle
+    emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ;
+    indisponible pour un risque qui n'est pas identifié, `risk_identified` manquante, et, quand
+    le projet n'a pas de révision en cours, pour qui n'a pas `revisions.write`,
+    `may_create_revision` manquante : elle la créerait (WF-RIS-0060).
+
+RiskCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/RiskCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+RiskComputedField:
+  type: object
+  required: [field, dependencies]
+  description: Un champ calculé d'un risque, et ce dont il dépend (WF-IHM-0030).
+  properties:
+    field:
+      type: string
+      enum: [severity, provision_amount]
+    dependencies:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: Chaque règle une fois, dans l'ordre où la dire.
+      items: { $ref: revisions.yaml#/ComputedDependency }
 
 RiskWrite:
   type: object
@@ -121,11 +194,44 @@ RiskMatrixCell:
     severity_level: { type: integer, minimum: 1, maximum: 4 }
     zone: { $ref: reference.yaml#/AlertZone }
 
+RiskMatrixLevel:
+  type: object
+  required: [level, lower, upper]
+  description: >-
+    Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) :
+    la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a
+    pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de
+    référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la
+    matrice du portefeuille.
+  properties:
+    level: { type: integer, minimum: 1, maximum: 4 }
+    lower: { $ref: ../common.yaml#/Percent }
+    upper:
+      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
+
 RiskMatrix:
   type: object
-  required: [cells, totals]
-  description: Matrice remplie par les risques du projet (WF-RIS-0040, WF-REF-0160).
+  required: [probability_levels, severity_levels, cells, totals]
+  description: >-
+    Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
+    se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
+    la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
+    projets retenus pour celle du portefeuille.
   properties:
+    probability_levels:
+      type: array
+      minItems: 4
+      maxItems: 4
+      description: Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage.
+      items: { $ref: '#/RiskMatrixLevel' }
+    severity_levels:
+      type: array
+      minItems: 4
+      maxItems: 4
+      description: >-
+        Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget
+        de référence.
+      items: { $ref: '#/RiskMatrixLevel' }
     cells:
       type: array
       items:
@@ -140,28 +246,47 @@ RiskMatrix:
 
 ProvisionTotals:
   type: object
-  required: [identified, occurred, dismissed, reserve]
+  required: [identified, occurred, dismissed, total, reserve]
   description: >-
     Les trois totaux de provisions, distincts — les identifiés pour leur provision
     courante, les survenus et les écartés pour celle qu'ils portaient dans la révision
-    de référence —, et la réserve pour risques en regard (WF-RIS-0040, WF-RIS-0050).
+    de référence —, leur total général, et la réserve pour risques de la révision de
+    référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les
+    risques retenus.
   properties:
+    total: { $ref: ../common.yaml#/Money }
     identified: { $ref: ../common.yaml#/Money }
     occurred: { $ref: ../common.yaml#/Money }
     dismissed: { $ref: ../common.yaml#/Money }
     reserve: { $ref: ../common.yaml#/Money }
 
-RiskCoverage:
+RiskCoverageTotals:
   type: object
-  required: [context, reserve, remaining_provisions, occurred_cost, coverage_variance]
+  required: [reserve, remaining_provisions, occurred_cost, coverage_variance]
   description: >-
-    Couverture des risques : la réserve pour risques de la révision de référence, face
-    aux provisions des risques identifiés dans la révision courante et au montant
-    réestimé des lignes issues des risques survenus ; l'écart, signé, est
-    reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
+    Les quatre montants de la couverture des risques : la réserve pour risques de la
+    révision de référence, la somme des provisions des risques identifiés dans la révision
+    courante, le montant réestimé des lignes issues des risques survenus, et l'écart de
+    couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
   properties:
-    context: { $ref: indicators.yaml#/CalculationContext }
     reserve: { $ref: ../common.yaml#/Money }
     remaining_provisions: { $ref: ../common.yaml#/Money }
     occurred_cost: { $ref: ../common.yaml#/Money }
-    coverage_variance: { $ref: ../common.yaml#/Money }
+    coverage_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de couverture (WF-RIS-0050) : la réserve moins la somme des provisions restantes
+        et du coût des risques survenus, positif quand la réserve couvre encore, négatif quand
+        elle est dépassée — le sens de la marge du reste à engager
+        (`RemainingIndicators.delta_to_reference`).
+
+RiskCoverage:
+  allOf:
+    - $ref: '#/RiskCoverageTotals'
+    - type: object
+      required: [context]
+      properties:
+        context: { $ref: indicators.yaml#/CalculationContext }
+  description: >-
+    La couverture des risques d'un projet, à une date et dans une révision (WF-RIS-0050,
+    WF-RAE-0020).

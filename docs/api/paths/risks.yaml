@@ -5,15 +5,33 @@
     summary: Registre des risques
     description: >-
       Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
-      case de matrice et les totaux de provisions (WF-RIS-0040).
+      case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue
+      les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le
+      serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
       - name: states
         in: query
         schema:
           type: array
           items: { $ref: ../components/schemas/risks.yaml#/RiskState }
         explode: false
+      - name: zones
+        in: query
+        description: Restreint aux risques dont la case de matrice est dans l'une de ces zones.
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
+        explode: false
+      - $ref: ../components/parameters.yaml#/Search
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, l'ordre de déclaration.
+        schema:
+          type: string
+          enum: [label, probability, severity, provision_amount, state, last_review_on]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Risques et totaux.
@@ -27,6 +45,9 @@
                   type: array
                   items: { $ref: ../components/schemas/risks.yaml#/Risk }
                 totals: { $ref: ../components/schemas/risks.yaml#/ProvisionTotals }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risks.json }
+              empty: { $ref: ../../../fixtures/api/risks_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -36,7 +57,10 @@
     description: >-
       La création ouvre la structure de coûts propre du risque et sa ligne de provision
       dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque
-      identifié ne fait pas partie du budget de référence (WF-RIS-0050).
+      identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la
+      révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule
+      `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks`
+      (`RevisionCommand`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -50,6 +74,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -59,17 +84,23 @@
     operationId: getRisk
     summary: Un risque
     description: >-
-      Attributs du risque et état où il se trouve (WF-RIS-0010, WF-RIS-0020).
+      Attributs du risque et état où il se trouve dans la révision lue (`revision_id`,
+      WF-RIS-0010, WF-RIS-0020, WF-RIS-0030).
     tags: [risks]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Risque.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk.json }
+              occurred: { $ref: ../../../fixtures/api/risk_occurred_detail.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
     operationId: updateRisk
@@ -78,7 +109,10 @@
     description: >-
       La gravité et la provision ne sont pas saisissables : elles suivent la structure
       propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au
-      long du projet (WF-RIS-0030).
+      long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et
+      annulable (WF-RIS-0020, WF-IHM-0110) ; refusée sur un risque survenu, par 409
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la
+      commande `update` du risque le disait déjà indisponible.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -93,10 +127,48 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+  delete:
+    operationId: deleteRisk
+    tags: [risks]
+    summary: Supprimer un risque
+    description: >-
+      Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis
+      propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression
+      d'un risque cité par une révision marquée est refusée par 409,
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est
+      le réexamen (`reviewRisk`) qui l'écarte. Un risque survenu ne se supprime pas non plus :
+      aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à
+      `risk_not_occurred`. `missing_condition` n'en nomme qu'une : quand les deux manquent,
+      `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le
+      réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques
+      (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et
+      s'annule (WF-RIS-0020, WF-IHM-0110) ; la commande `delete` du risque dit d'avance
+      s'il se supprime.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '204':
+        description: Risque supprimé, son devis propre et sa ligne de provision avec lui.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
+          risque survenu, dont aucune transition ne part, et sinon à `risk_not_cited` : le risque
+          est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020).
+          Quand les deux manquent, `risk_not_occurred` est nommée.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
 
 /projects/{project_id}/risks/{risk_id}/reviews:
   get:
@@ -105,10 +177,13 @@
     summary: Historique des réexamens
     description: >-
       Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus
-      (WF-RIS-0010).
+      (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits
+      jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige
+      (WF-RIS-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Réexamens, du plus récent au plus ancien.
@@ -117,6 +192,9 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/risks.yaml#/RiskReview }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_reviews.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: reviewRisk
@@ -127,7 +205,9 @@
       peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
       WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ;
       la réserve pour risques de la révision de référence et le budget de référence
-      restent inchangés (WF-RIS-0050).
+      restent inchangés (WF-RIS-0050). Une saisie de la révision en cours, créée au besoin :
+      son annulation rend au risque sa probabilité et son état précédents (WF-RIS-0020,
+      WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -142,10 +222,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: 'Le risque est survenu : aucune transition n''en part (WF-RIS-0020).'
+        description: >-
+          Le risque est survenu : aucune transition n'en part (WF-RIS-0020).
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -157,11 +240,16 @@
     tags: [risks]
     summary: Déclarer un risque survenu
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale de
-      la révision en cours, avec un montant budgété nul, et retire la ligne de
-      provision ; ne marque aucune révision et ne déplace pas la référence
-      (WF-RIS-0060, WF-RIS-0050). Définitif, confié au worker, inscrit au journal
-      d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+      Fusionne les tâches et les lignes du devis propre dans la structure principale de la
+      révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne
+      marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) :
+      l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches
+      qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque
+      n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la
+      survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique
+      d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
+      WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la
+      révision en cours sont indisponibles (`no_background_task_running`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -176,6 +264,7 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -188,15 +277,20 @@
     description: >-
       La réserve pour risques de la révision de référence, face aux provisions des
       risques identifiés dans la révision courante et au coût réestimé des risques
-      survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020).
+      survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020). Dans la révision nommée,
+      ou la révision courante.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Couverture des risques du projet.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_coverage.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/risks/matrix:
@@ -206,14 +300,20 @@
     summary: Matrice de risques du projet
     description: >-
       Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
-      (WF-REF-0160, WF-RIS-0040). Chaque case porte sa zone, doublée d'un indice non
-      coloré à l'affichage (WF-IHM-0070).
+      (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
+      (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
+      budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à
+      l'affichage (WF-IHM-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Matrice remplie et totaux.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_matrix.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

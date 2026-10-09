@@ -1,0 +1,21 @@
+{
+  "summary": "Le reste à engager de la révision courante au 3 juin 2026 : 21 234,56 — les tâches non démarrées à leur montant budgété, le câblage des armoires démarré à son montant réestimé, les études terminées pour rien, les lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le reste à engager face au budget : « Poste de commande », en alerte, dépasse son budget de 2 400,00 ; l'ensemble hors sous-projet, en alerte, dépasse son budget de 3 700,00 ; « Essais et mise en service » nominal ; la marge sur le budget de référence, -6 100,00 — le budget moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à la revue précédente, -100 210,00 — le reste à engager courant moins celui de la référence à son marquage ; la couverture des risques (WF-RAE-0020, WF-RIS-0050). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "total": "21234.56",
+    "by_cost_type": [
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"19300.00","share":"0.9089"},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"1434.56","share":"0.0676"},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500.00","share":"0.0235"}
+    ],
+    "by_subproject": [
+      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"20534.56","actual_cost":"2400.00","remaining":"20534.56","variance":"-2400.00","is_over_budget":true,"zone":"alert"},
+      {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budget":"0.00","actual_cost":"0.00","remaining":"0.00","variance":"0.00","is_over_budget":false,"zone":"nominal"},
+      {"key":"unassigned","budget":"100000.00","actual_cost":"103000.00","remaining":"700.00","variance":"-3700.00","is_over_budget":true,"zone":"alert"}
+    ],
+    "delta_to_reference": "-6100.00",
+    "delta_to_previous_revision": "-100210.00",
+    "coverage": {"reserve":"910.00","remaining_provisions":"500.00","occurred_cost":"200.00","coverage_variance":"210.00"}
+  }
+}

@@ -15,10 +15,11 @@ pendant des mois, où le budget de référence ne se déplace que par un acte co
 la question « en sommes-nous encore où nous l'avions dit ? » doit trouver sa réponse des
 années après le départ de ceux qui y ont répondu la première fois.
 
-> **État : le socle est en place, le produit pas encore.** La spécification et le contrat
-> d'interface viennent d'abord ; le dépôt porte désormais aussi le back et le front vides,
-> l'outillage et la chaîne par lesquels passera chaque ligne du produit. Le produit se
-> construit EPIC par EPIC, comme le planifie [`docs/roadmap`](docs/roadmap/README.md).
+> **État : le socle et la maquette sont en place, le produit pas encore.** La spécification
+> et le contrat d'interface viennent d'abord ; le dépôt porte aussi l'outillage et la chaîne
+> par lesquels passe chaque ligne du produit, et un front qui montre chaque écran contre un
+> contrat simulé (EP-02). Le back vient ensuite, EPIC par EPIC, comme le planifie
+> [`docs/roadmap`](docs/roadmap/README.md), en commençant par les comptes et les habilitations (EP-03).
 
 ## Ce qui le distingue
 
@@ -58,7 +59,7 @@ elle ne mesure rien.
 |---|---|
 | `docs/spec` | la spécification : **203 exigences**, ses sources Word et draw.io, la projection Markdown engendrée, les outils qui la produisent et les revues qui l'ont établie |
 | `docs/api` | le contrat d'interface : **150 opérations** sur 116 chemins et 147 schémas, en OpenAPI écrit à la main, avec l'inventaire des endpoints et les décisions de conception |
-| `docs/roadmap` | le plan : treize EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
+| `docs/roadmap` | le plan : quatorze EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
 | `docs/dev` | le guide de développement, les règles de codage par langage, et les règles que suivent les agents |
 | `backend/` | un seul paquet Python : le noyau métier, le service d'API et le worker |
 | `frontend/` | l'application Next.js, son client engendré du contrat, ses parcours de bout en bout |

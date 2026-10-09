@@ -1,0 +1,313 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The configurations of the three dense grids of the settings of a project (FBS-4.2, #301): its
+ * work breakdown (FBS-4.2.1), its sub-projects and its contributors. Three grids on one screen, each
+ * with the key of its settings in the account (WF-ADM-0040) and its own names in the address
+ * (`prefixedAddress`), under which its page asks the API by the names of the contract.
+ *
+ * - The work breakdown is a tree, as its order was entered (WF-PRJ-0020): each order item, its work
+ *   packages under it, their deliverables under them. It sorts by no column (`sorts: false`) — the
+ *   order is the one entered, as `getWorkBreakdown` gives it —, folds and unfolds as the grids of
+ *   the tasks do (`GridTree.parent`, `fold.tsx`), and is searched by the server on its labels and
+ *   filtered on its kinds (`search`, `kinds`, EP-02/L42f): the order items and the work packages
+ *   that hold an element retained come with it, without the rest they hold — a reading that is
+ *   never the whole work breakdown, and never to be written back (`setWorkBreakdown`).
+ * - The sub-projects, each by the code the ERP knows it by, and whether actual costs are charged to
+ *   it (WF-PRJ-0050): searched by the server on their code and their label, sorted by it on each
+ *   column (`code`, `label`, `has_actual_costs`), filtered by it on their actual costs
+ *   (`has_actual_costs`).
+ * - The contributors, the project manager told from the others, and whether their account is still
+ *   active (WF-PRJ-0060): searched by the server on the name of their account, sorted by it on each
+ *   column (`display_name`, `kind`, `is_active`), filtered by it on their capacity (`kinds`) and on
+ *   the state of their account (`is_active`).
+ *
+ * Each flat table is so filtered on each of its columns (WF-IHM-0130, `listSubprojects`,
+ * `listContributors`), its filters under the names of the contract after the prefix of its grid
+ * (`subproject_has_actual_costs`, `contributor_kinds`, `contributor_is_active`), as the work
+ * breakdown on its kinds (`breakdown_kinds`). The volumes of
+ * §4.6.2 — ten sub-projects, fifty contributors a project — hold in one page, which the contract
+ * does not page.
+ *
+ * Neither server nor client: the page reads the keys and the names; the grids, in the browser, the
+ * rest — the functions that read a row never cross to the server.
+ */
+import { User, UserCog } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import type { components, operations } from "@/api/generated/schema";
+import { type GridConfig, sortColumns } from "@/components/grid/columns";
+import { prefixedAddress } from "@/components/grid/query";
+import { ActiveState } from "@/components/reference/section";
+
+import { ICON } from "./project-tables";
+
+/** A sub-project, as the contract gives it. */
+export type Subproject = components["schemas"]["Subproject"];
+
+/** A contributor of a project, as the contract gives it. */
+export type Contributor = components["schemas"]["Contributor"];
+
+/**
+ * The work breakdown of a project, as `getWorkBreakdown` reads it: whole, with the counter
+ * `setWorkBreakdown` asks; or what its filters retain, without a counter (`lock_version` null) — a
+ * reading partial, never to be written back.
+ */
+export type WorkBreakdown = components["schemas"]["WorkBreakdownReading"];
+
+/** The capacity of a contributor, as the contract names it. */
+export type ContributorKind = components["schemas"]["ContributorKind"];
+
+/** The column of the contract the server sorts the sub-projects by. */
+export type SubprojectSort = NonNullable<
+  NonNullable<operations["listSubprojects"]["parameters"]["query"]>["sort_by"]
+>;
+
+/** The column of the contract the server sorts the contributors by. */
+export type ContributorSort = NonNullable<
+  NonNullable<operations["listContributors"]["parameters"]["query"]>["sort_by"]
+>;
+
+/** What a row of the work breakdown is, as the contract names it: item, package, deliverable. */
+export type BreakdownKind = components["schemas"]["WorkBreakdownKind"];
+
+/**
+ * Every kind of the contract, in the order of its enumeration: one the contract adds fails the type
+ * check until it is here.
+ */
+const EVERY_BREAKDOWN_KIND: Readonly<Record<BreakdownKind, number>> = {
+  order_item: 0,
+  work_package: 1,
+  deliverable: 2,
+};
+
+/** The kinds of the elements of a work breakdown, in the order of the contract. */
+export const BREAKDOWN_KINDS = Object.keys(EVERY_BREAKDOWN_KIND) as readonly BreakdownKind[];
+
+/** The kinds the work breakdown is restricted to, in the address: `kinds` of the contract. */
+export const BREAKDOWN_KIND_FILTER = "breakdown_kinds";
+
+/** A row of the tree of the work breakdown, with the identity of the row it is under. */
+export interface BreakdownRow {
+  readonly id: string;
+  readonly parent: string | null;
+  readonly level: number;
+  readonly kind: BreakdownKind;
+  readonly label: string;
+}
+
+/** The keys of the settings of the three grids in the account: stable. */
+export const BREAKDOWN_GRID_KEY = "work_breakdown";
+export const SUBPROJECT_GRID_KEY = "subprojects";
+export const CONTRIBUTOR_GRID_KEY = "contributors";
+
+/** The names of each grid in the address: those of the contract, after its prefix. */
+export const BREAKDOWN_ADDRESS = prefixedAddress("breakdown_");
+export const SUBPROJECT_ADDRESS = prefixedAddress("subproject_");
+export const CONTRIBUTOR_ADDRESS = prefixedAddress("contributor_");
+
+/** The capacities the contributors are restricted to, in the address: `kinds` of the contract. */
+export const CONTRIBUTOR_KINDS = "contributor_kinds";
+
+/** The state of the accounts the contributors are restricted to: `is_active` of the contract. */
+export const CONTRIBUTOR_ACTIVE = "contributor_is_active";
+
+/** The sub-projects restricted on their actual costs: `has_actual_costs` of the contract. */
+export const SUBPROJECT_ACTUAL_COSTS = "subproject_has_actual_costs";
+
+/**
+ * Every capacity of the contract, in the order of its enumeration: one the contract adds fails the
+ * type check until it is here.
+ */
+const EVERY_KIND: Readonly<Record<ContributorKind, number>> = {
+  project_manager: 0,
+  contributor: 1,
+};
+
+/** The capacities a contributor may have, in the order of the contract. */
+export const KINDS = Object.keys(EVERY_KIND) as readonly ContributorKind[];
+
+/**
+ * The rows of the tree of a work breakdown, in the order it was entered: each order item, then each
+ * of its work packages, each followed by its deliverables.
+ */
+export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
+  return breakdown.order_items.flatMap((item): BreakdownRow[] => [
+    {
+      id: item.order_item_id,
+      parent: null,
+      level: 1,
+      kind: "order_item",
+      label: item.label,
+    },
+    ...item.work_packages.flatMap((workPackage): BreakdownRow[] => [
+      {
+        id: workPackage.work_package_id,
+        parent: item.order_item_id,
+        level: 2,
+        kind: "work_package",
+        label: workPackage.label,
+      },
+      ...workPackage.deliverables.map((deliverable): BreakdownRow => ({
+        id: deliverable.deliverable_id,
+        parent: workPackage.work_package_id,
+        level: 3,
+        kind: "deliverable",
+        label: deliverable.label,
+      })),
+    ]),
+  ]);
+}
+
+/** What a row of the work breakdown is, in words. */
+function BreakdownKindCell({ row }: { readonly row: BreakdownRow }) {
+  const t = useTranslations("enums.WorkBreakdownKind");
+  return t(row.kind);
+}
+
+/** The grid of the work breakdown: a tree in the order entered, which folds; searched by the server. */
+export const BREAKDOWN_GRID: GridConfig<BreakdownRow, never, null> = {
+  key: BREAKDOWN_GRID_KEY,
+  name: "workBreakdown",
+  address: BREAKDOWN_ADDRESS,
+  sorts: false,
+  searched: true,
+  rowKey: (row) => row.id,
+  tree: {
+    level: (row) => row.level,
+    nature: () => null,
+    emphasis: (row) => (row.kind === "order_item" ? "strong" : undefined),
+    parent: (row) => row.parent,
+  },
+  columns: [
+    {
+      key: "label",
+      label: "label",
+      format: "text",
+      width: 420,
+      pinned: true,
+      value: (row) => row.label,
+    },
+    {
+      key: "kind",
+      label: "breakdownKind",
+      format: "text",
+      width: 130,
+      value: (row) => row.kind,
+      render: (row) => <BreakdownKindCell row={row} />,
+    },
+  ],
+};
+
+/** Whether actual costs are charged to a sub-project, in words. */
+function ActualCosts({ subproject }: { readonly subproject: Subproject }) {
+  const t = useTranslations("projectLists.subprojects");
+  return t(subproject.has_actual_costs ? "charged" : "notCharged");
+}
+
+/** The grid of the sub-projects, searched and sorted by the server on each column. */
+export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
+  key: SUBPROJECT_GRID_KEY,
+  name: "subprojects",
+  address: SUBPROJECT_ADDRESS,
+  searched: true,
+  rowKey: (subproject) => subproject.subproject_id,
+  columns: [
+    {
+      key: "code",
+      label: "erpCode",
+      format: "text",
+      width: 130,
+      pinned: true,
+      contract: "code",
+      value: (subproject) => subproject.code,
+    },
+    {
+      key: "label",
+      label: "label",
+      format: "text",
+      width: 320,
+      contract: "label",
+      value: (subproject) => subproject.label,
+    },
+    {
+      key: "actual_costs",
+      label: "actualCosts",
+      format: "text",
+      width: 130,
+      contract: "has_actual_costs",
+      value: (subproject) => (subproject.has_actual_costs ? "charged" : "none"),
+      render: (subproject) => <ActualCosts subproject={subproject} />,
+    },
+  ],
+};
+
+/** The name of the account of a contributor, after the icon of a person. */
+function ContributorName({ contributor }: { readonly contributor: Contributor }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <User aria-hidden="true" className={ICON} />
+      {contributor.display_name}
+    </span>
+  );
+}
+
+/** The capacity of a contributor in words, the project manager marked by an icon besides them. */
+function Capacity({ contributor }: { readonly contributor: Contributor }) {
+  const t = useTranslations("enums.ContributorKind");
+  return contributor.kind === "project_manager" ? (
+    <span className="inline-flex items-center gap-1.5">
+      <UserCog aria-hidden="true" className={ICON} />
+      {t(contributor.kind)}
+    </span>
+  ) : (
+    t(contributor.kind)
+  );
+}
+
+/**
+ * The grid of the contributors, searched on their names and sorted by the server on each column.
+ */
+export const CONTRIBUTOR_GRID: GridConfig<Contributor, ContributorSort, null> = {
+  key: CONTRIBUTOR_GRID_KEY,
+  name: "contributors",
+  address: CONTRIBUTOR_ADDRESS,
+  searched: true,
+  rowKey: (contributor) => contributor.user_id,
+  columns: [
+    {
+      key: "name",
+      label: "name",
+      format: "text",
+      width: 240,
+      pinned: true,
+      contract: "display_name",
+      value: (contributor) => contributor.display_name,
+      render: (contributor) => <ContributorName contributor={contributor} />,
+    },
+    {
+      key: "kind",
+      label: "contributorKind",
+      format: "text",
+      width: 180,
+      contract: "kind",
+      value: (contributor) => contributor.kind,
+      render: (contributor) => <Capacity contributor={contributor} />,
+    },
+    {
+      key: "account",
+      label: "account",
+      format: "text",
+      width: 140,
+      contract: "is_active",
+      value: (contributor) => (contributor.is_active ? "active" : "inactive"),
+      render: (contributor) => <ActiveState active={contributor.is_active} />,
+    },
+  ],
+};
+
+/** The columns of the contract the grid of the sub-projects sorts by. */
+export const SUBPROJECT_SORT_COLUMNS = sortColumns(SUBPROJECT_GRID);
+
+/** The columns of the contract the grid of the contributors sorts by. */
+export const CONTRIBUTOR_SORT_COLUMNS = sortColumns(CONTRIBUTOR_GRID);

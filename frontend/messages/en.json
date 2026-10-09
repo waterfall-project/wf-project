@@ -1,0 +1,2337 @@
+{
+  "app": {
+    "name": "Waterfall",
+    "title": "{screen} — Waterfall",
+    "projectTitle": "{screen} · {project} — Waterfall"
+  },
+  "languageSelector": {
+    "label": "Language"
+  },
+  "themeSelector": {
+    "label": "Display mode"
+  },
+  "sidebar": {
+    "label": "Side bar",
+    "description": "The functions of Waterfall, and the open project.",
+    "collapse": "Collapse the side bar",
+    "expand": "Expand the side bar"
+  },
+  "navigation": {
+    "label": "Functions",
+    "returnToProject": "Back to the project",
+    "scopes": {
+      "platform": "Platform",
+      "project": "Project",
+      "revision": "Current revision"
+    }
+  },
+  "projectSwitcher": {
+    "none": "No project open",
+    "unnamed": "Open project",
+    "allProjects": "All projects",
+    "projectPage": "Project page",
+    "myProjects": "My projects"
+  },
+  "breadcrumbs": {
+    "label": "Breadcrumb",
+    "revision": "Revision"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Search for a function, a project…",
+    "comingSoon": "Search is to come: it arrives with the screens that list the functions and the projects."
+  },
+  "accountMenu": {
+    "label": "Account of {name}",
+    "name": "{first} {last}",
+    "preferences": "Preferences",
+    "account": "My account",
+    "password": "Change password",
+    "avatar": "Change avatar",
+    "signOut": "Sign out"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "local": "With your Waterfall account.",
+    "directory": "With your Waterfall account or your account in the company directory.",
+    "namedDirectory": "With your Waterfall account or your account in the “{directory}” directory.",
+    "email": "Email address",
+    "password": "Password",
+    "submit": "Sign in",
+    "or": "or",
+    "identityProvider": "Sign in with the identity provider",
+    "namedIdentityProvider": "Sign in with {provider}",
+    "forgotten": "Forgotten your password?"
+  },
+  "passwordReset": {
+    "title": "Forgotten password",
+    "request": "Give the email address of your account: a link to choose a new password will be sent to it.",
+    "email": "Email address",
+    "send": "Send the link",
+    "sent": "If an account has this address, a link has just been sent to it.",
+    "chooseTitle": "New password",
+    "choose": "Choose the new password of your account.",
+    "newPassword": "New password",
+    "save": "Save the password",
+    "saved": "Your password is saved: you may sign in.",
+    "askAgain": "Ask for a new link",
+    "back": "Back to sign in",
+    "signIn": "Sign in"
+  },
+  "account": {
+    "details": "Account details",
+    "name": "Name",
+    "email": "Email address",
+    "origin": "Origin of the account",
+    "preferences": "Display preferences",
+    "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
+    "save": "Save",
+    "saved": "Your preferences are saved.",
+    "password": {
+      "current": "Current password",
+      "new": "New password",
+      "submit": "Change the password",
+      "changed": "Your password is changed.",
+      "external": "Your password is the one of the directory or of the identity provider your account comes from: it is not changed in Waterfall."
+    },
+    "avatar": {
+      "current": "Your avatar",
+      "initials": "No picture: your initials stand in for it.",
+      "file": "PNG or JPEG image",
+      "limit": "An image of {size} at most.",
+      "wrongType": "Choose a PNG or JPEG image.",
+      "tooLarge": "This image is larger than {size}: choose a lighter one.",
+      "upload": "Upload the image",
+      "remove": "Remove the avatar",
+      "uploaded": "Your avatar is saved.",
+      "removed": "Your avatar is removed."
+    }
+  },
+  "rowNature": {
+    "summary": "Summary task",
+    "task": "Task",
+    "milestone": "Milestone",
+    "labour": "Labour line",
+    "disbursement": "Disbursement line",
+    "provision": "Provision line"
+  },
+  "grid": {
+    "names": {
+      "estimate": "Estimate grid",
+      "planning": "Planning grid",
+      "risks": "Risk register",
+      "actualCosts": "Actual costs",
+      "hourlyRates": "Hourly rate grid",
+      "orgNodes": "Organisation tree",
+      "resourceRoles": "Resource roles",
+      "calendars": "Calendars",
+      "costTypes": "Cost types",
+      "costCategories": "Cost categories",
+      "subprojects": "Subprojects",
+      "contributors": "Contributors",
+      "workBreakdown": "Work breakdown",
+      "users": "User accounts",
+      "accessRoles": "Access roles",
+      "auditLog": "Audit log",
+      "portfolioProjects": "Portfolio projects",
+      "remaining": "Remaining to commit grid",
+      "projects": "List of projects"
+    },
+    "columns": {
+      "rowNumber": "No.",
+      "label": "Label",
+      "category": "Category",
+      "role": "Role",
+      "quantity": "Qty",
+      "hours": "Effort (h)",
+      "unitDisbursement": "Unit disbursement",
+      "paymentDelay": "Payment delay (days)",
+      "referenceAmount": "Amount (reference year)",
+      "inflatedAmount": "Amount corrected for inflation",
+      "inactiveObject": "Deactivated object",
+      "startDate": "Start",
+      "finishDate": "Finish",
+      "schedulingMode": "Scheduling mode",
+      "duration": "Duration",
+      "progress": "Progress",
+      "totalFloat": "Float",
+      "predecessors": "Predecessors",
+      "probability": "Probability",
+      "severity": "Severity",
+      "provisionAmount": "Provision",
+      "state": "State",
+      "lastReview": "Last review",
+      "matrixCell": "Matrix cell",
+      "documentNumber": "Document no.",
+      "documentDate": "Document date",
+      "amount": "Amount",
+      "subproject": "Subproject",
+      "trackedScope": "Tracked scope",
+      "excludedReason": "Reason for exclusion",
+      "passthrough": "Columns kept from the file",
+      "code": "Code",
+      "hourlyRate": "Hourly rate",
+      "level": "Level",
+      "orgNode": "Organisation node",
+      "costCategory": "Cost category",
+      "calendar": "Calendar",
+      "monthlyHours": "Hours a month",
+      "headcount": "Headcount",
+      "monday": "Mon",
+      "tuesday": "Tue",
+      "wednesday": "Wed",
+      "thursday": "Thu",
+      "friday": "Fri",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "defaultCalendar": "Default",
+      "costTypeKind": "Kind",
+      "costType": "Cost type",
+      "accountingCode": "Accounting code",
+      "erpCode": "ERP code",
+      "actualCosts": "Actual costs",
+      "name": "Name",
+      "contributorKind": "Capacity",
+      "account": "Account",
+      "breakdownKind": "Kind",
+      "lastName": "Last name",
+      "firstName": "First name",
+      "email": "Email address",
+      "origin": "Origin",
+      "accessRoles": "Access roles",
+      "attachment": "Attached to",
+      "roleKind": "Kind",
+      "holders": "Holding accounts",
+      "modify": "Modify",
+      "delete": "Delete",
+      "activation": "Activation",
+      "assignRoles": "Role assignment",
+      "referenceBudget": "Reference budget",
+      "currentEstimate": "Current estimate",
+      "winProbability": "Win probability",
+      "projectManagerProjection": "Project manager’s projection",
+      "deltaToReference": "Variance to reference",
+      "costIndex": "Cost index",
+      "scheduleIndex": "Schedule index",
+      "lastMarkedAt": "Last marked revision",
+      "finishOverdue": "Finish overdue",
+      "budgetedAmount": "Budgeted amount",
+      "previousQuantity": "Qty at the previous review",
+      "previousHours": "Effort (h) at the previous review",
+      "previousUnitDisbursement": "Unit disbursement at the previous review",
+      "previousReestimatedAmount": "Re-estimated at the previous review",
+      "reestimatedAmount": "Re-estimated amount",
+      "description": "Description",
+      "physicalProgress": "Physical progress",
+      "gantt": "Gantt",
+      "updatedAt": "Last modified",
+      "occurredAt": "Date",
+      "author": "Author",
+      "auditAction": "Action",
+      "objectKind": "Kind of object",
+      "auditObject": "Object",
+      "objectHistory": "History of the object",
+      "project": "Project",
+      "correlation": "Correlation"
+    },
+    "computed": "Computed",
+    "entry": {
+      "none": "None",
+      "codedChoice": "{code} — {label}",
+      "notANumber": "This is not a number: enter it as {example}.",
+      "required": "This cell cannot be left empty.",
+      "tooLong": "{max} characters at most.",
+      "twoDecimals": "An amount has two decimals at most: enter it as {example}."
+    },
+    "resize": "Width of the column {column}",
+    "empty": "No row matches the request.",
+    "search": {
+      "label": "Search a label",
+      "labelIn": "Search in “{grid}”",
+      "placeholder": "Search a label"
+    },
+    "undo": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "menu": "Cell menu",
+      "shortcut": {
+        "undo": "Ctrl+Z",
+        "redo": "Ctrl+Shift+Z"
+      },
+      "unavailable": "Unavailable until the server keeps the history of the entries.",
+      "told": {
+        "undo": "Undo is unavailable: the server does not keep the history of the entries yet.",
+        "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
+      }
+    },
+    "columnsMenu": {
+      "open": "Columns",
+      "openIn": "Columns of “{grid}”",
+      "title": "Columns shown"
+    },
+    "fold": {
+      "open": "Tree",
+      "title": "Fold and unfold the tree",
+      "expandAll": "Expand all",
+      "expandAllKeys": "Alt+*",
+      "collapseAll": "Collapse all",
+      "level": "Down to level {level}",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "collapseRow": "Collapse the row",
+      "expandRow": "Expand the row",
+      "collapseAbove": "Collapse “{label}”"
+    },
+    "paste": {
+      "title": "Paste from a spreadsheet",
+      "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
+      "reading": "Reading the report…",
+      "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
+      "validRows": "{count, plural, =0 {No row is valid} one {# row is valid} other {# rows are valid}}; nothing will be written while a row is refused.",
+      "noneRejected": "No row is refused.",
+      "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
+      "rejectedRow": "Row {row} of the block — {reason}",
+      "blocked": "A paste with a refused row is not applied: the grid stays unchanged. Correct the block in the spreadsheet, then paste it again.",
+      "apply": "Apply the paste",
+      "abandon": "Abandon",
+      "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
+      "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
+      "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
+      "sortedRows": "The pasted block would write the rows that follow the cell in the order of the plan, which the sort has moved: lift the sort before pasting, or paste a shorter block.",
+      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block.",
+      "beyondRows": "The pasted block would reach past the rows the grid shows under the cell: paste a shorter block."
+    },
+    "range": {
+      "min": "{column}, min",
+      "max": "{column}, max",
+      "minShort": "min",
+      "maxShort": "max",
+      "apply": "Filter",
+      "lift": "Lift the bounds",
+      "inverted": "The upper bound may not precede the lower one, {minimum}.",
+      "money": "Two decimals at most."
+    },
+    "period": {
+      "from": "From",
+      "to": "To",
+      "apply": "Filter",
+      "inverted": "The end of the period may not precede its start, {minimum}.",
+      "invertedUndated": "The end of the period may not precede its start.",
+      "late": "The start of the period may not follow its end, {maximum}.",
+      "lateUndated": "The start of the period may not follow its end.",
+      "invertedDefault": "The end of the period may not precede its default start, {minimum}.",
+      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}."
+    }
+  },
+  "estimateGrid": {
+    "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
+    "usesInactiveObject": "Uses a deactivated object"
+  },
+  "planningGrid": {
+    "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
+    "duration": "{value} {unit}",
+    "critical": "Critical path",
+    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessorSeparator": ";",
+    "notComputableReason": " — {reason}"
+  },
+  "gantt": {
+    "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}"
+  },
+  "taskTree": {
+    "summary": "The summary tasks, under the project, down to the level chosen — read only.",
+    "name": "Tree of the summary tasks",
+    "depths": "Level shown",
+    "depth": "Level {level}",
+    "noSummary": "This plan has no summary task: the tree comes down to the project."
+  },
+  "timelines": {
+    "summary": "The tasks and milestones inscribed to each timeline of the project — read only.",
+    "choice": "Timeline shown",
+    "none": "This project has no timeline.",
+    "empty": "No task of this revision is inscribed to this timeline."
+  },
+  "remainingGrid": {
+    "finishOverdue": "Started task past its finish",
+    "showNotStarted": "Show the tasks not started too",
+    "startedOnly": "Show the started tasks only"
+  },
+  "risks": {
+    "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
+    "generalTotal": "General total",
+    "filter": "Filter by state",
+    "everyState": "Every state",
+    "provisions": {
+      "title": "Provisions of the risks retained",
+      "identified": "Identified risks",
+      "occurred": "Occurred risks",
+      "dismissed": "Dismissed risks",
+      "total": "General total"
+    },
+    "coverage": {
+      "title": "Risk coverage",
+      "reserve": "Risk reserve",
+      "remainingProvisions": "Remaining provisions",
+      "occurredCost": "Cost of the occurred risks",
+      "coverageVariance": "Coverage variance"
+    },
+    "matrix": {
+      "title": "Risk matrix",
+      "probability": "Probability",
+      "severity": "Severity, as a share of the reference budget",
+      "between": "{lower} to under {upper}",
+      "from": "{lower} and over"
+    },
+    "detail": {
+      "hint": "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
+      "close": "Close the detail of the risk",
+      "description": "Description",
+      "mitigation": "Mitigation actions",
+      "notSet": "Not set",
+      "neverReviewed": "Never reviewed",
+      "provisionLine": {
+        "title": "Provision line",
+        "present": "In the main structure: the provision weighs on the estimate.",
+        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
+        "absent": "Not in the main structure: the risk does not weigh on the estimate."
+      },
+      "reviews": {
+        "title": "History of the reviews",
+        "none": "No review.",
+        "reviewedOn": "Date",
+        "probability": "Probability",
+        "severity": "Severity",
+        "state": "State",
+        "actor": "By"
+      }
+    }
+  },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
+    "refused": {
+      "period": "The actual costs cannot be read over this period: its end precedes its start.",
+      "subproject": "The actual costs cannot be read: the sub-project asked for does not exist.",
+      "invalid": "The actual costs cannot be read: the API refuses the filters asked for."
+    },
+    "generalTotal": "General total of the lines retained",
+    "totals": {
+      "title": "Totals of the lines retained",
+      "tracked": "Tracked scope",
+      "excluded": "Excluded from the tracked scope",
+      "overall": "General total"
+    },
+    "lastImport": {
+      "label": "Last import",
+      "never": "No import"
+    },
+    "scope": {
+      "tracked": "Tracked",
+      "excluded": "Excluded"
+    },
+    "filters": {
+      "label": "Filters of the actual costs",
+      "scope": "Scope",
+      "everyLine": "Every line",
+      "tracked": "Tracked",
+      "excluded": "Excluded",
+      "subproject": "Subproject",
+      "everySubproject": "Every subproject",
+      "subprojectChoice": "{code} — {label}",
+      "unknownSubproject": "Unknown subproject",
+      "period": "Period of the documents",
+      "from": "Documents from",
+      "to": "Documents up to",
+      "apply": "Filter"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages of the actual costs",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous lines",
+        "next": "Next lines"
+      },
+      "imports": {
+        "label": "Pages of the journal of the imports",
+        "beyond": "The page asked is beyond the end of the journal.",
+        "previous": "More recent imports",
+        "next": "Older imports"
+      },
+      "exchanges": {
+        "label": "Pages of the imports of the project",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous imports",
+        "next": "Next imports"
+      }
+    },
+    "imports": {
+      "title": "Journal of the imports",
+      "none": "No actual cost has been imported yet.",
+      "importedAt": "Date",
+      "actor": "By",
+      "period": "Period extracted",
+      "created": "Created",
+      "updated": "Updated",
+      "ignored": "Ignored",
+      "periodRange": "from {from} to {to}",
+      "periodFrom": "from {from}",
+      "periodTo": "until {to}",
+      "periodUnknown": "Not given"
+    },
+    "line": {
+      "title": "Line {document}",
+      "close": "Close the line",
+      "reason": "Reason for the exclusion",
+      "excludedWithoutReason": "Excluded from the tracked scope, without a reason.",
+      "excludedBecause": "Excluded from the tracked scope: {reason}",
+      "exclude": "Exclude from the tracked scope",
+      "reinstate": "Reinstate in the tracked scope"
+    }
+  },
+  "portfolio": {
+    "perimeter": {
+      "label": "Portfolio perimeter",
+      "states": "States retained",
+      "period": "Period and calculation date",
+      "from": "From",
+      "to": "To",
+      "asOf": "Calculated on",
+      "apply": "Apply",
+      "orgNode": "Organisation node and its descendants",
+      "everyNode": "All nodes",
+      "byDefault": "Default",
+      "horizon": "Horizon",
+      "months": "{months} months",
+      "threshold": "Under-load threshold"
+    },
+    "scope": {
+      "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",
+      "period": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} to {to} · calculated on {asOf}",
+      "since": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} · calculated on {asOf}",
+      "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}",
+      "node": "Labour of {node} and of its descendants"
+    },
+    "projects": {
+      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
+      "reason": " — {reason}",
+      "zones": "Filter by zone of the indices",
+      "everyZone": "Every zone"
+    },
+    "pages": {
+      "label": "Pages of the projects",
+      "beyond": "The page asked is beyond the end of the list.",
+      "previous": "Previous projects",
+      "next": "Next projects"
+    },
+    "value": {
+      "title": "Portfolio value",
+      "orderBook": "Order book",
+      "pipelineGross": "Gross pipeline",
+      "pipelineWeighted": "Weighted pipeline",
+      "delivered": "Delivered",
+      "conversionRate": "Conversion rate",
+      "period": "Delivered and conversion rate over the period from {from} to {to}",
+      "since": "Delivered and conversion rate over the period from {from}",
+      "until": "Delivered and conversion rate over the period up to {to}",
+      "noPeriod": "Delivered and conversion rate without a period"
+    },
+    "performance": {
+      "indices": "Aggregated indices",
+      "projections": "Projections at completion",
+      "atBudget": "At budget",
+      "projectManager": "Project manager’s",
+      "atObservedRate": "At the observed rate",
+      "distribution": "Projects by zone",
+      "index": "Index",
+      "zone": "Zone",
+      "projects": "Projects",
+      "quarterly": "Quarterly evolution of the indices",
+      "exportTitle": "Quarterly evolution of the portfolio indices",
+      "quarterlyDescription": "Curves of the aggregated cost index and schedule index of the portfolio, one point per quarter, calculated at past dates.",
+      "quarterColumn": "Quarter",
+      "quarter": "Q{number} {year}",
+      "cost_index": "Cost index",
+      "schedule_index": "Schedule index",
+      "file": "indices-evolution"
+    },
+    "costStructure": {
+      "noActualCost": "The actual cost is not broken down by nature: the ERP does not provide it.",
+      "budget": "Reference budget by nature",
+      "remaining": "Remaining to commit by nature",
+      "labor": "Labour by organisation node",
+      "nature": "Cost nature",
+      "orgNode": "Organisation node",
+      "amount": "Amount",
+      "share": "Share",
+      "unnamed": "Unnamed"
+    },
+    "risks": {
+      "identifiedTotal": "Provisions of the identified risks",
+      "occurred": "Provisions occurred over the period",
+      "dismissed": "Provisions dismissed over the period",
+      "heaviest": "Heaviest risks",
+      "risk": "Risk",
+      "project": "Project",
+      "provision": "Provision",
+      "coverage": "Risk coverage",
+      "reserve": "Reference reserve",
+      "remainingProvisions": "Remaining provisions",
+      "occurredCost": "Cost of the occurred risks",
+      "coverageVariance": "Coverage variance"
+    },
+    "workload": {
+      "title": "Load by role and by month",
+      "none": "No load on the perimeter and horizon chosen.",
+      "role": "Role",
+      "capacity": "Monthly capacity",
+      "hours": "{hours} h"
+    },
+    "pilotHealth": {
+      "none": "No signal: the control of the projects of the perimeter is kept up.",
+      "signals": "Project control health signals",
+      "project": "Project",
+      "signal": "Signal",
+      "zone": "Zone",
+      "detail": {
+        "reviewOverdue": "{weeks, plural, one {# week} other {# weeks}} since the last marked revision",
+        "milestoneOverdue": "{milestone}, reference date {date}"
+      }
+    },
+    "costCurve": {
+      "chartTitle": "Cumulative costs of the portfolio",
+      "chartTitleDelayed": "Cumulative cash-out of the portfolio",
+      "description": "Cumulative curves, month by month, of the reference budget of the projects of the perimeter, of their actual cost up to the calculation date, then of their project managers’ projection: each point is the sum of the points of the projects, as the server computes it.",
+      "descriptionDelayed": "The same curves, each project shifted by its payment delays and bearing the provisions of its identified risks: the cumulative cash-out of the portfolio, past and to come.",
+      "delay": "Read as cash-out",
+      "undelay": "Back to the cumulative costs",
+      "series": "Curve",
+      "date": "Date",
+      "amount": "Amount",
+      "file": "cumulative-costs",
+      "fileDelayed": "cumulative-cash-out"
+    },
+    "cashOut": {
+      "chartTitle": "Cash-out by month",
+      "exportTitle": "Cash-out of the portfolio by month",
+      "description": "The cash-out reading of the portfolio S-curve: the past cash-out, sums of the actual costs of the projects by month of shifted document date, and the cash-out to come, sums of their shifted projections, month by month.",
+      "month": "Month",
+      "past": "Paid out",
+      "forecast": "To be paid out",
+      "file": "cash-out-by-month"
+    },
+    "periodRefused": "The view is not read: the server refuses the period asked."
+  },
+  "computedValue": {
+    "title": "Computed value",
+    "refused": "{column} cannot be entered: Waterfall computes this value.",
+    "dependsOn": "It depends on:",
+    "pending": "Reading what it depends on…"
+  },
+  "estimateSummary": {
+    "title": "Estimate indicators",
+    "total": "Estimate total",
+    "provisions": "Identified provisions",
+    "delta": "Deviation from the previous marked revision",
+    "deltaToReference": "Deviation from the reference",
+    "byCostType": "By nature of cost",
+    "bySubproject": "By subproject",
+    "byOrderItem": "By order item",
+    "shareOf": " ({share})",
+    "notComputable": "Not computable — {reason}",
+    "unavailable": "The estimate indicators are unavailable.",
+    "unnamed": "No label",
+    "missingRates": {
+      "title": "Missing hourly rates",
+      "explanation": "The estimate cannot be calculated until these cost categories have an hourly rate for its reference year:",
+      "rate": "{category} — {year}",
+      "enter": "Enter the hourly rates",
+      "see": "See the hourly rates"
+    }
+  },
+  "remainingSummary": {
+    "title": "Remaining to commit indicators",
+    "unavailable": "The remaining to commit indicators are unavailable.",
+    "unnamed": "Unnamed",
+    "total": "Remaining to commit",
+    "deltaToReference": "Margin on the reference budget",
+    "deltaToPrevious": "Deviation from the previous review",
+    "byCostType": "By nature of cost",
+    "bySubproject": "Remaining to commit by sub-project, and margin on the budget",
+    "amount": "{name}: {amount}",
+    "amountShare": "{name}: {amount} ({share})",
+    "balance": "{name}: {remaining}, margin {variance}"
+  },
+  "kanban": {
+    "summary": "The tasks of the revision in progress, not started, started and completed. A task is started or it is not: no percentage is entered.",
+    "inProgressOnly": "The Kanban presents the tasks of the revision in progress: a marked revision has none to start.",
+    "notStarted": "Not started",
+    "started": "Started",
+    "completed": "Completed",
+    "empty": "No task.",
+    "milestone": "Milestone",
+    "milestoneDue": "Its predecessors are completed: milestone to complete.",
+    "finish": "Finish on {date}",
+    "finishOverdue": "Finish overdue",
+    "completedOn": "Completed on {date}"
+  },
+  "contextBanner": {
+    "label": "Reading context",
+    "project": "Project",
+    "revision": "Revision",
+    "currentRevision": "Current revision",
+    "reference": "Reference revision",
+    "readOnly": "Read only: no entry is offered on this revision.",
+    "filters": "Active filters",
+    "subproject": "Subproject: {subproject}",
+    "subprojectName": "{code} — {label}",
+    "asOf": "Calculation date: {date}",
+    "computedOn": "Revision of the calculation",
+    "unnamedRevision": "unnamed",
+    "removeFilter": "Remove the filter “{filter}”",
+    "restricts": {
+      "grid": "{filter}, on the grid only",
+      "exceptMilestones": "{filter}, except the milestone tracking"
+    }
+  },
+  "indicator": {
+    "names": {
+      "financialProgress": "Financial progress",
+      "budgetConsumption": "Budget consumption",
+      "physicalProgress": "Physical progress",
+      "costIndex": "Cost index",
+      "scheduleIndex": "Schedule index",
+      "projectionAtObservedRate": "Projection at the observed rate"
+    },
+    "notComputable": "Not computable",
+    "computedAt": "Computed on <time></time>"
+  },
+  "chart": {
+    "values": "Values of the chart",
+    "exportPng": "Export as PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Revision: {revision} · Computed on {date}",
+    "exportSubtitleWith": "Revision: {revision} · {detail} · Computed on {date}",
+    "fileName": "{file}-{code}.png",
+    "exportPortfolioSubtitleWith": "{scope} · {node}",
+    "portfolioFileName": "{file}-portfolio-{asOf}.png"
+  },
+  "projectIndicators": {
+    "notInProgress": {
+      "title": "Indicators unavailable",
+      "explanation": "The indicators of a project are computed from the In progress state; before, only the indicators of the estimate exist."
+    },
+    "unknownScope": {
+      "title": "Indicators unavailable",
+      "explanation": "The subproject asked for does not exist in this project: no indicator is computed for it. Remove the filter of the subproject, or choose another one."
+    },
+    "elsewhere": {
+      "title": "Computed on another revision",
+      "history": "The evolution of the indices is computed on the revision “{revision}”, not on the one of the indicators."
+    },
+    "financial": {
+      "title": "Financial progress"
+    },
+    "projections": {
+      "title": "Projection at completion",
+      "hypothesis": "Hypothesis",
+      "amount": "Amount",
+      "variance": "Variance from budget",
+      "atBudget": "At budget",
+      "projectManager": "Project manager’s",
+      "varianceAtObservedRate": "Variance from budget of the projection at the observed rate: {variance}"
+    },
+    "physical": {
+      "title": "Physical progress"
+    },
+    "cost": {
+      "title": "Cost performance index (CPI)"
+    },
+    "schedule": {
+      "title": "Schedule performance index (SPI)"
+    },
+    "figures": {
+      "referenceBudget": "Reference budget",
+      "plannedValue": "Planned value",
+      "earnedValue": "Earned value",
+      "actualCost": "Actual cost",
+      "remaining": "Remaining to commit",
+      "costVariance": "Cost variance",
+      "scheduleVariance": "Schedule variance"
+    },
+    "notComputable": "Not computable — {reason}",
+    "unnamedSubproject": "Unnamed subproject",
+    "history": {
+      "costTitle": "Evolution of the cost index",
+      "scheduleTitle": "Evolution of the schedule index",
+      "costDescription": "Curves of the cost index of the project and of each of its scopes, one point per marked revision and the last at the current day, with the watch threshold at {watch} and the alert threshold at {alert}.",
+      "scheduleDescription": "Curves of the schedule index of the project and of each of its scopes, one point per marked revision and the last at the current day, with the watch threshold at {watch} and the alert threshold at {alert}.",
+      "watch": "Watch threshold",
+      "alert": "Alert threshold",
+      "thresholds": "Thresholds",
+      "scope": "Scope",
+      "revision": "Revision",
+      "date": "Date",
+      "value": "Index",
+      "zone": "Zone",
+      "currentRevision": "Current revision"
+    },
+    "milestones": {
+      "title": "Milestone tracking",
+      "chartTitle": "Time/time diagram",
+      "description": "For each tracked milestone, the date each marked revision forecast, by the date of its marking, and the last point at the current day, with the diagonal of equal dates.",
+      "milestone": "Milestone",
+      "markedAt": "Revision of",
+      "forecast": "Forecast date",
+      "completedOn": "Completed on",
+      "notCompleted": "Not completed",
+      "diagonal": "Equal dates",
+      "none": "No milestone is tracked.",
+      "file": "milestone-tracking"
+    },
+    "costCurve": {
+      "title": "Cumulative costs",
+      "chartTitle": "S-curve",
+      "chartTitleDelayed": "Cash out",
+      "description": "Cumulative curves of the reference budget by the dates of the reference, of the actual cost by the document dates up to the calculation date, then of the project manager’s projection, with the dated steps of the reference budget.",
+      "descriptionDelayed": "The same curves shifted by the payment delay of each line, the provisions of the identified risks added at the date of their task: the cash out, past and to come.",
+      "delay": "Shift by the payment delays",
+      "undelay": "Remove the shift by the payment delays",
+      "file": "s-curve",
+      "fileDelayed": "cash-out"
+    },
+    "earnedValue": {
+      "title": "Earned value curves",
+      "chartTitle": "Planned value, earned value and actual cost",
+      "description": "Cumulative curves of the planned value, extended to the end of the reference, of the earned value by the completion dates and of the actual cost by the document dates, up to the calculation date.",
+      "file": "earned-value"
+    },
+    "curves": {
+      "series": "Curve",
+      "date": "Date",
+      "amount": "Amount",
+      "beforeStep": "{series}, before the step",
+      "afterStep": "{series}, after the step",
+      "steps": "Steps of the reference budget",
+      "cause": "Cause",
+      "stepAmount": "Amount of the step",
+      "cashOut": "Cash out by month",
+      "month": "Month",
+      "past": "Paid out",
+      "forecast": "To pay out",
+      "empty": "Nothing to draw: no line and no actual cost belong to this scope.",
+      "seriesEmpty": "{series}: nothing to draw for this scope."
+    },
+    "wholeProject": {
+      "milestones": "This tracking covers the whole project: it follows milestones, which a subproject does not have."
+    },
+    "provenance": {
+      "subproject": "Subproject: {subproject}",
+      "wholeProject": "Whole project, not restricted to the filtered subproject"
+    }
+  },
+  "workload": {
+    "title": "Project workload",
+    "chartTitle": "Load by role and by month",
+    "description": "Bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
+    "basis": "Basis",
+    "markedRevision": "Marked revision",
+    "unnamedRevision": "Unnamed marked revision",
+    "orgNode": "Organisation node and its descendants",
+    "allOrgNodes": "All nodes",
+    "unknownOrgNode": "unknown node",
+    "show": "Show",
+    "reading": "Basis: {basis} — revision “{revision}”",
+    "role": "Role",
+    "month": "Month",
+    "hours": "Load (h)",
+    "capacity": "Capacity (h per month)",
+    "zone": "Zone",
+    "noLoad": "No load",
+    "none": "No role has a load on this basis.",
+    "noneInNode": "No role of the node “{node}” or of its descendants has a load on this basis.",
+    "refused": {
+      "noReference": "The workload is not available on this basis: the project has no reference revision, and only the current revision is one.",
+      "markedRevision": "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
+      "orgNode": "The workload is not available: the organisation node asked for does not exist.",
+      "invalid": "The workload is not available: the API refuses what is asked."
+    },
+    "exportDetail": "Basis: {basis} · Organisation node and its descendants: {node}",
+    "file": "workload"
+  },
+  "commands": {
+    "label": "Commands",
+    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}."
+  },
+  "outcome": {
+    "unreachable": "The service cannot be reached; try again in a moment.",
+    "conflictingObject": "Conflicting object: {name}.",
+    "reload": "Reload",
+    "signIn": "Sign in",
+    "dismiss": "Dismiss"
+  },
+  "mockup": {
+    "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
+  },
+  "tasks": {
+    "label": "Background tasks",
+    "named": "{kind} ‘{subject}’",
+    "progress": "{progress}%",
+    "succeeded": "Task finished: {task}.",
+    "failed": "Task failed: {task}.",
+    "relaunch": "Run again",
+    "reload": "Reload the screen",
+    "relaunchLabel": "Run again: {task}",
+    "relaunchFromScreen": "To run this task again, start from the screen of its object.",
+    "interrupted": "Follow-up interrupted",
+    "interruptedLine": "Follow-up interrupted: {task}.",
+    "dismiss": "Stop following: {task}",
+    "toggle": "{count, plural, =0 {Background tasks} one {Background tasks: # followed} other {Background tasks: # followed}}",
+    "none": "No background task followed.",
+    "download": "Download the result",
+    "downloadLabel": "Download the result: {task}",
+    "resultUnavailable": "The result of this task is no longer available.",
+    "resultRefused": "The result of a task could not be downloaded."
+  },
+  "markRevision": {
+    "versionName": "Version name",
+    "versionNameRequired": "The version name is required.",
+    "description": "Description (optional)",
+    "submit": "Mark",
+    "cancel": "Cancel"
+  },
+  "projectList": {
+    "count": "{count, plural, one {# project} other {# projects}}",
+    "filter": {
+      "label": "Filter of the list",
+      "mine": "Projects you contribute to",
+      "lift": "Show all projects",
+      "apply": "Show only my projects",
+      "states": "Filter by state",
+      "everyState": "Every state",
+      "period": "Modification period"
+    },
+    "periodRefused": "The list is not read: the server refuses the period asked."
+  },
+  "projectFacts": {
+    "label": "The project",
+    "settings": "Project settings",
+    "code": "Code",
+    "state": "State",
+    "orderReceivedOn": "Order received on",
+    "description": "Description",
+    "missing": "Not set",
+    "inflationRate": "Annual inflation rate",
+    "winProbability": "Probability of winning",
+    "revisions": "Revisions"
+  },
+  "projectLists": {
+    "subprojects": {
+      "title": "Subprojects",
+      "none": "This project has no subproject.",
+      "charged": "Charged",
+      "notCharged": "None",
+      "count": "{count, plural, =0 {No subproject} one {# subproject} other {# subprojects}}",
+      "actualCostsFilter": "Actual costs",
+      "everyActualCosts": "Every subproject",
+      "withActualCosts": "With actual costs charged",
+      "withoutActualCosts": "Without actual costs charged"
+    },
+    "contributors": {
+      "title": "Contributors",
+      "none": "This project has no contributor.",
+      "count": "{count, plural, =0 {No contributor} one {# contributor} other {# contributors}}",
+      "kindFilter": "Filter by capacity",
+      "everyKind": "Every capacity",
+      "accountFilter": "Account state",
+      "everyAccount": "Every account",
+      "activeAccounts": "Active accounts",
+      "inactiveAccounts": "Deactivated accounts"
+    },
+    "workBreakdown": {
+      "title": "Work breakdown",
+      "none": "This project has no order item.",
+      "count": "{count, plural, =0 {No order item} one {# order item} other {# order items}}",
+      "kindFilter": "Filter by kind",
+      "everyKind": "Every kind",
+      "partial": "The order items and work packages show only what the search and the filter retain.",
+      "partialSearch": "The order items and work packages show only what the search retains.",
+      "partialKinds": "The order items and work packages show only what the filter by kind retains."
+    },
+    "transitions": {
+      "title": "History of states",
+      "none": "No transition is recorded.",
+      "occurredAt": "Date",
+      "change": "Transition",
+      "actor": "By",
+      "creation": "Creation",
+      "to": "to",
+      "reason": "Reason"
+    }
+  },
+  "revisionScreen": {
+    "history": {
+      "title": "Revision history",
+      "none": "This project has no revision.",
+      "version": "Version",
+      "status": "Status",
+      "markedAt": "Marked on",
+      "description": "Description",
+      "consult": "Consultation",
+      "reference": "Reference",
+      "notMarked": "Not marked",
+      "open": "Open",
+      "openRevision": "Open the revision “{name}”"
+    },
+    "comparison": {
+      "title": "Comparison of two revisions",
+      "needsTwo": "A comparison takes two marked revisions.",
+      "from": "From the revision",
+      "to": "To the revision",
+      "compare": "Compare",
+      "added": "Added",
+      "removed": "Removed",
+      "changed": "Changed",
+      "noneAdded": "Nothing was added.",
+      "noneRemoved": "Nothing was removed.",
+      "noneChanged": "Nothing was changed.",
+      "label": "Label",
+      "kind": "Kind",
+      "changes": "What changes",
+      "deltas": "Amount deviations",
+      "noDeltas": "No amount deviation.",
+      "dimension": "Axis",
+      "key": "Item",
+      "delta": "Deviation",
+      "unnamed": "Unnamed"
+    },
+    "structures": {
+      "title": "Cost structures",
+      "none": "This revision has no cost structure.",
+      "kind": "Kind",
+      "label": "Label",
+      "state": "Status",
+      "merged": "Merged"
+    },
+    "rateUpdate": {
+      "title": "Proposed rate update",
+      "year": "Rates of {year}",
+      "notImposed": "A proposal, never imposed: the rates of the revision do not change until it is applied.",
+      "none": "The reference data has not changed: no rate update is proposed.",
+      "category": "Category",
+      "previous": "Previous rate",
+      "proposed": "Proposed rate",
+      "source": "Source"
+    }
+  },
+  "exitProject": {
+    "statement": "This exit is final: the project will go to the state “{state}”, and it and all its data — plannings, estimates, remaining commitments, actual costs — will become read only. No transition leaves a terminal state.",
+    "reason": "Motive (optional)",
+    "submit": "Confirm the exit",
+    "cancel": "Cancel",
+    "done": "The project has gone to the state “{state}”."
+  },
+  "notFound": {
+    "title": "Not found",
+    "explanation": "This address leads to nothing you can consult.",
+    "home": "Back to the home page"
+  },
+  "failure": {
+    "unreachable": {
+      "title": "Service unreachable",
+      "explanation": "The service is not answering: the screen could not read its data. Try again in a moment."
+    },
+    "signedOut": {
+      "title": "Session required",
+      "explanation": "The screen needs an open session: sign in, and you will come back to it."
+    },
+    "unexpected": {
+      "title": "Unexpected error",
+      "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
+    },
+    "reference": "Reference: {reference}",
+    "retry": "Try again"
+  },
+  "loading": {
+    "label": "Loading the screen"
+  },
+  "emptyStates": {
+    "noProjects": "No project.",
+    "noContributedProjects": "You contribute to no project.",
+    "noRevisions": "This project has no revision yet.",
+    "revisions": "Go to the revisions of the project"
+  },
+  "referenceReadiness": {
+    "title": "Incomplete reference data",
+    "explanation": "No project can be created until the common reference data has:"
+  },
+  "reference": {
+    "currency": "Amounts in {currency}, the single currency of the installation.",
+    "state": {
+      "active": "Active",
+      "inactive": "Deactivated",
+      "reactivate": "Reactivate “{name}”",
+      "reactivateShort": "Reactivate",
+      "unavailable": "Reactivating “{name}” is unavailable. {unmet}",
+      "deactivate": "Deactivate “{name}”",
+      "deactivateShort": "Deactivate",
+      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}"
+    },
+    "inactive": {
+      "show": "Show the deactivated ones too",
+      "hide": "Hide the deactivated ones"
+    },
+    "stateFilter": {
+      "of": "State of the objects of “{list}”",
+      "every": "Every state",
+      "active": "Active",
+      "inactive": "Deactivated"
+    },
+    "pages": {
+      "label": "Pages of “{list}”",
+      "previous": "Previous page",
+      "next": "Next page",
+      "beyond": "The page asked for is beyond the end of the list."
+    },
+    "codedChoice": "{code} · {label}",
+    "modify": "Modify",
+    "modifyNamed": "Modify “{name}”",
+    "form": {
+      "choose": "Choose…",
+      "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
+      "takenBy": "Already held by “{name}”.",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} other {Already held by another object.}}",
+      "create": "Create",
+      "save": "Save",
+      "sending": "Sending…",
+      "cancel": "Cancel",
+      "created": "“{name}” {kind, select, other {created}}.",
+      "saved": "“{name}” {kind, select, other {saved}}.",
+      "deactivated": "“{name}” {kind, select, other {deactivated}}.",
+      "reactivated": "“{name}” {kind, select, other {reactivated}}.",
+      "designated": "“{name}” designated the default calendar."
+    },
+    "costForm": {
+      "createCostType": "New cost nature",
+      "createCostCategory": "New cost category",
+      "costTypeHint": "The code, unique, the label and the type are required.",
+      "costTypeFixedHint": "The code, unique, and the label are required; the type of this nature does not change.",
+      "costCategoryHint": "The code and the accounting code, both unique, the label and the nature are required.",
+      "kindFixed": "The type does not change.",
+      "kindFixedFor": "The type does not change. {unmet}",
+      "sameKind": "Only the natures of the same type are offered.",
+      "sameKindFor": "Only the natures of the same type are offered. {unmet}",
+      "ownOnly": "The type of the deactivated nature cannot be read: it alone is offered.",
+      "ownOnlyFor": "The type of the deactivated nature cannot be read: it alone is offered. {unmet}"
+    },
+    "orgNodeForm": {
+      "create": "New organisation node",
+      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. An active node only takes place under an active node.",
+      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along; active, it only takes place under an active node.",
+      "parent": "Parent",
+      "root": "None — root"
+    },
+    "roleForm": {
+      "create": "New resource role",
+      "createHint": "The label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
+      "modifyHint": "The label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+    },
+    "calendarForm": {
+      "create": "New calendar",
+      "hint": "The label and the hours worked on each of the seven days, from Monday to Sunday, are required; nothing else is asked."
+    },
+    "rates": {
+      "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
+      "addYear": {
+        "label": "Add a year to the grid",
+        "year": "Year",
+        "submit": "Add the column",
+        "remove": "Remove the column {year}",
+        "added": "Column {year} added: it stays empty until its first rate, which entering a cell records.",
+        "present": "The year {year} already has its column in the grid.",
+        "outOfRange": "A year runs from {min} to {max}."
+      },
+      "bounds": {
+        "year": "Year of the rate",
+        "rate": "Hourly rate"
+      }
+    },
+    "costTypes": {
+      "title": "Cost types",
+      "none": "No cost type.",
+      "kindFilter": "Kinds of cost type",
+      "everyKind": "Every kind",
+      "count": "{count, plural, one {# cost type} other {# cost types}}",
+      "create": "New nature"
+    },
+    "costCategories": {
+      "title": "Cost categories",
+      "none": "No cost category.",
+      "costTypeFilter": "Cost type",
+      "everyCostType": "Every cost type",
+      "count": "{count, plural, one {# category} other {# categories}}",
+      "create": "New category"
+    },
+    "orgNodes": {
+      "title": "Organisation tree",
+      "choice": "{code} · {label}",
+      "none": "No organisation node.",
+      "count": "{count, plural, one {# node} other {# nodes}}",
+      "codeFilter": "Code of the node",
+      "levelFilter": "Level",
+      "everyLevel": "Every level",
+      "create": "New node"
+    },
+    "resourceRoles": {
+      "title": "Resource roles",
+      "none": "No resource role.",
+      "orgNodeFilter": "Organisation node",
+      "everyNode": "Every node",
+      "costCategoryFilter": "Cost category",
+      "everyCostCategory": "Every category",
+      "calendarFilter": "Calendar",
+      "everyCalendar": "Every calendar",
+      "count": "{count, plural, one {# role} other {# roles}}",
+      "create": "New role"
+    },
+    "calendars": {
+      "title": "Calendars",
+      "isDefault": "Default calendar",
+      "none": "No calendar.",
+      "count": "{count, plural, one {# calendar} other {# calendars}}",
+      "create": "New calendar",
+      "designate": "Designate “{name}” as default",
+      "designateShort": "Designate"
+    },
+    "durationUnits": {
+      "title": "Units of duration",
+      "hoursPerDay": "Hours a day",
+      "hoursPerWeek": "Hours a week",
+      "daysPerMonth": "Days a month"
+    },
+    "riskMatrix": {
+      "title": "Bounds of the risk matrix",
+      "axis": "Axis",
+      "first": "First bound",
+      "second": "Second bound",
+      "third": "Third bound",
+      "probability": "Probability",
+      "severity": "Severity, as a percentage of the reference budget"
+    },
+    "riskZones": {
+      "title": "Zones of the risk matrix",
+      "axes": "Probability, then severity",
+      "probability": "Probability, level {level}",
+      "severity": "Severity, level {level}"
+    },
+    "indices": {
+      "title": "Alert thresholds of the indices",
+      "index": "Index",
+      "watch": "Watch threshold",
+      "alert": "Alert threshold",
+      "cost": "Cost index",
+      "schedule": "Schedule index"
+    },
+    "reviews": {
+      "title": "Pace of the reviews",
+      "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
+    },
+    "boundsOf": "Bounds of “{list}”",
+    "boundsRefused": "The list is not read: the server refuses the bounds asked."
+  },
+  "admin": {
+    "pages": {
+      "label": "Pages of the list",
+      "previous": "Previous page",
+      "next": "Next page",
+      "beyond": "This page is beyond the end of the list."
+    },
+    "commands": {
+      "later": "{command}: available with EP-03.",
+      "unmet": "{command}: {condition}"
+    },
+    "users": {
+      "title": "User accounts",
+      "noRole": "No role",
+      "noOrgNode": "None",
+      "none": "No account.",
+      "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}",
+      "originFilter": "Filter by origin",
+      "everyOrigin": "Every origin",
+      "create": "Create a local account",
+      "modify": "Modify",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "assignRoles": "Assign the roles",
+      "named": "{firstName} {lastName}",
+      "modifyUser": "Modify “{name}”",
+      "deactivateUser": "Deactivate “{name}”",
+      "reactivateUser": "Reactivate “{name}”",
+      "assignRolesUser": "Assign the roles of “{name}”",
+      "roleFilter": "Filter by role",
+      "everyRole": "Every role",
+      "stateFilter": "Account state",
+      "everyState": "Every state",
+      "activeAccounts": "Active accounts",
+      "inactiveAccounts": "Deactivated accounts"
+    },
+    "accessRoles": {
+      "title": "Access roles",
+      "predefined": "Predefined",
+      "composed": "Composed",
+      "none": "No access role.",
+      "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
+      "create": "Create a role",
+      "modify": "Modify",
+      "delete": "Delete",
+      "modifyRole": "Modify “{name}”",
+      "deleteRole": "Delete “{name}”",
+      "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it.",
+      "kindFilter": "Kind",
+      "everyKind": "Every kind",
+      "predefinedRoles": "Predefined roles",
+      "composedRoles": "Composed roles",
+      "bounds": "Bounds of the access roles"
+    },
+    "permissions": {
+      "title": "Permissions by function",
+      "function": "Function",
+      "permission": "Permission",
+      "held": "Granted",
+      "notHeld": "Not granted"
+    },
+    "status": {
+      "version": "Installed version: {version}",
+      "components": "Components",
+      "component": "Component",
+      "availability": "Availability",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "checkedAt": "Last checked",
+      "componentVersion": "Version",
+      "storage": "Storage",
+      "used": "Used",
+      "free": "Available",
+      "storageDetail": "{used} used, {available} free",
+      "copyDetail": "{location}: {failure}",
+      "operations": "Last operations",
+      "operation": "Operation",
+      "at": "Date",
+      "outcome": "Outcome",
+      "motive": "Motive",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "never": "Never run",
+      "directorySync": "Reading of the identity provider accounts",
+      "backup": "Backup",
+      "backupCopy": "External copy of the backup",
+      "restoreTest": "Restoration test",
+      "alerts": "Current alerts",
+      "alert": "Alert",
+      "severity": "Level",
+      "since": "Since",
+      "noAlert": "No current alert."
+    },
+    "backups": {
+      "title": "Backups",
+      "takenAt": "Date",
+      "size": "Size",
+      "verification": "Verification",
+      "origin": "Started",
+      "retention": "Retention",
+      "retained": "Marked to keep",
+      "none": "No backup.",
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "state": "State",
+      "enabled": "On",
+      "disabled": "Off",
+      "frequency": "Frequency",
+      "weekday": "Day",
+      "at": "Time",
+      "universalTime": "{time} UTC",
+      "retained": "Retention",
+      "count": "{count, plural, one {# backup kept} other {# backups kept}}",
+      "externalCopy": "External copy",
+      "externalCopyNone": "None",
+      "externalCopyTo": "To {location}, folder {path} — {count, plural, one {# copy kept} other {# copies kept}}",
+      "externalCopySuspended": "Suspended — to {location}, folder {path}, {count, plural, one {# copy kept} other {# copies kept}}",
+      "weekdays": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "auditLog": {
+      "count": "{count, plural, =0 {No entry} one {# entry} other {# entries}}",
+      "none": "The log holds no entry.",
+      "noProject": "No project",
+      "project": "{code} · {label}",
+      "history": "History of “{object}”",
+      "correlated": "The entries of the correlation {correlation}",
+      "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "filters": {
+        "label": "Filters of the log",
+        "period": "Period",
+        "from": "From",
+        "to": "Before",
+        "apply": "Apply",
+        "actorKind": "Filter by kind of author",
+        "everyActor": "Every author",
+        "user": "Author",
+        "everyUser": "Every account",
+        "everyAction": "Every action",
+        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
+        "actionsNamed": "Filter by action: {chosen}",
+        "project": "Project",
+        "everyProject": "Every project",
+        "objectKind": "Kind of object",
+        "everyObjectKind": "Every kind",
+        "object": "Object: {object}",
+        "lift": "Lift",
+        "liftObject": "Lift the filter on “{object}”",
+        "correlation": "Correlation",
+        "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
+      }
+    }
+  },
+  "functionGroups": {
+    "administration": "Administration",
+    "portfolio": "Portfolio",
+    "applicationSettings": "Application settings",
+    "projects": "Projects"
+  },
+  "functions": {
+    "users": "User management",
+    "accessRoles": "Access role management",
+    "systemStatus": "System status monitoring",
+    "backups": "Backup and restore",
+    "auditLog": "Audit log",
+    "portfolioProjects": "Project portfolio",
+    "portfolioWorkload": "Aggregated workload",
+    "portfolioPerformance": "Portfolio performance",
+    "portfolioCostStructure": "Portfolio cost structure",
+    "portfolioRisks": "Portfolio risks",
+    "portfolioCostCurve": "Portfolio S-curve",
+    "portfolioPilotHealth": "Project control health",
+    "costSettings": "Cost settings",
+    "resourceSettings": "Resource settings",
+    "riskSettings": "Risk settings",
+    "indicatorSettings": "Indicator settings",
+    "revisions": "Revision management",
+    "projectSettings": "Project settings",
+    "planning": "Planning",
+    "estimate": "Costing and estimate",
+    "workload": "Workload",
+    "remaining": "Estimate to complete",
+    "risks": "Risk management",
+    "actualCosts": "Actual costs",
+    "projectIndicators": "Project indicators",
+    "lifecycle": "Project lifecycle",
+    "exchanges": "Imports and exports",
+    "kanban": "Kanban — task start",
+    "timelines": "Timelines",
+    "taskTree": "Task tree"
+  },
+  "errors": {
+    "MALFORMED_REQUEST": "The request is malformed.",
+    "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
+    "SESSION_REQUIRED": "You need to sign in.",
+    "SESSION_EXPIRED": "Your session has expired; please sign in again.",
+    "INVALID_CREDENTIALS": "Incorrect email address or password.",
+    "PERMISSION_MISSING": "You do not have the required permission.",
+    "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
+    "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
+    "PROJECT_TERMINAL": "The project is closed and can no longer be changed.",
+    "REVISION_MARKED": "The revision is marked and can no longer be changed.",
+    "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
+    "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
+    "ALREADY_EXISTS": "This item already exists.",
+    "CURRENT_REVISION_EXISTS": "The project already has a draft revision.",
+    "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
+    "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
+    "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
+    "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
+    "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
+    "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
+    "TASK_ALREADY_STARTED": "The task has already started.",
+    "TASK_COMPLETED": "The task is completed.",
+    "WIN_PROBABILITY_FROZEN": "The win probability can no longer be changed once the project is in progress.",
+    "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
+    "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
+    "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
+    "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
+    "FILE_TOO_LARGE": "The file is larger than allowed.",
+    "VALIDATION_FAILED": "The data entered is not valid.",
+    "COMPUTED_VALUE": "This value is calculated and cannot be entered.",
+    "SUMMARY_TASK_DERIVED": "A summary task takes its values from its subtasks.",
+    "LINK_CYCLE": "This link would create a loop.",
+    "LINK_FORBIDDEN": "This link is not allowed.",
+    "RESOURCE_ROLE_REQUIRED": "A resource role is required.",
+    "LABOUR_CATEGORY_REQUIRED": "A labour cost category is required.",
+    "HOURLY_RATE_MISSING": "No hourly rate is set for this role and year.",
+    "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
+    "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
+    "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
+    "TASK_WITHOUT_WORKING_HOURS": "The calendars of the roles of this task never overlap: it would have no working hour in the week.",
+    "VALUE_REQUIRED": "A value is required.",
+    "VALUE_TOO_LONG": "The value is too long.",
+    "VALUE_OUT_OF_RANGE": "The value is outside the allowed range.",
+    "NUMBER_INVALID": "This is not a valid number.",
+    "DATE_INVALID": "This is not a valid date.",
+    "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
+    "UNKNOWN_COST_TYPE": "Unknown cost type.",
+    "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
+    "UNKNOWN_SUBPROJECT": "Unknown subproject.",
+    "UNKNOWN_TASK": "Unknown task.",
+    "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
+    "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
+    "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
+    "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
+    "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
+    "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
+    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
+    "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
+    "INTERNAL_ERROR": "Unexpected service error."
+  },
+  "problemDetails": {
+    "missing_permission": "Required permission: {permission}.",
+    "missing_condition": "Unmet condition: {condition}.",
+    "missing_prerequisites": "Still missing: {prerequisites}.",
+    "projectState": "State of the project: {state}.",
+    "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
+    "minimum": "Minimum value: {minimum}.",
+    "component": "Unavailable component: {component}.",
+    "expected_format": "Expected format: {format}.",
+    "expected_version": "Expected version: {version}."
+  },
+  "permissions": {
+    "users": {
+      "read": "View users",
+      "write": "Edit users"
+    },
+    "access_roles": {
+      "read": "View access roles",
+      "write": "Edit access roles"
+    },
+    "system_status": {
+      "read": "View the system status",
+      "write": "Edit the system status"
+    },
+    "backups": {
+      "read": "View backups",
+      "write": "Edit backups"
+    },
+    "audit_log": {
+      "read": "View the audit log"
+    },
+    "portfolio_projects": {
+      "read": "View the project portfolio",
+      "write": "Edit the project portfolio"
+    },
+    "portfolio_workload": {
+      "read": "View the aggregated workload",
+      "write": "Edit the aggregated workload"
+    },
+    "portfolio_performance": {
+      "read": "View the portfolio performance",
+      "write": "Edit the portfolio performance"
+    },
+    "portfolio_cost_structure": {
+      "read": "View the portfolio cost structure",
+      "write": "Edit the portfolio cost structure"
+    },
+    "portfolio_risks": {
+      "read": "View the portfolio risks",
+      "write": "Edit the portfolio risks"
+    },
+    "portfolio_cost_curve": {
+      "read": "View the portfolio S-curve",
+      "write": "Edit the portfolio S-curve"
+    },
+    "portfolio_pilot_health": {
+      "read": "View the project control health",
+      "write": "Edit the project control health"
+    },
+    "cost_settings": {
+      "read": "View cost settings",
+      "write": "Edit cost settings"
+    },
+    "resource_settings": {
+      "read": "View resource settings",
+      "write": "Edit resource settings"
+    },
+    "risk_settings": {
+      "read": "View risk settings",
+      "write": "Edit risk settings"
+    },
+    "indicator_settings": {
+      "read": "View indicator settings",
+      "write": "Edit indicator settings"
+    },
+    "revisions": {
+      "read": "View revisions",
+      "write": "Edit revisions"
+    },
+    "project_settings": {
+      "read": "View project settings",
+      "write": "Edit project settings"
+    },
+    "planning": {
+      "read": "View planning",
+      "write": "Edit planning"
+    },
+    "estimate": {
+      "read": "View costing and estimate",
+      "write": "Edit costing and estimate"
+    },
+    "remaining": {
+      "read": "View the estimate to complete",
+      "write": "Edit the estimate to complete"
+    },
+    "risks": {
+      "read": "View risk management",
+      "write": "Edit risk management"
+    },
+    "actual_costs": {
+      "read": "View actual costs",
+      "write": "Edit actual costs"
+    },
+    "project_indicators": {
+      "read": "View project indicators",
+      "write": "Edit project indicators"
+    },
+    "lifecycle": {
+      "read": "View the project lifecycle",
+      "write": "Edit the project lifecycle"
+    },
+    "project_create": "Create a project",
+    "revision_mark": "Mark a revision",
+    "revision_abandon": "Abandon a revision in progress",
+    "reference_designate": "Designate the reference revision",
+    "structure_merge": "Merge an amendment",
+    "project_exit": "Close a project: completed, lost or abandoned",
+    "risk_occurrence": "Declare that a risk has occurred",
+    "cost_line_exclude": "Exclude actual cost lines",
+    "platform_restore": "Restore the platform",
+    "all_projects_read": "View every project"
+  },
+  "enums": {
+    "PlatformComponent": {
+      "api": "API service",
+      "worker": "Background worker",
+      "database": "Database",
+      "cache": "Cache",
+      "object_storage": "File storage",
+      "directory": "Directory",
+      "metrics": "Metrics"
+    },
+    "AlertZone": {
+      "nominal": "Nominal",
+      "watch": "Watch",
+      "alert": "Alert"
+    },
+    "Alert": {
+      "code": {
+        "component_unavailable": "Component unavailable",
+        "task_queue_stalled": "Task queue stalled",
+        "scheduled_backup_failed": "Scheduled backup failed",
+        "scheduled_backup_copy_failed": "External copy of a scheduled backup failed",
+        "directory_sync_failed": "Directory synchronisation failed",
+        "storage_nearly_full": "Storage nearly full",
+        "error_rate_abnormal": "Abnormal error rate"
+      }
+    },
+    "Language": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "BackgroundTaskRef": {
+      "kind": {
+        "import_analysis": "Import analysis",
+        "import_apply": "Applying an import",
+        "revision_mark": "Revision marking",
+        "structure_merge": "Structure merge",
+        "risk_occurrence": "Risk occurrence",
+        "export": "Export",
+        "backup": "Backup",
+        "restore": "Restore",
+        "directory_sync": "Directory synchronisation"
+      }
+    },
+    "BackgroundTaskStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
+    "AuthProviderKind": {
+      "local": "Local account",
+      "ldap": "LDAP directory",
+      "oidc": "Identity provider (OIDC)"
+    },
+    "UserOrigin": {
+      "local": "Created in Waterfall",
+      "directory": "Imported from the directory",
+      "identity_provider": "Created by the identity provider"
+    },
+    "ActorRef": {
+      "kind": {
+        "user": "User",
+        "platform": "Automatic process"
+      }
+    },
+    "SortOrder": {
+      "asc": "Ascending",
+      "desc": "Descending"
+    },
+    "DisplayPreferences": {
+      "language": {
+        "default": "Browser language",
+        "fr": "Français",
+        "en": "English"
+      },
+      "theme": {
+        "default": "System setting",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    },
+    "Permission": {
+      "kind": {
+        "function_read": "View a function",
+        "function_write": "Edit a function",
+        "irreversible": "Irreversible action",
+        "structuring": "Structuring permission"
+      }
+    },
+    "Backup": {
+      "verification": {
+        "pending": "Verification pending",
+        "passed": "Verified",
+        "failed": "Verification failed"
+      },
+      "scope": {
+        "database": "Database"
+      },
+      "origin": {
+        "manual": "Manual",
+        "scheduled": "Scheduled"
+      }
+    },
+    "BackupSchedule": {
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      }
+    },
+    "ExternalBackupLocationKind": {
+      "s3": "S3 bucket",
+      "mounted_share": "Mounted network share"
+    },
+    "ExternalBackupFailure": {
+      "location_unreachable": "Location unreachable",
+      "access_denied": "Access denied",
+      "write_failed": "Write refused",
+      "delete_failed": "Deletion refused",
+      "storage_full": "No space left",
+      "timed_out": "Timed out"
+    },
+    "AuditAction": {
+      "revision_mark": "Revision marked",
+      "reference_designate": "Reference designated",
+      "amendment_merge": "Amendment contracted",
+      "risk_occurrence": "Risk occurred",
+      "project_exit": "Exit from the lifecycle",
+      "cost_line_exclude": "Cost line excluded",
+      "cost_line_reinstate": "Cost line reinstated",
+      "import_apply": "Import applied",
+      "user_create": "Account created",
+      "user_update": "Account edited",
+      "user_deactivate": "Account deactivated",
+      "user_reactivate": "Account reactivated",
+      "password_link_create": "Password link generated",
+      "access_role_create": "Role created",
+      "access_role_update": "Role edited",
+      "access_role_delete": "Role deleted",
+      "user_access_roles_set": "Roles of an account assigned",
+      "backup": "Backup",
+      "restore": "Restoration"
+    },
+    "AuditActorKind": {
+      "user": "An account",
+      "platform": "The platform"
+    },
+    "AuditObjectKind": {
+      "project": "Project",
+      "revision": "Revision",
+      "cost_structure": "Cost structure",
+      "risk": "Risk",
+      "cost_line": "Cost line",
+      "import": "Import",
+      "user": "Account",
+      "access_role": "Access role",
+      "backup": "Backup",
+      "external_backup_upload": "Uploaded backup"
+    },
+    "ReferenceReadiness": {
+      "missing": {
+        "default_calendar_with_hours": "a default calendar with working hours",
+        "active_cost_category": "an active cost category",
+        "active_resource_role": "an active resource role"
+      }
+    },
+    "CostTypeKind": {
+      "labor": "Labour",
+      "non_labor": "Non-labour",
+      "provision": "Provision"
+    },
+    "StateEnumeration": {
+      "ProjectState": "State of the project"
+    },
+    "ProjectState": {
+      "created": "Created",
+      "pricing": "Pricing",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "lost": "Lost",
+      "abandoned": "Abandoned"
+    },
+    "ProjectCommand": {
+      "update": "Edit the project",
+      "manage_contributors": "Manage contributors",
+      "create_revision": "Create a revision",
+      "complete": "Complete the project",
+      "lose": "Declare the project lost",
+      "abandon": "Abandon the project",
+      "edit_risks": "Edit the risks",
+      "declare_risk_occurrence": "Declare that a risk has occurred",
+      "import_actual_costs": "Import actual costs",
+      "exclude_cost_lines": "Exclude cost lines",
+      "import_planning": "Import an MS Project schedule",
+      "import_estimate": "Import an estimate",
+      "import_remaining": "Import an estimate to complete"
+    },
+    "CommandCondition": {
+      "is_contributor": "being a contributor to the project",
+      "is_project_manager": "being a project manager of the project",
+      "project_not_terminal": "project not closed",
+      "project_in_progress": "project in progress",
+      "project_in_pricing": "project in pricing",
+      "project_code_set": "project code filled in",
+      "reference_revision_designated": "reference revision designated",
+      "at_least_one_task": "at least one task",
+      "at_least_one_estimate_line": "at least one estimate line",
+      "no_current_revision": "no draft revision",
+      "revision_draft": "draft revision",
+      "revision_marked": "marked revision",
+      "reference_correctable": "reference still correctable",
+      "unmerged_amendment_exists": "an unmerged amendment",
+      "task_not_completed": "task not completed",
+      "hourly_rates_set": "hourly rates set",
+      "no_background_task_running": "no background task running on the object",
+      "may_create_revision": "holding the permission to create a revision",
+      "risk_not_cited": "risk cited by no marked revision",
+      "risk_not_occurred": "risk not occurred",
+      "risk_identified": "risk identified",
+      "org_node_parent_active": "parent node active",
+      "org_node_active": "organisation node active",
+      "calendar_not_default": "calendar other than the default one",
+      "cost_type_unused": "no category of the nature employed",
+      "cost_category_unused": "category employed by no line",
+      "cost_category_unrated": "category without hourly rates",
+      "cost_type_not_last_provision": "another active provision nature holding an active category",
+      "cost_category_not_last_provision": "another active category under an active provision nature",
+      "last_administrator": "another active account holding the administration permissions"
+    },
+    "ProjectExit": {
+      "to_state": {
+        "completed": "Completed",
+        "lost": "Lost",
+        "abandoned": "Abandoned"
+      }
+    },
+    "ContributorKind": {
+      "project_manager": "Project manager",
+      "contributor": "Contributor"
+    },
+    "WorkBreakdownKind": {
+      "order_item": "Order item",
+      "work_package": "Work package",
+      "deliverable": "Deliverable"
+    },
+    "RevisionStatus": {
+      "draft": "Draft",
+      "marked": "Marked"
+    },
+    "RevisionCommand": {
+      "edit_planning": "Edit the schedule",
+      "edit_estimate": "Edit the estimate",
+      "edit_remaining": "Update the estimate to complete",
+      "edit_risks": "Edit the risks",
+      "create_structure": "Create a structure",
+      "merge_structure": "Merge a structure",
+      "mark": "Mark the revision",
+      "designate_reference": "Designate as reference",
+      "abandon": "Abandon the revision",
+      "export_planning": "Export the MS Project schedule",
+      "export_estimate": "Export the estimate",
+      "export_remaining": "Export the estimate to complete",
+      "export_task_tree_image": "Export the task tree image"
+    },
+    "RateUpdateProposal": {
+      "categories": {
+        "source": {
+          "reference_rate": "Reference rate",
+          "inflated_previous": "Previous rate, projected with inflation"
+        }
+      }
+    },
+    "NodeKind": {
+      "task": "Task",
+      "estimate_line": "Estimate line"
+    },
+    "ComparedNode": {
+      "changes": {
+        "dates": "Dates",
+        "duration": "Duration",
+        "progress": "Progress",
+        "budgeted_amount": "Budgeted amount",
+        "reestimated_amount": "Re-estimated amount",
+        "parent": "Parent"
+      }
+    },
+    "RevisionComparison": {
+      "amount_deltas": {
+        "dimension": {
+          "cost_type": "Cost type",
+          "subproject": "Subproject"
+        }
+      }
+    },
+    "StructureKind": {
+      "main": "Main structure",
+      "amendment": "Amendment",
+      "risk": "Risk estimate"
+    },
+    "StructureCreate": {
+      "kind": {
+        "amendment": "Amendment",
+        "risk": "Risk estimate"
+      }
+    },
+    "TaskProgress": {
+      "not_started": "Not started",
+      "started": "Started",
+      "completed": "Completed"
+    },
+    "SchedulingMode": {
+      "automatic": "Automatic",
+      "manual": "Manual"
+    },
+    "TrackingEntry": {
+      "kind": {
+        "timeline": "Timeline",
+        "milestone_tracking": "Milestone tracking"
+      }
+    },
+    "LinkType": {
+      "finish_to_start": "Finish-to-start (FS)",
+      "start_to_start": "Start-to-start (SS)",
+      "finish_to_finish": "Finish-to-finish (FF)",
+      "start_to_finish": "Start-to-finish (SF)"
+    },
+    "DurationUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "d",
+      "w": "wk",
+      "mo": "mo",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ed",
+      "ew": "ewk",
+      "emo": "emo"
+    },
+    "LagUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "d",
+      "w": "wk",
+      "mo": "mo",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ed",
+      "ew": "ewk",
+      "emo": "emo",
+      "percent": "%"
+    },
+    "ComputedField": {
+      "task": {
+        "duration": "Duration",
+        "start": "Start",
+        "finish": "Finish",
+        "progress": "Progress"
+      },
+      "estimate_line": {
+        "quantity": "Quantity",
+        "hours": "Hours",
+        "unit_disbursement": "Unit disbursement"
+      }
+    },
+    "EditableField": {
+      "task": {
+        "label": "Task label",
+        "description": "Task description",
+        "scheduling_mode": "Task scheduling mode",
+        "duration": "Task duration",
+        "start": "Task start",
+        "finish": "Task finish",
+        "progress": "Task progress",
+        "order_item_id": "Task order item",
+        "work_package_id": "Task work package"
+      },
+      "estimate_line": {
+        "label": "Line label",
+        "cost_category_id": "Line cost category",
+        "resource_role_id": "Line resource role",
+        "quantity": "Line quantity",
+        "hours": "Line hours",
+        "unit_disbursement": "Line unit disbursement",
+        "payment_delay_days": "Line payment delay",
+        "subproject_id": "Line subproject"
+      }
+    },
+    "NodeColumn": {
+      "label": "Label",
+      "description": "Description",
+      "scheduling_mode": "Scheduling mode",
+      "duration": "Duration",
+      "start": "Start",
+      "finish": "Finish",
+      "progress": "Progress",
+      "physical_progress": "Physical progress",
+      "total_float": "Total float",
+      "is_critical": "Critical path",
+      "predecessors": "Predecessors",
+      "work_breakdown": "Order item or work package",
+      "cost_category": "Cost category",
+      "resource_role": "Resource role",
+      "quantity": "Quantity",
+      "hours": "Hours",
+      "unit_disbursement": "Unit disbursement",
+      "subproject": "Subproject",
+      "payment_delay_days": "Payment delay",
+      "consumption_year": "Consumption year",
+      "base_amount": "Amount at the reference year",
+      "budgeted_amount": "Budgeted amount",
+      "reestimated_amount": "Re-estimated amount",
+      "inflated_amount": "Inflation-corrected amount",
+      "previous_quantity": "Previous quantity",
+      "previous_hours": "Previous hours",
+      "previous_unit_disbursement": "Previous unit disbursement",
+      "previous_reestimated_amount": "Previous re-estimated amount"
+    },
+    "ComputedValueField": {
+      "task": {
+        "duration": "Duration of the task",
+        "start": "Start of the task",
+        "finish": "Finish of the task",
+        "progress": "Progress of the task",
+        "physical_progress": "Physical progress of the task",
+        "total_float": "Total float of the task",
+        "base_amount": "Amount at the reference year of the task",
+        "budgeted_amount": "Budgeted amount of the task",
+        "reestimated_amount": "Re-estimated amount of the task",
+        "inflated_amount": "Inflation-corrected amount of the task"
+      },
+      "estimate_line": {
+        "quantity": "Quantity of the line",
+        "hours": "Effort of the line",
+        "unit_disbursement": "Unit disbursement of the line",
+        "base_amount": "Amount at the reference year of the line",
+        "budgeted_amount": "Budgeted amount of the line",
+        "reestimated_amount": "Re-estimated amount of the line",
+        "previous_reestimated_amount": "Previous re-estimated amount of the line",
+        "inflated_amount": "Inflation-corrected amount of the line"
+      }
+    },
+    "ComputedDependency": {
+      "subordinates": "A summary task takes its dates, its duration and its progress from its subtasks.",
+      "lines_and_subordinates": "The amount of a task is that of the lines it bears and of its subtasks.",
+      "scheduling": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
+      "float_dates": "The total float of a task is the gap between its earliest and latest dates.",
+      "manual_mode": "A task in manual mode bears no float.",
+      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
+      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
+      "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
+      "reference_revision": "The budgeted amount is the one the reference revision set.",
+      "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
+      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
+      "own_estimate": "The severity of a risk is the total of its own estimate.",
+      "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
+    },
+    "ProgressUpdate": {
+      "progress": {
+        "started": "Started",
+        "completed": "Completed"
+      }
+    },
+    "WorkloadPlan": {
+      "basis": {
+        "reference_budget": "Budget of the reference revision",
+        "marked_remaining": "Remaining of a marked revision",
+        "current_remaining": "Remaining of the current revision"
+      }
+    },
+    "WorkloadZone": {
+      "nominal": "Nominal",
+      "alert": "Alert"
+    },
+    "NotComputableReason": {
+      "no_actual_cost": "No actual cost at the calculation date.",
+      "no_earned_value": "No earned value: the cost index is zero.",
+      "no_planned_value": "No planned value at the calculation date.",
+      "no_reference_budget": "No reference budget.",
+      "no_budgeted_amount": "No budgeted amount in the subtree of the task.",
+      "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
+      "no_capacity": "No capacity for this role over the period.",
+      "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
+      "hourly_rate_missing": "Hourly rate missing for the reference year."
+    },
+    "CurveSeries": {
+      "series": {
+        "name": {
+          "reference_budget": "Reference budget",
+          "planned_value": "Planned value",
+          "earned_value": "Earned value",
+          "actual_cost": "Actual cost",
+          "project_manager_projection": "Project manager’s projection"
+        }
+      },
+      "steps": {
+        "cause": {
+          "amendment": "Amendment"
+        }
+      }
+    },
+    "PortfolioCostCurve": {
+      "series": {
+        "name": {
+          "reference_budget": "Reference budget",
+          "actual_cost": "Actual cost",
+          "project_manager_projection": "Project manager’s projection"
+        }
+      }
+    },
+    "RiskState": {
+      "identified": "Identified",
+      "occurred": "Occurred",
+      "dismissed": "Dismissed"
+    },
+    "RiskCommand": {
+      "update": "Edit the risk",
+      "review": "Review the risk",
+      "declare_occurrence": "Declare the risk occurred",
+      "delete": "Delete the risk"
+    },
+    "ReferenceCommand": {
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate"
+    },
+    "CostTypeCommand": {
+      "deactivate": "Deactivate the nature",
+      "reactivate": "Reactivate the nature",
+      "change_kind": "Change the type of the nature"
+    },
+    "CostCategoryCommand": {
+      "deactivate": "Deactivate the category",
+      "reactivate": "Reactivate the category",
+      "change_cost_type": "Attach the category to a nature of another type"
+    },
+    "UserCommand": {
+      "deactivate": "Deactivate the account",
+      "reactivate": "Reactivate the account",
+      "set_access_roles": "Assign the roles of the account"
+    },
+    "RiskComputedField": {
+      "field": {
+        "severity": "Severity",
+        "provision_amount": "Provision"
+      }
+    },
+    "RiskReviewWrite": {
+      "state": {
+        "identified": "Identified",
+        "dismissed": "Dismissed"
+      }
+    },
+    "ExchangeKind": {
+      "ms_project_schedule": "MS Project schedule",
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete",
+      "actual_costs": "Actual costs"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "External backup to restore"
+    },
+    "ImportDifference": {
+      "change": {
+        "added": "Added",
+        "removed": "Removed",
+        "updated": "Updated",
+        "kept": "Kept"
+      },
+      "target": {
+        "task": "Task",
+        "estimate_line": "Estimate line",
+        "link": "Link",
+        "actual_cost_line": "Actual cost line"
+      }
+    },
+    "ImportIgnoredKind": {
+      "resources": "Resources",
+      "calendars": "Calendars",
+      "progress": "Progress",
+      "costs": "Costs",
+      "custom_fields": "Custom fields",
+      "date_constraints": "Date constraints, tasks imported in manual mode"
+    },
+    "ActualCostColumn": {
+      "document_date": "Document date",
+      "document_number": "Document no.",
+      "amount": "Amount",
+      "subproject": "Subproject"
+    },
+    "ImportReport": {
+      "requires_confirmation_reasons": {
+        "lines_outside_project": "Lines outside the project",
+        "unknown_subproject": "Unknown subproject"
+      }
+    },
+    "Import": {
+      "status": {
+        "analysing": "Analysing",
+        "analysed": "Analysed",
+        "applying": "Applying",
+        "applied": "Applied",
+        "abandoned": "Abandoned",
+        "expired": "Expired",
+        "failed": "Failed"
+      }
+    },
+    "ExportRequest": {
+      "kind": {
+        "ms_project_schedule": "MS Project schedule",
+        "estimate": "Estimate",
+        "remaining": "Estimate to complete",
+        "task_tree_image": "Task tree image"
+      }
+    },
+    "PortfolioPerformance": {
+      "zone_distribution": {
+        "index": {
+          "cost": "Cost index",
+          "schedule": "Schedule index"
+        }
+      }
+    },
+    "PilotHealth": {
+      "signals": {
+        "code": {
+          "review_overdue": "Periodic review overdue",
+          "risks_not_reviewed": "Risks not reviewed",
+          "no_actual_cost_since_last_review": "No actual cost since the last review",
+          "contractual_milestone_overdue": "Contractual milestone overdue"
+        }
+      }
+    },
+    "Scope": {
+      "project": "Whole project",
+      "unassigned": "No subproject"
+    },
+    "SubprojectFilter": {
+      "unassigned": "No subproject"
+    },
+    "WorkloadBasis": {
+      "reference_budget": "Budget of the reference revision",
+      "marked_remaining": "Remaining of a marked revision",
+      "current_remaining": "Remaining of the current revision"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
+    "import": {
+      "title": "Import a file",
+      "none": "No import is offered to you on this project.",
+      "kinds": {
+        "ms_project_schedule": "Import an MS Project schedule",
+        "estimate": "Import an estimate",
+        "remaining": "Import an estimate to complete",
+        "actual_costs": "Import actual costs"
+      },
+      "file": "File to import",
+      "fileRequired": "Choose the file to import.",
+      "analyse": "Analyse the file",
+      "cancel": "Cancel",
+      "period": "Period extracted",
+      "periodFrom": "From",
+      "periodTo": "To",
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+    },
+    "report": {
+      "title": "Report of the import “{file}”",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on",
+      "expiresAt": "Applicable until",
+      "formatVersion": "Format version",
+      "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
+      "none": "This import has no report.",
+      "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
+      "reasons": "Explicit confirmation required",
+      "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
+      "rejectedTable": "Rejected lines",
+      "row": "Line",
+      "motive": "Reason",
+      "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
+      "differencesTable": "Differences with the existing data",
+      "change": "Change",
+      "target": "Object",
+      "label": "Label",
+      "fields": "Fields",
+      "unnamed": "No label",
+      "apply": "Apply the import",
+      "abandon": "Abandon the import",
+      "confirmTitle": "Confirmation of the application",
+      "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
+      "confirm": "Confirm the application",
+      "cancel": "Cancel"
+    },
+    "list": {
+      "title": "Imports of the project",
+      "none": "No import has been opened on this project yet.",
+      "file": "File",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on"
+    },
+    "export": {
+      "title": "Request an export",
+      "kind": "File to export",
+      "request": "Request the export",
+      "depth": "Level of the tree",
+      "none": "No export is offered to you on this revision."
+    }
+  }
+}

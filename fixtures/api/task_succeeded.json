@@ -1,0 +1,13 @@
+{
+  "summary": "La suite du marquage de la révision courante demandé à 14 h 05 : abouti à 14 h 09, la révision est figée et ses indicateurs calculés.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000931",
+    "kind": "revision_mark",
+    "status": "succeeded",
+    "progress": 100,
+    "submitted_at": "2026-06-03T14:05:00Z",
+    "finished_at": "2026-06-03T14:09:00Z",
+    "problem": null,
+    "result_url": null
+  }
+}

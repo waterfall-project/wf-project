@@ -1,0 +1,179 @@
+/audit-events:
+  get:
+    operationId: listAuditEvents
+    tags: [audit]
+    summary: Journal d'audit
+    description: >-
+      La consultation du journal d'audit (WF-ADM-0190) : ses inscriptions, chacune avec sa date,
+      son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les
+      actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le
+      journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis
+      des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit
+      qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule
+      l'action elle-même produit, et une restauration ne le remplace pas : il est hors du
+      périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci
+      faite (WF-ADM-0160, #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`)
+      portant sur le libellé de l'objet que l'inscription garde, et les cinq filtres de
+      WF-ADM-0190 sont la période (`from`, `to`), l'auteur (`user_id`, `actor_kind`), l'action
+      (`actions`), le projet (`project_id`) et l'objet (`object_kind`, `object_id`) ; une table
+      plate, qui se trie sur chacune de ses colonnes — la date, l'auteur, l'action, la nature de
+      l'objet, son libellé, le projet et la corrélation (WF-IHM-0060) : sans tri, par date, les
+      plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur inscription,
+      inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne égale, dans cet
+      ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs et les projets
+      que nomme le journal se lisent par `listAuditFacets`. Lisible sous la seule permission de
+      consulter le journal (`audit_log.read`, WF-ADM-0100, WF-ADM-0190), sans condition de
+      contributeur et sans qu'aucun projet soit ouvert — le chemin n'en nomme aucun —, qui ouvre
+      le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en
+      soit contributeur ou non ; l'inscription ne mène qu'à un projet qu'il peut ouvrir
+      (WF-ADM-0110), et qu'à un objet qu'il peut consulter ; un projet qui n'existe plus — créé
+      après la sauvegarde qu'une restauration a remise en place — se nomme de même, sans mener à
+      lui (WF-ADM-0190).
+    parameters:
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - name: from
+        in: query
+        description: Retient les inscriptions faites à cet instant ou après lui.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: to
+        in: query
+        description: Retient les inscriptions faites avant cet instant, exclu.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: user_id
+        in: query
+        description: >-
+          Retient les inscriptions dont l'auteur est ce compte, désactivé compris
+          (WF-ADM-0060).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: actor_kind
+        in: query
+        description: >-
+          Retient les inscriptions d'un compte (`user`) ou de la plateforme (`platform`) ;
+          absent, les deux.
+        schema: { $ref: ../components/schemas/audit.yaml#/AuditActorKind }
+      - name: actions
+        in: query
+        description: Retient les inscriptions de ces actions ; absent, toutes.
+        schema:
+          type: array
+          minItems: 1
+          items: { $ref: ../components/schemas/audit.yaml#/AuditAction }
+        explode: false
+      - name: project_id
+        in: query
+        description: >-
+          Retient les inscriptions de ce projet ; un projet qu'aucune inscription ne nomme ne
+          retient rien, qu'il existe encore ou non.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: object_kind
+        in: query
+        description: Retient les inscriptions dont l'objet est de cette nature.
+        schema: { $ref: ../components/schemas/audit.yaml#/AuditObjectKind }
+      - name: object_id
+        in: query
+        description: >-
+          Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de
+          coût, d'un compte.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - $ref: ../components/parameters.yaml#/Search
+      - name: correlation_id
+        in: query
+        description: >-
+          Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a
+          déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le
+          marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une
+          corrélation que le journal ne porte pas ne retient rien.
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9._-]{1,64}$'
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, la date. Les colonnes du journal qui se trient
+          (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, la plateforme, qui n'en a pas,
+          après les comptes dans l'ordre croissant ; l'action et la nature de l'objet, dans
+          l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et
+          `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue
+          du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que
+          l'inscription garde, un objet sans libellé — une sauvegarde — après les autres dans
+          l'ordre croissant ; le projet, par son code, une inscription sans projet après les
+          autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par
+          caractère dans l'ordre des points de code Unicode.
+        schema:
+          type: string
+          enum: [occurred_at, actor, action, object_kind, object_label, project, correlation_id]
+      - name: sort_order
+        in: query
+        description: >-
+          Sens du tri ; absent, décroissant pour la date — les inscriptions les plus récentes
+          d'abord —, croissant pour toute autre colonne.
+        schema: { $ref: ../components/common.yaml#/SortOrder }
+    responses:
+      '200':
+        description: Inscriptions retenues, une page, et leur nombre.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/audit.yaml#/AuditEvent }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/audit_events.json }
+              page: { $ref: ../../../fixtures/api/audit_events_page.json }
+              project: { $ref: ../../../fixtures/api/audit_events_project.json }
+              exited: { $ref: ../../../fixtures/api/audit_events_exited.json }
+              import_applied: { $ref: ../../../fixtures/api/audit_events_import_applied.json }
+              empty: { $ref: ../../../fixtures/api/audit_events_empty.json }
+              by_actor: { $ref: ../../../fixtures/api/audit_events_by_actor.json }
+              by_object_label: { $ref: ../../../fixtures/api/audit_events_by_object_label.json }
+              correlation: { $ref: ../../../fixtures/api/audit_events_correlation.json }
+              search: { $ref: ../../../fixtures/api/audit_events_search.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans
+          `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle
+          de toute période du contrat) ; un instant mal formé, `/query/from` ou `/query/to` par
+          `DATE_INVALID`. Aucune liste vide ne tient lieu de refus.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/audit_events_period_inverted.json }
+
+/audit-events/facets:
+  get:
+    operationId: listAuditFacets
+    tags: [audit]
+    summary: Auteurs et projets du journal d'audit
+    description: >-
+      Les comptes et les projets que nomme le journal d'audit entier, chacun une fois, pour
+      choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-ADM-0190,
+      WF-IHM-0130) : les comptes auteurs d'au moins une inscription, désactivés compris
+      (WF-ADM-0060), et les projets d'au moins une inscription, consultables ou non par
+      l'appelant. Le journal entier, quels que soient les filtres de `listAuditEvents`, que
+      l'opération ne prend pas : une liste de choix ne se vide pas au gré des autres filtres.
+      Lisible sous la seule permission de consulter le journal (`audit_log.read`), sans
+      condition de contributeur ni projet ouvert : une fonction en lecture seule n'a que la
+      permission de consulter (WF-ADM-0100, WF-ADM-0190), et un auditeur qui ne lit ni les
+      comptes ni tous les projets filtre ainsi le journal par auteur et par projet. Sans
+      pagination : il y a au plus autant d'auteurs que de comptes et de projets que
+      l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt
+      ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de
+      50 inscriptions en pèse une vingtaine.
+    responses:
+      '200':
+        description: Auteurs et projets du journal.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/audit.yaml#/AuditFacets }
+            examples:
+              witness: { $ref: ../../../fixtures/api/audit_facets.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

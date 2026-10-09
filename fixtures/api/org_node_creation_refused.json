@@ -1,0 +1,14 @@
+{
+  "summary": "Un nœud « Cellule vision » créé sous le bureau d'études automatismes, refusé : le bureau est désactivé, et un nœud actif n'y prendrait pas place, aucun objet actif ne subsistant dans un service fermé ; rien n'est écrit (WF-REF-0080).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/parent_id",
+        "code": "INACTIVE_REFERENCE_OBJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001012"
+  }
+}

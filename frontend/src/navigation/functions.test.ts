@@ -1,0 +1,377 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { describe, expect, it } from "vitest";
+
+import type { components } from "@/api/generated/schema";
+import { LEAF_ICONS } from "@/components/shell/function-display";
+import { CATALOGUES } from "@/i18n/catalogues";
+import { example } from "@/test/fixtures";
+
+import { readContext } from "./context";
+import {
+  diagnosticGroups,
+  findScreen,
+  functionAt,
+  FUNCTION_GROUPS,
+  functionHref,
+  functionOf,
+  PLATFORM_FUNCTIONS,
+  leafOf,
+  readableGroups,
+} from "./functions";
+
+type Session = components["schemas"]["Session"];
+
+const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
+
+const FUNCTIONS = FUNCTION_GROUPS.flatMap((group) => group.functions);
+
+/** The value of a key of a catalogue, or `undefined` when it has none. */
+function text(catalogue: object, key: string): unknown {
+  return key.split(".").reduce<unknown>((node, part) => {
+    return typeof node === "object" && node !== null && part in node
+      ? (node as Record<string, unknown>)[part]
+      : undefined;
+  }, catalogue);
+}
+
+/** The codes of the functions of the groups offered to a session. */
+function offered(name: string): string[] {
+  const { permissions } = example(name) as Session;
+  return readableGroups(permissions).flatMap((group) => [
+    group.code,
+    ...group.functions.map((fn) => fn.code),
+  ]);
+}
+
+describe("the table of the functions", () => {
+  it("holds the four blocks of the FBS and their functions of the second level, in order", () => {
+    expect(FUNCTION_GROUPS.map((group) => group.code)).toEqual([
+      "FBS-1",
+      "FBS-2",
+      "FBS-3",
+      "FBS-4",
+    ]);
+    const sizes = { "FBS-1": 5, "FBS-2": 7, "FBS-3": 4, "FBS-4": 9 };
+    for (const group of FUNCTION_GROUPS) {
+      const expected = Array.from(
+        { length: sizes[group.code as keyof typeof sizes] },
+        (_, index) => `${group.code}.${String(index + 1)}`,
+      );
+      expect(group.functions.map((fn) => fn.code)).toEqual(expected);
+    }
+  });
+
+  it("lists as functions outside any project exactly those of the table", () => {
+    expect(PLATFORM_FUNCTIONS).toEqual(
+      FUNCTIONS.filter((fn) => fn.scope === "platform").map((fn) => fn.permission),
+    );
+  });
+
+  it("names each function and block by a key of both catalogues", () => {
+    const keys = [
+      ...FUNCTION_GROUPS.map((group) => group.label),
+      ...FUNCTIONS.map((fn) => fn.label),
+    ];
+    for (const key of keys) {
+      expect(text(CATALOGUES.fr, key), key).toEqual(expect.any(String));
+      expect(text(CATALOGUES.en, key), key).toEqual(expect.any(String));
+    }
+  });
+
+  it("guards each function by a read permission of the catalogue", () => {
+    for (const fn of FUNCTIONS) {
+      expect(text(CATALOGUES.fr, `permissions.${fn.permission}.read`), fn.code).toEqual(
+        expect.any(String),
+      );
+    }
+  });
+
+  it("routes the functions of the project itself under the project, the others under a revision", () => {
+    const routes = FUNCTIONS.map((fn) => fn.route);
+    expect(new Set(routes).size).toBe(routes.length);
+    const ofProject = new Set(["FBS-4.1", "FBS-4.2", "FBS-4.9"]);
+    for (const fn of FUNCTIONS) {
+      if (ofProject.has(fn.code)) {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "project"]);
+        expect(fn.route, fn.code).toMatch(/^\/projects\/\[projectId\]\/[a-z-]+$/);
+      } else if (fn.code.startsWith("FBS-4.")) {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "revision"]);
+        expect(fn.route, fn.code).toMatch(
+          /^\/projects\/\[projectId\]\/revisions\/\[revisionId\]\/[a-z-]+$/,
+        );
+      } else {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "platform"]);
+        expect(fn.route, fn.code).toMatch(/^\/(admin|portfolio|reference)\/[a-z-]+$|^\/system$/);
+      }
+    }
+  });
+});
+
+describe("the leaves of the table", () => {
+  const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
+
+  it("hold the timelines, the imports and exports and the task tree of the planning (FBS-4.3.1, FBS-4.3.4, FBS-4.3.5), the workload of the project, a leaf of the estimate (FBS-4.4.4), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
+    expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([
+      ["FBS-4.3", "FBS-4.3.1"],
+      ["FBS-4.3", "FBS-4.3.4"],
+      ["FBS-4.3", "FBS-4.3.5"],
+      ["FBS-4.4", "FBS-4.4.4"],
+      ["FBS-4.5", "FBS-4.5.3"],
+    ]);
+    expect(leafOf("FBS-4.5.3").route).toBe("/projects/[projectId]/revisions/[revisionId]/kanban");
+    expect(leafOf("FBS-4.3.4").route).toBe(
+      "/projects/[projectId]/revisions/[revisionId]/exchanges",
+    );
+    expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
+    expect(leafOf("FBS-4.3.1").route).toBe(
+      "/projects/[projectId]/revisions/[revisionId]/timelines",
+    );
+    expect(leafOf("FBS-4.3.5").route).toBe(
+      "/projects/[projectId]/revisions/[revisionId]/task-tree",
+    );
+    expect(() => leafOf("FBS-4.4.9")).toThrow("the table of functions has no leaf FBS-4.4.9");
+  });
+
+  it("are of the scope and the permission of their function, named in both catalogues, under its code", () => {
+    const routes = new Set(FUNCTIONS.map((fn) => fn.route));
+    for (const { fn, leaf } of leaves) {
+      expect(leaf.code.startsWith(`${fn.code}.`), leaf.code).toBe(true);
+      expect([leaf.scope, leaf.permission]).toEqual([fn.scope, fn.permission]);
+      expect(text(CATALOGUES.fr, leaf.label), leaf.label).toEqual(expect.any(String));
+      expect(text(CATALOGUES.en, leaf.label), leaf.label).toEqual(expect.any(String));
+      expect(routes.has(leaf.route), leaf.route).toBe(false);
+    }
+  });
+
+  it("have each an icon of their own, and only they", () => {
+    expect(Object.keys(LEAF_ICONS)).toEqual(leaves.map(({ leaf }) => leaf.code));
+  });
+
+  it("are not offered by the navigation, which offers their function", () => {
+    const codes = readableGroups(["estimate.read"]).flatMap((group) =>
+      group.functions.map((fn) => fn.code),
+    );
+    expect(codes).toEqual(["FBS-4.4"]);
+  });
+});
+
+describe("the sections of the table", () => {
+  const sections = FUNCTIONS.flatMap((fn) =>
+    (fn.sections ?? []).map((section) => ({ fn, section })),
+  );
+
+  it("are the leaves the screens of the settings, the planning, the estimate, the remaining to commit, the risks and the indicators show themselves", () => {
+    expect(
+      FUNCTIONS.filter((fn) => fn.sections !== undefined).map((fn) => [
+        fn.code,
+        (fn.sections ?? []).map((section) => section.code),
+      ]),
+    ).toEqual([
+      ["FBS-3.1", ["FBS-3.1.1", "FBS-3.1.2"]],
+      ["FBS-3.2", ["FBS-3.2.1", "FBS-3.2.2", "FBS-3.2.3"]],
+      ["FBS-4.2", ["FBS-4.2.1", "FBS-4.2.2", "FBS-4.2.3", "FBS-4.2.4", "FBS-4.2.5"]],
+      ["FBS-4.3", ["FBS-4.3.2", "FBS-4.3.3"]],
+      ["FBS-4.4", ["FBS-4.4.1", "FBS-4.4.2", "FBS-4.4.3"]],
+      ["FBS-4.5", ["FBS-4.5.1", "FBS-4.5.2"]],
+      ["FBS-4.6", ["FBS-4.6.1", "FBS-4.6.2"]],
+      [
+        "FBS-4.8",
+        [
+          "FBS-4.8.1",
+          "FBS-4.8.2",
+          "FBS-4.8.3",
+          "FBS-4.8.4",
+          "FBS-4.8.5",
+          "FBS-4.8.6",
+          "FBS-4.8.7",
+          "FBS-4.8.8",
+        ],
+      ],
+    ]);
+  });
+
+  it("are under the code of their function, and none is a leaf with a screen of its own", () => {
+    const screens = new Set(FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => leaf.code)));
+    for (const { fn, section } of sections) {
+      expect(section.code.startsWith(`${fn.code}.`), section.code).toBe(true);
+      expect(screens.has(section.code), section.code).toBe(false);
+    }
+  });
+
+  it("are found on their screen by a role a browser exposes, named by a key of both catalogues", () => {
+    for (const { section } of sections) {
+      expect(
+        ["region", "grid", "treegrid", "columnheader", "heading", undefined],
+        section.code,
+      ).toContain(section.role);
+      expect(text(CATALOGUES.fr, section.name), section.code).toEqual(expect.any(String));
+      expect(text(CATALOGUES.en, section.name), section.code).toEqual(expect.any(String));
+    }
+  });
+
+  it("are found by their text only within a list of facts named explicitly, and only so", () => {
+    for (const { section } of sections) {
+      if (section.role === undefined) {
+        expect(section.within, section.code).toEqual(expect.any(String));
+        expect(text(CATALOGUES.fr, section.within ?? ""), section.code).toEqual(expect.any(String));
+        expect(text(CATALOGUES.en, section.within ?? ""), section.code).toEqual(expect.any(String));
+      } else {
+        expect(section.within, section.code).toBeUndefined();
+      }
+    }
+    expect(
+      sections
+        .filter(({ section }) => section.role === undefined)
+        .map(({ section }) => section.code),
+    ).toEqual(["FBS-4.2.2", "FBS-4.2.5"]);
+  });
+
+  it("are not offered by the navigation, nor found as screens of their own", () => {
+    expect(readableGroups(["planning.read"]).flatMap((group) => group.functions)).toHaveLength(1);
+    expect(() => leafOf("FBS-4.3.2")).toThrow("the table of functions has no leaf FBS-4.3.2");
+    expect(findScreen(["reference", "resources"])?.fn.code).toBe("FBS-3.2");
+  });
+});
+
+describe("the functions offered", () => {
+  it("are all of them to a session granted the whole catalogue", () => {
+    expect(offered("session")).toEqual([
+      ...FUNCTION_GROUPS.flatMap((group) => [group.code, ...group.functions.map((fn) => fn.code)]),
+    ]);
+  });
+
+  it("leave out the functions whose read permission the session lacks", () => {
+    const codes = offered("session_without_administration");
+    expect(codes).not.toContain("FBS-1");
+    expect(codes.filter((code) => code.startsWith("FBS-1"))).toEqual([]);
+    expect(codes).toContain("FBS-2.1");
+    expect(codes).toContain("FBS-4.5");
+  });
+
+  it("keep the list of projects when no function of a project may be read", () => {
+    expect(readableGroups(["users.read"]).map((group) => group.code)).toEqual(["FBS-1", "FBS-4"]);
+    expect(readableGroups(["users.write"]).map((group) => group.code)).toEqual(["FBS-4"]);
+  });
+
+  it("keep the status screen alone when the session cannot be read", () => {
+    expect(
+      diagnosticGroups().map((group) => [group.code, ...group.functions.map((fn) => fn.route)]),
+    ).toEqual([["FBS-1", "/system"]]);
+  });
+});
+
+describe("the function of a permission", () => {
+  it("is the function of the table that reads with it", () => {
+    expect(functionOf("revisions").route).toBe("/projects/[projectId]/revisions");
+    expect(functionOf("cost_settings").code).toBe("FBS-3.1");
+  });
+
+  it("is a defect of the table when no function reads with it", () => {
+    expect(() => functionOf("platform_restore" as "users")).toThrow(
+      "the table of functions has no function reading with platform_restore.read",
+    );
+  });
+});
+
+describe("the address of a function", () => {
+  const find = (code: string) => {
+    const found = FUNCTIONS.find((fn) => fn.code === code);
+    if (found === undefined) {
+      throw new Error(code);
+    }
+    return found;
+  };
+  const planning = find("FBS-4.3");
+  const lifecycle = find("FBS-4.9");
+  const revisions = find("FBS-4.1");
+  const portfolio = find("FBS-2.1");
+  const FILTERS = `subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
+
+  it("is its route outside a project, whatever the context", () => {
+    const context = readContext(`${IN_PROJECT}/risks`, new URLSearchParams());
+    expect(functionHref(portfolio, context)).toBe("/portfolio/projects");
+    expect(functionHref(portfolio, undefined)).toBe("/portfolio/projects");
+  });
+
+  it("carries the revision, the sub-project and the calculation date in a project", () => {
+    const context = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(FILTERS));
+    expect(functionHref(planning, context)).toBe(`${IN_PROJECT}/planning?${FILTERS}`);
+  });
+
+  it("carries the revision as a parameter to a function of the project itself, and back", () => {
+    const context = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(FILTERS));
+    const lifecycleHref = functionHref(lifecycle, context) ?? "";
+    expect(lifecycleHref).toBe(`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}&${FILTERS}`);
+
+    const [pathname = "", query = ""] = lifecycleHref.split("?");
+    const there = readContext(pathname, new URLSearchParams(query));
+    expect(functionHref(planning, there)).toBe(`${IN_PROJECT}/planning?${FILTERS}`);
+  });
+
+  it("offers the functions of the project itself in a project without a revision", () => {
+    const context = readContext(`/projects/${PROJECT}`, new URLSearchParams());
+    expect(functionHref(revisions, context)).toBe(`/projects/${PROJECT}/revisions`);
+    expect(functionHref(lifecycle, context)).toBe(`/projects/${PROJECT}/lifecycle`);
+    expect(functionHref(planning, context)).toBeUndefined();
+  });
+
+  it("does not exist for a function of a project outside any project", () => {
+    expect(functionHref(planning, undefined)).toBeUndefined();
+    expect(functionHref(lifecycle, undefined)).toBeUndefined();
+  });
+
+  it("inserts an identifier as it is, whatever it holds", () => {
+    const context = {
+      projectId: "p$&q",
+      revisionId: "r$'s",
+      revisionInPath: true,
+      parameters: new URLSearchParams(),
+    };
+    expect(functionHref(planning, context)).toBe("/projects/p$&q/revisions/r$'s/planning");
+    expect(functionHref(lifecycle, context)).toBe("/projects/p$&q/lifecycle?revision_id=r%24%27s");
+  });
+});
+
+describe("the function an address leads to", () => {
+  it.each([
+    [["system"], "FBS-1.3", undefined],
+    [["admin", "users"], "FBS-1.1", undefined],
+    [["reference", "costs"], "FBS-3.1", undefined],
+    [["projects", PROJECT, "revisions", REVISION, "actual-costs"], "FBS-4.7", PROJECT, REVISION],
+    [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
+    [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
+    [["projects", PROJECT, "revisions", REVISION, "workload"], "FBS-4.4.4", PROJECT, REVISION],
+    [["projects", PROJECT, "revisions", REVISION, "exchanges"], "FBS-4.3.4", PROJECT, REVISION],
+  ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
+    const screen = findScreen(segments);
+    expect(screen?.fn.code).toBe(code);
+    expect(screen?.projectId).toBe(projectId);
+    expect(screen?.revisionId).toBe(revisionId);
+  });
+
+  it("names the function a leaf belongs to, and none for a function", () => {
+    const leaf = findScreen(["projects", PROJECT, "revisions", REVISION, "workload"]);
+    expect(leaf?.parent?.code).toBe("FBS-4.4");
+    expect(findScreen(["projects", PROJECT, "revisions", REVISION, "estimate"])?.parent).toBe(
+      undefined,
+    );
+  });
+
+  it.each([[["admin"]], [["admin", "nobody"]], [["projects", PROJECT, "revisions", REVISION]]])(
+    "is none from %j",
+    (segments) => {
+      expect(findScreen(segments)).toBeUndefined();
+    },
+  );
+});
+
+describe("the function of a code of the FBS", () => {
+  it("is the function of the table under that code, or none", () => {
+    expect(functionAt("FBS-1.2")?.label).toBe("functions.accessRoles");
+    expect(functionAt("FBS-9.9")).toBeUndefined();
+  });
+});

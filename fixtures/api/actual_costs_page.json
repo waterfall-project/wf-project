@@ -1,0 +1,12 @@
+{
+  "summary": "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des 6 lignes, FA-2026-0412, et les totaux et les colonnes conservées de toutes les lignes retenues, pas de la seule page rendue (WF-CRE-0040).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "items": [
+      {"cost_line_id":"01926f3a-7c00-7000-8000-000000000c01","document_number":"FA-2026-0412","document_date":"2026-04-21","amount":"1800.00","project_id":"01926f3a-7c00-7000-8000-000000000001","subproject_id":null,"subproject_code":"SP-CAB","subproject_label":null,"is_in_tracked_scope":true,"excluded_reason":null,"passthrough":{"Fournisseur":"Câbles du Rhône","Texte de commande":"Câbles de commande du pupitre","Élément d'OTP":"WF.PRJ-001/SP-CAB"},"audit":{"created_at":"2026-05-04T08:30:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-05-11T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}}}
+    ],
+    "totals": {"tracked":"105400.00","excluded":"650.00","overall":"106050.00"},
+    "last_import_at": "2026-06-03T08:30:00Z",
+    "meta": {"limit":1,"offset":1,"total":6,"passthrough_columns":["Fournisseur","Texte de commande","Élément d'OTP"]}
+  }
+}

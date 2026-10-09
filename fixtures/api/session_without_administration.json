@@ -1,0 +1,95 @@
+{
+  "summary": "La session d'Inès Roux, dont le rôle « Pilotage de projet » n'accorde aucune habilitation d'administration : ni les comptes, ni les rôles, ni l'état du système, ni les sauvegardes.",
+  "value": {
+    "user": {
+      "user_id": "01926f3a-7c00-7000-8000-000000000306",
+      "last_name": "Roux",
+      "first_name": "Inès",
+      "email": "ines.roux@example.com",
+      "is_active": true,
+      "origin": "local",
+      "org_node_id": null,
+      "org_node_label": null,
+      "access_role_ids": [
+        "01926f3a-7c00-7000-8000-000000000706"
+      ],
+      "access_role_labels": [
+        "Pilotage de projet"
+      ],
+      "has_avatar": false,
+      "audit": {
+        "created_at": "2026-01-15T10:30:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-15T10:30:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1,
+      "display_preferences": {
+        "language": "default",
+        "theme": "default",
+        "highlight_tasks_added_after_reference": false,
+        "grids": {}
+      }
+    },
+    "permissions": [
+      "portfolio_projects.read",
+      "portfolio_projects.write",
+      "portfolio_workload.read",
+      "portfolio_workload.write",
+      "portfolio_performance.read",
+      "portfolio_performance.write",
+      "portfolio_cost_structure.read",
+      "portfolio_cost_structure.write",
+      "portfolio_risks.read",
+      "portfolio_risks.write",
+      "portfolio_cost_curve.read",
+      "portfolio_cost_curve.write",
+      "portfolio_pilot_health.read",
+      "portfolio_pilot_health.write",
+      "cost_settings.read",
+      "cost_settings.write",
+      "resource_settings.read",
+      "resource_settings.write",
+      "risk_settings.read",
+      "risk_settings.write",
+      "indicator_settings.read",
+      "indicator_settings.write",
+      "revisions.read",
+      "revisions.write",
+      "project_settings.read",
+      "project_settings.write",
+      "planning.read",
+      "planning.write",
+      "estimate.read",
+      "estimate.write",
+      "remaining.read",
+      "remaining.write",
+      "risks.read",
+      "risks.write",
+      "actual_costs.read",
+      "actual_costs.write",
+      "project_indicators.read",
+      "project_indicators.write",
+      "lifecycle.read",
+      "lifecycle.write",
+      "revision_mark",
+      "revision_abandon",
+      "reference_designate",
+      "structure_merge",
+      "project_exit",
+      "risk_occurrence",
+      "cost_line_exclude",
+      "project_create"
+    ],
+    "expires_at": "2026-06-04T08:00:00Z",
+    "idle_expires_at": "2026-06-03T16:05:00Z"
+  }
+}

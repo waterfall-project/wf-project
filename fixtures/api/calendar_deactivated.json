@@ -1,0 +1,40 @@
+{
+  "summary": "La semaine de quatre jours désactivée aujourd'hui, à partir de la version lue — elle n'est pas le calendrier par défaut : elle n'est plus proposée à la saisie, reste lisible sur le rôle qui l'emploie, et se réactive (WF-REF-0010, WF-REF-0120, WF-REF-0150).",
+  "value": {
+    "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
+    "label": "Semaine de quatre jours",
+    "weekly_hours": {
+      "monday": "10",
+      "tuesday": "10",
+      "wednesday": "10",
+      "thursday": "10",
+      "friday": "0",
+      "saturday": "0",
+      "sunday": "0"
+    },
+    "is_default": false,
+    "is_active": false,
+    "available_commands": [
+      {
+        "command": "reactivate",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

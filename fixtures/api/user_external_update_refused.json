@@ -1,0 +1,8 @@
+{
+  "summary": "Le nom de Dominique Bernard, compte venu de l'annuaire, modifié ici : refusé, le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne se modifiant pas dans Waterfall ; rien n'est écrit (WF-ADM-0050).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001036"
+  }
+}

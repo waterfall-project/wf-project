@@ -1,0 +1,23 @@
+{
+  "summary": "Les indicateurs du devis de la révision courante au 3 juin 2026 : 121 534,56 au total, dont 19 600,00 de main-d'œuvre, 101 434,56 de débours, 500,00 de provision — la provision du risque encore identifié —, ventilés par nature, par sous-projet et par le poste « Fourniture et montage des armoires » du lotissement, que porte le lot « Poste de commande », 2 934,56. L'écart avec la référence, -210,00, est aussi celui avec la révision marquée précédente, la référence elle-même : les 500,00 de provision et les 200,00 des lignes fusionnées par la survenance, face aux 910,00 de provisions qu'elle portait (WF-DEV-0060, WF-RIS-0050). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "total": {"is_computable":true,"value":"121534.56","reason":null},
+    "by_cost_type": [
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":{"is_computable":true,"value":"19600.00","reason":null},"share":{"is_computable":true,"value":"0.1613","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"101434.56","reason":null},"share":{"is_computable":true,"value":"0.8346","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":{"is_computable":true,"value":"500.00","reason":null},"share":{"is_computable":true,"value":"0.0041","reason":null}}
+    ],
+    "by_subproject": [
+      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","amount":{"is_computable":true,"value":"20834.56","reason":null},"share":{"is_computable":true,"value":"0.1714","reason":null}},
+      {"key":"unassigned","amount":{"is_computable":true,"value":"100700.00","reason":null},"share":{"is_computable":true,"value":"0.8286","reason":null}}
+    ],
+    "by_order_item": [
+      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":true,"value":"2934.56","reason":null},"share":{"is_computable":true,"value":"0.0241","reason":null}}
+    ],
+    "provisions_identified": "500.00",
+    "delta_to_reference": {"is_computable":true,"value":"-210.00","reason":null},
+    "delta_to_previous_revision": {"is_computable":true,"value":"-210.00","reason":null}
+  }
+}

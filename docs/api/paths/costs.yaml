@@ -6,19 +6,16 @@
     description: >-
       Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du
       périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes
-      conservées du fichier sont restituées (WF-CRE-0010).
+      conservées du fichier sont restituées (WF-CRE-0010), ligne par ligne (`passthrough`),
+      et leur union nommée une fois pour toute la lecture (`meta.passthrough_columns`) : la
+      grille les présente toutes, à toutes les pages. Le tri et les filtres sont faits par
+      le serveur, et les totaux comme cette union sont ceux de toutes les lignes retenues,
+      pas de la seule page rendue.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
-      - name: subproject_id
-        in: query
-        description: '`unassigned` pour les lignes imputées au seul projet (WF-CRE-0020).'
-        schema:
-          anyOf:
-            - type: string
-              enum: [unassigned]
-            - $ref: ../components/common.yaml#/Uuid
+      - $ref: ../components/parameters.yaml#/SubprojectFilter
       - name: from
         in: query
         schema: { $ref: ../components/common.yaml#/PlanningDate }
@@ -28,6 +25,30 @@
       - name: in_tracked_scope
         in: query
         schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, les pièces les plus récentes d'abord. Chaque colonne de la
+          grille se trie (WF-IHM-0060). `in_tracked_scope` range dans l'ordre croissant les
+          lignes exclues avant les lignes suivies. `excluded_reason` range par motif, et
+          `passthrough.<colonne>` par la valeur d'une colonne conservée du fichier, nommée
+          comme `passthrough` la nomme : l'un et l'autre comparés en texte, caractère par
+          caractère dans l'ordre des points de code Unicode, sans lire un nombre ni une date
+          qu'ils écriraient ; une ligne sans valeur — suivie, donc sans motif, ou sans cette
+          colonne — vient après les autres dans l'ordre croissant, avant dans le décroissant.
+        schema:
+          anyOf:
+            - type: string
+              enum:
+                - document_date
+                - document_number
+                - amount
+                - subproject
+                - in_tracked_scope
+                - excluded_reason
+            - type: string
+              pattern: '^passthrough\..+$'
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Lignes de coût et les trois totaux.
@@ -35,7 +56,7 @@
           application/json:
             schema:
               type: object
-              required: [items, totals, meta]
+              required: [items, totals, last_import_at, meta]
               properties:
                 items:
                   type: array
@@ -45,9 +66,30 @@
                   anyOf:
                     - $ref: ../components/common.yaml#/Timestamp
                     - type: 'null'
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                meta: { $ref: ../components/schemas/costs.yaml#/ActualCostListMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/actual_costs.json }
+              page: { $ref: ../../../fixtures/api/actual_costs_page.json }
+              subproject: { $ref: ../../../fixtures/api/actual_costs_subproject.json }
+              after_exclusion: { $ref: ../../../fixtures/api/actual_costs_after_exclusion.json }
+              empty: { $ref: ../../../fixtures/api/actual_costs_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans
+          `fields` — une période dont la fin précède le début (`/query/to`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du
+          contrat), une date mal formée (`/query/from` ou `/query/to`,
+          `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé
+          (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de
+          refus.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/actual_costs_period_inverted.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/actual_costs_subproject_unknown.json }
 
 /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
   put:
@@ -73,6 +115,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/costs.yaml#/ActualCostLine }
+            examples:
+              excluded: { $ref: ../../../fixtures/api/actual_cost_excluded.json }
+              reinstated: { $ref: ../../../fixtures/api/actual_cost_reinstated.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -101,4 +147,9 @@
                   type: array
                   items: { $ref: ../components/schemas/costs.yaml#/CostImport }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/cost_imports.json }
+              beyond: { $ref: ../../../fixtures/api/cost_imports_beyond.json }
+              empty: { $ref: ../../../fixtures/api/cost_imports_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

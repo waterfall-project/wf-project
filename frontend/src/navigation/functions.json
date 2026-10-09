@@ -1,0 +1,396 @@
+{
+  "groups": [
+    {
+      "code": "FBS-1",
+      "label": "functionGroups.administration",
+      "functions": [
+        {
+          "code": "FBS-1.1",
+          "label": "functions.users",
+          "route": "/admin/users",
+          "scope": "platform",
+          "permission": "users"
+        },
+        {
+          "code": "FBS-1.2",
+          "label": "functions.accessRoles",
+          "route": "/admin/access-roles",
+          "scope": "platform",
+          "permission": "access_roles"
+        },
+        {
+          "code": "FBS-1.3",
+          "label": "functions.systemStatus",
+          "route": "/system",
+          "scope": "platform",
+          "permission": "system_status"
+        },
+        {
+          "code": "FBS-1.4",
+          "label": "functions.backups",
+          "route": "/admin/backups",
+          "scope": "platform",
+          "permission": "backups"
+        },
+        {
+          "code": "FBS-1.5",
+          "label": "functions.auditLog",
+          "route": "/admin/audit-log",
+          "scope": "platform",
+          "permission": "audit_log"
+        }
+      ]
+    },
+    {
+      "code": "FBS-2",
+      "label": "functionGroups.portfolio",
+      "functions": [
+        {
+          "code": "FBS-2.1",
+          "label": "functions.portfolioProjects",
+          "route": "/portfolio/projects",
+          "scope": "platform",
+          "permission": "portfolio_projects"
+        },
+        {
+          "code": "FBS-2.2",
+          "label": "functions.portfolioWorkload",
+          "route": "/portfolio/workload",
+          "scope": "platform",
+          "permission": "portfolio_workload"
+        },
+        {
+          "code": "FBS-2.3",
+          "label": "functions.portfolioPerformance",
+          "route": "/portfolio/performance",
+          "scope": "platform",
+          "permission": "portfolio_performance"
+        },
+        {
+          "code": "FBS-2.4",
+          "label": "functions.portfolioCostStructure",
+          "route": "/portfolio/cost-structure",
+          "scope": "platform",
+          "permission": "portfolio_cost_structure"
+        },
+        {
+          "code": "FBS-2.5",
+          "label": "functions.portfolioRisks",
+          "route": "/portfolio/risks",
+          "scope": "platform",
+          "permission": "portfolio_risks"
+        },
+        {
+          "code": "FBS-2.6",
+          "label": "functions.portfolioCostCurve",
+          "route": "/portfolio/cost-curve",
+          "scope": "platform",
+          "permission": "portfolio_cost_curve"
+        },
+        {
+          "code": "FBS-2.7",
+          "label": "functions.portfolioPilotHealth",
+          "route": "/portfolio/pilot-health",
+          "scope": "platform",
+          "permission": "portfolio_pilot_health"
+        }
+      ]
+    },
+    {
+      "code": "FBS-3",
+      "label": "functionGroups.applicationSettings",
+      "functions": [
+        {
+          "code": "FBS-3.1",
+          "label": "functions.costSettings",
+          "route": "/reference/costs",
+          "scope": "platform",
+          "permission": "cost_settings",
+          "sections": [
+            {
+              "code": "FBS-3.1.1",
+              "role": "region",
+              "name": "reference.costTypes.title"
+            },
+            {
+              "code": "FBS-3.1.2",
+              "role": "grid",
+              "name": "grid.names.hourlyRates"
+            }
+          ]
+        },
+        {
+          "code": "FBS-3.2",
+          "label": "functions.resourceSettings",
+          "route": "/reference/resources",
+          "scope": "platform",
+          "permission": "resource_settings",
+          "sections": [
+            {
+              "code": "FBS-3.2.1",
+              "role": "region",
+              "name": "reference.orgNodes.title"
+            },
+            {
+              "code": "FBS-3.2.2",
+              "role": "region",
+              "name": "reference.resourceRoles.title"
+            },
+            {
+              "code": "FBS-3.2.3",
+              "role": "region",
+              "name": "reference.calendars.title"
+            }
+          ]
+        },
+        {
+          "code": "FBS-3.3",
+          "label": "functions.riskSettings",
+          "route": "/reference/risks",
+          "scope": "platform",
+          "permission": "risk_settings"
+        },
+        {
+          "code": "FBS-3.4",
+          "label": "functions.indicatorSettings",
+          "route": "/reference/indicators",
+          "scope": "platform",
+          "permission": "indicator_settings"
+        }
+      ]
+    },
+    {
+      "code": "FBS-4",
+      "label": "functionGroups.projects",
+      "route": "/",
+      "functions": [
+        {
+          "code": "FBS-4.1",
+          "label": "functions.revisions",
+          "route": "/projects/[projectId]/revisions",
+          "scope": "project",
+          "permission": "revisions"
+        },
+        {
+          "code": "FBS-4.2",
+          "label": "functions.projectSettings",
+          "route": "/projects/[projectId]/settings",
+          "scope": "project",
+          "permission": "project_settings",
+          "sections": [
+            {
+              "code": "FBS-4.2.1",
+              "role": "region",
+              "name": "projectLists.workBreakdown.title"
+            },
+            {
+              "code": "FBS-4.2.2",
+              "within": "projectFacts.settings",
+              "name": "projectFacts.inflationRate"
+            },
+            {
+              "code": "FBS-4.2.3",
+              "role": "region",
+              "name": "projectLists.subprojects.title"
+            },
+            {
+              "code": "FBS-4.2.4",
+              "role": "region",
+              "name": "projectLists.contributors.title"
+            },
+            {
+              "code": "FBS-4.2.5",
+              "within": "projectFacts.settings",
+              "name": "projectFacts.winProbability"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.3",
+          "label": "functions.planning",
+          "route": "/projects/[projectId]/revisions/[revisionId]/planning",
+          "scope": "revision",
+          "permission": "planning",
+          "sections": [
+            {
+              "code": "FBS-4.3.2",
+              "role": "treegrid",
+              "name": "grid.names.planning"
+            },
+            {
+              "code": "FBS-4.3.3",
+              "role": "columnheader",
+              "name": "grid.columns.gantt"
+            }
+          ],
+          "leaves": [
+            {
+              "code": "FBS-4.3.1",
+              "label": "functions.timelines",
+              "route": "/projects/[projectId]/revisions/[revisionId]/timelines",
+              "scope": "revision",
+              "permission": "planning"
+            },
+            {
+              "code": "FBS-4.3.4",
+              "label": "functions.exchanges",
+              "route": "/projects/[projectId]/revisions/[revisionId]/exchanges",
+              "scope": "revision",
+              "permission": "planning"
+            },
+            {
+              "code": "FBS-4.3.5",
+              "label": "functions.taskTree",
+              "route": "/projects/[projectId]/revisions/[revisionId]/task-tree",
+              "scope": "revision",
+              "permission": "planning"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.4",
+          "label": "functions.estimate",
+          "route": "/projects/[projectId]/revisions/[revisionId]/estimate",
+          "scope": "revision",
+          "permission": "estimate",
+          "sections": [
+            {
+              "code": "FBS-4.4.1",
+              "role": "region",
+              "name": "estimateSummary.title"
+            },
+            {
+              "code": "FBS-4.4.2",
+              "role": "treegrid",
+              "name": "grid.names.estimate"
+            },
+            {
+              "code": "FBS-4.4.3",
+              "role": "columnheader",
+              "name": "grid.columns.referenceAmount"
+            }
+          ],
+          "leaves": [
+            {
+              "code": "FBS-4.4.4",
+              "label": "functions.workload",
+              "route": "/projects/[projectId]/revisions/[revisionId]/workload",
+              "scope": "revision",
+              "permission": "estimate"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.5",
+          "label": "functions.remaining",
+          "route": "/projects/[projectId]/revisions/[revisionId]/remaining",
+          "scope": "revision",
+          "permission": "remaining",
+          "sections": [
+            {
+              "code": "FBS-4.5.1",
+              "role": "region",
+              "name": "remainingSummary.title"
+            },
+            {
+              "code": "FBS-4.5.2",
+              "role": "treegrid",
+              "name": "grid.names.remaining"
+            }
+          ],
+          "leaves": [
+            {
+              "code": "FBS-4.5.3",
+              "label": "functions.kanban",
+              "route": "/projects/[projectId]/revisions/[revisionId]/kanban",
+              "scope": "revision",
+              "permission": "remaining"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.6",
+          "label": "functions.risks",
+          "route": "/projects/[projectId]/revisions/[revisionId]/risks",
+          "scope": "revision",
+          "permission": "risks",
+          "sections": [
+            {
+              "code": "FBS-4.6.1",
+              "role": "grid",
+              "name": "grid.names.risks"
+            },
+            {
+              "code": "FBS-4.6.2",
+              "role": "region",
+              "name": "risks.provisions.title"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.7",
+          "label": "functions.actualCosts",
+          "route": "/projects/[projectId]/revisions/[revisionId]/actual-costs",
+          "scope": "revision",
+          "permission": "actual_costs"
+        },
+        {
+          "code": "FBS-4.8",
+          "label": "functions.projectIndicators",
+          "route": "/projects/[projectId]/revisions/[revisionId]/indicators",
+          "scope": "revision",
+          "permission": "project_indicators",
+          "sections": [
+            {
+              "code": "FBS-4.8.1",
+              "role": "heading",
+              "name": "projectIndicators.financial.title"
+            },
+            {
+              "code": "FBS-4.8.2",
+              "role": "heading",
+              "name": "projectIndicators.projections.title"
+            },
+            {
+              "code": "FBS-4.8.3",
+              "role": "heading",
+              "name": "projectIndicators.physical.title"
+            },
+            {
+              "code": "FBS-4.8.4",
+              "role": "heading",
+              "name": "projectIndicators.cost.title"
+            },
+            {
+              "code": "FBS-4.8.5",
+              "role": "heading",
+              "name": "projectIndicators.schedule.title"
+            },
+            {
+              "code": "FBS-4.8.6",
+              "role": "region",
+              "name": "projectIndicators.milestones.title"
+            },
+            {
+              "code": "FBS-4.8.7",
+              "role": "region",
+              "name": "projectIndicators.costCurve.title"
+            },
+            {
+              "code": "FBS-4.8.8",
+              "role": "region",
+              "name": "projectIndicators.earnedValue.title"
+            }
+          ]
+        },
+        {
+          "code": "FBS-4.9",
+          "label": "functions.lifecycle",
+          "route": "/projects/[projectId]/lifecycle",
+          "scope": "project",
+          "permission": "lifecycle"
+        }
+      ]
+    }
+  ]
+}

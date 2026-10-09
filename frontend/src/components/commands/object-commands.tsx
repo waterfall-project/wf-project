@@ -1,0 +1,99 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The exits of a project and the commands of a revision, in the order the server lists them
+ * (`available_commands`): only those the caller may exercise, each available or naming what it
+ * lacks (WF-IHM-0090). A marked revision offers no command of modification: the server
+ * lists each unavailable, lacking a draft revision (WF-IHM-0020).
+ *
+ * The marking of a revision is wired: it opens the entry of its version name, and hands the
+ * background task it starts to the tracker of the shell (`MarkCommand`); so are the exits of the
+ * lifecycle of a project, which open their confirmation (`ExitCommand`). The other commands of
+ * a revision — a structure to create or merge, a reference to designate, the revision to
+ * abandon — come with the forms of their domain, which hand each command its server action;
+ * until then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
+ * the commands of a revision leaves them out.
+ */
+import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
+
+import type { components } from "@/api/generated/schema";
+import type { Revision } from "@/components/context/read-only";
+import type { Project } from "@/components/context/reading";
+
+import { Command } from "./command";
+import { ExitCommands } from "./exit-command";
+import { isExit } from "./exits";
+import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
+import { MarkCommand } from "./mark-command";
+
+type RevisionCommand = components["schemas"]["RevisionCommand"];
+
+/** A list of commands, named for what it is; nothing when the caller may exercise none. */
+function CommandList({ children }: { readonly children: readonly ReactNode[] }) {
+  const t = useTranslations("commands");
+  return children.length === 0 ? null : (
+    <section aria-label={t("label")}>
+      <ul className="flex flex-wrap items-start gap-2">{children}</ul>
+    </section>
+  );
+}
+
+/**
+ * The exits of the lifecycle of a project the caller may exercise, in the order of the server:
+ * the one command of a project its screens exercise; the others — its settings, its
+ * contributors, a revision to create — belong to the forms of their domain (US-0210).
+ */
+export function LifecycleCommands({ project }: { readonly project: Project }) {
+  const exits = project.available_commands.flatMap(({ command, ...offer }) =>
+    isExit(command) ? [{ command, offer }] : [],
+  );
+  return (
+    <CommandList>
+      {exits.length === 0
+        ? []
+        : [
+            // Keyed by the project: the outcome of a command never outlives its project.
+            <ExitCommands
+              key={project.project_id}
+              exits={exits}
+              projectId={project.project_id}
+              names={{ [project.project_id]: project.label }}
+            />,
+          ]}
+    </CommandList>
+  );
+}
+
+/** Whether a command of a revision is an export, which the screen of the exchanges offers. */
+function isExport(command: RevisionCommand): boolean {
+  return command.startsWith("export_");
+}
+
+/** The commands of a revision the caller may exercise, its exports left out. */
+export function RevisionCommands({ revision }: { readonly revision: Revision }) {
+  const t = useTranslations();
+  const names = {
+    [revision.revision_id]: revision.version_name ?? t("contextBanner.currentRevision"),
+  };
+  const commands = revision.available_commands.filter((offer) => !isExport(offer.command));
+  return (
+    <CommandList>
+      {commands.map((offer) => (
+        <li key={`${revision.revision_id}:${offer.command}`}>
+          {offer.command === "mark" ? (
+            <MarkCommand offer={offer} revision={revision} names={names} />
+          ) : (
+            <Command
+              offer={offer}
+              label={t(`enums.RevisionCommand.${offer.command}`)}
+              icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
+              names={names}
+            />
+          )}
+        </li>
+      ))}
+    </CommandList>
+  );
+}

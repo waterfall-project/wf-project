@@ -1,0 +1,11 @@
+{
+  "summary": "Le fichier de devis du Poste de commande déposé aujourd'hui, 3 juin 2026, à 8 h 40 pour un import, en transit pour celui qu'il ouvre : il est supprimé dès que l'import est appliqué, abandonné ou expiré (WF-DAT-0120).",
+  "value": {
+    "upload_id": "01926f3a-7c00-7000-8000-000000000a01",
+    "purpose": "import",
+    "filename": "devis-poste-de-commande.xlsx",
+    "size_bytes": 48213,
+    "uploaded_at": "2026-06-03T08:40:00Z",
+    "expires_at": "2026-06-04T08:40:00Z"
+  }
+}
