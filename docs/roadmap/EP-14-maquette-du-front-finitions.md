@@ -1,7 +1,7 @@
 ---
 id: EP-14
 titre: Les écrans de la maquette achevés, commandes branchées et constats du contrat soldés
-statut: à planifier
+statut: en cours
 depend_de: EP-02
 famille: front
 issue: 599
@@ -56,12 +56,23 @@ citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du 
 
 ## Opérations du contrat
 
-Celles d'EP-02, et les écritures que les écrans branchent : les sauvegardes (`startBackup`,
-`retainBackup`, `downloadBackup`, `startRestore`, `setBackupSchedule`,
-`testExternalBackupLocation`), les réglages (`updateReferenceSettings`), le projet
-(`createProject`, `updateProject`, `getProjectNextState`), les sous-projets et les contributeurs
-(`createSubproject`, `updateSubproject`, `deleteSubproject`, `setContributors`,
-`listContributorSuggestions`), le lotissement (`setWorkBreakdown`, `generatePlanningSkeleton`).
+Celles d'EP-02, et les écritures que les écrans branchent, avec les lectures qui les préparent :
+les sauvegardes (`startBackup`, `retainBackup`, `downloadBackup`, `startRestore`,
+`getBackupSchedule`, `setBackupSchedule`, `listExternalBackupLocations`,
+`testExternalBackupLocation`), les réglages (`getReferenceSettings`, `updateReferenceSettings`),
+le projet (`createProject`, `updateProject`, `getProjectNextState`), les sous-projets et les
+contributeurs (`createSubproject`, `updateSubproject`, `deleteSubproject`, `listContributors`,
+`setContributors`, `listContributorSuggestions`), le lotissement et le squelette
+(`getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`), le rattachement d'une tâche
+au lotissement (`updateTaskFacet`, `listNodes`), les chronologies (`listTimelines`,
+`createTimeline`, `deleteTimeline`).
+
+Ce qui manque au contrat pour ces écrans est connu et se fait en quatre parties de #507, avant
+les écrans qui les consomment (« Conception », « Modifications du contrat ») : les commandes
+qu'une sauvegarde, un sous-projet, une révision — le squelette — et un projet — les chronologies —
+listent, les refus par champ que les écritures ne disent pas ou disent mal, les exemples de succès
+qui manquent, les filtres et le tri des sauvegardes, les nœuds retenus d'un lotissement filtré, la
+catégorie provision par défaut.
 
 ## Préalables
 
@@ -82,25 +93,175 @@ EP-02 fusionné dans `main` ; la branche `epic/EP-14` tirée de `main` après ce
 Repris d'EP-02 à la coupure du 2026-10-09, renommés `[EP-14/Ln]` en gardant leur numéro de lot,
 et rattachés à #599 :
 
-- #512 [EP-14/L43] — les commandes du référentiel et des sauvegardes, dont #519 ;
-- #513 [EP-14/L44] — les commandes des paramètres du projet : #583, #584, #585, et #524 ;
-- #528 [EP-14/L45] — l'univers témoin à l'échelle, et #287 ;
-- #507 [EP-14/L42] — ses parties de contrat ouvertes : #574, #575, #579, #586, #588, #590, #592 ;
-- #84 [US-0200] et #126 ; #92 [US-0290] et #127 ;
-- #500 — relectures lentes sous charge, à trancher ;
-- #591 — le critère d'US-0210 à réécrire en écart quand les commandes du projet entrent.
+- #512 [EP-14/L43] — les commandes du référentiel et des sauvegardes : L43c (#519, l'écran des
+  sauvegardes) livré par #607 ; restent L43d (la planification et la copie externe, fin de #519)
+  et L43e (les paramètres des risques et des indicateurs) ;
+- #513 [EP-14/L44] — les commandes des paramètres du projet : L44a (#583, #524) livré par #608,
+  L44b (#584) par #609 ; reste #585, découpé au cadrage en L44c (le lotissement et les
+  chronologies) et L44d (le squelette et le rattachement) ;
+- #528 [EP-14/L45] — l'univers témoin à l'échelle, et #287 ; découpé au cadrage en L45a (les
+  lectures sur toute la structure) et L45b (les risques à l'échelle et le Kanban, qui ferme #287) ;
+- #507 [EP-14/L42] — ses parties de contrat ouvertes, regroupées au cadrage par l'écran qui les
+  consomme : L42h (#588, et la part des réglages de #575), L42i (#590, #592), L42j (la part des
+  ressources de #575), L42k (#586, #574, #579) ;
+- #84 [US-0200] et #126 ; #92 [US-0290] et #127 : l'issue de l'US est celle de son lot ;
+- #500 — relectures lentes sous charge : fermé au cadrage, couvert par EP-02/L46 (décision de
+  l'auteur) ;
+- #591 — le critère d'US-0210 réécrit en écart par le lot de cadrage, EP-14/L50, les commandes du
+  projet étant entrées avec L44a et L44b.
 
-Trois lots étaient commencés à la coupure, sur leur branche, et repartent d'`epic/EP-14` :
-EP-14/L43c (l'écran des sauvegardes, revue 1 faite), EP-14/L44a (créer un projet, revue 1 faite)
-et EP-14/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46, sans issue :
+Trois lots étaient commencés à la coupure, sur leur branche, et sont repartis d'`epic/EP-14` :
+EP-14/L43c, EP-14/L44a et EP-14/L44b, livrés. Relevé par EP-02/L46, sans issue à la coupure :
 `DenseGrid` ne mémorise ni ses lignes ni ses cellules, si bien que chaque déplacement de la cellule
-active les rend toutes ; aucun défaut n'est démontré en production.
+active les rend toutes ; aucun défaut n'est démontré en production. Ouvert au cadrage en
+`[EP-14] front : DenseGrid ne mémorise ni ses lignes ni ses cellules` (#620), décision
+reporté → EP-06, qui construit la grille de planning réelle et pourra mesurer.
 
 ## Conception
 
 Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, composants partagés,
 commandes du référentiel (`CommandedList`, `ReferenceForm`, `CellCommand`), refus par champ,
-défauts nommés du guide. Ce qu'EP-14 ajoute s'écrit au cadrage, avant son plan de lots.
+défauts nommés du guide. EP-14 n'a ni table, ni migration, ni module du noyau : il écrit du front,
+des exemples et des parties du contrat, et des générateurs de l'univers témoin (`wftools`) — un
+outil écrit en passant, qui ne change pas sa famille. Ce qui suit est ce qu'il ajoute, validé au
+cadrage du 2026-10-09.
+
+### Ce que le cadrage décide
+
+- **Aucune US pour les commandes d'écriture.** Elles ne réalisent aucune exigence en propre, et
+  une US qui citerait WF-REF, WF-PRJ ou WF-ADM devrait reprendre chaque phrase de leur Vérif et
+  faire passer en « fin — amorcée en EP-14 » des exigences qu'EP-04, EP-05 et EP-13 tiennent pour
+  entières. Les commandes restent des lots techniques, parties des lots repris L42 à L45 et
+  nouveaux lots `[EP-14/Ln]`, sous l'issue de l'EPIC (#599), comme le README le permet pour cet
+  EPIC ; la définition de fini les porte. Écarté : une US sans exigence, sur le modèle d'US-0210 —
+  un statut `fini` de plus à lire, pour des critères qui ne seraient que la définition de fini.
+- **Deux entorses assumées, déjà décidées.** Le critère d'US-0250 qui laissait l'écran des
+  sauvegardes « sans déclencher ni sauvegarde ni restauration », et celui d'US-0210 qui voulait
+  qu'« aucun de ces écrans ne propose de créer ni de modifier », sont contredits par les commandes
+  que la maquette montre depuis la décision de l'auteur du 2026-10-08 : les notes de réalisation
+  d'EP-02 le disent pour le premier, et le second est réécrit en écart dans le fichier d'EP-02
+  (#591), par le lot de cadrage.
+- **La branche du cadrage.** Le fichier d'EP-14 vit sur `epic/EP-14`, où L49, L43c, L44a et L44b
+  l'ont déjà modifié : le cadrage s'écrit sur une branche tirée d'elle et y revient par une pull
+  request, non par `roadmap/EP-14-cadrage` vers `main`. Conséquence : le statut `en cours` du
+  README, les numéros d'issues et l'écart d'US-0210 n'atteignent `main` qu'à la livraison
+  d'EP-14 ; lu depuis `main`, le README dira « à planifier » tant qu'il dure, et c'est accepté.
+- **Taille des lots.** L43c, L44a et L44b ont fait de 1,6 à 2,5 fois leur estimation
+  (2 532, 1 775 et 2 369 lignes réelles) : les lots de ce plan sont coupés à 1 200 lignes
+  estimées, et un lot d'écran qui approche le plafond se découpe plutôt que de grossir.
+
+### Modifications du contrat
+
+Quatre parties de #507, chacune avec son entrée dans `docs/api/DECISIONS.md`, ses exemples,
+`make inventory` et `make generate-client`, faites **avant** le lot d'écran qui les consomme.
+Quand l'écran existe déjà — L43b, L43c, L44a, L44b —, la partie de contrat l'adopte dans le même
+lot, comme EP-02/L42e et L42f l'ont fait ; sinon l'adoption revient au lot d'écran. Écarté : une
+seule partie pour les sept constats, qui dépasserait le plafond ; laisser chaque lot d'écran
+modifier le contrat en passant, contre la règle « le contrat d'abord ».
+
+| Partie | Ce qu'elle ferme | Contenu | Consommateur |
+|---|---|---|---|
+| L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e |
+| L42i — projet, sous-projets, contributeurs | #590, #592 | Le déclencheur du prochain état énuméré, et ce que `getProjectNextState` rend d'un projet en cours ou terminal ; la probabilité de gain annoncée figée, le statut et le pointeur de son refus ; le code pris nommant le projet qui le porte, par son libellé, comme L42g l'a décidé pour le référentiel ; les bornes des deux taux. Un sous-projet liste ses commandes (modifier, supprimer), la suppression indisponible avec sa condition quand des coûts réels lui sont imputés ou qu'une révision marquée le cite, son 409 nommé ; le code pris nommant le sous-projet qui le porte ; le refus par champ d'un compte inconnu ou désactivé dans `setContributors` ; une proposition nomme son nœud et ses rôles, dit si le compte est actif, et `listContributorSuggestions` s'appuie sur les lignes de devis comme WF-PRJ-0070. Les écrans de L44a et L44b l'adoptent dans le lot. | écrans L44a, L44b |
+| L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans le lot. | écrans L43b |
+| L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 marque supprimée une chronologie qu'une révision marquée cite, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
+
+Les noms des codes et des conditions ci-dessus sont ceux que le cadrage propose ; chaque partie
+les arrête dans `DECISIONS.md`, avec les options écartées.
+
+### Les écrans
+
+- **La planification et la copie externe des sauvegardes (L43d).** Un formulaire, à une session
+  qui peut modifier les sauvegardes (`backups.write`), qui envoie la planification **entière**
+  depuis la lecture (`setBackupSchedule` est un `PUT`) : activée ou suspendue, fréquence, heure,
+  jour, rétention. La copie externe choisit un emplacement parmi ceux que l'installation déclare
+  (`listExternalBackupLocations`) — jamais un secret ni une adresse —, un chemin relatif et un
+  nombre de copies au moins égal à la rétention de la plateforme, vérifié au front avant l'envoi
+  et dit au champ quand le serveur le refuse (422, exemples existants) ; « Tester l'emplacement »
+  appelle `testExternalBackupLocation` et dit son résultat. L'heure se saisit en temps universel,
+  comme le contrat le dit, l'heure locale équivalente affichée à côté — écarté : convertir au
+  front, où le changement d'heure rend la conversion ambiguë. La grille de L43c adopte les
+  commandes et les filtres que L42h apporte.
+- **Les paramètres des risques et des indicateurs (L43e).** Deux formulaires, un par écran :
+  les six bornes **et les seize zones** de la matrice sur `/reference/risks`, à une session qui
+  porte `risk_settings.write` ; les quatre seuils et le délai entre deux revues sur
+  `/reference/indicators`, sous `indicator_settings.write`. Chacun envoie par
+  `updateReferenceSettings` le seul sous-objet de son écran et la version, vérifie au front que
+  les bornes sont ordonnées et chaque seuil d'alerte sous son seuil de vigilance, dit au champ ce
+  que le serveur refuse. Hors du formulaire : la devise, non modifiable (WF-REF-0140), et la
+  langue par défaut de l'installation, qui est à EP-03 (WF-INTF-0160, ligne `installation`) —
+  EP-14 ne touche pas son domaine, et `ReferenceSettingsWrite.default_language` reste au contrat
+  sans qu'aucun écran de la maquette l'écrive. Écarté : saisir les bornes seules, la matrice
+  restant à moitié paramétrable.
+- **Le lotissement (L44c)** se saisit **dans la grille arborescente** existante : ajouter,
+  renommer, supprimer un poste, un lot, un livrable, au menu contextuel et à la barre de la
+  grille, chaque geste renvoyant le lotissement **entier** depuis une lecture entière — le
+  compteur d'une lecture filtrée est nul, et « un écran qui filtre relit la liste entière avant
+  d'écrire » (décision de L42f). La suppression d'un poste ou d'un lot que des tâches portent est
+  confirmée, en disant que les tâches restent et perdent leur rattachement (WF-PLA-0170).
+  Écarté : un dialogue qui éditerait tout l'arbre, qui doublerait la grille ; des opérations par
+  élément, que le contrat n'a pas et dont l'écriture entière a été décidée.
+- **Les chronologies (L44c)** se créent par leur libellé dans un dialogue de l'écran des
+  chronologies et se suppriment après confirmation, comme le projet liste `manage_timelines`.
+  Écarté : garder par la seule permission `planning.write` de la session — un objet du projet
+  liste ses commandes, règle d'EP-02.
+- **Le squelette (L44d)** s'offre dans **l'état vide de la grille de planning** — « aucune
+  tâche » —, comme la révision liste `generate_skeleton` : l'opération vise la révision, et
+  WF-PRJ-0030 ne le propose plus dès que la structure principale comporte une tâche. La réponse
+  remplit la grille. Écarté : un bouton dans la section du lotissement, qui ne connaît pas la
+  révision.
+- **Le rattachement (L44d)** est une colonne « Rattachement » de la grille de planning : une
+  cellule qui choisit un poste ou un lot parmi le lotissement lu entier, ou rien, écrite par
+  `updateTaskFacet` (`order_item_id` ou `work_package_id`, jamais les deux), le refus du serveur
+  dit à la cellule en nommant la tâche qui porte déjà le lot. Écarté : rattacher depuis le
+  lotissement, qui ne connaît pas la révision.
+- **Le porteur d'un code pris** — projet, sous-projet — est nommé par son libellé dans les
+  paramètres du refus, et le formulaire le dit au champ, comme L42g l'a fait pour le référentiel.
+
+### L'univers témoin à l'échelle (L45)
+
+La décision 4 du cadrage de #287, option (a) de l'auteur du 2026-10-07, s'applique : les risques
+751 et 753 sont portés à l'échelle de la structure de mille tâches, et les lectures qui sommaient
+le seul cœur — les indicateurs du projet, la courbe des coûts, le registre des risques et sa
+couverture, le Kanban, la liste du portefeuille — somment toute la structure ; les résumés « sur
+le seul cœur, jusqu'à EP-02/L45 » disparaissent. Les tests du front qui assertent des valeurs du
+témoin sont réécrits sur les nouvelles valeurs, dans le même lot. Écarté : un second jeu
+d'exemples figé pour les tests, qui ferait deux univers.
+
+### L'accessibilité (US-0200)
+
+Le contrôle axe réemploie `frontend/e2e/axe.ts` et la boucle de `screens.spec.ts` sur chaque
+route de `functions.json`, en clair et en sombre, à 1366 points et à **911 points** — ce que
+donne un agrandissement de 150 % sur 1366, émulé par la fenêtre ; écarté : `deviceScaleFactor`,
+qui ne change pas la mise en page. Un parcours clavier générique par route : Tab jusqu'au retour
+au premier élément, chaque élément focalisé visible dans la fenêtre, aucune boucle fermée. Les
+libellés des champs et les descriptions des images sont les règles `label` et `image-alt` d'axe.
+Les écarts que le contrôle relève se corrigent dans le lot ; si leur nombre l'impose, l'US se
+découpe en deux lots, harnais et écrans du référentiel et de l'administration, puis écrans du
+projet. Ce harnais arrive **avant** les lots d'écran : il garde ensuite chacun d'eux.
+
+### Les navigateurs (US-0290)
+
+Des projets Playwright `chrome` et `msedge` (canaux), `firefox` et `webkit`, à 1366 × 768, qui
+jouent les seuls parcours étiquetés des grilles, du Gantt et des courbes ; un projet `mobile` à
+360 points de large qui lit les vues d'indicateurs et du portefeuille : lisibles sans défilement
+horizontal, et **sans aucune saisie** — ni champ, ni cellule saisissable, ni commande
+d'écriture ; les filtres de lecture restent. `make e2e-browsers` installe tous les navigateurs,
+et une part `browsers` de la chaîne les joue au palier complet sur un exécuteur à part : l'image
+Playwright porte Firefox et WebKit, Chrome et Edge s'installent dans le travail. Écarté : rejouer
+tous les parcours sur quatre navigateurs, quatre fois le temps de chaîne ; le Safari réel et la
+version majeure précédente, qui restent à la recette d'EP-13 (écarts d'US-0290).
+
+### Ordre de construction
+
+1. Le lot de cadrage : ce fichier, l'écart d'US-0210, les constats reçus d'EP-13, le README.
+2. En parallèle : US-0200 et US-0290, dont le harnais garde ensuite chaque lot d'écran ; les
+   quatre parties du contrat, L42h à L42k ; l'univers témoin, L45a puis L45b, avant que les lots
+   d'écran n'assertent d'autres valeurs.
+3. Les écrans, chacun après sa partie de contrat : L43d et L43e après L42h ; L44c puis L44d après
+   L42k.
+4. La clôture : la définition de fini constatée, chaque constat de #507 appliqué dans `docs/api`
+   ou écarté dans `DECISIONS.md`.
 
 ## Notes de réalisation
 
@@ -209,7 +370,13 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
-(§2.2) : ces quatre points, et rien de plus.
+(§2.2) : ces quatre points, et rien de plus. Le harnais réemploie `frontend/e2e/axe.ts` — les
+règles WCAG A et AA, jouées aujourd'hui sur le seul en-tête des tables de `theme.spec.ts` — et la
+boucle de `screens.spec.ts` sur les routes de `functions.json`, en clair et en sombre
+(`colorScheme`), à 1366 et à 911 points, l'agrandissement de 150 % émulé par la fenêtre ; le
+parcours clavier est générique par route ; les règles `label` et `image-alt` d'axe portent le
+critère propre des libellés et des descriptions (« Conception », « L'accessibilité »). L'US tient
+en un lot, dont l'issue est la sienne ; si les écarts relevés l'imposent, elle se découpe en deux.
 
 **Hors périmètre.** L'aide en ligne, qui n'est pas dans cet EPIC.
 
@@ -246,4 +413,11 @@ mon bureau.
 **Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
 ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
 Firefox et WebKit ses deux autres moteurs, et le Safari réel reste à la recette (EP-13) —
-et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
+et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs. Aujourd'hui
+`make e2e-browsers` n'installe que Chromium et `playwright.config.ts` n'a qu'un projet
+`chromium` : l'US ajoute les projets `chrome`, `msedge`, `firefox`, `webkit` et `mobile`, étend la
+cible Make à tous les navigateurs, et donne à la chaîne une part `browsers` au palier complet, qui
+ne joue que les parcours étiquetés (« Conception », « Les navigateurs »). À 360 points, les vues
+sont en lecture seule : aucun champ, aucune cellule saisissable, aucune commande d'écriture ; les
+filtres de lecture restent (décision de l'auteur du 2026-10-09). L'US tient en un lot, dont l'issue
+est la sienne.

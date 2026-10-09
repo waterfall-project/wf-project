@@ -1160,7 +1160,13 @@ qu'ils ont à montrer.
   du cadrage) ; seule la sortie du cycle de vie, commande du §3.6, s'y exerce — écart : le
   marquage, commande du §3.6 lui aussi, s'exerce en outre depuis l'écran des révisions, qui
   porte les commandes de la révision lue : c'est le premier emploi de `MarkCommand`, décidé
-  avec le suivi des traitements longs (US-0180, conception « Commande ») ;
+  avec le suivi des traitements longs (US-0180, conception « Commande ») — écart : les
+  commandes du projet entrent avec EP-14, sur la décision de l'auteur du 2026-10-08 qui fait
+  montrer à la maquette ses commandes d'écriture (#513, #591) : créer un projet, modifier son
+  identité et ses faits, ses sous-projets, ses contributeurs, son lotissement et ses
+  chronologies, branchées au contrat et répondues par le faux back sans rien conserver ; les
+  révisions, elles, ne se créent ni ne se modifient toujours pas ici, et le comportement réel de
+  ces commandes reste à EP-04 ;
 - propre à l'US : tout manque du contrat constaté ici est écrit dans cet EPIC, puis corrigé
   dans `docs/api` ou ouvert en issue.
 
