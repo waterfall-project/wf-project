@@ -1512,6 +1512,21 @@ minimum que le serveur nomme. Les exemples de succès de ces écritures entrent 
 qu'il ne dit pas, ou dit mal, sont des « Interface contract issue » ouvertes sous #507. L43b fera les
 paramètres de ressources et ceux des risques et des indicateurs, L43c l'écran des sauvegardes (#519).
 
+Sa partie L43b (#512) donne de même leurs commandes aux paramètres de ressources, sur les pièces de
+L43a devenues communes à tout le référentiel (`CommandedList`, `ReferenceForm`, `StateCell`) : à une
+session qui peut modifier les paramètres de ressources, l'organisation, les rôles et les calendriers
+se créent et se modifient dans un formulaire validé côté front (`createOrgNode`, `updateOrgNode`,
+`createResourceRole`, `updateResourceRole`, `createCalendar`, `updateCalendar`), et chaque objet se
+désactive ou se réactive comme il le liste (`setOrgNodeActivation`, `setResourceRoleActivation`,
+`setCalendarActivation`) — la désactivation du calendrier par défaut indisponible, avec sa condition
+(WF-REF-0120) ; un calendrier actif se désigne par défaut (`setDefaultCalendar`). Un nœud se déplace
+sous un parent actif, jamais sous lui-même ni ses descendants ; un rôle ne change pas de nœud, et ne
+s'attache qu'à des objets actifs et à une catégorie de main-d'œuvre (WF-REF-0090) ; un calendrier se
+saisit par ses sept valeurs d'heures (WF-REF-0110). Les refus par champ d'un parent ou d'un nœud
+désactivé se disent au champ ; aucune commande ne supprime (WF-REF-0010). Les exemples de succès de ces
+écritures entrent au contrat ; ce qu'il dit mal est signalé pour #507. Les paramètres des risques et
+des indicateurs (`updateReferenceSettings`) restent à une partie suivante, la taille du lot l'imposant.
+
 ## US-0260 — Écran d'import en deux temps
 
 - **statut** : fini

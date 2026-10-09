@@ -7,8 +7,11 @@
  * the same way (`cost-grid.tsx`). The dense grid is given its configuration here, on the side of the
  * browser: a configuration reads the rows by functions, which never cross from a server component to
  * a client one. The page hands each data only: the rows of the answer, where the page stands in the
- * list for a list the server pages, what the address asked and the settings the session read. Read
- * only: no cell is entered; the reactivation of an object follows the commands it carries.
+ * list for a list the server pages, what the address asked and the settings the session read, and
+ * whether the session may modify the function of the grid. No cell is entered: a session that may
+ * modify it is offered the modification of each row in a form, and the activation of an object
+ * follows the commands it carries (EP-02/L43); a row the server answered a write of shows the answer
+ * (`useAnswered`).
  *
  * The totals row says how many the list holds — as the server counts those it retained
  * (`meta.total`), the search and the filters applying to it (WF-IHM-0130), never a count of the
@@ -26,6 +29,8 @@ import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import type { ListPage } from "@/navigation/pages";
 
+import { useAnswered } from "./commands";
+import type { ReferenceObject } from "./kinds";
 import {
   type Calendar,
   type CalendarSort,
@@ -42,6 +47,8 @@ export interface ReferenceGridProps<Row, Sort extends string> {
   readonly rows: readonly Row[];
   readonly query: GridQuery<Sort>;
   readonly preferences: GridPreferences | undefined;
+  /** Whether the session may modify the function of the grid (`platformOffer`). */
+  readonly editable: boolean;
 }
 
 /** What a list the server pages adds: where its page stands in it. */
@@ -65,30 +72,33 @@ export type ResourceGridProps =
   | ({ readonly kind: "calendars" } & ReferenceGridProps<Calendar, CalendarSort> & Paged);
 
 /**
- * A grid of its configuration, made once: its totals row the number the server retained for a list
- * it pages, the rows of the answer otherwise.
+ * A grid of its configuration for the session, made once, its rows as the server last answered them:
+ * its totals row the number the server retained for a list it pages, the rows of the answer
+ * otherwise.
  */
-export function ReferenceGrid<Row extends object, Sort extends string>({
+export function ReferenceGrid<Row extends ReferenceObject, Sort extends string>({
   make,
   count,
   rows,
   query,
   preferences,
+  editable,
   page,
   narrowing,
 }: ReferenceGridProps<Row, Sort> & {
-  readonly make: () => GridConfig<Row, Sort, null>;
+  readonly make: (editable: boolean) => GridConfig<Row, Sort, null>;
   /** What the totals row says of the number of rows the list holds. */
   readonly count: (rows: number) => string;
   /** Where the page stands in the list the server pages; none for the tree, read whole. */
   readonly page?: ListPage | undefined;
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
 }) {
-  const config = useMemo(() => make(), [make]);
+  const config = useMemo(() => make(editable), [make, editable]);
+  const answered = useAnswered(rows);
   return (
     <DenseGrid
       config={config}
-      rows={rows}
+      rows={answered}
       totals={null}
       totalsCaption={() => count(page === undefined ? rows.length : page.total)}
       query={query}

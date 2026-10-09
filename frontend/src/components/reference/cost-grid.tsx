@@ -15,9 +15,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback } from "react";
 
-import type { GridConfig } from "@/components/grid/columns";
 import type { ListPage } from "@/navigation/pages";
 
 import {
@@ -28,52 +26,25 @@ import {
   type CostTypeSort,
   costTypeGrid,
 } from "./cost-grids";
-import { useAnswered } from "./cost-commands";
-import type { CostObject } from "./cost-kinds";
 import { ReferenceGrid, type ReferenceGridProps } from "./resource-grid";
 
 /** The two grids of the natures and the categories of cost, by their kind. */
-export type CostGridProps = {
-  readonly page: ListPage;
-  /** Whether the session may modify the cost settings (`platformOffer`). */
-  readonly editable: boolean;
-} & (
+export type CostGridProps = { readonly page: ListPage } & (
   | ({ readonly kind: "costTypes" } & ReferenceGridProps<CostType, CostTypeSort>)
   | ({ readonly kind: "costCategories" } & ReferenceGridProps<CostCategory, CostCategorySort>)
 );
-
-/**
- * A grid of its configuration for the session, its rows as the server last answered them, its totals
- * row the number the server retained.
- */
-function AnsweredGrid<Row extends CostObject, Sort extends string>({
-  make,
-  count,
-  editable,
-  rows,
-  ...props
-}: ReferenceGridProps<Row, Sort> & {
-  readonly page: ListPage;
-  readonly editable: boolean;
-  readonly make: (editable: boolean) => GridConfig<Row, Sort, null>;
-  readonly count: (rows: number) => string;
-}) {
-  const configured = useCallback(() => make(editable), [make, editable]);
-  const answered = useAnswered(rows);
-  return <ReferenceGrid {...props} rows={answered} make={configured} count={count} />;
-}
 
 /** Render a grid of the natures or the categories of cost, by its kind. */
 export function CostGrid(props: CostGridProps) {
   const t = useTranslations("reference");
   return props.kind === "costTypes" ? (
-    <AnsweredGrid
+    <ReferenceGrid
       {...props}
       make={costTypeGrid}
       count={(count) => t("costTypes.count", { count })}
     />
   ) : (
-    <AnsweredGrid
+    <ReferenceGrid
       {...props}
       make={costCategoryGrid}
       count={(count) => t("costCategories.count", { count })}

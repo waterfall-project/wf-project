@@ -4,12 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { example } from "@/test/fixtures";
 
-import { answersOf, shownRow, take } from "./answers";
+import { alike, answersOf, reread, shownRow, take } from "./answers";
 import { ESTIMATE_FIELDS } from "./estimate";
 import {
   type AnyNodeFields,
   type NodeList,
   type NodesWritten,
+  nodeFresher,
   nodeKey,
   nodesWritten,
   projectNodes,
@@ -236,5 +237,77 @@ describe("the answers of a reading", () => {
       nodeKey,
     );
     expect(answers.parts.size).toBe(0);
+  });
+});
+
+describe("the answers of an address read anew", () => {
+  it("keep an answer newer than the reading anew whole, and let go of all it gave once the reading caught up with the row it wrote, schedules and totals included", () => {
+    const answers = answersOf<PlanningNode, unknown>(rows, "totals read");
+    const written = nodesWritten(lengthened, PLANNING_FIELDS, true);
+    take(answers, written, nodeKey);
+    // Read anew alike: other objects, the same values — the server said nothing newer.
+    reread(answers, structuredClone(rows), "totals read", nodeKey, nodeFresher);
+    expect(shownRow(answers, nodeKey, MOUNTING)).toEqual(written.rows[0]);
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toBe(FLOAT);
+    expect(answers.totals?.value).toEqual(lengthened.totals);
+    // Read anew past the answer: the mounting and the design file as the server reads them since,
+    // the totals read changed — every value the answer gave gives way, the schedules of the other
+    // tasks it rescheduled included.
+    const changed = structuredClone(rows).map((node) =>
+      node.node_id === MOUNTING || node.node_id === DESIGN_FILE
+        ? { ...node, lock_version: node.lock_version + 5 }
+        : node,
+    );
+    reread(answers, changed, "totals read anew", nodeKey, nodeFresher);
+    expect(shownRow(answers, nodeKey, MOUNTING)).toBe(changed.find((n) => n.node_id === MOUNTING));
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.lock_version).toBe(
+      row(DESIGN_FILE).lock_version + 5,
+    );
+    expect(answers.parts.size).toBe(0);
+    expect(answers.totals).toBeUndefined();
+  });
+
+  it("keep a row answered newer than the row read anew, by its version, however otherwise it reads, and let one as new go when it reads otherwise", () => {
+    const answers = answersOf<PlanningNode, unknown>(rows);
+    const written = nodesWritten(lengthened, PLANNING_FIELDS, true);
+    take(answers, written, nodeKey);
+    const [mounting] = written.rows;
+    // The label read anew changed, the version not: the answer is newer, and stays.
+    const relabelled = structuredClone(rows).map((node) =>
+      node.node_id === MOUNTING && node.task
+        ? { ...node, task: { ...node.task, label: "x" } }
+        : node,
+    );
+    reread(answers, relabelled, undefined, nodeKey, nodeFresher);
+    expect(shownRow(answers, nodeKey, MOUNTING)).toEqual(mounting);
+    // Read anew at the version answered and otherwise: the reading caught up, and prevails.
+    const caughtUp = relabelled.map((node) =>
+      node.node_id === MOUNTING ? { ...node, lock_version: mounting?.lock_version ?? 0 } : node,
+    );
+    reread(answers, caughtUp, undefined, nodeKey, nodeFresher);
+    expect(shownRow(answers, nodeKey, MOUNTING)?.task?.label).toBe("x");
+  });
+
+  it("let go of a row the reading anew no longer holds", () => {
+    const answers = answersOf<PlanningNode, unknown>(rows);
+    take(answers, nodesWritten(lengthened, PLANNING_FIELDS, true), nodeKey);
+    reread(
+      answers,
+      rows.filter((node) => node.node_id !== MOUNTING),
+      undefined,
+      nodeKey,
+    );
+    expect(answers.rows.has(MOUNTING)).toBe(false);
+    expect(shownRow(answers, nodeKey, MOUNTING)).toBeUndefined();
+  });
+
+  it("compare the values the API gave, whatever objects hold them", () => {
+    expect(alike(row(MOUNTING), structuredClone(row(MOUNTING)))).toBe(true);
+    expect(alike({ a: [1, { b: null }] }, { a: [1, { b: null }] })).toBe(true);
+    expect(alike({ a: [1, 2] }, { a: [1, 2, 3] })).toBe(false);
+    expect(alike({ a: 1 }, { b: 1 })).toBe(false);
+    expect(alike([1], { 0: 1 })).toBe(false);
+    expect(alike(null, {})).toBe(false);
+    expect(alike("1", 1)).toBe(false);
   });
 });

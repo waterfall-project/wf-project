@@ -20,8 +20,8 @@ import {
 } from "@/test/fixtures";
 
 import type { CostCategory, CostType } from "./cost-grids";
-import type { NatureChoice } from "./cost-kinds";
 import { CostCategoryList, CostTypeList } from "./cost-lists";
+import type { Choice } from "./kinds";
 
 // The server of Next, as far as the lists need it: the fake back, the page rendered again once an
 // object is created, the address they read and the navigations they ask.
@@ -55,7 +55,7 @@ const categories = example("volume/cost_categories_page") as {
 const first = (example("volume/cost_categories") as { items: CostCategory[] }).items.slice(0, 3);
 
 /** The natures of the witness, as the page offers them to a category: the labour one deactivated. */
-const NATURES: readonly NatureChoice[] = types.items.map((nature) => ({
+const NATURES: readonly Choice[] = types.items.map((nature) => ({
   id: nature.cost_type_id,
   code: nature.code,
   label: nature.label,

@@ -324,3 +324,24 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     jusqu'à ce qu'elle arrive, et attend l'adresse dans la borne de l'écran (`WORKING` pour un écran
     de grilles denses). `reference-filters.dom.test.tsx` le prouve ; aucun outil ne le tient : la
     revue le cherche.
+22. **Relecture de la même adresse prise pour une nouvelle lecture.** Next résout la promesse d'une
+    action serveur avant d'appliquer l'arbre relu par son `refresh()` : le dialogue d'une création
+    se ferme, un taux se saisit et part, puis la page relue arrive. La grille, qui repartait de zéro
+    à chaque nouvelle identité de ses lignes, oubliait la cellule en attente et abandonnait la
+    réponse : le taux était écrit, la cellule restait vide, et une nouvelle saisie serait partie avec
+    une version périmée (412) — le parcours de L43a échouait une fois sur trois (EP-02/L43b). Une
+    réponse n'appartient qu'à l'adresse où elle a été écrite, et seule une lecture qui change les
+    lignes de la grille l'abandonne : un tri d'une autre liste de l'écran, une adresse réécrite par
+    `history.replaceState`, rendent les mêmes lignes — tant que le contenu d'une ligne ne dépend pas
+    de l'adresse. Sur une relecture, le plus récent l'emporte, par le compteur de l'objet écrit,
+    comme `useAnswered` : le `lock_version` d'un nœud (`GridConfig.fresher`), celui du taux d'une
+    cellule, dont la réponse est le changement de cette seule cellule, trouvée par son année parmi
+    celles de la ligne relue, jamais par une place figée à l'écriture (`RowPart.versioned`). Une
+    réponse se juge en bloc : celle que son compteur garde garde aussi les récapitulatives qu'elle a
+    recalculées et ses totaux, que leur propre compteur ne départage pas. Comparer la ligne relue à
+    la précédente ne vient qu'en repli, quand le compteur ne dit rien : seule, cette comparaison
+    jetait la réponse de la seconde cellule d'une ligne dès qu'une relecture portait la première ;
+    jugée ligne à ligne, elle ramenait la récapitulative et les totaux à la première réponse. Le rendu ne change rien de ce que l'état tient : il pose une
+    copie des réponses sur la relecture ; seuls les rappels changent celles qu'ils écrivent.
+    `cell-writes.dom.test.tsx`, `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx`
+    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche.

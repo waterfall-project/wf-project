@@ -465,6 +465,16 @@ export function nodeKey(node: GridNode): string {
   return node.node_id;
 }
 
+/**
+ * Whether a node answered is newer than the same node read, by their versions: a greater one is
+ * newer, a lesser one older; the same says nothing — a summary recalculated keeps its version.
+ */
+export function nodeFresher(answered: GridNode, read: GridNode): boolean | undefined {
+  return answered.lock_version === read.lock_version
+    ? undefined
+    : answered.lock_version > read.lock_version;
+}
+
 /** The number of a node, as the API computes it at the reading. */
 export function nodeNumber(node: GridNode): number {
   return node.row_number;

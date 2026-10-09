@@ -1,0 +1,79 @@
+{
+  "summary": "L'atelier de câblage désactivé aujourd'hui, à partir de la version lue, et avec lui le monteur câbleur qui lui est rattaché : la désactivation cascade aux descendants — l'atelier n'en a pas — et aux rôles (WF-REF-0080). Le nœud se réactive, son parent étant actif ; le rôle, non, tant que son nœud reste désactivé. Rien ne se supprime (WF-REF-0010).",
+  "value": {
+    "org_nodes": [
+      {
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+        "code": "AT-CABL",
+        "label": "Atelier de câblage",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000471",
+        "parent_label": "Bureau d'études électricité",
+        "level": 3,
+        "is_active": false,
+        "available_commands": [
+          {
+            "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-06-03T14:05:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 2
+      }
+    ],
+    "resource_roles": [
+      {
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000454",
+        "label": "Monteur câbleur",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+        "org_node_label": "Atelier de câblage",
+        "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+        "cost_category_label": "Ingénierie électrique",
+        "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
+        "calendar_label": "Semaine de quatre jours",
+        "capacity": {
+          "monthly_hours": "216662.50",
+          "headcount": "1250"
+        },
+        "is_active": false,
+        "available_commands": [
+          {
+            "command": "reactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "org_node_active"
+            ]
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-06-03T14:05:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 2
+      }
+    ]
+  }
+}

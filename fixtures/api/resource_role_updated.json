@@ -1,0 +1,40 @@
+{
+  "summary": "Le technicien de mise en service renommé aujourd'hui « Technicien de mise en service et d'essais », à partir de la version lue : son nœud ne change pas — un rôle ne se déplace pas —, sa catégorie, son calendrier et sa capacité restent, sa version avancée d'une ; les révisions marquées sont inchangées (WF-REF-0090, WF-REF-0130).",
+  "value": {
+    "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+    "label": "Technicien de mise en service et d'essais",
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+    "org_node_label": "Bureau d'études électricité",
+    "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+    "cost_category_label": "Mise en service",
+    "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+    "calendar_label": "Semaine standard",
+    "capacity": {
+      "monthly_hours": "485324.00",
+      "headcount": "2800"
+    },
+    "is_active": true,
+    "available_commands": [
+      {
+        "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

@@ -1096,23 +1096,41 @@
     "codedChoice": "{code} · {label}",
     "modify": "Modifier",
     "modifyNamed": "Modifier « {name} »",
-    "costForm": {
-      "createCostType": "Nouvelle nature de coût",
-      "createCostCategory": "Nouvelle catégorie de coût",
-      "modify": "Modifier « {name} »",
-      "costTypeHint": "Le code, unique, le libellé et le type sont requis.",
-      "costTypeModifyHint": "Le code, unique, le libellé et le type sont requis. Le type ne change plus dès qu’une catégorie rattachée est employée.",
-      "costCategoryHint": "Le code, unique, le libellé et la nature sont requis ; le code comptable, unique lui aussi, peut rester vide.",
+    "form": {
       "choose": "Choisir…",
-      "deactivatedChoice": "{choice} (désactivée)",
+      "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
       "cancel": "Annuler",
-      "created": "« {name} » créée.",
-      "saved": "« {name} » enregistrée.",
-      "deactivated": "« {name} » désactivée.",
-      "reactivated": "« {name} » réactivée."
+      "created": "« {name} » {kind, select, cost_type {créée} cost_category {créée} other {créé}}.",
+      "saved": "« {name} » {kind, select, cost_type {enregistrée} cost_category {enregistrée} other {enregistré}}.",
+      "deactivated": "« {name} » {kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}}.",
+      "reactivated": "« {name} » {kind, select, cost_type {réactivée} cost_category {réactivée} other {réactivé}}.",
+      "designated": "« {name} » désigné calendrier par défaut."
+    },
+    "costForm": {
+      "createCostType": "Nouvelle nature de coût",
+      "createCostCategory": "Nouvelle catégorie de coût",
+      "costTypeHint": "Le code, unique, le libellé et le type sont requis.",
+      "costTypeModifyHint": "Le code, unique, le libellé et le type sont requis. Le type ne change plus dès qu’une catégorie rattachée est employée.",
+      "costCategoryHint": "Le code, unique, le libellé et la nature sont requis ; le code comptable, unique lui aussi, peut rester vide."
+    },
+    "orgNodeForm": {
+      "create": "Nouveau nœud d’organisation",
+      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud actif ne prend place que sous un nœud actif.",
+      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants ; actif, il ne prend place que sous un nœud actif.",
+      "parent": "Parent",
+      "root": "Aucun — racine"
+    },
+    "roleForm": {
+      "create": "Nouveau rôle de ressource",
+      "createHint": "Le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "modifyHint": "Le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+    },
+    "calendarForm": {
+      "create": "Nouveau calendrier",
+      "hint": "Le libellé et les heures travaillées de chacun des sept jours, du lundi au dimanche, sont requis ; rien d’autre n’est demandé."
     },
     "rates": {
       "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
@@ -1153,7 +1171,8 @@
       "count": "{count, plural, one {# nœud} other {# nœuds}}",
       "codeFilter": "Code du nœud",
       "levelFilter": "Niveau",
-      "everyLevel": "Tous les niveaux"
+      "everyLevel": "Tous les niveaux",
+      "create": "Nouveau nœud"
     },
     "resourceRoles": {
       "title": "Rôles de ressources",
@@ -1164,13 +1183,17 @@
       "everyCostCategory": "Toutes les catégories",
       "calendarFilter": "Calendrier",
       "everyCalendar": "Tous les calendriers",
-      "count": "{count, plural, one {# rôle} other {# rôles}}"
+      "count": "{count, plural, one {# rôle} other {# rôles}}",
+      "create": "Nouveau rôle"
     },
     "calendars": {
       "title": "Calendriers",
       "isDefault": "Calendrier par défaut",
       "none": "Aucun calendrier.",
-      "count": "{count, plural, one {# calendrier} other {# calendriers}}"
+      "count": "{count, plural, one {# calendrier} other {# calendriers}}",
+      "create": "Nouveau calendrier",
+      "designate": "Désigner « {name} » par défaut",
+      "designateShort": "Désigner"
     },
     "durationUnits": {
       "title": "Unités de durée",

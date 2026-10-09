@@ -21,7 +21,9 @@ import {
 } from "@/test/fixtures";
 
 import { listReads } from "./address";
-import { type ActivationTarget, Reactivations, StateCell } from "./reactivation";
+import { StateCell } from "./commands";
+import type { ActivationTarget } from "./kinds";
+import { Reactivations } from "./reactivation";
 import { InactiveSwitch, OrgNodeFilter } from "./reference-filters";
 import { ResourceGrid } from "./resource-grid";
 import {
@@ -96,6 +98,7 @@ function roleGrid(
   return inFrench(
     <Reactivations reads={listReads(RESOURCE_ROLE_ADDRESS, ROLE_ORG_NODE)}>
       <ResourceGrid
+        editable={false}
         kind="resourceRoles"
         rows={rows}
         page={rolePage.meta}
@@ -146,6 +149,7 @@ describe("the tree of the organisation", () => {
     render(
       inFrench(
         <ResourceGrid
+          editable={false}
           kind="orgNodes"
           rows={nodes}
           query={NO_QUERY}
@@ -194,6 +198,7 @@ describe("the tree of the organisation", () => {
     render(
       inFrench(
         <ResourceGrid
+          editable={false}
           kind="orgNodes"
           rows={nodes}
           query={NO_QUERY}
@@ -301,8 +306,10 @@ describe("the grid of the resource roles", () => {
     expect(screen.getAllByRole("button", { name: /^Réactiver/ })).toHaveLength(
       roles.filter((role) => !role.is_active).length,
     );
-    // An active role carries its deactivation, which no screen offers yet.
-    expect(screen.queryByRole("button", { name: /Désactiver/ })).toBeNull();
+    // An active role carries its deactivation, offered as the server lists it.
+    expect(screen.getAllByRole("button", { name: /^Désactiver/ })).toHaveLength(
+      roles.filter((role) => role.is_active).length,
+    );
   });
 
   it("reactivates from the keyboard, Enter on the cell of the state, the grid one stop", async () => {
@@ -534,6 +541,7 @@ describe("the grid of the calendars", () => {
   const calendarGrid = (query: GridQuery<CalendarSort> = NO_QUERY) =>
     inFrench(
       <ResourceGrid
+        editable={false}
         kind="calendars"
         rows={calendars}
         page={calendarPage.meta}
@@ -601,6 +609,7 @@ describe("the reactivation of a node of the organisation", () => {
     inFrench(
       <Reactivations reads={listReads(ORG_NODE_ADDRESS)}>
         <ResourceGrid
+          editable={false}
           kind="orgNodes"
           rows={rows}
           query={NO_QUERY}
@@ -681,6 +690,7 @@ describe("the three grids of the screen", () => {
       inFrench(
         <>
           <ResourceGrid
+            editable={false}
             kind="orgNodes"
             rows={nodes}
             query={NO_QUERY}
@@ -688,6 +698,7 @@ describe("the three grids of the screen", () => {
             narrowing={{}}
           />
           <ResourceGrid
+            editable={false}
             kind="resourceRoles"
             rows={roles}
             page={rolePage.meta}
@@ -695,6 +706,7 @@ describe("the three grids of the screen", () => {
             preferences={undefined}
           />
           <ResourceGrid
+            editable={false}
             kind="calendars"
             rows={calendars}
             page={calendarPage.meta}

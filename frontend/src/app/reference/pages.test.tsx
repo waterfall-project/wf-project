@@ -523,14 +523,32 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the resources", () => {
+  it("offer the commands of the nodes, the roles and the calendars, none that deletes, to a session that may modify the settings of the resources, and say the fake back keeps nothing; none to a session that may only read them [WF-IHM-0090-A] [WF-REF-0010-A]", async () => {
+    const page = text(await resourcesAt());
+    expect(page).toMatch(/Maquette.*Nouveau nœud.*Nouveau rôle.*Nouveau calendrier.*Désigner/);
+    expect(page).not.toMatch(/Supprimer|Effacer/);
+    // The natures are read whole, by which a role is attached to a category of labour alone.
+    expect(queriesOf("GET /reference/cost-types")).toEqual([WHOLE]);
+    server.clients = [];
+    server.answers = {
+      ...server.answers,
+      "GET /session": "session_estimator",
+      "GET /reference/org-nodes": "org_nodes_reader",
+      "GET /reference/resource-roles": "resource_roles_reader",
+      "GET /reference/calendars": "calendars_reader",
+    };
+    expect(await resourcesAt()).not.toMatch(/Nouveau|Modifier|Désactiver|Désigner|Maquette/);
+    expect(queriesOf("GET /reference/cost-types")).toEqual([]);
+  });
+
   it("present the organisation as a tree grid in the order the server gives, each node by its label set in by its depth, its code and its depth, filtered by code, depth and state", async () => {
     const page = await resourcesAt();
     expect(rows(page, "Arbre d’organisation")).toEqual([
-      "Libellé Code Niveau État",
-      "Direction technique DT 1 Actif",
-      "Bureau d'études électricité BE-ELEC 2 Actif",
-      "Atelier de câblage AT-CABL 3 Actif",
-      "Service des achats ACHATS 2 Actif",
+      "Libellé Code Niveau État Modifier",
+      "Direction technique DT 1 Actif Désactiver Modifier",
+      "Bureau d'études électricité BE-ELEC 2 Actif Désactiver Modifier",
+      "Atelier de câblage AT-CABL 3 Actif Désactiver Modifier",
+      "Service des achats ACHATS 2 Actif Désactiver Modifier",
       "4 nœuds",
     ]);
     // A tree that folds, each node at its level; no header sorts it.
@@ -550,12 +568,12 @@ describe("the settings of the resources", () => {
   it("present each role with its node, its category, its calendar and its capacity, named as the server resolves them, on a grid sorted by each of its columns, filtered by each and bounded on its figures [WF-IHM-0060-A]", async () => {
     const page = await resourcesAt({ include_inactive: "true" });
     expect(rows(page, "Rôles de ressources")).toEqual([
-      "Libellé Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État",
-      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé Réactiver",
-      "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 658 654,00 3 800 Actif",
-      "Monteur câbleur Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 662,50 1 250 Actif",
-      "Programmeur d'automates Bureau d'études automatismes Ingénierie électrique Semaine standard 519,99 3 Désactivé Réactiver Condition non remplie : nœud d’organisation actif.",
-      "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 485 324,00 2 800 Actif",
+      "Libellé Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État Modifier",
+      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé Réactiver Modifier",
+      "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 658 654,00 3 800 Actif Désactiver Modifier",
+      "Monteur câbleur Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 662,50 1 250 Actif Désactiver Modifier",
+      "Programmeur d'automates Bureau d'études automatismes Ingénierie électrique Semaine standard 519,99 3 Désactivé Réactiver Condition non remplie : nœud d’organisation actif. Modifier",
+      "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 485 324,00 2 800 Actif Désactiver Modifier",
       "5 rôles",
     ]);
     // The calendar of the deactivated role is not among those the page read: its name is the
@@ -598,9 +616,9 @@ describe("the settings of the resources", () => {
   it("present each calendar by its seven values of hours, the default one marked, sorted by each of its columns, and the units of duration [WF-IHM-0060-A]", async () => {
     const page = await resourcesAt();
     expect(rows(page, "Calendriers")).toEqual([
-      "Libellé Lun. Mar. Mer. Jeu. Ven. Sam. Dim. Par défaut État",
-      "Semaine de quatre jours 10 10 10 10 0 0 0 Actif",
-      "Semaine standard 8 8 8 8 8 0 0 Calendrier par défaut Actif",
+      "Libellé Lun. Mar. Mer. Jeu. Ven. Sam. Dim. Par défaut État Modifier",
+      "Semaine de quatre jours 10 10 10 10 0 0 0 Désigner Actif Désactiver Modifier",
+      "Semaine standard 8 8 8 8 8 0 0 Calendrier par défaut Actif Désactiver Condition non remplie : calendrier autre que celui par défaut. Modifier",
       "2 calendriers",
     ]);
     expect(sortable(page, "Calendriers")).toEqual([
@@ -687,13 +705,13 @@ describe("the settings of the resources", () => {
     server.answers = { ...server.answers, "GET /reference/org-nodes": "org_nodes_with_inactive" };
     const page = await resourcesAt({ include_inactive: "true" });
     expect(rows(page, "Arbre d’organisation")).toEqual([
-      "Libellé Code Niveau État",
-      "Direction technique DT 1 Actif",
-      "Bureau d'études automatismes BE-AUTO 2 Désactivé Réactiver",
-      "Cellule robotique CEL-ROBOT 3 Désactivé Réactiver Condition non remplie : nœud parent actif.",
-      "Bureau d'études électricité BE-ELEC 2 Actif",
-      "Atelier de câblage AT-CABL 3 Actif",
-      "Service des achats ACHATS 2 Actif",
+      "Libellé Code Niveau État Modifier",
+      "Direction technique DT 1 Actif Désactiver Modifier",
+      "Bureau d'études automatismes BE-AUTO 2 Désactivé Réactiver Modifier",
+      "Cellule robotique CEL-ROBOT 3 Désactivé Réactiver Condition non remplie : nœud parent actif. Modifier",
+      "Bureau d'études électricité BE-ELEC 2 Actif Désactiver Modifier",
+      "Atelier de câblage AT-CABL 3 Actif Désactiver Modifier",
+      "Service des achats ACHATS 2 Actif Désactiver Modifier",
       "6 nœuds",
     ]);
     const command = (name: string) =>
@@ -825,31 +843,20 @@ describe("the settings of the resources", () => {
       monthlyHours: NO_BOUNDS,
       headcount: NO_BOUNDS,
     };
+    // A list of roles a session that may only read them sees, nothing offered to choose.
+    const roles = { rows: [], page: none, preferences: undefined, readsInactive: true } as const;
+    const offered = { editable: false, nodes: [], labour: [], calendars: [] } as const;
     const narrowed = rendered(
-      <ResourceRoleList
-        rows={[]}
-        page={none}
-        query={query}
-        preferences={undefined}
-        readsInactive
-        nodes={[]}
-        categories={[]}
-        calendars={[]}
-        filters={filters}
-      />,
+      <ResourceRoleList {...roles} {...offered} query={query} categories={[]} filters={filters} />,
     );
     expect(rows(narrowed, "Rôles de ressources")).toContain("Aucune ligne ne répond à la demande.");
     expect(narrowed).toContain('value="Personne"');
     const filtered = rendered(
       <ResourceRoleList
-        rows={[]}
-        page={none}
+        {...roles}
+        {...offered}
         query={NO_QUERY}
-        preferences={undefined}
-        readsInactive
-        nodes={[]}
         categories={undefined}
-        calendars={[]}
         filters={{ ...filters, calendar: STANDARD }}
       />,
     );
@@ -863,6 +870,7 @@ describe("the settings of the resources", () => {
         query={NO_QUERY}
         preferences={undefined}
         readsInactive={false}
+        editable={false}
         state={undefined}
         hours={NO_HOURS}
       />,
@@ -874,8 +882,10 @@ describe("the settings of the resources", () => {
         query={NO_QUERY}
         preferences={undefined}
         readsInactive
+        editable={false}
         filters={{ code: undefined, level: 4, state: undefined, levels: NO_BOUNDS }}
         levels={[]}
+        nodes={[]}
       />,
     );
     expect(rows(tree, "Arbre d’organisation")).toContain("Aucune ligne ne répond à la demande.");

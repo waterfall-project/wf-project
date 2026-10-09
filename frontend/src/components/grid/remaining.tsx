@@ -37,6 +37,7 @@ import {
   type GridNode,
   LABEL_COLUMN,
   NODE_TREE,
+  nodeFresher,
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
@@ -92,6 +93,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
   searched: true,
   name: "remaining",
   rowKey: nodeKey,
+  fresher: nodeFresher,
   rowNumber: nodeNumber,
   tree: NODE_TREE,
   columns: [

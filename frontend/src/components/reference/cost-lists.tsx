@@ -10,7 +10,7 @@
  * offers its reactivation as the server lists it (WF-REF-0150, WF-IHM-0090). A session that may
  * modify the cost settings creates a nature or a category from the head of its list, modifies each
  * from its row, and deactivates one an active object lists the deactivation of (EP-02/L43a,
- * `cost-commands.tsx`); no command deletes one (WF-REF-0010).
+ * `commands.tsx`); no command deletes one (WF-REF-0010).
  *
  * A list says it is empty only when it holds nothing and nothing narrows it: a search or a filter
  * that retains nothing keeps its grid, the search shown to be changed; a page asked beyond its end
@@ -22,7 +22,6 @@
  */
 import { Layers, Tags } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
@@ -34,7 +33,8 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import type { ListPage } from "@/navigation/pages";
 
 import { listReads } from "./address";
-import { CostCommands, CostDialog, CreateCostCommand } from "./cost-commands";
+import { CommandedList, CreateCommand } from "./commands";
+import { CostDialog } from "./cost-form";
 import { CostGrid } from "./cost-grid";
 import {
   CATEGORY_COST_TYPE,
@@ -50,11 +50,10 @@ import {
   type CostTypeKind,
   type CostTypeSort,
 } from "./cost-grids";
-import type { NatureChoice } from "./cost-kinds";
+import type { Choice } from "./kinds";
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
-import { Reactivations } from "./reactivation";
 import { StateFilter } from "./reference-filters";
-import { ReferenceSection } from "./section";
+import { ListBody, ReferenceSection } from "./section";
 
 /** What a list of the natures or the categories shows. */
 interface ListProps<Row, Sort extends string> {
@@ -71,37 +70,6 @@ interface ListProps<Row, Sort extends string> {
   readonly readsInactive: boolean;
   /** Whether the session may modify the cost settings (`platformOffer`): it creates and modifies. */
   readonly editable: boolean;
-}
-
-/**
- * The body of a list: its filters, its grid and its pages — or, empty with nothing narrowing it, what
- * says so —, the grid within the region that tells the refusals of its commands, where its form opens
- * too, on an empty list as well.
- */
-function ListBody({
-  empty,
-  reads,
-  filters,
-  grid,
-  pages,
-}: {
-  /** What the list says when it is empty and nothing narrows it; `undefined` when it is not. */
-  readonly empty: string | undefined;
-  readonly reads: readonly string[];
-  readonly filters: ReactNode;
-  readonly grid: ReactNode;
-  readonly pages: ReactNode;
-}) {
-  return (
-    <>
-      {empty === undefined ? filters : null}
-      <Reactivations reads={reads}>
-        {empty === undefined ? grid : <p className="text-sm text-muted-foreground">{empty}</p>}
-        <CostDialog />
-      </Reactivations>
-      {empty === undefined ? pages : null}
-    </>
-  );
 }
 
 /** The parameters of the address the natures read, their filters among them. */
@@ -130,15 +98,16 @@ export function CostTypeList({
   const offset = COST_TYPE_ADDRESS.offset;
   const narrowed = query.search !== undefined || kinds.length > 0 || state !== undefined;
   return (
-    <CostCommands kind="cost_type" natures={[]}>
+    <CommandedList kind="cost_type">
       <ReferenceSection
         title={title}
         icon={Layers}
-        commands={editable ? <CreateCostCommand kind="cost_type" /> : undefined}
+        commands={editable ? <CreateCommand label={t("costTypes.create")} /> : undefined}
       >
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
           reads={COST_TYPE_READS}
+          dialog={<CostDialog natures={[]} />}
           filters={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <ValuesFilter
@@ -179,7 +148,7 @@ export function CostTypeList({
           }
         />
       </ReferenceSection>
-    </CostCommands>
+    </CommandedList>
   );
 }
 
@@ -200,7 +169,7 @@ export function CostCategoryList({
   nature,
 }: ListProps<CostCategory, CostCategorySort> & {
   /** The natures the categories may be restricted to or attached to, in the order of the server. */
-  readonly natures: readonly NatureChoice[];
+  readonly natures: readonly Choice[];
   /** The nature the address restricts the categories to, if any. */
   readonly nature: string | undefined;
 }) {
@@ -209,15 +178,16 @@ export function CostCategoryList({
   const offset = COST_CATEGORY_ADDRESS.offset;
   const narrowed = query.search !== undefined || nature !== undefined || state !== undefined;
   return (
-    <CostCommands kind="cost_category" natures={natures}>
+    <CommandedList kind="cost_category">
       <ReferenceSection
         title={title}
         icon={Tags}
-        commands={editable ? <CreateCostCommand kind="cost_category" /> : undefined}
+        commands={editable ? <CreateCommand label={t("costCategories.create")} /> : undefined}
       >
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costCategories.none") : undefined}
           reads={COST_CATEGORY_READS}
+          dialog={<CostDialog natures={natures} />}
           filters={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <ChoiceFilter
@@ -226,7 +196,7 @@ export function CostCategoryList({
                 every={t("costCategories.everyCostType")}
                 choices={natures.map((choice) => ({
                   value: choice.id,
-                  text: t("codedChoice", { code: choice.code, label: choice.label }),
+                  text: t("codedChoice", { code: choice.code ?? "", label: choice.label }),
                 }))}
                 chosen={nature}
                 page={offset}
@@ -261,7 +231,7 @@ export function CostCategoryList({
           }
         />
       </ReferenceSection>
-    </CostCommands>
+    </CommandedList>
   );
 }
 

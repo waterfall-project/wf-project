@@ -201,9 +201,10 @@ test("sorts and searches each list of the settings of the resources by the serve
   );
   await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
   expect((await reactivated).status()).toBe(200);
+  // The row shows what the server answers: active again, offering its deactivation (EP-02/L43b).
   await expect(
-    roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
-  ).not.toHaveAttribute("aria-busy", "true");
+    roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }),
+  ).toBeVisible({ timeout: WORKING });
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   // The programmer of automata, under a node deactivated: its reactivation is unavailable, named
@@ -323,7 +324,10 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
     "« Petites fournitures » créée.",
   );
 
-  // A rate entered on the grid, answered by the first example of `setHourlyRate`.
+  // A rate entered on the grid, answered by the first example of `setHourlyRate`. The page the
+  // creation read anew may arrive before the rate leaves, between its leaving and its answer, or
+  // after it: the same address read anew drops neither the cell pending nor its answer (défaut
+  // n° 22 de `typescript.md`), and the path does not depend on the order.
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
   const mechanical = rowAt(grid, 3);
   const rate = mechanical.getByRole("gridcell").nth(6);
@@ -350,5 +354,62 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
       .getByRole("status")
       .filter({ hasText: "désactivée" }),
   ).toHaveText("«\u00a0Débours\u00a0» désactivée.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("creates a role in its form and designates the default calendar, its row showing the answer, the mock-up saying the fake back keeps nothing (EP-02/L43b)", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/resources");
+  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+
+  // A role created in its form. No project is opened here, nothing witnesses the hydration: the
+  // creation is pressed again until React opens its form, and never once it is open.
+  const roles = page.getByRole("region", { name: "Rôles de ressources" });
+  const form = page.getByRole("dialog", { name: "Nouveau rôle de ressource" });
+  await expect(async () => {
+    if (!(await form.isVisible())) {
+      await roles.getByRole("button", { name: "Nouveau rôle" }).click();
+    }
+    await expect(form).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await form.getByRole("textbox", { name: "Libellé" }).fill("Dessinateur électricien");
+  // The active nodes alone, in the order of the tree; the categories of labour alone.
+  await form
+    .getByRole("combobox", { name: "Nœud d’organisation" })
+    .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
+  await form
+    .getByRole("combobox", { name: "Catégorie de coût" })
+    .selectOption({ label: "MO-001 · Ingénierie électrique" });
+  await expect(
+    form.getByRole("combobox", { name: "Catégorie de coût" }).getByRole("option", {
+      name: "ACH-001 · Sous-traitance",
+    }),
+  ).toHaveCount(0);
+  await form
+    .getByRole("combobox", { name: "Calendrier" })
+    .selectOption({ label: "Semaine standard" });
+  await form.getByRole("textbox", { name: "Heures par mois" }).fill("520");
+  await form.getByRole("textbox", { name: "Effectif" }).fill("3");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toBeHidden({ timeout: WORKING });
+  // The list says what the server created — its example —, and adds no row of its own.
+  await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
+    "«\u00a0Dessinateur électricien\u00a0» créé.",
+  );
+
+  // The four-day week designated by default from its row: the row shows what the server answers.
+  const calendars = page.getByRole("grid", { name: "Calendriers" });
+  await calendars
+    .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
+    .click();
+  await expect(rowAt(calendars, 1)).toContainText("Calendrier par défaut", { timeout: WORKING });
+  await expect(
+    page
+      .getByRole("region", { name: "Calendriers" })
+      .getByRole("status")
+      .filter({ hasText: "désigné" }),
+  ).toHaveText("«\u00a0Semaine de quatre jours\u00a0» désigné calendrier par défaut.");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
