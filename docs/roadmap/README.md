@@ -121,7 +121,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | livré | rien |
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | en cours | EP-01, EP-02 |
-| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | à planifier | EP-02 |
+| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | en cours | EP-02 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
