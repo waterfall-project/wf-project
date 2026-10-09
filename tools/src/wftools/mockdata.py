@@ -9,7 +9,8 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 - ``nodes_thousand.json``, ``listNodes``: the structure of a thousand tasks and their lines
   (``wftools.mockstructure``);
 - ``estimate_indicators_volume.json``, ``getEstimateIndicators``: the indicators of that estimate,
-  summed from the same lines, so that the fake back tells the same story on both;
+  the reading of the witness itself since it sums its whole structure (``wftools.mocktoday``,
+  EP-14/L45a), so that the fake back tells the same story on both;
 - ``summary_dependencies.json``, ``getComputedValueDependencies``: what the finish date of its
   first summary depends on, its direct subordinates named from the same structure — the
   refusal the journeys try on it;
@@ -105,10 +106,8 @@ from wftools.mockstructure import (
     PROVISION,
     JsonObject,
     JsonValue,
-    Totals,
     described,
     draw,
-    estimate_indicators,
     hourly_rate,
     money,
 )
@@ -605,12 +604,10 @@ def volumes() -> dict[str, JsonObject]:
     """Return every volume, as the example of the contract its file holds, by file name."""
     rows = mockcore.current()
     nodes = mockcore.whole(rows)
-    totals = summed(rows)
     # The witness is read in memory, never from the file the same command writes.
-    witness = mocktoday.estimate_today()
-    labels = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")["items"]}
-    labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
-    indicators = estimate_indicators(totals, witness, labels)
+    indicators = mocktoday.estimate_today()
+    total = cast("JsonObject", indicators["total"])
+    provisions = Decimal(cast("str", indicators["provisions_identified"]))
     projects = portfolio()
     rows = cast("list[JsonObject]", projects["items"])
     return {
@@ -635,10 +632,11 @@ def volumes() -> dict[str, JsonObject]:
         ),
         "estimate_indicators_volume.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
-            f"mêmes lignes que la grille : {_amount(totals.amount)} au total, dont "
-            f"{_amount(totals.by_cost_type[PROVISION])} de provision, celle du risque identifié, "
-            f"ventilés par nature de coût et par sous-projet, et le poste du lotissement que porte "
-            f"le lot « Poste de commande » (WF-DEV-0060).",
+            f"mêmes lignes que la grille : {_amount(Decimal(cast('str', total['value'])))} au "
+            f"total, dont {_amount(provisions)} de provision, celle du risque identifié, ventilés "
+            f"par nature de coût et par sous-projet, et le poste du lotissement que porte le lot "
+            f"« Poste de commande » (WF-DEV-0060). La lecture du témoin lui-même "
+            f"(estimate_indicators), qui somme toute sa structure depuis EP-14/L45a.",
             indicators,
         ),
         "portfolio_projects.json": _example(
@@ -649,8 +647,8 @@ def volumes() -> dict[str, JsonObject]:
             f"lue par un contributeur sans « consulter tous les projets » : chaque "
             f"{_ordinal(UNOPENABLE_EVERY)} projet engendré, qu'il ne peut pas ouvrir, figure sous "
             f"son libellé et son code, sans lien (can_open faux), et compte dans les totaux "
-            f"(WF-PTF-0030, WF-ADM-0110). La ligne du témoin est lue sur le seul cœur, jusqu'à "
-            f"EP-02/L45 (#528).",
+            f"(WF-PTF-0030, WF-ADM-0110). La ligne du témoin est celle de ses indicateurs, toute "
+            f"sa structure sommée.",
             projects,
         ),
         "portfolio_projects_page.json": _example(
@@ -703,34 +701,6 @@ def volumes() -> dict[str, JsonObject]:
             hourly_rates(),
         ),
     }
-
-
-def summed(rows: Iterable[mockcore.Row]) -> Totals:
-    """Return the amounts of the lines of a structure by nature, subproject and order item.
-
-    A line counts under the order item of the nearest task above it that bears one.
-    """
-    rows = list(rows)
-    parents = {row.number: row.parent for row in rows}
-    items: dict[int, tuple[str, str]] = {}
-    for row in rows:
-        facet = cast("JsonObject", row.node[row.kind])
-        if row.kind == mockcore.TASK and facet.get("order_item_id") is not None:
-            items[row.number] = (
-                cast("str", facet["order_item_id"]),
-                cast("str", facet["work_breakdown_label"]),
-            )
-    totals = Totals()
-    for row in rows:
-        if row.kind != mockcore.ESTIMATE_LINE:
-            continue
-        above = row.parent
-        while above is not None and above not in items:
-            above = parents[above]
-        subproject = cast("str | None", cast("JsonObject", row.node[row.kind])["subproject_id"])
-        order_item = None if above is None else items[above]
-        totals.add(row.amounts.base, mockhistory.nature(row), subproject, order_item)
-    return totals
 
 
 def summary_dependencies(answer: JsonObject) -> JsonObject:

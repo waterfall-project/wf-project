@@ -22,6 +22,7 @@ from wftools import (
     mockhistory,
     mockids,
     mockstructure,
+    mocktext,
     mockwitness,
     mockwrites,
 )
@@ -899,11 +900,16 @@ def test_a_reading_says_the_critical_path_only_where_its_task_is_on_it(
 
 
 def test_the_comparison_names_the_lines_reestimated_without_being_designated() -> None:
+    # Those of the core by their label; those drawn about it, counted (EP-14/L45a).
     example = mockhistory.examples()["comparison.json"]
     changed = cast("list[Node]", cast("Node", example["value"])["changed"])
-    kept = [entry["label"] for entry in changed if entry["changes"] == ["reestimated_amount"]]
+    core = {mockcore.lineage(row.number) for row in mockcore.alone()}
+    rerated = [entry for entry in changed if entry["changes"] == ["reestimated_amount"]]
+    kept = [entry["label"] for entry in rerated if entry["lineage_id"] in core]
     assert kept == ["Câblage sur site", "Mise en service sur site"]
     assert all(f"« {label} »" in str(example["summary"]) for label in kept)
+    drawn = mocktext.count(len(rerated) - len(kept))
+    assert f"les {drawn} des tâches tirées autour de lui" in str(example["summary"])
 
 
 def test_the_two_kanbans_read_the_same_structure_their_tasks_not_written_alike() -> None:

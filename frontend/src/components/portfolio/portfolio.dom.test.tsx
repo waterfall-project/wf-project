@@ -197,10 +197,12 @@ describe("the list of the projects of the portfolio", () => {
     ]);
     const witness = cellsOf("PRJ-001");
     expect(witness[2]).toHaveTextContent("En cours");
-    // The indices of the witness, both nominal; the schedule index of another in alert, by its
-    // shape.
+    // The indices of the witness, the cost index nominal and the schedule index in watch, its
+    // whole structure summed (EP-14/L45a); the schedule index of another in alert, by its shape.
     expect(within(witness[8] ?? document.body).getByRole("img", { name: "Nominal" })).toBeVisible();
-    expect(within(witness[9] ?? document.body).getByRole("img", { name: "Nominal" })).toBeVisible();
+    expect(
+      within(witness[9] ?? document.body).getByRole("img", { name: "Vigilance" }),
+    ).toBeVisible();
     const lyon = cellsOf("PRJ-003");
     expect(within(lyon[9] ?? document.body).getByRole("img", { name: "Alerte" })).toBeVisible();
   });
@@ -592,7 +594,7 @@ describe("the charts of the portfolio", () => {
     );
     expect(rows).toHaveLength(1 + 12 + 7 + 7);
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}768,69`,
+      `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}093${NARROW}692,97`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.
@@ -622,7 +624,7 @@ describe("the charts of the portfolio", () => {
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     // The month of the calculation bears both: what was spent up to it, what is to come after.
     expect(within(figure).getByRole("row", { name: /juin 2026/ })).toHaveTextContent(
-      `juin 202619${NARROW}586${NARROW}542,9530${NARROW}743${NARROW}434,03`,
+      `juin 202619${NARROW}713${NARROW}579,4230${NARROW}915${NARROW}524,64`,
     );
   });
 

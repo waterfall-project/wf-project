@@ -1631,15 +1631,17 @@ C5 et C6 (tâches de fond au même instant, sessions sur un même compte) par L2
 spécification révisée (L23) ; C9 et C10 (écriture qui redate, passage par `reinflated`) par L22 ;
 C11 à C13 (chronologie, comparaison, réception usine) par L23 et L24 ; C14 et C17 par L21 ; C15
 par L24 ; C16 (identifiants à double emploi) par L20 et L25. La structure de mille tâches est
-datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376).
-Reste la décision 4 du cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur
-le 2026-10-07 (option (a)), et avec elle les lectures du témoin qui somment encore son seul cœur,
-qu'EP-02/L45 (#528) reprend : la sous-section d'EP-02/L27 dit ce qui en reste.
+datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376), et
+les lectures du témoin somment toute cette structure depuis EP-14/L45a (#618) : la sous-section
+« Les lectures sur toute la structure » dit lesquelles, et ce qu'elles valent. Reste la décision 4
+du cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07
+(option (a)), et avec elle le registre des risques, sa matrice et le Kanban, qui lisent encore le
+seul cœur, qu'EP-14/L45b (#528) reprend.
 
 Les sous-sections disent, lot par lot, ce que chacun a fait ; ce qu'une sous-section laisse est
-repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-02/L45 (#528). Ce qu'une sous-section décrit et qu'une
-suivante a changé — la capacité des rôles, le cours des projets du portefeuille — se lit dans la
-dernière qui en parle.
+repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-14/L45a (#618) et L45b (#528).
+Ce qu'une sous-section décrit et qu'une suivante a changé — la capacité des rôles, le cours des
+projets du portefeuille, le budget de référence du témoin — se lit dans la dernière qui en parle.
 
 ### Le socle (EP-02/L20)
 
@@ -2314,6 +2316,80 @@ disent (« sur le seul cœur, jusqu'à EP-02/L45 »). Les écarts de `estimate_i
 rapportent le devis de la structure à la référence du seul cœur, mêlent les deux échelles ; les
 dire non calculables demanderait un motif que `NotComputableReason` n'a pas : ils restent ceux du
 témoin, en attendant L45.
+
+### Les lectures sur toute la structure (EP-14/L45a)
+
+**Ce qui sommait le seul cœur somme la structure de mille tâches** (#618, partie de #528 ; décision
+4 du cadrage de #287, option (a) de l'auteur du 2026-10-07, reprise par la conception d'EP-14,
+« L'univers témoin à l'échelle »). Les indicateurs du projet, du devis et du reste à engager,
+l'histoire — l'offre et la référence décrites sur les mille tâches, leur comparaison —, les courbes
+de coûts et de valeur acquise, le plan de charge, les coûts réels et la ligne du témoin au
+portefeuille lisent la structure entière, le cœur en tête, par les mêmes générateurs
+(`mockindicators`, `mockcurves`, `mocktoday`, `mockhistory`, `mockcosts`), depuis la seule
+description du témoin. Les résumés « sur le seul cœur, jusqu'à EP-02/L45 » de ces exemples
+disparaissent. Écarté : un second jeu d'exemples figé pour les tests du front, qui ferait deux
+univers ; les tests qui assertaient des valeurs du cœur sont réécrits sur celles de la structure.
+
+**L'offre et la référence portent sur les mille tâches.** Toute ligne tirée était dans l'offre, et
+l'avenant 1 n'en désigne aucune : une ligne de main-d'œuvre tirée garde dans la référence le budget
+que l'offre lui avait fixé, ses heures au taux de 2025 de sa catégorie, et est réestimée au taux de
+2026, comme « Câblage sur site » et « Mise en service sur site » (WF-REV-0050, WF-DEV-0020, #467) ;
+une ligne de débours est budgétée à son montant. La marche de l'avenant 1 reste 2 865 ; la
+comparaison de l'offre et de la référence dit 2 768 lignes réestimées sans être désignées, 2 770
+nœuds modifiés, et un écart de main-d'œuvre de 177 541,25 — les 3 515 du cœur et 1,50 de l'heure
+sur les 116 017,5 h tirées. Dans l'offre, la réception usine n'existait pas : ce qui la suit
+aujourd'hui — le montage sur site, les lots du poste de commande tirés autour du cœur — suivait le
+câblage des armoires, qu'elle termine, aux mêmes dates.
+
+**Les tâches tirées déjà terminées reçoivent des coûts réels** (`mockcosts.drawn`, WF-CRE-0010,
+WF-CRE-0020). Chaque tâche de travail tirée et terminée le 3 juin — 21, du 1er mai au 1er juin,
+dans les lots « Ligne d'essais » et « Utilités » de la première phase, ceux du poste de commande
+suivant la réception usine du 30 juin — a reçu la facture de son fournisseur, datée du jour de sa
+fin, à quelques centièmes du montant de la tâche (de 90 à 110 %, tirés), imputée au sous-projet de
+son lot par le code de son OTP (`SP-ESS`) ou au seul projet, apportée par les imports dont la
+période couvre sa date — ceux d'avril et de mai, jamais le fichier sans période —, et numérotée
+dans une famille d'identifiants qui lui est propre (`lignes de coût réel engendrées`). Le
+sous-projet « Essais et mise en service » porte donc des coûts réels, et ne se supprime plus
+(`subprojects`, WF-PRJ-0050) — `subprojects_with_actual_costs`, la lecture filtrée, coïncide depuis
+avec la liste entière, et seul son paramètre la distingue ; `subproject_updated`, le sous-projet
+renommé, le garde chargé, sans quoi la ligne relue redeviendrait supprimable dans la maquette — ; la
+consultation des coûts compte 27 lignes, le journal 22 lignes créées par l'import de mai.
+
+**Ce que les exemples valent.** Le budget de référence passe de 120 534,56 à 65 430 697,64 — les
+budgétés de la grille moins les 250 de la provision — ; la valeur planifiée de 101 223,69 à
+1 671 458,13, la valeur acquise de 100 000 à 1 449 858,33 — les études de détail et les 21 tâches
+tirées terminées —, le coût réel de 105 400 à 1 412 970,20, le reste à engager de 21 234,56 à
+66 793 528,72, les tâches non démarrées y comptant leur budget projeté sur leur année de
+consommation (WF-DEV-0040), d'où une projection du chef de projet de 68 206 498,92 et une marge de
+-2 775 801,28 ; l'indice de coût vaut 1,0261 (nominal), l'indice de délai 0,8674 (vigilance), les
+tâches tirées en cours ayant une valeur planifiée et pas encore de valeur acquise. Le devis vaut
+65 605 723,89, celui de la structure : `estimate_indicators_volume` est désormais la lecture du
+témoin lui-même, et les écarts qu'EP-02/L27 disait mêler deux échelles n'en mêlent plus qu'une
+(−210 à la référence). La révision « Référence » conservait un reste à engager de 68 242 478,05.
+La courbe des coûts porte le budget de référence jusqu'au 30 août 2029, en 756 points — la règle
+d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; la couverture des
+risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
+électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
+ses indicateurs, et les vues du portefeuille la somment.
+
+**Les variantes déclarées.** `cost_curve_subproject_empty` et sa variante aux délais de paiement,
+qui montraient un sous-projet dont aucune ligne ne relève, deviennent des variantes
+contrefactuelles lues sur le seul cœur (`mocktoday.alone`), les lots « Ligne d'essais » relevant du
+sous-projet « Essais et mise en service » dans la structure ; `nodes_core`, `nodes_nested` et
+`nodes_summaries` restent celles d'EP-02/L27. Les sommes des courbes par maille retrouvent celle du
+projet au centime de chaque maille près.
+
+**Ce que ce lot laisse**, à EP-14/L45b (#528) : le registre des risques, sa matrice et sa
+couverture lisent la gravité de 751, 752 et 753 sur le budget de référence du seul cœur
+(`mockhistory.register_budget`), 12 000 valant un centième de centième de celui de la structure ;
+les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le disent
+(`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
+
+**Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
+et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+(`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
+lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
+calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
 
 ## Les commandes manquantes et les mineurs des relectures (EP-02/L38)
 

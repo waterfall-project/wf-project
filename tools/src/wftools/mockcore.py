@@ -43,8 +43,7 @@ from wftools.mockcalendar import (
     to_hours,
 )
 from wftools.mockstructure import (
-    COMMISSIONING_RATE,
-    ELECTRICAL_RATE,
+    LABOUR_RATES,
     JsonObject,
     JsonValue,
     computable,
@@ -57,9 +56,7 @@ from wftools.mockstructure import (
     task_fields,
 )
 from wftools.mockwitness import (
-    COMMISSIONING,
     CORE,
-    ELECTRICAL_ENGINEERING,
     INSCRIBED,
     STUDIES_STARTED,
     TODAY,
@@ -81,9 +78,6 @@ if TYPE_CHECKING:
 
 READ_ON = TODAY.date()
 """The day the examples are read: the progress of the tasks is at that day."""
-
-LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSIONING_RATE}
-"""The hourly rate of each labour category the core employs, for the reference year."""
 
 
 TASK, ESTIMATE_LINE = "task", "estimate_line"
@@ -150,7 +144,7 @@ def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
     return found
 
 
-def schedule(roots: Iterable[Task] = CORE) -> dict[int, Dated]:
+def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
     """Date the core from its links, by number of task, and find the latest finish of each.
 
     Forward: each task in automatic mode starts where its links allow, at the start of the
@@ -158,8 +152,14 @@ def schedule(roots: Iterable[Task] = CORE) -> dict[int, Dated]:
     WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates
     (WF-PLA-0040). The tasks are dated in the order of their links, each after its
     predecessors, whatever their order in the plan. Backward: a task may finish as late as its
-    successors allow, at the finish of the core without any.
+    successors allow, at the finish of the core without any. A structure is dated once: the
+    readings of the indicators and of the curves date it again and again.
     """
+    return _schedule(tuple(roots))
+
+
+@functools.cache
+def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
     roles, default = role_calendars(), default_calendar()
     origin = Instant(STUDIES_STARTED.on)
     tasks = tasks_in_order(roots)
@@ -643,14 +643,26 @@ def core(
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
     Its labour lines at the hourly rates given, those of the reference year of the revision; each
-    with its quantities in the previous review described, if any, and the amount they gave.
+    with its quantities in the previous review described, if any, and the amount they gave. A
+    structure is read once at a day, at some rates, after a previous review: the readings, the
+    writes and the indicators read the same one again and again. Its nodes are shared by every
+    reading of it: a caller that changes one copies it first.
     """
-    roots = tuple(roots)
+    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous)))
+
+
+@functools.cache
+def _core(
+    roots: tuple[Task, ...],
+    today: date,
+    rates: tuple[tuple[str, Decimal], ...],
+    previous: tuple[Task, ...],
+) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
-    emitter = _Emitter(schedule(roots), labels(), today, rates, before, row_of=rows_of(roots))
+    emitter = _Emitter(schedule(roots), labels(), today, dict(rates), before, row_of=rows_of(roots))
     for position, root in enumerate(roots):
         emitter.task(root, None, position, 1)
-    return emitter.rows
+    return tuple(emitter.rows)
 
 
 def current(roots: Iterable[Task] | None = None) -> list[Row]:
@@ -660,21 +672,11 @@ def current(roots: Iterable[Task] | None = None) -> list[Row]:
     (``mockstructure.described``), dated together. Its lines show the quantities of its previous
     review, the reference 101, marked on 1 February 2026 while the project was in progress, and
     the amount it re-estimated them at: what ``remaining_indicators`` compares the remaining to
-    commit of today with (WF-RAE-0020, WF-RAE-0040).
+    commit of today with (WF-RAE-0020, WF-RAE-0040). The review is read from the structure as
+    described — never from the one a write leaves, which would rewrite the review with what the
+    write entered: a line a write adds has none.
     """
-    return list(_current(described() if roots is None else tuple(roots)))
-
-
-@functools.cache
-def _current(roots: tuple[Task, ...]) -> tuple[Row, ...]:
-    """Read a structure once: the readings and the writes read the same one again and again.
-
-    Its nodes are shared by every reading of it: a caller that changes one copies it first. Its
-    previous review is the reference as it was marked, from the structure as described — never
-    from the one a write leaves, which would rewrite the review with what the write entered
-    (WF-RAE-0040): a line a write adds has none.
-    """
-    return tuple(core(roots, previous=REFERENCE))
+    return core(described() if roots is None else roots, previous=REFERENCE)
 
 
 REFERENCE = reference(described())

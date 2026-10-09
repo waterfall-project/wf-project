@@ -50,7 +50,7 @@ def test_today_is_the_instant_every_first_example_describes() -> None:
 
 def test_the_families_of_identifiers_lie_on_disjoint_ranges() -> None:
     generated = sorted(family.generated for family in mockids.IDENTIFIERS if family.generated)
-    assert generated == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert generated == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     tails = {f"{n:012d}" for n in range(1_000)} | {f"{n:012x}" for n in range(0x1000)}
     for tail in sorted(tails):
         held = [family.what for family in mockids.IDENTIFIERS if family.holds(PREFIX + tail)]
@@ -347,7 +347,7 @@ _KEYS = {
     "upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
     "timeline_id": ("chronologies",),
-    "cost_line_id": ("lignes de coût réel",),
+    "cost_line_id": ("lignes de coût réel", "lignes de coût réel engendrées"),
     "cost_import_id": ("imports de coûts réels",),
 }
 """The families an identifier may be of, by the key that carries it."""

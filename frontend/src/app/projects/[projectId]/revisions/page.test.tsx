@@ -5,8 +5,16 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { RevisionComparison } from "@/components/revisions/revision-comparison";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeCall, type FakeClient, fakeClient } from "@/test/fixtures";
+import { formatMoney } from "@/i18n/format";
+import {
+  example,
+  type FakeAnswers,
+  type FakeCall,
+  type FakeClient,
+  fakeClient,
+} from "@/test/fixtures";
 
 import RevisionsPage, { generateMetadata } from "./page";
 
@@ -34,6 +42,13 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Contexte de lecture"';
 const REVISIONS = `/projects/${PROJECT}/revisions`;
+
+const COMPARISON = example("comparison") as RevisionComparison;
+// The axes of the deviations, as the French catalogue names them.
+const DIMENSIONS: Record<RevisionComparison["amount_deltas"][number]["dimension"], string> = {
+  cost_type: "Nature de coût",
+  subproject: "Sous-projet",
+};
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -75,6 +90,12 @@ function callTo(route: string): FakeCall | undefined {
 function table(markup: string, name: string): string {
   const found = new RegExp(`<table[^>]*aria-label="${name}"[^>]*>(.*?)</table>`).exec(markup);
   return text(found?.[1] ?? "");
+}
+
+/** How many rows the table a page names so lists, its header left out. */
+function rows(markup: string, name: string): number {
+  const found = new RegExp(`<table[^>]*aria-label="${name}"[^>]*>(.*?)</table>`).exec(markup);
+  return (found?.[1] ?? "").split("<tr").length - 2;
 }
 
 /** The opening tag of the button a page names so, or `undefined` when it has none. */
@@ -225,21 +246,32 @@ describe("the comparison of two revisions", () => {
     expect(table(page, "Retraits")).toBe(
       "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
     );
-    expect(table(page, "Modifications")).toBe(
+    // The four nodes of the core first, in the order of the API; then every line of labour drawn
+    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API gives,
+    // none left out by the front.
+    const changed = table(page, "Modifications");
+    const core =
       "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
-        "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé " +
-        "Câblage sur site Ligne de devis Montant réestimé " +
-        "Mise en service sur site Ligne de devis Montant réestimé",
-    );
+      "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé " +
+      "Câblage sur site Ligne de devis Montant réestimé " +
+      "Mise en service sur site Ligne de devis Montant réestimé ";
+    expect(changed.slice(0, core.length)).toBe(core);
+    expect(rows(page, "Modifications")).toBe(COMPARISON.changed.length);
     // The deviations as the API gives them, in its order, each named by the label it resolves
-    // (#204): no total the front would add up, no identifier shown.
-    expect(table(page, "Écarts de montants")).toBe(
-      "Axe Poste Écart " +
-        "Nature de coût Main-d'œuvre 3 515,00 Nature de coût Débours -350,00 " +
-        "Nature de coût Provision 910,00 Sous-projet Poste de commande 20 834,56 " +
-        "Sous-projet Hors sous-projet -16 759,56",
+    // (#204), or as the catalogue names one without a label: no total the front would add up, no
+    // identifier shown.
+    const unnamed = CATALOGUES.fr.revisionScreen.comparison.unnamed;
+    const deltas = COMPARISON.amount_deltas.map(
+      (delta) =>
+        `${DIMENSIONS[delta.dimension]} ${
+          delta.key === "unassigned" ? "Hors sous-projet" : (delta.label ?? unnamed)
+        } ${formatMoney(delta.delta, "fr")}`,
     );
-    expect(page).not.toContain("01926f3a-7c00-7000-8000-000000000461");
+    expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
+    expect(deltas).toHaveLength(6);
+    for (const { key } of COMPARISON.amount_deltas) {
+      expect(page).not.toContain(key);
+    }
     // The choice keeps the two revisions compared.
     const selected = [...page.matchAll(/<option[^>]*value="([^"]+)" selected="">/g)].map(
       (match) => match[1],

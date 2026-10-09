@@ -13,7 +13,9 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
  * the remaining, the risks, the actual costs, the portfolio, the reference data — or a screen that
  * reads the structure of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —,
- * to show, to hydrate, or to read anew after a click. A bound of its working under load, not a
+ * to show, to hydrate, or to read anew after a click; the comparison of two revisions too, until
+ * it is decided: its 2 770 changed nodes come in a plain table, rendered on the server, that takes
+ * over five seconds in development (#624, EP-14/L45a). A bound of its working under load, not a
  * measure (#315); the risks and the actual costs, read anew, overran five seconds under load:
  * measures in #500, which is still to be decided. The settings of the costs, read anew for a
  * nature chosen, took from two to seven seconds under six workers on four processors — the read of

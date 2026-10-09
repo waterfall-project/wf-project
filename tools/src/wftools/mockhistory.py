@@ -8,8 +8,8 @@ entry opens the revision 101 (WF-RIS-0020); the amendment 1 merged into it on 1 
 marks it and makes it the reference (WF-REV-0050); the review of the risk 751 the next day, which
 opens the current revision 102; the occurrence of the risk 752 on 20 February, merged into 102 —
 it marks no revision and leaves the reference where it is (WF-RIS-0060). Here the two marked
-revisions are described from the core, as they were marked, and what the examples say of them is
-read from those descriptions:
+revisions are described from the whole structure of the witness, its core first, as they were marked
+(EP-14/L45a), and what the examples say of them is read from those descriptions:
 
 - the comparison of the offer and the reference (``comparison``), the difference of the two
   structures by lineage (WF-REV-0080);
@@ -38,10 +38,12 @@ from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOR,
+    LABOUR_RATES,
     NON_LABOR,
     PROVISION,
     JsonObject,
     JsonValue,
+    described,
     hourly_rate,
     labels,
     money,
@@ -51,11 +53,13 @@ from wftools.mockwitness import (
     DISMISSED,
     EQUIPMENT,
     FACTORY_ACCEPTANCE,
+    GENERATED,
     IDENTIFIED,
     LABOUR,
     OCCURRED,
     OFFER_MARKED,
     OFFER_OPENED,
+    OFFER_YEAR,
     REGISTER,
     RISK_751_REVIEWED,
     RISKS_IDENTIFIED,
@@ -105,8 +109,6 @@ MOUNTING, TESTS_LINE, DESIGN_FILE, INSTALLATION_TASK = (
 )
 """The nodes of the core the history is about (``mockwitness``)."""
 
-OFFER_YEAR = 2025
-"""The reference year of the offer, marked in December 2025 (WF-REV-0060)."""
 OFFER_LABOUR_HOURS = Decimal(10)
 OFFER_DESIGN_FILE_DAYS = 3
 SITE_TRIALS = Task(
@@ -129,12 +131,15 @@ it added; the factory acceptance, which it added between the wiring and the moun
 design file, three days in the offer; and the preliminary trials on site, which it removed."""
 
 
-def offer() -> tuple[Task, ...]:
-    """Return the offer v1.0 as marked on 15 December 2025.
+def offer(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
+    """Return the offer v1.0 as marked on 15 December 2025, from the whole structure of today.
 
     The reference without the amendment 1, and before any risk was identified: without any line
     of provision. Nor any subproject: their codes come from the ERP with the order, on 15 January
-    2026, and the subprojects were declared after it (WF-PRJ-0050, ``subprojects``).
+    2026, and the subprojects were declared after it (WF-PRJ-0050, ``subprojects``). The factory
+    acceptance, which the amendment added, was not there: what follows it today — the mounting on
+    site, the lots of the control station drawn about the core — followed the wiring of the
+    cabinets, which it ends. From the structure given, the whole one by default.
     """
 
     def change(task: Task) -> Task:
@@ -152,19 +157,33 @@ def offer() -> tuple[Task, ...]:
         children = tuple(child for child in task.children if child.number != MILESTONE)
         if task.number == INSTALLATION_TASK:
             children = (*children, SITE_TRIALS)
-        changed = replace(task, lines=lines, children=children)
-        if task.number == MOUNTING:
-            return replace(changed, links=(Link(WIRING),))
+        links = tuple(
+            replace(link, predecessor=WIRING) if link.predecessor == MILESTONE else link
+            for link in task.links
+        )
+        changed = replace(task, lines=lines, children=children, links=links)
         if task.number == DESIGN_FILE:
             return replace(changed, days=OFFER_DESIGN_FILE_DAYS)
         return changed
 
-    return rewritten(reference(), change)
+    return rewritten(reference(described() if roots is None else roots), change)
 
 
 def reference_rows() -> list[mockcore.Row]:
-    """Return the reference read on the day it was marked."""
-    return mockcore.core(reference(), AMENDMENT_MERGED.on)
+    """Return the reference read on the day it was marked, on the whole structure."""
+    return mockcore.core(mockcore.REFERENCE, AMENDMENT_MERGED.on)
+
+
+def register_budget() -> Decimal:
+    """Return the reference budget the register reads the severity of its risks on: the core's.
+
+    The three risks of the witness are those of its core: read on the budget of the whole
+    structure, 12,000 would be a hundredth of a hundredth of it. They are scaled to the structure
+    by EP-14/L45b (#528, decision 4 of the frame of #287), and the register, the matrix and the
+    coverage read the core alone until then — the one reading of the witness that still does, with
+    the Kanban (``mocktext.CORE_ONLY``).
+    """
+    return reference_budget(mockcore.core(reference(), AMENDMENT_MERGED.on))
 
 
 def offer_rates() -> dict[str, Decimal]:
@@ -173,9 +192,7 @@ def offer_rates() -> dict[str, Decimal]:
     The rates of 2025 of the volume of rates (``getHourlyRateGrid``), as #232 proposes, for each
     labour category the core employs.
     """
-    return {
-        category: hourly_rate(rate, OFFER_YEAR) for category, rate in mockcore.LABOUR_RATES.items()
-    }
+    return {category: hourly_rate(rate, OFFER_YEAR) for category, rate in LABOUR_RATES.items()}
 
 
 def offer_rows() -> list[mockcore.Row]:
@@ -423,10 +440,12 @@ def totals(rows: list[mockcore.Row]) -> JsonObject:
     }
 
 
-def matrix(rows: list[mockcore.Row]) -> JsonObject:
-    """Return the matrix of the risks: its levels, its cells counted, the totals (`RiskMatrix`)."""
+def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
+    """Return the matrix of the risks: its levels, its cells counted, the totals (`RiskMatrix`).
+
+    Each risk in the cell its probability and its severity on the budget given place it in.
+    """
     settings = fixture("reference_settings")["risk_matrix"]
-    budget = reference_budget(rows)
     cells = [matrix_cell(risk, budget) for risk in REGISTER]
 
     def levels(bounds: list[str]) -> list[JsonValue]:
@@ -491,13 +510,13 @@ def readings() -> dict[str, JsonObject]:
     command writes.
     """
     today, rows = mockcore.current(), reference_rows()
-    budget = reference_budget(rows)
+    budget = register_budget()
     return {
         "risks": {
             "items": [risk_item(risk, budget) for risk in REGISTER],
             "totals": totals(rows),
         },
-        "risk_matrix": matrix(rows),
+        "risk_matrix": matrix(rows, budget),
         "risk_coverage": coverage(today, rows),
     }
 
@@ -609,7 +628,7 @@ def _percents(bounds: list[str]) -> str:
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
     today, rows = mockcore.current(), reference_rows()
-    budget = reference_budget(rows)
+    budget = register_budget()
     rework, delay, engineer = REGISTER
     read = readings()
     register = read["risks"]
@@ -625,13 +644,25 @@ def examples() -> dict[str, JsonObject]:
         for entry in cast("list[JsonObject]", compared["amount_deltas"])
     }
     provisions = sum(1 for row in rows if is_provision(row))
-    kept = [
-        f"« {entry['label']} »" for entry in changed if entry["changes"] == ["reestimated_amount"]
+    numbers = {mockcore.lineage(row.number): row.number for row in rows}
+    rerated_lineages = [
+        cast("str", entry["lineage_id"])
+        for entry in changed
+        if entry["changes"] == ["reestimated_amount"]
     ]
+    kept = [
+        f"« {entry['label']} »"
+        for entry in changed
+        if entry["changes"] == ["reestimated_amount"]
+        and numbers[cast("str", entry["lineage_id"])] < GENERATED
+    ]
+    drawn = sum(1 for lineage in rerated_lineages if numbers[lineage] >= GENERATED)
     rerated = (
-        f"{mocktext.listed(kept)}, que l'avenant ne désigne pas, gardent le budget de l'offre "
+        f"les {mocktext.count(len(rerated_lineages))} lignes de main-d'œuvre que l'avenant ne "
+        f"désigne pas — dans le cœur, {mocktext.listed(kept)} ; et les "
+        f"{mocktext.count(drawn)} des tâches tirées autour de lui — gardent le budget de l'offre "
         f"et sont réestimées au taux de 2026 de leur catégorie"
-        if kept
+        if kept and drawn
         else "aucune ligne n'est réestimée sans être désignée"
     )
     reserve_text = (
@@ -665,11 +696,11 @@ def examples() -> dict[str, JsonObject]:
         "comparison.json": mocktext.example(
             f"De l'offre v1.0, marquée le {_day(OFFER_MARKED.on)}, à la révision de référence, "
             f"marquée le {_day(AMENDMENT_MERGED.on)} par la fusion de l'avenant 1, rapprochées "
-            f"par lignée sur le cœur du témoin : {provisions} lignes de provision ajoutées "
-            f"par l'identification des risques le {_day(RISKS_IDENTIFIED.on)}, à la provision "
-            f"de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, et, par "
-            f"l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, "
-            f"« {removed[0]['label']} » retirés avec leur ligne, la durée du dossier de "
+            f"par lignée sur toute la structure du témoin : {provisions} lignes de provision "
+            f"ajoutées par l'identification des risques le {_day(RISKS_IDENTIFIED.on)}, à la "
+            f"provision de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, "
+            f"et, par l'avenant, la réception usine et l'assistance aux essais de câblage "
+            f"ajoutées, « {removed[0]['label']} » retirés avec leur ligne, la durée du dossier de "
             f"conception et la charge du raccordement des borniers modifiées ; {rerated} "
             f"(WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du "
             f"devis à l'année de référence, par nature — {_amount(Decimal(deltas[LABOR]))} de "
@@ -678,7 +709,8 @@ def examples() -> dict[str, JsonObject]:
             f"poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant "
             f"été déclarés après la commande, et les lignes du poste de commande passent de "
             f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). "
-            f"{len(changed)} nœuds modifiés, {len(added)} ajoutés, {len(removed)} retirés.",
+            f"{mocktext.count(len(changed))} nœuds modifiés, {len(added)} ajoutés, "
+            f"{len(removed)} retirés.",
             compared,
         ),
         "risks.json": mocktext.example(

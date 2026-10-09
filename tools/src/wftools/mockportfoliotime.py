@@ -43,7 +43,6 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
-    mockcore,
     mockcurves,
     mockhistory,
     mockindicators,
@@ -53,7 +52,7 @@ from wftools import (
 )
 from wftools.mockids import MILESTONES, identifier, universe
 from wftools.mockportfolio import Earned, earned, identified_risks, portfolio, role_shares
-from wftools.mockstructure import CENT, JsonObject, JsonValue, decimal, draw, money
+from wftools.mockstructure import CENT, LABOUR_RATES, JsonObject, JsonValue, decimal, draw, money
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     COST_IMPORTS,
@@ -133,7 +132,7 @@ def _share(start: date, finish: date, day: date) -> Decimal:
 def _rates() -> dict[str, Decimal]:
     """Return the hourly rate of each active role, that of its category for the reference year."""
     return {
-        role["resource_role_id"]: mockcore.LABOUR_RATES[role["cost_category_id"]]
+        role["resource_role_id"]: LABOUR_RATES[role["cost_category_id"]]
         for role in fixture("resource_roles")["items"]
         if role["is_active"]
     }

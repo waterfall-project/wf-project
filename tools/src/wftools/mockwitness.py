@@ -78,6 +78,9 @@ OFFER_OPENED = Event(
     date(2025, 11, 3), "Ouverture de l'offre 100, passage en Chiffrage", time(8, 30)
 )
 OFFER_MARKED = Event(date(2025, 12, 15), "Offre v1.0 marquée", time(16, 0))
+OFFER_YEAR = OFFER_MARKED.on.year
+"""The reference year of the offer, marked in December 2025: its lines are priced at the rates of
+that year, and the lines the amendment 1 did not designate keep the budget it fixed so (#467)."""
 RISKS_IDENTIFIED = Event(
     date(2026, 1, 12),
     "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",

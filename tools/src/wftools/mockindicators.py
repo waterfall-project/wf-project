@@ -1,11 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The indicators of the witness today, read from its core and its history (EP-02/L24, #287).
+"""The indicators of the witness today, read from its structure and its history (EP-02/L24, #287).
 
-The core is described once in ``wftools.mockwitness``, dated and priced in ``wftools.mockcore``;
-its marked revisions — the offer and the reference — are described in ``wftools.mockhistory``.
-Here the indicators the examples carry are read from those three revisions and from the actual
-costs of the universe, at the instant each example names:
+The core is described once in ``wftools.mockwitness``, the thousand tasks drawn about it in
+``wftools.mockstructure``, the whole dated and priced in ``wftools.mockcore``; its marked
+revisions — the offer and the reference — are described on the whole structure in
+``wftools.mockhistory``. Here the indicators the examples carry are read from those three revisions
+and from the actual costs of the universe, the whole structure summed (EP-14/L45a), at the instant
+each example names:
 
 - the indicators of the estimate (WF-DEV-0060) and the hourly rates it misses or would update
   (WF-DEV-0010, WF-REV-0060);
@@ -18,40 +20,45 @@ as the examples of the contract.
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 to EP-11. An amount
 spread over a task is spread pro rata of the hours of work of the task's calendar (WF-DEV-0080,
-WF-DEV-0070) — the core employs one calendar for each task, that of its roles —; a value at a day
-counts the work of that day, whatever the hour of the calculation. The actual costs are the lines
-of the tracked scope the witness describes (``mockwitness.COSTS``), at their date of document
-(WF-IND-0010). Nothing here reads the clock, nor a file the same command writes.
+WF-DEV-0070) — the structure employs one calendar for each task, that of its roles —; a value at a
+day counts the work of that day, whatever the hour of the calculation. The actual costs are the
+lines of the tracked scope the witness describes and those of its drawn tasks completed
+(``mockcosts.lines``), at their date of document (WF-IND-0010). Nothing here reads the clock, nor a
+file the same command writes.
 """
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockcosts, mockhistory, mockwitness
+from wftools import mockcore, mockcosts, mockhistory
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockstructure import (
     CENT,
+    LABOUR_RATES,
     REFERENCE_YEAR,
     SHARE,
     JsonObject,
     JsonValue,
     computable,
     decimal,
+    described,
     inflated,
     labels,
     money,
 )
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
-    CORE,
     OFFER_MARKED,
     TODAY,
     TRACKED,
+    CostLine,
     Task,
+    by_identifier,
     fixture,
 )
 
@@ -89,6 +96,7 @@ class Reading:
     rows: tuple[mockcore.Row, ...]
     dated: Mapping[int, mockcore.Dated]
     delays: Mapping[int, int]
+    by_number: Mapping[int, mockcore.Row]
 
     @property
     def day(self) -> date:
@@ -106,7 +114,7 @@ class Reading:
 
     def task(self, number: int) -> JsonObject:
         """Return the facet of the task of a number."""
-        return self.facet(next(row for row in self.rows if row.number == number))
+        return self.facet(self.by_number[number])
 
     def bearer(self, line: mockcore.Row) -> mockcore.Dated:
         """Return the task that bears a line, dated."""
@@ -144,16 +152,29 @@ def read(
     revision: str,
     roots: Iterable[Task],
     at: datetime,
-    rates: Mapping[str, Decimal] = mockcore.LABOUR_RATES,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
     previous: Iterable[Task] = (),
 ) -> Reading:
-    """Read a revision described from the core at an instant, its lines at the rates given.
+    """Read a revision described at an instant, its lines at the rates given.
 
-    Its lines show their quantities in the previous review described, if any (WF-RAE-0040).
+    Its lines show their quantities in the previous review described, if any (WF-RAE-0040). A
+    revision is read once: the indicators, the curves and the portfolio read the same one again
+    and again.
     """
-    roots = tuple(roots)
-    rows = tuple(mockcore.core(roots, at.date(), rates, previous))
-    return Reading(revision, at, rows, mockcore.schedule(roots), delays(rows))
+    return _read(revision, tuple(roots), at, tuple(sorted(rates.items())), tuple(previous))
+
+
+@functools.cache
+def _read(
+    revision: str,
+    roots: tuple[Task, ...],
+    at: datetime,
+    rates: tuple[tuple[str, Decimal], ...],
+    previous: tuple[Task, ...],
+) -> Reading:
+    rows = tuple(mockcore.core(roots, at.date(), dict(rates), previous))
+    by_number = {row.number: row for row in rows}
+    return Reading(revision, at, rows, mockcore.schedule(roots), delays(rows), by_number)
 
 
 def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
@@ -169,21 +190,43 @@ def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
     }
 
 
-def today(roots: Iterable[Task] = CORE) -> Reading:
-    """Return the current revision 102 read today, as described or as a write leaves it."""
-    return read(mockhistory.CURRENT, roots, TODAY, previous=mockwitness.reference())
+def today(roots: Iterable[Task] | None = None) -> Reading:
+    """Return the current revision 102 read today, on the whole structure as described.
+
+    Or on the structure given: the one a write leaves, or the core alone for a declared variant.
+    Its previous review is the reference as marked, read from the structure as described
+    (``mockcore.REFERENCE``, WF-RAE-0040).
+    """
+    return read(
+        mockhistory.CURRENT,
+        described() if roots is None else roots,
+        TODAY,
+        previous=mockcore.REFERENCE,
+    )
 
 
 def reference(roots: Iterable[Task] | None = None) -> Reading:
-    """Return the reference 101 read on the day it was marked, 1 February 2026."""
-    described = mockwitness.reference() if roots is None else roots
-    return read(mockhistory.REFERENCE, described, AMENDMENT_MERGED.instant)
+    """Return the reference 101 read on the day it was marked, 1 February 2026.
 
-
-def offer() -> Reading:
-    """Return the offer 100 read on the day it was marked, at the rates of its year, 2025."""
+    As marked on the whole structure (``mockcore.REFERENCE``), or as described by the roots given.
+    """
     return read(
-        mockhistory.OFFER, mockhistory.offer(), OFFER_MARKED.instant, mockhistory.offer_rates()
+        mockhistory.REFERENCE,
+        mockcore.REFERENCE if roots is None else roots,
+        AMENDMENT_MERGED.instant,
+    )
+
+
+def offer(roots: Iterable[Task] | None = None) -> Reading:
+    """Return the offer 100 read on the day it was marked, at the rates of its year, 2025.
+
+    Described from the whole structure of today, or from the roots given (``mockhistory.offer``).
+    """
+    return read(
+        mockhistory.OFFER,
+        mockhistory.offer(roots),
+        OFFER_MARKED.instant,
+        mockhistory.offer_rates(),
     )
 
 
@@ -203,15 +246,16 @@ class Cost:
         return scope in (PROJECT, self.subproject or UNASSIGNED)
 
 
-def actual_costs() -> list[Cost]:
+def actual_costs(known: Sequence[CostLine] | None = None) -> list[Cost]:
     """Return the lines of actual cost of the tracked scope known today, by date of document.
 
-    Those the witness describes (``mockwitness.COSTS``), as the consultation of the costs presents
-    them (``mockcosts``) — the lines of the imports of March and April, and the invoice of the
-    control station the import of 3 June brought (WF-CRE-0010, WF-IND-0010); a line excluded from
-    the tracked scope is not a cost (WF-CRE-0030).
+    Those the witness describes and the invoices of its drawn tasks completed (``mockcosts.lines``)
+    — or the lines given —, as the consultation of the costs presents them (``mockcosts``): the
+    lines of the imports of March and April, the invoice of the control station the import of
+    3 June brought, and the invoices of the drawn tasks (WF-CRE-0010, WF-IND-0010); a line excluded
+    from the tracked scope is not a cost (WF-CRE-0030).
     """
-    found = [Cost(on, amount, subproject) for on, amount, subproject in mockcosts.tracked()]
+    found = [Cost(on, amount, subproject) for on, amount, subproject in mockcosts.tracked(known)]
     return sorted(found, key=lambda cost: cost.on)
 
 
@@ -496,7 +540,7 @@ def natures(lines: list[mockcore.Row]) -> list[Group]:
         Group(key, label, [line for line in lines if mockhistory.nature(line) == key])
         for key, label in (
             (nature["cost_type_id"], nature["label"])
-            for nature in mockwitness.by_identifier("cost_types", "cost_type_id")
+            for nature in by_identifier("cost_types", "cost_type_id")
         )
         if any(mockhistory.nature(line) == key for line in lines)
     ]
@@ -583,7 +627,7 @@ def rate_update() -> JsonObject:
                 "cost_category_id": category,
                 "label": named[category],
                 "previous_amount": money(kept[category]),
-                "proposed_amount": money(mockcore.LABOUR_RATES[category]),
+                "proposed_amount": money(LABOUR_RATES[category]),
                 "source": "reference_rate",
             }
             for category in employed

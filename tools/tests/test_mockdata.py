@@ -126,7 +126,9 @@ def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
 
 
 def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str, Any]) -> None:
+    # The reading of the witness itself, which sums its whole structure (EP-14/L45a).
     indicators = volumes["estimate_indicators_volume.json"]["value"]
+    assert indicators == mocktoday.estimate_today()
     nodes = volumes["nodes_thousand.json"]["value"]
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
     # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
@@ -431,7 +433,10 @@ def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
     assert value["meta"]["total"] == value["scope"]["project_count"] == 300
     witness = next(row for row in value["items"] if row["code"] == "PRJ-001")
     assert witness["label"] == "Modernisation du poste de commande"
-    assert witness["cost_index"]["zone"] == witness["schedule_index"]["zone"] == "nominal"
+    # Its whole structure summed (EP-14/L45a): the cost index nominal, the schedule index in watch,
+    # the drawn tasks under way having planned value and no earned value yet.
+    zones = (witness["cost_index"]["zone"], witness["schedule_index"]["zone"])
+    assert zones == ("nominal", "watch")
     assert volumes["portfolio_value.json"]["value"]["conversion_rate"]["value"] == "0.4"
 
 

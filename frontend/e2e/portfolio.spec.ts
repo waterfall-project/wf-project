@@ -55,9 +55,11 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   ]) {
     await expect(grid.getByRole("columnheader", { name })).toBeVisible();
   }
-  // The witness project, both its indices nominal, as the server classes them.
+  // The witness project, its cost index nominal and its schedule index on watch — the tasks drawn
+  // around its core under way, planned and not yet earned —, as the server classes them.
   const witness = grid.getByRole("row", { name: /Modernisation du poste de commande/ });
-  await expect(witness.getByRole("img", { name: "Nominal" })).toHaveCount(2);
+  await expect(witness.getByRole("img", { name: "Nominal" })).toHaveCount(1);
+  await expect(witness.getByRole("img", { name: "Vigilance" })).toHaveCount(1);
   // The grid holds in the window: its totals, the number of projects the server retained, in view.
   // Its cells stick to the foot of the grid, their row keeping its place in the table.
   const total = grid.getByRole("gridcell", { name: "300 projets retenus" });

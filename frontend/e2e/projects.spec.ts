@@ -306,7 +306,7 @@ test("the settings of a project sort the sub-projects and the contributors, sear
   });
 });
 
-test("the settings of a project create, modify and delete a sub-project, and write the contributors, a proposal confirmed [WF-PRJ-0050-A] [WF-PRJ-0070-A]", async ({
+test("the settings of a project create and modify a sub-project, present unavailable the deletion of those charged with actual costs, and write the contributors, a proposal confirmed [WF-PRJ-0050-A] [WF-PRJ-0070-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/settings`);
@@ -314,6 +314,22 @@ test("the settings of a project create, modify and delete a sub-project, and wri
   await expect(main.getByRole("note")).toContainText("Maquette");
   const section = main.getByRole("region", { name: "Sous-projets" });
   const subprojects = section.getByRole("grid", { name: "Sous-projets" });
+
+  // La suppression d'un sous-projet portant des coûts réels est refusée : both sub-projects of
+  // the witness bear the invoices of the tasks drawn around its core (EP-14/L45a), and neither
+  // deletion is offered — presented unavailable, its reason given; pressed, nothing is asked.
+  // Playwright clicks no element marked `aria-disabled`: the press is dispatched.
+  for (const code of ["SP-CMD", "SP-ESS"]) {
+    const deletion = subprojects.getByRole("button", { name: new RegExp(`^Supprimer.+${code}`) });
+    await expect(deletion).toHaveAttribute("aria-disabled", "true");
+    await expect(deletion).toHaveAccessibleDescription("Des coûts réels lui sont imputés.");
+  }
+  await subprojects.getByRole("button", { name: /^Supprimer.+SP-ESS/ }).dispatchEvent("click");
+  await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
+    "La suppression de « SP-ESS » est indisponible : des coûts réels lui sont imputés.",
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(1);
 
   await subprojects.getByRole("button", { name: /^Modifier.+SP-ESS/ }).click();
   let form = page.getByRole("dialog", { name: /^Modifier.+SP-ESS/ });
@@ -323,17 +339,6 @@ test("the settings of a project create, modify and delete a sub-project, and wri
   await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toContainText(
     "Essais, mise en service et réception",
   );
-
-  // La suppression d'un sous-projet portant des coûts réels est refusée : nothing is asked.
-  // Playwright clicks no element marked `aria-disabled`: the press is dispatched.
-  await subprojects.getByRole("button", { name: /^Supprimer.+SP-CMD/ }).dispatchEvent("click");
-  await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
-    "est indisponible",
-  );
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await subprojects.getByRole("button", { name: /^Supprimer.+SP-ESS/ }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
-  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(0);
 
   await section.getByRole("button", { name: "Nouveau sous-projet" }).click();
   form = page.getByRole("dialog", { name: "Nouveau sous-projet" });

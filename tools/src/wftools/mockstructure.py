@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The structure of a thousand tasks of the witness, and the indicators of its estimate.
+"""The structure of a thousand tasks of the witness, described in tasks and lines.
 
 The main structure of the witness project at the sizes of §4.6.2 (#376): its readable core first
 (``mockwitness.CORE``), then a thousand tasks less the core's, drawn about it and linked to it —
@@ -14,6 +14,9 @@ dated in hours of work on the calendar of each task, priced and emitted by ``wft
 read today (WF-PLA-0010, WF-PLA-0160): the wiring, given to the cable fitter, works his week of four
 days of ten hours, the rest the standard week. No line drawn is a provision: a line of provision is
 created by the declaration of a risk alone (WF-DEV-0020, WF-RIS-0010), and the witness has three.
+Every line drawn was in the offer, and the amendment 1 designated none of them: a labour line keeps
+the budget the offer fixed, at the rates of 2025, and is re-estimated at the one rate of 2026 of its
+category, as the two lines of the core the amendment did not designate (WF-REV-0050, #467).
 
 A line names its category, its role and its subproject by the labels of the universe, as the
 server resolves them. Amounts are ``Decimal``. Nothing here reads the clock or draws at random:
@@ -25,7 +28,7 @@ the same structure, whatever the version of Python. ``wftools.mockdata`` writes 
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -39,6 +42,7 @@ from wftools.mockwitness import (
     ENGINEER,
     EQUIPMENT,
     GENERATED,
+    OFFER_YEAR,
     PAYMENT_DELAY,
     PROVISIONS,
     SUBCONTRACTING,
@@ -51,7 +55,7 @@ from wftools.mockwitness import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Iterable, Sequence
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = dict[str, JsonValue]
@@ -68,6 +72,9 @@ the witness estimate reads 1,000.00 for 12.5 hours."""
 
 COMMISSIONING_RATE = Decimal("75.00")
 """The hourly rate of the commissioning in 2026, the one the lines of the structure pay."""
+
+LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSIONING_RATE}
+"""The hourly rate of each labour category the structure employs, for the reference year."""
 
 CENT = Decimal("0.01")
 SHARE = Decimal("0.0001")
@@ -286,13 +293,21 @@ class _Plan:
 def _line(number: int, kind: LineKind, key: str, subproject: str | None) -> Line:
     """Return a line drawn: hours for labour, a quantity and a unit disbursement otherwise.
 
-    The other lines are paid a month after their work, as the subcontracting of the core; the
-    labour as it is worked (WF-DEV-0020, WF-IND-0100).
+    A labour line is budgeted as the offer priced it, at the rate of 2025 of its category: the
+    amendment 1 did not designate it (WF-REV-0050, #467). The other lines are paid a month after
+    their work, as the subcontracting of the core; the labour as it is worked (WF-DEV-0020,
+    WF-IND-0100).
     """
     if kind.role is not None:
         hours = Decimal(draw(f"hours/{key}", 8, 160)) / 2
         return Line(
-            number, kind.label, kind.category, hours=hours, role=kind.role, subproject=subproject
+            number,
+            kind.label,
+            kind.category,
+            hours=hours,
+            role=kind.role,
+            subproject=subproject,
+            budgeted=offer_budget(hours, kind.category),
         )
     return Line(
         number,
@@ -303,6 +318,11 @@ def _line(number: int, kind: LineKind, key: str, subproject: str | None) -> Line
         payment_delay_days=PAYMENT_DELAY,
         quantity=Decimal(draw(f"quantity/{key}", 1, 20)),
     )
+
+
+def offer_budget(hours: Decimal, category: str) -> Decimal:
+    """Return the budget the offer fixed to a labour line: its hours at the rate of 2025 (#467)."""
+    return hours * hourly_rate(LABOUR_RATES[category], OFFER_YEAR)
 
 
 NETWORK = network()
@@ -384,93 +404,6 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     return Fields([], editable)
 
 
-# --- The indicators of its estimate -------------------------------------------------------
-
-
 def computable(value: str) -> JsonObject:
     """Return a value under the envelope of what may not be computable, computed (WF-IND-0010)."""
     return {"is_computable": True, "value": value, "reason": None}
-
-
-@dataclass(slots=True)
-class Totals:
-    """The amounts of the lines of a structure at the year of reference, summed as they are read."""
-
-    amount: Decimal = Decimal(0)
-    by_cost_type: dict[str, Decimal] = field(default_factory=dict[str, Decimal])
-    by_subproject: dict[str | None, Decimal] = field(default_factory=dict[str | None, Decimal])
-    by_order_item: dict[tuple[str, str], Decimal] = field(
-        default_factory=dict[tuple[str, str], Decimal]
-    )
-
-    def add(
-        self,
-        amount: Decimal,
-        cost_type: str,
-        subproject: str | None,
-        order_item: tuple[str, str] | None,
-    ) -> None:
-        """Count a line: its amount, under its nature, its subproject and its order item."""
-        self.amount += amount
-        self.by_cost_type[cost_type] = self.by_cost_type.get(cost_type, Decimal(0)) + amount
-        self.by_subproject[subproject] = self.by_subproject.get(subproject, Decimal(0)) + amount
-        if order_item is not None:
-            self.by_order_item[order_item] = self.by_order_item.get(order_item, Decimal(0)) + amount
-
-
-def estimate_indicators(
-    totals: Totals, witness: Mapping[str, JsonValue], labels: Mapping[str, str]
-) -> JsonObject:
-    """Return the answer of getEstimateIndicators for the lines of the structure.
-
-    Every rate is set: each amount is computable. The calculation context and the gaps to the
-    reference and to the previous revision are the witness's, the labels of the natures and
-    subprojects those of the universe; the order item the lot of the control station bears is
-    a part of the total, not a partition of it (WF-DEV-0060).
-    """
-    natures = [(nature, totals.by_cost_type[nature]) for nature in (LABOR, NON_LABOR, PROVISION)]
-    subprojects = [
-        (subproject, totals.by_subproject[subproject])
-        for subproject in (SUBPROJECT_CONTROL, SUBPROJECT_TESTS, None)
-    ]
-    return {
-        "context": witness["context"],
-        "total": computable(money(totals.amount)),
-        "by_cost_type": breakdown(natures, totals.amount, labels),
-        "by_subproject": breakdown(subprojects, totals.amount, labels),
-        "by_order_item": [
-            {
-                "key": key,
-                "label": label,
-                "amount": computable(money(amount)),
-                "share": computable(decimal((amount / totals.amount).quantize(SHARE))),
-            }
-            for (key, label), amount in totals.by_order_item.items()
-        ],
-        "provisions_identified": money(totals.by_cost_type[PROVISION]),
-        "delta_to_reference": witness["delta_to_reference"],
-        "delta_to_previous_revision": witness["delta_to_previous_revision"],
-    }
-
-
-def breakdown(
-    entries: Sequence[tuple[str | None, Decimal]], total: Decimal, labels: Mapping[str, str]
-) -> list[JsonValue]:
-    """Return the parts of a total, each with its share; the shares sum to one exactly.
-
-    A share is rounded to four decimals, and what the rounding leaves goes to the largest
-    part. A part without a key is the set outside the subprojects, `unassigned`. Every amount
-    and every share is computable: the rates of the universe are all set.
-    """
-    shares = [(amount / total).quantize(SHARE) for _, amount in entries]
-    largest = max(range(len(entries)), key=lambda index: entries[index][1])
-    shares[largest] += 1 - sum(shares)
-    parts: list[JsonValue] = []
-    for (key, amount), share in zip(entries, shares, strict=True):
-        part: JsonObject = (
-            {"key": "unassigned"} if key is None else {"key": key, "label": labels[key]}
-        )
-        part["amount"] = computable(money(amount))
-        part["share"] = computable(decimal(share))
-        parts.append(part)
-    return parts

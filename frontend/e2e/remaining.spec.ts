@@ -31,16 +31,16 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The indicators, dated, each figure as the server gives it, the coverage of the risks with them.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*21\s234,56/);
+  await expect(indicators).toContainText(/Reste à engager\s*66\s793\s528,72/);
   await expect(indicators).toContainText("Calculé le");
   await expect(indicators.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
-  // The control station and the whole without sub-project over their budget, in alert — the
-  // invoice of the studies beyond the latter —; the tests and commissioning nominal.
-  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(2);
-  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(1);
+  // The control station, the tests and commissioning and the whole without sub-project all over
+  // their budget, in alert: the tasks drawn around the core count their projected budget.
+  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(3);
+  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(0);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
   const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });

@@ -13,13 +13,14 @@ value counting the work of its day; to be replaced by the kernel of EP-08 to EP-
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockhistory
-from wftools.mockcalendar import Instant
+from wftools.mockcalendar import Calendar, Instant
 from wftools.mockindicators import (
     END_OF_DAY,
     PROJECT,
@@ -92,9 +93,92 @@ def ahead(reading: Reading, line: mockcore.Row, amount: Decimal, delay: int = 0)
     return Flow(amount, calendar, max(placed.start, after), placed.finish, delay)
 
 
-def cumulated(flows: Iterable[Flow], day: date) -> Decimal:
-    """Return what some flows have spent by the end of a day, to the cent."""
-    return sum((flow.by(day) for flow in flows), Decimal(0)).quantize(CENT)
+@dataclass(frozen=True, slots=True)
+class _Placed:
+    """A flow with what its calendar says of its bounds, once: the hours elapsed at each."""
+
+    flow: Flow
+    first: date
+    last: date
+    started: Decimal
+    finished: Decimal
+
+    @property
+    def span(self) -> Decimal:
+        """Return the hours of work the flow is spent over; none for one spent at once."""
+        return self.finished - self.started
+
+    def by(self, elapsed: Decimal) -> Decimal:
+        """Return what the flow has spent when so many hours of its calendar have elapsed.
+
+        What ``Flow.by`` returns at that day: the hours elapsed are clamped to the bounds of the
+        flow, the hours of work of a calendar growing with its instants.
+        """
+        if self.span <= 0:
+            return Decimal(0)
+        done = min(max(elapsed, self.started), self.finished) - self.started
+        return self.flow.amount * done / self.span
+
+
+@dataclass(frozen=True, slots=True)
+class Spread:
+    """Some flows summed at any day: what they have spent by the end of it, to the cent.
+
+    The flows in the order they begin and in the order they are spent whole, with the sum of the
+    amounts spent whole by each of the latter: at a day, those spent whole are summed at once, and
+    the few under way — the tasks of a structure of a thousand are a dozen at a time — are read one
+    by one, among the flows begun or among those not spent whole, whichever are the fewer.
+    """
+
+    by_first: tuple[_Placed, ...]
+    by_last: tuple[_Placed, ...]
+    firsts: tuple[date, ...]
+    lasts: tuple[date, ...]
+    whole: tuple[Decimal, ...]
+
+    @classmethod
+    def of(cls, flows: Iterable[Flow]) -> Spread:
+        """Return some flows ready to be summed at any day."""
+        placed = [
+            _Placed(
+                flow,
+                flow.first,
+                flow.last,
+                flow.calendar.elapsed(flow.start),
+                flow.calendar.elapsed(flow.finish),
+            )
+            for flow in flows
+        ]
+        by_first = tuple(sorted(placed, key=lambda each: each.first))
+        by_last = tuple(sorted(placed, key=lambda each: each.last))
+        total, sums = Decimal(0), [Decimal(0)]
+        for each in by_last:
+            total += each.flow.amount
+            sums.append(total)
+        return cls(
+            by_first,
+            by_last,
+            tuple(each.first for each in by_first),
+            tuple(each.last for each in by_last),
+            tuple(sums),
+        )
+
+    def by(self, day: date) -> Decimal:
+        """Return what the flows have spent by the end of a day, to the cent."""
+        ended, begun = bisect_right(self.lasts, day), bisect_right(self.firsts, day)
+        if begun <= len(self.by_last) - ended:
+            under_way = [each for each in self.by_first[:begun] if each.last > day]
+        else:
+            under_way = [each for each in self.by_last[ended:] if each.first <= day]
+        total = self.whole[ended]
+        elapsed: dict[tuple[Calendar, int], Decimal] = {}
+        for each in under_way:
+            key = (each.flow.calendar, each.flow.delay)
+            if key not in elapsed:
+                shifted = Instant(day - timedelta(days=each.flow.delay), END_OF_DAY)
+                elapsed[key] = each.flow.calendar.elapsed(shifted)
+            total += each.by(elapsed[key])
+        return total.quantize(CENT)
 
 
 def month_end(day: date) -> date:
@@ -152,12 +236,13 @@ def budget_series(
         return []
     steps = [era.since for era in eras[1:]]
     found = sorted({*days_of([f for each in flows for f in each], [day]), *steps})
+    spreads = [Spread.of(each) for each in flows]
     values: list[tuple[date, Decimal]] = []
     for each in found:
         rank = max(rank for rank, era in enumerate(eras) if rank == 0 or era.since <= each)
         if each in steps:
-            values.append((each, cumulated(flows[rank - 1], each)))
-        values.append((each, cumulated(flows[rank], each)))
+            values.append((each, spreads[rank - 1].by(each)))
+        values.append((each, spreads[rank].by(each)))
     return _points(values)
 
 
@@ -205,6 +290,7 @@ def cost_curve(
     spent = actual(costs, day)
     projection = [day, *(each for each in (days_of(flows) if flows else []) if each > day)]
     cash_out = (cash_out_by_month(flows, costs, day) if drawn else []) if delays else None
+    left = Spread.of(flows)
     return {
         "context": context(reading, at=TODAY, scope=scope),
         "payment_delays": delays,
@@ -214,7 +300,7 @@ def cost_curve(
             {
                 "name": "project_manager_projection",
                 "points": _points(
-                    (each, spent + cumulated(flows, each)) for each in (projection if drawn else [])
+                    (each, spent + left.by(each)) for each in (projection if drawn else [])
                 ),
             },
         ],
@@ -238,8 +324,9 @@ def cash_out_by_month(flows: list[Flow], costs: list[Cost], day: date) -> list[J
     last = month_end(max((flow.last for flow in flows), default=day))
     months: list[JsonValue] = []
     end, before = month_end(first), Decimal(0)
+    spread = Spread.of(flows)
     while end <= last:
-        future = cumulated(flows, end)
+        future = spread.by(end)
         start = end.replace(day=1)
         past = sum((cost.amount for cost in costs if start <= cost.on <= min(end, day)), Decimal(0))
         months.append(
@@ -271,11 +358,12 @@ def earned_value_curves(reading: Reading, base: Reading, costs: list[Cost]) -> J
         and line.amounts.budgeted != 0
     }
     earned_days = sorted({found[0], day, *completions})
+    planned = Spread.of(flows)
     return {
         "context": context(reading, at=TODAY),
         "payment_delays": False,
         "series": [
-            {"name": "planned_value", "points": _points((d, cumulated(flows, d)) for d in found)},
+            {"name": "planned_value", "points": _points((d, planned.by(d)) for d in found)},
             {
                 "name": "earned_value",
                 "points": _points((d, earned(reading, d)) for d in earned_days),
@@ -333,8 +421,9 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
         months: list[JsonValue] = []
         if flows:
             end, before = month_end(min(flow.first for flow in flows)), Decimal(0)
+            spread = Spread.of(flows)
             while end <= month_end(max(flow.last for flow in flows)):
-                done = cumulated(flows, end)
+                done = spread.by(end)
                 hours = done - before
                 if hours:
                     months.append(

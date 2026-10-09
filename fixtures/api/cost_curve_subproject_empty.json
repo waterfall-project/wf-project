@@ -1,5 +1,5 @@
 {
-  "summary": "La courbe de coûts cumulés du seul sous-projet « Essais et mise en service » au 3 juin 2026 (scope) : aucune ligne de la référence ni de la révision en cours ne relève de lui, et aucune ligne de coût réel ne lui est imputée — ses trois séries sans point et aucune marche ; rien à tracer, que l'écran dit (WF-IND-0020, WF-IND-0100). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "summary": "Variante contrefactuelle : la courbe de coûts cumulés du seul sous-projet « Essais et mise en service » au 3 juin 2026 (scope) si la structure ne portait que le cœur du témoin, dont aucune ligne de la référence ni de la révision en cours ne relève de lui, et aucune ligne de coût réel ne lui est imputée — ses trois séries sans point et aucune marche ; rien à tracer, que l'écran dit (WF-IND-0020, WF-IND-0100). Dans la structure de mille tâches, les lots « Ligne d'essais » en relèvent, et leurs tâches terminées lui imputent leurs factures.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"01926f3a-7c00-7000-8000-000000000802","is_stored":false},

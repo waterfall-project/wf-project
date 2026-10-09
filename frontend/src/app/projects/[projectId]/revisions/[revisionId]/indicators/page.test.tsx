@@ -164,7 +164,7 @@ describe("the screen of the indicators of a project", () => {
     // chart below: the milestones, the cumulative costs, the earned value.
     expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 83.23% Budget consumption 87.44% Actual cost",
+      "Financial progress Computed on Financial progress 2.07% Budget consumption 2.16% Actual cost",
     );
     expect(page).toContain("Evolution of the cost index Computed on");
     expect(page).toContain("Evolution of the schedule index Computed on");
@@ -173,11 +173,13 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost 105,400.00 Remaining to commit 21,234.56 Reference budget 120,534.56",
+      "Actual cost 1,412,970.20 Remaining to commit 66,793,528.72 Reference budget 65,430,697.64",
     );
-    expect(page).toContain("At budget 125,934.56 5,400.00 Project manager’s 126,634.56 6,100.00");
     expect(page).toContain(
-      "Schedule variance -1,223.69 Earned value 100,000.00 Planned value 101,223.69",
+      "At budget 65,393,809.51 -36,888.13 Project manager’s 68,206,498.92 2,775,801.28",
+    );
+    expect(page).toContain(
+      "Schedule variance -221,599.80 Earned value 1,449,858.33 Planned value 1,671,458.13",
     );
   });
 
@@ -200,9 +202,11 @@ describe("the screen of the indicators of a project", () => {
       page.indexOf("Schedule performance index"),
       page.indexOf("Evolution of the schedule index"),
     );
-    expect(text(schedule)).toContain("Schedule index 0.9879 Nominal Schedule variance");
+    // The drawn tasks under way have planned value and no earned value yet: the schedule index of
+    // the whole structure is in watch (EP-14/L45a).
+    expect(text(schedule)).toContain("Schedule index 0.8674 Watch Schedule variance");
     expect(schedule).toMatch(
-      /class="[^"]*text-signal-nominal[^"]*"><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg><span>Nominal<\/span>/,
+      /class="[^"]*text-signal-watch[^"]*"><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg><span>Watch<\/span>/,
     );
   });
 

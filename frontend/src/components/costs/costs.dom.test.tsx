@@ -108,8 +108,8 @@ afterEach(() => {
 });
 
 describe("the grid of the actual costs", () => {
-  it("presents the four attributes of each line, and the columns of the file kept, as imported [WF-CRE-0010-A]", async () => {
-    const { container } = render(costsGrid(costsOf("actual_costs")));
+  it("presents the four attributes of each line, and the columns of the file kept, as imported [WF-CRE-0010-A]", () => {
+    render(costsGrid(costsOf("actual_costs")));
     expect(
       within(grid())
         .getAllByRole("columnheader")
@@ -139,6 +139,14 @@ describe("the grid of the actual costs", () => {
       "Câbles de commande du pupitre",
       "WF.PRJ-001/SP-CAB",
     ]);
+  });
+
+  it("presents the lines in a grid a screen reader reads as such", async () => {
+    // The check of the axis on its own, on a window of three of the twenty-seven lines of the
+    // example (docs/dev/typescript.md, defect 23): the rows of the grid are alike.
+    const costs = costsOf("actual_costs");
+    const { container } = render(costsGrid({ ...costs, items: costs.items.slice(0, 3) }));
+    expect(within(grid()).getAllByRole("row")).toHaveLength(1 + 3 + 1);
     await expectAccessible(container);
   });
 
@@ -190,7 +198,7 @@ describe("the grid of the actual costs", () => {
   it("shows in its totals row the general total of the lines retained the server gives, never a sum of the page [WF-CRE-0040-A]", () => {
     render(costsGrid(costsOf("actual_costs_page")));
     const total = within(grid()).getAllByRole("row").at(-1);
-    expect(total).toHaveTextContent(/^Total général des lignes retenues\s*106\s050,00$/);
+    expect(total).toHaveTextContent(/^Total général des lignes retenues\s*1\s413\s620,20$/);
   });
 
   it("offers no search, which the server does not make, and asks it to sort by the amount", async () => {
@@ -232,7 +240,7 @@ describe("the grid of the actual costs", () => {
     );
     const english = screen.getByRole("grid", { name: "Actual costs" });
     expect(within(english).getByRole("columnheader", { name: /Document no\./ })).toBeVisible();
-    expect(within(english).getAllByText("No subproject")).toHaveLength(5);
+    expect(within(english).getAllByText("No subproject")).toHaveLength(14);
     expect(within(english).getByText("Excluded")).toBeVisible();
   });
 });
@@ -243,7 +251,7 @@ describe("the totals of the actual costs", () => {
     render(inLanguage(<CostSummary totals={list.totals} lastImport={list.last_import_at} />));
     const totals = screen.getByRole("region", { name: "Totaux des lignes retenues" });
     expect(totals).toHaveTextContent(
-      /Périmètre suivi.*105\s400,00.*Exclu du périmètre suivi.*650,00.*Total général.*106\s050,00/,
+      /Périmètre suivi.*1\s412\s970,20.*Exclu du périmètre suivi.*650,00.*Total général.*1\s413\s620,20/,
     );
     expect(within(totals).getAllByRole("img", { name: "Calculé" })).toHaveLength(3);
     expect(totals).toHaveTextContent(/Dernier import.*3 juin 2026/);
@@ -713,7 +721,7 @@ describe("the journal of the imports", () => {
     const rows = within(table).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "DateParPériode extraiteCrééesMises à jourIgnorées",
-      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/2026100$/),
+      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/20262200$/),
       expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260512\s345$/),
       expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),
       expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026301$/),
