@@ -4,9 +4,11 @@
 
 import io
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from httpx2 import Response
@@ -94,3 +96,18 @@ class ContractClient:
     def get(self, path: str, **kwargs: Any) -> Response:
         """Send a GET and check the answer."""
         return self.request("GET", path, **kwargs)
+
+
+def raw_account(**overrides: object) -> dict[str, object]:
+    """Give the columns of an account written by hand, with the changes a test asks for."""
+    return {
+        "id": uuid4(),
+        "last_name": "Martin",
+        "first_name": "Claire",
+        "email": "claire.martin@example.org",
+        "idp_subject": f"subject-{uuid4()}",
+        "origin": "local",
+        "created_at": datetime(2026, 10, 1, tzinfo=UTC),
+        "updated_at": datetime(2026, 10, 1, tzinfo=UTC),
+        **overrides,
+    }

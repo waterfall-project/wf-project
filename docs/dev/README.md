@@ -32,6 +32,9 @@ chaque chose est là (`docs/roadmap/EP-01-socle-de-developpement.md`, « Concept
 Le back est un seul paquet, `waterfall`, et deux processus : `waterfall-api` et
 `waterfall-worker`, deux points d'entrée d'une même distribution. Ils portent donc la même
 version par construction, celle de `backend/pyproject.toml` (WF-ARC-0010).
+Une troisième commande de la même distribution, `waterfall-migrate`, applique les migrations de
+la base (voir « Migrations ») et s'arrête : ce n'est pas un processus du service, mais elle
+porte la même version et se lance avec la même image.
 
 Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
@@ -1240,6 +1243,8 @@ commande.
 | `make check-all` | toutes les familles de contrôles |
 | `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap` |
 | `make changes BASE=…` | les familles qu'une modification touche |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker) ; elle exige `WATERFALL_POSTGRES_PASSWORD` et `WATERFALL_REDIS_PASSWORD` dans l'environnement, et `service-down WATERFALL_RESET_DATA=yes` supprime aussi sa base |
+| `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -1305,16 +1310,19 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   serveurs. Ce choix se revoit quand les parcours s'allongent : les durées par fichier se
   lisent dans le journal de chaque morceau.
 
-Le back suivra le même modèle dès qu'EP-03 lui donne une base et des parcours (#492, levier 5),
-et `back.yml` s'écrira ainsi :
+Le back suit le même modèle (#492, levier 5) :
 
-- PostgreSQL tourne en service du travail (`services:`), dans l'image de la version que vise
-  la plateforme, épinglée par son empreinte, avec sa sonde de santé : les tests d'intégration
-  le joignent sur `localhost`, sans Compose ;
-- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist), chaque
-  processus sur sa propre base, créée à son démarrage ;
-- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples,
-  comme aujourd'hui (`full-else` du Makefile) ;
+- PostgreSQL tourne en service du travail (`services:` de `back.yml`), dans l'image de la
+  version que vise la plateforme — celle de `compose.service.yaml` —, épinglée par son
+  empreinte, avec sa sonde de santé : les tests d'intégration le joignent sur `localhost`, sans
+  Compose, par `WATERFALL_TEST_DATABASE_URL` ;
+- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
+  (`full-else` du Makefile).
+
+Reste à écrire, quand la durée l'exige ou avec les parcours contre le service (US-0340) :
+
+- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist) : chaque
+  processus crée déjà sa propre base, de nom unique (`database_url`, `tests/conftest.py`) ;
 - les parcours de bout en bout contre le vrai service — les mêmes, `WATERFALL_API_ADDRESS`
   posée — sont répartis par la même matrice qu'`e2e.yml`, le service et sa base démarrés dans
   chaque morceau.
@@ -1482,14 +1490,16 @@ avec sa raison.
 Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils, et
 [TypeScript](typescript.md), pour le front. Chacun nomme d'abord les jeux de règles des
 outils, par renvoi, puis les règles de conception qu'aucun outil ne contrôle, chacune avec
-sa raison, et finit par les défauts déjà rencontrés, que la revue cherche nommément. Les
-règles d'écriture du SQL et des migrations viennent avec EP-03, en troisième fichier.
+sa raison, et finit par les défauts déjà rencontrés, que la revue cherche nommément. Le
+SQL et les migrations ont le leur : [SQL](sql.md), pour les tables, les types, les contraintes,
+les migrations et les verrous.
 
 ## Tests
 
 - **Un test qui cite son exigence** — voir ci-dessous.
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — voir ci-dessous.
+- **Un test contre PostgreSQL** — voir ci-dessous.
 
 Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
 retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
@@ -1526,6 +1536,26 @@ et ne compte pas comme couverte. `make requirements-release` échoue en plus sur
 non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
 publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
 attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
+
+### Un test contre PostgreSQL
+
+Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
+(`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
+rôle qui peut créer des bases (`postgresql://rôle@hôte:5432/postgres`) : à chaque session de
+tests, la fixture `database_url` (`backend/tests/conftest.py`) y crée une base de nom unique,
+y applique les migrations, et la supprime à la fin. La fixture `database` rend une base dont les
+comptes sont vidés après chaque test, `session` une session que le test défait.
+
+- **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
+- **Sur un poste**, deux façons : `make service-up` (avec les deux mots de passe de la plateforme
+  dans l'environnement), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable vaut alors
+  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
+  créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
+- **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
+  en silence. Les tests d'`examples/`, sockets fermées, n'en ont pas besoin.
+- Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
+  sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
+  processus à la fois.
 
 ### Un parcours de bout en bout
 
@@ -1766,6 +1796,21 @@ ses paramètres, jamais une phrase.
   caractères, faute de quoi elle masquerait tout texte qui la contient ; l'URL entière et la
   forme encodée restent masquées dans tous les cas.
 
+- **Accéder aux données d'un module** — les tables d'un module sont des classes sur la `Base` de
+  `waterfall.platform.database`, dans son `tables.py`, privé ; son accès aux données, des
+  fonctions de son module qui prennent une `Session`, privé lui aussi ; l'`interface` n'offre aux
+  autres que ce qu'elle déclare, en objets simples et non en lignes de la table. Une écriture
+  reçoit en argument qui écrit et à quel moment (`Stamp(author, at)`, l'auteur étant `None` pour
+  la plateforme) : le noyau ne lit pas l'horloge. Un identifiant se tire de `new_id()`
+  (`waterfall.platform.identifiers`), un instant de `UtcDateTime`, qui refuse un instant sans
+  fuseau. Une requête, une transaction : `Database.transaction()` la valide à la fin du bloc et
+  la défait si une exception le traverse, la réponse étant construite avant. Une modification qui
+  porte un `lock_version` le teste dans l'écriture même et lève `PreconditionFailedError` si la
+  version n'est plus la bonne.
+
+  *Contrôles* : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
+  les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
+
 ## Clés de traduction
 
 Les textes de l'interface vivent dans deux catalogues jumeaux, que lit next-intl :
@@ -1962,7 +2007,56 @@ densité de sa fonction, et qu'un composant copié n'entre qu'avec l'écran qui 
 
 ## Migrations
 
-*À écrire* — EP-03, avec la première table et les règles de codage du SQL.
+Le schéma de la base est l'histoire de ses migrations : Alembic, dans
+`backend/src/waterfall/migrations/` (`versions/0001_….py`, `0002_….py`…), une chaîne de
+révisions numérotées, **écrites à la main** et relues comme le code. Les règles — nommage, types,
+contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section dit comment s'en
+écrit une.
+
+**Écrire une migration.**
+
+1. Déclarer la table ou la colonne dans les tables du module qui la possède
+   (`waterfall/core/<module>/tables.py`), sur la `Base` de `waterfall.platform.database` : sa
+   `MetaData` porte la convention de nommage des contraintes, déclarée une fois. Ne la décrire
+   nulle part ailleurs.
+2. Créer le fichier de la révision, avec le numéro suivant :
+   `cd backend && uv run alembic revision --rev-id 0002 -m "ce qui change"`. L'environnement
+   d'Alembic (`waterfall/migrations/env.py`) lit `WATERFALL_DATABASE_URL`, comme le service ;
+   aucune base n'est nécessaire pour créer le fichier vide.
+3. Écrire `upgrade()` et `downgrade()` à la main avec `op.create_table`, `op.add_column`… : les
+   contraintes se déclarent **sans nom**, sauf la partie `<nom>` d'une contrainte de vérification
+   et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
+   ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
+   `ruff format` (dans `backend/`) le mettent aux règles du dépôt.
+4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare le schéma des
+   migrations à celui des tables du code échoue tant que les deux ne disent pas la même chose, et
+   un test de `tests/test_database_constraints.py` éprouve chaque contrainte nouvelle.
+5. Appliquer : `make migrate` sur la base de `WATERFALL_DATABASE_URL`, ou
+   `make service-up`, dont le service `migrate` applique les migrations avant l'API.
+
+**Appliquer.** `waterfall-migrate` (le service `migrate` de `compose.service.yaml`, ou
+`make migrate`) applique, dans l'ordre, les révisions que la base n'a pas encore ; Alembic note
+la dernière dans la table `alembic_version`. Une migration déjà appliquée ne se rejoue pas
+(WF-DAT-0140), et deux instances qui démarrent ensemble n'appliquent pas la même deux fois : un
+verrou consultatif les met à la queue. La commande s'arrête, avec le nom de la variable, si
+`WATERFALL_DATABASE_URL` manque (WF-SEC-0010).
+
+**Une seule tête.** Deux migrations qui partent du même parent forment deux têtes : la seconde à
+être fusionnée se rebase sur la première et prend le numéro suivant. Le test de la chaîne échoue
+sur deux têtes.
+
+**Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
+migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
+celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
+
+**Taille d'un lot.** Les migrations sont écrites à la main : elles comptent dans la taille d'un
+lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
+`tools/paths.toml`.
+
+*Contrôles* : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
+appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma est celui des
+tables du code, deux instances ensemble), contre PostgreSQL (voir « Tests ») ; la compatibilité
+avec le code voisin, la revue.
 
 ## Agents
 

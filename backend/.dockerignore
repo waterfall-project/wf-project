@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+.venv
+.pytest_cache
+.ruff_cache
+coverage.json
+**/__pycache__
+tests
