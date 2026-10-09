@@ -47,7 +47,8 @@ _LATER = (
 )
 """The instants after today the examples may carry, by the start of the name of their file and
 their key, and how far after: the link to set a password, valid an hour (WF-ADM-0140); an import
-or a deposit, a day after its analysis or its deposit (WF-ARC-0100, WF-DAT-0120); """
+or a deposit, a day after its analysis or its deposit (WF-ARC-0100, WF-DAT-0120); the chunked
+deposit of a backup, a day after its opening (WF-ADM-0160, WF-DAT-0120)."""
 
 
 def _later(name: str, key: str) -> timedelta:
@@ -61,6 +62,7 @@ _SEQUELS = {
     "task_running.json",
     "task_succeeded.json",
     "task_failed.json",
+    "task_restore_backup_newer_version.json",
     "task_mark_relaunched.json",
     "task_import_queued.json",
     "task_import_succeeded.json",

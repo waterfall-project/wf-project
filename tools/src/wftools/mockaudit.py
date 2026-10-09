@@ -234,8 +234,8 @@ def _accounts() -> list[Inscription]:
     come first, before the accounts that hold them. An account inactive was deactivated at its
     last update (WF-ADM-0060). And the roles given to an account after its creation: those
     created after it (``_given``). An update of an account by its holder alone — the preferences
-    of its display, which the session writes — is no inscription: WF-SEC-0030 names the accounts
-    an administrator creates and modifies, not what a user chooses for himself.
+    of its display, which ``updateMyPreferences`` writes — is no inscription: WF-SEC-0030 names
+    the accounts an administrator creates and modifies, not what a user chooses for himself.
     """
     found = [
         Inscription(
