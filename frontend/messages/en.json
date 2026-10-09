@@ -958,7 +958,19 @@
       "actualCostsFilter": "Actual costs",
       "everyActualCosts": "Every subproject",
       "withActualCosts": "With actual costs charged",
-      "withoutActualCosts": "Without actual costs charged"
+      "withoutActualCosts": "Without actual costs charged",
+      "create": "New subproject",
+      "createTitle": "New subproject",
+      "formHint": "A subproject is known by the code the ERP gives it, unique within the project.",
+      "modify": "Modify",
+      "modifyNamed": "Modify “{code}”",
+      "delete": "Delete",
+      "deleteNamed": "Delete “{code}”",
+      "deleteTitle": "Delete the subproject “{code}”?",
+      "deleteHint": "The subproject “{code}”, {label}, will be deleted. One charged with actual costs, or cited by a marked revision, cannot be.",
+      "deleted": "“{code}” deleted.",
+      "deleteCharged": "Actual costs are charged to it.",
+      "deleteUnavailable": "Deleting “{code}” is unavailable: actual costs are charged to it."
     },
     "contributors": {
       "title": "Contributors",
@@ -969,7 +981,17 @@
       "accountFilter": "Account state",
       "everyAccount": "Every account",
       "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts"
+      "inactiveAccounts": "Deactivated accounts",
+      "modify": "Modify the contributors",
+      "formHint": "Each contributor is a project manager or a contributor; a project keeps at least one project manager. Nothing is written until the list is saved.",
+      "draft": "Contributors to save",
+      "kindOf": "Capacity of {name}",
+      "withdraw": "Withdraw {name}",
+      "refusedFor": "{name}: {problem}",
+      "proposals": "Proposed contributors",
+      "inscribe": "Inscribe {name}",
+      "suggested": "{count, plural, one {Proposed from the roles of the estimate, to be confirmed:} other {Proposed from the roles of the estimate, to be confirmed:}} {names}.",
+      "saved": "List of the contributors saved."
     },
     "workBreakdown": {
       "title": "Work breakdown",
@@ -1137,7 +1159,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} project {Already held by another project.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",

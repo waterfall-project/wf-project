@@ -430,6 +430,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+            examples:
+              created: { $ref: ../../../fixtures/api/subproject_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -462,6 +464,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+            examples:
+              updated: { $ref: ../../../fixtures/api/subproject_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -591,6 +595,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+            examples:
+              set: { $ref: ../../../fixtures/api/contributors_set.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -620,6 +626,9 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/ContributorSuggestion }
+            examples:
+              witness: { $ref: ../../../fixtures/api/contributor_suggestions.json }
+              none: { $ref: ../../../fixtures/api/contributor_suggestions_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

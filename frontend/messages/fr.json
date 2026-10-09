@@ -958,7 +958,19 @@
       "actualCostsFilter": "Coûts réels",
       "everyActualCosts": "Tous les sous-projets",
       "withActualCosts": "Avec coûts réels imputés",
-      "withoutActualCosts": "Sans coût réel imputé"
+      "withoutActualCosts": "Sans coût réel imputé",
+      "create": "Nouveau sous-projet",
+      "createTitle": "Nouveau sous-projet",
+      "formHint": "Un sous-projet se désigne par le code que lui donne l’ERP, unique dans le projet.",
+      "modify": "Modifier",
+      "modifyNamed": "Modifier « {code} »",
+      "delete": "Supprimer",
+      "deleteNamed": "Supprimer « {code} »",
+      "deleteTitle": "Supprimer le sous-projet « {code} » ?",
+      "deleteHint": "Le sous-projet « {code} », {label}, sera supprimé. Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se supprime pas.",
+      "deleted": "« {code} » supprimé.",
+      "deleteCharged": "Des coûts réels lui sont imputés.",
+      "deleteUnavailable": "La suppression de « {code} » est indisponible : des coûts réels lui sont imputés."
     },
     "contributors": {
       "title": "Contributeurs",
@@ -969,7 +981,17 @@
       "accountFilter": "État du compte",
       "everyAccount": "Tous les comptes",
       "activeAccounts": "Comptes actifs",
-      "inactiveAccounts": "Comptes désactivés"
+      "inactiveAccounts": "Comptes désactivés",
+      "modify": "Modifier les contributeurs",
+      "formHint": "Chaque contributeur est chef de projet ou simple contributeur ; un projet garde au moins un chef de projet. Rien n’est écrit avant l’enregistrement de la liste.",
+      "draft": "Contributeurs à enregistrer",
+      "kindOf": "Qualité de {name}",
+      "withdraw": "Retirer {name}",
+      "refusedFor": "{name} : {problem}",
+      "proposals": "Contributeurs proposés",
+      "inscribe": "Inscrire {name}",
+      "suggested": "{count, plural, one {Proposé d’après les rôles du devis, à confirmer :} other {Proposés d’après les rôles du devis, à confirmer :}} {names}.",
+      "saved": "Liste des contributeurs enregistrée."
     },
     "workBreakdown": {
       "title": "Lotissement",
@@ -1137,7 +1159,7 @@
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "takenBy": "Déjà porté par « {name} ».",
-      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} project {Déjà porté par un autre projet.} other {Déjà porté par un autre objet.}}",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",

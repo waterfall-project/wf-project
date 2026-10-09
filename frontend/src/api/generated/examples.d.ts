@@ -71,6 +71,9 @@ export interface Examples {
   "GET /projects/{project_id}/contributors": {
     200: "contributors" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
   };
+  "GET /projects/{project_id}/contributors/suggestions": {
+    200: "contributor_suggestions" | "contributor_suggestions_empty";
+  };
   "GET /projects/{project_id}/cost-imports": {
     200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty";
   };
@@ -224,6 +227,9 @@ export interface Examples {
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
   };
+  "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
+    200: "subproject_updated";
+  };
   "PATCH /reference/calendars/{calendar_id}": {
     200: "calendar_updated";
   };
@@ -272,6 +278,9 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_unknown_category";
   };
+  "POST /projects/{project_id}/subprojects": {
+    201: "subproject_created";
+  };
   "POST /reference/calendars": {
     201: "calendar_created";
   };
@@ -295,6 +304,9 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";
+  };
+  "PUT /projects/{project_id}/contributors": {
+    200: "contributors_set";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";

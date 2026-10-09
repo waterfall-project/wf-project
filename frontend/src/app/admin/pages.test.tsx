@@ -167,7 +167,7 @@ describe("the accounts", () => {
     expect(rows(page, "Comptes utilisateurs")).toEqual([
       "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État",
       "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Manager Aucun Actif",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun rôle Aucun Actif",
+      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun rôle Atelier de câblage Actif",
       "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
       "Petit Lucas lucas.petit@example.com Créé dans Waterfall Chiffreur Aucun Actif",

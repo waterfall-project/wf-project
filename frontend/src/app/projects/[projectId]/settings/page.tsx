@@ -13,21 +13,28 @@
  * `contributor_sort_order`, `contributor_kinds`, `contributor_is_active`) — WF-IHM-0060,
  * WF-IHM-0130 —, the sort each grid keeps in the settings of the account serving when the address
  * names none. The work breakdown is a tree in the order entered, searched on its labels and filtered
- * on its kinds by the server (`breakdown_search`, `breakdown_kinds`). The identity and the facts of
- * the project are modified in their form, as the project lists the command (`ProjectIdentity`,
- * EP-02/L44a); the lists are read only — and a work breakdown read narrowed is never the whole one
- * to write back (`setWorkBreakdown`).
+ * on its kinds by the server (`breakdown_search`, `breakdown_kinds`), read only — a work breakdown
+ * read narrowed is never the whole one to write back (`setWorkBreakdown`). The identity and the facts
+ * of the project are modified in their form, as the project lists the command (`ProjectIdentity`,
+ * EP-02/L44a); the sub-projects offer their commands as the project lists `update`, the contributors
+ * theirs as it lists `manage_contributors` (EP-02/L44b): to a session that may write them, the page
+ * reads the accounts the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list
+ * whole when the grid reads it filtered — a reading filtered has no counter to write from. Once, under
+ * its header, the screen says that the fake back keeps none of what any of these commands writes
+ * (`MockupNotice`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Project } from "@/components/context/reading";
 import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { asked, readGridQuery, searched } from "@/components/grid/query";
+import type { ContributorReading, Suggestion } from "@/components/projects/contributor-commands";
 import { ProjectIdentity } from "@/components/projects/project-form";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
@@ -52,6 +59,7 @@ import {
   WorkBreakdownList,
 } from "@/components/projects/settings-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -74,22 +82,76 @@ export async function generateMetadata({
   return screenMetadata("functions.projectSettings", projectId);
 }
 
-/** The title of the screen, with the icon of its function, and the state of the project. */
-function SettingsHeader({ project }: { readonly project: Project }) {
+/**
+ * The title of the screen, with the icon of its function, and the state of the project; under it,
+ * when the screen writes, the notice that the fake back keeps nothing.
+ */
+function SettingsHeader({
+  project,
+  writes,
+}: {
+  readonly project: Project;
+  readonly writes: boolean;
+}) {
   const t = useTranslations();
   return (
-    <PageHeader
-      title={t("functions.projectSettings")}
-      icon={FUNCTION_ICONS.project_settings}
-      density={FUNCTION_DENSITY.project_settings}
-      subtitle={
-        <span className="inline-flex items-center gap-2">
-          {t("projectFacts.state")}
-          <ProjectStateBadge state={project.state} />
-        </span>
-      }
-    />
+    <>
+      <PageHeader
+        title={t("functions.projectSettings")}
+        icon={FUNCTION_ICONS.project_settings}
+        density={FUNCTION_DENSITY.project_settings}
+        subtitle={
+          <span className="inline-flex items-center gap-2">
+            {t("projectFacts.state")}
+            <ProjectStateBadge state={project.state} />
+          </span>
+        }
+      />
+      {writes ? <MockupNotice /> : null}
+    </>
   );
+}
+
+/**
+ * The commands the project lists: `update` for its identity and its sub-projects,
+ * `manage_contributors` for its contributors; whether the screen writes anything — one of them
+ * available —, and says once that the fake back keeps nothing.
+ */
+function offersOf(project: Project) {
+  const update = findOffer(project.available_commands, "update");
+  const manage = findOffer(project.available_commands, "manage_contributors");
+  return {
+    update,
+    manage,
+    writes: update?.is_available === true || manage?.is_available === true,
+  };
+}
+
+/**
+ * What the list of the contributors is written from, to a session the project lets write it: the
+ * accounts the server proposes (WF-PRJ-0070), and the list read whole — the one shown, unless it is
+ * filtered, without a counter to write from; nothing to any other session.
+ */
+async function readWritable(
+  client: ReturnType<typeof serverClient>,
+  projectId: string,
+  manage: CommandOffer | undefined,
+  shown: ContributorReading,
+): Promise<readonly [readonly Suggestion[], ContributorReading | undefined]> {
+  if (manage?.is_available !== true) {
+    return [[], undefined];
+  }
+  const path = { project_id: projectId };
+  return Promise.all([
+    readOrFail("listContributorSuggestions", () =>
+      client.GET("/projects/{project_id}/contributors/suggestions", { params: { path } }),
+    ),
+    shown.lock_version === null
+      ? readOrFail("listContributors", () =>
+          client.GET("/projects/{project_id}/contributors", { params: { path } }),
+        )
+      : shown,
+  ]);
 }
 
 /** Render the settings of a project, its work breakdown, its sub-projects and its contributors. */
@@ -157,13 +219,15 @@ export default async function SettingsPage(props: ProjectPageProps) {
       }),
     ),
   ]);
+  const { update, manage, writes } = offersOf(read.project);
+  const [suggestions, whole] = await readWritable(client, address.projectId, manage, contributors);
   return (
     <>
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.project_settings}>
         {/* The searches, the sorts and the filters of the grids compose their changes. */}
         <PendingAddress>
-          <SettingsHeader project={read.project} />
+          <SettingsHeader project={read.project} writes={writes} />
           {/* Keyed by the project: an answer of the server never outlives its project. */}
           <ProjectIdentity key={read.project.project_id} project={read.project} />
           <WorkBreakdownList
@@ -178,6 +242,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
           <SubprojectList
             subprojects={subprojects}
             actualCosts={actualCosts}
+            editing={{ project: address.projectId, offer: update }}
             shown={{
               query: subprojectQuery,
               preferences: grids?.[SUBPROJECT_GRID_KEY] ?? undefined,
@@ -187,6 +252,13 @@ export default async function SettingsPage(props: ProjectPageProps) {
             contributors={contributors.items}
             kinds={kinds}
             active={active}
+            editing={{
+              project: address.projectId,
+              offer: manage,
+              counter: contributors.lock_version,
+              whole,
+              suggestions,
+            }}
             shown={{
               query: contributorQuery,
               preferences: grids?.[CONTRIBUTOR_GRID_KEY] ?? undefined,

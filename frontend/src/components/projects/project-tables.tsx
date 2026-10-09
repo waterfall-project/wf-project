@@ -8,8 +8,10 @@
  * the lists of the screens share: a section under its title, a table under its column headers. The
  * lists of the settings of a project are dense grids (`settings-lists.tsx`). Each list is a section
  * under its title — named by `aria-label`, never by an identifier of `useId`, which a server
- * component may share with a client one of the shell (#251) —; an empty list says it is. Nothing
- * is offered to create or modify: those forms belong to the epic of their domain.
+ * component may share with a client one of the shell (#251) —; an empty list says it is. The pieces
+ * offer no command themselves: those of the sub-projects and of the contributors are their
+ * components' (`subproject-commands.tsx`, `contributor-commands.tsx`, EP-02/L44b); the history of
+ * the states is read only.
  */
 import { ArrowRight, Bot, History, type LucideIcon, User } from "lucide-react";
 import { useTranslations } from "next-intl";

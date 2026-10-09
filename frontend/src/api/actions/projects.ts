@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of a project — created (`createProject`), its identity and its facts modified
- * (`updateProject`), taken out of its lifecycle (`exitProject`) —: the browser asks the server of
- * Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
- * (`src/api/problem.ts`).
+ * (`updateProject`), taken out of its lifecycle (`exitProject`) —, of its sub-projects
+ * (`writeSubproject`, `deleteSubproject`) and of its contributors (`setContributors`): the browser
+ * asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder
+ * makes of its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what
+ * the server now retains.
  */
 "use server";
 
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
-import { decode, type Outcome } from "@/api/problem";
+import { decode, type Outcome, type Settled, settled } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import type { ProjectState } from "@/api/project-state";
 
@@ -19,6 +21,14 @@ type Schemas = components["schemas"];
 
 /** What the exit of a project from its lifecycle takes: the state it goes to, confirmed. */
 type ProjectExit = Schemas["ProjectExit"];
+
+/** Read the page anew once the API has answered a write. */
+function readAnew<T>(outcome: Outcome<T>): Outcome<T> {
+  if (outcome.kind === "done") {
+    refresh();
+  }
+  return outcome;
+}
 
 /**
  * Create a project (WF-PRJ-0080): the API answers it, its creator its project manager
@@ -41,16 +51,76 @@ export async function updateProject(
   projectId: string,
   update: Schemas["ProjectUpdate"],
 ): Promise<Outcome<Schemas["Project"]>> {
-  const outcome = await decode(() =>
-    serverClient().PATCH("/projects/{project_id}", {
-      params: { path: { project_id: projectId } },
-      body: update,
-    }),
+  return readAnew(
+    await decode(() =>
+      serverClient().PATCH("/projects/{project_id}", {
+        params: { path: { project_id: projectId } },
+        body: update,
+      }),
+    ),
   );
-  if (outcome.kind === "done") {
-    refresh();
-  }
-  return outcome;
+}
+
+/**
+ * Create a sub-project of a project (WF-PRJ-0050), or modify one from the version read: the API
+ * answers it as it now is, or refuses a code another sub-project of the project bears (409).
+ */
+export async function writeSubproject(
+  projectId: string,
+  write:
+    | { readonly id: undefined; readonly body: Schemas["SubprojectWrite"] }
+    | { readonly id: string; readonly body: Schemas["SubprojectUpdate"] },
+): Promise<Outcome<Schemas["Subproject"]>> {
+  const client = serverClient();
+  const project = { project_id: projectId };
+  return readAnew(
+    await decode(() =>
+      write.id === undefined
+        ? client.POST("/projects/{project_id}/subprojects", {
+            params: { path: project },
+            body: write.body,
+          })
+        : client.PATCH("/projects/{project_id}/subprojects/{subproject_id}", {
+            params: { path: { ...project, subproject_id: write.id } },
+            body: write.body,
+          }),
+    ),
+  );
+}
+
+/**
+ * Delete a sub-project (WF-PRJ-0050): refused once actual costs are charged to it, or a marked
+ * revision cites it (409).
+ */
+export async function deleteSubproject(projectId: string, subprojectId: string): Promise<Settled> {
+  return readAnew(
+    settled(
+      await decode(() =>
+        serverClient().DELETE("/projects/{project_id}/subprojects/{subproject_id}", {
+          params: { path: { project_id: projectId, subproject_id: subprojectId } },
+        }),
+      ),
+    ),
+  );
+}
+
+/**
+ * Write the whole list of the contributors of a project, each with its capacity, from the counter
+ * of the list read whole (WF-PRJ-0060, WF-IHM-0110): the API answers the list with its next counter,
+ * or refuses a list without a project manager (409), an account unknown or deactivated (422).
+ */
+export async function setContributors(
+  projectId: string,
+  list: Schemas["ContributorsWrite"],
+): Promise<Outcome<Schemas["ContributorList"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().PUT("/projects/{project_id}/contributors", {
+        params: { path: { project_id: projectId } },
+        body: list,
+      }),
+    ),
+  );
 }
 
 /**

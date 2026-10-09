@@ -158,3 +158,16 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   (WF-CYC-0120) — et la conformité de leurs réponses au contrat, refus compris, que les « Interface
   contract issue » relevées par EP-02/L44a précisent ; le parcours les éprouvera contre le service
   réel.
+- #513, #584 — les commandes des sous-projets et des contributeurs dans la maquette, sur décision de
+  l'auteur du 2026-10-08 (EP-02/L44b), une entorse assumée au cadrage qui laissait ces formulaires à
+  cet EPIC : la création, la modification et la suppression confirmée d'un sous-projet comme le projet
+  liste `update` (`createSubproject`, `updateSubproject`, `deleteSubproject`), la suppression
+  présentée indisponible pour un sous-projet qui porte des coûts réels ; la liste des contributeurs
+  écrite entière comme il liste `manage_contributors` (`setContributors`), depuis une lecture
+  entière, les propositions de `listContributorSuggestions` inscrites sur confirmation. Restent à cet
+  EPIC : le back de ces écritures — l'unicité du code d'un sous-projet dans le projet et le refus de
+  supprimer un sous-projet qui porte des coûts réels ou qu'une révision marquée cite (WF-PRJ-0050,
+  WF-DAT-0080), le refus d'une liste sans chef de projet et le compteur de la liste (WF-PRJ-0060,
+  WF-IHM-0110), les propositions tirées des nœuds des rôles du devis (WF-PRJ-0070) — et la conformité
+  de leurs réponses au contrat, refus compris, que les « Interface contract issue » relevées par
+  EP-02/L44b précisent ; le parcours les éprouvera contre le service réel.

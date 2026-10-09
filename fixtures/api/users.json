@@ -1,5 +1,5 @@
 {
-  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, de l'atelier de câblage, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -49,8 +49,8 @@
         "email": "sacha.lefevre@example.com",
         "is_active": true,
         "origin": "identity_provider",
-        "org_node_id": null,
-        "org_node_label": null,
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+        "org_node_label": "Atelier de câblage",
         "access_role_ids": [],
         "access_role_labels": [],
         "has_avatar": false,

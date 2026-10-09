@@ -1,0 +1,13 @@
+{
+  "summary": "Sacha Lefèvre, rattaché à l'atelier de câblage, dont le rôle de monteur câbleur est employé par les lignes de devis du projet, et que la liste ne compte pas : proposé, jamais inscrit sans confirmation (WF-PRJ-0070).",
+  "value": [
+    {
+      "user_id": "01926f3a-7c00-7000-8000-000000000304",
+      "display_name": "Sacha Lefèvre",
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+      "resource_role_ids": [
+        "01926f3a-7c00-7000-8000-000000000454"
+      ]
+    }
+  ]
+}

@@ -10,7 +10,8 @@ import { withinBox } from "./scroll";
 // which it lists whatever the filter asks — the filter is the server's to apply —, the project
 // in progress, its sub-projects, its contributors and the history of its states; its exit
 // answers the project completed, its creation the project created, its modification the witness
-// with its description — and it keeps nothing: any project it is asked is the witness.
+// with its description, a write of a sub-project or of the contributors the example of its success
+// — and it keeps nothing: any project it is asked is the witness.
 const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
 const CREATED = "/projects/01926f3a-7c00-7000-8000-000000000003";
 
@@ -99,7 +100,7 @@ test("the home filters its projects by the period of their last modification on 
   await expect(apply).toBeFocused();
 });
 
-test("a project, its settings and its lifecycle show what the fake back serves, and offer the modification of the project and the exits", async ({
+test("a project, its settings and its lifecycle show what the fake back serves, and offer the commands the project lists: its modification, those of its lists, and the exits", async ({
   page,
 }) => {
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
@@ -123,10 +124,11 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
     contributors.getByRole("row", { name: /Alix Moreau\s+Contributeur\s+Désactivé/ }),
   ).toBeVisible();
   await expect(main.getByRole("treegrid", { name: "Lotissement" })).toBeVisible();
-  // The modification of the project alone: nothing else to create nor modify.
-  await expect(main.getByRole("button", { name: /Créer|Ajouter|Modifier|Supprimer/ })).toHaveText([
-    "Modifier le projet",
-  ]);
+  // The commands the project lists: its modification, those of its sub-projects and of its
+  // contributors.
+  await expect(main.getByRole("button", { name: "Modifier le projet" })).toBeVisible();
+  await expect(main.getByRole("button", { name: "Nouveau sous-projet" })).toBeVisible();
+  await expect(main.getByRole("button", { name: "Modifier les contributeurs" })).toBeVisible();
 
   await nav.getByRole("link", { name: "Cycle de vie du projet" }).click();
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
@@ -302,4 +304,57 @@ test("the settings of a project sort the sub-projects and the contributors, sear
   await expect(page).toHaveURL(/&contributor_is_active=true&contributor_search=Mar$/, {
     timeout: WORKING,
   });
+});
+
+test("the settings of a project create, modify and delete a sub-project, and write the contributors, a proposal confirmed [WF-PRJ-0050-A] [WF-PRJ-0070-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${PROJECT}/settings`);
+  const main = page.getByRole("main");
+  await expect(main.getByRole("note")).toContainText("Maquette");
+  const section = main.getByRole("region", { name: "Sous-projets" });
+  const subprojects = section.getByRole("grid", { name: "Sous-projets" });
+
+  await subprojects.getByRole("button", { name: /^Modifier.+SP-ESS/ }).click();
+  let form = page.getByRole("dialog", { name: /^Modifier.+SP-ESS/ });
+  await form.getByRole("textbox", { name: "Libellé" }).fill("Essais, mise en service et réception");
+  await form.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toContainText(
+    "Essais, mise en service et réception",
+  );
+
+  // La suppression d'un sous-projet portant des coûts réels est refusée : nothing is asked.
+  // Playwright clicks no element marked `aria-disabled`: the press is dispatched.
+  await subprojects.getByRole("button", { name: /^Supprimer.+SP-CMD/ }).dispatchEvent("click");
+  await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
+    "est indisponible",
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await subprojects.getByRole("button", { name: /^Supprimer.+SP-ESS/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
+  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(0);
+
+  await section.getByRole("button", { name: "Nouveau sous-projet" }).click();
+  form = page.getByRole("dialog", { name: "Nouveau sous-projet" });
+  await form.getByRole("textbox", { name: "Code ERP" }).fill("SP-REC");
+  await form.getByRole("textbox", { name: "Libellé" }).fill("Réception sur site");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
+    "SP-REC",
+  );
+
+  // A proposal is applied only once confirmed, and the list saved.
+  const contributors = main.getByRole("region", { name: "Contributeurs" });
+  await contributors.getByRole("button", { name: "Modifier les contributeurs" }).click();
+  const list = page.getByRole("dialog", { name: "Modifier les contributeurs" });
+  await list.getByRole("button", { name: "Inscrire Sacha Lefèvre" }).click();
+  await list
+    .getByRole("combobox", { name: "Qualité de Inès Roux" })
+    .selectOption("project_manager");
+  await list.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(list).toHaveCount(0);
+  const grid = contributors.getByRole("grid", { name: "Contributeurs" });
+  await expect(grid.getByRole("row", { name: /Sacha Lefèvre/ })).toBeVisible();
+  await expect(grid.getByRole("row", { name: /Inès Roux/ })).toContainText("Chef de projet");
 });

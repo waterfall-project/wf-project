@@ -126,6 +126,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/contributors": "contributors",
+    "GET /projects/{project_id}/contributors/suggestions": "contributor_suggestions",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/state-transitions": "state_transitions",
     "GET /projects/{project_id}/next-state": "next_state",
@@ -310,9 +311,9 @@ describe("the settings of a project", () => {
     );
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
     expect(rows(page, "Subprojects")).toEqual([
-      "ERP code Label Actual costs",
-      "SP-CMD Poste de commande Charged",
-      "SP-ESS Essais et mise en service None",
+      "ERP code Label Actual costs Modify Delete",
+      "SP-CMD Poste de commande Charged Modify Delete Actual costs are charged to it.",
+      "SP-ESS Essais et mise en service None Modify Delete",
       "2 subprojects",
     ]);
     expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);
@@ -345,7 +346,7 @@ describe("the settings of a project", () => {
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
     expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
     expect(text(page)).toContain(
-      "Contributors Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
+      "Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
     );
   });
 
@@ -425,13 +426,67 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("offers to modify the project as it lists the command, saying the fake back keeps nothing, and nothing else to create or modify (EP-02/L44a)", async () => {
+  it("offers the commands of the sub-projects and the contributors as the project lists them, and says the fake back keeps nothing [WF-PRJ-0050-A]", async () => {
     const page = html(await SettingsPage(at()));
-    expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([
-      "Edit the project",
-    ]);
+    expect(text(page)).toContain("Mock-up:");
+    expect(buttons(page)).toEqual(
+      expect.arrayContaining([
+        "Edit the project",
+        "New subproject",
+        "Modify",
+        "Delete",
+        "Modify the contributors",
+      ]),
+    );
+    // A sub-project charged with actual costs no longer deletes: its deletion says why.
+    expect(page).toMatch(/aria-label="Delete “SP-CMD”" aria-disabled="true"/);
+    expect(page).not.toMatch(/aria-label="Delete “SP-ESS”" aria-disabled/);
+    expect(text(page)).toContain(
+      "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
+    );
+    // The list shown is whole, with its counter: it is not read twice.
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([{}]);
+  });
+
+  it("reads the contributors whole besides a reading filtered, which has no counter to write from", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/contributors": ["contributors_search", "contributors"],
+    };
+    const page = html(await SettingsPage(at({ contributor_search: "Petit" })));
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([{ search: "Petit" }, {}]);
+    expect(rows(page, "Contributors")).toHaveLength(3);
+    expect(buttons(page)).toContain("Modify the contributors");
+  });
+
+  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const page = html(await SettingsPage(at()));
+    expect(text(page)).not.toContain("Mock-up:");
+    const unavailable = [
+      ...page.matchAll(/<button[^>]*aria-disabled="true"[^>]*>(.*?)<\/button>/g),
+    ];
+    expect(unavailable.map((match) => text(match[1] ?? ""))).toEqual(
+      expect.arrayContaining(["Edit the project", "New subproject", "Modify the contributors"]),
+    );
+    expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
+  });
+
+  it("offers no command to a session the project lists none to, and reads nothing it would propose", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    const read = html(await SettingsPage(at()));
+    expect(buttons(read).filter((name) => /New|Modify|Delete|Edit/.test(name))).toEqual([]);
+    expect(text(read)).not.toContain("Mock-up:");
+    expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
+  });
+
+  it("offers to modify the project as it lists the command, besides the commands of its lists, saying once that the fake back keeps nothing (EP-02/L44a)", async () => {
+    const page = html(await SettingsPage(at()));
+    expect(buttons(page)).toContain("Edit the project");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
     expect(page).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
-    // The forms are the searches of the work breakdown, the sub-projects and the contributors.
+    // The forms are the searches of the work breakdown, the sub-projects and the contributors: the
+    // commands open theirs in a dialog.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
