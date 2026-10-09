@@ -27,13 +27,15 @@ MIN_DECODED_LENGTH = 4
 def _url_secrets(value: str) -> list[str]:
     """Give what a URL carries as a secret: its password as written and as a driver decodes it.
 
-    The password is read from the text first — between the first ``:`` of the credentials and
-    the last ``@`` — because ``urlsplit`` cuts the address at an unencoded ``#``, ``/`` or ``?``
-    and then finds no password, or refuses the URL. A decoded form shorter than
-    ``MIN_DECODED_LENGTH`` characters is not kept: it would hide every text that contains it.
+    The password is read from the text first, for every ``@`` after the scheme: what follows the
+    first ``:`` of what precedes it. ``urlsplit`` cuts the address at an unencoded ``#``, ``/``
+    or ``?`` and then finds no password, or refuses the URL; and an ``@`` in the query leaves
+    no way to tell which one ends the credentials, so each is taken, at the price of masking
+    more. A decoded form shorter than ``MIN_DECODED_LENGTH`` characters is not kept: it would
+    hide every text that contains it.
     """
-    before, at, _ = value.partition("://")[2].rpartition("@")
-    passwords = [before.partition(":")[2] if at else ""]
+    rest = value.partition("://")[2]
+    passwords = [rest[:index].partition(":")[2] for index, char in enumerate(rest) if char == "@"]
     with suppress(ValueError):
         passwords.append(urlsplit(value).password or "")
     found: list[str] = []
