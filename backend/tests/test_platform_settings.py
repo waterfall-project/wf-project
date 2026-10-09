@@ -143,10 +143,27 @@ def test_the_password_is_read_before_the_url_is_split(url: str, password: str) -
         ("redis://localhost:6379/0?x=a@b", None, "6379"),
     ],
 )
-def test_an_at_sign_in_the_query_neither_hides_the_password_nor_invents_one(
+def test_an_at_sign_in_the_query_keeps_the_password_and_not_the_port(
     url: str, kept: str | None, dropped: str | None
 ) -> None:
     values = settings_for(url).secret_values()
     assert url in values
     assert kept is None or kept in values
     assert dropped is None or dropped not in values
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+@pytest.mark.parametrize(
+    ("url", "kept", "dropped"),
+    [
+        ("postgresql://u:p@ss@db/x", "p@ss", "p"),
+        ("redis://h/0?a=b:c@d", None, "c"),
+    ],
+)
+def test_a_fragment_shorter_than_the_limit_is_not_a_secret(
+    url: str, kept: str | None, dropped: str
+) -> None:
+    values = settings_for(url).secret_values()
+    assert url in values
+    assert kept is None or kept in values
+    assert dropped not in values

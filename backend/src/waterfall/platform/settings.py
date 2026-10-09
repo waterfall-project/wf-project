@@ -31,11 +31,16 @@ def _url_secrets(value: str) -> list[str]:
     first ``:`` of what precedes it. ``urlsplit`` cuts the address at an unencoded ``#``, ``/``
     or ``?`` and then finds no password, or refuses the URL; and an ``@`` in the query leaves
     no way to tell which one ends the credentials, so each is taken, at the price of masking
-    more. A decoded form shorter than ``MIN_DECODED_LENGTH`` characters is not kept: it would
-    hide every text that contains it.
+    more. A decoded form shorter than ``MIN_DECODED_LENGTH`` characters is not kept, and nor is a
+    fragment of the text: it would hide every text that contains it. Only the password that
+    ``urlsplit`` returns is kept whatever its length.
     """
     rest = value.partition("://")[2]
-    passwords = [rest[:index].partition(":")[2] for index, char in enumerate(rest) if char == "@"]
+    passwords = [
+        fragment
+        for index, char in enumerate(rest)
+        if char == "@" and len(fragment := rest[:index].partition(":")[2]) >= MIN_DECODED_LENGTH
+    ]
     with suppress(ValueError):
         passwords.append(urlsplit(value).password or "")
     found: list[str] = []
