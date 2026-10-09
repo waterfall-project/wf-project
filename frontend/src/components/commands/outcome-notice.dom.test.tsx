@@ -67,7 +67,7 @@ describe("the notice of an outcome", () => {
     const { rerender } = render(notice(lost));
     expect(screen.getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
     rerender(notice(deactivated));
-    expect(screen.getByRole("alert")).not.toBeEmptyDOMElement();
+    expect(screen.getByRole("alert")).toHaveTextContent("Ce compte est désactivé");
     expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
   });
 });

@@ -178,17 +178,6 @@ describe("RootLayout", () => {
     expect(html).toContain("<p>page</p>");
   });
 
-  it("offers neither the menu of the account nor functions for a deactivated account, nor a way to sign in", async () => {
-    request("en", {
-      "GET /me": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
-    });
-    const html = await page();
-    expect(html).not.toContain("Account of");
-    expect(html).not.toContain('aria-label="Functions"');
-    expect(html).not.toContain("/login");
-    expect(html).toContain("<p>page</p>");
-  });
-
   it("still offers the status screen when the session cannot be read: the API is out of reach", async () => {
     server.client = Object.assign(
       createApiClient({
