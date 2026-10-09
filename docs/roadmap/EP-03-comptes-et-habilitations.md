@@ -487,7 +487,8 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
 - **le Compose de production** (`deploy/compose/compose.prod.yaml`) : Caddy en frontal, seul
   port ouvert, qui obtient ses certificats Let's Encrypt pour `WATERFALL_DOMAIN` et sert le
   front à la racine et Keycloak sous `/auth` ; le front, l'API, le worker, le planificateur ;
-  PostgreSQL (deux bases, Waterfall et Keycloak), Redis, MinIO pour le stockage objet,
+  PostgreSQL (deux bases, Waterfall et Keycloak), Redis, Garage pour le stockage objet et
+  son service d'initialisation — topologie, clé d'accès, compartiments `imports` et `backups` —,
   Keycloak et keycloak-config-cli ; des volumes nommés pour les données ;
 - **les secrets** : un fichier `.env` que l'exploitant remplit d'après un modèle versionné,
   lu au démarrage ; un service qui en manque s'arrête en nommant la variable ;
@@ -499,6 +500,18 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
   publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
   administrateur et une sauvegarde.
+
+### Stockage objet
+
+Garage (Deuxfleurs, AGPL-3.0), décision de l'auteur du 2026-10-09 : MinIO Community Edition,
+en maintenance depuis décembre 2025, est archivé depuis avril 2026, sans binaires ni
+correctifs. Garage tient dans la machine de WF-CMP-0020 et couvre ce dont Waterfall a besoin.
+Le code ne parle au stockage que par les opérations S3 standard — écrire, lire, supprimer,
+lister, dépôt en plusieurs parties — par boto3, sans extension propre à un produit, et les
+compartiments sont des réglages : un exploitant branche le stockage qu'il opère déjà
+(WF-ARC-0050, WF-CMP-0020). Garage sert aussi la plateforme de développement et les parcours
+contre le service. La purge des fichiers d'import (WF-DAT-0120) est faite par le worker, non
+par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 
 ### Sauvegarde et restauration
 
@@ -631,6 +644,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | La lecture des comptes passe par Keycloak, qui fédère l'annuaire (WF-ADM-0070) | lire l'annuaire en LDAP depuis Waterfall : un second chemin vers l'annuaire, que la spécification révisée a retiré |
 | Une plateforme de démonstration dès EP-03 : images publiées par la chaîne, Compose de production, frontal Caddy (auteur, 2026-10-09) | attendre EP-13 : aucune démonstration sur une installation réelle avant la fin ; construire les images sur le serveur : ce ne seraient pas les mêmes images partout (WF-ARC-0050) |
 | Sauvegarde et restauration dès EP-03, la plateforme entière (auteur, 2026-10-09) | un échange du seul référentiel : contraire à WF-ADM-0160 (aucune restauration partielle) et à WF-INTF-0150 (aucun import du référentiel) |
+| Garage pour le stockage objet, le code limité aux opérations S3 standard (auteur, 2026-10-09) | MinIO : archivé, sans binaires ni correctifs ; SeaweedFS : plusieurs composants, lourd pour une démonstration ; RustFS : trop jeune |
 | Le journal d'audit hors des vidages, laissé en place par la restauration | le restaurer avec le reste : WF-ADM-0160 révisée le garde, et la restauration doit s'y inscrire |
 | Le dépôt d'une sauvegarde par morceaux (#350) | une action serveur : sa taille de corps est bornée ; une adresse signée du stockage objet : le navigateur parlerait au stockage, hors des flux du §4.3.2 ; un gestionnaire de route qui relaie l'API : écarté par EP-02 (WF-ARC-0020) |
 
