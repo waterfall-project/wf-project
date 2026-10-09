@@ -1311,8 +1311,8 @@ sans que le front ait à sommer quoi que ce soit.
   vue qui en aurait besoin est un constat sur le contrat ;
 - propre à l'US : chaque indicateur affiché porte sa date de calcul (US-0100) ;
 - propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160 ;
-- `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet,
-  la révision et la date de calcul. »
+- écart : `WF-IHM-0130-A` — « Le plan de charge d’un projet exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et la date de calcul. » : constaté pour le plan de charge d'un projet ;
+  le périmètre porté par l'export du plan de charge agrégé relève d'EP-11, qui clôt l'exigence.
 
 **Notes de réalisation.** Courbes en Apache ECharts (annexe C). Le plan de charge du projet
 (FBS-4.4.4) a son propre écran, feuille du devis, auquel l'écran du devis mène ; son export PNG

@@ -128,6 +128,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-SEC-0010-A` | Transport et secrets | début — close en EP-13 | US-0330 |
 | `WF-SEC-0020-A` | Session et révocation | entière | US-0350 |
 | `WF-SEC-0030-A` | Journal d'audit des actions irréversibles ou structurantes | début — close en EP-13 | US-0410 |
+| `WF-ADM-0190-A` | Consultation du journal d’audit | début — close en EP-13 | US-0410 |
 | `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | US-0330 |
 | `WF-ARC-0050-A` | Empaquetage et déploiement | début — close en EP-13 | US-0430 |
 | `WF-ADM-0150-A` | Sauvegarde | entière | US-0440 |
@@ -684,12 +685,14 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
   comptes du fournisseur (US-0370).
 - écart : `WF-DAT-0080-A` — « La suppression d’un sous-projet non référencé le retire de la base. » : le sous-projet arrive en EP-04.
 - écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : EP-04.
-- `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource ou un compte. » : pour le compte ; le rôle de ressource arrive en
-  EP-05, qui le constate pour lui.
+- `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
+  d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
 - écart : `WF-DAT-0090-A` — « L’insertion d’une ligne de devis référençant une catégorie inexistante est rejetée par la base. » : le devis arrive en EP-07, qui clôt
   l'exigence.
 - écart : `WF-DAT-0090-A` — « L’insertion de deux sous-projets de même code dans un projet est rejetée par la base, avant toute règle des services. » : EP-04.
 - écart : `WF-DAT-0090-A` — « La suppression d’une tâche de la révision en cours entraîne ses lignes et ses liaisons, et rien d’autre. » : EP-06.
+- écart : `WF-DAT-0090-A` — « La suppression d’un lot cité par une révision marquée le marque supprimé, retire le rattachement de la tâche de la révision en cours et laisse celui de la révision marquée. » : le lotissement arrive en EP-04 et le
+  rattachement en EP-06 ; EP-07, qui clôt l'exigence, le constate.
 - propre à l'US : sur les tables de cet EPIC, toute relation est une clé étrangère déclarée
   en refus par défaut, l'état d'un compte est une contrainte de vérification, et l'unicité de
   l'adresse électronique est déclarée en base : deux comptes de même adresse sont rejetés par
@@ -704,7 +707,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - `WF-DAT-0140-A` — « Une migration déjà appliquée ne se rejoue pas. »
 - écart : `WF-DAT-0140-A` — « Après une suite de migrations, les montants et les indicateurs conservés d’une révision marquée antérieure sont inchangés. » : la révision marquée arrive en EP-04 ; EP-13 le
   constate.
-- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme. » et « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : le chiffrement des
+- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de métriques, qui n'est pas joignable hors du cluster. » et « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : le chiffrement des
   échanges et la publication des images relèvent d'EP-13.
 - `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. »
 - écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-06 ; ici,
@@ -836,6 +839,9 @@ cessent d'être attribuables.
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
   d'audit des comptes et des rôles qu'il a écrits.
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
+- `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
+  des colonnes d'audit et le refus de réactivation ; la révision marquée arrive en EP-04, qui
+  clôt l'exigence.
 - propre à l'US : la table des comptes liste les comptes de l'installation, actifs et
   désactivés, chacun avec son nom, son prénom, son adresse, son origine, son rattachement,
   ses rôles d'habilitation nommés par le serveur et son état (WF-ADM-0050).
@@ -871,7 +877,7 @@ cessent d'être attribuables.
   constatée par US-0400).
 - écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. » : la liste des projets arrive en EP-04 ; EP-11, qui clôt
   l'exigence, le constate.
-- écart : `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul. » : le plan de charge arrive en EP-07 ; l'export, en EP-11.
+- écart : `WF-IHM-0130-A` — « Le plan de charge d’un projet exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et la date de calcul. » : le plan de charge arrive en EP-07 ; l'export, en EP-11.
 
 **Notes de réalisation.** Un compte local est créé dans Waterfall et dans le fournisseur
 d'identité, par son API d'administration (WF-ADM-0070, dernière phrase du corps), dont le
@@ -904,6 +910,8 @@ qu'elle se soit connectée.
   révisions marquées, contributeurs inscrits — arrivent en EP-04, qui clôt l'exigence.
 - `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. »
 - `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité. »
+- `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
+  tâche planifiée de lecture, quotidienne par défaut.
 - écart : `WF-ARC-0090-A` — « Le marquage d’une révision de dix mille objets n’immobilise aucune requête au-delà de la création de la tâche, et l’utilisateur en voit l’aboutissement. » : le marquage arrive en EP-04 ; ici, la lecture
   des comptes ne tient aucune requête au-delà de la création de la tâche, et l'utilisateur en
   voit l'aboutissement.
@@ -942,16 +950,17 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0090-A` — « Un utilisateur portant deux rôles dispose des permissions des deux. »
 - `WF-ADM-0090-A` — « Le retrait d’une permission à un rôle en prive tous ses porteurs sans qu’ils aient à se reconnecter. »
 - `WF-ADM-0090-A` — « La suppression d’un rôle est refusée tant qu’un compte le porte. »
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour une fonction en lecture seule. »
+- `WF-ADM-0090-A` — « Un rôle supprimé n’apparaît plus dans la liste des rôles ni dans les choix d’attribution ; l’inscription du journal d’audit qui l’attribuait à un compte le nomme toujours. » : l'inscription est celle d'US-0410.
+- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à FBS-2.7. »
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. » : le marquage arrive en EP-04, le devis en EP-07,
   la fusion en EP-08, qui clôt l'exigence.
 - écart : `WF-ADM-0100-A` — « Un utilisateur sans la permission de créer un projet n’en crée pas. » : la création d'un projet arrive en EP-04.
 - `WF-ADM-0100-A` — « Aucun écran ne permet de créer une permission. »
 - `WF-ADM-0120-A` — « La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. »
 - `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. »
-- écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3) et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
-  rôle sont ici, et le déclenchement d'une sauvegarde (US-0440) ; l'écran d'état arrive en
-  EP-13, qui clôt l'exigence.
+- écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3), ouvre le journal d’audit et y applique un filtre (FBS-1.5), et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
+  rôle sont ici, le journal d'audit (US-0410) et le déclenchement d'une sauvegarde (US-0440) ;
+  l'écran d'état arrive en EP-13, qui clôt l'exigence.
 - propre à l'US — **pagination** : la table des rôles n'est pas paginée — `listAccessRoles`
   rend la liste entière, une installation comptant quelques dizaines de rôles — et elle
   annonce le nombre de rôles retenus.
@@ -1049,7 +1058,7 @@ US-0410). `getInstallation` rend la langue par défaut posée à l'amorçage (US
 ## US-0410 — Journal d'audit, et aucun texte rendu par l'API
 
 - **statut** : à faire
-- **exigences** : `WF-SEC-0030-A`, `WF-ARC-0110-A`
+- **exigences** : `WF-SEC-0030-A`, `WF-ADM-0190-A`, `WF-ARC-0110-A`
 - **opérations** : `listAuditEvents`, `listAuditFacets` — les écritures des comptes et des
   rôles l'alimentent
 - **issue** : #430
@@ -1065,10 +1074,22 @@ relit.
 - `WF-SEC-0030-A` — « Chacune des actions énumérées produit une inscription datée et attribuée. » : pour les actions de cet EPIC — la création et la
   modification des comptes, des rôles et de leurs attributions, et la demande d'un lien de
   fixation ; les autres actions énumérées arrivent avec leur EPIC.
+- `WF-SEC-0030-A` — « L'abandon d'une révision en cours et la suppression d'un rôle produisent chacun une inscription qui nomme l'action et l'objet. » : pour la suppression d'un rôle ; l'abandon
+  d'une révision arrive en EP-04.
 - `WF-SEC-0030-A` — « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription. »
+- `WF-SEC-0030-A` — « Une mise à jour ou une suppression exécutée directement en base sur une inscription du journal est rejetée par la base. »
 - écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal est ici ; les projets
   et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
   l'exigence.
+- écart : `WF-ADM-0190-A` — « Après le marquage d’une révision par un utilisateur, le journal filtré sur cet utilisateur et sur l’action de marquage présente une inscription datée du jour, qui nomme le projet et la révision. » : le marquage arrive en EP-04 ; constaté ici, filtré sur
+  l'auteur et sur l'action, pour l'attribution d'un rôle.
+- `WF-ADM-0190-A` — « Filtré sur un mois sans aucune action, il ne présente rien. »
+- écart : `WF-ADM-0190-A` — « Une inscription sur un projet que le lecteur ne peut pas consulter nomme ce projet sans l’ouvrir. » : les projets arrivent en EP-04 ; EP-13, qui clôt
+  l'exigence, le constate.
+- `WF-ADM-0190-A` — « Aucune commande de la vue ne modifie ni ne supprime une inscription. »
+- `WF-ADM-0190-A` — « Un utilisateur sans la permission de consulter FBS-1.5 n’atteint pas la vue. »
+- écart : `WF-ADM-0190-A` — « Après une restauration, une inscription qui cite un projet créé après la sauvegarde s’affiche avec le libellé et le code de ce projet, sans mener à lui. » : la restauration est à US-0440 ; les projets
+  arrivent en EP-04, et EP-13 le constate.
 - `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
 - écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-06, qui clôt l'exigence.
 - `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : constaté sur la consultation du journal ; l'inscription est
@@ -1097,7 +1118,10 @@ traîne dans une procédure, et que la relancer soit sans danger.
 - `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le lien produit, se connecte, et dispose des trois rôles prédéfinis et du catalogue des permissions. »
 - écart : `WF-EXP-0020-A` — « La création d’un projet est refusée et nomme les prérequis manquants, jusqu’à ce qu’une catégorie de coût de main-d’œuvre et un rôle de ressource aient été saisis. » : le référentiel arrive en EP-05 et la création
   d'un projet en EP-04, qui clôt l'exigence.
-- `WF-EXP-0020-A` — « Une seconde exécution de l’installation ne crée ni compte, ni calendrier, ni nature supplémentaire. » : pour le compte ; le calendrier et la nature
+- `WF-EXP-0020-A` — « Une seconde exécution de l’installation ne crée ni compte, ni calendrier, ni nature supplémentaire ; elle produit un nouveau lien, qui remplace le précédent, tant que l’administrateur n’a pas fixé son mot de passe, et aucun lien ensuite. » : pour le compte et le lien ; le
+  calendrier et la nature arrivent en EP-05, qui les ajoute à l'amorçage.
+- `WF-EXP-0020-A` — « Le lien produit à l’installation est accepté plus d’une heure après sa production. »
+- écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8 et le délai six semaines. » : les bornes, les seuils et le délai
   arrivent en EP-05, qui les ajoute à l'amorçage.
 - propre à l'US : l'amorçage applique les migrations, crée le catalogue des permissions, les
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et
@@ -1166,10 +1190,11 @@ réglages — sur une autre machine.
   l'exigence.
 - `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. »
 - `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. »
+- `WF-ADM-0160-A` — « Une inscription faite après la sauvegarde est encore présente après la restauration, et la dernière inscription est la restauration elle-même. »
 - écart : `WF-DAT-0120-A` — « Après application ou abandon d’un import, le fichier correspondant n’est plus sur le stockage objet. » : les imports arrivent en EP-06, qui clôt
   l'exigence.
 - écart : `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai d’expiration. » : EP-06.
-- écart : `WF-DAT-0120-A` — « Le même export demandé deux fois est engendré deux fois et n’occupe aucun espace entre les deux. » : EP-06.
+- écart : `WF-DAT-0120-A` — « Un export téléchargé jusqu’au bout n’est plus sur le stockage objet ; un téléchargement interrompu le laisse disponible ; un export jamais téléchargé en disparaît au terme de vingt-quatre heures. » : les exports arrivent en EP-06.
 - propre à l'US : une sauvegarde couvre les deux bases, Waterfall et le fournisseur
   d'identité, chacune dans un état cohérent, sauf le journal d'audit, qui reste hors de ce
   qu'une restauration remplace et y inscrit la restauration une fois faite (WF-ADM-0160) ; elle

@@ -72,6 +72,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0050-A` | Jalons | entière | — |
 | `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | — |
 | `WF-PLA-0130-A` | Attributs d’une tâche | début — close en EP-10 | — |
+| `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | — |
 | `WF-PLA-0150-A` | Horizon d’un projet | entière | — |
 | `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10 | — |
 | `WF-PLA-0140-A` | Chronologies nommées | entière | — |
