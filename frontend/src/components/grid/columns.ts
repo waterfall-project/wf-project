@@ -214,6 +214,13 @@ export type EntryKind =
 export interface RowPart<Row> {
   readonly key: string;
   readonly change: (row: Row) => Row;
+  /**
+   * Whether the change judges by the counter of what it changes: it leaves alone — the very row
+   * given back — a row whose part is as new as its own or newer, so that it may be laid over any
+   * reading, a reading anew included — the rate of a cell, `lock_version` of the rate. Without
+   * one, a reading anew that reads the row otherwise lets the part go.
+   */
+  readonly versioned?: boolean;
 }
 
 /**
@@ -342,6 +349,13 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * totals are those the writes answer.
    */
   readonly retotal?: (() => Promise<Outcome<Totals>>) | undefined;
+  /**
+   * Whether a row the server answered is newer than the same row read — by the counter of the
+   * object written, `lock_version` of a node —: `true` keeps the answer over the reading, `false`
+   * lets the reading prevail, `undefined` says nothing, and the answer stays only while the reading
+   * reads the row as the one before did (`reread` of `answers.ts`). None, and it never says.
+   */
+  readonly fresher?: ((answered: Row, read: Row) => boolean | undefined) | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

@@ -1,0 +1,40 @@
+{
+  "summary": "Le dessinateur électricien créé aujourd'hui par Camille Martin sous le bureau d'études électricité, actif, rattaché à la catégorie de main-d'œuvre Ingénierie électrique et à la semaine standard, actives : trois personnes, 520 heures par mois — trois fois quarante heures par semaine, 52 semaines sur 12 mois ; une capacité unique, sans date (WF-REF-0090, WF-REF-0100).",
+  "value": {
+    "resource_role_id": "01926f3a-7c00-7000-8000-000000000456",
+    "label": "Dessinateur électricien",
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+    "org_node_label": "Bureau d'études électricité",
+    "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+    "cost_category_label": "Ingénierie électrique",
+    "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+    "calendar_label": "Semaine standard",
+    "capacity": {
+      "monthly_hours": "520.00",
+      "headcount": "3"
+    },
+    "is_active": true,
+    "available_commands": [
+      {
+        "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2026-06-03T14:05:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 1
+  }
+}

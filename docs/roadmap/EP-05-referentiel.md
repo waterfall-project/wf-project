@@ -125,6 +125,14 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
   absente, inconnue ou désactivée, version périmée —, que les « Interface contract issue » relevées
   par L43a précisent d'abord ; les parcours contre le service, une création qui apparaît dans la
   liste relue ; et le retrait de l'avis de la maquette, l'écran branché sur le service.
+  EP-02/L43b fait de même les paramètres de ressources : créer et modifier un nœud — le déplacer
+  sous un parent actif —, un rôle — sans changer de nœud — et un calendrier, désactiver et réactiver
+  chacun comme il le liste, désigner le calendrier par défaut. Restent à EP-05 : le back de ces
+  écritures, la cascade d'une désactivation (WF-REF-0080) comprise ; la conformité de leurs réponses
+  au contrat, refus compris — code déjà pris, parent ou nœud désactivé, nœud déplacé sous lui-même ou
+  ses descendants, catégorie hors main-d'œuvre ou rattachement désactivé d'un rôle (WF-REF-0090),
+  heures hors bornes, version périmée —, que les « Interface contract issue » relevées par L43b
+  précisent d'abord ; les parcours contre le service ; et le retrait de l'avis de la maquette.
 
 ## Préalables
 

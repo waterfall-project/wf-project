@@ -21,18 +21,19 @@
  * `<column>_max` after the prefix of the grid, as the contract names them for every list (#545,
  * `RangeFilter`).
  *
+ * For a session that may modify the settings of the resources, each row offers its modification in a
+ * column of its own, and a calendar active and not by default its designation (EP-02/L43b); the state
+ * of each object carries the command that changes it as the server lists it (`commandColumns`).
+ *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
  */
-import { CalendarCheck } from "lucide-react";
-import { useTranslations } from "next-intl";
-
 import type { components, operations } from "@/api/generated/schema";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
-import { ICON } from "@/components/projects/project-tables";
 
-import { type Conflict, type ReferenceCommands, StateCell } from "./reactivation";
+import { commandColumns } from "./command-columns";
+import { DefaultCalendarCell } from "./calendar-default";
 
 /** A node of the organisation, as the contract gives it. */
 export type OrgNode = components["schemas"]["OrgNode"];
@@ -106,40 +107,11 @@ export const DAYS = [
 /** A day of a calendar, as the contract names it. */
 export type Day = (typeof DAYS)[number];
 
-/** The width of the column of the state, its command of reactivation beside the mark. */
-const STATE_WIDTH = 190;
-
-/** What the column of the state reads of an object: its state, what its command needs and names. */
-export interface StateRead {
-  readonly active: boolean;
-  readonly target: Parameters<typeof StateCell>[0]["target"];
-  readonly name: string;
-  readonly commands: ReferenceCommands;
-  /** The object a refusal of its reactivation may name; none when the row knows none. */
-  readonly conflict?: Conflict | undefined;
-}
-
-/** The column of the state of an object, and its command of reactivation as the server lists it. */
-export function stateColumn<Row, Sort extends string>(
-  read: (row: Row) => StateRead,
-  contract: Sort | undefined,
-): GridColumn<Row, Sort, null> {
-  return {
-    key: "state",
-    label: "state",
-    format: "text",
-    width: STATE_WIDTH,
-    ...(contract === undefined ? {} : { contract }),
-    value: (row) => (read(row).active ? "active" : "inactive"),
-    render: (row) => <StateCell {...read(row)} />,
-  };
-}
-
 /**
  * The tree of the organisation: each node by its label, set in by its depth under its parent and
  * folding the nodes under it, its code, its depth and its state.
  */
-export function orgNodeGrid(): GridConfig<OrgNode, never, null> {
+export function orgNodeGrid(editable = false): GridConfig<OrgNode, never, null> {
   return {
     key: ORG_NODE_GRID_KEY,
     name: "orgNodes",
@@ -169,7 +141,8 @@ export function orgNodeGrid(): GridConfig<OrgNode, never, null> {
         width: 70,
         value: (node) => node.level.toString(),
       },
-      stateColumn<OrgNode, never>(
+      ...commandColumns<OrgNode, never>(
+        editable,
         (node) => ({
           active: node.is_active,
           target: { kind: "org_node", id: node.org_node_id, lockVersion: node.lock_version },
@@ -192,7 +165,9 @@ export function orgNodeGrid(): GridConfig<OrgNode, never, null> {
  * resolves them, active or not (WF-REF-0150) —, its capacity in hours a month and the headcount it
  * stands for (WF-REF-0090, WF-REF-0100), and its state; each column sorted by the server.
  */
-export function resourceRoleGrid(): GridConfig<ResourceRole, ResourceRoleSort, null> {
+export function resourceRoleGrid(
+  editable = false,
+): GridConfig<ResourceRole, ResourceRoleSort, null> {
   return {
     key: RESOURCE_ROLE_GRID_KEY,
     name: "resourceRoles",
@@ -249,7 +224,8 @@ export function resourceRoleGrid(): GridConfig<ResourceRole, ResourceRoleSort, n
         contract: "headcount",
         value: (role) => role.capacity.headcount,
       },
-      stateColumn<ResourceRole, ResourceRoleSort>(
+      ...commandColumns<ResourceRole, ResourceRoleSort>(
+        editable,
         (role) => ({
           active: role.is_active,
           target: {
@@ -268,22 +244,11 @@ export function resourceRoleGrid(): GridConfig<ResourceRole, ResourceRoleSort, n
   };
 }
 
-/** The mark of the default calendar: an icon and its words. */
-function DefaultCalendar({ calendar }: { readonly calendar: Calendar }) {
-  const t = useTranslations("reference.calendars");
-  return calendar.is_default ? (
-    <span className="inline-flex items-center gap-1.5">
-      <CalendarCheck aria-hidden="true" className={ICON} />
-      {t("isDefault")}
-    </span>
-  ) : null;
-}
-
 /**
  * The calendars: each by its seven values of hours from Monday, the default one marked
  * (WF-REF-0110, WF-REF-0120), and its state; each column sorted by the server.
  */
-export function calendarGrid(): GridConfig<Calendar, CalendarSort, null> {
+export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSort, null> {
   return {
     key: CALENDAR_GRID_KEY,
     name: "calendars",
@@ -315,9 +280,10 @@ export function calendarGrid(): GridConfig<Calendar, CalendarSort, null> {
         width: 180,
         contract: "is_default",
         value: (calendar) => (calendar.is_default ? "default" : null),
-        render: (calendar) => <DefaultCalendar calendar={calendar} />,
+        render: (calendar) => <DefaultCalendarCell calendar={calendar} editable={editable} />,
       },
-      stateColumn<Calendar, CalendarSort>(
+      ...commandColumns<Calendar, CalendarSort>(
+        editable,
         (calendar) => ({
           active: calendar.is_active,
           target: {

@@ -62,16 +62,11 @@ import {
   type RateSort,
   rateSort,
 } from "./rate-columns";
+import { rateWritten, type RateRow, withYears, type YearCell } from "./rate-cells";
 import { ActiveState } from "./section";
 
 /** The grid of the hourly rates, as the server answers it. */
 export type HourlyRateGrid = components["schemas"]["HourlyRateGrid"];
-
-/** A category of labour and its rate for each year of the grid. */
-type RateRow = components["schemas"]["HourlyRateRow"];
-
-/** The hourly rate of a category for a year. */
-type HourlyRate = components["schemas"]["HourlyRate"];
 
 /** The parameters of the address the grid of the rates reads, under the names of the contract. */
 const RATE_READS = listReads(
@@ -83,31 +78,6 @@ const RATE_READS = listReads(
 
 /** A column of the grid of the rates: no totals but the caption. */
 type RateColumn = GridColumn<RateRow, RateSort, null>;
-
-/**
- * The row with the rate the server answered in the cell written; none when the server answered
- * the rate of another category or another year — a failure of the service, told as such.
- */
-function written(
-  row: RateRow,
-  year: number,
-  index: number,
-  rate: HourlyRate,
-  order: number,
-): RowsWritten<RateRow, null> {
-  const same = rate.cost_category_id === row.cost_category_id && rate.year === year;
-  // The column of a year the grid added stands past the cells of the answer: the row grows to it.
-  const cells = Array.from({ length: Math.max(row.cells.length, index + 1) }, (_, at) =>
-    at === index ? rate : (row.cells[at] ?? null),
-  );
-  return {
-    rows: same ? [{ ...row, cells }] : [],
-    changed: [],
-    parts: [],
-    totals: undefined,
-    order,
-  };
-}
 
 /**
  * The column of a year: its heading the year itself, each cell the rate of its category as an
@@ -155,7 +125,7 @@ function yearColumn(
               return outcome;
             }
             track(year, "rated");
-            return { kind: "done", data: written(row, year, index, outcome.data, answered()) };
+            return { kind: "done", data: rateWritten(row, year, outcome.data, answered()) };
           },
         }
       : undefined,
@@ -178,12 +148,6 @@ function counter(): () => number {
     answered += 1;
     return answered;
   };
-}
-
-/** A year of the grid, and the place of its rate among the cells of a row. */
-interface YearCell {
-  readonly year: number;
-  readonly index: number;
 }
 
 /**
@@ -386,6 +350,8 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
     });
   }, []);
   const years = useMemo(() => gridYears(grid.years, added), [grid.years, added]);
+  // Each row with the year of each of its cells, which a rate answered finds its cell by.
+  const rows = useMemo(() => withYears(grid.rows, years), [grid.rows, years]);
   const config = useMemo(
     () => rateGrid(years, editable, answered, track),
     [years, editable, answered, track],
@@ -409,7 +375,7 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
       ) : null}
       <DenseGrid
         config={config}
-        rows={grid.rows}
+        rows={rows}
         totals={null}
         totalsCaption={() => t("caption", { count: grid.meta.total, currency })}
         query={query}

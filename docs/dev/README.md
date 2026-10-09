@@ -412,7 +412,9 @@ non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#
 aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
 plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
-chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
+chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
+et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page ni ses filtres, qui
+vivent dans l'adresse (règle validée par l'auteur le 2026-10-09). Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
@@ -613,12 +615,13 @@ seuls, ou les désactivés seuls, offert à la même session seulement (`stateOf
 s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
 (`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
 partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
-(`reactivate`, une action serveur, depuis la version lue), puis la page relit ses listes ;
+(`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
 indisponible — un nœud sous un parent désactivé, un rôle sous un nœud désactivé (WF-REF-0080) —,
 présentée `aria-disabled`, décrite par ses conditions, et un appui les dit dans la région de la
 liste sans rien demander, comme la suppression d'un rôle porté (#515) ; absente, rien. Un objet ne
-porte que la commande qui change son état : `deactivate`, sur un objet actif, n'est offerte que par
-les natures et les catégories de coût (EP-02/L43a, ci-dessous). Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
+porte que la commande qui change son état, `deactivate` sur un objet actif, `reactivate` sur un
+désactivé, l'une et l'autre par la même cellule (`StateCell` de `commands.tsx`, EP-02/L43,
+ci-dessous) ; la désactivation du calendrier par défaut est indisponible (WF-REF-0120). Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
 d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre de relire — se dit
 au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
 ce qu'on ferme son avis — un refus arrivé pendant qu'un autre est dit s'ajoute à lui, sans le
@@ -632,19 +635,22 @@ une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la 
 tiendra en EP-05.
 
 Les paramètres de coûts offrent les commandes d'écriture des natures et des catégories (EP-02/L43a,
-décision de l'auteur du 2026-10-08, #512 ; `cost-commands.tsx`, `cost-form.tsx`), pour projeter la
-mise en page et éprouver le contrat de chaque écriture. À une session qui porte `cost_settings.write`
+décision de l'auteur du 2026-10-08, #512 ; `commands.tsx`, `reference-form.tsx`, `cost-form.tsx`),
+pour projeter la mise en page et éprouver le contrat de chaque écriture ; ceux des ressources les
+leurs (EP-02/L43b, plus bas), par les mêmes pièces. À une session qui porte `cost_settings.write`
 (`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
 titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
 ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
-`CostStateCell`), indisponible avec ses conditions comme la réactivation ; aucune commande ne
+`StateCell`), indisponible avec ses conditions comme la réactivation ; aucune commande ne
 supprime (WF-REF-0010, WF-DAT-0080). Une autre session n'en voit aucune. La création et la
-modification ouvrent un dialogue (`CostForm`, `ui/dialog.tsx`) : le code, le libellé et le type
+modification ouvrent un dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
+de sa nature (`CostDialog`, `useListForm`) : le code, le libellé et le type
 d'une nature, choisi parmi les trois du contrat — sa modification dit que le type ne change plus dès
 qu'une catégorie rattachée est employée, règle du contrat (`CostTypeKind`) — ; le code, le libellé,
 la nature — parmi les actives, et celle de la catégorie modifiée, marquée désactivée — et le code
 comptable d'une catégorie, vide envoyé `null`. Le
-formulaire refuse à son champ ce qui manque, avant toute demande, et le champ prend le focus ; le
+formulaire refuse à son champ ce qui manque, ou un nombre qui n'en est pas un dans la langue du
+lecteur (`parseDecimal`), avant toute demande, et le champ prend le focus ; le
 serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
 désigne, par la phrase de son code et de ses paramètres — `problemMessage` d'un `FieldProblem`, le
 premier champ refusé prenant le focus —, tout autre refus sous le formulaire (`OutcomeNotice`), qui
@@ -658,10 +664,24 @@ paramètres des refus par champ d'une enveloppe : le minimum d'un taux refusé s
 la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). Toute écriture répondue
 relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
 les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
-nature désactivée serait une commande que le serveur refuserait (WF-REF-0010). Comme toute relecture
-— un tri, une recherche —, elle abandonne dans la grille des taux une saisie en cours : la réponse
-d'un taux parti avant elle et répondu après, succès ou refus, ne s'applique plus, la cellule montrant
-la valeur relue (`cell-writes.ts`) ; c'est accepté, comme pour un tri. Une modification ou
+nature désactivée serait une commande que le serveur refuserait (WF-REF-0010). Cette relecture, à la
+même adresse, n'abandonne rien de la grille des taux : un taux parti avant elle reste en attente, le
+refus dit le reste, et un taux répondu, avant ou après elle, garde sa cellule tant qu'il est plus
+récent que la cellule relue, par le `lock_version` du taux — la réponse est le changement d'une
+cellule, trouvée par son année parmi celles de la ligne relue et reposée sur elle
+(`RowPart.versioned`, `rate-cells.ts`), une ligne de la grille n'ayant pas de compteur à elle ;
+ailleurs, une réponse se juge en bloc par le compteur de ce qu'elle a écrit (`GridConfig.fresher`,
+le `lock_version` d'un nœud) : plus récente que la relecture, elle garde tout ce qu'elle a rendu, les
+récapitulatives recalculées et les totaux compris, une réponse plus récente l'emportant toujours sur
+une plus ancienne pour une même ligne ; rattrapée, elle cède tout ; là où le compteur ne dit rien —
+même version, ligne sans compteur, faux back —, chaque valeur reste tant que la relecture lit sa ligne,
+ou ses totaux, comme avant. Seule une lecture à une autre adresse — un tri, une recherche, un filtre,
+une page de la grille — abandonne les réponses en cours ; une lecture qui rend les mêmes lignes dans
+le même ordre, une autre liste de l'écran triée ou l'adresse réécrite par `history.replaceState`, est
+la même (`cell-writes.ts`, défaut n° 22). Cette dernière règle suppose que le contenu d'une ligne ne
+dépend pas de l'adresse : le jour où une grille calcule ses lignes d'après un paramètre de l'adresse
+— une devise, une date de valeur —, deux lectures aux mêmes lignes ne sont plus la même, et la règle
+devient fausse. Une modification ou
 une activation répondue remplace sa ligne par ce que le serveur rend, tant que la réponse est plus
 récente que la ligne lue (`lock_version`, `useAnswered`) — face au faux back, qui ne garde rien, elle
 survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue la range où le
@@ -672,6 +692,40 @@ sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle 
 tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
 par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
 service de son EPIC). La saisie d'un taux reste celle de la grille.
+
+Les paramètres de ressources offrent de même les commandes de l'organisation, des rôles et des
+calendriers (EP-02/L43b, #512 ; `resource-commands.tsx`, `calendar-default.tsx`), à une session qui
+porte `resource_settings.write` : « Nouveau nœud », « Nouveau rôle », « Nouveau calendrier », la
+modification de chaque ligne, la désactivation ou la réactivation comme l'objet la liste — un nœud
+avec ses descendants, que la réponse remplace dans l'arbre (WF-REF-0080), les rôles qu'elle désactive
+avec lui étant ceux de l'autre liste, que la page relue montre. Un nœud s'écrit par son code, son
+libellé et son parent — aucun pour une racine —, choisi dans l'ordre de l'arbre, chaque nœud décalé de
+sa profondeur (`treeLabel`) : un nœud actif, ou créé, parmi les actifs seuls, un désactivé parmi tous
+ceux que l'arbre lit, les désactivés marqués (WF-REF-0080, `updateOrgNode`), jamais sous lui-même ni
+sous l'un de ses descendants, qu'il emmène ; son parent est toujours offert, d'après `parent_id` et
+`parent_label`, marqué désactivé quand l'arbre lu ne le compte pas parmi les actifs — lu sans les
+désactivés, sous `org_is_active=false` —, et la liste le montre choisi ; absent de l'arbre lu, il se
+place sous son propre parent quand la ligne de la liste le nomme, sinon à la fin, sans décalage. Un rôle s'écrit par son
+libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du rôle
+modifié marqué désactivé (WF-REF-0090), nommé sans marque quand la liste n'est pas lue, faute de savoir
+s'il l'est — et sa
+capacité, heures par mois et effectif, saisis dans la langue du lecteur (WF-REF-0100) ; son nœud se
+fixe à la création, et sa modification le nomme sans l'offrir : un rôle se recrée sous un autre nœud
+(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît à sa nature, que la page lit aussi
+(`listCostTypes`, `labourOf` de `kinds.ts`) : le contrat ne filtre pas les catégories par le type de
+leur nature — un rapprochement de deux listes, faute de mieux, signalé sous #507. Une session qui ne lit
+ni les catégories ni les natures (`cost_settings.read`) ne peut choisir aucune catégorie : « Nouveau
+rôle » ne lui est pas offert (WF-IHM-0090), et la modification nomme la catégorie du rôle comme sa ligne
+la nomme. La modification d'un objet répondue pour un autre objet est une panne du service
+(`INTERNAL_ERROR`), dite sous le formulaire comme la réponse d'une cellule pour une autre ligne. Un
+calendrier s'écrit par son libellé
+et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier actif
+et non par défaut se désigne par défaut depuis sa ligne (`setDefaultCalendar`, WF-REF-0120), la page
+relue montrant le précédent sans la désignation ; le contrat ne listant pas cette commande
+(`ReferenceCommand`), le front l'offre sur l'état que la ligne lit, par la seule règle qu'il donne. Un
+refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REFERENCE_OBJECT` sur
+`/parent_id` ou `/org_node_id` — se dit au champ, le reste comme pour les coûts ; l'écran dit que le
+faux back ne garde rien (`MockupNotice`).
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les

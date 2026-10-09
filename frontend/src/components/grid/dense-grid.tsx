@@ -38,7 +38,7 @@
 "use client";
 
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Fragment,
@@ -709,8 +709,11 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       request((query) => searchHref(pathname, query, text, config.address));
     });
   };
-  // The rows as the cells written left them: each row the server answered in place of the one read.
-  const writes = useCellWrites<Row, Totals>(rows, config.rowKey, config.retotal);
+  // The rows as the cells written left them: each row the server answered in place of the one read,
+  // at the address they were written at — the page read anew there, or the same rows read at
+  // another, drop none of them.
+  const address = `${pathname}?${useSearchParams().toString()}`;
+  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.

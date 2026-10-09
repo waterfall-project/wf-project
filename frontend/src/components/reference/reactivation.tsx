@@ -1,28 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The state of an object of the reference data in a list, and its reactivation (WF-REF-0150): a
- * deactivated object, which the list shows when the address asks for the deactivated ones too,
- * offers to reactivate it as the server lists the command (`available_commands`, WF-IHM-0090) — the
- * server lists it only to a session that may modify its part of the reference, and the front deduces
- * nothing of the permission. Available, the command asks the operation the contract gives each kind
- * of object (`reactivate`), from the version read; the page is then read anew. Unavailable — a node
- * under a deactivated parent, a role under a deactivated node (WF-REF-0080) —, it stays presented,
- * marked `aria-disabled` and described by the conditions it lacks, as the deletion of a role an
- * account holds is (`later-commands.tsx`); a press does not run it, and says in the region of the
- * list the conditions it lacks. A refusal of the server — the conflict (409), the object to
- * reactivate first named after the row that knows it; the version stale (412), with the offer to
- * reload — is told above the list (`Reactivations`), which a cell of a dense grid has no room for.
+ * Where the commands of a list of the reference data tell what they could not do (WF-REF-0150,
+ * EP-02/L43): a refusal of the server — the conflict (409), the object to reactivate first named
+ * after the row that knows it; the version stale (412), with the offer to reload; a form whose dialog
+ * is gone — is told above the list (`Reactivations`), which a cell of a dense grid has no room for;
+ * and a command the server lists unavailable — a node under a deactivated parent, a role under a
+ * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
+ * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
+ * role an account holds is (`later-commands.tsx`): a press does not run it, and says in the region of
+ * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
+ * `commands.tsx`.
  *
- * The object carries only the command that changes its state: `deactivate` on an active one, which
- * the natures and the categories of cost offer (`CostStateCell`, EP-02/L43a), and no other list yet.
- * Their activation tells its refusal and what it lacks in the same region as a reactivation
- * (`useListReport`).
- *
- * Every prop is data — the kind of the object, its identifier, its version, its name, its commands —,
- * never a function: a server component hands it over as a client one does (défaut n° 12 de
- * `typescript.md`). In a dense grid, the command is out of the order of tabulation, the grid being
- * one stop: Enter on its cell presses it (`CELL_COMMAND`).
+ * Every prop is data — the name of the object, its commands —, never a function: a server component
+ * hands it over as a client one does (défaut n° 12 de `typescript.md`). In a dense grid, the command
+ * is out of the order of tabulation, the grid being one stop: Enter on its cell presses it
+ * (`CELL_COMMAND`).
  */
 "use client";
 
@@ -38,33 +31,15 @@ import {
   useMemo,
   useRef,
   useState,
-  useTransition,
 } from "react";
 
-import { type ActivationTarget, reactivate } from "@/api/actions/reference";
-import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
-import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
-import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/components/ui/utils";
 import { readingOf } from "@/navigation/pages";
 
-import { ActiveState } from "./section";
-
-export type { ActivationTarget } from "@/api/actions/reference";
-
-/** The commands an object of the reference data lists: at most the one that changes its state. */
-export type ReferenceCommands = components["schemas"]["ReferenceCommands"];
-
-/** An object a refusal may name: the node to reactivate first, as the row shown names it. */
-export interface Conflict {
-  readonly id: string;
-  readonly name: string;
-}
+import { CellCommand } from "./cell-command";
 
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
@@ -220,58 +195,6 @@ export function Reactivations({
   );
 }
 
-/** The command that reactivates an object, named after it. */
-function ReactivateCommand({
-  target,
-  name,
-  conflict,
-}: {
-  readonly target: ActivationTarget;
-  /** The name of the object, as the list shows it. */
-  readonly name: string;
-  /** The object a refusal of the server may name, as the row knows it; none when it knows none. */
-  readonly conflict?: Conflict | undefined;
-}) {
-  const t = useTranslations("reference.state");
-  const list = useContext(Report);
-  const [pending, startTransition] = useTransition();
-  const run = () => {
-    if (pending) {
-      return;
-    }
-    // The reading the command is pressed on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
-    startTransition(async () => {
-      const outcome = await reactivate(target).catch(rejected);
-      // A success reads the page anew (`refresh`), and leaves a refusal before it told.
-      if (outcome.kind !== "done") {
-        list?.report({
-          outcome,
-          reading,
-          names: conflict === undefined ? {} : { [conflict.id]: conflict.name },
-          target: `reactivate ${target.kind} ${target.id}`,
-        });
-      }
-    });
-  };
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      tabIndex={-1}
-      {...{ [CELL_COMMAND]: "" }}
-      aria-label={t("reactivate", { name })}
-      aria-busy={pending}
-      className="h-5 px-1.5 text-xs"
-      onClick={run}
-    >
-      <RotateCcw aria-hidden="true" />
-      {t("reactivateShort")}
-    </Button>
-  );
-}
-
 /**
  * The activation of an object the server lists unavailable, with the conditions it lacks: marked
  * `aria-disabled`, described by them, and, pressed, saying them in the region of the list.
@@ -291,17 +214,12 @@ export function UnavailableActivation({
   const described = `${useId()}-unmet`;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        tabIndex={-1}
-        {...{ [CELL_COMMAND]: "" }}
+      <CellCommand
         aria-label={t(command, { name })}
         aria-disabled
         aria-describedby={described}
         title={unmet}
-        className={cn("h-5 px-1.5 text-xs", UNAVAILABLE)}
+        className={UNAVAILABLE}
         onClick={() => {
           // An unavailable command never runs: the press says the conditions it lacks.
           list?.tell(name, offer, command);
@@ -309,43 +227,10 @@ export function UnavailableActivation({
       >
         {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
         {t(`${command}Short`)}
-      </Button>
+      </CellCommand>
       <span id={described} className="sr-only">
         {unmet}
       </span>
     </>
-  );
-}
-
-/**
- * The state of an object in a list: active, or deactivated — said by a mark and a word —, with the
- * command that reactivates it as the server lists it: available, unavailable with its conditions, or
- * absent.
- */
-export function StateCell({
-  active,
-  target,
-  name,
-  commands,
-  conflict,
-}: {
-  readonly active: boolean;
-  readonly target: ActivationTarget;
-  readonly name: string;
-  /** The commands the server lists on the object (`available_commands`). */
-  readonly commands: ReferenceCommands;
-  /** The object a refusal of its reactivation may name, as the row knows it. */
-  readonly conflict?: Conflict | undefined;
-}) {
-  const offer = findOffer(commands, "reactivate");
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <ActiveState active={active} />
-      {offer === undefined ? null : offer.is_available ? (
-        <ReactivateCommand target={target} name={name} conflict={conflict} />
-      ) : (
-        <UnavailableActivation command="reactivate" name={name} offer={offer} />
-      )}
-    </span>
   );
 }

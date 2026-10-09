@@ -215,11 +215,20 @@ export interface Examples {
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
   };
+  "PATCH /reference/calendars/{calendar_id}": {
+    200: "calendar_updated";
+  };
   "PATCH /reference/cost-categories/{cost_category_id}": {
     200: "cost_category_updated";
   };
   "PATCH /reference/cost-types/{cost_type_id}": {
     200: "cost_type_updated";
+  };
+  "PATCH /reference/org-nodes/{org_node_id}": {
+    200: "org_node_updated";
+  };
+  "PATCH /reference/resource-roles/{resource_role_id}": {
+    200: "resource_role_updated";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
@@ -248,11 +257,20 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_unknown_category";
   };
+  "POST /reference/calendars": {
+    201: "calendar_created";
+  };
   "POST /reference/cost-categories": {
     201: "cost_category_created";
   };
   "POST /reference/cost-types": {
     201: "cost_type_created";
+  };
+  "POST /reference/org-nodes": {
+    201: "org_node_created";
+  };
+  "POST /reference/resource-roles": {
+    201: "resource_role_created";
   };
   "POST /session": {
     201: "session";
@@ -266,6 +284,12 @@ export interface Examples {
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
   };
+  "PUT /reference/calendars/{calendar_id}/activation": {
+    200: "calendar_deactivated";
+  };
+  "PUT /reference/calendars/{calendar_id}/default": {
+    200: "calendar_default";
+  };
   "PUT /reference/cost-categories/{cost_category_id}/activation": {
     200: "cost_category_deactivated";
   };
@@ -276,9 +300,9 @@ export interface Examples {
     200: "cost_type_deactivated";
   };
   "PUT /reference/org-nodes/{org_node_id}/activation": {
-    200: "org_node_reactivated";
+    200: "org_node_deactivated" | "org_node_reactivated";
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
-    200: "resource_role_reactivated";
+    200: "resource_role_deactivated" | "resource_role_reactivated";
   };
 }

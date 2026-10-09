@@ -153,6 +153,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+            examples:
+              created: { $ref: ../../../fixtures/api/org_node_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -191,6 +193,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+            examples:
+              moved: { $ref: ../../../fixtures/api/org_node_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -253,6 +257,7 @@
                   items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
             examples:
               reactivated: { $ref: ../../../fixtures/api/org_node_reactivated.json }
+              deactivated: { $ref: ../../../fixtures/api/org_node_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -411,6 +416,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+            examples:
+              created: { $ref: ../../../fixtures/api/resource_role_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422':
@@ -445,6 +452,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+            examples:
+              updated: { $ref: ../../../fixtures/api/resource_role_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -491,6 +500,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
             examples:
               reactivated: { $ref: ../../../fixtures/api/resource_role_reactivated.json }
+              deactivated: { $ref: ../../../fixtures/api/resource_role_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -736,6 +746,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+            examples:
+              created: { $ref: ../../../fixtures/api/calendar_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -760,6 +772,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+            examples:
+              updated: { $ref: ../../../fixtures/api/calendar_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -797,6 +811,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+            examples:
+              designated: { $ref: ../../../fixtures/api/calendar_default.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -839,6 +855,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/calendar_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

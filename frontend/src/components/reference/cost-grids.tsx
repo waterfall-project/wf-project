@@ -17,7 +17,7 @@
  *
  * For a session that may modify the cost settings, each row offers its modification in a column of
  * its own, and its state the command that changes it as the object lists it (EP-02/L43a,
- * `cost-commands.tsx`); for another, the state alone, and the reactivation the server lists — none.
+ * `commandColumns`); for another, the state alone, and the command the server lists — none.
  *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
@@ -25,11 +25,11 @@
 import { useTranslations } from "next-intl";
 
 import type { operations } from "@/api/generated/schema";
-import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
+import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 
-import { CostStateCell, ModifyCostCommand } from "./cost-commands";
-import type { CostCategory, CostObject, CostType } from "./cost-kinds";
+import { commandColumns } from "./command-columns";
+import type { CostCategory, CostType } from "./cost-kinds";
 
 export {
   COST_TYPE_KIND_VALUES,
@@ -61,38 +61,6 @@ export const COST_TYPE_KINDS = "type_kinds";
 export const COST_TYPE_STATE = "type_is_active";
 export const CATEGORY_COST_TYPE = "category_cost_type_id";
 export const CATEGORY_STATE = "category_is_active";
-
-/** The widths of the column of the state and its command, and of that of the modification. */
-const STATE_WIDTH = 190;
-const MODIFY_WIDTH = 110;
-
-/**
- * The state of a row and the command that changes it, and, for a session that may modify the cost
- * settings, the column of its modification.
- */
-function commandColumns<Row extends CostObject, Sort extends string>(
-  editable: boolean,
-  stateSort: Sort,
-): GridColumn<Row, Sort, null>[] {
-  const state: GridColumn<Row, Sort, null> = {
-    key: "state",
-    label: "state",
-    format: "text",
-    width: STATE_WIDTH,
-    contract: stateSort,
-    value: (row) => (row.is_active ? "active" : "inactive"),
-    render: (row) => <CostStateCell row={row} />,
-  };
-  const modify: GridColumn<Row, Sort, null> = {
-    key: "modify",
-    label: "modify",
-    format: "text",
-    width: MODIFY_WIDTH,
-    value: () => null,
-    render: (row) => <ModifyCostCommand row={row} />,
-  };
-  return editable ? [state, modify] : [state];
-}
 
 /** The type of a nature, in words. */
 function Kind({ type }: { readonly type: CostType }) {
@@ -138,7 +106,16 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
         value: (type) => type.kind,
         render: (type) => <Kind type={type} />,
       },
-      ...commandColumns<CostType, CostTypeSort>(editable, "is_active"),
+      ...commandColumns<CostType, CostTypeSort>(
+        editable,
+        (type) => ({
+          active: type.is_active,
+          target: { kind: "cost_type", id: type.cost_type_id, lockVersion: type.lock_version },
+          name: type.label,
+          commands: type.available_commands,
+        }),
+        "is_active",
+      ),
     ],
   };
 }
@@ -191,7 +168,20 @@ export function costCategoryGrid(
         contract: "accounting_code",
         value: (category) => category.accounting_code,
       },
-      ...commandColumns<CostCategory, CostCategorySort>(editable, "is_active"),
+      ...commandColumns<CostCategory, CostCategorySort>(
+        editable,
+        (category) => ({
+          active: category.is_active,
+          target: {
+            kind: "cost_category",
+            id: category.cost_category_id,
+            lockVersion: category.lock_version,
+          },
+          name: category.label,
+          commands: category.available_commands,
+        }),
+        "is_active",
+      ),
     ],
   };
 }

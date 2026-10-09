@@ -16,7 +16,11 @@
  * organisation chosen among the whole tree — read whole a second time when a search or a filter
  * narrows the grid of the tree —, by a category of cost and by a calendar chosen among every one the
  * session reads, each read whole as a list of choices is (#303); the categories, which the
- * settings of the costs keep, are offered only when the API gives them. Bounds the API refuses (422,
+ * settings of the costs keep, are offered only when the API gives them. A session that may modify the
+ * settings of the resources creates and modifies the nodes, the roles and the calendars, and
+ * deactivates them as each lists it (EP-02/L43b): a role is attached to a category of labour alone
+ * (WF-REF-0090), which the page knows by reading the natures too; the screen then says that the fake
+ * back keeps none of what is written (`MockupNotice`). Bounds the API refuses (422,
  * an upper bound below the lower one) leave their list unread, the bound said at its field; any other
  * read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -27,6 +31,7 @@ import type { ApiClient } from "@/api/client";
 import { readEveryPage, readEveryPageUnlessRefused } from "@/api/every-page";
 import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { platformOffer } from "@/components/commands/offer";
 import {
   type Bounds,
   bounded,
@@ -47,6 +52,7 @@ import {
   stateOf,
   textOf,
 } from "@/components/reference/address";
+import { categoryChoice, labourOf } from "@/components/reference/kinds";
 import { InactiveSwitch } from "@/components/reference/reference-filters";
 import {
   CALENDAR_ADDRESS,
@@ -78,12 +84,14 @@ import {
   CalendarList,
   type DayBounds,
   DurationUnitFacts,
+  type NodeOffered,
   type OrgNodeFilters,
   OrgNodeList,
   ResourceRoleList,
   type RoleFilters,
 } from "@/components/reference/resource-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
@@ -105,18 +113,31 @@ const REFUSED = [{ status: 404 }, { status: 403 }] as const;
 /** The refusal of the bounds of a list: an upper bound below the lower one (#545). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
-/** The title of the screen, and the switch of the deactivated objects for who may read them. */
-function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
+/**
+ * The title of the screen, and the switch of the deactivated objects for who may read them; under it,
+ * for who may write, that the fake back keeps nothing of what is written.
+ */
+function ResourcesHeader({
+  inactive,
+  writes,
+}: {
+  readonly inactive: boolean | undefined;
+  /** Whether the session may modify the settings of the resources, and its commands write. */
+  readonly writes: boolean;
+}) {
   const t = useTranslations("functions");
   return (
-    <PageHeader
-      title={t("resourceSettings")}
-      icon={FUNCTION_ICONS.resource_settings}
-      density={FUNCTION_DENSITY.resource_settings}
-      actions={
-        inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
-      }
-    />
+    <>
+      <PageHeader
+        title={t("resourceSettings")}
+        icon={FUNCTION_ICONS.resource_settings}
+        density={FUNCTION_DENSITY.resource_settings}
+        actions={
+          inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
+        }
+      />
+      {writes ? <MockupNotice /> : null}
+    </>
   );
 }
 
@@ -136,6 +157,8 @@ function dayBounds(hours: DayBounds) {
 
 /** What the page asks of each list, as its address and the session say. */
 interface ResourceQueries {
+  /** Whether the session may modify the settings of the resources, and its forms are offered. */
+  readonly editable: boolean;
   readonly inactive: { readonly include_inactive?: true };
   /** What the categories of cost offered to the filter of the roles ask of the deactivated ones. */
   readonly inactiveCategories: { readonly include_inactive?: true };
@@ -239,9 +262,14 @@ function readCalendars(
 
 /**
  * The categories of cost and the calendars the roles may be filtered on, every one the session
- * reads, as a list of choices is read (#303): the categories none when the API refuses them.
+ * reads, as a list of choices is read (#303): the categories none when the API refuses them. For a
+ * session whose forms are offered, the natures too, by which a role is attached to a category of
+ * labour alone (WF-REF-0090) — none when the API refuses them.
  */
-function readChoices(client: ApiClient, { inactive, inactiveCategories }: ResourceQueries) {
+function readChoices(
+  client: ApiClient,
+  { editable, inactive, inactiveCategories }: ResourceQueries,
+) {
   return Promise.all([
     readEveryPageUnlessRefused("listCostCategories", REFUSED, (page) =>
       client.GET("/reference/cost-categories", {
@@ -251,6 +279,13 @@ function readChoices(client: ApiClient, { inactive, inactiveCategories }: Resour
     readEveryPage("listCalendars", (page) =>
       client.GET("/reference/calendars", { params: { query: { ...inactive, ...page } } }),
     ),
+    editable
+      ? readEveryPageUnlessRefused("listCostTypes", REFUSED, (page) =>
+          client.GET("/reference/cost-types", {
+            params: { query: { ...inactiveCategories, ...page } },
+          }),
+        )
+      : undefined,
   ]);
 }
 
@@ -282,6 +317,7 @@ function readQueries(
 ): ResourceQueries {
   const state = (name: string) => stateOf(search, name, permissions, "resource_settings.read");
   return {
+    editable: platformOffer(permissions, "resource_settings") !== undefined,
     inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.read"),
     inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
     nodes: readGridQuery<never>(search, [], undefined, ORG_NODE_ADDRESS),
@@ -333,43 +369,47 @@ export default async function ResourceSettingsPage({
   const permissions = session?.permissions ?? [];
   const grids = session?.user.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
-  const [narrowed, tree, roles, calendars, units, [categoryChoices, calendarChoices]] =
+  const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead, natures]] =
     await readLists(queries);
+  const { editable } = queries;
   const readsInactive = permissions.includes("resource_settings.read");
   const shown = queries.inactive.include_inactive === true;
   // The depths of the whole tree, from the first to the deepest the server gives.
   const deepest = Math.max(0, ...tree.map((node) => node.level));
+  const nodes: NodeOffered[] = tree.map((node) => ({
+    id: node.org_node_id,
+    code: node.code,
+    label: node.label,
+    level: node.level,
+    active: node.is_active,
+  }));
   return (
     <Screen density={FUNCTION_DENSITY.resource_settings}>
       <PendingAddress>
-        <ResourcesHeader inactive={readsInactive ? shown : undefined} />
+        <ResourcesHeader inactive={readsInactive ? shown : undefined} writes={editable} />
         <OrgNodeList
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}
           preferences={keptBy(grids, ORG_NODE_GRID_KEY)}
           readsInactive={readsInactive}
+          editable={editable}
           filters={queries.nodeFilters}
           levels={Array.from({ length: deepest }, (_, at) => at + 1)}
+          nodes={nodes}
         />
         <ResourceRoleList
           {...shownPage(roles)}
           query={queries.roles}
           preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
           readsInactive={readsInactive}
-          nodes={tree.map((node) => ({
-            id: node.org_node_id,
-            code: node.code,
-            label: node.label,
-            level: node.level,
-          }))}
-          categories={categoryChoices?.map((category) => ({
-            id: category.cost_category_id,
-            code: category.code,
-            label: category.label,
-          }))}
-          calendars={calendarChoices.map((calendar) => ({
+          editable={editable}
+          nodes={nodes}
+          categories={categoryRead?.map(categoryChoice)}
+          labour={labourOf(categoryRead, natures)}
+          calendars={calendarRead.map((calendar) => ({
             id: calendar.calendar_id,
             label: calendar.label,
+            active: calendar.is_active,
           }))}
           filters={queries.roleFilters}
         />
@@ -378,6 +418,7 @@ export default async function ResourceSettingsPage({
           query={queries.calendars}
           preferences={keptBy(grids, CALENDAR_GRID_KEY)}
           readsInactive={readsInactive}
+          editable={editable}
           state={queries.calendarState}
           hours={queries.calendarHours}
         />

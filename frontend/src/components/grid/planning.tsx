@@ -32,6 +32,7 @@ import {
   LABEL_COLUMN,
   NODE_TREE,
   type NodeKind,
+  nodeFresher,
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
@@ -91,6 +92,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
   sorts: false,
   name: "planning",
   rowKey: nodeKey,
+  fresher: nodeFresher,
   rowNumber: nodeNumber,
   tree: NODE_TREE,
   columns: [

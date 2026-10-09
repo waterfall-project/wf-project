@@ -1096,23 +1096,41 @@
     "codedChoice": "{code} · {label}",
     "modify": "Modify",
     "modifyNamed": "Modify “{name}”",
-    "costForm": {
-      "createCostType": "New cost nature",
-      "createCostCategory": "New cost category",
-      "modify": "Modify “{name}”",
-      "costTypeHint": "The code, unique, the label and the type are required.",
-      "costTypeModifyHint": "The code, unique, the label and the type are required. The type no longer changes once a category attached to it is employed.",
-      "costCategoryHint": "The code, unique, the label and the nature are required; the accounting code, unique as well, may stay empty.",
+    "form": {
       "choose": "Choose…",
-      "deactivatedChoice": "{choice} (deactivated)",
+      "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
       "cancel": "Cancel",
-      "created": "“{name}” created.",
-      "saved": "“{name}” saved.",
-      "deactivated": "“{name}” deactivated.",
-      "reactivated": "“{name}” reactivated."
+      "created": "“{name}” {kind, select, other {created}}.",
+      "saved": "“{name}” {kind, select, other {saved}}.",
+      "deactivated": "“{name}” {kind, select, other {deactivated}}.",
+      "reactivated": "“{name}” {kind, select, other {reactivated}}.",
+      "designated": "“{name}” designated the default calendar."
+    },
+    "costForm": {
+      "createCostType": "New cost nature",
+      "createCostCategory": "New cost category",
+      "costTypeHint": "The code, unique, the label and the type are required.",
+      "costTypeModifyHint": "The code, unique, the label and the type are required. The type no longer changes once a category attached to it is employed.",
+      "costCategoryHint": "The code, unique, the label and the nature are required; the accounting code, unique as well, may stay empty."
+    },
+    "orgNodeForm": {
+      "create": "New organisation node",
+      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. An active node only takes place under an active node.",
+      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along; active, it only takes place under an active node.",
+      "parent": "Parent",
+      "root": "None — root"
+    },
+    "roleForm": {
+      "create": "New resource role",
+      "createHint": "The label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
+      "modifyHint": "The label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+    },
+    "calendarForm": {
+      "create": "New calendar",
+      "hint": "The label and the hours worked on each of the seven days, from Monday to Sunday, are required; nothing else is asked."
     },
     "rates": {
       "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
@@ -1153,7 +1171,8 @@
       "count": "{count, plural, one {# node} other {# nodes}}",
       "codeFilter": "Code of the node",
       "levelFilter": "Level",
-      "everyLevel": "Every level"
+      "everyLevel": "Every level",
+      "create": "New node"
     },
     "resourceRoles": {
       "title": "Resource roles",
@@ -1164,13 +1183,17 @@
       "everyCostCategory": "Every category",
       "calendarFilter": "Calendar",
       "everyCalendar": "Every calendar",
-      "count": "{count, plural, one {# role} other {# roles}}"
+      "count": "{count, plural, one {# role} other {# roles}}",
+      "create": "New role"
     },
     "calendars": {
       "title": "Calendars",
       "isDefault": "Default calendar",
       "none": "No calendar.",
-      "count": "{count, plural, one {# calendar} other {# calendars}}"
+      "count": "{count, plural, one {# calendar} other {# calendars}}",
+      "create": "New calendar",
+      "designate": "Designate “{name}” as default",
+      "designateShort": "Designate"
     },
     "durationUnits": {
       "title": "Units of duration",

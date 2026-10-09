@@ -1,0 +1,40 @@
+{
+  "summary": "L'ingénieur électricien désactivé aujourd'hui, à partir de la version lue : il n'est plus proposé à la saisie, reste lisible sur les lignes qui l'emploient, et se réactive, son nœud étant actif ; les projets restent intacts (WF-REF-0010, WF-REF-0020, WF-REF-0150).",
+  "value": {
+    "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+    "label": "Ingénieur électricien",
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+    "org_node_label": "Bureau d'études électricité",
+    "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+    "cost_category_label": "Ingénierie électrique",
+    "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+    "calendar_label": "Semaine standard",
+    "capacity": {
+      "monthly_hours": "658654.00",
+      "headcount": "3800"
+    },
+    "is_active": false,
+    "available_commands": [
+      {
+        "command": "reactivate",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

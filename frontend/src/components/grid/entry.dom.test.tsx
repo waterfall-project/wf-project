@@ -27,13 +27,15 @@ import type { GridQuery } from "./query";
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+// The query of the address shown, which a sort changes.
+const address = vi.hoisted(() => ({ query: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/projects/p/revisions/r/estimate",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(address.query),
 }));
 
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
@@ -122,6 +124,13 @@ function grid(
   );
 }
 
+/** The estimate read anew and sorted otherwise, the line of labour last, and its index then. */
+function sortedOtherwise(): { readonly nodes: NodeList; readonly last: number } {
+  const read = structuredClone(estimate);
+  const labour = read.items.splice(LABOUR, 1);
+  return { nodes: { ...read, items: [...read.items, ...labour] }, last: read.items.length };
+}
+
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
@@ -153,6 +162,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  address.query = "";
 });
 
 describe("the keyboard of a grid", () => {
@@ -655,7 +665,7 @@ describe("a write the server refuses", () => {
     expect(scrolled.mock.contexts).toEqual([cell(DISBURSEMENT, "hours")]);
   });
 
-  it("drops an answer that comes once the page has been read anew", async () => {
+  it("drops an answer that comes once the page has been read at another address", async () => {
     let answer: (value?: unknown) => void = () => undefined;
     serve(
       { [LINE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } },
@@ -666,15 +676,45 @@ describe("a write the server refuses", () => {
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
-    // A sort, a search, a reload: the page reads the structure anew before the server answers.
-    rerender(grid("fr", structuredClone(estimate)));
-    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+    // A sort, a search, a filter: the page reads the structure at another address before the
+    // server answers, its rows in another order — the line of labour last.
+    address.query = "sort_by=label";
+    const { nodes, last } = sortedOtherwise();
+    rerender(grid("fr", nodes));
+    expect(cell(last, "hours")).toHaveTextContent(/^12,5$/);
     await act(async () => {
       answer();
       await Promise.resolve();
     });
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+    expect(cell(last, "hours")).toHaveTextContent(/^12,5$/);
+  });
+});
+
+describe("a write under way while the page is read anew at its address", () => {
+  it("keeps the cell pending and takes the answer that comes after the page read anew", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    serve(
+      {},
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const { rerender } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    // `refresh` after a write elsewhere on the screen, which Next may bring after the write left.
+    rerender(grid("fr", structuredClone(estimate)));
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^15$/);
+    expect(cell(LABOUR, "hours")).toHaveAttribute("aria-busy", "true");
+    await act(async () => {
+      answer();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
+    });
+    expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-busy");
   });
 });
 
@@ -918,9 +958,10 @@ describe("a session lost during an entry", () => {
     );
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-busy");
-    // The page read anew clears the notice; the label of a task, written by its own operation,
-    // is refused likewise, and tells it anew.
-    rerender(grid("fr", structuredClone(estimate)));
+    // The page read at another address, its rows in another order, clears the notice; the label
+    // of a task, written by its own operation, is refused likewise, and tells it anew.
+    address.query = "sort_by=label";
+    rerender(grid("fr", sortedOtherwise().nodes));
     expect(screen.queryByRole("alert")).toBeNull();
     cell(TASK_ROW, "label").focus();
     await userEvent.keyboard("{F2} bis{Enter}");

@@ -50,6 +50,7 @@ import {
   type GridNode,
   LABEL_COLUMN,
   NODE_TREE,
+  nodeFresher,
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
@@ -93,6 +94,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   searched: true,
   name: "estimate",
   rowKey: nodeKey,
+  fresher: nodeFresher,
   rowNumber: nodeNumber,
   tree: NODE_TREE,
   columns: [

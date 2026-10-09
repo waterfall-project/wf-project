@@ -3198,6 +3198,24 @@ témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_r
 sur des lignes de synthèse, et chaque exemple contre ce qu'il lit. Le client est régénéré ; le front
 les adoptera.
 
+## Les écritures des paramètres de ressources (EP-02/L43b)
+
+Les écritures de l'organisation, des rôles et des calendriers, que l'écran des paramètres de
+ressources exerce (#512), reçoivent de même l'exemple de leur succès, écrit aujourd'hui par Camille
+Martin : `org_node_created` (le bureau d'études mécanique BE-MECA sous la direction technique, 476),
+`org_node_updated` (l'atelier de câblage déplacé sous la direction technique, au deuxième niveau,
+version 2), `org_node_deactivated` (l'atelier désactivé, et avec lui le monteur câbleur, sa
+réactivation indisponible tant que son nœud l'est — second exemple de `setOrgNodeActivation`, après
+la réactivation), `resource_role_created` (le dessinateur électricien, trois personnes, 520 heures par
+mois sur la semaine standard, 456), `resource_role_updated` (le technicien de mise en service renommé,
+version 2), `resource_role_deactivated` (l'ingénieur électricien désactivé — second exemple, après la
+réactivation), `calendar_created` (la semaine de trente-cinq heures, 484), `calendar_updated` (la
+semaine de quatre jours renommée, version 2), `calendar_deactivated` (la même désactivée) et
+`calendar_default` (la même désignée par défaut, sa désactivation devenue indisponible). Chacun ne vaut
+que pour la réponse de son écriture : aucune lecture n'en tient compte. Les refus que ces écritures
+opposeraient sans que le contrat les dise sont des « Interface contract issue » relevées par
+EP-02/L43b, #575, sous #507.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
