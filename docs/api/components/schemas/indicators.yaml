@@ -146,7 +146,7 @@ EstimateIndicators:
       description: >-
         Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche,
         récapitulative ou feuille, qui porte chacun — le total de son sous-arbre
-        (WF-PLA-0130) ; nul quand le planning n'est pas structuré en postes — absents plutôt
+        (WF-PLA-0170) ; nul quand le planning n'est pas structuré en postes — absents plutôt
         que nuls (WF-DEV-0060).
     provisions_identified: { $ref: ../common.yaml#/Money }
     delta_to_reference:

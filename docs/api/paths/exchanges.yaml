@@ -77,11 +77,16 @@
     summary: Ouvrir un import et lancer son analyse
     description: >-
       L'analyse lit le fichier, contrôle son format et sa version, compare aux données
-      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100,
-      WF-INTF-0070, WF-INTF-0080). Les imports de planning, de devis et de reste à
-      engager s'appliquent à la révision en cours, créée au besoin (WF-INTF-0090).
-      Selon le flux : planning MS Project (WF-INTF-0040), devis (WF-INTF-0100), reste à
-      engager (WF-INTF-0120), coûts réels (WF-INTF-0140). Confiée au worker (WF-ARC-0090).
+      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070,
+      WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la
+      révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project
+      (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
+      (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
+      rattachement au lotissement ; sur la structure principale, seule à porter des
+      rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste
+      de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040,
+      WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:

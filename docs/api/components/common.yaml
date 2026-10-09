@@ -151,9 +151,9 @@ Problem:
         nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par
         champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà
         le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
-        WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
+        WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
         celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-        WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
+        WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
         un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
@@ -276,7 +276,7 @@ ErrorCode:
     # (`ExternalBackupPath`, WF-ADM-0170).
     - PATH_INVALID
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
-    # (`TaskFacetUpdate`, WF-PLA-0130) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
+    # (`TaskFacetUpdate`, WF-PLA-0170) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
     # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la
     # tâche d'un lot du sous-arbre de celle de son poste.
     - UNKNOWN_WORK_BREAKDOWN_ITEM
