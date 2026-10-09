@@ -94,8 +94,9 @@ Repris d'EP-02 à la coupure du 2026-10-09, renommés `[EP-14/Ln]` en gardant le
 et rattachés à #599 :
 
 - #512 [EP-14/L43] — les commandes du référentiel et des sauvegardes : L43c (#519, l'écran des
-  sauvegardes) livré par #607 ; restent L43d (la planification et la copie externe, fin de #519)
-  et L43e (les paramètres des risques et des indicateurs) ;
+  sauvegardes) livré par #607 ; restent L43d (la planification et la copie externe, fin de #519),
+  L43e (les paramètres des risques et des indicateurs) et L43f (l'adoption par la grille des
+  sauvegardes des commandes, du tri et des filtres que L42h écrit au contrat) ;
 - #513 [EP-14/L44] — les commandes des paramètres du projet : L44a (#583, #524) livré par #608,
   L44b (#584) par #609 ; reste #585, découpé au cadrage en L44c (le lotissement et les
   chronologies) et L44d (le squelette et le rattachement) ;
@@ -181,7 +182,8 @@ les arrête dans `DECISIONS.md`, avec les options écartées.
   appelle `testExternalBackupLocation` et dit son résultat. L'heure se saisit en temps universel,
   comme le contrat le dit, l'heure locale équivalente affichée à côté — écarté : convertir au
   front, où le changement d'heure rend la conversion ambiguë. La grille de L43c adopte les
-  commandes et les filtres que L42h apporte.
+  commandes, le tri et les filtres que L42h apporte au contrat dans un lot propre, L43f, ajouté
+  au cadrage après L42h — écarté : les adopter dans L42h, qui aurait dépassé le plafond d'un lot.
 - **Les paramètres des risques et des indicateurs (L43e).** Deux formulaires, un par écran :
   les six bornes **et les seize zones** de la matrice sur `/reference/risks`, à une session qui
   porte `risk_settings.write` ; les quatre seuils et le délai entre deux revues sur
@@ -190,8 +192,9 @@ les arrête dans `DECISIONS.md`, avec les options écartées.
   les bornes sont ordonnées et chaque seuil d'alerte sous son seuil de vigilance, dit au champ ce
   que le serveur refuse. Hors du formulaire : la devise, non modifiable (WF-REF-0140), et la
   langue par défaut de l'installation, qui est à EP-03 (WF-INTF-0160, ligne `installation`) —
-  EP-14 ne touche pas son domaine, et `ReferenceSettingsWrite.default_language` reste au contrat
-  sans qu'aucun écran de la maquette l'écrive. Écarté : saisir les bornes seules, la matrice
+  EP-14 ne touche pas son domaine : L42h retire `default_language` du schéma d'écriture
+  (`ReferenceSettingsWrite`), aucun écran de la maquette ne l'écrivant et aucune permission du
+  référentiel ne le gardant ; il reste en lecture. Écarté : saisir les bornes seules, la matrice
   restant à moitié paramétrable.
 - **Le lotissement (L44c)** se saisit **dans la grille arborescente** existante : ajouter,
   renommer, supprimer un poste, un lot, un livrable, au menu contextuel et à la barre de la
@@ -343,6 +346,16 @@ une proposition ne nomme ni son nœud ni ses rôles, et `listContributorSuggesti
 le planning là où WF-PRJ-0070 nomme les lignes de devis.
 
 ---
+
+EP-14/L42h (#611) écrit au contrat ce que l'écran des sauvegardes et les formulaires des réglages
+attendaient : chaque sauvegarde liste ses commandes, avec trois conditions nommées
+(`backup_verified`, `no_backup_running`, `no_restore_running`) ; `listBackups` se filtre et se
+trie ; `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` refusent par condition
+manquante, jamais par un code d'état ; une date confirmée qui n'est pas celle de la sauvegarde
+est refusée au champ ; le téléchargement nomme son fichier ; `updateReferenceSettings` s'écrit
+par sous-objet, chaque champ sous la permission de sa fonction, et `default_language` sort du
+schéma d'écriture jusqu'à ce qu'EP-03 décide où la langue de l'installation s'écrit. Le lot ne
+touche au front que pour compiler sur le client régénéré ; l'adoption par la grille est L43f.
 
 ## US-0200 — Accessibilité minimale
 

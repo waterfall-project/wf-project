@@ -7,6 +7,23 @@
     "verification": "passed",
     "is_retained": false,
     "scope": "database",
-    "origin": "manual"
+    "origin": "manual",
+    "available_commands": [
+      {
+        "command": "retain",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "download",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "restore",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

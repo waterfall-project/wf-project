@@ -1,0 +1,14 @@
+{
+  "summary": "La matrice écrite aujourd'hui avec les gravités bornées à 5, 1 et 10 % du budget de référence : la deuxième borne n'est pas supérieure à la première, et son rang est refusé, désigné par /risk_matrix/severity_bounds/1 ; rien n'est écrit (WF-REF-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/risk_matrix/severity_bounds/1",
+        "code": "BOUNDS_NOT_ORDERED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001049"
+  }
+}

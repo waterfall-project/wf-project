@@ -46,13 +46,12 @@ function Size({ bytes }: { readonly bytes: number }) {
 
 /** The verification of a backup, in words. */
 function Verification({ backup }: { readonly backup: Backup }) {
-  return useTranslations("enums.Backup.verification")(backup.verification);
+  return useTranslations("enums.BackupVerification")(backup.verification);
 }
 
-/** Whether a backup was taken by hand or on schedule, in words; nothing when the server says not. */
+/** Whether a backup was taken by hand or on schedule, in words. */
 function Origin({ backup }: { readonly backup: Backup }) {
-  const t = useTranslations("enums.Backup.origin");
-  return backup.origin === undefined ? null : t(backup.origin);
+  return useTranslations("enums.BackupOrigin")(backup.origin);
 }
 
 /** The width of a column of a command, its button. */

@@ -104,29 +104,107 @@ Alert:
         location: { $ref: '#/ExternalBackupLocationName' }
         failure: { $ref: '#/ExternalBackupFailure' }
 
+BackupVerification:
+  type: string
+  enum: [pending, passed, failed]
+  description: >-
+    Résultat de la vérification d'une sauvegarde après sa production (WF-ADM-0150) : en attente,
+    réussie, échouée. La colonne se filtre (`verifications` de `listBackups`) et se trie dans
+    cet ordre (WF-IHM-0130, WF-IHM-0060). Seule une sauvegarde vérifiée sort de la plateforme ou
+    la remplace (`BackupCommand`).
+
+BackupOrigin:
+  type: string
+  enum: [manual, scheduled]
+  description: >-
+    Ce qui a produit une sauvegarde : un utilisateur habilité (`startBackup`, WF-ADM-0150) ou la
+    planification (WF-ADM-0170). La colonne se filtre (`origins` de `listBackups`) et se trie
+    dans cet ordre (WF-IHM-0130, WF-IHM-0060).
+
+BackupCommand:
+  type: string
+  enum: [retain, release, download, restore]
+  description: >-
+    Commandes portées par une sauvegarde (WF-IHM-0090) : la marquer à conserver ou ne plus la
+    conserver, par `retainBackup` — une sauvegarde ne porte que celle qui change son marquage,
+    `retain` si elle n'est pas marquée, `release` si elle l'est (WF-ADM-0170) —, la copier hors
+    de la plateforme, par `downloadBackup` (WF-ADM-0150), et restaurer la plateforme depuis
+    elle, par `startRestore` (WF-ADM-0160). Aucune ne la supprime : seule la rotation le fait.
+    Le marquage relève de la permission de modifier les sauvegardes (`backups.write`), le
+    téléchargement et la restauration de celle de restaurer la plateforme (`platform_restore`,
+    WF-ADM-0100 ; décision de l'auteur du 2026-10-09, #588). Le téléchargement et la
+    restauration sont indisponibles tant que la vérification n'a pas réussi — en attente ou
+    échouée —, `backup_verified` manquante : la vérification est ce qui distingue une
+    sauvegarde d'un fichier qu'on espère restaurable (WF-ADM-0150). La restauration l'est aussi
+    pendant qu'une sauvegarde s'exécute, `no_backup_running` manquante — la sauvegarde lirait une
+    base en cours de remplacement —, et pendant qu'une restauration s'exécute déjà,
+    `no_restore_running` manquante ; le marquage l'est pendant une restauration, qui remplace
+    la base où il s'écrirait. Le téléchargement lit un fichier qu'aucune des deux ne touche : il
+    reste disponible pendant l'une et l'autre. Un appel envoyé malgré la liste est refusé par le
+    409 de l'opération, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la
+    condition.
+
+BackupCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/BackupCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+BackupCommands:
+  type: array
+  maxItems: 3
+  description: >-
+    Commandes de la sauvegarde que l'appelant a la permission d'exercer, chacune disponible ou
+    non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `BackupCommand` :
+    au plus trois, celle qui change son marquage, le téléchargement et la restauration. Une
+    commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
+    sauvegardes sans pouvoir ni les modifier ni restaurer la plateforme (`backups.read` seule,
+    WF-ADM-0100). Le front n'en déduit rien de l'état de la sauvegarde ni de la session : le
+    serveur dit ce qui se peut.
+  items: { $ref: '#/BackupCommandAvailability' }
+
 Backup:
   type: object
-  required: [backup_id, taken_at, size_bytes, verification, is_retained, scope]
+  required:
+    - backup_id
+    - taken_at
+    - size_bytes
+    - verification
+    - is_retained
+    - scope
+    - origin
+    - available_commands
   description: >-
     Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les
     fichiers importés ne vivent que le temps de leur import et n'y figurent pas
-    (WF-DAT-0120).
+    (WF-DAT-0120). Chaque colonne de la liste se filtre et se trie (`listBackups`,
+    WF-IHM-0130, WF-IHM-0060), et la sauvegarde porte ses commandes (WF-IHM-0090).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
-    taken_at: { $ref: ../common.yaml#/Timestamp }
-    size_bytes: { type: integer, minimum: 0 }
-    verification:
-      type: string
-      enum: [pending, passed, failed]
+    taken_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        L'instant où la sauvegarde a été prise ; c'est la date que la confirmation d'une
+        restauration énonce (WF-ADM-0160), et l'ordre de la liste sans tri, les plus récentes
+        d'abord.
+    size_bytes:
+      type: integer
+      minimum: 0
+      description: La taille du fichier, en octets, qui est la longueur de son téléchargement.
+    verification: { $ref: '#/BackupVerification' }
     is_retained:
       type: boolean
       description: Marquée à conserver, elle échappe à la rotation (WF-ADM-0170).
     scope:
       type: string
       enum: [database]
-    origin:
-      type: string
-      enum: [manual, scheduled]
+    origin: { $ref: '#/BackupOrigin' }
+    available_commands: { $ref: '#/BackupCommands' }
 
 BackupRetain:
   type: object
@@ -302,7 +380,8 @@ RestoreRequest:
     Restauration : elle remplace l'intégralité de la base, déconnecte les
     utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui
     énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160,
-    WF-DAT-0130).
+    WF-DAT-0130). Une sauvegarde de la liste se restaure comme sa commande `restore` le
+    dit d'avance (`BackupCommand`) : vérifiée, aucune sauvegarde ni restauration en cours.
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
@@ -314,7 +393,11 @@ RestoreRequest:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
         Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit
-        correspondre à celle de la sauvegarde désignée (WF-ADM-0160).
+        correspondre à celle de la sauvegarde désignée (WF-ADM-0160), `Backup.taken_at`, le
+        même instant quelle que soit l'écriture de son fuseau. Une autre date est refusée par
+        422 `VALIDATION_FAILED`, `fields` désignant `/acknowledged_backup_taken_at` par
+        `BACKUP_DATE_MISMATCH` : la confirmation n'a pas nommé la sauvegarde qu'elle désigne,
+        et rien n'est mis en file.
     confirmed:
       type: boolean
       const: true

@@ -3,10 +3,87 @@
     operationId: listBackups
     tags: [platform]
     summary: Sauvegardes
-    description: Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150).
+    description: >-
+      Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150), son origine
+      et son marquage à conserver (WF-ADM-0170), et les commandes que l'appelant peut exercer sur
+      elle, disponibles ou non (`available_commands`, WF-IHM-0090). Une table plate, dont chaque
+      colonne se filtre (WF-IHM-0130) — la date par une période (`from`, `to`), l'origine
+      (`origins`), la vérification (`verifications`), le marquage (`is_retained`), la taille par
+      ses bornes (`size_bytes_min`, `size_bytes_max`) —, les filtres se combinant, et se trie
+      (`sort_by`, WF-IHM-0060) ; sans tri, par date, les plus récentes d'abord. Le serveur
+      pagine ; `meta.total` compte les sauvegardes retenues. Lisible sous la permission de
+      consulter les sauvegardes (`backups.read`, WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
+      - name: from
+        in: query
+        description: Retient les sauvegardes prises à cet instant ou après lui (WF-IHM-0130).
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: to
+        in: query
+        description: >-
+          Retient les sauvegardes prises avant cet instant, exclu. Antérieur à `from`, il est
+          refusé par 422.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: origins
+        in: query
+        description: >-
+          Retient les sauvegardes de ces origines, manuelles ou planifiées ; absent, les deux
+          (WF-IHM-0130).
+        schema:
+          type: array
+          minItems: 1
+          items: { $ref: ../components/schemas/platform.yaml#/BackupOrigin }
+        explode: false
+      - name: verifications
+        in: query
+        description: >-
+          Retient les sauvegardes dont la vérification a cette issue, en attente, réussie ou
+          échouée ; absent, toutes (WF-ADM-0150, WF-IHM-0130).
+        schema:
+          type: array
+          minItems: 1
+          items: { $ref: ../components/schemas/platform.yaml#/BackupVerification }
+        explode: false
+      - name: is_retained
+        in: query
+        description: >-
+          Retient les sauvegardes marquées à conserver (vrai), ou celles que la rotation
+          supprimera à leur tour (faux) ; absent, toutes (WF-ADM-0170, WF-IHM-0130).
+        schema: { type: boolean }
+      - name: size_bytes_min
+        in: query
+        description: >-
+          Borne inférieure, incluse, de la taille en octets : retient les sauvegardes au moins
+          aussi lourdes (WF-IHM-0130).
+        schema: { type: integer, minimum: 0 }
+      - name: size_bytes_max
+        in: query
+        description: >-
+          Borne supérieure, incluse, de la taille en octets : retient les sauvegardes qui ne
+          sont pas plus lourdes (WF-IHM-0130). Inférieure à `size_bytes_min`, elle est refusée
+          par 422.
+        schema: { type: integer, minimum: 0 }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, la date. Les colonnes qui se trient (WF-IHM-0060) : la
+          date ; la taille ; la vérification et l'origine, dans l'ordre de leur énumération
+          (`BackupVerification`, `BackupOrigin`) — l'API ne rend pas leur libellé, que le front
+          choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le
+          marquage, les sauvegardes marquées à conserver d'abord dans l'ordre croissant, comme
+          l'état des comptes range les actifs. Une égalité se départage par l'ordre de la liste
+          sans tri — la date, les plus récentes d'abord —, puis par l'identifiant.
+        schema:
+          type: string
+          enum: [taken_at, size_bytes, verification, origin, is_retained]
+      - name: sort_order
+        in: query
+        description: >-
+          Sens du tri ; absent, décroissant pour la date — les sauvegardes les plus récentes
+          d'abord —, croissant pour toute autre colonne.
+        schema: { $ref: ../components/common.yaml#/SortOrder }
     responses:
       '200':
         description: Liste des sauvegardes.
@@ -24,15 +101,41 @@
               witness: { $ref: ../../../fixtures/api/backups.json }
               empty: { $ref: ../../../fixtures/api/backups_empty.json }
               beyond: { $ref: ../../../fixtures/api/backups_beyond.json }
+              reader: { $ref: ../../../fixtures/api/backups_reader.json }
+              during_backup: { $ref: ../../../fixtures/api/backups_during_backup.json }
+              manual: { $ref: ../../../fixtures/api/backups_manual.json }
+              retained: { $ref: ../../../fixtures/api/backups_retained.json }
+              period: { $ref: ../../../fixtures/api/backups_period.json }
+              by_size: { $ref: ../../../fixtures/api/backups_by_size.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Une période refusée selon la règle de toute période du contrat (WF-IHM-0130) : une fin
+          qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par
+          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal
+          formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne de la taille mal
+          formée, `/query/<borne>` par `NUMBER_INVALID` ; `size_bytes_max` inférieure à
+          `size_bytes_min`, `/query/size_bytes_max` par `VALUE_OUT_OF_RANGE`, `params.minimum`
+          la borne inférieure donnée.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/backups_period_inverted.json }
+              bounds_inverted: { $ref: ../../../fixtures/api/backups_bounds_inverted.json }
   post:
     operationId: startBackup
     tags: [platform]
     summary: Déclencher une sauvegarde
     description: >-
       Sauvegarde complète de la base dans un état cohérent, vérifiée après sa
-      production (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+      production (WF-ADM-0150). Confiée au worker (WF-ARC-0090). Une seule à la fois : une
+      sauvegarde ou une restauration qui s'exécute déjà la fait refuser par 409. Une sauvegarde
+      s'exécute de sa mise en file à la production du fichier ; la vérification qui suit
+      n'empêche rien, et une sauvegarde en attente de vérification (`backup_pending`) en laisse
+      déclencher une autre. Sous la permission de modifier les sauvegardes (`backups.write`,
+      WF-ADM-0100).
     responses:
       '202':
         description: Sauvegarde mise en file.
@@ -43,6 +146,19 @@
               queued: { $ref: ../../../fixtures/api/task_backup_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: >-
+          Une sauvegarde ou une restauration s'exécute déjà : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` nommant `no_backup_running` ou `no_restore_running` ; rien
+          n'est mis en file. Deux sauvegardes à la fois liraient la même base pour rien, et une
+          sauvegarde prise pendant une restauration ne serait d'aucun état cohérent
+          (WF-ADM-0150, WF-ADM-0160).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              backup_running: { $ref: ../../../fixtures/api/backup_start_refused.json }
+              restore_running: { $ref: ../../../fixtures/api/backup_start_during_restore_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}:
@@ -50,7 +166,8 @@
     operationId: getBackup
     summary: Une sauvegarde
     description: >-
-      État, date et taille d'une sauvegarde (WF-ADM-0150).
+      État, date et taille d'une sauvegarde (WF-ADM-0150), et les commandes que l'appelant peut
+      exercer sur elle (`available_commands`, WF-IHM-0090).
     tags: [platform]
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
@@ -60,13 +177,20 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/Backup }
+            examples:
+              witness: { $ref: ../../../fixtures/api/backup.json }
+              pending: { $ref: ../../../fixtures/api/backup_pending.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
     operationId: retainBackup
     tags: [platform]
     summary: Marquer une sauvegarde à conserver
-    description: Une sauvegarde marquée échappe à la rotation (WF-ADM-0170).
+    description: >-
+      Une sauvegarde marquée échappe à la rotation (WF-ADM-0170). La sauvegarde porte celle des
+      deux commandes qui change son marquage, `retain` ou `release` (`BackupCommand`,
+      WF-IHM-0090), indisponible pendant qu'une restauration s'exécute. Sous la permission de
+      modifier les sauvegardes (`backups.write`, WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     requestBody:
@@ -86,6 +210,16 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Une restauration s'exécute, qui remplace la base où le marquage s'écrirait :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `no_restore_running` ;
+          rien n'est écrit (WF-ADM-0160).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              restore_running: { $ref: ../../../fixtures/api/backup_retain_refused.json }
 
 /backups/{backup_id}/content:
   get:
@@ -95,18 +229,55 @@
     description: >-
       La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
       Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une
-      sauvegarde porte toute la base, comptes et projets compris.
+      sauvegarde porte toute la base, comptes et projets compris. Seule une sauvegarde vérifiée
+      se télécharge, comme sa commande `download` le dit d'avance (`BackupCommand`,
+      WF-IHM-0090) ; le fichier vient nommé et mesuré, en pièce jointe.
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
       '200':
-        description: Contenu de la sauvegarde.
+        description: Contenu de la sauvegarde, en pièce jointe nommée, de la longueur qu'elle dit.
+        headers:
+          Content-Disposition:
+            required: true
+            description: >-
+              `attachment`, et le nom que le serveur donne au fichier (`filename`) :
+              `waterfall-backup-`, l'instant de la sauvegarde en temps universel sans
+              séparateur (`20260603T010000Z` pour `2026-06-03T01:00:00Z`), et l'extension de
+              son archive, que l'exploitation fixe. Un nom en ASCII, qu'un poste enregistre tel
+              quel, et que `filename*` (RFC 8187) n'a pas à redire (RFC 6266).
+            schema: { type: string }
+            examples:
+              night:
+                summary: >-
+                  Le nom de la sauvegarde planifiée de la nuit du 3 juin 2026, prise à une heure
+                  en temps universel (WF-ADM-0150).
+                value: 'attachment; filename="waterfall-backup-20260603T010000Z.tar"'
+          Content-Length:
+            required: true
+            description: >-
+              La longueur du fichier, en octets : `Backup.size_bytes`, le corps transmis tel
+              qu'il est conservé, sans codage qui en changerait la longueur, pour que le poste
+              dise l'avancement du téléchargement (WF-ADM-0150). Sans exemple : le faux back
+              rejouerait la longueur de la liste sur un corps de quelques octets, et la route du
+              front qui relaie le téléchargement recopie l'en-tête.
+            schema: { type: integer, minimum: 0 }
         content:
           application/octet-stream:
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `backup_verified` ; rien
+          n'est transmis (WF-ADM-0150).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unverified: { $ref: ../../../fixtures/api/backup_download_refused.json }
 
 /backup-schedule:
   get:
@@ -151,6 +322,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+            examples:
+              set: { $ref: ../../../fixtures/api/backup_schedule_set.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -254,7 +427,15 @@
     description: >-
       Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les
       utilisateurs, vide le cache, et n'est appliquée qu'après confirmation
-      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
+      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker
+      (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit
+      d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration
+      en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422.
+      Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des
+      utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en
+      déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre
+      — ; le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Sous
+      la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100).
     requestBody:
       required: true
       content:
@@ -271,14 +452,31 @@
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422':
+      '409':
         description: >-
-          Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import
-          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
-          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`.
+          Un état qui interdit la restauration : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` nommant la condition que la commande `restore` de la
+          sauvegarde disait manquante (`BackupCommand`) — `backup_verified`, la sauvegarde
+          désignée n'étant pas vérifiée, en attente ou échouée (WF-ADM-0150) ;
+          `no_backup_running`, une sauvegarde s'exécutant ; `no_restore_running`, une
+          restauration s'exécutant déjà (WF-ADM-0160). Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              backup_running: { $ref: ../../../fixtures/api/restore_during_backup_refused.json }
+              unverified: { $ref: ../../../fixtures/api/restore_unverified_refused.json }
+              restore_running: { $ref: ../../../fixtures/api/restore_during_restore_refused.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : une date confirmée qui
+          n'est pas celle de la sauvegarde désignée, `/acknowledged_backup_taken_at` par
+          `BACKUP_DATE_MISMATCH` (WF-ADM-0160) ; un dépôt qui n'a pas été fait pour une
+          restauration — le fichier d'un import (`FileUploadPurpose`) —,
+          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. Rien n'est mis en file.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              date_mismatch: { $ref: ../../../fixtures/api/restore_date_mismatch.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }

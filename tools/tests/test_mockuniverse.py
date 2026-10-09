@@ -452,7 +452,12 @@ def test_the_external_copy_names_a_location_the_installation_declares() -> None:
 def test_the_copies_outside_the_platform_keep_at_least_its_retention() -> None:
     # WF-EXP-0050: « une rétention au moins égale à celle configurée sur la plateforme ». Every
     # schedule that copies keeps as many copies; the refusal names the retention of the platform.
-    for name in ("backup_schedule", "backup_schedule_disabled", "backup_schedule_weekly"):
+    for name in (
+        "backup_schedule",
+        "backup_schedule_disabled",
+        "backup_schedule_weekly",
+        "backup_schedule_set",
+    ):
         schedule = fixture(name)
         copy = schedule.get("external_copy")
         assert copy is None or copy["retained_count"] >= schedule["retained_count"], name
@@ -616,6 +621,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
     expected = {
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
+        "backups": ("/query/to", "minimum", datetime),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
@@ -681,6 +687,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "getPortfolioValue",
         "listActualCosts",
         "listAuditEvents",
+        "listBackups",
         "listProjects",
     ]
     for name, text in taking.items():

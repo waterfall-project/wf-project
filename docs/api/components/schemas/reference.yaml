@@ -640,8 +640,16 @@ ReferenceSettings:
 ReferenceSettingsWrite:
   type: object
   required: [lock_version]
+  description: >-
+    Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit —
+    la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre
+    deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction
+    (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que
+    ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut
+    de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux
+    fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne
+    s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`).
   properties:
-    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
@@ -659,11 +667,18 @@ RiskMatrixSettings:
       type: array
       minItems: 3
       maxItems: 3
+      description: >-
+        Du plus bas au plus haut, strictement croissantes (WF-REF-0160) : une borne qui n'est
+        pas supérieure à la précédente est refusée par 422 `VALIDATION_FAILED`, `fields`
+        désignant son rang (`/risk_matrix/probability_bounds/<rang>`) par `BOUNDS_NOT_ORDERED`.
       items: { $ref: ../common.yaml#/Percent }
     severity_bounds:
       type: array
       minItems: 3
       maxItems: 3
+      description: >-
+        Du plus bas au plus haut, strictement croissantes (WF-REF-0160), refusées de même par
+        `BOUNDS_NOT_ORDERED` sur `/risk_matrix/severity_bounds/<rang>`.
       items: { $ref: ../common.yaml#/Percent }
     zones:
       type: array
@@ -679,12 +694,25 @@ RiskMatrixSettings:
 IndexThresholds:
   type: object
   required: [cost_watch, cost_alert, schedule_watch, schedule_alert]
-  description: Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170).
+  description: >-
+    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Le seuil
+    d'alerte de chaque indice est strictement inférieur à son seuil de vigilance : un seuil
+    d'alerte qui ne l'est pas est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant
+    (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`) par
+    `THRESHOLD_NOT_BELOW_WATCH`.
   properties:
-    cost_watch: { $ref: ../common.yaml#/Decimal }
-    cost_alert: { $ref: ../common.yaml#/Decimal }
-    schedule_watch: { $ref: ../common.yaml#/Decimal }
-    schedule_alert: { $ref: ../common.yaml#/Decimal }
+    cost_watch: { $ref: '#/IndexThreshold' }
+    cost_alert: { $ref: '#/IndexThreshold' }
+    schedule_watch: { $ref: '#/IndexThreshold' }
+    schedule_alert: { $ref: '#/IndexThreshold' }
+
+IndexThreshold:
+  allOf:
+    - $ref: ../common.yaml#/Decimal
+  pattern: '^0\.\d*[1-9]\d*$'
+  description: >-
+    Un seuil d'un indice : une valeur de l'indice strictement entre 0 et 1 (WF-REF-0170), en
+    décimal exact — `0.9`, `0.85` ; ni `0`, ni `1`.
 
 DurationUnits:
   type: object

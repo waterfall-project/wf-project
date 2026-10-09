@@ -136,12 +136,11 @@ test("starts a backup, marks one to be kept, downloads one and restores the plat
   ).toBeVisible();
   await expect(lastNight).toContainText("Marquée à conserver");
 
-  // Downloaded as an attachment, by the route of the front that hands it on as a stream.
+  // Downloaded as an attachment, by the route of the front that hands it on as a stream,
+  // under the name the contract gives it (the example of Content-Disposition, L42h).
   const downloaded = page.waitForEvent("download");
   await lastNight.getByRole("link", { name: /^Télécharger la sauvegarde du / }).click();
-  expect((await downloaded).suggestedFilename()).toBe(
-    "backup-01926f3a-7c00-7000-8000-000000000907",
-  );
+  expect((await downloaded).suggestedFilename()).toBe("waterfall-backup-20260603T010000Z.tar");
 
   // Restored only once its identifier is typed, the dialog naming its date and what is lost.
   const kept = backups.getByRole("row").nth(8);

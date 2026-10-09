@@ -1,0 +1,17 @@
+{
+  "summary": "La planification enregistrée aujourd'hui par Camille Martin : chaque nuit à une heure en temps universel, désormais quatorze sauvegardes conservées sur la plateforme, la copie vers le compartiment du site de secours de Lyon gardée telle quelle, ses trente copies restant au moins autant que la rétention ; version 3 (WF-ADM-0170, WF-EXP-0050).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "daily",
+    "at_time": "01:00",
+    "weekday": null,
+    "retained_count": 14,
+    "external_copy": {
+      "is_enabled": true,
+      "location": "secours-lyon",
+      "path": "waterfall/sauvegardes",
+      "retained_count": 30
+    },
+    "lock_version": 3
+  }
+}

@@ -291,6 +291,15 @@ ErrorCode:
     # Un chemin dans un emplacement externe qui n'est pas relatif, ou qui en sortirait
     # (`ExternalBackupPath`, WF-ADM-0170).
     - PATH_INVALID
+    # La date confirmée d'une restauration qui n'est pas celle de la sauvegarde désignée
+    # (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160).
+    - BACKUP_DATE_MISMATCH
+    # Une borne de la matrice de risques qui n'est pas strictement supérieure à la précédente
+    # (`RiskMatrixSettings`, WF-REF-0160) ; le pointeur désigne la borne qui rompt l'ordre.
+    - BOUNDS_NOT_ORDERED
+    # Un seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice
+    # (`IndexThresholds`, WF-REF-0170) ; le pointeur désigne le seuil d'alerte.
+    - THRESHOLD_NOT_BELOW_WATCH
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
     # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la

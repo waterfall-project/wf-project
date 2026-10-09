@@ -13,6 +13,8 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
 const BACKUP = "01926f3a-7c00-7000-8000-000000000907";
 const CONTENT = "GET /backups/{backup_id}/content";
+/** The name the contract gives the file of the backup of last night (`downloadBackup`). */
+const NAMED = "waterfall-backup-20260603T010000Z.tar";
 /** The screen the download leaves from: the second page of the backups. */
 const SCREEN = "/admin/backups?offset=50";
 
@@ -51,16 +53,25 @@ beforeEach(() => {
 });
 
 describe("a backup, downloaded", () => {
-  it("is the content the API gives, as an attachment named after the backup, never sniffed nor kept [WF-ADM-0150-A]", async () => {
+  it("is the content the API gives, as an attachment named and measured as the contract declares, never sniffed nor kept [WF-ADM-0150-A]", async () => {
     const client = serve({
-      [CONTENT]: { body: new Blob(["sauvegarde"]), type: "application/octet-stream", status: 200 },
+      [CONTENT]: {
+        body: new Blob(["sauvegarde"]),
+        type: "application/octet-stream",
+        status: 200,
+        headers: {
+          "Content-Disposition": `attachment; filename="${NAMED}"`,
+          "Content-Length": "10",
+        },
+      },
     });
     const response = await download();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/octet-stream");
     expect(response.headers.get("content-disposition")).toBe(
-      `attachment; filename="backup-${BACKUP}"; filename*=UTF-8''backup-${BACKUP}`,
+      `attachment; filename="${NAMED}"; filename*=UTF-8''${NAMED}`,
     );
+    expect(response.headers.get("content-length")).toBe("10");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.text()).toBe("sauvegarde");

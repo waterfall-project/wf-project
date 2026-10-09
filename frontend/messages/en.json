@@ -1574,6 +1574,9 @@
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
+    "BACKUP_DATE_MISMATCH": "The confirmed date is not that of the backup named.",
+    "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
+    "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
@@ -1793,18 +1796,24 @@
       }
     },
     "Backup": {
-      "verification": {
-        "pending": "Verification pending",
-        "passed": "Verified",
-        "failed": "Verification failed"
-      },
       "scope": {
         "database": "Database"
-      },
-      "origin": {
-        "manual": "Manual",
-        "scheduled": "Scheduled"
       }
+    },
+    "BackupVerification": {
+      "pending": "Verification pending",
+      "passed": "Verified",
+      "failed": "Verification failed"
+    },
+    "BackupOrigin": {
+      "manual": "Manual",
+      "scheduled": "Scheduled"
+    },
+    "BackupCommand": {
+      "retain": "Keep",
+      "release": "Stop keeping",
+      "download": "Download",
+      "restore": "Restore the platform"
     },
     "BackupSchedule": {
       "frequency": {
@@ -1929,7 +1938,10 @@
       "cost_category_unrated": "category without hourly rates",
       "cost_type_not_last_provision": "another active provision nature holding an active category",
       "cost_category_not_last_provision": "another active category under an active provision nature",
-      "last_administrator": "another active account holding the administration permissions"
+      "last_administrator": "another active account holding the administration permissions",
+      "backup_verified": "backup verified",
+      "no_backup_running": "no backup running",
+      "no_restore_running": "no restoration running"
     },
     "ProjectExit": {
       "to_state": {

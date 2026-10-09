@@ -606,13 +606,13 @@ export interface paths {
         };
         /**
          * Sauvegardes
-         * @description Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150).
+         * @description Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150), son origine et son marquage à conserver (WF-ADM-0170), et les commandes que l'appelant peut exercer sur elle, disponibles ou non (`available_commands`, WF-IHM-0090). Une table plate, dont chaque colonne se filtre (WF-IHM-0130) — la date par une période (`from`, `to`), l'origine (`origins`), la vérification (`verifications`), le marquage (`is_retained`), la taille par ses bornes (`size_bytes_min`, `size_bytes_max`) —, les filtres se combinant, et se trie (`sort_by`, WF-IHM-0060) ; sans tri, par date, les plus récentes d'abord. Le serveur pagine ; `meta.total` compte les sauvegardes retenues. Lisible sous la permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100).
          */
         get: operations["listBackups"];
         put?: never;
         /**
          * Déclencher une sauvegarde
-         * @description Sauvegarde complète de la base dans un état cohérent, vérifiée après sa production (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+         * @description Sauvegarde complète de la base dans un état cohérent, vérifiée après sa production (WF-ADM-0150). Confiée au worker (WF-ARC-0090). Une seule à la fois : une sauvegarde ou une restauration qui s'exécute déjà la fait refuser par 409. Une sauvegarde s'exécute de sa mise en file à la production du fichier ; la vérification qui suit n'empêche rien, et une sauvegarde en attente de vérification (`backup_pending`) en laisse déclencher une autre. Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         post: operations["startBackup"];
         delete?: never;
@@ -630,7 +630,7 @@ export interface paths {
         };
         /**
          * Une sauvegarde
-         * @description État, date et taille d'une sauvegarde (WF-ADM-0150).
+         * @description État, date et taille d'une sauvegarde (WF-ADM-0150), et les commandes que l'appelant peut exercer sur elle (`available_commands`, WF-IHM-0090).
          */
         get: operations["getBackup"];
         put?: never;
@@ -640,7 +640,7 @@ export interface paths {
         head?: never;
         /**
          * Marquer une sauvegarde à conserver
-         * @description Une sauvegarde marquée échappe à la rotation (WF-ADM-0170).
+         * @description Une sauvegarde marquée échappe à la rotation (WF-ADM-0170). La sauvegarde porte celle des deux commandes qui change son marquage, `retain` ou `release` (`BackupCommand`, WF-IHM-0090), indisponible pendant qu'une restauration s'exécute. Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         patch: operations["retainBackup"];
         trace?: never;
@@ -654,7 +654,7 @@ export interface paths {
         };
         /**
          * Copier une sauvegarde hors de la plateforme
-         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une sauvegarde porte toute la base, comptes et projets compris.
+         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une sauvegarde porte toute la base, comptes et projets compris. Seule une sauvegarde vérifiée se télécharge, comme sa commande `download` le dit d'avance (`BackupCommand`, WF-IHM-0090) ; le fichier vient nommé et mesuré, en pièce jointe.
          */
         get: operations["downloadBackup"];
         put?: never;
@@ -740,7 +740,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurer la plateforme
-         * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
+         * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422. Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre — ; le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100).
          */
         post: operations["startRestore"];
         delete?: never;
@@ -828,7 +828,7 @@ export interface paths {
         head?: never;
         /**
          * Régler les paramètres communs
-         * @description La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Le seuil d'alerte de chaque indice reste inférieur à son seuil de vigilance (WF-REF-0170).
+         * @description La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Chaque champ relève de la permission de sa fonction (WF-ADM-0100) : la matrice de risques (`risk_matrix`) de `risk_settings.write` (WF-REF-0160), les seuils des indices et le délai entre deux revues (`index_thresholds`, `max_weeks_between_reviews`) d'`indicator_settings.write` (WF-REF-0170, WF-REF-0180). Une requête ne porte que ce qu'elle écrit, avec le compteur lu, commun à tous les paramètres : un champ absent reste tel qu'il est. Un champ dont la session ne porte pas la permission est refusé par 403, même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Les six bornes de la matrice sont ordonnées, strictement croissantes sur chaque axe (WF-REF-0160), et le seuil d'alerte de chaque indice reste strictement inférieur à son seuil de vigilance (WF-REF-0170) : une borne ou un seuil qui ne le sont pas sont refusés par champ (422). La langue par défaut de l'installation (`default_language`, WF-INTF-0160) ne relève d'aucune des deux fonctions et ne s'écrit pas ici : aucun écran du référentiel ne l'écrit, et elle s'écrira là où EP-03 le décidera.
          */
         patch: operations["updateReferenceSettings"];
         trace?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2950,10 +2950,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409.
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3024,19 +3024,43 @@ export interface components {
         AccessRoleUpdate: components["schemas"]["AccessRoleWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
+        /**
+         * @description Ce qui a produit une sauvegarde : un utilisateur habilité (`startBackup`, WF-ADM-0150) ou la planification (WF-ADM-0170). La colonne se filtre (`origins` de `listBackups`) et se trie dans cet ordre (WF-IHM-0130, WF-IHM-0060).
+         * @enum {string}
+         */
+        BackupOrigin: "manual" | "scheduled";
+        /**
+         * @description Résultat de la vérification d'une sauvegarde après sa production (WF-ADM-0150) : en attente, réussie, échouée. La colonne se filtre (`verifications` de `listBackups`) et se trie dans cet ordre (WF-IHM-0130, WF-IHM-0060). Seule une sauvegarde vérifiée sort de la plateforme ou la remplace (`BackupCommand`).
+         * @enum {string}
+         */
+        BackupVerification: "pending" | "passed" | "failed";
+        /**
+         * @description Commandes portées par une sauvegarde (WF-IHM-0090) : la marquer à conserver ou ne plus la conserver, par `retainBackup` — une sauvegarde ne porte que celle qui change son marquage, `retain` si elle n'est pas marquée, `release` si elle l'est (WF-ADM-0170) —, la copier hors de la plateforme, par `downloadBackup` (WF-ADM-0150), et restaurer la plateforme depuis elle, par `startRestore` (WF-ADM-0160). Aucune ne la supprime : seule la rotation le fait. Le marquage relève de la permission de modifier les sauvegardes (`backups.write`), le téléchargement et la restauration de celle de restaurer la plateforme (`platform_restore`, WF-ADM-0100 ; décision de l'auteur du 2026-10-09, #588). Le téléchargement et la restauration sont indisponibles tant que la vérification n'a pas réussi — en attente ou échouée —, `backup_verified` manquante : la vérification est ce qui distingue une sauvegarde d'un fichier qu'on espère restaurable (WF-ADM-0150). La restauration l'est aussi pendant qu'une sauvegarde s'exécute, `no_backup_running` manquante — la sauvegarde lirait une base en cours de remplacement —, et pendant qu'une restauration s'exécute déjà, `no_restore_running` manquante ; le marquage l'est pendant une restauration, qui remplace la base où il s'écrirait. Le téléchargement lit un fichier qu'aucune des deux ne touche : il reste disponible pendant l'une et l'autre. Un appel envoyé malgré la liste est refusé par le 409 de l'opération, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition.
+         * @enum {string}
+         */
+        BackupCommand: "retain" | "release" | "download" | "restore";
+        BackupCommandAvailability: {
+            command: components["schemas"]["BackupCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de la sauvegarde que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `BackupCommand` : au plus trois, celle qui change son marquage, le téléchargement et la restauration. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les sauvegardes sans pouvoir ni les modifier ni restaurer la plateforme (`backups.read` seule, WF-ADM-0100). Le front n'en déduit rien de l'état de la sauvegarde ni de la session : le serveur dit ce qui se peut. */
+        BackupCommands: components["schemas"]["BackupCommandAvailability"][];
+        /** @description Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). Chaque colonne de la liste se filtre et se trie (`listBackups`, WF-IHM-0130, WF-IHM-0060), et la sauvegarde porte ses commandes (WF-IHM-0090). */
         Backup: {
             backup_id: components["schemas"]["Uuid"];
+            /** @description L'instant où la sauvegarde a été prise ; c'est la date que la confirmation d'une restauration énonce (WF-ADM-0160), et l'ordre de la liste sans tri, les plus récentes d'abord. */
             taken_at: components["schemas"]["Timestamp"];
+            /** @description La taille du fichier, en octets, qui est la longueur de son téléchargement. */
             size_bytes: number;
-            /** @enum {string} */
-            verification: "pending" | "passed" | "failed";
+            verification: components["schemas"]["BackupVerification"];
             /** @description Marquée à conserver, elle échappe à la rotation (WF-ADM-0170). */
             is_retained: boolean;
             /** @enum {string} */
             scope: "database";
-            /** @enum {string} */
-            origin?: "manual" | "scheduled";
+            origin: components["schemas"]["BackupOrigin"];
+            available_commands: components["schemas"]["BackupCommands"];
         };
         BackupRetain: {
             is_retained: boolean;
@@ -3094,12 +3118,12 @@ export interface components {
             /** @description Le motif de l'échec ; nul quand le fichier a été écrit puis effacé. */
             failure: components["schemas"]["ExternalBackupFailure"] | null;
         };
-        /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
+        /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune sauvegarde ni restauration en cours. */
         RestoreRequest: {
             backup_id?: components["schemas"]["Uuid"];
             /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). */
             external_backup_upload_id?: components["schemas"]["Uuid"];
-            /** @description Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160). */
+            /** @description Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160), `Backup.taken_at`, le même instant quelle que soit l'écriture de son fuseau. Une autre date est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/acknowledged_backup_taken_at` par `BACKUP_DATE_MISMATCH` : la confirmation n'a pas nommé la sauvegarde qu'elle désigne, et rien n'est mis en file. */
             acknowledged_backup_taken_at: components["schemas"]["Timestamp"];
             /** @constant */
             confirmed: true;
@@ -3178,17 +3202,21 @@ export interface components {
         Percent: components["schemas"]["Decimal"];
         /** @description Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160, WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage du budget de référence. */
         RiskMatrixSettings: {
+            /** @description Du plus bas au plus haut, strictement croissantes (WF-REF-0160) : une borne qui n'est pas supérieure à la précédente est refusée par 422 `VALIDATION_FAILED`, `fields` désignant son rang (`/risk_matrix/probability_bounds/<rang>`) par `BOUNDS_NOT_ORDERED`. */
             probability_bounds: components["schemas"]["Percent"][];
+            /** @description Du plus bas au plus haut, strictement croissantes (WF-REF-0160), refusées de même par `BOUNDS_NOT_ORDERED` sur `/risk_matrix/severity_bounds/<rang>`. */
             severity_bounds: components["schemas"]["Percent"][];
             /** @description La zone de chaque case, rangée par niveau de probabilité puis par niveau de gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et de gravité g, de 1 à 4, est la zone de rang 4 × (p − 1) + (g − 1), en comptant depuis zéro. */
             zones: components["schemas"]["AlertZone"][];
         };
-        /** @description Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). */
+        /** @description Un seuil d'un indice : une valeur de l'indice strictement entre 0 et 1 (WF-REF-0170), en décimal exact — `0.9`, `0.85` ; ni `0`, ni `1`. */
+        IndexThreshold: components["schemas"]["Decimal"];
+        /** @description Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Le seuil d'alerte de chaque indice est strictement inférieur à son seuil de vigilance : un seuil d'alerte qui ne l'est pas est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`) par `THRESHOLD_NOT_BELOW_WATCH`. */
         IndexThresholds: {
-            cost_watch: components["schemas"]["Decimal"];
-            cost_alert: components["schemas"]["Decimal"];
-            schedule_watch: components["schemas"]["Decimal"];
-            schedule_alert: components["schemas"]["Decimal"];
+            cost_watch: components["schemas"]["IndexThreshold"];
+            cost_alert: components["schemas"]["IndexThreshold"];
+            schedule_watch: components["schemas"]["IndexThreshold"];
+            schedule_alert: components["schemas"]["IndexThreshold"];
         };
         /** @description Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180). */
         ReferenceSettings: {
@@ -3200,8 +3228,8 @@ export interface components {
             max_weeks_between_reviews: number;
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit — la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`). */
         ReferenceSettingsWrite: {
-            default_language?: components["schemas"]["Language"];
             risk_matrix?: components["schemas"]["RiskMatrixSettings"];
             index_thresholds?: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews?: number;
@@ -6008,6 +6036,24 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
+                /** @description Retient les sauvegardes prises à cet instant ou après lui (WF-IHM-0130). */
+                from?: components["schemas"]["Timestamp"];
+                /** @description Retient les sauvegardes prises avant cet instant, exclu. Antérieur à `from`, il est refusé par 422. */
+                to?: components["schemas"]["Timestamp"];
+                /** @description Retient les sauvegardes de ces origines, manuelles ou planifiées ; absent, les deux (WF-IHM-0130). */
+                origins?: components["schemas"]["BackupOrigin"][];
+                /** @description Retient les sauvegardes dont la vérification a cette issue, en attente, réussie ou échouée ; absent, toutes (WF-ADM-0150, WF-IHM-0130). */
+                verifications?: components["schemas"]["BackupVerification"][];
+                /** @description Retient les sauvegardes marquées à conserver (vrai), ou celles que la rotation supprimera à leur tour (faux) ; absent, toutes (WF-ADM-0170, WF-IHM-0130). */
+                is_retained?: boolean;
+                /** @description Borne inférieure, incluse, de la taille en octets : retient les sauvegardes au moins aussi lourdes (WF-IHM-0130). */
+                size_bytes_min?: number;
+                /** @description Borne supérieure, incluse, de la taille en octets : retient les sauvegardes qui ne sont pas plus lourdes (WF-IHM-0130). Inférieure à `size_bytes_min`, elle est refusée par 422. */
+                size_bytes_max?: number;
+                /** @description Colonne du tri ; absente, la date. Les colonnes qui se trient (WF-IHM-0060) : la date ; la taille ; la vérification et l'origine, dans l'ordre de leur énumération (`BackupVerification`, `BackupOrigin`) — l'API ne rend pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le marquage, les sauvegardes marquées à conserver d'abord dans l'ordre croissant, comme l'état des comptes range les actifs. Une égalité se départage par l'ordre de la liste sans tri — la date, les plus récentes d'abord —, puis par l'identifiant. */
+                sort_by?: "taken_at" | "size_bytes" | "verification" | "origin" | "is_retained";
+                /** @description Sens du tri ; absent, décroissant pour la date — les sauvegardes les plus récentes d'abord —, croissant pour toute autre colonne. */
+                sort_order?: components["schemas"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -6029,6 +6075,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une période refusée selon la règle de toute période du contrat (WF-IHM-0130) : une fin qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne de la taille mal formée, `/query/<borne>` par `NUMBER_INVALID` ; `size_bytes_max` inférieure à `size_bytes_min`, `/query/size_bytes_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     startBackup: {
@@ -6051,6 +6106,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description Une sauvegarde ou une restauration s'exécute déjà : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `no_backup_running` ou `no_restore_running` ; rien n'est mis en file. Deux sauvegardes à la fois liraient la même base pour rien, et une sauvegarde prise pendant une restauration ne serait d'aucun état cohérent (WF-ADM-0150, WF-ADM-0160). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6105,6 +6169,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Une restauration s'exécute, qui remplace la base où le marquage s'écrirait : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `no_restore_running` ; rien n'est écrit (WF-ADM-0160). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     downloadBackup: {
@@ -6118,9 +6191,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contenu de la sauvegarde. */
+            /** @description Contenu de la sauvegarde, en pièce jointe nommée, de la longueur qu'elle dit. */
             200: {
                 headers: {
+                    /** @description `attachment`, et le nom que le serveur donne au fichier (`filename`) : `waterfall-backup-`, l'instant de la sauvegarde en temps universel sans séparateur (`20260603T010000Z` pour `2026-06-03T01:00:00Z`), et l'extension de son archive, que l'exploitation fixe. Un nom en ASCII, qu'un poste enregistre tel quel, et que `filename*` (RFC 8187) n'a pas à redire (RFC 6266). */
+                    "Content-Disposition": string;
+                    /** @description La longueur du fichier, en octets : `Backup.size_bytes`, le corps transmis tel qu'il est conservé, sans codage qui en changerait la longueur, pour que le poste dise l'avancement du téléchargement (WF-ADM-0150). Sans exemple : le faux back rejouerait la longueur de la liste sur un corps de quelques octets, et la route du front qui relaie le téléchargement recopie l'en-tête. */
+                    "Content-Length": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6130,6 +6207,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `backup_verified` ; rien n'est transmis (WF-ADM-0150). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getBackupSchedule: {
@@ -6286,8 +6372,16 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
+            /** @description Un état qui interdit la restauration : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition que la commande `restore` de la sauvegarde disait manquante (`BackupCommand`) — `backup_verified`, la sauvegarde désignée n'étant pas vérifiée, en attente ou échouée (WF-ADM-0150) ; `no_backup_running`, une sauvegarde s'exécutant ; `no_restore_running`, une restauration s'exécutant déjà (WF-ADM-0160). Rien n'est mis en file. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` désignant le champ en défaut : une date confirmée qui n'est pas celle de la sauvegarde désignée, `/acknowledged_backup_taken_at` par `BACKUP_DATE_MISMATCH` (WF-ADM-0160) ; un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) —, `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. Rien n'est mis en file. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6437,7 +6531,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Paramètres enregistrés. */
+            /** @description Paramètres enregistrés, entiers, avec leur compteur suivant. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6447,9 +6541,33 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un champ dont la session ne porte pas la permission de la fonction : `PERMISSION_MISSING`, `params.missing_permission` la nommant — `risk_settings.write` pour la matrice, `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100, WF-ADM-0110) ; rien n'est écrit. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `lock_version` périmé : les paramètres ont été modifiés depuis leur lecture, par l'un ou l'autre écran, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante (WF-IHM-0110). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une borne de la matrice qui n'est pas strictement supérieure à la précédente, `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice, `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listOrgNodes: {

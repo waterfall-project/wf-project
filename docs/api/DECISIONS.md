@@ -3505,6 +3505,176 @@ contrat, et ce que l'opération rend d'un projet en cours ou terminal, sont des 
 issue » relevées par EP-02/L44a, sous #507. Chacun ne vaut que pour la réponse de son opération :
 aucune lecture n'en tient compte.
 
+## Les sauvegardes et les réglages : commandes, filtres et refus (EP-14/L42h)
+
+Les cinq constats de #588, relevés par EP-02/L43c, et le huitième point de #575, les réglages,
+rangés dans #507 et regroupés au cadrage d'EP-14 par l'écran qui les consomme — la grille des
+sauvegardes de L43c, le formulaire de la planification de L43d, ceux des réglages de L43e. La
+permission du téléchargement est la décision de l'auteur du 2026-10-09 ; le reste est de l'agent
+de livraison du lot, chaque fois avec sa raison, et les noms que le cadrage et les issues
+proposaient sont arrêtés ici.
+
+**Chaque sauvegarde porte ses commandes** (`Backup.available_commands`, `BackupCommand` ; #588,
+WF-IHM-0090), sur le modèle de `UserCommand` : au plus trois, dans l'ordre de l'énumération —
+celle des deux qui change son marquage, `retain` ou `release` (`retainBackup`, WF-ADM-0170), comme
+un objet du référentiel ne porte que celle qui change son état (EP-02/L42a) ; `download`
+(`downloadBackup`, WF-ADM-0150) ; `restore` (`startRestore`, WF-ADM-0160). Aucune ne supprime :
+la rotation seule le fait. Le serveur ne liste que ce que l'appelant a la permission d'exercer —
+le marquage sous `backups.write`, le téléchargement et la restauration sous `platform_restore`
+(décision de l'auteur, EP-02/L43c) — et la liste est vide pour qui n'a que `backups.read` ; le
+front cesse de déduire les colonnes de commandes des permissions de la session. Trois conditions
+s'ajoutent au catalogue (`CommandCondition`), nommées comme ce qui doit tenir, à la manière de
+`no_background_task_running` et de `calendar_not_default`, et non comme l'état qui l'empêche :
+`backup_verified`, `no_backup_running`, `no_restore_running`. Écartés : `backup_running`,
+`restore_running` et `verification_failed`, les noms du cadrage, qui auraient fait lire « condition
+manquante : sauvegarde en cours » ; déduire les disponibilités de l'état de la sauvegarde dans le
+front, que la conception d'EP-02 interdit. Ce que chaque condition retient, et pourquoi :
+
+- `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la
+  vérification n'a pas réussi, en attente ou échouée : « la vérification est ce qui distingue une
+  sauvegarde d'un fichier qu'on espère restaurable » (motif de WF-ADM-0150), et le Vérif ne la fait
+  télécharger qu'avec « une vérification réussie » ; la copie planifiée attend de même la
+  vérification (`BackupExternalCopy`). Le marquage reste disponible : conserver une sauvegarde en
+  attente de vérification ne fait rien perdre. Écarté : le téléchargement d'une sauvegarde non
+  vérifiée, qui ferait sortir de la plateforme un fichier qu'on ne sait pas restaurable ;
+- `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la
+  production du fichier : la vérification qui suit n'empêche rien, et une sauvegarde en attente de
+  vérification (`backup_pending`) ne retient ni une restauration ni une autre sauvegarde, comme
+  `backup_pending` en porte le marquage disponible —, à la restauration, qui lirait une base en
+  cours de remplacement et ne serait d'aucun état cohérent, et au déclenchement d'une seconde
+  sauvegarde, qui lirait la même base pour rien ;
+- `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la
+  déconnexion des utilisateurs (WF-ADM-0160) —, à la restauration, au déclenchement d'une
+  sauvegarde et au marquage, qui s'écrirait dans la base que la restauration remplace. Le
+  téléchargement lit un fichier qu'aucune des deux ne touche : il reste disponible pendant l'une et
+  l'autre, et n'est indisponible que ce qui l'est (WF-IHM-0090). Écarté : rendre toute commande
+  indisponible pendant une restauration, plus simple, et faux pour le téléchargement.
+
+**Les 409 des sauvegardes sont ceux de toute commande qu'un état rend indisponible** (#588, points
+4 et 5) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition, comme les
+activations du référentiel (EP-02/L42a) et le type d'une nature (EP-02/L42g). `startBackup` le
+déclare pour `no_backup_running` et `no_restore_running` ; `retainBackup` pour
+`no_restore_running` ; `downloadBackup` pour `backup_verified` ; `startRestore`, dont le 409
+renvoyait à la réponse partagée `Conflict`, le décrit en place pour les trois. Écartés :
+`BACKUP_IN_PROGRESS` et `RESTORE_IN_PROGRESS`, les codes que #588 proposait — deux codes pour un
+refus que la condition nomme déjà, ce pour quoi `DEFAULT_CALENDAR_REQUIRED` a été retiré (EP-02/L42a).
+`startRestore` dit aussi ce qui est refusé pendant qu'une restauration court : en déclencher une
+autre (`restore_during_restore_refused`), une sauvegarde, un marquage ; le téléchargement d'une
+sauvegarde vérifiée reste possible. Écarté : une disponibilité dite d'avance pour « Sauvegarder
+maintenant » — `startBackup` n'est porté par aucune liste, aucun objet ne le liste parmi ses
+commandes ; le front le garde par la permission `backups.write`, et le 409 nommé suffit à dire
+pourquoi une sauvegarde est refusée. Une liste de commandes de la plateforme viendra quand un
+écran en aura besoin.
+
+**Une date confirmée qui n'est pas celle de la sauvegarde est refusée par champ** (#588, point 4 ;
+WF-ADM-0160) : 422 `VALIDATION_FAILED`, `fields` désignant `/acknowledged_backup_taken_at` par
+`BACKUP_DATE_MISMATCH`, nouveau au catalogue comme `UPLOAD_PURPOSE_MISMATCH`, le refus voisin de
+la même opération : aucun motif existant ne dit « pas celle de l'objet désigné ». Les deux dates
+se comparent comme des instants, quelle que soit l'écriture du fuseau. Sans paramètre : la
+confirmation énonce la date que la liste donne, et une date de sauvegarde ne change jamais — le
+refus ne survient que si la liste lue n'est plus celle de la sauvegarde désignée, et l'écran
+relit. Écarté : nommer la date de la sauvegarde dans `fields[].params`, que la liste porte déjà.
+
+**Le téléchargement vient nommé et mesuré** (#588, point 2 ; WF-ADM-0150). `downloadBackup`
+déclare deux en-têtes exigés, comme le résultat d'une tâche (`getBackgroundTaskResult`,
+EP-02/L15) : `Content-Disposition`, `attachment` et le nom que le serveur donne au fichier —
+`waterfall-backup-`, l'instant de la sauvegarde en temps universel sans séparateur, et l'extension
+de son archive, que l'exploitation fixe (§3.4.2.4 : la façon dont une sauvegarde est réalisée
+relève de l'architecture technique ; l'exemple dit `.tar`, une archive des deux bases) ; et
+`Content-Length`, égal à `size_bytes`, le corps transmis tel qu'il est conservé. Seul le nom a un
+exemple : une valeur d'exemple de `Content-Length` serait rejouée par le faux back — 1 313 656 012
+octets annoncés pour un corps de quelques octets —, et la route du front qui relaie le
+téléchargement recopie l'en-tête ; le contrat exige l'en-tête du vrai back, et la route relaie sans
+lui, le nom seul étant exigé pour relayer. Le nom est en ASCII : `filename` suffit, et `filename*`
+(RFC 8187), que #588 proposait, n'a rien à redire — écarté. La route du front qui relaie le
+téléchargement lit déjà l'un et l'autre, et n'a plus de nom à inventer. La permission est celle de la restauration, `platform_restore`, décidée par
+l'auteur le 2026-10-09 et dite depuis EP-02/L43c.
+
+**Les sauvegardes se filtrent et se trient sur chaque colonne** (#588, point 1 ; WF-IHM-0130,
+WF-IHM-0060), selon les conventions du contrat : la date par une période d'instants, `from` compris
+et `to` exclu, comme le journal et l'accueil (EP-02/L42e), refusée par la règle de toute période
+(`backups_period_inverted`) ; l'origine et la vérification par des listes au pluriel, `origins` et
+`verifications`, `explode: false` ; le marquage par `is_retained`, le nom de la colonne ; la taille,
+colonne de nombres, par ses deux bornes incluses, `size_bytes_min` et `size_bytes_max` (#545,
+`backups_bounds_inverted`) — que #588 ne demandait pas, et que la convention impose à toute grille
+qui a une colonne de nombres. `sort_by` prend les cinq colonnes, `taken_at` par défaut,
+décroissante, les plus récentes d'abord, croissante pour les autres, comme la date du journal ; la
+vérification et l'origine se trient dans l'ordre de leur énumération, l'API ne rendant pas leur
+libellé ; le marquage range les sauvegardes conservées d'abord dans l'ordre croissant, comme
+l'état des comptes range les actifs ; une égalité se départage par l'ordre sans tri, puis
+l'identifiant. Les deux énumérations prennent un nom, `BackupVerification` et `BackupOrigin`,
+pour que les paramètres de liste les citent sans les recopier ; le front renomme leurs clés
+(`enums.BackupVerification`, `enums.BackupOrigin`). `origin` devient exigé : une colonne qui se
+filtre et se trie ne peut manquer, et chaque exemple le portait.
+
+**La planification reçoit l'exemple de son succès** (`backup_schedule_set`, WF-ADM-0170) : celle
+du témoin enregistrée aujourd'hui par Camille Martin, quatorze sauvegardes conservées, la copie
+vers Lyon gardée, version 3 ; `test_mockuniverse.py` tient que ses trente copies restent au moins
+autant que la rétention (WF-EXP-0050). Il ne vaut que pour la réponse de l'écriture.
+
+**Chaque champ des paramètres communs relève de la permission de sa fonction** (#575, point 8 ;
+WF-ADM-0100). `updateReferenceSettings` le dit : la matrice (`risk_matrix`) sous
+`risk_settings.write`, les seuils et le délai (`index_thresholds`, `max_weeks_between_reviews`) sous
+`indicator_settings.write`. Une requête ne porte que ce qu'elle écrit, avec le compteur lu — commun
+à tous les paramètres, qui sont un seul objet —, et un champ absent reste tel qu'il est, ce que le
+schéma d'écriture permettait déjà sans le dire (`ReferenceSettingsWrite`, tout facultatif sauf
+`lock_version`) : chaque écran de L43e envoie son seul sous-objet. Un champ dont la session ne
+porte pas la permission est refusé par 403 `PERMISSION_MISSING`, `params.missing_permission` la
+nommant, rien n'étant écrit — même si la requête porte un autre champ qu'elle pourrait écrire :
+une écriture s'applique entière ou pas du tout. Écartés : deux opérations, une par fonction, qui
+feraient deux chemins pour un objet et deux compteurs à tenir ; écrire ce que la session peut et
+taire le reste, qui ferait croire à un succès entier. `default_language` ne relève d'aucune des
+deux fonctions : il quitte le schéma d'écriture (`ReferenceSettingsWrite`) et reste en lecture
+(`ReferenceSettings`) — un champ que l'on peut envoyer relève de la permission de sa fonction, et
+la langue n'en a aucune ici ; aucun écran du référentiel ne l'écrit, et la langue par défaut de
+l'installation (WF-INTF-0160) s'écrira là où EP-03 le décidera, dont c'est le domaine. Écarté : lui
+inventer une permission.
+
+**Les refus par champ des réglages** (#575, point 8 ; WF-REF-0160, WF-REF-0170). Deux motifs
+nouveaux au catalogue, les noms que #575 proposait, arrêtés : `BOUNDS_NOT_ORDERED` sur le rang de
+la borne de la matrice qui n'est pas strictement supérieure à la précédente
+(`/risk_matrix/severity_bounds/1` : la deuxième borne de gravité, 1 %, sous la première, 5 %), et
+`THRESHOLD_NOT_BELOW_WATCH` sur le seuil d'alerte qui n'est pas strictement inférieur au seuil de
+vigilance de son indice (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`),
+chacun à son champ, les deux indices dans un même refus quand les deux fautent. Écarté :
+`VALUE_OUT_OF_RANGE` avec `params.minimum` ou `params.maximum`, dont la borne est incluse quand
+l'ordre est strict — « minimum : 0,1 » aurait admis 0,1. Les seuils prennent un schéma,
+`IndexThreshold`, un décimal strictement entre 0 et 1 : WF-REF-0170 les dit « inférieurs à 1 », et
+un seuil nul ou égal à 1 ne laisserait aucune zone ; les bornes de la matrice restent des
+`Percent`, une gravité pouvant dépasser le budget. Le 412 est celui de toute écriture
+(`STALE_LOCK_VERSION`, `params.expected_lock_version`, EP-02/L42g), décrit en place : les deux
+écrans partagent le compteur, et l'un périme la lecture de l'autre. Exemples, écrits à la main aux
+corrélations 1049 à 1052 : `reference_settings_thresholds_updated` (les seuils à 0,95 et 0,85 et
+six semaines entre deux revues, version 2), `reference_settings_matrix_updated` (les probabilités à
+10, 25 et 50 %, les gravités à 2, 5 et 10 %, version 2), `reference_settings_bounds_refused`,
+`reference_settings_thresholds_refused`, `reference_settings_stale` (les seuils envoyés en version
+1 quand la matrice est en version 2) et `reference_settings_permission_missing` (la matrice
+envoyée par une session qui n'a qu'`indicator_settings.write`). Chaque succès ne vaut que pour la
+réponse de son écriture : aucune lecture n'en tient compte.
+
+**Exemples des sauvegardes.** Écrits à la main : `backups`, `backup_retained` et `backup_released`
+portent leurs commandes, celles de la session de Camille Martin, qui a les deux permissions, toutes
+disponibles, rien ne s'exécutant aujourd'hui ; `backup`, la sauvegarde de la nuit lue seule ;
+`backup_pending`, la sauvegarde manuelle mise en file à 14 h 04 (`task_backup_queued`), prise à
+14 h 04 min 50 s et lue avant que sa vérification n'aboutisse — son marquage disponible, son
+téléchargement et sa restauration non, `backup_verified` manquante ; l'identifiant 908 de la
+famille des sauvegardes —, la suite d'une écriture faite aujourd'hui ; aux corrélations 1040 à
+1048, `backups_period_inverted`, `backups_bounds_inverted`, `backup_start_refused` et
+`backup_start_during_restore_refused`, `backup_retain_refused` (la sauvegarde conservée du
+30 janvier, dont la commande est `release`, que l'on marque à ne plus conserver pendant la
+restauration de 14 h 04 min 30 s, `task_restore_queued` : elle reste marquée),
+`backup_download_refused`, `restore_during_backup_refused`, `restore_unverified_refused`,
+`restore_date_mismatch` (la sauvegarde du 3 juin confirmée avec la date de celle du 2) ; à la
+corrélation 1053, `restore_during_restore_refused` (une seconde restauration pendant la
+première). Engendrés par `wftools.mocklists`
+de `backups`, comme les listes de l'administration (EP-02/L42f) : `backups_reader` (aucune
+commande), `backups_during_backup` (la restauration indisponible sur chacune, `no_backup_running`),
+`backups_manual`, `backups_retained`, `backups_period` (juin 2026 à Paris), `backups_by_size` ;
+`test_mocklists.py` éprouve les filtres, les tris et les commandes sur des lignes de synthèse, et
+chaque exemple contre la liste écrite à la main ; `test_mockuniverse.py` tient `listBackups` à la
+règle des périodes. Le client est régénéré ; la grille de L43c adoptera les commandes, le tri et
+les filtres en L43f, les formulaires sont à L43d et L43e.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
