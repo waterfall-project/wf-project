@@ -2,7 +2,7 @@
 id: EP-11
 titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
 statut: à planifier
-depend_de: EP-10
+depend_de: EP-08
 famille: front, back
 issue:
 ---
@@ -92,7 +92,8 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 
 ## Préalables
 
-EP-10 livré : le portefeuille agrège les indicateurs, conservés ou calculés.
+EP-08 livré, et EP-10 avant lui : le portefeuille agrège les indicateurs, conservés ou
+calculés, et les risques, leurs provisions et leur couverture.
 
 ## Définition de fini
 

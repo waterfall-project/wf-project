@@ -63,7 +63,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-10 | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08 | — |
 | `WF-PRJ-0030-A` | Squelette de planning | entière | — |
 | `WF-PLA-0010-A` | Calendrier applicable à une tâche | entière | — |
 | `WF-PLA-0020-A` | Mode de planification | entière | — |
