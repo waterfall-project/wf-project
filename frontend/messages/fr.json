@@ -924,6 +924,7 @@
   "projectFacts": {
     "label": "Le projet",
     "settings": "Paramètres du projet",
+    "projectLabel": "Libellé",
     "code": "Code",
     "state": "État",
     "orderReceivedOn": "Commande reçue le",
@@ -932,6 +933,20 @@
     "inflationRate": "Taux d’inflation annuel",
     "winProbability": "Probabilité de gain",
     "revisions": "Révisions"
+  },
+  "projectForm": {
+    "create": "Créer un projet",
+    "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
+    "modifyTitle": "Modifier « {name} »",
+    "modifyHint": "Le taux d’inflation ne touche aucune révision marquée.",
+    "modifyHintFrozen": "Le taux d’inflation ne touche aucune révision marquée. La probabilité de gain ne se modifie plus une fois le projet en cours.",
+    "label": "Libellé",
+    "code": "Code projet",
+    "description": "Description",
+    "orderReceivedOn": "Commande reçue le",
+    "inflationRate": "Taux d’inflation annuel (%)",
+    "winProbability": "Probabilité de gain (%)",
+    "saved": "Paramètres du projet enregistrés."
   },
   "projectLists": {
     "subprojects": {
@@ -1039,6 +1054,20 @@
     "cancel": "Annuler",
     "done": "Le projet est passé à l’état « {state} »."
   },
+  "nextState": {
+    "title": "Prochain état",
+    "none": "Aucun fait ne mène plus le projet vers un autre état : seules les sorties du cycle de vie restent.",
+    "closed": "Le projet est clos : aucun état ne le suit.",
+    "state": "État visé",
+    "trigger": "Déclencheur",
+    "triggers": {
+      "first_revision_created": "Première révision créée",
+      "reference_designated_and_code_set": "Révision de référence désignée et code projet renseigné"
+    },
+    "unknownTrigger": "Déclencheur non reconnu",
+    "conditions": "Conditions restantes",
+    "noCondition": "Aucune"
+  },
   "notFound": {
     "title": "Introuvable",
     "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
@@ -1108,7 +1137,7 @@
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "takenBy": "Déjà porté par « {name} ».",
-      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} other {Déjà porté par un autre objet.}}",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} project {Déjà porté par un autre projet.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",

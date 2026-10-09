@@ -10,8 +10,9 @@
  * (WF-ARC-0020). One exception, decided by the user on 2026-10-05: without a current revision,
  * an import the caller may exercise but whose revision they may not create is listed
  * unavailable, lacking `may_create_revision`. Elsewhere — accounts, roles, reference data,
- * backups — the commands of a function follow its permission of modification in the session, and
- * the restoration its own, `platform_restore`: the rule of the catalogue itself (WF-ADM-0100),
+ * backups — the commands of a function follow its permission of modification in the session, the
+ * restoration its own, `platform_restore`, and the creation of a project its own, `project_create`,
+ * which no project lists, there being none yet: the rule of the catalogue itself (WF-ADM-0100),
  * with no condition to name; save those an object lists itself, as a project does — the
  * reactivation of an object of the reference data, the deactivation, the reactivation and the
  * attribution of the roles of an account (`available_commands`).
@@ -65,14 +66,16 @@ const GRANTED: CommandOffer = { is_available: true, missing_conditions: [] };
 
 /**
  * The offer of a command of a function outside any project: available when the session holds
- * the permission of modification of the function — `users.write` for `users` —, or
- * `platform_restore` for the restoration; `undefined` otherwise, and the command is not
- * presented. A function in reading alone — the journal of audit — has no command to offer.
+ * the permission of modification of the function — `users.write` for `users` —, `platform_restore`
+ * for the restoration, or `project_create` for the creation of a project; `undefined` otherwise,
+ * and the command is not presented. A function in reading alone — the journal of audit — has no
+ * command to offer.
  */
 export function platformOffer(
   permissions: readonly Permission[] | undefined,
-  guard: (PlatformFunction & WritableFunction) | "platform_restore",
+  guard: (PlatformFunction & WritableFunction) | "platform_restore" | "project_create",
 ): CommandOffer | undefined {
-  const needed = guard === "platform_restore" ? guard : `${guard}.write`;
+  const needed =
+    guard === "platform_restore" || guard === "project_create" ? guard : `${guard}.write`;
   return new Set<string>(permissions).has(needed) ? GRANTED : undefined;
 }

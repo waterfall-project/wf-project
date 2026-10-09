@@ -211,9 +211,10 @@ lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien d
 retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
 et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
-sous-projets et ses contributeurs, son cycle de vie — sont en lecture ; la sortie du cycle de vie
-est la seule commande qu'ils exercent (`ExitCommand`), confirmée dans la page avant que son action
-serveur ne la demande. Les tables de données des paramètres sont trois grilles denses (#301,
+sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
+(`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, et
+la modification du projet, sur ses paramètres (EP-02/L44a, plus bas) ; leurs listes restent en
+lecture. Les tables de données des paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
 `subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
 sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
@@ -231,6 +232,42 @@ par un choix (`ChoiceFilter`), `true` ou `false`, aucun retenant toutes les lign
 chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-02/L42e). Les
 volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
 L'historique des états, une liste de lecture, reste une table simple.
+
+Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'auteur du 2026-10-08,
+#513, #524 ; `project-form.tsx`), par le formulaire du référentiel (`ReferenceForm`, qui écrit aussi
+un autre objet que ceux du référentiel et saisit une date de planning). L'accueil offre « Créer un
+projet » à une session qui porte la permission de le créer (`project_create`, `platformOffer`,
+WF-ADM-0100), indisponible, décrite par le refus qu'elle rencontrerait, tant que le référentiel
+minimal est incomplet (`getReferenceReadiness`, WF-CYC-0120) ; le formulaire prend ce que
+`ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
+(WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
+sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
+qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
+dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
+succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
+taire. Les paramètres du projet présentent son identité et ses faits — le
+libellé, le code, la date de réception de la commande, la description, le taux d'inflation et la
+probabilité de gain — et leur modification (`updateProject`) comme le projet liste sa commande
+(`update`) : absente, disponible, ou indisponible avec ses conditions — un projet terminal
+(WF-CYC-0100). Les deux taux se saisissent en pourcentages et partent en rapports du contrat, la
+virgule déplacée sans flottant (`editablePercent`, `percentRatio`) ; la probabilité de gain, figée à
+partir de En cours comme le contrat le dit (`Project.win_probability`, WF-PRJ-0090), n'est plus
+offerte, et le formulaire dit pourquoi ; une date ou un texte laissés vides partent nuls, une date à
+moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant tout appel. La réponse
+prend la place des faits lus tant qu'elle est plus récente que le projet lu (`lock_version`) — face
+au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la modification est
+disponible) —, la page relue ; la section est
+remontée quand l'écran montre un autre projet. Un refus par champ se dit au champ, tout autre sous le
+formulaire, la version périmée avec l'offre de relire ; le code déjà porté par un autre projet (409
+`ALREADY_EXISTS`, `fields[]`) se dit au champ, le projet qui le porte nommé génériquement, l'écran ne
+montrant pas les autres projets (`kind="project"`, EP-02/L42g). Le cycle de
+vie dit le prochain état du projet, son déclencheur et les conditions qui lui restent, une par une
+(`getProjectNextState`, `NextStateFacts`, WF-CYC-0050), qu'aucune commande ne mène à Chiffrage ni à
+En cours (WF-CYC-0020) ; un projet qu'aucun fait ne mène plus loin le dit : en cours, seules ses
+sorties restent ; terminal — un état où mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état
+ne le suit (WF-CYC-0080). Le contrat nomme le
+déclencheur par un code qu'il n'énumère pas : le catalogue rend les deux du cycle de vie, et dit
+« non reconnu » tout autre (« Interface contract issue » relevée par EP-02/L44a).
 
 Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
 le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
@@ -1071,14 +1108,14 @@ sans révision en cours que l'appelant ne pourrait pas créer, listé indisponib
 `aria-disabled` et décrite par le texte visible des conditions qui lui manquent
 (`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
 du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de
-leur domaine —, et `RevisionCommands` celles d'une révision, chacune selon son
+leur domaine, sa modification à celui de ses paramètres (`ProjectIdentity`) —, et `RevisionCommands` celles d'une révision, chacune selon son
 `is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
 en cours d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre
 (`ExportForm`) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
 l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
-`platform` (`PlatformFunction`) dans `Session.permissions`, ou `platform_restore` pour la
-restauration. Griser n'est qu'une
+`platform` (`PlatformFunction`) dans `Session.permissions`, `platform_restore` pour la
+restauration, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste. Griser n'est qu'une
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
 

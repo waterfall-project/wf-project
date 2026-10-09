@@ -1,0 +1,9 @@
+{
+  "summary": "Le projet témoin, en cours : aucun prochain état ne l'attend par un fait déclencheur, ses seules transitions sont les sorties commandées (WF-CYC-0050, WF-CYC-0060).",
+  "value": {
+    "current_state": "in_progress",
+    "next_state": null,
+    "trigger": null,
+    "missing_conditions": []
+  }
+}

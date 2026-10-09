@@ -138,3 +138,23 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   marquées sur la plateforme de développement ;
 - le parcours de bout en bout crée un projet, marque une révision et le fait sortir, contre le
   service réel.
+
+## Constats reçus
+
+- #513, #524 — les commandes d'écriture du projet dans la maquette, sur décision de l'auteur du
+  2026-10-08 (EP-02/L44), une entorse assumée au cadrage qui laissait les formulaires du projet à
+  cet EPIC. EP-02/L44a (#583) fait le projet lui-même : « Créer un projet » sur l'accueil, à la
+  session qui porte la permission de le créer et tant que le référentiel minimal est complet
+  (`createProject`) ; l'identité et les faits du projet modifiés sur ses paramètres comme il liste
+  sa commande `update` (`updateProject`), la probabilité de gain figée à partir de En cours ; le
+  prochain état, son déclencheur et ses conditions restantes au cycle de vie
+  (`getProjectNextState`), dont la sortie était déjà confirmée. Un succès remplace ce qui est
+  affiché par ce que le serveur rend, un refus se dit au champ ou sous le formulaire, et l'écran dit
+  que le faux back ne garde rien. EP-02/L44b (#584) fera les sous-projets et les contributeurs,
+  EP-02/L44c (#585) le lotissement et le jalonnement. Restent à EP-04 : le back de ces écritures —
+  le créateur inscrit chef de projet et contributeur (WF-PRJ-0060), le refus d'un code déjà porté
+  (WF-PRJ-0010), de la probabilité de gain à partir de En cours (WF-PRJ-0090), de toute
+  modification d'un projet terminal (WF-CYC-0100), d'une création sur un référentiel incomplet
+  (WF-CYC-0120) — et la conformité de leurs réponses au contrat, refus compris, que les « Interface
+  contract issue » relevées par EP-02/L44a précisent ; le parcours les éprouvera contre le service
+  réel.

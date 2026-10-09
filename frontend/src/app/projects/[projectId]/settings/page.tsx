@@ -13,9 +13,10 @@
  * `contributor_sort_order`, `contributor_kinds`, `contributor_is_active`) — WF-IHM-0060,
  * WF-IHM-0130 —, the sort each grid keeps in the settings of the account serving when the address
  * names none. The work breakdown is a tree in the order entered, searched on its labels and filtered
- * on its kinds by the server (`breakdown_search`, `breakdown_kinds`). Read only: the forms that
- * modify them belong to the epic of their domain — and a work breakdown read narrowed is never the
- * whole one to write back (`setWorkBreakdown`).
+ * on its kinds by the server (`breakdown_search`, `breakdown_kinds`). The identity and the facts of
+ * the project are modified in their form, as the project lists the command (`ProjectIdentity`,
+ * EP-02/L44a); the lists are read only — and a work breakdown read narrowed is never the whole one
+ * to write back (`setWorkBreakdown`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ import type { Project } from "@/components/context/reading";
 import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { asked, readGridQuery, searched } from "@/components/grid/query";
-import { SettingsFacts } from "@/components/projects/project-facts";
+import { ProjectIdentity } from "@/components/projects/project-form";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   BREAKDOWN_ADDRESS,
@@ -163,7 +164,8 @@ export default async function SettingsPage(props: ProjectPageProps) {
         {/* The searches, the sorts and the filters of the grids compose their changes. */}
         <PendingAddress>
           <SettingsHeader project={read.project} />
-          <SettingsFacts project={read.project} />
+          {/* Keyed by the project: an answer of the server never outlives its project. */}
+          <ProjectIdentity key={read.project.project_id} project={read.project} />
           <WorkBreakdownList
             breakdown={breakdown}
             project={address.projectId}

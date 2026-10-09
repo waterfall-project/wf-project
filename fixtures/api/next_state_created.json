@@ -1,0 +1,9 @@
+{
+  "summary": "Le projet créé aujourd'hui : il passera en chiffrage à la création de sa première révision, sans autre condition (WF-CYC-0020, WF-CYC-0050).",
+  "value": {
+    "current_state": "created",
+    "next_state": "pricing",
+    "trigger": "first_revision_created",
+    "missing_conditions": []
+  }
+}

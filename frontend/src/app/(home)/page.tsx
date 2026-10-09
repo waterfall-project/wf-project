@@ -15,7 +15,9 @@
  * to be changed. The projects show in the dense grid, its columns, widths and sort kept in the
  * settings of the account (WF-ADM-0040). Above the list, in every case, the prerequisites the
  * minimum reference data lacks, which forbid creating a project (WF-CYC-0120); and, when the list
- * holds no project, that it is.
+ * holds no project, that it is. A session that holds the permission to create a project is offered
+ * its creation in the header (`CreateProject`, WF-ADM-0100), the screen saying that the fake back
+ * keeps nothing (`MockupNotice`); no other session is.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -29,7 +31,9 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { readPeriod, refusedPeriod } from "@/components/grid/period";
 import { readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import { platformOffer } from "@/components/commands/offer";
 import { homeQuery } from "@/components/projects/home-list";
+import { CreateProject } from "@/components/projects/project-form";
 import {
   ContributorFilter,
   ProjectList,
@@ -42,6 +46,7 @@ import {
 } from "@/components/projects/project-list-grid";
 import { ProjectPeriodFilter, ProjectStateFilter } from "@/components/projects/project-list-view";
 import { GROUP_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
@@ -64,14 +69,31 @@ export async function generateMetadata(): Promise<Metadata> {
 /** The refusal of a period the server cannot apply — its end before its start (422). */
 const PERIOD_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
-/** The title of the list, with the icon of its block, and its filter at the right. */
-function ProjectsHeader({ filter }: { readonly filter: ReactNode }) {
+/**
+ * The title of the list, with the icon of its block, and at the right the creation of a project,
+ * when the session may create one, and its filter.
+ */
+function ProjectsHeader({
+  creates,
+  ready,
+  filter,
+}: {
+  readonly creates: boolean;
+  /** Whether the minimum reference data is complete, which the creation requires (WF-CYC-0120). */
+  readonly ready: boolean;
+  readonly filter: ReactNode;
+}) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functionGroups.projects")}
       icon={GROUP_ICONS["functionGroups.projects"]}
-      actions={filter}
+      actions={
+        <>
+          {creates ? <CreateProject ready={ready} /> : null}
+          {filter}
+        </>
+      }
     />
   );
 }
@@ -149,6 +171,7 @@ export default async function HomePage({
   // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).
   const mayLift = mayLiftContributorFilter(permissions);
   const filtered = isContributorFiltered(search) || !mayLift;
+  const creates = platformOffer(permissions, "project_create") !== undefined;
   const kept = session?.user.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
   const asked = {
     filtered,
@@ -166,10 +189,13 @@ export default async function HomePage({
     <PendingAddress>
       <Screen density="dense" fill>
         <ProjectsHeader
+          creates={creates}
+          ready={readiness.is_complete}
           filter={
             <ContributorFilter filtered={filtered} mayLift={mayLift} query={searchQuery(raw)} />
           }
         />
+        {creates ? <MockupNotice /> : null}
         <ReferenceIncomplete readiness={readiness} permissions={permissions} />
         <ProjectsShown projects={projects} asked={asked} preferences={kept} />
       </Screen>

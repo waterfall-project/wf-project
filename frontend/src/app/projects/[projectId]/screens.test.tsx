@@ -128,6 +128,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/contributors": "contributors",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/state-transitions": "state_transitions",
+    "GET /projects/{project_id}/next-state": "next_state",
   };
 });
 
@@ -179,7 +180,10 @@ describe("the settings of a project", () => {
     expect(page).toMatch(
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Project settings<\/h1>/,
     );
-    expect(text(page)).toContain("Annual inflation rate 3% Probability of winning 100%");
+    expect(text(page)).toContain(
+      "Label Modernisation du poste de commande Code PRJ-001 Order received on 15 Jan 2026 " +
+        "Description Not set Annual inflation rate 3% Probability of winning 100%",
+    );
   });
 
   it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each order item, its work packages under it and their deliverables under them, which sorts nothing and folds", async () => {
@@ -421,15 +425,37 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
+  it("offers to modify the project as it lists the command, saying the fake back keeps nothing, and nothing else to create or modify (EP-02/L44a)", async () => {
     const page = html(await SettingsPage(at()));
-    expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([]);
+    expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([
+      "Edit the project",
+    ]);
+    expect(page).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
     // The forms are the searches of the work breakdown, the sub-projects and the contributors.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
     ]);
+  });
+
+  it("offers no modification to a session the project lists none for, nor says the fake back keeps nothing", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    const page = html(await SettingsPage(at()));
+    expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
+    expect(page).not.toContain('role="note"');
+  });
+
+  it("presents the modification of a terminal project unavailable, naming the condition it lacks [WF-CYC-0100-A]", async () => {
+    // Toute modification d'un projet terminal est refusée : la commande le dit d'avance.
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const page = html(await SettingsPage(at()));
+    expect(page).toMatch(
+      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Edit the project/,
+    );
+    expect(text(page)).toContain("Edit the project Unmet condition: project not closed.");
+    // Nothing can be written: the screen says nothing of what the fake back keeps.
+    expect(page).not.toContain('role="note"');
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {
@@ -504,8 +530,89 @@ describe("the lifecycle of a project", () => {
     ]);
   });
 
+  it("says the next state of a project before it is in progress, its trigger and the conditions it lacks, one by one, without trying anything [WF-CYC-0050-A]", async () => {
+    // Pour un projet dans chacun des états Créé et Chiffrage, l'utilisateur consulte le prochain
+    // état, son déclencheur et les conditions restantes, sans avoir tenté d'action.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/next-state": "next_state_pricing",
+    };
+    const pricing = html(await LifecyclePage(at()));
+    expect(paths()["GET /projects/{project_id}/next-state"]).toBe(
+      `/projects/${PROJECT}/next-state`,
+    );
+    expect(text(pricing)).toContain(
+      "Next state State ahead In progress Trigger Reference revision designated and project code " +
+        "filled in Remaining conditions reference revision designated History of states",
+    );
+    expect(pricing).toMatch(/<ul[^>]*><li>reference revision designated<\/li><\/ul>/);
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_created",
+      "GET /projects/{project_id}/next-state": "next_state_created",
+    };
+    const created = html(await LifecyclePage(at()));
+    expect(text(created)).toContain(
+      "Next state State ahead Pricing Trigger First revision created Remaining conditions None",
+    );
+  });
+
+  it("offers no command that leads to pricing or in progress, whichever state the project is in [WF-CYC-0020-A]", async () => {
+    // Aucun écran ne propose de commande menant à Chiffrage ou En cours.
+    for (const [project, next] of [
+      ["project_created", "next_state_created"],
+      ["project_pricing", "next_state_pricing"],
+      ["project", "next_state"],
+    ] as const) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}": project,
+        "GET /projects/{project_id}/next-state": next,
+      };
+      const page = html(await LifecyclePage(at()));
+      expect(buttons(page)).toEqual([
+        "Complete the project",
+        "Declare the project lost",
+        "Abandon the project",
+      ]);
+    }
+  });
+
+  it("says a terminal project closed, no state following it, and refuses every exit [WF-CYC-0080-A]", async () => {
+    // Aucune transition ne part d'un état terminal : toute tentative de transition depuis Terminé
+    // est refusée, chacune des trois sorties présentée indisponible.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_completed",
+      "GET /projects/{project_id}/next-state": "next_state_completed",
+    };
+    const page = html(await LifecyclePage(at()));
+    expect(text(page)).toContain("Next state The project is closed: no state follows it.");
+    for (const exit of [
+      "Complete the project",
+      "Declare the project lost",
+      "Abandon the project",
+    ]) {
+      const button = new RegExp(
+        `<button[^>]*aria-disabled="true"[^>]*>(?:(?!</button>).)*${exit}</button>`,
+      ).exec(page);
+      expect(button, exit).not.toBeNull();
+    }
+  });
+
+  it("says a project in progress awaits no next state: only the exits of its lifecycle remain", async () => {
+    const page = html(await LifecyclePage(at()));
+    expect(text(page)).toContain(
+      "Next state No fact leads the project to another state any more: only the exits of the " +
+        "lifecycle remain.",
+    );
+    expect(text(page)).not.toContain("Trigger");
+  });
+
   it.each([
     ["the history of its states", "GET /projects/{project_id}/state-transitions"],
+    ["its next state", "GET /projects/{project_id}/next-state"],
     ["the project", "GET /projects/{project_id}"],
   ] as const)(
     "is not found when the API does not find %s, as the other screens of a project",

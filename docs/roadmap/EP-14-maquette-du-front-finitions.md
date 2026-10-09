@@ -126,6 +126,31 @@ longueur du fichier de `downloadBackup`, les commandes qu'une sauvegarde offre, 
 confirmée qui n'est pas celle de la sauvegarde. Le formulaire de la planification, de la rétention
 et de la copie externe vient avec la partie suivante, L43d.
 
+EP-02/L44, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#513) — une entorse assumée au critère qui laissait les formulaires du projet à EP-04 —,
+est découpé en trois parties menées en parallèle (décision de l'auteur du 2026-10-09), reprises ici
+sous EP-14 : L44a (#583) le projet lui-même, L44b (#584) ses sous-projets et ses contributeurs,
+L44c (#585) son lotissement et son jalonnement. L44a offre « Créer un projet » sur l'accueil (#524),
+à la seule session qui porte la permission de le créer (WF-ADM-0100), indisponible tant que le
+référentiel minimal est incomplet (WF-CYC-0120) : un formulaire validé côté front appelle
+`createProject` — le libellé exigé (WF-PRJ-0080), le code facultatif (WF-PRJ-0010), la description —
+et mène à l'écran du projet créé, que le faux back sert sous les traits du témoin. Les paramètres du
+projet présentent son identité et ses faits, et leur modification (`updateProject`) comme le projet
+liste sa commande `update` : le libellé, le code, la date de réception de la commande, la
+description, le taux d'inflation et la probabilité de gain, saisis en pourcentages et envoyés en
+rapports, celle-ci figée à partir de En cours (WF-PRJ-0090). La réponse prend la place des faits lus
+tant qu'elle est plus récente, la page relue ; un refus par champ est dit au champ — le code déjà
+porté par un autre projet (409) compris, depuis EP-02/L42g, qui le décrit au contrat et l'apprend au
+formulaire —, la version périmée avec l'offre de relire ; l'écran dit que le faux back ne garde rien
+(`MockupNotice`). Le cycle de vie, dont la sortie, irréversible, était déjà confirmée, dit le prochain
+état du projet, son déclencheur et ses conditions restantes (`getProjectNextState`, WF-CYC-0050),
+sans commande vers Chiffrage ni En cours (WF-CYC-0020). Les exemples de succès de ces écritures et
+du prochain état entrent au contrat. Écarts au contrat relevés par L44a, pour #507 : le déclencheur
+du prochain état n'est pas énuméré ; rien ne dit d'avance que la probabilité de gain est figée, ni
+sous quel statut et quel pointeur `WIN_PROBABILITY_FROZEN` la refuse ; le prochain état d'un projet
+en cours ou terminal n'est pas décrit ; le refus d'un code de projet déjà porté nomme le projet par
+son seul identifiant, que l'écran ne connaît pas ; les bornes des deux taux ne sont pas dites.
+
 ---
 
 ## US-0200 — Accessibilité minimale
