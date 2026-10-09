@@ -74,9 +74,10 @@ components:
       bearerFormat: JWT
       description: >-
         Le jeton d'accès que le fournisseur d'identité délivre (WF-ARC-0030, WF-SEC-0020). Le
-        front le garde côté serveur et le porte à l'API sur une connexion chiffrée (WF-SEC-0010) ;
-        le navigateur n'en détient aucun. L'API le valide — signature, émetteur, audience, expiration — et n'en tire que l'identité du
-        compte : les rôles et l'état du compte se lisent en base à chaque requête.
+        front le garde côté serveur et le porte à l'API sur une connexion chiffrée
+        (WF-SEC-0010) ; le navigateur n'en détient aucun. L'API le valide — signature, émetteur,
+        audience, expiration — et n'en tire que l'identité du compte : les rôles et l'état du
+        compte se lisent en base à chaque requête.
 security:
   - bearer: []
 paths:

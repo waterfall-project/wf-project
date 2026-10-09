@@ -51,8 +51,11 @@
       (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine
       (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le
       fichier se découpe. La taille annoncée est bornée par
-      `Installation.external_backup_max_bytes` : au-delà, 413, `FILE_TOO_LARGE`, avant qu'aucun
-      morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de
+      `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet
+      admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
+      morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est
+      refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant
+      qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de
       sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme
       (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi
       interrompu — par un rechargement de page — recommence par une ouverture, le dépôt

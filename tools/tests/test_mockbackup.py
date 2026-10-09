@@ -60,6 +60,21 @@ def test_the_part_size_is_bounded_by_what_the_front_carries() -> None:
     assert _part_size_bounds() == (5 * 1024 * 1024, 10 * 1024 * 1024)
 
 
+def test_a_deposit_holds_in_the_parts_the_object_store_admits() -> None:
+    text = (_SCHEMAS / "schemas/exchanges.yaml").read_text(encoding="utf-8")
+    block = text.split("    part_count:\n", 1)[1].split("    received_parts:", 1)[0]
+    found = re.search(r"maximum: (\d+)", block)
+    assert found is not None
+    limit = int(found.group(1))
+    decisions = (REPOSITORY / "docs/api/DECISIONS.md").read_text(encoding="utf-8")
+    assert "(10 000)" in decisions
+    assert limit == 10_000
+    installation: dict[str, Any] = mockwitness.fixture("installation")
+    _, largest = _part_size_bounds()
+    assert installation["external_backup_max_bytes"] == 20 * 1024**3
+    assert math.ceil(installation["external_backup_max_bytes"] / largest) <= limit
+
+
 def test_the_completed_deposit_is_the_file_that_was_opened() -> None:
     opened = _deposit("chunked_upload")
     completed = mockwitness.fixture("chunked_upload_completed")

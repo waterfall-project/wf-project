@@ -2308,7 +2308,7 @@ export interface paths {
         put?: never;
         /**
          * Ouvrir le dépôt par morceaux d'une sauvegarde
-         * @description Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le fichier se découpe. La taille annoncée est bornée par `Installation.external_backup_max_bytes` : au-delà, 413, `FILE_TOO_LARGE`, avant qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi interrompu — par un rechargement de page — recommence par une ouverture, le dépôt précédent expirant ; aucune opération ne lit un dépôt.
+         * @description Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le fichier se découpe. La taille annoncée est bornée par `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000 morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi interrompu — par un rechargement de page — recommence par une ouverture, le dépôt précédent expirant ; aucune opération ne lit un dépôt.
          */
         post: operations["openChunkedUpload"];
         delete?: never;
@@ -4505,7 +4505,7 @@ export interface components {
         ChunkedUploadOpen: {
             /** @description Le nom du fichier, tel que l'utilisateur l'a choisi ; il reste au dépôt qui s'achève. */
             filename: string;
-            /** @description La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de `Installation.external_backup_max_bytes`, l'ouverture est refusée par 413, `FILE_TOO_LARGE`. */
+            /** @description La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de `Installation.external_backup_max_bytes`, ou qui ne tient pas en 10 000 morceaux de `part_size_bytes` au plus (10 000 × 10 Mio), l'ouverture est refusée par 413, `FILE_TOO_LARGE`. */
             size_bytes: number;
         };
         /** @description Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count` morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant. */
@@ -4515,6 +4515,7 @@ export interface components {
             size_bytes: number;
             /** @description La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre 5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et 10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`). */
             part_size_bytes: number;
+            /** @description Le nombre de morceaux, au plus 10 000, la limite des dépôts en plusieurs parties du stockage objet : le serveur choisit `part_size_bytes` dans ses bornes pour y tenir. */
             part_count: number;
             /** @description Les numéros des morceaux reçus, en ordre croissant, sans doublon. */
             received_parts: number[];

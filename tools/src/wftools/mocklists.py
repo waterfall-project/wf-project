@@ -409,7 +409,7 @@ def administration() -> dict[str, JsonObject]:
         ),
         "users_search.json": _example(
             f"Les comptes cherchés par « {SEARCHED_ACCOUNT} », désactivés compris "
-            f"(include_inactive=true) : {_accounts(found)}, trouvée par son nom affiché, le "
+            f"(include_inactive=true) : {_accounts(found)}, trouvée par le "
             f"prénom suivi du nom, qu'aucune colonne ne porte entier — la recherche ignore la "
             f"casse et les accents (WF-IHM-0130).",
             user_page(found),

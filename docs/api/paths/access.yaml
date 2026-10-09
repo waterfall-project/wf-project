@@ -13,8 +13,9 @@
 
       Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le
       prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ;
-      l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes
-      désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les
+      l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent,
+      l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par
+      `include_inactive` — ; `meta.total` compte les
       comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux
       pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
     parameters:

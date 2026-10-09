@@ -3078,7 +3078,9 @@ puis le nom —, que la liste des contributeurs cherche déjà (EP-02/L42e) : «
 le compte, qu'aucune colonne ne porte entier. Le texte se compare comme toute recherche, sans égard
 à la casse ni aux accents (paragraphe suivant). Le paramètre est propre à l'opération, comme celui
 des contributeurs, le paramètre partagé disant « le libellé », qu'un compte n'a pas. Exemple
-`users_search` : « ines roux » trouve Inès Roux par son nom affiché, sans son accent ni sa casse.
+`users_search` : « ines roux » trouve Inès Roux par le prénom suivi du nom, sans son accent ni sa
+casse. *Reformulé par EP-03/US-0350/L1, décision 7 : le comportement ne change pas, le « nom
+affiché » n'est pas un champ du contrat.*
 
 **Une recherche ignore la casse et les accents** (décision de l'auteur du 2026-10-09). Le premier
 passage du lot comparait les textes cherchés dans leurs points de code, accents compris, sans égard
@@ -3594,7 +3596,11 @@ morceau (`part_size_bytes`, entre 5 Mio, le plus petit morceau que le stockage o
 10 Mio, la borne du corps d'une action serveur du front, celle des imports, « Un dépôt dit son
 usage » : la raison d'être des morceaux est de passer sous cette borne). À 5 Mio, une sauvegarde
 de 20 Gio, la valeur d'`Installation` du témoin, fait 20 Gio ÷ 5 Mio = 4 096 morceaux, sous la
-limite des dépôts en plusieurs parties du stockage objet (10 000). Chaque morceau est de la taille
+limite des dépôts en plusieurs parties du stockage objet (10 000), que `ChunkedUpload.part_count`
+porte en `maximum`. Le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
+morceaux ; l'ouverture est refusée par 413 `FILE_TOO_LARGE` au-delà d'`external_backup_max_bytes`
+**ou** au-delà de 10 000 morceaux de 10 Mio (10 000 × 10 Mio, environ 97 Gio). Le réglage
+`external_backup_max_bytes` n'est pas borné pour autant : le refus est celui de l'ouverture. Chaque morceau est de la taille
 exacte (`part_size_bytes`, le reste pour le dernier), sinon 422 `VALIDATION_FAILED`, `/body` par
 `VALUE_OUT_OF_RANGE` (`params.minimum` et `maximum` égaux à la taille attendue : aucun code
 nouveau) ; un morceau redéposé remplace le précédent, ce qui reprend un envoi interrompu à
