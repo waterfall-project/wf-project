@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -378,6 +378,30 @@ describe("the perimeter of a view of the portfolio", () => {
     );
     await userEvent.click(within(states).getByRole("button", { name: "Terminé" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress%2Cpricing%2Ccompleted`);
+  });
+
+  it("shows the states asked pressed while the server computes the view anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const { rerender } = render(perimeterBar(""));
+    const completed = screen.getByRole("button", { name: "Terminé" });
+    await userEvent.click(completed);
+    expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress%2Cpricing%2Ccompleted`);
+    // The address has not changed yet: the state asked shows pressed, never the address before it.
+    expect(completed).toHaveAttribute("aria-pressed", "true");
+    // The server answers: the address names the states, which the buttons go on showing pressed.
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(perimeterBar("states=in_progress,pricing,completed"));
+    expect(completed).toHaveAttribute("aria-pressed", "true");
   });
 
   it("keeps the last state retained, which cannot be released", async () => {

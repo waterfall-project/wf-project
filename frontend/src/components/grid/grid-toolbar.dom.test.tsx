@@ -9,6 +9,12 @@ import { CATALOGUES } from "@/i18n/catalogues";
 
 import { GridToolbar } from "./grid-toolbar";
 
+// The server of Next, as far as the bar needs it: the address its search is dated by.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 /** The bar of a grid under the search its address holds, each search entered given to `onSearch`. */
 function toolbar(search: string | undefined, onSearch: (search: string) => void) {
   return (

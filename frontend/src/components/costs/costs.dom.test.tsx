@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -300,6 +300,44 @@ describe("the filters of the actual costs", () => {
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
   });
 
+  it("shows the scope asked pressed while the server reads the lines anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const bar = (search: string) => {
+      page.search = search;
+      const filters = readCostFilters(new URLSearchParams(search));
+      return inLanguage(
+        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+      );
+    };
+    const { rerender } = render(bar(""));
+    const scope = screen.getByRole("group", { name: "Périmètre" });
+    const excluded = within(scope).getByRole("button", { name: "Exclues" });
+    await userEvent.click(excluded);
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
+      scroll: false,
+    });
+    // The address has not changed yet: the scope asked shows pressed, never the address before it.
+    expect(excluded).toHaveAttribute("aria-pressed", "true");
+    expect(within(scope).getByRole("button", { name: "Toutes les lignes" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    // The server answers: the address names the scope, which the button goes on showing pressed.
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(bar("in_tracked_scope=false"));
+    expect(excluded).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("asks the server for a sub-project, or for the lines charged to the project alone [WF-CRE-0040-A]", async () => {
     renderFilters();
     const select = screen.getByRole("combobox", { name: "Sous-projet" });
@@ -386,6 +424,34 @@ describe("the filters of the actual costs", () => {
     expect(screen.getByLabelText("Pièces du")).toBe(start);
     expect(start).toHaveValue("2026-04-01");
     expect(start).toHaveFocus();
+  });
+
+  it("keeps a bound of the period typed while the other was on its way, once a scope composed on it arrives (#557)", async () => {
+    // The bar alone, as no screen shares the address last asked: its filters share it themselves.
+    const bar = (search: string) => {
+      page.search = search;
+      const filters = readCostFilters(new URLSearchParams(search));
+      return inLanguage(
+        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+      );
+    };
+    const { rerender } = render(bar(""));
+    await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
+    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    // Typed before the server answers, then a scope chosen, which carries the period sent.
+    await userEvent.type(screen.getByLabelText("Pièces jusqu’au"), "2026-04-30");
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Périmètre" })).getByRole("button", {
+        name: "Exclues",
+      }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?from=2026-04-01&in_tracked_scope=false`,
+      { scroll: false },
+    );
+    rerender(bar("from=2026-04-01&in_tracked_scope=false"));
+    expect(screen.getByLabelText("Pièces du")).toHaveValue("2026-04-01");
+    expect(screen.getByLabelText("Pièces jusqu’au")).toHaveValue("2026-04-30");
   });
 
   it("keeps each bound of the period on its side of the other", async () => {

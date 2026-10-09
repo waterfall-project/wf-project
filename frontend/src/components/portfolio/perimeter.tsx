@@ -18,11 +18,11 @@
 import { CalendarRange, Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useId } from "react";
+import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
-import { usePendingAddress } from "@/components/grid/pending-address";
+import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
 import { OFFSET } from "@/components/grid/query";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
@@ -61,8 +61,9 @@ function useParameters() {
 }
 
 /**
- * The filter by state: a button for each state of a portfolio, pressed as retained, the state by
- * its badge (#523), as the filter of the home shows it.
+ * The filter by state: a button for each state of a portfolio, pressed as retained — or as last
+ * asked, until the server answers —, the state by its badge (#523), as the filter of the home shows
+ * it.
  */
 function StatesFilter({
   asked,
@@ -73,7 +74,12 @@ function StatesFilter({
 }) {
   const t = useTranslations();
   const change = useParameters();
-  const shown = asked.length === 0 ? retained : asked;
+  // The states asked, pressed until the server answers for them: the buttons would otherwise show
+  // the address until the navigation arrives, and again the address should another navigation
+  // replace it (défaut n° 21 de `typescript.md`).
+  const [last, show] = useOptimistic(asked);
+  const [, startTransition] = useTransition();
+  const shown = last.length === 0 ? retained : last;
   return (
     <div
       role="group"
@@ -96,13 +102,16 @@ function StatesFilter({
               if (kept) {
                 return;
               }
-              change((query) => {
-                const last = readStates(query);
-                const from = last.length === 0 ? retained : last;
-                const next = from.includes(state)
-                  ? from.filter((each) => each !== state)
-                  : [...from, state];
-                return { [STATES]: statesValue(next) };
+              startTransition(() => {
+                change((query) => {
+                  const before = readStates(query);
+                  const from = before.length === 0 ? retained : before;
+                  const next = from.includes(state)
+                    ? from.filter((each) => each !== state)
+                    : [...from, state];
+                  show(next);
+                  return { [STATES]: statesValue(next) };
+                });
               });
             }}
           >
@@ -132,7 +141,7 @@ function DatesForm({
 }) {
   const t = useTranslations("portfolio.perimeter");
   const ids = { from: useId(), to: useId(), asOf: useId() };
-  const { entered, enter } = useDatedEntry<"from" | "to" | "asOf">(
+  const { entered, enter, sent } = useDatedEntry<"from" | "to" | "asOf">(
     `${perimeter.from ?? ""}/${perimeter.to ?? ""}/${perimeter.asOf ?? ""}`,
   );
   const dates = {
@@ -143,6 +152,8 @@ function DatesForm({
   const change = useParameters();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Sent, the dates arrive as the address writes them: only what is typed after them stays.
+    sent();
     change(() => ({
       [AS_OF]: dates.asOf,
       ...(fields.length === 1 ? {} : { [FROM]: dates.from, [TO]: dates.to }),
@@ -219,48 +230,52 @@ export function PerimeterBar({
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
   const locale = useLocale();
+  // The parameters share the address last asked with the screen, or among themselves: what is
+  // typed while dates sent are on their way survives their arrival, a state chosen meanwhile too.
   return (
-    <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <StatesFilter asked={perimeter.states} retained={retained} />
-      <DatesForm perimeter={perimeter} fields={takes.period ? DATES.period : DATES.date} />
-      {/* No node to choose — none in the reference, none the API lets one read —: none offered,
+    <PendingAddress>
+      <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <StatesFilter asked={perimeter.states} retained={retained} />
+        <DatesForm perimeter={perimeter} fields={takes.period ? DATES.period : DATES.date} />
+        {/* No node to choose — none in the reference, none the API lets one read —: none offered,
           unless the address already filters on one, which stays shown to be cleared. */}
-      {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
-        <OrgNodeFilter
-          name={ORG_NODE}
-          label={t("orgNode")}
-          every={t("everyNode")}
-          nodes={nodes}
-          chosen={perimeter.orgNode}
-          page={OFFSET}
-        />
-      ) : null}
-      {view !== undefined && "horizon" in view ? (
-        <ChoiceFilter
-          name={HORIZON}
-          label={t("horizon")}
-          every={t("byDefault")}
-          choices={withChosen(HORIZONS, view.horizon).map((months) => ({
-            value: months,
-            text: t("months", { months }),
-          }))}
-          chosen={view.horizon}
-          page={OFFSET}
-        />
-      ) : null}
-      {view !== undefined && "threshold" in view ? (
-        <ChoiceFilter
-          name={THRESHOLD}
-          label={t("threshold")}
-          every={t("byDefault")}
-          choices={withChosen(THRESHOLDS, view.threshold).map((value) => ({
-            value,
-            text: formatPercent(value, locale),
-          }))}
-          chosen={view.threshold}
-          page={OFFSET}
-        />
-      ) : null}
-    </section>
+        {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
+          <OrgNodeFilter
+            name={ORG_NODE}
+            label={t("orgNode")}
+            every={t("everyNode")}
+            nodes={nodes}
+            chosen={perimeter.orgNode}
+            page={OFFSET}
+          />
+        ) : null}
+        {view !== undefined && "horizon" in view ? (
+          <ChoiceFilter
+            name={HORIZON}
+            label={t("horizon")}
+            every={t("byDefault")}
+            choices={withChosen(HORIZONS, view.horizon).map((months) => ({
+              value: months,
+              text: t("months", { months }),
+            }))}
+            chosen={view.horizon}
+            page={OFFSET}
+          />
+        ) : null}
+        {view !== undefined && "threshold" in view ? (
+          <ChoiceFilter
+            name={THRESHOLD}
+            label={t("threshold")}
+            every={t("byDefault")}
+            choices={withChosen(THRESHOLDS, view.threshold).map((value) => ({
+              value,
+              text: formatPercent(value, locale),
+            }))}
+            chosen={view.threshold}
+            page={OFFSET}
+          />
+        ) : null}
+      </section>
+    </PendingAddress>
   );
 }

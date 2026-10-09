@@ -13,6 +13,7 @@ import { expectAccessible } from "@/test/axe";
 import type { Bounds, FigureKind } from "./filters";
 import { PendingAddress } from "./pending-address";
 import { type RangeColumn, RangeFilter, type RangeScope, type SideRefusals } from "./range-filter";
+import { ValuesFilter } from "./values-filter";
 
 // The server of Next, as far as the filter needs it: the address it reads and the navigations it
 // asks.
@@ -245,6 +246,82 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     rerender(filter(roleColumns({ min: "10", max: "20" })));
     expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
     expect(apply).toHaveFocus();
+    expect(most()).toHaveValue("20");
+  });
+
+  it("keeps a bound typed while another was on its way, once it arrives, and none typed over the address « Précédent » came back to (#557)", async () => {
+    const { rerender } = render(filter(roleColumns()));
+    await userEvent.type(least(), "10{Enter}");
+    // Typed before the server answers for the least.
+    await userEvent.type(most(), "20");
+    page.search = "role_monthly_hours_min=10";
+    rerender(filter(roleColumns({ min: "10", max: undefined })));
+    expect(least()).toHaveValue("10");
+    expect(most()).toHaveValue("20");
+    expect(most()).toHaveFocus();
+    await userEvent.type(most(), "{Enter}");
+    expect(lastAddress()).toBe(
+      "/reference/resources?role_monthly_hours_min=10&role_monthly_hours_max=20",
+    );
+    page.search = "role_monthly_hours_min=10&role_monthly_hours_max=20";
+    rerender(filter(roleColumns({ min: "10", max: "20" })));
+    // « Précédent », a bound typed and given up, then « Suivant »: the bounds of the address.
+    page.search = "role_monthly_hours_min=10";
+    rerender(filter(roleColumns({ min: "10", max: undefined })));
+    await userEvent.type(most(), "99");
+    page.search = "role_monthly_hours_min=10&role_monthly_hours_max=20";
+    rerender(filter(roleColumns({ min: "10", max: "20" })));
+    expect(most()).toHaveValue("20");
+  });
+
+  it("shows a bound sent while another was on its way as the address writes it, once it arrives (#557)", async () => {
+    const { rerender } = render(filter(roleColumns()));
+    await userEvent.type(least(), "10{Enter}");
+    await userEvent.type(most(), "20,5  {Enter}");
+    expect(lastAddress()).toBe(
+      "/reference/resources?role_monthly_hours_min=10&role_monthly_hours_max=20.5",
+    );
+    page.search = "role_monthly_hours_min=10&role_monthly_hours_max=20.5";
+    rerender(filter(roleColumns({ min: "10", max: "20.5" })));
+    expect(most()).toHaveValue("20,5");
+  });
+
+  it("keeps a bound typed while another was on its way, once a filter composed on it arrives (#557)", async () => {
+    // The bounds and a filter of the same list, sharing the address last asked as the page does.
+    const screenAt = (search: string) => {
+      page.search = search;
+      const address = new URLSearchParams(search);
+      const min = address.get("role_monthly_hours_min") ?? undefined;
+      return (
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <PendingAddress>
+            <RangeFilter
+              label="Bornes des rôles"
+              kind="decimal"
+              columns={roleColumns({ min, max: undefined })}
+            />
+            <ValuesFilter
+              name="role_is_active"
+              label="État"
+              every="Tous les états"
+              values={[{ value: "true", text: "Actifs" }]}
+              chosen={address.get("role_is_active") === "true" ? ["true"] : []}
+              exhaustive={false}
+            />
+          </PendingAddress>
+        </NextIntlClientProvider>
+      );
+    };
+    const { rerender } = render(screenAt(""));
+    await userEvent.type(least(), "10{Enter}");
+    // Typed before the server answers, then a filter chosen, which carries the bound sent.
+    await userEvent.type(most(), "20");
+    await userEvent.click(screen.getByRole("button", { name: "Actifs" }));
+    expect(lastAddress()).toBe(
+      "/reference/resources?role_monthly_hours_min=10&role_is_active=true",
+    );
+    rerender(screenAt("role_monthly_hours_min=10&role_is_active=true"));
+    expect(least()).toHaveValue("10");
     expect(most()).toHaveValue("20");
   });
 
