@@ -3604,9 +3604,10 @@ morceaux ; l'ouverture est refusée par 413 `FILE_TOO_LARGE` au-delà d'`externa
 Chaque morceau est de la taille exacte (`part_size_bytes`, le reste pour le dernier), sinon
 422 `VALIDATION_FAILED`, `/body` par `VALUE_OUT_OF_RANGE` (`params.minimum` et `maximum`
 égaux à la taille attendue : aucun code nouveau) ; un morceau redéposé remplace le précédent,
-ce qui reprend un envoi interrompu à partir de la dernière réponse. Les trois opérations exigent `platform_restore`, comme
-`startRestore` (403). Le 409 de `completeChunkedUpload` dit dans `params.missing_parts` les
-numéros manquants (exemple `chunked_upload_incomplete`). **Pas d'opération de lecture d'un
+ce qui reprend un envoi interrompu à partir de la dernière réponse.
+Les trois opérations exigent `platform_restore`, comme `startRestore` (403). Le 409 de
+`completeChunkedUpload` dit dans `params.missing_parts` les numéros manquants (exemple
+`chunked_upload_incomplete`). **Pas d'opération de lecture d'un
 dépôt** : la conception dit trois temps, ouvrir, recevoir, terminer ; un envoi que le client ne
 peut plus suivre — un rechargement de page — recommence par une ouverture, le dépôt précédent
 expirant ; une lecture serait une surface de plus pour un cas que l'expiration couvre. L'assemblage est celui du
