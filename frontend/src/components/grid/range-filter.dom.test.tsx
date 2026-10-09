@@ -222,6 +222,139 @@ describe("the filter of a list on the bounds of its figures", () => {
   });
 });
 
+describe("the entry of the bounds, dated by the address (#553)", () => {
+  const least = () => screen.getByRole("textbox", { name: "Heures par mois, min." });
+  const most = () => screen.getByRole("textbox", { name: "Heures par mois, max." });
+
+  it("keeps the focus on the field that sent the bounds, and on the button, once the address arrives", async () => {
+    const { rerender } = render(filter(roleColumns()));
+    const field = least();
+    await userEvent.type(field, "10{Enter}");
+    expect(lastAddress()).toBe("/reference/resources?role_monthly_hours_min=10");
+    // The address sent arrives: the form stays, and the field with the focus and the bound.
+    page.search = "role_monthly_hours_min=10";
+    rerender(filter(roleColumns({ min: "10", max: undefined })));
+    expect(least()).toBe(field);
+    expect(field).toHaveFocus();
+    expect(field).toHaveValue("10");
+    // Sent by its button, the next bound keeps the focus on the button.
+    await userEvent.type(most(), "20");
+    const apply = screen.getByRole("button", { name: "Filtrer" });
+    await userEvent.click(apply);
+    page.search = "role_monthly_hours_min=10&role_monthly_hours_max=20";
+    rerender(filter(roleColumns({ min: "10", max: "20" })));
+    expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
+    expect(apply).toHaveFocus();
+    expect(most()).toHaveValue("20");
+  });
+
+  it("forgets what was typed and not sent, and what it got wrong, when the address comes back to the bounds it was typed over", async () => {
+    page.search = "role_monthly_hours_min=10";
+    const { rerender } = render(filter(roleColumns({ min: "10", max: undefined })));
+    await userEvent.type(least(), "0");
+    await userEvent.type(most(), "abc{Enter}");
+    expect(most()).toHaveAttribute("aria-invalid", "true");
+    expect(router.push).not.toHaveBeenCalled();
+    // Back in the history to other bounds, then forward to those the entry was typed over: they
+    // show the address, the entry and its fault given up.
+    page.search = "role_monthly_hours_min=20";
+    rerender(filter(roleColumns({ min: "20", max: undefined })));
+    expect(least()).toHaveValue("20");
+    page.search = "role_monthly_hours_min=10";
+    rerender(filter(roleColumns({ min: "10", max: undefined })));
+    expect(least()).toHaveValue("10");
+    expect(most()).toHaveValue("");
+    expect(most()).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("gives the focus to the bound the server refuses each time a list comes back refused, the same side refused again", async () => {
+    const inverted = (min: string, max: string) =>
+      filter(
+        roleColumns({ min, max }, NONE, { max: { code: "VALUE_OUT_OF_RANGE", minimum: min } }),
+      );
+    page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=500";
+    const { rerender } = render(inverted("1000", "500"));
+    expect(most()).toHaveFocus();
+    // Sent again by its button, still below the same lower bound: the list comes back with the
+    // same refusal of the same side, which takes the focus anew.
+    await userEvent.clear(most());
+    await userEvent.type(most(), "400");
+    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    expect(lastAddress()).toBe(
+      "/reference/resources?role_monthly_hours_min=1000&role_monthly_hours_max=400",
+    );
+    expect(screen.getByRole("button", { name: "Filtrer" })).toHaveFocus();
+    page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=400";
+    rerender(inverted("1000", "400"));
+    expect(most()).toHaveFocus();
+    expect(most()).toHaveValue("400");
+    expect(most()).toHaveAccessibleDescription(
+      "La borne supérieure ne peut précéder la borne inférieure, 1 000.",
+    );
+  });
+
+  it("gives the focus to the bound typed wrong in the send, not to the choice of the year the server refused before", async () => {
+    const scope: RangeScope = {
+      name: "rate_year",
+      label: "Année du taux",
+      choices: [{ value: "2026", text: "2026" }],
+      chosen: "2026",
+      refused: { code: "VALUE_REQUIRED" },
+    };
+    page.search = "rate_min=100";
+    render(
+      filter([{ column: "rate", label: "Taux horaire", bounds: { min: "100", max: undefined } }], {
+        scope,
+      }),
+    );
+    const year = screen.getByRole("combobox", { name: "Année du taux" });
+    expect(year).toHaveFocus();
+    const most = screen.getByRole("textbox", { name: "Taux horaire, max." });
+    await userEvent.type(most, "abc{Enter}");
+    expect(router.push).not.toHaveBeenCalled();
+    // The year is still refused, and comes first in the form: the bound typed wrong takes the focus.
+    expect(year).toHaveAttribute("aria-invalid", "true");
+    expect(most).toHaveAttribute("aria-invalid", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
+    expect(most).toHaveFocus();
+  });
+
+  it("gives the focus to the least of the first column once the button that lifted the bounds is gone", async () => {
+    page.search = "role_monthly_hours_max=500&role_headcount_min=2";
+    const { rerender } = render(
+      filter(roleColumns({ min: undefined, max: "500" }, { min: "2", max: undefined })),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Lever les bornes" }));
+    expect(lastAddress()).toBe("/reference/resources");
+    // The address lifted arrives: the button is gone, the focus on a field that stays, emptied.
+    page.search = "";
+    rerender(filter(roleColumns()));
+    expect(screen.queryByRole("button", { name: "Lever les bornes" })).toBeNull();
+    expect(least()).toHaveFocus();
+    expect(least()).toHaveValue("");
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it("keeps what is typed, and the focus, through a change of the address the form does not write", async () => {
+    // A list refused: the bound refused takes the focus when it comes back, once.
+    page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=500";
+    const refused = () =>
+      filter(
+        roleColumns({ min: "1000", max: "500" }, NONE, {
+          max: { code: "VALUE_OUT_OF_RANGE", minimum: "1000" },
+        }),
+      );
+    const { rerender } = render(refused());
+    const headcount = screen.getByRole("textbox", { name: "Effectif, min." });
+    await userEvent.type(headcount, "3");
+    // A sort arrives meanwhile, the bounds as they were: neither the entry nor the focus moves.
+    page.search = "role_monthly_hours_min=1000&role_monthly_hours_max=500&role_sort_by=label";
+    rerender(refused());
+    expect(headcount).toHaveValue("3");
+    expect(headcount).toHaveFocus();
+  });
+});
+
 describe("the refusals of the server on the bounds of a list", () => {
   it("says at its field a bound the server does not take for a number", () => {
     render(

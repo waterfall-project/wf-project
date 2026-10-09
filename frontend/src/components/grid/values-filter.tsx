@@ -7,7 +7,8 @@
  * accounts, the capacities of the contributors. A value chosen only changes the address, under the
  * name of the contract (`filters.ts`); the page reads the list anew, which the server filters. A
  * value chosen goes on from the address last asked (`usePendingAddress`): a second value chosen
- * before the first has arrived, or right after a sort, keeps them.
+ * before the first has arrived, or right after a sort, keeps them. The values asked show pressed
+ * until the server answers for them, then those of the address (défaut n° 21 de `typescript.md`).
  *
  * Every prop is data — the texts are given translated, or drawn already, as a badge —, never a
  * function: a server component hands it over (défaut n° 12 de `typescript.md`).
@@ -16,7 +17,7 @@
 
 import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useOptimistic, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -57,13 +58,28 @@ export function ValuesFilter<Value extends string>({
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const filter = { name, values: values.map(({ value }) => value), page, exhaustive };
+  // The values asked, pressed until the server answers for them: the buttons would otherwise show
+  // the address until the navigation arrives — the choice seemingly undone for as long as the page
+  // is read anew —, and again the address should another navigation replace it.
+  const [shown, show] = useOptimistic(chosen);
+  const [, startTransition] = useTransition();
   /** Filter on the values a change makes of those last asked. */
   const change = (make: (asked: readonly Value[]) => readonly Value[]) => {
-    request((query) =>
-      valuesHref(pathname, query, filter, make(readValues(query, name, filter.values))),
-    );
+    startTransition(() => {
+      request((query) => {
+        const href = valuesHref(
+          pathname,
+          query,
+          filter,
+          make(readValues(query, name, filter.values)),
+        );
+        // As the address asked names them: every value of an exhaustive filter lifts it.
+        show(readValues(new URLSearchParams(href.split("?")[1] ?? ""), name, filter.values));
+        return href;
+      });
+    });
   };
-  const everyOne = chosen.length === 0;
+  const everyOne = shown.length === 0;
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
       <Button
@@ -78,8 +94,8 @@ export function ValuesFilter<Value extends string>({
         {every}
       </Button>
       {values.map(({ value, text }) => {
-        // Pressed as the address shows it; a change goes on from the values last asked.
-        const pressed = chosen.includes(value);
+        // Pressed as last asked; a change goes on from the values last asked.
+        const pressed = shown.includes(value);
         const Icon = pressed ? CircleCheck : Circle;
         return (
           <Button

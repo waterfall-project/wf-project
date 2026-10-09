@@ -1435,6 +1435,13 @@ paramètres qu'elle lit, et une page tournée pendant qu'un filtre est en route 
 page ; un paramètre absent n'y vaut pas un paramètre vide (`sort_by=` lève le tri, son absence
 garde celui du compte). Un test lie, pour chaque liste, ce qu'elle lit à ce qu'elle demande au
 serveur.
+EP-02/L41, sa partie L41h (#506), date par l'adresse la recherche des grilles et leurs bornes
+(#553), comme L41f les autres filtres : le champ ou le bouton qui a envoyé garde le focus, une
+saisie abandonnée ne revient pas avec l'adresse d'origine, un tri arrivé pendant la saisie la
+laisse, et une borne refusée prend le focus chaque fois que la liste revient refusée ; « Lever les
+bornes » rend le focus à la première borne, et une borne mal tapée le prend à l'envoi. Le filtre
+par valeurs montre la valeur choisie jusqu'à la réponse du serveur, comme la liste de choix depuis
+L41g.
 
 ## US-0260 — Écran d'import en deux temps
 
