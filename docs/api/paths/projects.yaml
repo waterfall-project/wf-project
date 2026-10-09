@@ -302,10 +302,13 @@
     tags: [projects]
     summary: Saisir le lotissement
     description: >-
-      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un lot
-      que la saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0130) : si
-      le lot et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la
-      tâche du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les
+      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un poste
+      ou un lot que la saisie omet est supprimé : les tâches de la révision en cours qui le
+      portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et
+      le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080). Un lot que la
+      saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0170) : si le lot
+      et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la tâche
+      du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les
       révisions marquées n'entrent pas dans ce jugement : leurs tâches ne se déplacent plus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -329,7 +332,7 @@
           Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) :
           `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
           Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son
-          nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0130) : `VALIDATION_FAILED`, `fields`
+          nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0170) : `VALIDATION_FAILED`, `fields`
           sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
           `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et
           `work_package_node_ids` les tâches du poste et du lot.

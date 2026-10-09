@@ -386,7 +386,7 @@ EditableField:
     la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
     accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du
     lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche,
-    récapitulative ou feuille (WF-PLA-0130).
+    récapitulative ou feuille (WF-PLA-0170).
   enum:
     - task.label
     - task.description
@@ -414,7 +414,7 @@ NodeColumn:
     colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le
-    poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0130) ;
+    poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0170) ;
     `label`, puis de
     `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à
     l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la
@@ -810,7 +810,7 @@ TaskFacet:
     de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de
     travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut
     porter le rattachement à un poste ou à un lot du lotissement (`order_item_id`,
-    `work_package_id`, WF-PLA-0130) ; une tâche créée par un import MS Project garde l'identifiant que le
+    `work_package_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le
     fichier lui donnait (`external_id`, WF-INTF-0040).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -890,7 +890,7 @@ TaskFacet:
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0130) :
+        Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) :
         posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de
         `work_package_id`. Un poste n'est porté que par une tâche à la fois ; c'est par elle
         que le devis présente le total par poste, celui de son sous-arbre (WF-DEV-0060), et que
@@ -899,7 +899,7 @@ TaskFacet:
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le lot du lotissement que porte cette tâche (WF-PLA-0130), aux mêmes règles que
+        Le lot du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que
         `order_item_id`, exclusif de lui : une tâche porte un poste ou un lot, jamais les deux ;
         un lot n'est porté que par une tâche à la fois. Quand le poste du lot est rattaché, la
         tâche du lot est dans le sous-arbre de la tâche de ce poste. Les grilles filtrent par
@@ -1161,7 +1161,7 @@ TaskFacetUpdate:
     reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030).
 
-    Le rattachement au lotissement (WF-PLA-0130) : `order_item_id` ou `work_package_id`
+    Le rattachement au lotissement (WF-PLA-0170) : `order_item_id` ou `work_package_id`
     rattache la tâche, récapitulative ou feuille, à ce poste ou à ce lot, `null` retire le
     rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id:
     X}` sur une tâche qui porte un poste retire le poste et rattache le lot. Le refus est un
@@ -1176,7 +1176,7 @@ TaskFacetUpdate:
     un lot rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste
     rattaché à une tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —,
     `fields[].params.order_item_node_id` nommant la tâche du poste et `work_package_node_ids`
-    celles des lots en cause (Vérif de WF-PLA-0130).
+    celles des lots en cause (Vérif de WF-PLA-0170).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -1249,7 +1249,7 @@ NodeMove:
   description: >-
     Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un lot du
     sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la
-    contient — est refusé (WF-PLA-0130) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
+    contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
     nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
     `fields[].params.order_item_node_id` et `work_package_node_ids` nommant les tâches du
     poste et des lots.

@@ -48,10 +48,11 @@
     tags: [revisions]
     summary: Ouvrir la révision en cours
     description: >-
-      Un projet comporte au plus une révision en cours ; sa création copie les
-      structures de la dernière révision marquée et les valeurs du référentiel
-      qu'elles emploient (WF-REV-0010, WF-DAT-0010). La révision retient pour année de
-      référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
+      Un projet comporte au plus une révision en cours ; sa création copie les structures de la
+      dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010,
+      WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un poste ou à un lot
+      marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
+      de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
       révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -338,7 +339,9 @@
       La fusion ne touche que les montants budgétés des lignes que le différentiel
       désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est
       jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en
-      résulte devient la référence (WF-REV-0050). Confiée au worker et inscrite au
+      résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun
+      rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que
+      le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au
       journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la
       structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
       heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
@@ -391,7 +394,10 @@
       elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
       sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
       n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
-      Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce
+      Les totaux sont ceux des lignes retenues. Le filtre par poste ou par lot
+      (`order_item_id`, `work_package_id`) retient le sous-arbre de la tâche rattachée au poste
+      ou au lot : le lotissement sert de grille de lecture par ce seul rattachement, que seule
+      la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
       que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
       pas avec lui.
 
@@ -443,7 +449,7 @@
         in: query
         description: >-
           Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, elle
-          comprise (WF-PLA-0130, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient
+          comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient
           rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: work_package_id
@@ -451,7 +457,7 @@
         description: >-
           Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, elle comprise
           — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
-          WF-RAE-0040, WF-PLA-0130) ; un lot qu'aucune tâche ne porte ne retient rien.
+          WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: cost_category_id
         in: query
@@ -568,14 +574,14 @@
     tags: [revisions]
     summary: Créer une tâche ou une ligne de devis
     description: >-
-      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal
-      (WF-CYC-0100). Une tâche ajoutée après la référence porte un montant budgété nul
-      (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa tâche sans aucune
-      heure travaillée dans la semaine — son calendrier ne recoupant jamais ceux des autres
-      rôles de la tâche — est refusée par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant
-      les rôles et la tâche (WF-PLA-0010) ; une tâche créée rattachée à un lot suit les règles
-      du rattachement (`TaskFacetWrite`). Une ligne dont la catégorie relève d'une nature de
-      type provision n'est créée que par la déclaration d'un risque : sa création à la main est
+      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). Une
+      tâche ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de
+      main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine
+      — son calendrier ne recoupant jamais ceux des autres rôles de la tâche — est refusée par
+      422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ;
+      une tâche créée rattachée à un poste ou à un lot suit les règles du rattachement
+      (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type
+      provision n'est créée que par la déclaration d'un risque : sa création à la main est
       refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
       `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010).
     parameters:
@@ -603,7 +609,7 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
           nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
-          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0130) ; ou une ligne qui
+          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170) ; ou une ligne qui
           laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
         content:
           application/problem+json:
@@ -617,14 +623,15 @@
     tags: [revisions]
     summary: Supprimer un nœud
     description: >-
-      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070,
-      WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon
-      WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres
-      recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`),
-      pour que la grille montre juste et que le collage suivant porte le bon compteur
-      (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et
-      déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020,
-      WF-PLA-0100), et leurs montants corrigés dans `reinflated` (WF-DEV-0040).
+      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090).
+      Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
+      récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement
+      (WF-PLA-0170). Une écriture de grille comme les autres : elle rend ses ancêtres
+      recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour
+      que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110).
+      Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin
+      critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs
+      montants corrigés dans `reinflated` (WF-DEV-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -704,8 +711,10 @@
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
       (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
       écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
-      quinze ans (WF-PLA-0150). Seul le compteur lu est exigé : seul ce qui est envoyé
-      change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
+      quinze ans (WF-PLA-0150). Le rattachement à un poste ou à un lot du lotissement se pose,
+      se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
+      de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
+      envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -739,7 +748,7 @@
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
           poste ou lot inconnu, poste et lot ensemble, poste ou lot déjà porté par une autre
-          tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0130,
+          tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0170,
           `TaskFacetUpdate`).
         content:
           application/problem+json:
@@ -972,7 +981,7 @@
       rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
       (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
       rattachement au lotissement ; un déplacement qui sortirait la tâche d'un lot du
-      sous-arbre de la tâche de son poste est refusé (WF-PLA-0130, `NodeMove`).
+      sous-arbre de la tâche de son poste est refusé (WF-PLA-0170, `NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -998,7 +1007,7 @@
       '422':
         description: >-
           Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste
-          (WF-PLA-0130) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
+          (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
           `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée
           change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
@@ -1149,11 +1158,13 @@
     summary: Engendrer le squelette de planning depuis le lotissement
     description: >-
       Une récapitulative par poste et par lot, chacune rattachée au poste ou au lot qu'elle
-      représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0130), une feuille par
-      livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Proposé seulement
-      sur une structure sans tâche, et sans créer d'autre lien avec le lotissement que ce
-      rattachement : modifier ensuite le lotissement ne déplace ni ne supprime aucune tâche
-      (WF-PRJ-0030).
+      représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0170), une feuille par
+      livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Engendré sur la
+      structure principale de la révision, seule à porter des rattachements — jamais sur un
+      différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et
+      proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le
+      lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
+      supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

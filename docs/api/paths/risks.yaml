@@ -240,11 +240,12 @@
     tags: [risks]
     summary: Déclarer un risque survenu
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale de
-      la révision en cours, avec un montant budgété nul, et retire la ligne de
-      provision ; ne marque aucune révision et ne déplace pas la référence
-      (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes`
-      montre la structure obtenue. Lorsque le projet n'a pas de révision en cours, la
+      Fusionne les tâches et les lignes du devis propre dans la structure principale de la
+      révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne
+      marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) :
+      l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches
+      qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque
+      n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la
       survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique
       d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
       WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la

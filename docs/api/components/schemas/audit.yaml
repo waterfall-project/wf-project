@@ -114,7 +114,8 @@ AuditProject:
   description: >-
     Un projet du journal, par son identifiant, son code et son libellé : ceux du moment de
     l'action dans une inscription (`AuditEvent.project`), ceux d'aujourd'hui dans les facettes
-    (`AuditFacets.projects`).
+    (`AuditFacets.projects`) — pour un projet qui n'existe plus, créé après la sauvegarde
+    qu'une restauration a remise en place, ceux de sa dernière inscription.
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string }
@@ -191,6 +192,7 @@ AuditFacets:
       type: array
       description: >-
         Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé
-        d'aujourd'hui, dans l'ordre des codes puis des identifiants : consultables ou non par
+        d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière
+        inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par
         l'appelant, comme le journal les nomme.
       items: { $ref: '#/AuditProject' }

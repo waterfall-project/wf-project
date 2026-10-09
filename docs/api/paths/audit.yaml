@@ -4,26 +4,31 @@
     tags: [audit]
     summary: Journal d'audit
     description: >-
-      Les inscriptions du journal d'audit, chacune avec sa date, son auteur, son action, l'objet
-      concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou
-      structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi
-      longtemps que les projets : celui d'un projet terminé depuis des années se lit comme
-      celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération
-      n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même
-      produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle
-      restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (WF-ADM-0160,
-      #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`) portant sur le
-      libellé de l'objet que l'inscription garde ; une table plate, qui se trie sur chacune de
-      ses colonnes — la date, l'auteur, l'action, la nature de l'objet, son libellé, le projet et
-      la corrélation (WF-IHM-0060) : sans tri, par date,
-      les plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur
-      inscription, inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne
-      égale, dans cet ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs
-      et les projets que nomme le journal se lisent par `listAuditFacets`. Lisible sous la
-      permission de consulter le journal
-      (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par
-      son code et son libellé, que l'appelant en soit contributeur ou non ; le lien vers
-      l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110).
+      La consultation du journal d'audit (WF-ADM-0190) : ses inscriptions, chacune avec sa date,
+      son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les
+      actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le
+      journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis
+      des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit
+      qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule
+      l'action elle-même produit, et une restauration ne le remplace pas : il est hors du
+      périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci
+      faite (WF-ADM-0160, #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`)
+      portant sur le libellé de l'objet que l'inscription garde, et les cinq filtres de
+      WF-ADM-0190 sont la période (`from`, `to`), l'auteur (`user_id`, `actor_kind`), l'action
+      (`actions`), le projet (`project_id`) et l'objet (`object_kind`, `object_id`) ; une table
+      plate, qui se trie sur chacune de ses colonnes — la date, l'auteur, l'action, la nature de
+      l'objet, son libellé, le projet et la corrélation (WF-IHM-0060) : sans tri, par date, les
+      plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur inscription,
+      inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne égale, dans cet
+      ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs et les projets
+      que nomme le journal se lisent par `listAuditFacets`. Lisible sous la seule permission de
+      consulter le journal (`audit_log.read`, WF-ADM-0100, WF-ADM-0190), sans condition de
+      contributeur et sans qu'aucun projet soit ouvert — le chemin n'en nomme aucun —, qui ouvre
+      le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en
+      soit contributeur ou non ; l'inscription ne mène qu'à un projet qu'il peut ouvrir
+      (WF-ADM-0110), et qu'à un objet qu'il peut consulter ; un projet qui n'existe plus — créé
+      après la sauvegarde qu'une restauration a remise en place — se nomme de même, sans mener à
+      lui (WF-ADM-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -58,8 +63,8 @@
       - name: project_id
         in: query
         description: >-
-          Retient les inscriptions de ce projet ; un projet qui n'en a aucune, ou qui n'existe
-          pas, ne retient rien.
+          Retient les inscriptions de ce projet ; un projet qu'aucune inscription ne nomme ne
+          retient rien, qu'il existe encore ou non.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: object_kind
         in: query
@@ -149,17 +154,19 @@
     summary: Auteurs et projets du journal d'audit
     description: >-
       Les comptes et les projets que nomme le journal d'audit entier, chacun une fois, pour
-      choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-IHM-0130) : les
-      comptes auteurs d'au moins une inscription, désactivés compris (WF-ADM-0060), et les
-      projets d'au moins une inscription, consultables ou non par l'appelant. Le journal entier,
-      quels que soient les filtres de `listAuditEvents`, que l'opération ne prend pas : une
-      liste de choix ne se vide pas au gré des autres filtres. Lisible sous la seule permission
-      de consulter le journal (`audit_log.read`) : une fonction en lecture seule n'a que la
-      permission de consulter (WF-ADM-0100), et un auditeur qui ne lit ni les comptes ni tous les
-      projets filtre ainsi le journal par auteur et par projet. Sans pagination : il y a au plus
-      autant d'auteurs que de comptes et de projets que l'installation en conserve, soit au plus
-      500 comptes et 600 projets conservés sur vingt ans aux volumes du §4.6.2 — une réponse de
-      l'ordre de cent kilo-octets, quand une page de 50 inscriptions en pèse une vingtaine.
+      choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-ADM-0190,
+      WF-IHM-0130) : les comptes auteurs d'au moins une inscription, désactivés compris
+      (WF-ADM-0060), et les projets d'au moins une inscription, consultables ou non par
+      l'appelant. Le journal entier, quels que soient les filtres de `listAuditEvents`, que
+      l'opération ne prend pas : une liste de choix ne se vide pas au gré des autres filtres.
+      Lisible sous la seule permission de consulter le journal (`audit_log.read`), sans
+      condition de contributeur ni projet ouvert : une fonction en lecture seule n'a que la
+      permission de consulter (WF-ADM-0100, WF-ADM-0190), et un auditeur qui ne lit ni les
+      comptes ni tous les projets filtre ainsi le journal par auteur et par projet. Sans
+      pagination : il y a au plus autant d'auteurs que de comptes et de projets que
+      l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt
+      ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de
+      50 inscriptions en pèse une vingtaine.
     responses:
       '200':
         description: Auteurs et projets du journal.
