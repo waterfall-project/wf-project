@@ -39,6 +39,11 @@ module `interface`, et rien d'autre : ses tables et son accès aux données lui 
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
+Ce qui n'est pas une fonction du métier — réglages et secrets, journaux, corrélation, exceptions
+typées — vit dans `waterfall.platform`, sous le noyau : le noyau, l'API et le worker l'importent,
+il n'importe aucun d'eux, et aucun de ses modules ne connaît une table du noyau. Le contrat de
+couches de `backend/pyproject.toml` le garde.
+
 *Contrôle* : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
 un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
@@ -1716,7 +1721,36 @@ ses paramètres, jamais une phrase.
 
   *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
   qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
-- **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
+- **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
+  les modèles du service que `make generate-server-models` en engendre
+  (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
+  dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Le noyau lève ensuite
+  l'exception de `waterfall.platform.errors` qui porte le statut du contrat — `NotFoundError`
+  404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
+  `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
+  un refus par champ se dit par des `FieldError(pointer, code, params)`, le pointeur étant celui
+  du contrat (`/label` dans le corps, `/query/from` dans la requête). Il ne construit jamais
+  de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
+  erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
+  dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
+  une requête illisible (corps qui n'est pas du JSON ou pas un objet, en-tête ou témoin
+  illisible) en 400 `MALFORMED_REQUEST` ; une valeur refusée en 422 `VALIDATION_FAILED`, un champ
+  par faute (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` avec `minimum` ou
+  `maximum`, `NUMBER_INVALID`, `DATE_INVALID`, sinon `VALIDATION_FAILED`) ; un identifiant du
+  chemin qui ne peut nommer aucun objet en 404 `NOT_FOUND` ; une route inconnue en 404 ; toute
+  exception inattendue en 500 `INTERNAL_ERROR`, journalisée avec sa trace, sans rien en rendre.
+  Un code que le contrat ne connaît pas est un défaut : le gestionnaire le rend en 500.
+
+  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`) ; que
+  le code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
+  réponses des tests d'API contre le contrat.
+- **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
+  (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
+  une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
+  (`waterfall.platform.logs`) : un enregistrement porte `level`, `timestamp`, `actor` et, dans
+  une requête, `correlation_id` ; tout champ dont le nom contient `password`, `token`,
+  `secret`, `authorization` ou `cookie` en est retiré. Un secret sous un autre nom ne l'est
+  pas : on ne le journalise pas.
 
 ## Clés de traduction
 

@@ -8,6 +8,9 @@
 # comment is accepted (`make sources`). An exception for a whole kind of file is written
 # here, under `per-file-ignores`, with its reason.
 line-length = 100
+# The models of the service are engendered from the contract (`make generate-server-models`):
+# the tool formats them, and a rule is not applied to what no one writes.
+extend-exclude = ["backend/src/waterfall/api/contract/models.py"]
 target-version = "py313"
 # Where the first-party packages live, so that imports sort the same way from anywhere.
 src = ["backend/src", "tools/src"]

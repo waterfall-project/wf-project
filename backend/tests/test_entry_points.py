@@ -4,22 +4,20 @@
 
 import subprocess
 import tomllib
-from collections.abc import Callable
 from importlib.metadata import entry_points
 from pathlib import Path
 
 import pytest
 
 import waterfall
-import waterfall.api.main
 import waterfall.worker.main
 
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 
 def run(script: str) -> str:
-    """Run an installed entry point and return what it prints."""
-    result = subprocess.run([script], capture_output=True, text=True, check=True)
+    """Run an installed entry point asked for its version and return what it prints."""
+    result = subprocess.run([script, "--version"], capture_output=True, text=True, check=True)
     return result.stdout.strip()
 
 
@@ -45,12 +43,6 @@ def test_the_api_and_the_worker_carry_the_same_version() -> None:
     assert api == worker == declared
 
 
-@pytest.mark.parametrize(
-    ("start", "name"),
-    [(waterfall.api.main.main, "waterfall-api"), (waterfall.worker.main.main, "waterfall-worker")],
-)
-def test_each_entry_point_returns_success(
-    start: Callable[[], int], name: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert start() == 0
-    assert capsys.readouterr().out == f"{name} {waterfall.__version__}\n"
+def test_the_worker_entry_point_returns_success(capsys: pytest.CaptureFixture[str]) -> None:
+    assert waterfall.worker.main.main() == 0
+    assert capsys.readouterr().out == f"waterfall-worker {waterfall.__version__}\n"

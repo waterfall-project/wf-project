@@ -20,6 +20,7 @@ LAYOUT = {
     "api/__init__.py": "",
     "worker/__init__.py": "",
     "core/__init__.py": "",
+    "platform/__init__.py": "",
     "core/accounts/__init__.py": "",
     "core/accounts/interface.py": "from sample.core.accounts import tables\n",
     "core/accounts/tables.py": "",
@@ -95,6 +96,21 @@ def test_the_core_may_not_import_the_api(sample: Path) -> None:
 def test_the_api_may_not_import_the_worker(sample: Path) -> None:
     result = lint(sample, "api.__init__", "import sample.worker\n")
     assert result.returncode == 1
+
+
+def test_the_platform_may_be_imported_by_the_core_the_api_and_the_worker(sample: Path) -> None:
+    for module in ("core.projects.tables", "api.__init__", "worker.__init__"):
+        result = lint(sample, module, "import sample.platform\n")
+        assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("imported", ["core.projects.interface", "api", "worker"])
+def test_the_platform_may_not_import_the_core_the_api_or_the_worker(
+    sample: Path, imported: str
+) -> None:
+    result = lint(sample, "platform.__init__", f"import sample.{imported}\n")
+    assert result.returncode == 1
+    assert f"sample.platform -> sample.{imported}" in result.stdout
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

@@ -84,6 +84,10 @@ paths = ["frontend/src/api/generated/**"]
 by = "make generate-client"
 
 [[generated]]
+paths = ["backend/src/waterfall/api/contract/models.py"]
+by = "make generate-server-models"
+
+[[generated]]
 paths = ["fixtures/examples.json"]
 by = "make fixtures"
 

@@ -661,7 +661,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 
 ## US-0330 — Service, base et conventions de données
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DAT-0060-A`, `WF-DAT-0070-A`, `WF-DAT-0080-A`, `WF-DAT-0090-A`,
   `WF-DAT-0100-A`, `WF-DAT-0140-A`, `WF-SEC-0010-A`, `WF-OBS-0020-A`
 - **opérations** : `getLiveness`
