@@ -86,11 +86,11 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (18) :
+Servies ici pour la première fois (19) :
 
 - `system` : `getBackgroundTaskResult` ;
 - `projects` : `listTimelines`, `createTimeline`, `deleteTimeline` ;
-- `revisions` : `listNodes`, `createNode`, `deleteNode`, `updateTaskFacet`, `setPredecessors`, `setTaskProgress`, `setNodeTracking`, `moveNodes`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`, `generatePlanningSkeleton` ;
+- `revisions` : `listNodes`, `createNode`, `deleteNode`, `updateTaskFacet`, `setPredecessors`, `setTaskProgress`, `setNodeTracking`, `moveNodes`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`, `generatePlanningSkeleton`, `getComputedValueDependencies` ;
 - `exchanges` : `requestExport`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (0) :

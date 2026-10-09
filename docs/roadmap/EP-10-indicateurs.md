@@ -78,9 +78,9 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (4) :
+Servies ici pour la première fois (5) :
 
-- `analysis` : `getProjectIndicators`, `getMilestoneTracking`, `getCostCurve`, `getEarnedValueCurves`.
+- `analysis` : `getProjectIndicators`, `getMilestoneTracking`, `getCostCurve`, `getEarnedValueCurves`, `getIndexHistory`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 

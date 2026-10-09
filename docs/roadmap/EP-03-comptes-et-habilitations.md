@@ -47,7 +47,8 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   le compte ;
 - le worker, la file de tâches et le dépôt périodique d'une tâche en file, la lecture des
   comptes du fournisseur pour premier traitement ;
-- le journal d'audit, pour les comptes, les rôles et leurs attributions ;
+- le journal d'audit, pour les comptes, les rôles et leurs attributions, et sa consultation
+  (FBS-1.5, `audit_log.read`), que la plateforme ne peut ni modifier ni supprimer ;
 - les journaux structurés du service et du worker, dès leur premier enregistrement :
   l'identifiant de corrélation engendré à l'entrée et transmis aux tâches, l'auteur, la
   gravité, et aucun mot de passe, jeton ni secret — faute de quoi tout le code d'EP-04 à
@@ -71,7 +72,8 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   contributeurs ; ici, la connexion mène à l'accueil tel que la maquette le présente ;
 - la garde des lectures du référentiel avec `include_inactive` (#351) — EP-05, qui les sert ;
 - l'écran d'état, la sauvegarde et la restauration, qui complètent les usages de
-  l'administrateur (WF-INTF-0030) — EP-13 ; la consultation du journal d'audit — EP-13 ;
+  l'administrateur (WF-INTF-0030) — EP-13 ; la conservation du journal aussi longtemps que les
+  projets (WF-SEC-0030) — EP-13 ;
 - le chiffrement des échanges et l'injection des secrets par la plateforme — EP-13. Ici, un
   service qui démarre sans ses secrets échoue en le disant, et c'est tout ;
 - tout écran de mot de passe dans Waterfall : la fixation, la réinitialisation et le
@@ -103,7 +105,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-04 | US-0390 |
 | `WF-ADM-0120-A` | Dernier administrateur | entière | US-0380 |
 | `WF-ARC-0060-A` | Contrat OpenAPI | fin — amorcée en EP-01 | US-0340 |
-| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-13 | US-0410 |
+| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-12 | US-0410 |
 | `WF-ARC-0030-A` | Authentification déléguée | entière | US-0350 |
 | `WF-ARC-0090-A` | Traitements longs confiés au worker | début — close en EP-13 | US-0370 |
 | `WF-DAT-0060-A` | Identifiants | début — close en EP-04 | US-0330 |
@@ -125,8 +127,10 @@ consultables) ; WF-ADM-0100 en EP-08 (le devis, le marquage, la création d'un p
 fusion, dernière action gardée) ; WF-ADM-0020 en EP-05 (la première action d'un autre acteur
 que l'administrateur) ; WF-ADM-0040 en EP-04 (« le même projet ») ; WF-IHM-0060 en EP-07 (le
 tri de la grille de devis, qu'EP-02 attribuait à tort à EP-03) ; WF-IHM-0130 entre ici pour les
-tables des comptes et des rôles, et reste close en EP-11 ; WF-ARC-0110 en EP-13, où le
-journal d'audit se consulte, et non plus en EP-12. Les tableaux des EPIC concernés le disent.
+tables des comptes et des rôles, et reste close en EP-11. WF-ARC-0110, un temps déplacée en
+EP-13 faute de lecture du journal d'audit, revient se clore en EP-12 : la revue de la
+ventilation du 2026-10-09 donne à EP-03 la consultation du journal, qu'EP-02 a ajoutée au
+contrat (`listAuditEvents`, FBS-1.5). Les tableaux des EPIC concernés le disent.
 
 ## Opérations du contrat
 
@@ -158,7 +162,7 @@ conception :
   la présence de porteurs sur `listAccessRoles`, avec le nombre de rôles retenus ; et, sur
   les deux, un ordre de départage qui rend les pages stables.
 
-Servies ici pour la première fois, après cette modification (25) :
+Servies ici pour la première fois, après cette modification (27) :
 
 - `system` : `getLiveness`, `getInstallation`, `getBackgroundTask`, `listBackgroundTasks` ;
 - `me` : `getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` ;
@@ -166,7 +170,8 @@ Servies ici pour la première fois, après cette modification (25) :
   `setUserAccessRoles`, `createPasswordSetupLink`, `getUserAvatar`, `startDirectorySync`,
   `getLatestDirectorySync` ;
 - `access` : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
-  `updateAccessRole`, `deleteAccessRole`.
+  `updateAccessRole`, `deleteAccessRole` ;
+- `audit` : `listAuditEvents`, `listAuditFacets`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (0) :
 
@@ -418,7 +423,15 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
 son état, de ses rôles ; création, modification et suppression d'un rôle ; demande d'un lien
 de fixation ; création, mise à jour et désactivation par la lecture des comptes. Une
 inscription est un code et des données, sans phrase (WF-ARC-0110), et ne porte jamais le
-jeton du lien. Aucune opération ne la lit en EP-03.
+jeton du lien.
+
+La consultation (FBS-1.5, revue de la ventilation, 2026-10-09) est `listAuditEvents`, sous
+`audit_log.read` : une table plate, paginée, triée sur ses sept colonnes — date, auteur,
+action, nature de l'objet, libellé, projet, corrélation — et filtrée par période, auteur,
+action, projet, objet, corrélation et une recherche sur le libellé que l'inscription garde ;
+`listAuditFacets` rend les auteurs et les projets que le journal nomme. L'inscription garde le
+libellé de son objet et le nom de son auteur au moment de l'action, pour se lire sans joindre
+les tables des autres modules. Les index suivent les tris et les filtres du contrat.
 
 ### Amorçage
 
@@ -740,7 +753,9 @@ cessent d'être attribuables.
 - propre à l'US : l'affectation des rôles s'y fait cellule par cellule — zéro, un ou plusieurs
   rôles (WF-ADM-0050) — et s'applique sans reconnexion du compte concerné (WF-ADM-0090) ; le
   retrait de son rôle au dernier administrateur y est refusé par `LAST_ADMINISTRATOR`
-  (WF-ADM-0120) ; les rôles proposés sont ceux de l'installation, quel que soit le
+  (WF-ADM-0120), et sa désactivation présentée indisponible, avec la condition
+  `last_administrator` que portent les commandes du compte (`available_commands`, WF-IHM-0090,
+  contrat d'EP-02/L42d) ; les rôles proposés sont ceux de l'installation, quel que soit le
   rattachement (WF-ADM-0030, #379).
 - propre à l'US — **filtres** : la table se filtre sur chacune de ses colonnes, par le
   serveur (WF-IHM-0130) : le nom, le prénom et l'adresse par une recherche qui porte sur les
@@ -854,7 +869,8 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 
 **Notes de réalisation.** Le contenu des trois rôles prédéfinis est celui que l'exemple
 `access_roles` du contrat livre ; le catalogue est l'énumération `PermissionCode`, trois
-permissions comprises depuis #384. La suppression d'un rôle est logique (décision du
+permissions comprises depuis #384, et `audit_log.read`, la seule permission de FBS-1.5, en
+lecture seule (WF-ADM-0100 révisée), que le rôle administrateur porte. La suppression d'un rôle est logique (décision du
 cadrage, 2026-10-07) : WF-DAT-0080 ne laisse disparaître aucun objet de la plateforme, et
 WF-ADM-0090 veut qu'un rôle se supprime ; une issue « Specification finding » propose de le
 dire dans la spécification.
@@ -929,13 +945,15 @@ US-0410). `getInstallation` rend la langue par défaut posée à l'amorçage (US
 
 - **statut** : à faire
 - **exigences** : `WF-SEC-0030-A`, `WF-ARC-0110-A`
-- **opérations** : aucune en propre — les écritures des comptes et des rôles l'alimentent
+- **opérations** : `listAuditEvents`, `listAuditFacets` — les écritures des comptes et des
+  rôles l'alimentent
 - **issue** : #430
 
 **En tant qu'**administrateur, **je veux** que chaque création ou modification d'un compte,
 d'un rôle ou d'une attribution soit inscrite dans un journal que la plateforme ne peut pas
-réécrire, et conservée sous forme de code et de données, **afin de** pouvoir dire après coup
-qui a donné quel droit, dans la langue de celui qui le relit.
+réécrire, conservée sous forme de code et de données, et que je puisse parcourir et filtrer,
+**afin de** pouvoir dire après coup qui a donné quel droit, dans la langue de celui qui le
+relit.
 
 **Critères d'acceptation.**
 
@@ -943,13 +961,18 @@ qui a donné quel droit, dans la langue de celui qui le relit.
   modification des comptes, des rôles et de leurs attributions, et la demande d'un lien de
   fixation ; les autres actions énumérées arrivent avec leur EPIC.
 - `WF-SEC-0030-A` — « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription. »
-- écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal et les projets
-  arrivent en EP-04 et EP-13, qui clôt l'exigence.
+- écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal est ici ; les projets
+  et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
+  l'exigence.
 - `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
 - écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-09 et EP-12.
-- écart : `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : ici, une inscription est conservée sous forme
-  de code et de données, sans phrase ; sa lecture arrive en EP-13, qui clôt l'exigence.
+- `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : constaté sur la consultation du journal ; l'inscription est
+  conservée sous forme de code et de données, sans phrase.
 - `WF-ARC-0110-A` — « Un courriel de réinitialisation part du fournisseur d'identité, dans la langue du compte. »
+- propre à l'US : le journal se consulte sous `audit_log.read`, en table plate, paginée, triée
+  sur chacune de ses colonnes et filtrée par période, auteur, action, projet, objet,
+  corrélation et libellé, par le serveur (FBS-1.5, WF-IHM-0060, WF-IHM-0130) ; aucune commande
+  n'y modifie ni n'y supprime une inscription.
 
 ## US-0420 — Amorçage d'une installation neuve
 

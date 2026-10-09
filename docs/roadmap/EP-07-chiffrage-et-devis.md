@@ -86,11 +86,11 @@ Servies ici pour la première fois (8) :
 - `revisions` : `getRateUpdateProposal`, `applyRateUpdate`, `compareRevisions`, `updateEstimateLine` ;
 - `analysis` : `getEstimateIndicators`, `getMissingRates`, `getProjectWorkload`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (17) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (18) :
 
 - `reference` : `getReferenceSettings`, `updateReferenceSettings`, `updateOrgNode`, `updateResourceRole`, `setResourceRoleActivation`, `updateCalendar`, `setCostTypeActivation`, `updateCostCategory`, `setCostCategoryActivation`, `setHourlyRate` ;
 - `projects` : `getProject`, `updateProject`, `getProjectNextState` ;
-- `revisions` : `createRevision`, `getRevision`, `designateReferenceRevision`, `listNodes`.
+- `revisions` : `createRevision`, `getRevision`, `designateReferenceRevision`, `listNodes`, `getComputedValueDependencies` — les montants et ce dont ils dépendent.
 
 ## Préalables
 
