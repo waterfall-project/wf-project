@@ -23,6 +23,8 @@ SESSION_COOKIE = "wf_session=cookie-value-5c0d"
 # A password a driver decodes from its URL: the logs must hide the decoded text, not only the URL.
 ENCODED_CREDENTIAL = "p%40ss%2Fw%3Ard%231%5Cx"
 DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
+# The two decodings differ on this one: ``unquote`` keeps the plus, ``unquote_plus`` makes a space.
+PLUS_CREDENTIAL = "a+b%40"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",

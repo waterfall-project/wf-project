@@ -7,7 +7,13 @@ import sys
 
 import pytest
 from pydantic import SecretStr
-from support import DB_CREDENTIAL, DECODED_CREDENTIAL, ENCODED_CREDENTIAL, PLATFORM_SECRETS
+from support import (
+    DB_CREDENTIAL,
+    DECODED_CREDENTIAL,
+    ENCODED_CREDENTIAL,
+    PLATFORM_SECRETS,
+    PLUS_CREDENTIAL,
+)
 
 from waterfall.platform.settings import Settings, SettingsError, load_settings
 
@@ -92,3 +98,38 @@ def test_the_decoded_password_of_a_url_is_a_secret() -> None:
         redis_url=SecretStr(PLATFORM_SECRETS["WATERFALL_REDIS_URL"]),
     )
     assert {ENCODED_CREDENTIAL, DECODED_CREDENTIAL} <= set(settings.secret_values())
+
+
+def settings_for(database_url: str) -> Settings:
+    return Settings(
+        database_url=SecretStr(database_url),
+        redis_url=SecretStr(PLATFORM_SECRETS["WATERFALL_REDIS_URL"]),
+    )
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_both_decodings_of_a_password_with_a_plus_are_secrets() -> None:
+    values = settings_for(f"postgresql://u:{PLUS_CREDENTIAL}@db/x").secret_values()
+    assert {PLUS_CREDENTIAL, "a+b@", "a b@"} <= set(values)
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_decoded_form_shorter_than_four_characters_is_not_a_secret() -> None:
+    url = "postgresql://u:%20@db/x"
+    values = settings_for(url).secret_values()
+    assert {url, "%20"} <= set(values)
+    assert " " not in values
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+@pytest.mark.parametrize(
+    ("url", "password"),
+    [
+        ("postgresql://u:p#ss@db/x", "p#ss"),
+        ("postgresql://u:p/ss@db/x", "p/ss"),
+        ("postgresql://u:p?ss@db/x", "p?ss"),
+        ("postgresql://u:pa[ss@db/x", "pa[ss"),
+    ],
+)
+def test_the_password_is_read_before_the_url_is_split(url: str, password: str) -> None:
+    assert {url, password} <= set(settings_for(url).secret_values())

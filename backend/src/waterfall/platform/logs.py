@@ -67,14 +67,14 @@ MASK = "***"
 
 
 def _spellings(secret: str) -> list[str]:
-    quoted = repr(secret)[1:-1]
-    return [secret, json.dumps(secret)[1:-1], quoted, json.dumps(quoted)[1:-1]]
+    return [secret, json.dumps(secret)[1:-1], json.dumps(repr(secret)[1:-1])[1:-1]]
 
 
 def mask_values(secrets: Iterable[str]) -> Callable[[Any, str, Any], Any]:
     """Build the last step of the rendering: it hides each secret value in the text written.
 
-    A value is hidden as it is, as ``repr`` writes it and as JSON writes both, the longest
+    A value is hidden as it is, as JSON writes it and as JSON writes its ``repr`` — the text
+    comes from ``JSONRenderer``, so a ``repr`` reaches the mask encoded again — the longest
     first so that a secret which contains another one is hidden whole. A backslash is doubled
     by ``repr`` and doubled again by JSON: neither spelling covers the other.
     """

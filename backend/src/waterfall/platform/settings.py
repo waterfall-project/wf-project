@@ -7,6 +7,7 @@ letting the service start without it. The secrets are ``SecretStr``: printing th
 shows no value.
 """
 
+from contextlib import suppress
 from typing import Any
 from urllib.parse import unquote, unquote_plus, urlsplit
 
@@ -20,21 +21,28 @@ class SettingsError(Exception):
     """The environment does not give the settings the service needs."""
 
 
+MIN_DECODED_LENGTH = 4
+
+
 def _url_secrets(value: str) -> list[str]:
     """Give what a URL carries as a secret: its password as written and as a driver decodes it.
 
-    A URL that ``urlsplit`` refuses is still secret whole; what follows its last ``@`` is not
-    the credentials, so the part before it is kept apart as well.
+    The password is read from the text first — between the first ``:`` of the credentials and
+    the last ``@`` — because ``urlsplit`` cuts the address at an unencoded ``#``, ``/`` or ``?``
+    and then finds no password, or refuses the URL. A decoded form shorter than
+    ``MIN_DECODED_LENGTH`` characters is not kept: it would hide every text that contains it.
     """
-    try:
-        password = urlsplit(value).password
-    except ValueError:
-        before, at, _ = value.rpartition("@")
-        userinfo = before.rpartition("://")[2]
-        password = userinfo.partition(":")[2] if at else None
-    if not password:
-        return []
-    return [password, unquote(password), unquote_plus(password)]
+    before, at, _ = value.partition("://")[2].rpartition("@")
+    passwords = [before.partition(":")[2] if at else ""]
+    with suppress(ValueError):
+        passwords.append(urlsplit(value).password or "")
+    found: list[str] = []
+    for password in dict.fromkeys(passwords):
+        if not password:
+            continue
+        decoded = [unquote(password), unquote_plus(password)]
+        found += [password, *(text for text in decoded if len(text) >= MIN_DECODED_LENGTH)]
+    return found
 
 
 class Settings(BaseSettings):

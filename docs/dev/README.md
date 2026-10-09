@@ -1761,9 +1761,10 @@ ses paramètres, jamais une phrase.
   `***` dans tout le texte rendu d'un enregistrement — message, trace, `repr` —, y compris ceux
   des bibliothèques. La limite : un secret que les réglages ne connaissent pas (un jeton de
   session, un mot de passe reçu dans une requête) n'est ni retiré sous un autre nom ni masqué
-  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception. Un
-  secret d'un seul caractère masque aussi tout autre texte qui le contient : les réglages n'en
-  portent pas.
+  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception. Une
+  forme décodée du mot de passe d'une URL n'est retenue que si elle fait au moins quatre
+  caractères, faute de quoi elle masquerait tout texte qui la contient ; l'URL entière et la
+  forme encodée restent masquées dans tous les cas.
 
 ## Clés de traduction
 
