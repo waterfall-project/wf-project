@@ -9,6 +9,7 @@ flowchart LR
         Redis[("Redis")]
         S3[("Stockage objet S3")]
         Prometheus["Prometheus"]
+        Planif["Tâches planifiées<br>PBS-5.3"]
     end
     Annuaire["Annuaire LDAP ou<br>fournisseur d'identité externe"]
     SMTP["Serveur de messagerie"]
@@ -28,8 +29,7 @@ flowchart LR
     IdP --> PG
     IdP --> Annuaire
     IdP --> SMTP
-    API --> SMTP
-    Worker --> SMTP
+    Planif --> Redis
     Prometheus --> API
     Prometheus --> Worker
     Prometheus --> Front
