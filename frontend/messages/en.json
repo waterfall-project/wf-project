@@ -865,6 +865,9 @@
     "signIn": "Sign in",
     "dismiss": "Dismiss"
   },
+  "mockup": {
+    "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
+  },
   "tasks": {
     "label": "Background tasks",
     "named": "{kind} ‘{subject}’",
@@ -1062,7 +1065,10 @@
       "inactive": "Deactivated",
       "reactivate": "Reactivate “{name}”",
       "reactivateShort": "Reactivate",
-      "unavailable": "Reactivating “{name}” is unavailable. {unmet}"
+      "unavailable": "Reactivating “{name}” is unavailable. {unmet}",
+      "deactivate": "Deactivate “{name}”",
+      "deactivateShort": "Deactivate",
+      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",
@@ -1081,6 +1087,26 @@
       "beyond": "The page asked for is beyond the end of the list."
     },
     "codedChoice": "{code} · {label}",
+    "modify": "Modify",
+    "modifyNamed": "Modify “{name}”",
+    "costForm": {
+      "createCostType": "New cost nature",
+      "createCostCategory": "New cost category",
+      "modify": "Modify “{name}”",
+      "costTypeHint": "The code, unique, the label and the type are required.",
+      "costTypeModifyHint": "The code, unique, the label and the type are required. The type no longer changes once a category attached to it is employed.",
+      "costCategoryHint": "The code, unique, the label and the nature are required; the accounting code, unique as well, may stay empty.",
+      "choose": "Choose…",
+      "deactivatedChoice": "{choice} (deactivated)",
+      "create": "Create",
+      "save": "Save",
+      "sending": "Sending…",
+      "cancel": "Cancel",
+      "created": "“{name}” created.",
+      "saved": "“{name}” saved.",
+      "deactivated": "“{name}” deactivated.",
+      "reactivated": "“{name}” reactivated."
+    },
     "rates": {
       "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
       "addYear": {
@@ -1102,14 +1128,16 @@
       "none": "No cost type.",
       "kindFilter": "Kinds of cost type",
       "everyKind": "Every kind",
-      "count": "{count, plural, one {# cost type} other {# cost types}}"
+      "count": "{count, plural, one {# cost type} other {# cost types}}",
+      "create": "New nature"
     },
     "costCategories": {
       "title": "Cost categories",
       "none": "No cost category.",
       "costTypeFilter": "Cost type",
       "everyCostType": "Every cost type",
-      "count": "{count, plural, one {# category} other {# categories}}"
+      "count": "{count, plural, one {# category} other {# categories}}",
+      "create": "New category"
     },
     "orgNodes": {
       "title": "Organisation tree",

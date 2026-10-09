@@ -7,8 +7,10 @@
  * (WF-REF-0030), filtered by type and by state; each category by its code, its name, its nature and
  * its accounting code (WF-REF-0040), filtered by nature — chosen among every nature the session
  * reads — and by state. A deactivated one, which the lists show when the address asks for them,
- * offers its reactivation as the server lists it (WF-REF-0150, WF-IHM-0090); the forms that create
- * and modify them belong to the epic of the reference data.
+ * offers its reactivation as the server lists it (WF-REF-0150, WF-IHM-0090). A session that may
+ * modify the cost settings creates a nature or a category from the head of its list, modifies each
+ * from its row, and deactivates one an active object lists the deactivation of (EP-02/L43a,
+ * `cost-commands.tsx`); no command deletes one (WF-REF-0010).
  *
  * A list says it is empty only when it holds nothing and nothing narrows it: a search or a filter
  * that retains nothing keeps its grid, the search shown to be changed; a page asked beyond its end
@@ -20,6 +22,7 @@
  */
 import { Layers, Tags } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
@@ -31,6 +34,7 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import type { ListPage } from "@/navigation/pages";
 
 import { listReads } from "./address";
+import { CostCommands, CostDialog, CreateCostCommand } from "./cost-commands";
 import { CostGrid } from "./cost-grid";
 import {
   CATEGORY_COST_TYPE,
@@ -46,6 +50,7 @@ import {
   type CostTypeKind,
   type CostTypeSort,
 } from "./cost-grids";
+import type { NatureChoice } from "./cost-kinds";
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
 import { Reactivations } from "./reactivation";
 import { StateFilter } from "./reference-filters";
@@ -64,6 +69,39 @@ interface ListProps<Row, Sort extends string> {
    * the state then offers.
    */
   readonly readsInactive: boolean;
+  /** Whether the session may modify the cost settings (`platformOffer`): it creates and modifies. */
+  readonly editable: boolean;
+}
+
+/**
+ * The body of a list: its filters, its grid and its pages — or, empty with nothing narrowing it, what
+ * says so —, the grid within the region that tells the refusals of its commands, where its form opens
+ * too, on an empty list as well.
+ */
+function ListBody({
+  empty,
+  reads,
+  filters,
+  grid,
+  pages,
+}: {
+  /** What the list says when it is empty and nothing narrows it; `undefined` when it is not. */
+  readonly empty: string | undefined;
+  readonly reads: readonly string[];
+  readonly filters: ReactNode;
+  readonly grid: ReactNode;
+  readonly pages: ReactNode;
+}) {
+  return (
+    <>
+      {empty === undefined ? filters : null}
+      <Reactivations reads={reads}>
+        {empty === undefined ? grid : <p className="text-sm text-muted-foreground">{empty}</p>}
+        <CostDialog />
+      </Reactivations>
+      {empty === undefined ? pages : null}
+    </>
+  );
 }
 
 /** The parameters of the address the natures read, their filters among them. */
@@ -80,6 +118,7 @@ export function CostTypeList({
   preferences,
   state,
   readsInactive,
+  editable,
   kinds,
 }: ListProps<CostType, CostTypeSort> & {
   /** The types the address restricts the natures to; none, every one. */
@@ -91,53 +130,57 @@ export function CostTypeList({
   const offset = COST_TYPE_ADDRESS.offset;
   const narrowed = query.search !== undefined || kinds.length > 0 || state !== undefined;
   return (
-    <ReferenceSection
-      title={title}
-      icon={Layers}
-      empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
-    >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <ValuesFilter
-          name={COST_TYPE_KINDS}
-          label={t("costTypes.kindFilter")}
-          every={t("costTypes.everyKind")}
-          values={COST_TYPE_KIND_VALUES.map((kind) => ({ value: kind, text: named(kind) }))}
-          chosen={kinds}
-          page={offset}
-        />
-        {readsInactive ? (
-          <StateFilter
-            name={COST_TYPE_STATE}
-            label={t("stateFilter.of", { list: title })}
-            chosen={state}
-            page={offset}
-          />
-        ) : null}
-      </div>
-      <Reactivations reads={COST_TYPE_READS}>
-        <CostGrid
-          kind="costTypes"
-          rows={rows}
-          page={page}
-          query={query}
-          preferences={preferences}
-        />
-      </Reactivations>
-      <ListPages
-        list={{ page: offset, reads: COST_TYPE_READS }}
+    <CostCommands kind="cost_type" natures={[]}>
+      <ReferenceSection
         title={title}
-        page={page}
-        shown={rows.length}
-      />
-    </ReferenceSection>
+        icon={Layers}
+        commands={editable ? <CreateCostCommand kind="cost_type" /> : undefined}
+      >
+        <ListBody
+          empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
+          reads={COST_TYPE_READS}
+          filters={
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <ValuesFilter
+                name={COST_TYPE_KINDS}
+                label={t("costTypes.kindFilter")}
+                every={t("costTypes.everyKind")}
+                values={COST_TYPE_KIND_VALUES.map((kind) => ({ value: kind, text: named(kind) }))}
+                chosen={kinds}
+                page={offset}
+              />
+              {readsInactive ? (
+                <StateFilter
+                  name={COST_TYPE_STATE}
+                  label={t("stateFilter.of", { list: title })}
+                  chosen={state}
+                  page={offset}
+                />
+              ) : null}
+            </div>
+          }
+          grid={
+            <CostGrid
+              kind="costTypes"
+              rows={rows}
+              page={page}
+              query={query}
+              preferences={preferences}
+              editable={editable}
+            />
+          }
+          pages={
+            <ListPages
+              list={{ page: offset, reads: COST_TYPE_READS }}
+              title={title}
+              page={page}
+              shown={rows.length}
+            />
+          }
+        />
+      </ReferenceSection>
+    </CostCommands>
   );
-}
-
-/** A nature the categories may be filtered on. */
-export interface NatureChoice {
-  readonly id: string;
-  readonly code: string;
-  readonly label: string;
 }
 
 /**
@@ -152,10 +195,11 @@ export function CostCategoryList({
   preferences,
   state,
   readsInactive,
+  editable,
   natures,
   nature,
 }: ListProps<CostCategory, CostCategorySort> & {
-  /** The natures the categories may be restricted to, in the order of the server. */
+  /** The natures the categories may be restricted to or attached to, in the order of the server. */
   readonly natures: readonly NatureChoice[];
   /** The nature the address restricts the categories to, if any. */
   readonly nature: string | undefined;
@@ -165,48 +209,59 @@ export function CostCategoryList({
   const offset = COST_CATEGORY_ADDRESS.offset;
   const narrowed = query.search !== undefined || nature !== undefined || state !== undefined;
   return (
-    <ReferenceSection
-      title={title}
-      icon={Tags}
-      empty={page.total === 0 && !narrowed ? t("costCategories.none") : undefined}
-    >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <ChoiceFilter
-          name={CATEGORY_COST_TYPE}
-          label={t("costCategories.costTypeFilter")}
-          every={t("costCategories.everyCostType")}
-          choices={natures.map((choice) => ({
-            value: choice.id,
-            text: t("codedChoice", { code: choice.code, label: choice.label }),
-          }))}
-          chosen={nature}
-          page={offset}
-        />
-        {readsInactive ? (
-          <StateFilter
-            name={CATEGORY_STATE}
-            label={t("stateFilter.of", { list: title })}
-            chosen={state}
-            page={offset}
-          />
-        ) : null}
-      </div>
-      <Reactivations reads={COST_CATEGORY_READS}>
-        <CostGrid
-          kind="costCategories"
-          rows={rows}
-          page={page}
-          query={query}
-          preferences={preferences}
-        />
-      </Reactivations>
-      <ListPages
-        list={{ page: offset, reads: COST_CATEGORY_READS }}
+    <CostCommands kind="cost_category" natures={natures}>
+      <ReferenceSection
         title={title}
-        page={page}
-        shown={rows.length}
-      />
-    </ReferenceSection>
+        icon={Tags}
+        commands={editable ? <CreateCostCommand kind="cost_category" /> : undefined}
+      >
+        <ListBody
+          empty={page.total === 0 && !narrowed ? t("costCategories.none") : undefined}
+          reads={COST_CATEGORY_READS}
+          filters={
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <ChoiceFilter
+                name={CATEGORY_COST_TYPE}
+                label={t("costCategories.costTypeFilter")}
+                every={t("costCategories.everyCostType")}
+                choices={natures.map((choice) => ({
+                  value: choice.id,
+                  text: t("codedChoice", { code: choice.code, label: choice.label }),
+                }))}
+                chosen={nature}
+                page={offset}
+              />
+              {readsInactive ? (
+                <StateFilter
+                  name={CATEGORY_STATE}
+                  label={t("stateFilter.of", { list: title })}
+                  chosen={state}
+                  page={offset}
+                />
+              ) : null}
+            </div>
+          }
+          grid={
+            <CostGrid
+              kind="costCategories"
+              rows={rows}
+              page={page}
+              query={query}
+              preferences={preferences}
+              editable={editable}
+            />
+          }
+          pages={
+            <ListPages
+              list={{ page: offset, reads: COST_CATEGORY_READS }}
+              title={title}
+              page={page}
+              shown={rows.length}
+            />
+          }
+        />
+      </ReferenceSection>
+    </CostCommands>
   );
 }
 

@@ -294,3 +294,61 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     { timeout: WORKING },
   );
 });
+
+test("creates a category, enters a rate and deactivates a nature, the mock-up saying the fake back keeps nothing (EP-02/L43a)", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/costs");
+  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+
+  // A category created in its form. No project is opened here, nothing witnesses the hydration:
+  // the creation is pressed again until React opens its form, and never once it is open.
+  const categories = page.getByRole("region", { name: "Catégories de coût" });
+  const form = page.getByRole("dialog", { name: "Nouvelle catégorie de coût" });
+  await expect(async () => {
+    if (!(await form.isVisible())) {
+      await categories.getByRole("button", { name: "Nouvelle catégorie" }).click();
+    }
+    await expect(form).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await form.getByRole("textbox", { name: "Code", exact: true }).fill("FRN-001");
+  await form.getByRole("textbox", { name: "Libellé" }).fill("Petites fournitures");
+  await form.getByRole("combobox", { name: "Nature" }).selectOption({ label: "DEB · Débours" });
+  await form.getByRole("textbox", { name: "Code comptable" }).fill("606001");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toBeHidden({ timeout: WORKING });
+  // The list says what the server created — its example —, and adds no row of its own.
+  await expect(categories.getByRole("status").filter({ hasText: "créée" })).toHaveText(
+    "« Petites fournitures » créée.",
+  );
+
+  // A rate entered on the grid, answered by the first example of `setHourlyRate`.
+  const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
+  const mechanical = rowAt(grid, 3);
+  const rate = mechanical.getByRole("gridcell").nth(6);
+  await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
+  for (let step = 0; step < 6; step += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
+  await expect(rate).toBeFocused();
+  await page.keyboard.type("85");
+  await page.keyboard.press("Enter");
+  await expect(rate).toHaveText("85,48", { timeout: WORKING });
+
+  // A nature deactivated from its row: the row shows what the server answers, deactivated and
+  // offering its reactivation.
+  const natures = page.getByRole("grid", { name: "Natures de coût" });
+  await natures.getByRole("button", { name: "Désactiver « Débours »" }).click();
+  await expect(natures.getByRole("button", { name: "Réactiver « Débours »" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(rowAt(natures, 1)).toContainText("Désactivé");
+  await expect(
+    page
+      .getByRole("region", { name: "Natures de coût" })
+      .getByRole("status")
+      .filter({ hasText: "désactivée" }),
+  ).toHaveText("«\u00a0Débours\u00a0» désactivée.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});

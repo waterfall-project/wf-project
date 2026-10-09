@@ -933,6 +933,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+            examples:
+              created: { $ref: ../../../fixtures/api/cost_type_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -959,6 +961,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+            examples:
+              updated: { $ref: ../../../fixtures/api/cost_type_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -993,6 +997,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/cost_type_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1081,6 +1087,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+            examples:
+              created: { $ref: ../../../fixtures/api/cost_category_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -1106,6 +1114,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+            examples:
+              updated: { $ref: ../../../fixtures/api/cost_category_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1140,6 +1150,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/cost_category_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

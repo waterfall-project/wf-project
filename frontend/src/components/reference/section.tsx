@@ -20,6 +20,7 @@ export function ReferenceSection({
   icon: Icon,
   empty,
   fill = false,
+  commands,
   children,
 }: {
   readonly title: string;
@@ -31,6 +32,8 @@ export function ReferenceSection({
    * window (`Screen fill`) —, the grid shrinking to it.
    */
   readonly fill?: boolean;
+  /** The commands of the section beside its title — a creation —, offered even on an empty list. */
+  readonly commands?: ReactNode;
   readonly children: ReactNode;
 }) {
   return (
@@ -38,10 +41,13 @@ export function ReferenceSection({
       aria-label={title}
       className={fill ? "flex min-h-0 flex-1 flex-col gap-2" : "space-y-2"}
     >
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <Icon aria-hidden="true" className={ICON} />
-        {title}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Icon aria-hidden="true" className={ICON} />
+          {title}
+        </h2>
+        {commands}
+      </div>
       {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
     </section>
   );

@@ -3024,6 +3024,20 @@ Engendrés par `wftools.mocklists`, des listes écrites à la main (`projects`, 
 `contributors_search`, `contributors_inactive` ; `test_mocklists.py` éprouve le tri, la recherche et
 les filtres sur des lignes de synthèse. Le client est régénéré ; le front les adopte.
 
+## Les écritures des paramètres de coûts (EP-02/L43a)
+
+Les écritures des natures et des catégories de coût, que les écrans de la maquette exercent (#512),
+reçoivent chacune l'exemple de leur succès, la suite d'une écriture faite aujourd'hui par Camille
+Martin, le 3 juin 2026 à 14 h 05 : `cost_type_created` (la nature FRN « Fournitures », hors
+main-d'œuvre, 464), `cost_type_updated` (les débours renommés « Débours et achats », version 2),
+`cost_type_deactivated` (les débours désactivés, version 2, leur réactivation offerte),
+`cost_category_created` (FRN-001 « Petites fournitures » sous les débours, code comptable 606001,
+406), `cost_category_updated` (la sous-traitance renommée « Sous-traitance générale », version 2) et
+`cost_category_deactivated` (le matériel électrique désactivé, version 2). Chacun ne vaut que pour
+la réponse de son écriture : aucune lecture n'en tient compte. Les refus que ces écritures
+opposeraient ne sont pas encore dits par le contrat (« Interface contract issue » relevées par
+EP-02/L43a, #562) : aucun exemple ne les fige.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -251,19 +251,46 @@ describe("the settings of the costs", () => {
     expect(page).not.toContain("Réactiver");
   });
 
+  it("offer the creation and the modification of the natures and the categories to a session that may modify the cost settings, and say the fake back keeps nothing; neither to a session that may only read them [WF-IHM-0090-A]", async () => {
+    const page = await costsAt();
+    expect(text(page)).toContain("Nouvelle nature");
+    expect(text(page)).toContain("Nouvelle catégorie");
+    expect(page).toContain('aria-label="Modifier «\u00a0Débours\u00a0»"');
+    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé répond/);
+    server.answers = {
+      ...server.answers,
+      "GET /session": "session_estimator",
+      "GET /reference/cost-types": "cost_types_reader",
+      "GET /reference/cost-categories": "volume/cost_categories_reader",
+    };
+    const read = await costsAt();
+    for (const offered of ["Nouvelle", "Modifier", "Désactiver", "Maquette"]) {
+      expect(read).not.toContain(offered);
+    }
+  });
+
+  it("offer no command that deletes a nature or a category, which are deactivated [WF-REF-0010-A]", async () => {
+    const page = await costsAt();
+    // Aucun écran ne propose de supprimer un objet du référentiel.
+    expect(text(page)).toContain("Désactiver");
+    expect(text(page)).not.toMatch(/Supprimer|Effacer/);
+  });
+
   it("present the natures of cost by their type, and each category by its nature and its accounting code, on dense grids sorted by each of their columns [WF-IHM-0060-A]", async () => {
     const page = await costsAt();
+    // The session may modify the cost settings: each row offers its modification, and the
+    // deactivation each object lists.
     expect(rows(page, "Natures de coût")).toEqual([
-      "Code Libellé Type État",
-      "DEB Débours Hors main-d’œuvre Actif",
-      "MO Main-d'œuvre Main-d’œuvre Actif",
-      "PRV Provision Provision Actif",
+      "Code Libellé Type État Modifier",
+      "DEB Débours Hors main-d’œuvre Actif Désactiver Modifier",
+      "MO Main-d'œuvre Main-d’œuvre Actif Désactiver Modifier",
+      "PRV Provision Provision Actif Désactiver Modifier",
       "3 natures",
     ]);
     expect(sortable(page, "Natures de coût")).toEqual(["Code", "Libellé", "Type", "État"]);
     const categories = rows(page, "Catégories de coût");
-    expect(categories[0]).toBe("Code Libellé Nature Code comptable État");
-    expect(categories[1]).toBe("ACH-001 Sous-traitance Débours 604001 Actif");
+    expect(categories[0]).toBe("Code Libellé Nature Code comptable État Modifier");
+    expect(categories[1]).toBe("ACH-001 Sous-traitance Débours 604001 Actif Désactiver Modifier");
     // The totals row says how many the server retained, whatever the rows of the page.
     expect(categories.at(-1)).toBe("200 catégories");
     expect(sortable(page, "Catégories de coût")).toEqual([
@@ -363,6 +390,7 @@ describe("the settings of the costs", () => {
             preferences={undefined}
             state={undefined}
             readsInactive
+            editable={false}
             kinds={[]}
           />
           <CostCategoryList
@@ -372,6 +400,7 @@ describe("the settings of the costs", () => {
             preferences={undefined}
             state={undefined}
             readsInactive
+            editable={false}
             natures={[]}
             nature={undefined}
           />
@@ -398,6 +427,7 @@ describe("the settings of the costs", () => {
           preferences={undefined}
           state={undefined}
           readsInactive={false}
+          editable={false}
           kinds={[]}
         />
         <CostCategoryList
@@ -407,6 +437,7 @@ describe("the settings of the costs", () => {
           preferences={undefined}
           state={undefined}
           readsInactive={false}
+          editable={false}
           natures={[]}
           nature={undefined}
         />

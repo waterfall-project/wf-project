@@ -20,6 +20,7 @@ import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
+import { useId } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
@@ -87,11 +88,14 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
   );
 }
 
-/** The offer to dismiss a notice, which forgets the outcome it tells. */
-function Dismiss({ onClear }: { readonly onClear: () => void }) {
+/**
+ * The offer to dismiss a notice, which forgets the outcome it tells — described by the sentence of its
+ * notice, so that among several a reader hears which one it dismisses.
+ */
+function Dismiss({ onClear, told }: { readonly onClear: () => void; readonly told: string }) {
   const t = useTranslations("outcome");
   return (
-    <Button type="button" variant="outline" size="sm" onClick={onClear}>
+    <Button type="button" variant="outline" size="sm" aria-describedby={told} onClick={onClear}>
       <X aria-hidden="true" />
       {t("dismiss")}
     </Button>
@@ -110,6 +114,7 @@ export function OutcomeNotice({
   const failure = useTranslations("failure");
   const locale = useLocale();
   const messages = useMessages();
+  const told = useId();
   if (outcome === undefined || outcome.kind === "done") {
     return null;
   }
@@ -117,11 +122,11 @@ export function OutcomeNotice({
     onClear();
     onDismissed?.();
   };
-  const dismiss = dismissible ? <Dismiss onClear={dismissed} /> : null;
+  const dismiss = dismissible ? <Dismiss onClear={dismissed} told={told} /> : null;
   if (outcome.kind === "unreachable") {
     return (
       <div role="alert" className={ALERT}>
-        <p className={SENTENCE}>
+        <p id={told} className={SENTENCE}>
           <WifiOff aria-hidden="true" className={ICON} />
           {t("unreachable")}
         </p>
@@ -136,7 +141,7 @@ export function OutcomeNotice({
   const reference = problem.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined;
   return (
     <div role="alert" className={ALERT}>
-      <p className={SENTENCE}>
+      <p id={told} className={SENTENCE}>
         <CircleAlert aria-hidden="true" className={ICON} />
         {problemMessage(problem, { locale, messages })}
       </p>

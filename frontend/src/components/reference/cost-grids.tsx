@@ -15,25 +15,28 @@
  *   (WF-REF-0040), filtered by nature (`cost_type_id`) and by state; the accounting code has no
  *   filter of its own, the search reading it.
  *
+ * For a session that may modify the cost settings, each row offers its modification in a column of
+ * its own, and its state the command that changes it as the object lists it (EP-02/L43a,
+ * `cost-commands.tsx`); for another, the state alone, and the reactivation the server lists — none.
+ *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
  */
 import { useTranslations } from "next-intl";
 
-import type { components, operations } from "@/api/generated/schema";
-import { type GridConfig, sortColumns } from "@/components/grid/columns";
+import type { operations } from "@/api/generated/schema";
+import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 
-import { stateColumn } from "./resource-grids";
+import { CostStateCell, ModifyCostCommand } from "./cost-commands";
+import type { CostCategory, CostObject, CostType } from "./cost-kinds";
 
-/** A nature of cost, as the contract gives it. */
-export type CostType = components["schemas"]["CostType"];
-
-/** A category of cost, as the contract gives it. */
-export type CostCategory = components["schemas"]["CostCategory"];
-
-/** The type of a nature of cost, as the contract names it. */
-export type CostTypeKind = components["schemas"]["CostTypeKind"];
+export {
+  COST_TYPE_KIND_VALUES,
+  type CostCategory,
+  type CostType,
+  type CostTypeKind,
+} from "./cost-kinds";
 
 /** The column of the contract the server sorts the natures by. */
 export type CostTypeSort = NonNullable<
@@ -59,14 +62,37 @@ export const COST_TYPE_STATE = "type_is_active";
 export const CATEGORY_COST_TYPE = "category_cost_type_id";
 export const CATEGORY_STATE = "category_is_active";
 
-/**
- * Every type of nature of the contract, in the order of its enumeration: one the contract adds
- * fails the type check until it is here.
- */
-const EVERY_KIND: Readonly<Record<CostTypeKind, number>> = { labor: 0, non_labor: 1, provision: 2 };
+/** The widths of the column of the state and its command, and of that of the modification. */
+const STATE_WIDTH = 190;
+const MODIFY_WIDTH = 110;
 
-/** The types a nature may have, in the order of the contract. */
-export const COST_TYPE_KIND_VALUES = Object.keys(EVERY_KIND) as readonly CostTypeKind[];
+/**
+ * The state of a row and the command that changes it, and, for a session that may modify the cost
+ * settings, the column of its modification.
+ */
+function commandColumns<Row extends CostObject, Sort extends string>(
+  editable: boolean,
+  stateSort: Sort,
+): GridColumn<Row, Sort, null>[] {
+  const state: GridColumn<Row, Sort, null> = {
+    key: "state",
+    label: "state",
+    format: "text",
+    width: STATE_WIDTH,
+    contract: stateSort,
+    value: (row) => (row.is_active ? "active" : "inactive"),
+    render: (row) => <CostStateCell row={row} />,
+  };
+  const modify: GridColumn<Row, Sort, null> = {
+    key: "modify",
+    label: "modify",
+    format: "text",
+    width: MODIFY_WIDTH,
+    value: () => null,
+    render: (row) => <ModifyCostCommand row={row} />,
+  };
+  return editable ? [state, modify] : [state];
+}
 
 /** The type of a nature, in words. */
 function Kind({ type }: { readonly type: CostType }) {
@@ -74,8 +100,11 @@ function Kind({ type }: { readonly type: CostType }) {
   return t(type.kind);
 }
 
-/** The natures of cost: each by its code, its name, its type and its state. */
-export function costTypeGrid(): GridConfig<CostType, CostTypeSort, null> {
+/**
+ * The natures of cost: each by its code, its name, its type and its state, and its modification for
+ * a session that may modify the cost settings.
+ */
+export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSort, null> {
   return {
     key: COST_TYPE_GRID_KEY,
     name: "costTypes",
@@ -109,24 +138,19 @@ export function costTypeGrid(): GridConfig<CostType, CostTypeSort, null> {
         value: (type) => type.kind,
         render: (type) => <Kind type={type} />,
       },
-      stateColumn<CostType, CostTypeSort>(
-        (type) => ({
-          active: type.is_active,
-          target: { kind: "cost_type", id: type.cost_type_id, lockVersion: type.lock_version },
-          name: type.label,
-          commands: type.available_commands,
-        }),
-        "is_active",
-      ),
+      ...commandColumns<CostType, CostTypeSort>(editable, "is_active"),
     ],
   };
 }
 
 /**
  * The categories of cost: each by its code, its name, its nature — named as the server resolves
- * it —, its accounting code and its state.
+ * it —, its accounting code and its state, and its modification for a session that may modify the
+ * cost settings.
  */
-export function costCategoryGrid(): GridConfig<CostCategory, CostCategorySort, null> {
+export function costCategoryGrid(
+  editable = false,
+): GridConfig<CostCategory, CostCategorySort, null> {
   return {
     key: COST_CATEGORY_GRID_KEY,
     name: "costCategories",
@@ -167,19 +191,7 @@ export function costCategoryGrid(): GridConfig<CostCategory, CostCategorySort, n
         contract: "accounting_code",
         value: (category) => category.accounting_code,
       },
-      stateColumn<CostCategory, CostCategorySort>(
-        (category) => ({
-          active: category.is_active,
-          target: {
-            kind: "cost_category",
-            id: category.cost_category_id,
-            lockVersion: category.lock_version,
-          },
-          name: category.label,
-          commands: category.available_commands,
-        }),
-        "is_active",
-      ),
+      ...commandColumns<CostCategory, CostCategorySort>(editable, "is_active"),
     ],
   };
 }

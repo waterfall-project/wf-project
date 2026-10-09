@@ -152,6 +152,29 @@ describe("the sentence of a refusal", () => {
     expect(say(problem, "en")).toMatch(/ Minimum value: 7\.$/);
   });
 
+  it("says the minimum of a refusal by field, with the refusal and at the field, written in the language of the reader", () => {
+    // The retention of the copies outside the platform refused at its field (#293, #488), and a
+    // rate under the smallest amount the service takes, an amount of the contract.
+    const problem: ProblemText = {
+      code: "VALIDATION_FAILED",
+      fields: [
+        { params: { minimum: 7 } },
+        { params: { minimum: "1234.5" } },
+        { params: { minimum: "not a number" } },
+        {},
+      ],
+    };
+    expect(say(problem, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Valeur minimale\u00A0: 7. Valeur minimale\u00A0: 1\u202F234,5.",
+    );
+    expect(say(problem, "en")).toBe(
+      "The data entered is not valid. Minimum value: 7. Minimum value: 1,234.5.",
+    );
+    // A refusal by field is a code and its parameters: a form says it at the field so.
+    const field = { code: "VALUE_OUT_OF_RANGE", params: { minimum: 7 } } as const;
+    expect(say(field, "fr")).toBe("La valeur sort des limites admises. Valeur minimale\u00A0: 7.");
+  });
+
   it("names the unavailable component", () => {
     const problem: ProblemText = {
       code: "COMPONENT_UNAVAILABLE",

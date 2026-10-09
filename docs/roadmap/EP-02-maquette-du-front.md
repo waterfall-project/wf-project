@@ -1480,6 +1480,22 @@ entre eux. Le périmètre des coûts réels, les états du portefeuille, l'état
 les actions du journal montrent leur choix jusqu'à la réponse du serveur, comme le filtre par
 valeurs depuis L41h, et le filtre sur un texte rejoint les composants de la grille (`TextFilter`).
 
+EP-02/L43, sa partie L43a (#512), donne aux paramètres de coûts leurs commandes d'écriture, sur la
+décision de l'auteur du 2026-10-08 — la maquette montre les commandes pour projeter la mise en page
+et l'usage, et éprouver le contrat de chaque écriture, une entorse assumée au cadrage qui laissait le
+référentiel en lecture à EP-05 : à une session qui peut modifier les paramètres de coûts, chaque liste
+offre de créer une nature ou une catégorie, chaque ligne de la modifier dans un formulaire validé
+côté front (`createCostType`, `updateCostType`, `createCostCategory`, `updateCostCategory`), et l'état
+de chaque objet sa désactivation ou sa réactivation comme il la liste (`setCostTypeActivation`,
+`setCostCategoryActivation`) ; aucune commande ne supprime (WF-REF-0010, WF-DAT-0080). Un succès
+remplace la ligne par ce que le serveur rend, une création relit la page ; un refus par champ se dit
+au champ, avec ses paramètres — le minimum d'une valeur —, tout autre sous le formulaire, la version
+périmée avec l'offre de relire ; l'écran dit que le faux back ne garde rien (`MockupNotice`,
+réutilisable par L43b, L43c et L44). La saisie des taux reste celle de la grille, son refus disant le
+minimum que le serveur nomme. Les exemples de succès de ces écritures entrent au contrat ; les refus
+qu'il ne dit pas, ou dit mal, sont des « Interface contract issue » ouvertes sous #507. L43b fera les
+paramètres de ressources et ceux des risques et des indicateurs, L43c l'écran des sauvegardes (#519).
+
 ## US-0260 — Écran d'import en deux temps
 
 - **statut** : fini
