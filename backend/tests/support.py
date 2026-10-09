@@ -6,6 +6,7 @@ import io
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
 from httpx2 import Response
@@ -68,7 +69,13 @@ class ContractClient:
     def request(self, method: str, path: str, **kwargs: Any) -> Response:
         """Send the request; fail if the answer is not the one the contract describes."""
         response = self.client.request(method, path, **kwargs)
-        request = MockRequest("http://testserver", method.lower(), path)
+        target = urlsplit(path)
+        request = MockRequest(
+            "http://testserver",
+            method.lower(),
+            target.path,
+            args=dict(parse_qs(target.query)),
+        )
         conforming = MockResponse(
             response.content,
             status_code=response.status_code,

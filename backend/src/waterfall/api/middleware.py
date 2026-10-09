@@ -5,12 +5,12 @@
 import time
 
 from starlette.datastructures import Headers, MutableHeaders
+from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from waterfall.platform.correlation import HEADER, correlation_id_from
+from waterfall.api.problems import internal_error_response
+from waterfall.platform.correlation import HEADER, SCOPE_KEY, correlation_id_from
 from waterfall.platform.logs import ANONYMOUS, get_logger, logging_context
-
-SCOPE_KEY = "correlation_id"
 
 logger = get_logger(__name__)
 
@@ -18,8 +18,10 @@ logger = get_logger(__name__)
 class CorrelationMiddleware:
     """Take the identifier of the request, or make one; bind it; give it back; log the request.
 
-    The identifier is also kept in the scope: the handler of an unexpected exception runs
-    outside this middleware, and reads it there.
+    The identifier is also kept in the scope, where the envelope of an error reads it. An
+    exception nobody expected is caught here, inside the context of the request: it is logged
+    once, with its correlation and its actor, and answered with a 500 from here, so that the
+    framework never re-raises it into a second trace that carries neither.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -33,11 +35,13 @@ class CorrelationMiddleware:
         correlation_id = correlation_id_from(Headers(scope=scope).get(HEADER))
         scope[SCOPE_KEY] = correlation_id
         status = 500
+        answered = False
         started = time.perf_counter()
 
         async def send_with_header(message: Message) -> None:
-            nonlocal status
+            nonlocal status, answered
             if message["type"] == "http.response.start":
+                answered = True
                 status = message["status"]
                 MutableHeaders(scope=message)[HEADER] = correlation_id
             await send(message)
@@ -45,6 +49,11 @@ class CorrelationMiddleware:
         with logging_context(correlation_id=correlation_id, actor=ANONYMOUS):
             try:
                 await self.app(scope, receive, send_with_header)
+            except Exception:
+                logger.exception("request.failed")
+                if not answered:
+                    response = internal_error_response(Request(scope))
+                    await response(scope, receive, send_with_header)
             finally:
                 logger.info(
                     "request.completed",

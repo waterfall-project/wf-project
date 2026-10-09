@@ -4,7 +4,7 @@
 
 It serves the operations of the contract and nothing else: no documentation page, no
 ``openapi.json`` — the contract is written by hand and is the only description of the
-interface (WF-ARC-0060).
+interface (WF-ARC-0060). A path with a slash the contract does not write is not redirected.
 """
 
 from fastapi import FastAPI
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        redirect_slashes=False,
     )
     app.add_middleware(CorrelationMiddleware)
     install_problem_handlers(app)

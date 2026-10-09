@@ -7,6 +7,9 @@ import uuid
 
 HEADER = "X-Correlation-ID"
 
+# Where the identifier of a request is kept in its ASGI scope.
+SCOPE_KEY = "correlation_id"
+
 # The form `Problem.correlation_id` has in the contract.
 FORM = re.compile(r"[A-Za-z0-9._-]{1,64}")
 

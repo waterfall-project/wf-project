@@ -8,6 +8,7 @@ shows no value.
 """
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +30,16 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+
+    def secret_values(self) -> tuple[str, ...]:
+        """Give every secret held, and the password a URL secret carries, for the logs to mask.
+
+        A driver quotes the password alone as readily as the address: both are secrets.
+        """
+        values = (getattr(self, name) for name in type(self).model_fields)
+        held = [value.get_secret_value() for value in values if isinstance(value, SecretStr)]
+        passwords = [urlsplit(value).password for value in held]
+        return tuple(value for value in [*held, *passwords] if value)
 
 
 def load_settings() -> Settings:

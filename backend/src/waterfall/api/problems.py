@@ -17,8 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from waterfall.api.contract.models import ErrorCode, FieldProblem, Params, Problem
-from waterfall.api.middleware import SCOPE_KEY
-from waterfall.platform.correlation import HEADER
+from waterfall.platform.correlation import HEADER, SCOPE_KEY
 from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import get_logger
 
@@ -36,12 +35,9 @@ _NUMBER_FAULTS = {
     "decimal_parsing",
     "decimal_type",
 }
-_RANGE_FAULTS = {
-    "greater_than": None,
-    "greater_than_equal": "minimum",
-    "less_than": None,
-    "less_than_equal": "maximum",
-}
+_INCLUSIVE_BOUNDS = {"greater_than_equal": "minimum", "less_than_equal": "maximum"}
+_UNREADABLE_BODY = {"missing", "model_attributes_type", "dict_type"}
+_UUID_FAULTS = {"uuid_parsing", "uuid_type"}
 
 
 def problem_response(
@@ -84,66 +80,81 @@ def _on_service_error(request: Request, error: Exception) -> JSONResponse:
 
 def _on_http_error(request: Request, error: Exception) -> JSONResponse:
     status = cast("HTTPException", error).status_code
-    if status == HTTPStatus.NOT_FOUND:
-        return problem_response(request, status, ErrorCode.NOT_FOUND)
+    if status in {HTTPStatus.NOT_FOUND, HTTPStatus.METHOD_NOT_ALLOWED}:
+        return problem_response(request, 404, ErrorCode.NOT_FOUND)
     if status < HTTPStatus.INTERNAL_SERVER_ERROR:
         return problem_response(request, status, ErrorCode.MALFORMED_REQUEST)
-    return _on_unexpected_error(request, error)
+    logger.error("request.failed", exc_info=error)
+    return internal_error_response(request)
+
+
+def _is_empty(value: object) -> bool:
+    return isinstance(value, str | list | tuple | dict) and not value
 
 
 def _field_of(fault: Mapping[str, Any]) -> FieldError:
     """Say a fault of Pydantic as the refusal of one field."""
     kind: str = fault["type"]
     place, *path = fault["loc"]
-    pointer = "/query/" + str(path[0]) if place == "query" else "".join(f"/{p}" for p in path)
+    if place in {"query", "path"}:
+        pointer = f"/{place}/{path[0]}"
+    else:
+        pointer = "".join(f"/{part}" for part in path)
     params: dict[str, Any] = {}
     if kind == "missing":
         code = ErrorCode.VALUE_REQUIRED
     elif kind in {"string_too_long", "too_long"}:
         code = ErrorCode.VALUE_TOO_LONG
     elif kind in {"string_too_short", "too_short"}:
-        code = ErrorCode.VALUE_REQUIRED
-    elif kind in _RANGE_FAULTS:
+        # Only an empty value, where one value at least is asked, is a value that is lacking.
+        lacking = fault.get("ctx", {}).get("min_length") == 1 and _is_empty(fault.get("input"))
+        code = ErrorCode.VALUE_REQUIRED if lacking else ErrorCode.VALIDATION_FAILED
+    elif kind in _INCLUSIVE_BOUNDS:
         code = ErrorCode.VALUE_OUT_OF_RANGE
-        bound = _RANGE_FAULTS[kind]
-        if bound is not None:
-            params[bound] = next(iter(fault["ctx"].values()))
+        params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))
     elif kind in _NUMBER_FAULTS:
         code = ErrorCode.NUMBER_INVALID
     elif kind.startswith("date"):
         code = ErrorCode.DATE_INVALID
     else:
+        # Including an exclusive bound: the contract has no parameter to say one.
         code = ErrorCode.VALIDATION_FAILED
     return FieldError(pointer=pointer, code=code, params=params)
 
 
-def _on_validation_error(request: Request, error: Exception) -> JSONResponse:
-    """400 for a request the server cannot read, 422 for a value it refuses, field by field.
+def _is_unreadable(fault: Mapping[str, Any]) -> bool:
+    """Tell a body that is not JSON, or is absent or not an object: it cannot be read at all."""
+    if fault["type"] == "json_invalid":
+        return True
+    return fault["loc"] == ("body",) and fault["type"] in _UNREADABLE_BODY
 
-    A body that is not JSON, or not an object, and a header or a cookie that does not
-    parse, make the request unreadable. A malformed identifier in the path names no
-    object: it is a 404. Every other fault is a field the entity refuses.
+
+def _names_no_object(fault: Mapping[str, Any]) -> bool:
+    """Tell an identifier of the path that is not an UUID: it cannot name an object."""
+    return fault["loc"][0] == "path" and fault["type"] in _UUID_FAULTS
+
+
+def _on_validation_error(request: Request, error: Exception) -> JSONResponse:
+    """400 for a request the server cannot read, 404 for no object, 422 field by field.
+
+    A body that is not JSON, absent or not an object, and a header or a cookie that does not
+    parse, make the request unreadable. A malformed identifier in the path names no object:
+    it is a 404, like an object that does not exist. Every other fault, a rule on a readable
+    body included, is a value the entity refuses.
     """
     faults: list[Mapping[str, Any]] = list(cast("RequestValidationError", error).errors())
     places = {fault["loc"][0] for fault in faults}
-    unreadable = any(
-        fault["type"] == "json_invalid" or fault["loc"] == ("body",) for fault in faults
-    )
-    if unreadable or places & {"header", "cookie"}:
+    if any(_is_unreadable(fault) for fault in faults) or places & {"header", "cookie"}:
         return problem_response(request, 400, ErrorCode.MALFORMED_REQUEST)
-    if "path" in places:
+    if any(_names_no_object(fault) for fault in faults):
         return problem_response(request, 404, ErrorCode.NOT_FOUND)
     return problem_response(
         request, 422, ErrorCode.VALIDATION_FAILED, fields=tuple(_field_of(f) for f in faults)
     )
 
 
-def _on_unexpected_error(request: Request, error: Exception) -> JSONResponse:
-    logger.error(
-        "request.failed",
-        correlation_id=request.scope[SCOPE_KEY],
-        exc_info=error,
-    )
+def internal_error_response(request: Request) -> JSONResponse:
+    """Answer an error nobody expected with a 500 that says nothing of it."""
     return problem_response(request, 500, ErrorCode.INTERNAL_ERROR)
 
 
@@ -152,4 +163,3 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ServiceError, _on_service_error)
     app.add_exception_handler(HTTPException, _on_http_error)
     app.add_exception_handler(RequestValidationError, _on_validation_error)
-    app.add_exception_handler(Exception, _on_unexpected_error)

@@ -16,16 +16,25 @@ NAME = "waterfall-api"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Start the API service, or say why it cannot start (WF-SEC-0010)."""
-    if list(sys.argv[1:] if argv is None else argv) == ["--version"]:
+    """Start the API service, or say why it cannot start (WF-SEC-0010).
+
+    The service takes no argument but ``--version``: any other one is refused with status 2.
+    """
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments == ["--version"]:
         sys.stdout.write(f"{NAME} {__version__}\n")
         return 0
+    if arguments:
+        sys.stderr.write(
+            f"usage: {NAME} [--version]\n{NAME}: unexpected argument: {arguments[0]}\n"
+        )
+        return 2
     try:
         settings = load_settings()
     except SettingsError as error:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, secrets=settings.secret_values())
     get_logger(__name__).info(
         "service.starting", version=__version__, host=settings.host, port=settings.port
     )

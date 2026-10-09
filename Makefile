@@ -222,10 +222,10 @@ generate-server-models: build-openapi ## Regenerate the Pydantic models of the s
 	@echo "  -> $(SERVER_MODELS)"
 
 server-models-up-to-date: build-openapi ## The versioned models of the service are the ones the contract produces
-	@tmp=$$(mktemp -d -p $(abspath $(BACK))) && ( $(CODEGEN) "$$tmp/models.py" ) \
-		&& { diff -q "$$tmp/models.py" $(SERVER_MODELS) >/dev/null \
-		|| { rm -rf "$$tmp"; echo "  the models are not the ones the contract produces: run make generate-server-models"; exit 1; }; } \
-		&& rm -rf "$$tmp"
+	@tmp=$$(mktemp -d -p $(abspath $(BACK))); \
+		( $(CODEGEN) "$$tmp/models.py" ) && diff -q "$$tmp/models.py" $(SERVER_MODELS) >/dev/null; \
+		status=$$?; rm -rf "$$tmp"; \
+		[ $$status -eq 0 ] || { echo "  the models are not the ones the contract produces: run make generate-server-models"; exit 1; }
 
 lint-front: install-front ## Lint and format check of the front
 	@$(PNPM) lint

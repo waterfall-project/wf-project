@@ -1733,12 +1733,19 @@ ses paramètres, jamais une phrase.
   de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
   erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
   dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
-  une requête illisible (corps qui n'est pas du JSON ou pas un objet, en-tête ou témoin
-  illisible) en 400 `MALFORMED_REQUEST` ; une valeur refusée en 422 `VALIDATION_FAILED`, un champ
-  par faute (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` avec `minimum` ou
-  `maximum`, `NUMBER_INVALID`, `DATE_INVALID`, sinon `VALIDATION_FAILED`) ; un identifiant du
-  chemin qui ne peut nommer aucun objet en 404 `NOT_FOUND` ; une route inconnue en 404 ; toute
-  exception inattendue en 500 `INTERNAL_ERROR`, journalisée avec sa trace, sans rien en rendre.
+  une requête illisible (corps absent, `null`, qui n'est pas du JSON ou pas un objet, en-tête
+  ou témoin illisible) en 400 `MALFORMED_REQUEST` ; une valeur refusée en 422
+  `VALIDATION_FAILED`, un champ par faute — un `model_validator` sur un corps lisible en est
+  une, au pointeur `""` — (`VALUE_REQUIRED` pour une valeur vide quand une au moins est
+  demandée, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` avec `minimum` ou `maximum` pour une borne
+  incluse, `NUMBER_INVALID`, `DATE_INVALID`, sinon `VALIDATION_FAILED` : une borne exclusive,
+  une longueur minimale dépassée par une valeur non vide) ; un identifiant du chemin qui n'est
+  pas un UUID en 404 `NOT_FOUND`, comme un objet inexistant ou invisible, tandis qu'un autre
+  paramètre de chemin refusé est un 422 par champ, au pointeur `/path/<nom>`
+  (`docs/api/DECISIONS.md`, « Session et erreurs ») ; une route inconnue, ou une méthode que la
+  route ne sert pas, en 404, sans redirection d'une barre finale ; toute exception inattendue
+  en 500 `INTERNAL_ERROR`, attrapée par `CorrelationMiddleware` : journalisée une fois avec sa
+  trace, sa corrélation et l'auteur de la requête, sans rien en rendre.
   Un code que le contrat ne connaît pas est un défaut : le gestionnaire le rend en 500.
 
   *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`) ; que
@@ -1749,8 +1756,12 @@ ses paramètres, jamais une phrase.
   une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
   (`waterfall.platform.logs`) : un enregistrement porte `level`, `timestamp`, `actor` et, dans
   une requête, `correlation_id` ; tout champ dont le nom contient `password`, `token`,
-  `secret`, `authorization` ou `cookie` en est retiré. Un secret sous un autre nom ne l'est
-  pas : on ne le journalise pas.
+  `secret`, `authorization` ou `cookie` en est retiré. La valeur de chaque secret des
+  réglages (`Settings.secret_values()`, mot de passe d'une URL compris) est de plus remplacée par
+  `***` dans tout le texte rendu d'un enregistrement — message, trace, `repr` —, y compris ceux
+  des bibliothèques. La limite : un secret que les réglages ne connaissent pas (un jeton de
+  session, un mot de passe reçu dans une requête) n'est ni retiré sous un autre nom ni masqué
+  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception.
 
 ## Clés de traduction
 

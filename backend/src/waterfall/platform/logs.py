@@ -4,12 +4,15 @@
 
 Every record carries its severity, its time, the author of the action and the correlation
 identifier bound to the context. A field whose name suggests a secret is removed from the
-record, whatever put it there: the logs are not a place a password or a token ends up.
+record, whatever put it there: the logs are not a place a password or a token ends up. The
+value of every secret the settings hold is replaced, wherever it shows up in the text of a
+record — message, trace, ``repr``. A secret the settings do not know cannot be masked by value.
 """
 
+import json
 import logging
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from typing import IO, Any, cast
 
@@ -60,8 +63,36 @@ SHARED: list[Processor] = [
 ]
 
 
-def configure_logging(level: str = "INFO", stream: IO[str] | None = None) -> None:
-    """Send every record — ours and those of the libraries — to ``stream`` as JSON lines."""
+MASK = "***"
+
+
+def mask_values(secrets: Iterable[str]) -> Callable[[Any, str, Any], Any]:
+    """Build the last step of the rendering: it hides each secret value in the text written.
+
+    A value is hidden as it is and as JSON writes it, the longest first so that a secret
+    which contains another one is hidden whole.
+    """
+    spellings = {
+        text for secret in secrets if secret for text in (secret, json.dumps(secret)[1:-1])
+    }
+    ordered = sorted(spellings, key=len, reverse=True)
+
+    def mask(_logger: WrappedLogger, _method: str, rendered: Any) -> Any:
+        text = str(rendered)
+        for spelling in ordered:
+            text = text.replace(spelling, MASK)
+        return text
+
+    return mask
+
+
+def configure_logging(
+    level: str = "INFO", stream: IO[str] | None = None, secrets: Iterable[str] = ()
+) -> None:
+    """Send every record — ours and those of the libraries — to ``stream`` as JSON lines.
+
+    ``secrets`` are the values to hide from the text of every record.
+    """
     structlog.configure(
         processors=[*SHARED, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -75,6 +106,7 @@ def configure_logging(level: str = "INFO", stream: IO[str] | None = None) -> Non
             structlog.processors.format_exc_info,
             drop_secrets,
             structlog.processors.JSONRenderer(default=repr),
+            mask_values(secrets),
         ],
     )
     handler = logging.StreamHandler(stream or sys.stderr)

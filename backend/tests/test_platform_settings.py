@@ -42,13 +42,13 @@ def test_a_service_started_without_one_secret_names_that_one_only() -> None:
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.usefixtures("platform_environment")
 def test_a_secret_that_is_empty_is_a_secret_that_is_missing(
-    platform_environment: dict[str, str], monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("WATERFALL_REDIS_URL", "")
     with pytest.raises(SettingsError, match="WATERFALL_REDIS_URL"):
         load_settings()
-    assert platform_environment["WATERFALL_DATABASE_URL"]
 
 
 def test_the_settings_read_the_secrets_of_the_environment(
@@ -61,15 +61,13 @@ def test_the_settings_read_the_secrets_of_the_environment(
     assert (settings.host, settings.port, settings.log_level) == ("127.0.0.1", 8000, "INFO")
 
 
-def test_the_settings_show_no_secret_when_printed(platform_environment: dict[str, str]) -> None:
-    assert platform_environment
+@pytest.mark.usefixtures("platform_environment")
+def test_the_settings_show_no_secret_when_printed() -> None:
     assert DB_CREDENTIAL not in repr(load_settings())
 
 
-def test_an_invalid_setting_is_named_without_its_value(
-    platform_environment: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    assert platform_environment
+@pytest.mark.usefixtures("platform_environment")
+def test_an_invalid_setting_is_named_without_its_value(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WATERFALL_PORT", "not-a-port")
     with pytest.raises(SettingsError) as raised:
         load_settings()

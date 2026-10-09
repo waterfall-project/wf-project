@@ -14,6 +14,7 @@ from support import CONTRACT, PLATFORM_SECRETS, ContractClient, Logs
 
 from waterfall.api.app import create_app
 from waterfall.platform.logs import configure_logging
+from waterfall.platform.settings import Settings, load_settings
 
 
 @pytest.fixture
@@ -25,12 +26,22 @@ def platform_environment(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
 
 
 @pytest.fixture
-def logs() -> Iterator[Logs]:
-    """Capture the logs in memory, then give the process its own back."""
+def platform_settings(platform_environment: dict[str, str]) -> Settings:
+    """Read the settings of the test platform, secrets included."""
+    settings = load_settings()
+    assert (
+        settings.database_url.get_secret_value() == platform_environment["WATERFALL_DATABASE_URL"]
+    )
+    return settings
+
+
+@pytest.fixture
+def logs(platform_settings: Settings) -> Iterator[Logs]:
+    """Capture the logs in memory, as a service of the test platform writes them, then restore."""
     root = logging.getLogger()
     handlers, level = list(root.handlers), root.level
     stream = io.StringIO()
-    configure_logging("DEBUG", stream)
+    configure_logging("DEBUG", stream, platform_settings.secret_values())
     yield Logs(stream)
     root.handlers[:] = handlers
     root.setLevel(level)

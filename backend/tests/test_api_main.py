@@ -28,13 +28,11 @@ def test_without_its_secrets_the_process_returns_failure_and_names_them(
     assert "WATERFALL_DATABASE_URL" in capsys.readouterr().err
 
 
-@pytest.mark.usefixtures("logs")
+@pytest.mark.usefixtures("platform_environment", "logs")
 def test_with_its_secrets_the_process_serves_the_application_on_its_address(
-    platform_environment: dict[str, str],
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert platform_environment
     monkeypatch.setenv("WATERFALL_PORT", "8123")
     served: dict[str, Any] = {}
 
@@ -49,3 +47,14 @@ def test_with_its_secrets_the_process_serves_the_application_on_its_address(
     record = json.loads(line)
     assert record["event"] == "service.starting"
     assert (record["version"], record["port"]) == (waterfall.__version__, 8123)
+
+
+@pytest.mark.parametrize("arguments", [["--versoin"], ["--version", "--extra"], ["serve"]])
+def test_any_argument_but_version_is_refused_with_a_usage(
+    arguments: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert api_main.main(arguments) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("usage: waterfall-api [--version]\n")
+    assert arguments[0] in captured.err
