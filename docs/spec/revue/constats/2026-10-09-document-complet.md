@@ -182,7 +182,7 @@ leur fichier.
 | C-171 | majeur | §3.4.5.8.7, WF-IND-0100-A ; à rapprocher de WF-DEV-0080-A | La courbe du budget ne peut pas présenter une marche si elle se lit sur la seule référence en vigueur | intégré |
 | C-172 | majeur | §4.5.4, tableau 12 Modes dégradés, ligne « Redis » ; §4.4.5… | Redis indisponible : la session du front y vit, donc ni la consultation ni la saisie ne continuent, et personne ne peut se reconnecter | intégré avec écart |
 | C-173 | majeur | §4.3.4 WF-ARC-0090-A ; §4.4.4  et WF-DAT-0120-A | Un export est une tâche de fond dont le fichier n'a nulle part où attendre son téléchargement | intégré |
-| C-174 | majeur | §4.6.1, texte « Un mot des données personnelles » ; §3.4.2.1… | Le traitement d'une demande d'effacement est promis en prose et porté par aucune exigence | intégré |
+| C-174 | majeur | §4.6.1, texte « Un mot des données personnelles » ; §3.4.2.1… | Le traitement d'une demande d'effacement est promis en prose et porté par aucune exigence | intégré avec écart |
 | C-175 | mineur | §4.2 Découpage technique, texte d'introduction | Deux phrases d'introduction du §4.2 contredisent WF-DAT-0010 et WF-ARC-0040 | intégré |
 | C-176 | mineur | §4.4.1, tableau 10 Correspondance entre objets et tables ; §4.3.4… | Trois données conservées sans table : le compte rendu d'import, la tâche de fond, les préférences d'affichage | intégré |
 | C-177 | mineur | §4.4.5 WF-DAT-0130-A ; §4.6.3 WF-OBS-0030-A | Trois seuils ni fixés ni déclarés paramétrables | intégré |
@@ -2082,7 +2082,7 @@ réactivation est refusée. » Dans WF-SEC-0030, remplacer « la création et la
 comptes » par « la création, la modification et l’anonymisation des comptes ». Dans le §4.6.1 :
 « une demande d'effacement se traite en anonymisant le compte (WF-ADM-0060) ».
 
-**Statut.** intégré
+**Statut.** intégré avec écart : la Vérif, WF-SEC-0030 et le §4.6.1 ont été mis à jour, mais le corps de WF-ADM-0060 n’a pas reçu la phrase proposée — repris en C-188 (revue du 9 octobre après intégration)
 
 
 ---
