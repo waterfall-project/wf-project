@@ -9,8 +9,10 @@ import { withinBox } from "./scroll";
 // The fake back serves the first example of each operation: the two projects of the witness,
 // which it lists whatever the filter asks — the filter is the server's to apply —, the project
 // in progress, its sub-projects, its contributors and the history of its states; its exit
-// answers the project completed.
+// answers the project completed, its creation the project created, its modification the witness
+// with its description — and it keeps nothing: any project it is asked is the witness.
 const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
+const CREATED = "/projects/01926f3a-7c00-7000-8000-000000000003";
 
 test("the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading", async ({
   page,
@@ -97,7 +99,7 @@ test("the home filters its projects by the period of their last modification on 
   await expect(apply).toBeFocused();
 });
 
-test("a project, its settings and its lifecycle show what the fake back serves, and offer nothing but the exits", async ({
+test("a project, its settings and its lifecycle show what the fake back serves, and offer the modification of the project and the exits", async ({
   page,
 }) => {
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
@@ -121,20 +123,73 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
     contributors.getByRole("row", { name: /Alix Moreau\s+Contributeur\s+Désactivé/ }),
   ).toBeVisible();
   await expect(main.getByRole("treegrid", { name: "Lotissement" })).toBeVisible();
-  // Nothing to create nor modify: the buttons of the grids and of the filter alone.
-  await expect(main.getByRole("button", { name: /Créer|Ajouter|Modifier|Supprimer/ })).toHaveCount(
-    0,
-  );
+  // The modification of the project alone: nothing else to create nor modify.
+  await expect(main.getByRole("button", { name: /Créer|Ajouter|Modifier|Supprimer/ })).toHaveText([
+    "Modifier le projet",
+  ]);
 
   await nav.getByRole("link", { name: "Cycle de vie du projet" }).click();
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
   const history = main.getByRole("table", { name: "Historique des états" });
   await expect(history.getByRole("row")).toHaveCount(4);
+  await expect(main.getByRole("region", { name: "Prochain état" })).toContainText(
+    "seules les sorties du cycle de vie restent",
+  );
   await expect(main.getByRole("region", { name: "Commandes" }).getByRole("button")).toHaveText([
     "Terminer le projet",
     "Déclarer le projet perdu",
     "Abandonner le projet",
   ]);
+});
+
+test("creates a project from the home, then modifies the identity of a project on its settings, the mock-up saying the fake back keeps nothing (EP-02/L44a) [WF-PRJ-0080-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await compile(page.request, CREATED);
+  await page.goto("/");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("note")).toContainText("le service simulé répond");
+
+  // No project is opened here, nothing witnesses the hydration: the creation is pressed again
+  // until React opens its form, and never once it is open.
+  const creation = page.getByRole("dialog", { name: "Créer un projet" });
+  await expect(async () => {
+    if (!(await creation.isVisible())) {
+      await main.getByRole("button", { name: "Créer un projet" }).click();
+    }
+    await expect(creation).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  // Without a label, refused before anything is asked.
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await expect(creation.getByRole("textbox", { name: "Libellé" })).toBeFocused();
+  await creation.getByRole("textbox", { name: "Libellé" }).fill("Rénovation du poste de livraison");
+  await creation.getByRole("button", { name: "Créer" }).click();
+  // The screen of the project the server created — which the fake back serves as the witness.
+  await expect(page).toHaveURL(CREATED, { timeout: WORKING });
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Modernisation du poste de commande",
+  );
+
+  await openHydrated(page, `${PROJECT}/settings`);
+  await main.getByRole("button", { name: "Modifier le projet" }).click();
+  const identity = page.getByRole("dialog", {
+    name: "Modifier «\u00a0Modernisation du poste de commande\u00a0»",
+  });
+  // In progress, the probability of winning is frozen, and the form says so.
+  await expect(identity).toContainText("La probabilité de gain ne se modifie plus");
+  await expect(identity.getByRole("textbox", { name: /Probabilité de gain/ })).toHaveCount(0);
+  await identity
+    .getByRole("textbox", { name: "Description" })
+    .fill("Remplacement des automates et de la supervision du poste de commande.");
+  await identity.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(identity).toBeHidden({ timeout: WORKING });
+  // The facts show what the server answered, and keep it once the page is read anew.
+  await expect(main.getByText("Paramètres du projet enregistrés.")).toBeVisible();
+  await expect(main.getByLabel("Paramètres du projet")).toContainText(
+    "Remplacement des automates et de la supervision du poste de commande.",
+  );
+  await expect(main.getByRole("alert")).toHaveCount(0);
 });
 
 test("an exit of the lifecycle is confirmed, naming the state it leads to, before the API applies it", async ({

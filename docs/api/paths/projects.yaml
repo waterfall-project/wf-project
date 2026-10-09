@@ -105,6 +105,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+            examples:
+              created: { $ref: ../../../fixtures/api/project_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -139,6 +141,8 @@
               without_current_revision: { $ref: ../../../fixtures/api/project_without_current_revision.json }
               pricing_estimator: { $ref: ../../../fixtures/api/project_pricing_estimator.json }
               reader: { $ref: ../../../fixtures/api/project_reader.json }
+              created: { $ref: ../../../fixtures/api/project_created.json }
+              completed: { $ref: ../../../fixtures/api/project_completed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -163,6 +167,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+            examples:
+              updated: { $ref: ../../../fixtures/api/project_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -220,6 +226,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/NextState }
+            examples:
+              witness: { $ref: ../../../fixtures/api/next_state.json }
+              pricing: { $ref: ../../../fixtures/api/next_state_pricing.json }
+              created: { $ref: ../../../fixtures/api/next_state_created.json }
+              completed: { $ref: ../../../fixtures/api/next_state_completed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

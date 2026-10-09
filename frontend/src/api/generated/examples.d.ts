@@ -63,7 +63,7 @@ export interface Examples {
     200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
+    200: "project" | "project_completed" | "project_created" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -100,6 +100,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/indicators/milestone-tracking": {
     200: "milestone_tracking" | "milestone_tracking_none";
+  };
+  "GET /projects/{project_id}/next-state": {
+    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
@@ -212,6 +215,9 @@ export interface Examples {
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
   };
+  "PATCH /projects/{project_id}": {
+    200: "project_updated";
+  };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
@@ -241,6 +247,9 @@ export interface Examples {
   };
   "POST /file-uploads": {
     201: "file_upload";
+  };
+  "POST /projects": {
+    201: "project_created";
   };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";

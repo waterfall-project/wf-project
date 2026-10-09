@@ -1,0 +1,9 @@
+{
+  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05 : clos, aucun état ne le suit, ni par un fait ni par une commande (WF-CYC-0050, WF-CYC-0080).",
+  "value": {
+    "current_state": "completed",
+    "next_state": null,
+    "trigger": null,
+    "missing_conditions": []
+  }
+}

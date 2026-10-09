@@ -210,6 +210,42 @@ export function editableDecimal(value: Decimal, locale: Locale): string {
   return decimal(value).replace(".", separators(locale).point);
 }
 
+/**
+ * A decimal string with its point moved — to the right for `places` above zero —, its digits kept:
+ * a hundredth is a matter of where the point stands, never of a product, which a float would round.
+ * Leading zeros before the units and trailing zeros after the point go.
+ */
+function shiftPoint(value: Decimal, places: number): Decimal {
+  const exact = decimal(value);
+  const negative = exact.startsWith("-");
+  const [whole = "", fraction = ""] = (negative ? exact.slice(1) : exact).split(".");
+  const digits = whole + fraction;
+  const point = whole.length + places;
+  const padded =
+    point < 1 ? "0".repeat(1 - point) + digits : digits.padEnd(Math.max(point, digits.length), "0");
+  const at = Math.max(point, 1);
+  const units = padded.slice(0, at).replace(/^0+(?=\d)/, "");
+  const decimals = padded.slice(at).replace(/0+$/, "");
+  const shifted = decimals === "" ? units : `${units}.${decimals}`;
+  return negative && /[1-9]/.test(shifted) ? `-${shifted}` : shifted;
+}
+
+/**
+ * A `Percent` of the contract — a ratio, `0.035` — as one enters it in a language, a percentage:
+ * « 3,5 » in French, `3.5` in English.
+ */
+export function editablePercent(value: Decimal, locale: Locale): string {
+  return editableDecimal(shiftPoint(value, 2), locale);
+}
+
+/**
+ * The `Percent` of the contract a percentage entered stands for — `3.5` entered, `0.035` sent —, the
+ * point moved, never through a float (WF-DAT-0100).
+ */
+export function percentRatio(entered: Decimal): Decimal {
+  return shiftPoint(entered, -2);
+}
+
 /** A text of a pattern, as a regular expression matches it literally. */
 function literal(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

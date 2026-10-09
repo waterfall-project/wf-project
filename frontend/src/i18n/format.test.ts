@@ -7,6 +7,7 @@ import { example } from "@/test/fixtures";
 
 import {
   editableDecimal,
+  editablePercent,
   formatBytes,
   formatDecimal,
   formatLocale,
@@ -16,6 +17,7 @@ import {
   formatPlanningDate,
   formatTimestamp,
   parseDecimal,
+  percentRatio,
 } from "./format";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
@@ -197,6 +199,34 @@ describe("a percentage", () => {
 
   it("refuses what is not a decimal of the contract", () => {
     expect(() => formatPercent("25%", "fr")).toThrow(RangeError);
+  });
+});
+
+describe("a percentage entered", () => {
+  it("offers a ratio of the API to entry as a percentage, every digit kept", () => {
+    expect(editablePercent("0.03", "fr")).toBe("3");
+    expect(editablePercent("0.035", "fr")).toBe("3,5");
+    expect(editablePercent("0.4", "en")).toBe("40");
+    expect(editablePercent("1", "en")).toBe("100");
+    expect(editablePercent("0", "fr")).toBe("0");
+    expect(editablePercent("-0.025", "en")).toBe("-2.5");
+  });
+
+  it("sends a percentage entered as the ratio of the contract, the point moved, never through a float", () => {
+    expect(String(Number("0.07") * 100)).toBe("7.000000000000001");
+    expect(percentRatio("7")).toBe("0.07");
+    expect(percentRatio("3.5")).toBe("0.035");
+    expect(percentRatio("40")).toBe("0.4");
+    expect(percentRatio("100")).toBe("1");
+    expect(percentRatio("0")).toBe("0");
+    expect(percentRatio("-2.50")).toBe("-0.025");
+    expect(percentRatio("-0")).toBe("0");
+    expect(percentRatio("1234.5678")).toBe("12.345678");
+    // Each of these would come out of a float with digits of its own.
+    expect(String(Number("1.1") / 100)).not.toBe("0.011");
+    expect(percentRatio("1.1")).toBe("0.011");
+    expect(percentRatio("0.7")).toBe("0.007");
+    expect(percentRatio("57")).toBe("0.57");
   });
 });
 

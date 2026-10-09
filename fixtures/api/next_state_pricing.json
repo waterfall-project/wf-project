@@ -1,0 +1,11 @@
+{
+  "summary": "L'offre en chiffrage, qui porte son code : elle passera à En cours à la désignation de sa révision de référence, la seule condition qui lui reste (WF-CYC-0030, WF-CYC-0050).",
+  "value": {
+    "current_state": "pricing",
+    "next_state": "in_progress",
+    "trigger": "reference_designated_and_code_set",
+    "missing_conditions": [
+      "reference_revision_designated"
+    ]
+  }
+}

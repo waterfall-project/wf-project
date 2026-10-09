@@ -924,6 +924,7 @@
   "projectFacts": {
     "label": "The project",
     "settings": "Project settings",
+    "projectLabel": "Label",
     "code": "Code",
     "state": "State",
     "orderReceivedOn": "Order received on",
@@ -932,6 +933,20 @@
     "inflationRate": "Annual inflation rate",
     "winProbability": "Probability of winning",
     "revisions": "Revisions"
+  },
+  "projectForm": {
+    "create": "Create a project",
+    "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
+    "modifyTitle": "Modify “{name}”",
+    "modifyHint": "The inflation rate affects no marked revision.",
+    "modifyHintFrozen": "The inflation rate affects no marked revision. The probability of winning no longer changes once the project is in progress.",
+    "label": "Label",
+    "code": "Project code",
+    "description": "Description",
+    "orderReceivedOn": "Order received on",
+    "inflationRate": "Annual inflation rate (%)",
+    "winProbability": "Probability of winning (%)",
+    "saved": "Project settings saved."
   },
   "projectLists": {
     "subprojects": {
@@ -1039,6 +1054,20 @@
     "cancel": "Cancel",
     "done": "The project has gone to the state “{state}”."
   },
+  "nextState": {
+    "title": "Next state",
+    "none": "No fact leads the project to another state any more: only the exits of the lifecycle remain.",
+    "closed": "The project is closed: no state follows it.",
+    "state": "State ahead",
+    "trigger": "Trigger",
+    "triggers": {
+      "first_revision_created": "First revision created",
+      "reference_designated_and_code_set": "Reference revision designated and project code filled in"
+    },
+    "unknownTrigger": "Unknown trigger",
+    "conditions": "Remaining conditions",
+    "noCondition": "None"
+  },
   "notFound": {
     "title": "Not found",
     "explanation": "This address leads to nothing you can consult.",
@@ -1108,7 +1137,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} project {Already held by another project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",

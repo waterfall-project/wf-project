@@ -47,4 +47,14 @@ describe("the offer of a command", () => {
     expect(withoutRestore).toContain("backups.write");
     expect(platformOffer(withoutRestore, "platform_restore")).toBeUndefined();
   });
+
+  it("offers the creation of a project to a session that holds its permission, and to no other [WF-ADM-0100-A]", () => {
+    expect(platformOffer(permissions("session"), "project_create")).toEqual({
+      is_available: true,
+      missing_conditions: [],
+    });
+    // A contributor who may write the estimate does not create a project.
+    expect(permissions("session_estimator")).not.toContain("project_create");
+    expect(platformOffer(permissions("session_estimator"), "project_create")).toBeUndefined();
+  });
 });

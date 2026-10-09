@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The form that creates or modifies an object of the reference data, in a dialog over its list
- * (EP-02/L43): the fields of its kind, each by the pointer of the contract it writes (`code`,
- * `capacity/monthly_hours`), a text, a number or a choice — or a value the object lists no command to
- * change, shown fixed, read-only, and sent as it is (EP-02/L42g). A field may say a note under it,
- * which describes it: why it is fixed, or why its choices are fewer.
+ * (EP-02/L43) — or a project, its identity and its facts (EP-02/L44a) —: the fields of its kind, each
+ * by the pointer of the contract it writes (`code`, `capacity/monthly_hours`), a text, a number, a
+ * date of planning or a choice — or a value the object lists no command to change, shown fixed,
+ * read-only, and sent as it is (EP-02/L42g). A field may say a note under it, which describes it: why
+ * it is fixed, or why its choices are fewer.
  *
  * The form is checked here before anything is asked: a field required left empty, a number that is
- * not one in the language of the reader (`parseDecimal`), is said at the field, which takes the
- * focus. The rest is the server's to judge: a refusal by field (422, `fields[]`, convention #293) is
+ * not one in the language of the reader (`parseDecimal`), a date that is none (`isPlanningDate`), is
+ * said at the field, which takes the focus. The rest is the server's to judge: a refusal by field (422, `fields[]`, convention #293) is
  * said at each field it points at, by the sentence of its code and its parameters
  * (`problemMessage`), the first field refused taking the focus — a value already held (409
  * `ALREADY_EXISTS`, `fields[]`) too, which names the object that holds it as the list shows it
@@ -45,7 +46,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { parseDecimal } from "@/i18n/format";
+import { isPlanningDate, parseDecimal } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 import type { ListForm } from "./commands";
@@ -63,8 +64,11 @@ export const LABEL_LENGTH = 200;
 export interface FormField {
   readonly name: string;
   readonly label: string;
-  /** A text, a number, a choice, or a value shown fixed — read-only, by the text of its choice. */
-  readonly control: "text" | "number" | "choice" | "fixed";
+  /**
+   * A text, a number, a date of planning, a choice, or a value shown fixed — read-only, by the text
+   * of its choice.
+   */
+  readonly control: "text" | "number" | "date" | "choice" | "fixed";
   readonly required?: boolean;
   /** The longest text the contract takes. */
   readonly maxLength?: number;
@@ -84,8 +88,16 @@ export function required(name: string, label: string, maxLength: number): FormFi
 /** What a form holds, by the name of each field. */
 export type Draft = Readonly<Record<string, string>>;
 
-/** What a form of the reference data writes, and how. */
-export interface ReferenceFormProps extends Omit<ListForm, "row"> {
+/**
+ * What a form writes, and how: an object of the reference data, unless it names another of the
+ * contract — a project.
+ */
+export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
+  ListForm,
+  "target" | "onClose" | "onClosed"
+> {
+  /** What the form writes: a kind of object of the reference data, or a project (`takenByAnother`). */
+  readonly kind: ListForm["kind"] | "project";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
@@ -102,7 +114,41 @@ export interface ReferenceFormProps extends Omit<ListForm, "row"> {
    * Ask the server, from the values checked: a text trimmed, a number as the contract writes it, a
    * choice as chosen — none an empty text.
    */
-  readonly ask: (values: Draft) => Promise<Outcome<ReferenceObject>>;
+  readonly ask: (values: Draft) => Promise<Outcome<T>>;
+  /** The answer of the server as the form takes it (`ListForm.answering`). */
+  readonly answering: (answer: Outcome<T>) => Outcome<T>;
+  /** Take the answer of the server, the dialog open or closed. */
+  readonly onDone: (answer: T) => void;
+}
+
+/**
+ * A field judged before asking: its value as the contract writes it — a text trimmed, a number as the
+ * contract writes it, a choice or a fixed value as it is —, or why it is refused: a date half
+ * entered, which its control gives as an empty text (`badInput`) and which would otherwise leave as
+ * none, a field required left empty, a number that is not one in the language of the reader
+ * (`parseDecimal`), a date that is none (`isPlanningDate`).
+ */
+function judged(
+  { control, required }: FormField,
+  typed: string,
+  locale: ReturnType<typeof useLocale>,
+  badInput: boolean,
+): { readonly value: string } | { readonly code: FieldProblem["code"] } {
+  const value = control === "choice" || control === "fixed" ? typed : typed.trim();
+  if (control === "date" && badInput) {
+    return { code: "DATE_INVALID" };
+  }
+  if (required === true && value === "") {
+    return { code: "VALUE_REQUIRED" };
+  }
+  const number = control === "number" && value !== "" ? parseDecimal(value, locale) : value;
+  if (number === undefined) {
+    return { code: "NUMBER_INVALID" };
+  }
+  if (control === "date" && value !== "" && !isPlanningDate(value)) {
+    return { code: "DATE_INVALID" };
+  }
+  return { value: number };
 }
 
 /** The values of a draft as the contract writes them, and the fields refused before asking. */
@@ -110,19 +156,17 @@ function checked(
   fields: readonly FormField[],
   draft: Draft,
   locale: ReturnType<typeof useLocale>,
+  badInput: (name: string) => boolean,
 ): { readonly values: Draft; readonly refused: Map<string, FieldProblem> } {
   const values: Record<string, string> = {};
   const refused = new Map<string, FieldProblem>();
-  for (const { name, control, required } of fields) {
-    const typed = draft[name] ?? "";
-    const value = control === "choice" || control === "fixed" ? typed : typed.trim();
-    const number = control === "number" && value !== "" ? parseDecimal(value, locale) : value;
-    if (required === true && value === "") {
-      refused.set(name, { pointer: `/${name}`, code: "VALUE_REQUIRED" });
-    } else if (number === undefined) {
-      refused.set(name, { pointer: `/${name}`, code: "NUMBER_INVALID" });
+  for (const field of fields) {
+    const { name } = field;
+    const judgement = judged(field, draft[name] ?? "", locale, badInput(name));
+    if ("code" in judgement) {
+      refused.set(name, { pointer: `/${name}`, code: judgement.code });
     } else {
-      values[name] = number;
+      values[name] = judgement.value;
     }
   }
   return { values, refused };
@@ -186,7 +230,7 @@ function describedBy(
 
 /**
  * The control of a field: a choice, its choice of none first; a value shown fixed, read-only, by the
- * text of its choice; a text or a number.
+ * text of its choice; a text, a number or a date.
  */
 function FieldControl({
   control,
@@ -220,13 +264,14 @@ function FieldControl({
     <Input
       {...props}
       maxLength={maxLength}
+      type={control === "date" ? "date" : undefined}
       inputMode={control === "number" ? "decimal" : undefined}
     />
   );
 }
 
-/** Render the dialog that creates or modifies an object of the reference data. */
-export function ReferenceForm({
+/** Render the dialog that creates or modifies an object of the reference data, or a project. */
+export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,
   creating,
@@ -240,7 +285,7 @@ export function ReferenceForm({
   onDone,
   onClose,
   onClosed,
-}: ReferenceFormProps) {
+}: ReferenceFormProps<T>) {
   const t = useTranslations("reference.form");
   const locale = useLocale();
   const messages = useMessages();
@@ -274,7 +319,12 @@ export function ReferenceForm({
       return;
     }
     setOutcome(undefined);
-    const { values, refused } = checked(fields, draft, locale);
+    const { values, refused } = checked(
+      fields,
+      draft,
+      locale,
+      (name) => controls.current[name]?.validity.badInput === true,
+    );
     refuse(refused);
     if (refused.size > 0) {
       return;

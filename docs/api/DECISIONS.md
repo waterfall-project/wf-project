@@ -3484,6 +3484,27 @@ restaurer. `downloadBackup` le dit ; l'écran n'offre « Télécharger » qu'à 
 Les refus que ces écritures opposeraient sans que le contrat les dise sont des « Interface contract
 issue » relevées par EP-02/L43c, sous #507.
 
+## La création, la modification et le prochain état d'un projet (EP-02/L44a)
+
+La création et la modification d'un projet, que la maquette exerce (#513, #524), reçoivent l'exemple
+de leur succès, écrit aujourd'hui par Camille Martin, le 3 juin 2026 à 14 h 05 : `project_created`
+(« Rénovation du poste de livraison », 3, sans code — il se chiffrera sans lui, WF-PRJ-0010 —, à
+l'état Créé, ses taux à zéro, sans révision, les commandes d'un chef de projet sur un projet créé) et
+`project_updated` (le témoin, sa description saisie, version 8 ; la probabilité de gain reste figée
+depuis En cours). `getProject` cite en outre `project_created`, le projet lu après sa création, et
+`project_completed`, le témoin lu après sa sortie, que l'écran de ses paramètres présente sa
+modification indisponible. `getProjectNextState`, qui n'en avait aucun, reçoit quatre exemples : `next_state`
+(le témoin, en cours, qu'aucun fait ne mène plus loin : prochain état et déclencheur nuls, aucune
+condition), `next_state_pricing` (l'offre en chiffrage, qui porte son code : En cours à la
+désignation de sa révision de référence, la seule condition qui lui reste, WF-CYC-0030),
+`next_state_created` (le projet créé : Chiffrage à la création de sa première révision, sans
+condition) et `next_state_completed` (le témoin terminé, clos : aucun état ne le suit). Le déclencheur, que le contrat ne nomme que par un code libre (`NextState.trigger`),
+y prend les deux codes de la figure 8, `first_revision_created` et
+`reference_designated_and_code_set`, que le front rend par son catalogue ; leur énumération au
+contrat, et ce que l'opération rend d'un projet en cours ou terminal, sont des « Interface contract
+issue » relevées par EP-02/L44a, sous #507. Chacun ne vaut que pour la réponse de son opération :
+aucune lecture n'en tient compte.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
