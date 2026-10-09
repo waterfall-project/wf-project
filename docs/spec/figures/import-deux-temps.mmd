@@ -20,10 +20,19 @@ sequenceDiagram
         U->>A: demande l'application
         A->>F: met en file la tâche d'application
         W->>F: prend la tâche
-        W->>B: applique en une transaction unique
-        W->>S: supprime le fichier
-        W-->>U: import appliqué
+        W->>B: revérifie permission, contributeur et état du projet
+        alt Conditions toujours vraies
+            W->>B: applique en une transaction unique
+            W->>S: supprime le fichier
+            W-->>U: import appliqué
+        else Une condition a cessé d'être vraie
+            W-->>U: import refusé, condition nommée
+            W->>S: supprime le fichier
+        end
     else L'utilisateur abandonne ou laisse expirer
+        U->>A: abandonne l'import
+        A->>F: met en file la suppression
+        Note over F: ou, sans réponse, au terme de vingt-quatre heures (WF-ARC-0100)
         W->>S: supprime le fichier
         Note over B: le projet est inchangé
     end

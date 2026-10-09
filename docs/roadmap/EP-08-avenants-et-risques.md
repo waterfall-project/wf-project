@@ -55,6 +55,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 |---|---|---|---|
 | `WF-REV-0040-A` | Désignation de la révision de référence | fin — amorcée en EP-04 | — |
 | `WF-REV-0050-A` | Fusion d’un différentiel | entière | — |
+| `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | — |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04 | — |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | — |
 | `WF-RIS-0010-A` | Attributs d’un risque | entière | — |
