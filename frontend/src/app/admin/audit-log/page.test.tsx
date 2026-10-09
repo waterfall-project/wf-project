@@ -34,6 +34,8 @@ vi.mock("next/headers", () => ({
 }));
 
 const EVENTS = "GET /audit-events";
+const FACETS = "GET /audit-events/facets";
+const NEWEST = { sort_by: "occurred_at", sort_order: "desc" };
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const CAMILLE = "01926f3a-7c00-7000-8000-000000000301";
 const GRID = "Journal d’audit";
@@ -106,7 +108,7 @@ beforeEach(() => {
   server.answers = {
     "GET /session": "session",
     [EVENTS]: "audit_events",
-    "GET /users": "users",
+    [FACETS]: "audit_facets",
     "GET /projects": "projects",
   };
 });
@@ -136,16 +138,50 @@ describe("the journal of audit", () => {
 
   it("asks the newest inscriptions first, and the other direction when the address asks it [WF-IHM-0060-A]", async () => {
     expect(sorted(await journal())).toContain("Date descending");
-    expect(queriesOf(EVENTS)).toEqual([{ sort_order: "desc" }]);
+    expect(queriesOf(EVENTS)).toEqual([NEWEST]);
     server.clients = [];
     expect(sorted(await journal({ sort_by: "occurred_at", sort_order: "asc" }))).toContain(
       "Date ascending",
     );
-    expect(queriesOf(EVENTS)).toEqual([{ sort_order: "asc" }]);
+    expect(queriesOf(EVENTS)).toEqual([{ sort_by: "occurred_at", sort_order: "asc" }]);
   });
 
-  it("sorts no other column: the contract sorts the journal by its dates alone (#550)", async () => {
-    expect(sorted(await journal())).toEqual(["Date descending"]);
+  it("asks the server for the column of the contract the address sorts by, each both ways [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, [EVENTS]: "audit_events_by_actor" };
+    const page = await journal({ sort_by: "actor", sort_order: "asc" });
+    // Every column the contract sorts offers its sort, the one asked said sorted.
+    expect(sorted(page).map((header) => header.trim())).toEqual([
+      "Date",
+      "Auteur ascending",
+      "Action",
+      "Nature de l’objet",
+      "Objet",
+      "Projet",
+      "Corrélation",
+    ]);
+    expect(queriesOf(EVENTS)).toEqual([{ sort_by: "actor", sort_order: "asc" }]);
+    server.clients = [];
+    await journal({ sort_by: "project", sort_order: "desc" });
+    await journal({ sort_by: "object_kind" });
+    await journal({ sort_by: "correlation_id", sort_order: "desc" });
+    expect(queriesOf(EVENTS)).toEqual([
+      { sort_by: "project", sort_order: "desc" },
+      { sort_by: "object_kind", sort_order: "asc" },
+      { sort_by: "correlation_id", sort_order: "desc" },
+    ]);
+  });
+
+  it("asks the server for the journal sorted by the label of the object, and shows it in the order it answers [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, [EVENTS]: "audit_events_by_object_label" };
+    const page = await journal({ sort_by: "object_label", sort_order: "asc" });
+    expect(sorted(page)).toContain("Objet ascending");
+    expect(queriesOf(EVENTS)).toEqual([{ sort_by: "object_label", sort_order: "asc" }]);
+    // The rows as the server ordered them: the backups, which have no label, last.
+    const labels = rows(page).slice(1, -1);
+    expect(labels.at(-1)).toContain("Sauvegarde Sauvegarde Sauvegarde");
+    expect(
+      labels.findIndex((row) => row.includes("Retard de livraison des armoires")),
+    ).toBeLessThan(labels.findIndex((row) => row.includes(" Référence ")));
   });
 
   it("reads the hidden columns and the sort the account keeps for the grid, the address saying nothing of the sort", async () => {
@@ -156,27 +192,31 @@ describe("the journal of audit", () => {
       "GET /projects": "projects_empty",
     };
     const page = await journal();
-    expect(sorted(page)).toEqual(["Date ascending"]);
-    expect(queriesOf(EVENTS)).toEqual([{ sort_order: "asc" }]);
+    expect(sorted(page)[0]).toBe("Date ascending");
+    expect(queriesOf(EVENTS)).toEqual([{ sort_by: "occurred_at", sort_order: "asc" }]);
     expect(rows(page)[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet");
     // The address is the truth: a sort it asks wins over the one kept.
     server.clients = [];
     await journal({ sort_by: "occurred_at", sort_order: "desc" });
-    expect(queriesOf(EVENTS)).toEqual([{ sort_order: "desc" }]);
+    expect(queriesOf(EVENTS)).toEqual([NEWEST]);
   });
 
-  it("reads the journal for an auditor who may not read the accounts, without a filter of authors", async () => {
-    // An auditor contributes to no project: none he may open.
+  it("offers an auditor who may not read the accounts nor open any project the authors and the projects of the whole journal to filter by", async () => {
+    // An auditor contributes to no project: none he may open; the consultation of the journal
+    // alone reads its facets.
     server.answers = {
       ...server.answers,
       "GET /session": "session_auditor",
       "GET /projects": "projects_empty",
     };
     const page = await journal();
-    expect(queriesOf("GET /users")).toEqual([]);
     expect(rows(page).at(-1)).toBe("36 inscriptions");
-    expect(page).not.toContain(">Auteur</label>");
-    expect(text(page)).not.toContain("Tous les comptes");
+    expect(queriesOf(FACETS)).toEqual([{}]);
+    expect(queriesOf("GET /users")).toEqual([]);
+    expect(text(page)).toContain("Auteur Tous les comptes Camille Martin");
+    expect(text(page)).toContain(
+      "Projet Tous les projets PRJ-001 · Modernisation du poste de commande",
+    );
   });
 
   it("asks the server for the filters and the page the address names, under the names of the contract", async () => {
@@ -189,13 +229,16 @@ describe("the journal of audit", () => {
       project_id: PROJECT,
       object_kind: "import",
       object_id: "01926f3a-7c00-7000-8000-000000000a14",
-      sort_by: "occurred_at",
+      correlation_id: "01926f3a-7c00-7000-8000-000800000034",
+      search: "couts",
+      sort_by: "action",
       sort_order: "desc",
       offset: "50",
     });
     expect(queriesOf(EVENTS)).toEqual([
       {
         offset: "50",
+        search: "couts",
         from: "2026-05-01T00:00:00.000Z",
         to: "2026-06-01T00:00:00Z",
         user_id: CAMILLE,
@@ -204,6 +247,8 @@ describe("the journal of audit", () => {
         project_id: PROJECT,
         object_kind: "import",
         object_id: "01926f3a-7c00-7000-8000-000000000a14",
+        correlation_id: "01926f3a-7c00-7000-8000-000800000034",
+        sort_by: "action",
         sort_order: "desc",
       },
     ]);
@@ -219,21 +264,19 @@ describe("the journal of audit", () => {
       project_id: "a.b",
       object_kind: "planet",
       object_id: "-",
-      sort_by: "actor",
+      correlation_id: "a request",
+      sort_by: "label",
       offset: "-3",
     });
-    expect(queriesOf(EVENTS)).toEqual([{ sort_order: "desc" }]);
+    expect(queriesOf(EVENTS)).toEqual([NEWEST]);
   });
 
-  it("offers the accounts as authors, deactivated ones included, and the projects the session may open in every state", async () => {
+  it("offers the authors and the projects the whole journal names, and reads the projects the session may open in every state for its links", async () => {
     const page = text(await journal());
-    expect(page).toContain(
-      "Auteur Tous les comptes Dominique Bernard Sacha Lefèvre Camille Martin",
-    );
+    expect(page).toContain("Auteur Tous les comptes Camille Martin Toutes les actions");
     expect(page).toContain("Projet Tous les projets PRJ-001 · Modernisation du poste de commande");
-    expect(queriesOf("GET /users")).toEqual([
-      { limit: "500", offset: "0", include_inactive: "true", sort_by: "last_name" },
-    ]);
+    expect(queriesOf(FACETS)).toEqual([{}]);
+    expect(queriesOf("GET /users")).toEqual([]);
     expect(queriesOf("GET /projects")).toEqual([
       {
         limit: "500",
@@ -244,20 +287,26 @@ describe("the journal of audit", () => {
     ]);
   });
 
-  it("names the object and the project with a link where the session may open the project, its revision too", async () => {
+  it("names the object and the project with a link where the session may open the project, its revision and the revision an object lives in too", async () => {
     const links = gridLinks(await journal());
     expect(links).toContain(`PRJ-001 · Modernisation du poste de commande → /projects/${PROJECT}`);
     expect(links).toContain(
       `Référence → /projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000101`,
     );
-    // An import, a backup, an account have no address the inscription gives: their names alone.
+    expect(links).toContain(
+      `Retard de livraison des armoires → /projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102/risks?risk=01926f3a-7c00-7000-8000-000000000752`,
+    );
+    // An import of actual costs, a backup, an account live in no revision: their names alone.
     expect(links.filter((link) => link.startsWith("couts-reels"))).toEqual([]);
   });
 
   it("names the project and its objects without a link where the session may not open the project", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const page = await journal();
-    expect(gridLinks(page).filter((link) => !link.startsWith("∅"))).toEqual([]);
+    // Only the links of the journal itself remain: the correlations.
+    expect(
+      gridLinks(page).filter((link) => !link.startsWith("∅") && !link.includes("correlation_id=")),
+    ).toEqual([]);
     expect(text(gridOf(page))).toContain("PRJ-001 · Modernisation du poste de commande");
   });
 
@@ -268,7 +317,7 @@ describe("the journal of audit", () => {
       "Camille Martin Sortie du cycle de vie Projet Modernisation du poste de commande",
     );
     expect(rows(page).at(-1)).toBe("13 inscriptions");
-    expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, sort_order: "desc" }]);
+    expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
 
   it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A]", async () => {
@@ -281,7 +330,7 @@ describe("the journal of audit", () => {
   it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A]", async () => {
     server.answers = { ...server.answers, "GET /session": "session_estimator" };
     await expect(journal()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
-    // The session alone is read: nothing of the journal, the accounts or the projects.
+    // The session alone is read: nothing of the journal, its facets or the projects.
     expect(server.clients.flatMap((client) => client.calls).map((call) => call.route)).toEqual([
       "GET /session",
     ]);
@@ -336,21 +385,27 @@ describe("the journal of audit", () => {
     await journal({ from: "2026-13-01T08:00:00Z", to: "2026-05-01T08:60:00+01:00" });
     await journal({ from: "2028-02-29T23:59:59.5+02:00", to: "2026-05-01T08:00:00Z" });
     expect(queriesOf(EVENTS)).toEqual([
-      { sort_order: "desc" },
-      { sort_order: "desc" },
-      { from: "2028-02-29T23:59:59.5+02:00", to: "2026-05-01T08:00:00Z", sort_order: "desc" },
+      NEWEST,
+      NEWEST,
+      { from: "2028-02-29T23:59:59.5+02:00", to: "2026-05-01T08:00:00Z", ...NEWEST },
     ]);
   });
 
   it("says the journal holds nothing only when nothing narrows it", async () => {
     server.answers = { ...server.answers, [EVENTS]: "audit_events_empty" };
     expect(text(await journal())).toContain("Le journal ne tient aucune inscription.");
-    const narrowed = await journal({ actions: "restore" });
-    expect(text(narrowed)).not.toContain("Le journal ne tient aucune inscription.");
-    expect(rows(narrowed).at(-1)).toBe("Aucune inscription");
+    for (const narrowing of [
+      { actions: "restore" },
+      { search: "avenant 9" },
+      { correlation_id: "r-1" },
+    ]) {
+      const narrowed = await journal(narrowing);
+      expect(text(narrowed)).not.toContain("Le journal ne tient aucune inscription.");
+      expect(rows(narrowed).at(-1)).toBe("Aucune inscription");
+    }
   });
 
-  it("names a project and an object the address asks by what the inscriptions say, when no choice offers them", async () => {
+  it("offers a project the address asks that the session may not open, and names an object by what the inscriptions say", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const page = await journal({
       project_id: PROJECT,

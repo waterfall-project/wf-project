@@ -6,7 +6,10 @@
     description: >-
       Les comptes de l'installation, avec leur état et leur rattachement à l'organisation
       (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans
-      les deux sens, par le serveur (WF-IHM-0060).
+      les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes,
+      disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier
+      compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que
+      la liste, paginée, ne laisserait pas déduire.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -163,10 +166,16 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Dernier compte portant les permissions d'administration (WF-ADM-0120).
+        description: >-
+          La désactivation du dernier compte actif qui porte les permissions de modifier les
+          comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la
+          commande `deactivate` du compte dit d'avance (`available_commands`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
 
 /users/{user_id}/access-roles:
   put:
@@ -176,7 +185,11 @@
     description: >-
       Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs
       permissions ; la modification s'applique immédiatement, sans reconnexion
-      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020).
+      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le
+      retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
+      compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
+      donner davantage reste possible, et la commande `set_access_roles` de ce compte reste
+      disponible : le serveur juge les rôles envoyés.
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -193,7 +206,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Des rôles qui retireraient au dernier compte actif qui les porte la permission de
+          modifier les comptes ou celle de modifier les rôles d'habilitation, refusés, rien
+          n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, comme `LAST_PROJECT_MANAGER` —
+          le refus dépend des rôles envoyés, qu'aucune commande ne dit d'avance.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              last_administrator: { $ref: ../../../fixtures/api/user_access_roles_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
 /users/{user_id}/password-link:
@@ -416,11 +439,15 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Le rôle est le dernier à porter les permissions d'administration
-          (WF-ADM-0120).
+          Une modification qui retirerait au dernier compte actif qui les porte la permission de
+          modifier les comptes ou celle de modifier les rôles d'habilitation, refusée, rien
+          n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, le refus dépendant des permissions
+          envoyées.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              last_administrator: { $ref: ../../../fixtures/api/access_role_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
   delete:
     operationId: deleteAccessRole

@@ -80,6 +80,7 @@ IDENTIFIERS = (
     Family("corrélations", 960, 989),
     Family("collages", 990, 999),
     Family("chronologies", 1000, 1009),
+    Family("corrélations, suite", 1010, 1099),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
@@ -100,7 +101,8 @@ Every example keeps to it (#287, C16; DECISIONS, EP-02/L25 and L27). The order i
 the refusal to attach it outside the subtree of the task of its order item speaks of it
 (`task_attach_outside_order_item`), and the work breakdown names it, with its one deliverable 713
 (`work_breakdown`, WF-PRJ-0020). The order item 714 and its work package 715 make the work
-breakdown of a project whose order was not entered (`work_breakdown_default`)."""
+breakdown of a project whose order was not entered (`work_breakdown_default`). The correlations
+written by hand go on past the chronologies, their first range being full (EP-02/L42d)."""
 
 
 def hex_identifier(number: int) -> str:

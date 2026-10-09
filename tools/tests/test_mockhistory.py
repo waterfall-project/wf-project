@@ -69,10 +69,13 @@ _SEQUELS = {
     "task_export_queued.json",
     "task_export_succeeded.json",
     "tasks_running.json",
+    "audit_events_import_applied.json",
 }
-_SEQUEL_KEYS, _SEQUEL_SPAN = {"submitted_at", "finished_at"}, timedelta(minutes=10)
+_SEQUEL_KEYS = {"submitted_at", "finished_at", "occurred_at"}
+_SEQUEL_SPAN = timedelta(minutes=10)
 """The background tasks that follow a write made today, and their instants: the sequel of the
-write, at its own instant, within minutes after today (#287, EP-02/L25)."""
+write, at its own instant, within minutes after today (#287, EP-02/L25); and the journal that
+inscribes the application of an import, at the instant its task succeeds (EP-02/L42d)."""
 
 
 @pytest.fixture(scope="module")

@@ -622,14 +622,17 @@ aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #5
 seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
 `users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
 en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
-« Attribuer les rôles » — aucune suppression (WF-ADM-0060) ; à une session qui porte
+« Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
+absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
+(WF-ADM-0060) ; à une session qui porte
 `access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
 et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
 sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
-409, WF-ADM-0090). Écart : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
-permissions de modifier les comptes et les rôles, ou de lui retirer le rôle qui les porte ; `User`
-ne déclare ni ce refus ni la disponibilité de ces commandes (#540) : « Désactiver » et « Attribuer
-les rôles » restent offertes sur tout compte, et le refus du serveur se dira comme tout autre. Un
+409, WF-ADM-0090), et la désactivation du dernier compte actif qui porte les permissions de
+modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
+pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
+le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
+ces permissions — un refus dit comme tout autre. Un
 clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
 section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
 condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
@@ -653,24 +656,36 @@ préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'
 le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
-les autres filtres levés, le tri gardé. Le serveur
-ne trie que les dates (#550) : la date est la seule colonne triée, les plus récentes d'abord quand
-l'adresse ne dit rien, et son tri ne se lève jamais (`GridConfig.lifts`) ; l'adresse l'écrit comme
-toute grille (`sort_by=occurred_at`), et la page n'envoie que son sens (`sort_order`). Les filtres
+les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
+inscriptions de sa seule requête. Le serveur trie sur chaque colonne (#550), dans les deux sens.
+Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
+(`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
+(`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
+ne mène à son écran propre que si la session lit sa fonction — les risques, le planning dont les
+échanges sont une feuille, les révisions —, sinon à sa révision, qui mène à la première fonction
+lisible, et à rien sans fonction de révision à lire (`auditReach`). La corrélation saisie ne part
+que sous la forme que le contrat accepte (`pattern` du champ, que le navigateur dit). La recherche de la grille
+porte sur le libellé de l'objet (`search`). Les filtres
 n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la première page
 (`audit-filters.tsx`) : la période, deux instants saisis en heure locale et envoyés en temps
 universel — seul le navigateur connaît son fuseau, si bien que les champs montrent ceux de
 l'adresse une fois la page hydratée ; une borne laissée telle quelle repart comme l'adresse la nomme,
 et une saisie est datée par la période de l'adresse, le formulaire jamais remonté —, la nature de
-l'auteur (`ValuesFilter`), l'auteur parmi les comptes, désactivés compris, lus pour une session qui
-porte `users.read` — sans compte à choisir ni auteur choisi, le filtre n'est pas offert —, les actions dans un menu,
-le projet parmi ceux que la session peut ouvrir (`listProjects`, tous états), la nature de l'objet,
-et l'objet dont l'adresse demande l'histoire, nommé et levé ; un auteur ou un projet que l'adresse
-nomme sans qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le
-projet et l'objet sont des liens là où la session peut les consulter : un projet qu'elle peut
-ouvrir, une révision d'un tel projet ; un risque, une ligne de coût ou un import s'adressent dans
-une révision que l'inscription ne nomme pas, et un compte, un rôle ou une sauvegarde n'ont pas
-d'écran à eux : leur nom reste seul (#550). Une période que l'API refuse (422, la fin désignée hors
+l'auteur (`ValuesFilter`), l'auteur et le projet parmi ceux que nomme le journal entier
+(`listAuditFacets`, que la seule consultation du journal lit : un auditeur sans `users.read` filtre
+par auteur) — sans auteur à choisir ni auteur choisi, le filtre d'auteur n'est pas offert —, les
+actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'histoire, nommé et
+levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
+qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
+l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
+(`listProjects`, tous états) — : le projet, une révision d'un tel projet, et un objet qui vit dans
+une révision, vers son écran propre dans celle que l'inscription nomme (`AuditObject.revision`) —
+un risque vers les risques de la révision, son détail ouvert (`risk`), l'import d'un planning, d'un
+devis ou d'un reste à engager vers ses échanges, son compte rendu montré (`import`), le
+différentiel d'un avenant vers les structures de coûts de l'écran des révisions lu dans elle
+(`revision_id`) ; une ligne de coût réel et
+l'import des coûts réels ne vivent dans aucune révision, et un compte, un rôle ou une sauvegarde
+n'ont pas d'écran à eux : leur nom reste seul. Une période que l'API refuse (422, la fin désignée hors
 de ses bornes) se dit à la place des inscriptions, les filtres gardés, et tout autre refus des filtres
 par son enveloppe (`problemMessage`) ; aucune commande n'est offerte.
 

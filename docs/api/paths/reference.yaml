@@ -139,7 +139,8 @@
     description: >-
       Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son
       code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est
-      refusé par 409, `ALREADY_EXISTS`.
+      refusé par 409, `ALREADY_EXISTS`. Créé actif, il ne prend pas place sous un parent
+      désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
     tags: [reference]
     requestBody:
       required: true
@@ -155,7 +156,15 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé,
+          `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              parent_inactive: { $ref: ../../../fixtures/api/org_node_creation_refused.json }
 
 /reference/org-nodes/{org_node_id}:
   patch:
@@ -164,7 +173,10 @@
     description: >-
       La modification vaut pour la suite et ne retouche aucune révision marquée
       (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409,
-      `ALREADY_EXISTS`.
+      `ALREADY_EXISTS`. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud
+      actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un
+      service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas
+      actif.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/OrgNodeId
@@ -184,6 +196,16 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé
+          sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant
+          écrit (WF-REF-0080).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              parent_inactive: { $ref: ../../../fixtures/api/org_node_move_refused.json }
 
 /reference/org-nodes/{org_node_id}/activation:
   put:
@@ -373,7 +395,10 @@
     operationId: createResourceRole
     summary: Créer un rôle de ressource
     description: >-
-      Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100).
+      Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100). Le
+      nœud est fixé à la création : un rôle ne se déplace pas d'un nœud à l'autre, il est
+      recréé sous le nouveau (§3.4.4.2.1). Créé actif, il ne naît pas sous un nœud désactivé
+      (WF-REF-0080).
     tags: [reference]
     requestBody:
       required: true
@@ -388,14 +413,24 @@
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé,
+          `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
 
 /reference/resource-roles/{resource_role_id}:
   patch:
     operationId: updateResourceRole
     summary: Modifier un rôle de ressource
     description: >-
-      Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130).
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du
+      rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation
+      le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/ResourceRoleId

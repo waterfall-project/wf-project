@@ -152,6 +152,8 @@ paths:
     $ref: ./paths/platform.yaml#/~1restores
   /audit-events:
     $ref: ./paths/audit.yaml#/~1audit-events
+  /audit-events/facets:
+    $ref: ./paths/audit.yaml#/~1audit-events~1facets
   /reference/readiness:
     $ref: ./paths/reference.yaml#/~1reference~1readiness
   /reference/settings:

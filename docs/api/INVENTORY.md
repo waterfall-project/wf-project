@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**162 opérations sur 126 chemins, dans 13 familles.**
+**163 opérations sur 127 chemins, dans 13 familles.**
 Le contrat cite **184 des 209 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -50,12 +50,12 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-IHM-0060 |
+| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-IHM-0060, WF-IHM-0090 |
 | POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180 |
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060 |
 | PUT | `/users/{user_id}/activation` | Désactiver ou réactiver un compte | WF-ADM-0060, WF-ADM-0120, WF-SEC-0020 |
-| PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-SEC-0020 |
+| PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |
 | POST | `/directory-syncs` | Resynchroniser les comptes depuis l'annuaire | WF-ADM-0070, WF-ARC-0090 |
@@ -86,11 +86,12 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 
 ## Journal d'audit
 
-`paths/audit.yaml` — 1 opération
+`paths/audit.yaml` — 2 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/audit-events` | Journal d'audit | WF-ADM-0100, WF-ADM-0110, WF-ADM-0160, WF-SEC-0030 |
+| GET | `/audit-events` | Journal d'audit | WF-ADM-0100, WF-ADM-0110, WF-ADM-0160, WF-IHM-0060, WF-IHM-0130, WF-SEC-0030 |
+| GET | `/audit-events/facets` | Auteurs et projets du journal d'audit | WF-ADM-0060, WF-ADM-0100, WF-IHM-0130, WF-SEC-0030 |
 
 ## Référentiel commun
 
@@ -102,12 +103,12 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | PATCH | `/reference/settings` | Régler les paramètres communs | WF-REF-0140, WF-REF-0170 |
 | GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
-| POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070 |
-| PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0130 |
+| POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070, WF-REF-0080 |
+| PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0080, WF-REF-0130 |
 | PUT | `/reference/org-nodes/{org_node_id}/activation` | Désactiver ou réactiver un nœud | WF-ADM-0100, WF-REF-0010, WF-REF-0080 |
 | GET | `/reference/resource-roles` | Rôles de ressources | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0150 |
-| POST | `/reference/resource-roles` | Créer un rôle de ressource | WF-REF-0090, WF-REF-0100 |
-| PATCH | `/reference/resource-roles/{resource_role_id}` | Modifier un rôle de ressource | WF-REF-0090, WF-REF-0130 |
+| POST | `/reference/resource-roles` | Créer un rôle de ressource | WF-REF-0080, WF-REF-0090, WF-REF-0100 |
+| PATCH | `/reference/resource-roles/{resource_role_id}` | Modifier un rôle de ressource | WF-REF-0080, WF-REF-0090, WF-REF-0130 |
 | PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0080 |
 | GET | `/reference/duration-units` | Constantes de conversion des unités de durée | WF-PLA-0160 |
 | PUT | `/reference/duration-units` | Régler les constantes de conversion des unités de durée | WF-ADM-0100, WF-PLA-0160, WF-REF-0130 |

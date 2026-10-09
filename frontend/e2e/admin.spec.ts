@@ -148,7 +148,7 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("offers the commands of the accounts, each available with EP-03, and the deletion of none", async ({
+test("offers the commands of the accounts, each available with EP-03 or unavailable as the account lists it, and the deletion of none [WF-ADM-0120-A]", async ({
   page,
 }) => {
   await page.goto("/admin/users");
@@ -168,6 +168,19 @@ test("offers the commands of the accounts, each available with EP-03, and the de
   await page.getByRole("button", { name: "Créer un compte local" }).click();
   await expect(told).toHaveText("Créer un compte local\u00a0: disponible avec EP-03.");
   await expect(page.getByRole("main").getByRole("button", { name: /Supprimer/ })).toHaveCount(0);
+
+  // The last administrator, as the account lists its commands: her deactivation unavailable,
+  // naming the condition she lacks (WF-ADM-0120); what a press says, the component tests prove.
+  const deactivation = accounts.getByRole("button", {
+    name: "Désactiver «\u00a0Camille Martin\u00a0»",
+  });
+  const unmet =
+    "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.";
+  await expect(deactivation).toHaveAttribute("aria-disabled", "true");
+  await expect(deactivation).toHaveAccessibleDescription(unmet);
+  await expect(
+    accounts.getByRole("button", { name: "Attribuer les rôles de «\u00a0Camille Martin\u00a0»" }),
+  ).not.toHaveAttribute("aria-disabled");
 });
 
 test("offers the commands of the access roles, each available with EP-03, and sorts the roles by the server", async ({

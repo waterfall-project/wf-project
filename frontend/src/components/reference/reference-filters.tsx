@@ -172,15 +172,25 @@ interface TextFilterProps {
   readonly value: string | undefined;
   /** The longest text the contract takes. */
   readonly length: number;
+  /** The parameter of the page of a list the server pages, which the filter takes back to its first. */
+  readonly page?: string;
+  /**
+   * The form of a text the contract takes (`pattern` of the field): another is not sent, and the
+   * browser says why.
+   */
+  readonly pattern?: string;
+  /** The form the pattern asks, in words, which the browser says of a text out of it. */
+  readonly form?: string;
 }
 
 /**
- * The filter of a list on a text one of its columns contains — the code of the nodes —, sent when
- * entered, lifted when emptied; of the length the contract takes at most. An entry is dated by the
+ * The filter of a list on a text — the code of the nodes, the correlation of the journal of audit —,
+ * sent when entered, lifted when emptied, back to the first page of a list the server pages; of the
+ * length the contract takes at most. An entry is dated by the
  * text of the address (`useDatedEntry`): a text the address changes — back in the history — shows
  * anew, what was typed and not sent given up, and the field keeps the focus.
  */
-export function TextFilter({ name, label, value, length }: TextFilterProps) {
+export function TextFilter({ name, label, value, length, page, pattern, form }: TextFilterProps) {
   const id = useId();
   const pathname = usePathname();
   const { request } = usePendingAddress();
@@ -188,8 +198,15 @@ export function TextFilter({ name, label, value, length }: TextFilterProps) {
   const text = entered.text ?? value ?? "";
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // A text out of the form the contract takes is not sent: the browser says why — it sends no
+    // such form itself, and this holds where something submits it all the same.
+    if (!event.currentTarget.reportValidity()) {
+      return;
+    }
     const trimmed = text.trim();
-    request((query) => filterHref(pathname, query, name, trimmed === "" ? undefined : trimmed));
+    request((query) =>
+      filterHref(pathname, query, name, trimmed === "" ? undefined : trimmed, page ?? []),
+    );
   };
   return (
     <form aria-label={label} onSubmit={submit} className="flex items-center gap-2 text-sm">
@@ -199,6 +216,8 @@ export function TextFilter({ name, label, value, length }: TextFilterProps) {
         type="search"
         value={text}
         maxLength={length}
+        pattern={pattern}
+        title={form}
         onChange={(event) => {
           enter("text", event.target.value);
         }}

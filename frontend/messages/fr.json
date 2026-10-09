@@ -1278,6 +1278,7 @@
       "noProject": "Hors projet",
       "project": "{code} · {label}",
       "history": "Histoire de « {object} »",
+      "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
       "filters": {
         "label": "Filtres du journal",
@@ -1298,7 +1299,9 @@
         "everyObjectKind": "Toutes les natures",
         "object": "Objet : {object}",
         "lift": "Lever",
-        "liftObject": "Lever le filtre sur « {object} »"
+        "liftObject": "Lever le filtre sur « {object} »",
+        "correlation": "Corrélation",
+        "correlationForm": "Lettres, chiffres, « . », « _ », « - » ; 64 au plus."
       }
     }
   },
@@ -1745,7 +1748,8 @@
       "risk_identified": "risque identifié",
       "org_node_parent_active": "nœud parent actif",
       "org_node_active": "nœud d’organisation actif",
-      "calendar_not_default": "calendrier autre que celui par défaut"
+      "calendar_not_default": "calendrier autre que celui par défaut",
+      "last_administrator": "un autre compte actif portant les permissions d’administration"
     },
     "ProjectExit": {
       "to_state": {
@@ -2032,6 +2036,11 @@
     "ReferenceCommand": {
       "deactivate": "Désactiver",
       "reactivate": "Réactiver"
+    },
+    "UserCommand": {
+      "deactivate": "Désactiver le compte",
+      "reactivate": "Réactiver le compte",
+      "set_access_roles": "Attribuer les rôles du compte"
     },
     "RiskComputedField": {
       "field": {

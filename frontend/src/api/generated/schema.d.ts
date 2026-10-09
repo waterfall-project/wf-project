@@ -385,7 +385,7 @@ export interface paths {
         };
         /**
          * Comptes utilisateurs
-         * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060).
+         * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
          */
         get: operations["listUsers"];
         put?: never;
@@ -454,7 +454,7 @@ export interface paths {
         get?: never;
         /**
          * Attribuer les rôles d'habilitation d'un compte
-         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020).
+         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés.
          */
         put: operations["setUserAccessRoles"];
         post?: never;
@@ -757,9 +757,29 @@ export interface paths {
         };
         /**
          * Journal d'audit
-         * @description Les inscriptions du journal d'audit, chacune avec sa date, son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (WF-ADM-0160, #539). Les filtres se combinent ; le tri est celui des dates, les plus récentes d'abord par défaut, deux inscriptions de même instant dans l'ordre de leur inscription, inversé dans l'ordre décroissant ; le serveur pagine. Lisible sous la permission de consulter le journal (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non ; le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110).
+         * @description Les inscriptions du journal d'audit, chacune avec sa date, son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (WF-ADM-0160, #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`) portant sur le libellé de l'objet que l'inscription garde ; une table plate, qui se trie sur chacune de ses colonnes — la date, l'auteur, l'action, la nature de l'objet, son libellé, le projet et la corrélation (WF-IHM-0060) : sans tri, par date, les plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur inscription, inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne égale, dans cet ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs et les projets que nomme le journal se lisent par `listAuditFacets`. Lisible sous la permission de consulter le journal (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non ; le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110).
          */
         get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-events/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Auteurs et projets du journal d'audit
+         * @description Les comptes et les projets que nomme le journal d'audit entier, chacun une fois, pour choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-IHM-0130) : les comptes auteurs d'au moins une inscription, désactivés compris (WF-ADM-0060), et les projets d'au moins une inscription, consultables ou non par l'appelant. Le journal entier, quels que soient les filtres de `listAuditEvents`, que l'opération ne prend pas : une liste de choix ne se vide pas au gré des autres filtres. Lisible sous la seule permission de consulter le journal (`audit_log.read`) : une fonction en lecture seule n'a que la permission de consulter (WF-ADM-0100), et un auditeur qui ne lit ni les comptes ni tous les projets filtre ainsi le journal par auteur et par projet. Sans pagination : il y a au plus autant d'auteurs que de comptes et de projets que l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de 50 inscriptions en pèse une vingtaine.
+         */
+        get: operations["listAuditFacets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -827,7 +847,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un nœud d'organisation
-         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`.
+         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`. Créé actif, il ne prend pas place sous un parent désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
          */
         post: operations["createOrgNode"];
         delete?: never;
@@ -851,7 +871,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un nœud d'organisation
-         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`.
+         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas actif.
          */
         patch: operations["updateOrgNode"];
         trace?: never;
@@ -891,7 +911,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un rôle de ressource
-         * @description Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100).
+         * @description Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100). Le nœud est fixé à la création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1). Créé actif, il ne naît pas sous un nœud désactivé (WF-REF-0080).
          */
         post: operations["createResourceRole"];
         delete?: never;
@@ -915,7 +935,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un rôle de ressource
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080).
          */
         patch: operations["updateResourceRole"];
         trace?: never;
@@ -2829,7 +2849,8 @@ export interface components {
         };
         /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative, le montant corrigé des lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le compteur d'aucun nœud. */
         LockVersion: number;
-        User: {
+        /** @description Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table des comptes complète des siennes (`User`). */
+        UserAccount: {
             user_id: components["schemas"]["Uuid"];
             last_name: string;
             first_name: string;
@@ -2888,11 +2909,12 @@ export interface components {
                 [key: string]: components["schemas"]["GridPreferences"] | null;
             };
         };
-        UserSelf: components["schemas"]["User"] & {
+        /** @description Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les commandes de la table des comptes : la session ne s'administre pas par elle. */
+        UserSelf: components["schemas"]["UserAccount"] & {
             display_preferences?: components["schemas"]["DisplayPreferences"];
         };
         /**
-         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification doit lui donner sous l'administration (FBS-1.5, #518) ; le journal ne se modifiant pas, elle n'a pas de permission de modifier. L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
+         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait que sa permission de consulter. L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
          * @enum {string}
          */
         PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "audit_log.read" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cost_curve.read" | "portfolio_cost_curve.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "revision_abandon" | "reference_designate" | "structure_merge" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore" | "project_create" | "all_projects_read";
@@ -2920,6 +2942,27 @@ export interface components {
         PasswordChange: {
             current_password: string;
             new_password: string;
+        };
+        /**
+         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
+         * @enum {string}
+         */
+        UserCommand: "deactivate" | "reactivate" | "set_access_roles";
+        /**
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @enum {string}
+         */
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "last_administrator";
+        UserCommandAvailability: {
+            command: components["schemas"]["UserCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Un compte tel que la table des comptes le lit : le compte, et ses commandes (`available_commands`, WF-IHM-0090). */
+        User: components["schemas"]["UserAccount"] & {
+            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            available_commands: components["schemas"]["UserCommandAvailability"][];
         };
         UserCreate: {
             last_name: string;
@@ -3075,14 +3118,22 @@ export interface components {
          * @enum {string}
          */
         AuditObjectKind: "project" | "revision" | "cost_structure" | "risk" | "cost_line" | "import" | "user" | "access_role" | "backup" | "external_backup_upload";
-        /** @description L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis — ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets (WF-SEC-0030). */
+        /** @description La révision d'un objet du journal, par son identifiant et son libellé au moment de l'action (WF-SEC-0030). */
+        AuditRevision: {
+            revision_id: components["schemas"]["Uuid"];
+            /** @description Le nom de version de la révision au moment de l'action ; nul pour une révision en cours d'élaboration, qui n'en a pas encore (WF-REV-0010). */
+            label: string | null;
+        };
+        /** @description L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis — ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets (WF-SEC-0030). Un objet qui vit dans une révision la nomme (`revision`), pour que l'écran y mène. */
         AuditObject: {
             kind: components["schemas"]["AuditObjectKind"];
             object_id: components["schemas"]["Uuid"];
             /** @description Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription. */
             label: string | null;
+            /** @description La révision où l'objet vit, au moment de l'action : celle dont le registre porte le risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, celle du différentiel d'un avenant (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090), un compte, un rôle, une sauvegarde, un dépôt. */
+            revision: components["schemas"]["AuditRevision"] | null;
         };
-        /** @description Le projet de l'objet, par son identifiant, son code et son libellé au moment de l'action. */
+        /** @description Un projet du journal, par son identifiant, son code et son libellé : ceux du moment de l'action dans une inscription (`AuditEvent.project`), ceux d'aujourd'hui dans les facettes (`AuditFacets.projects`). */
         AuditProject: {
             project_id: components["schemas"]["Uuid"];
             code: string;
@@ -3101,6 +3152,19 @@ export interface components {
             project: components["schemas"]["AuditProject"] | null;
             /** @description L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme. */
             correlation_id: string;
+        };
+        /** @description Un compte auteur d'au moins une inscription du journal. */
+        AuditActorFacet: {
+            user_id: components["schemas"]["Uuid"];
+            /** @description Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060). */
+            display_name: string;
+        };
+        /** @description Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les lire, sans celle de lire les comptes ni les projets (WF-ADM-0100). */
+        AuditFacets: {
+            /** @description Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant ; la plateforme n'y est pas : `actor_kind` la retient. */
+            actors: components["schemas"]["AuditActorFacet"][];
+            /** @description Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé d'aujourd'hui, dans l'ordre des codes puis des identifiants : consultables ou non par l'appelant, comme le journal les nomme. */
+            projects: components["schemas"]["AuditProject"][];
         };
         /** @description Référentiel minimal exigé pour créer un projet (WF-CYC-0120). Le refus nomme chaque prérequis manquant. */
         ReferenceReadiness: {
@@ -3147,11 +3211,6 @@ export interface components {
          * @enum {string}
          */
         ReferenceCommand: "deactivate" | "reactivate";
-        /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409.
-         * @enum {string}
-         */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default";
         ReferenceCommandAvailability: {
             command: components["schemas"]["ReferenceCommand"];
             is_available: boolean;
@@ -3179,6 +3238,7 @@ export interface components {
         OrgNodeWrite: {
             code: string;
             label: string;
+            /** @description Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`. */
             parent_id?: components["schemas"]["Uuid"] | null;
         };
         /** @description Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas. */
@@ -3218,13 +3278,18 @@ export interface components {
         ResourceRole: components["schemas"]["ResourceRoleImage"] & components["schemas"]["ReferenceObjectCommands"];
         ResourceRoleWrite: {
             label: string;
+            /** @description Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080). */
             org_node_id: components["schemas"]["Uuid"];
             cost_category_id: components["schemas"]["Uuid"];
             calendar_id: components["schemas"]["Uuid"];
             capacity: components["schemas"]["RoleCapacity"];
         };
-        /** @description Modification d'un rôle de ressource : porte le compteur lu, qu'une création n'a pas. */
-        ResourceRoleUpdate: components["schemas"]["ResourceRoleWrite"] & {
+        /** @description Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). */
+        ResourceRoleUpdate: {
+            label: string;
+            cost_category_id: components["schemas"]["Uuid"];
+            calendar_id: components["schemas"]["Uuid"];
+            capacity: components["schemas"]["RoleCapacity"];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Les trois constantes de l'installation par lesquelles les jours, les semaines et les mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par défaut, « 2 j » vaut seize heures, « 1 sem » quarante et « 1 m » cent soixante. Communes à tous les projets, comme la devise l'est aux montants. */
@@ -5546,7 +5611,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Dernier compte portant les permissions d'administration (WF-ADM-0120). */
+            /** @description La désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la commande `deactivate` du compte dit d'avance (`available_commands`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5584,7 +5649,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Des rôles qui retireraient au dernier compte actif qui les porte la permission de modifier les comptes ou celle de modifier les rôles d'habilitation, refusés, rien n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, comme `LAST_PROJECT_MANAGER` — le refus dépend des rôles envoyés, qu'aucune commande ne dit d'avance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -5828,7 +5901,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Le rôle est le dernier à porter les permissions d'administration (WF-ADM-0120). */
+            /** @description Une modification qui retirerait au dernier compte actif qui les porte la permission de modifier les comptes ou celle de modifier les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `LAST_ADMINISTRATOR`, le refus dépendant des permissions envoyées. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6156,7 +6229,13 @@ export interface operations {
                 object_kind?: components["schemas"]["AuditObjectKind"];
                 /** @description Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de coût, d'un compte. */
                 object_id?: components["schemas"]["Uuid"];
-                /** @description Sens du tri des dates ; absent, décroissant : les inscriptions les plus récentes d'abord. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                search?: components["parameters"]["Search"];
+                /** @description Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une corrélation que le journal ne porte pas ne retient rien. */
+                correlation_id?: string;
+                /** @description Colonne du tri ; absente, la date. Les colonnes du journal qui se trient (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, la plateforme, qui n'en a pas, après les comptes dans l'ordre croissant ; l'action et la nature de l'objet, dans l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans libellé — une sauvegarde — après les autres dans l'ordre croissant ; le projet, par son code, une inscription sans projet après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par caractère dans l'ordre des points de code Unicode. */
+                sort_by?: "occurred_at" | "actor" | "action" | "object_kind" | "object_label" | "project" | "correlation_id";
+                /** @description Sens du tri ; absent, décroissant pour la date — les inscriptions les plus récentes d'abord —, croissant pour toute autre colonne. */
                 sort_order?: components["schemas"]["SortOrder"];
             };
             header?: never;
@@ -6188,6 +6267,28 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listAuditFacets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Auteurs et projets du journal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditFacets"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     getReferenceReadiness: {
@@ -6332,7 +6433,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateOrgNode: {
@@ -6364,6 +6473,15 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setOrgNodeActivation: {
@@ -6505,7 +6623,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé, `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateResourceRole: {

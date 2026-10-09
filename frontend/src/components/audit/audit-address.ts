@@ -4,16 +4,24 @@
  * The filters of the journal of audit (FBS-1.5, WF-SEC-0030), as the address carries them, under
  * the names of the contract (`listAuditEvents`): the period — `from` included, `to` excluded, two
  * instants —, the author (`user_id`), whether an account or the platform acted (`actor_kind`), the
- * actions (`actions`, a list), the project (`project_id`), and the nature and the identifier of the
- * object (`object_kind`, `object_id`) — the history of one object. The page reads them and asks the
- * API with them; a filter chosen only changes the address, back to the first page. The server
- * filters, never the front (WF-ARC-0020).
+ * actions (`actions`, a list), the project (`project_id`), the nature and the identifier of the
+ * object (`object_kind`, `object_id`) — the history of one object —, and the correlation of the
+ * request that produced the inscriptions (`correlation_id`, WF-OBS-0020); with the search of the
+ * grid on the label of the object (`search`) and its sort (`sort_by`, `sort_order`). The page reads
+ * them and asks the API with them; a filter chosen only changes the address, back to the first page.
+ * The server filters and sorts, never the front (WF-ARC-0020).
  *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
 import type { components, operations } from "@/api/generated/schema";
 import { readValues } from "@/components/grid/filters";
-import { CONTRACT_ADDRESS, OFFSET, pagedList } from "@/components/grid/query";
+import {
+  CONTRACT_ADDRESS,
+  type GridQuery,
+  OFFSET,
+  pagedList,
+  SEARCH,
+} from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
 
@@ -29,6 +37,9 @@ export type AuditObjectKind = components["schemas"]["AuditObjectKind"];
 /** What the page asks `listAuditEvents`, besides nothing: the query of the contract. */
 export type AuditQuery = NonNullable<operations["listAuditEvents"]["parameters"]["query"]>;
 
+/** A column of the contract the server sorts the journal by. */
+export type AuditSort = NonNullable<AuditQuery["sort_by"]>;
+
 /** The parameters of the address, as the contract names them. */
 export const FROM = "from";
 export const TO = "to";
@@ -38,6 +49,7 @@ export const ACTIONS = "actions";
 export const PROJECT = "project_id";
 export const OBJECT_KIND = "object_kind";
 export const OBJECT = "object_id";
+export const CORRELATION = "correlation_id";
 
 /** The parameter of the page of the journal, which every filter takes back to its first. */
 export const AUDIT_PAGE = OFFSET;
@@ -53,6 +65,7 @@ export const AUDIT_LIST: PagedList = pagedList(
   PROJECT,
   OBJECT_KIND,
   OBJECT,
+  CORRELATION,
 );
 
 /**
@@ -115,7 +128,22 @@ export interface AuditFilters {
   readonly project: string | undefined;
   readonly objectKind: AuditObjectKind | undefined;
   readonly object: string | undefined;
+  /** The correlation of the request whose inscriptions the address asks. */
+  readonly correlation: string | undefined;
 }
+
+/** A correlation as the contract writes it: the API refuses any other. */
+const CORRELATION_FORM = "[A-Za-z0-9._\\-]{1,64}";
+
+/** A correlation as the contract writes it, checked in the address. */
+const CORRELATION_ID = new RegExp(`^${CORRELATION_FORM}$`);
+
+/**
+ * A correlation as a field takes it (`pattern`, anchored by the browser, written for its flag `v`):
+ * that of the contract, blanks around it tolerated — a correlation pasted —, the field trimming it
+ * before it is sent.
+ */
+export const CORRELATION_PATTERN = `\\s*${CORRELATION_FORM}\\s*`;
 
 /** An identifier as the contract writes it (`Uuid`): the API refuses any other. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -171,6 +199,7 @@ function instantOf(search: SearchParameters, name: string): string | undefined {
  */
 export function readAuditFilters(search: SearchParameters): AuditFilters {
   const kind = search.get(OBJECT_KIND);
+  const correlation = search.get(CORRELATION);
   return {
     from: instantOf(search, FROM),
     to: instantOf(search, TO),
@@ -180,12 +209,17 @@ export function readAuditFilters(search: SearchParameters): AuditFilters {
     project: uuidOf(search, PROJECT),
     objectKind: OBJECT_KINDS.find((each) => each === kind),
     object: uuidOf(search, OBJECT),
+    correlation: correlation !== null && CORRELATION_ID.test(correlation) ? correlation : undefined,
   };
 }
 
-/** Whether the filters narrow the journal: an empty journal so narrowed is no empty journal. */
-export function narrows(filters: AuditFilters): boolean {
+/**
+ * Whether the filters or the search narrow the journal: an empty journal so narrowed is no empty
+ * journal.
+ */
+export function narrows(filters: AuditFilters, search: string | undefined): boolean {
   return (
+    search !== undefined ||
     filters.from !== undefined ||
     filters.to !== undefined ||
     filters.user !== undefined ||
@@ -193,23 +227,25 @@ export function narrows(filters: AuditFilters): boolean {
     filters.actions.length > 0 ||
     filters.project !== undefined ||
     filters.objectKind !== undefined ||
-    filters.object !== undefined
+    filters.object !== undefined ||
+    filters.correlation !== undefined
   );
 }
 
 /**
- * The query of the contract for the filters, the direction of the sort of the dates and the page:
+ * The query of the contract for the filters, the search and the sort of the grid, and the page:
  * only what narrows is sent — one author kind, not both —, the server's defaults standing for the
- * rest: the most recent first, the first page.
+ * rest: the first page, and, the sort lifted, the most recent first.
  */
 export function auditQuery(
   filters: AuditFilters,
-  order: AuditQuery["sort_order"],
+  grid: GridQuery<AuditSort>,
   offset: number | undefined,
 ): AuditQuery {
   const [actorKind, other] = filters.actorKinds;
   return {
     ...(offset === undefined ? {} : { offset }),
+    ...(grid.search === undefined ? {} : { search: grid.search }),
     ...(filters.from === undefined ? {} : { from: filters.from }),
     ...(filters.to === undefined ? {} : { to: filters.to }),
     ...(filters.user === undefined ? {} : { user_id: filters.user }),
@@ -218,7 +254,8 @@ export function auditQuery(
     ...(filters.project === undefined ? {} : { project_id: filters.project }),
     ...(filters.objectKind === undefined ? {} : { object_kind: filters.objectKind }),
     ...(filters.object === undefined ? {} : { object_id: filters.object }),
-    ...(order === undefined ? {} : { sort_order: order }),
+    ...(filters.correlation === undefined ? {} : { correlation_id: filters.correlation }),
+    ...(grid.sort === undefined ? {} : { sort_by: grid.sort.column, sort_order: grid.sort.order }),
   };
 }
 
@@ -244,24 +281,56 @@ export function auditHref(
   return text === "" ? pathname : `${pathname}?${text}`;
 }
 
+/** Every filter of the journal, and its search: what the history of an object or a request lifts. */
+const EVERY_FILTER = [
+  FROM,
+  TO,
+  USER,
+  ACTOR_KIND,
+  ACTIONS,
+  PROJECT,
+  OBJECT_KIND,
+  OBJECT,
+  CORRELATION,
+  SEARCH,
+] as const;
+
 /**
- * The address of the history of an object: the journal filtered on its nature and its identifier,
- * every other filter lifted — its whole history, whoever acted, whatever the action, the project
- * or the period (decision of the review of EP-02/L41e) —, its sort kept, back to its first page.
+ * The address of the journal filtered on some filters alone, every other filter and the search
+ * lifted, its sort kept, back to its first page.
+ */
+function aloneHref(
+  pathname: string,
+  query: URLSearchParams,
+  alone: Readonly<Record<string, string>>,
+): string {
+  const lifted = Object.fromEntries(EVERY_FILTER.map((name) => [name, undefined]));
+  return auditHref(pathname, query, { ...lifted, ...alone });
+}
+
+/**
+ * The address of the history of an object: the journal filtered on its nature and its identifier
+ * alone — its whole history, whoever acted, whatever the action, the project, the period, the
+ * correlation or the label it bore (decision of the review of EP-02/L41e) —, its sort kept, back to
+ * its first page.
  */
 export function historyHref(
   pathname: string,
   query: URLSearchParams,
   object: { readonly kind: AuditObjectKind; readonly object_id: string },
 ): string {
-  return auditHref(pathname, query, {
-    [FROM]: undefined,
-    [TO]: undefined,
-    [USER]: undefined,
-    [ACTOR_KIND]: undefined,
-    [ACTIONS]: undefined,
-    [PROJECT]: undefined,
-    [OBJECT_KIND]: object.kind,
-    [OBJECT]: object.object_id,
-  });
+  return aloneHref(pathname, query, { [OBJECT_KIND]: object.kind, [OBJECT]: object.object_id });
+}
+
+/**
+ * The address of the inscriptions of one request — and of the background task it set off, under
+ * the same correlation (WF-OBS-0020) —: the journal filtered on their correlation alone, as the
+ * history of an object is, its sort kept, back to its first page.
+ */
+export function correlationHref(
+  pathname: string,
+  query: URLSearchParams,
+  correlation: string,
+): string {
+  return aloneHref(pathname, query, { [CORRELATION]: correlation });
 }

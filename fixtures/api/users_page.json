@@ -1,5 +1,5 @@
 {
-  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau.",
+  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation d'Alix Moreau disponible (WF-ADM-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -18,6 +18,20 @@
           "Direction de projet"
         ],
         "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "last_administrator"
+            ]
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
         "audit": {
           "created_at": "2025-09-01T09:00:00Z",
           "created_by": {
@@ -48,6 +62,18 @@
           "Chef de projet"
         ],
         "has_avatar": false,
+        "available_commands": [
+          {
+            "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
         "audit": {
           "created_at": "2026-01-12T10:00:00Z",
           "created_by": {

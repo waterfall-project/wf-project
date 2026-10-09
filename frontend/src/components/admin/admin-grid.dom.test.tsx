@@ -285,6 +285,55 @@ describe("the commands and the state of the accounts", () => {
     await expectAccessible(container);
   });
 
+  it("presents the deactivation of the last administrator unavailable, naming the condition she lacks, the attribution of her roles available, as the account lists them [WF-ADM-0120-A]", async () => {
+    render(userList(NO_QUERY, users, { editable: true }));
+    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
+    // Camille Martin is the one account active that holds the permissions of administration.
+    const deactivation = within(grid).getByRole("button", {
+      name: "Désactiver «\u00a0Camille Martin\u00a0»",
+    });
+    const unmet =
+      "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.";
+    expect(deactivation).toHaveAttribute("aria-disabled", "true");
+    expect(deactivation).toHaveAccessibleDescription(unmet);
+    // A press does not run it: it says the condition it lacks.
+    await userEvent.click(deactivation);
+    expect(screen.getByRole("status").textContent).toBe(
+      `Désactiver «\u00a0Camille Martin\u00a0»\u00a0: ${unmet}`,
+    );
+    // Giving her more roles takes none of her permissions away: the attribution stays available.
+    const attribution = within(grid).getByRole("button", {
+      name: "Attribuer les rôles de «\u00a0Camille Martin\u00a0»",
+    });
+    expect(attribution).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(attribution);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Attribuer les rôles de «\u00a0Camille Martin\u00a0»\u00a0: disponible avec EP-03.",
+    );
+    // Another account active is no last administrator: its deactivation is available.
+    expect(
+      within(grid).getByRole("button", { name: "Désactiver «\u00a0Lucas Petit\u00a0»" }),
+    ).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("presents no command an account does not list, its modification kept to a session that may modify the accounts", () => {
+    // Dominique Bernard read as a session would that the server listed none of her commands for.
+    const bare = {
+      ...users,
+      items: users.items.map((user, at) => (at === 0 ? { ...user, available_commands: [] } : user)),
+    };
+    render(userList(NO_QUERY, bare, { editable: true }));
+    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
+    const name = "«\u00a0Dominique Bernard\u00a0»";
+    expect(within(grid).getByRole("button", { name: `Modifier ${name}` })).toBeInTheDocument();
+    for (const command of ["Désactiver", "Réactiver", "Attribuer les rôles de"]) {
+      expect(within(grid).queryByRole("button", { name: `${command} ${name}` })).toBeNull();
+    }
+    expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
+      6,
+    );
+  });
+
   it("tells the creation of a local account pressed in the header when the list holds no account, nothing narrowing it", async () => {
     const none = { items: [], meta: { limit: 50, offset: 0, total: 0 } };
     render(

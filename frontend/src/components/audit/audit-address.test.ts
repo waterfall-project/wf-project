@@ -24,9 +24,11 @@ describe("what the journal reads of its address", () => {
       project: ID,
       objectKind: OBJECT_KINDS[0],
       object: ID,
+      correlation: "req-1",
     };
-    const asked = Object.keys(auditQuery(every, "asc", undefined));
-    expect(asked).toHaveLength(9);
+    const sorted = { sort: { column: "actor", order: "asc" }, search: "couts" } as const;
+    const asked = Object.keys(auditQuery(every, sorted, undefined));
+    expect(asked).toHaveLength(12);
     expect(AUDIT_LIST.reads).toEqual(expect.arrayContaining(asked));
   });
 });

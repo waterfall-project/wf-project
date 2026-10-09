@@ -4,17 +4,20 @@
  * The journal of audit (FBS-1.5, WF-SEC-0030), outside any project: a page of the inscriptions the
  * server retains, each with its date, its author, its action, its object and its project as the
  * inscription keeps them — the object and the project links where the session may consult them
- * (WF-ADM-0110) —, on a dense grid read only, sorted by date, the most recent first unless the
- * address asks otherwise, filtered and paged by the server as the address asks, under the names of
- * the contract (`from`, `to`, `user_id`, `actor_kind`, `actions`, `project_id`, `object_kind`,
- * `object_id`, `sort_order`, `offset`). The journal of a project terminated long ago is read by the
- * same filter as that of a project in progress. Nothing modifies nor deletes an inscription: the
- * screen offers no command.
+ * (WF-ADM-0110) —, on a dense grid read only, sorted by date, the most recent first, unless the
+ * address or the account asks another column or direction, searched on the label of the object,
+ * filtered and paged by the server as the address asks, under the names of the contract (`from`,
+ * `to`, `user_id`, `actor_kind`, `actions`, `project_id`, `object_kind`, `object_id`,
+ * `correlation_id`, `search`, `sort_by`, `sort_order`, `offset`). The journal of a project
+ * terminated long ago is read by the same filter as that of a project in progress. Nothing modifies
+ * nor deletes an inscription: the screen offers no command.
  *
  * The screen is the consultation of the journal (`audit_log.read`): a session without it finds it
- * not found, as an address that leads nowhere (WF-ADM-0110). The authors are offered from the
- * accounts, for a session that may read them (`users.read`); the projects, from those the session
- * may open (`listProjects`), which its links lead to. A period that ends before it starts, which
+ * not found, as an address that leads nowhere (WF-ADM-0110). The authors and the projects are
+ * offered from those the whole journal names (`listAuditFacets`), which that permission alone reads:
+ * an auditor who may not read the accounts filters by author all the same. The links lead to the
+ * projects the session may open (`listProjects`), and to the screens of their objects whose function
+ * it may read (`auditReach`). A period that ends before it starts, which
  * the API refuses (422), is said in place of the inscriptions, the filters kept to be changed; any
  * other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -23,7 +26,7 @@ import { notFound } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import { readEveryPage } from "@/api/every-page";
-import { type Problem, readOrRefused } from "@/api/problem";
+import { type Problem, readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   AUDIT_LIST,
@@ -37,6 +40,8 @@ import {
   AUDIT_SORTS,
   type AuditEvent,
   type AuditPage,
+  type AuditReach,
+  auditReach,
   type AuditSort,
   NEWEST_FIRST,
 } from "@/components/audit/audit-columns";
@@ -48,7 +53,7 @@ import {
 import { AuditGrid } from "@/components/audit/audit-grid";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { type GridQuery, type GridSort, readGridQuery } from "@/components/grid/query";
+import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -56,7 +61,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { PROJECT_STATES } from "@/navigation/home";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
-import { type Permission, requestSession, type Session } from "@/session/request";
+import { requestSession, type Session } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
@@ -82,37 +87,35 @@ function AuditHeader({ count }: { readonly count: number | undefined }) {
 }
 
 /**
- * The accounts that may have acted, by their names, deactivated ones included (WF-ADM-0060): every
- * page of them, for a session that may read them; none otherwise.
+ * The authors and the projects the whole journal names, to choose among in its filters: the accounts
+ * by the names they show today, deactivated ones included (WF-ADM-0060), the projects by their codes
+ * and labels, whether the session may open them or not.
  */
-async function readAuthors(permissions: readonly Permission[]): Promise<AuthorChoice[]> {
-  if (!permissions.includes("users.read")) {
-    return [];
-  }
-  const users = await readEveryPage("listUsers", (page) =>
-    serverClient().GET("/users", {
-      params: { query: { ...page, include_inactive: true, sort_by: "last_name" } },
-    }),
+async function readFacets(): Promise<{
+  readonly authors: AuthorChoice[];
+  readonly projects: ProjectChoice[];
+}> {
+  const facets = await readOrFail("listAuditFacets", () =>
+    serverClient().GET("/audit-events/facets"),
   );
-  return users.map((user) => ({
-    id: user.user_id,
-    firstName: user.first_name,
-    lastName: user.last_name,
-  }));
+  return {
+    authors: facets.actors.map((actor) => ({ id: actor.user_id, name: actor.display_name })),
+    projects: facets.projects.map((project) => ({
+      id: project.project_id,
+      code: project.code,
+      label: project.label,
+    })),
+  };
 }
 
-/** The projects the session may open, in every state: every page of them. */
-async function readProjects(): Promise<ProjectChoice[]> {
+/** The projects the session may open, in every state, by their identifiers: every page of them. */
+async function readOpenable(): Promise<string[]> {
   const projects = await readEveryPage("listProjects", (page) =>
     serverClient().GET("/projects", {
       params: { query: { ...page, states: [...PROJECT_STATES], sort_by: "code" } },
     }),
   );
-  return projects.map((project) => ({
-    id: project.project_id,
-    code: project.code,
-    label: project.label,
-  }));
+  return projects.map((project) => project.project_id);
 }
 
 /**
@@ -137,16 +140,16 @@ interface Journal {
 }
 
 /**
- * A page of the inscriptions the filters retain, in the direction of the sort asked, from the place
+ * A page of the inscriptions the filters and the search retain, in the sort asked, from the place
  * the address asks; or the envelope of the filters the API refuses (422).
  */
 async function readJournal(
   filters: AuditFilters,
-  order: GridSort<AuditSort>["order"] | undefined,
+  query: GridQuery<AuditSort>,
   offset: number | undefined,
 ): Promise<{ readonly journal: Journal } | { readonly refused: Problem }> {
   const read = await readOrRefused("listAuditEvents", FILTERS_REFUSED, () =>
-    serverClient().GET("/audit-events", { params: { query: auditQuery(filters, order, offset) } }),
+    serverClient().GET("/audit-events", { params: { query: auditQuery(filters, query, offset) } }),
   );
   return read.kind === "read" ? { journal: read.data } : { refused: read.problem };
 }
@@ -182,13 +185,13 @@ function Inscriptions({
   narrowed,
   query,
   preferences,
-  openable,
+  reach,
 }: {
   readonly journal: Journal;
   readonly narrowed: boolean;
   readonly query: GridQuery<AuditSort>;
   readonly preferences: GridPreferences | undefined;
-  readonly openable: readonly string[];
+  readonly reach: AuditReach;
 }) {
   const t = useTranslations("admin.auditLog");
   if (journal.meta.total === 0 && !narrowed) {
@@ -201,7 +204,7 @@ function Inscriptions({
         page={journal.meta}
         query={query}
         preferences={preferences}
-        openable={openable}
+        reach={reach}
       />
       <ListPages
         list={AUDIT_LIST}
@@ -242,10 +245,10 @@ export default async function AuditLogPage({
   // The address is the truth; then the sort the account keeps; then the server's: newest first.
   const query = readGridQuery(search, AUDIT_SORTS, preferences?.sort ?? NEWEST_FIRST);
   const filters = readAuditFilters(search);
-  const [read, users, projects] = await Promise.all([
-    readJournal(filters, query.sort?.order, offsetOf(search.get(OFFSET_PARAMETER))),
-    readAuthors(permissions),
-    readProjects(),
+  const [read, facets, openable] = await Promise.all([
+    readJournal(filters, query, offsetOf(search.get(OFFSET_PARAMETER))),
+    readFacets(),
+    readOpenable(),
   ]);
   const journal = "journal" in read ? read.journal : undefined;
   return (
@@ -255,8 +258,8 @@ export default async function AuditLogPage({
         <AuditHeader count={journal?.meta.total} />
         <AuditFilterBar
           filters={filters}
-          users={users}
-          projects={projects}
+          users={facets.authors}
+          projects={facets.projects}
           named={namedBy(journal?.items ?? [], filters)}
         />
         {"refused" in read ? (
@@ -264,10 +267,10 @@ export default async function AuditLogPage({
         ) : (
           <Inscriptions
             journal={read.journal}
-            narrowed={narrows(filters)}
+            narrowed={narrows(filters, query.search)}
             query={query}
             preferences={preferences}
-            openable={projects.map((project) => project.id)}
+            reach={auditReach(permissions, openable)}
           />
         )}
       </PendingAddress>

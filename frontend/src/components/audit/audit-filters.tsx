@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The filters of the journal of audit (FBS-1.5, WF-SEC-0030): by period, by author — an account,
- * or whether an account or the platform acted —, by action, by project and by object, its nature
- * and the one object whose history the address asks. A filter chosen only changes the address,
+ * or whether an account or the platform acted —, by action, by project, by object, its nature and
+ * the one object whose history the address asks, and by the correlation of a request (WF-OBS-0020).
+ * The authors and the projects to choose are those the whole journal names (`listAuditFacets`),
+ * which the consultation of the journal alone reads (WF-ADM-0100). A filter chosen only changes the address,
  * under the names of the contract (`audit-address.ts`), back to the first page; the page reads anew
  * the inscriptions the server retains. The front filters nothing. A change goes on from the address
  * last asked (`usePendingAddress`): a filter chosen right after a sort or another filter keeps it.
@@ -37,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TextFilter } from "@/components/reference/reference-filters";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useHydrated } from "@/components/use-hydrated";
@@ -50,6 +53,8 @@ import {
   type AuditAction,
   type AuditFilters,
   auditHref,
+  CORRELATION,
+  CORRELATION_PATTERN,
   FROM,
   OBJECT,
   OBJECT_KIND,
@@ -59,19 +64,21 @@ import {
   USER,
 } from "./audit-address";
 
-/** An account that may be an author, by its identifier and its names. */
+/** An account author of an inscription, by its identifier and the name it shows today. */
 export interface AuthorChoice {
   readonly id: string;
-  readonly firstName: string;
-  readonly lastName: string;
+  readonly name: string;
 }
 
-/** A project, by its identifier, its code — if it has one — and its label. */
+/** A project of the journal, by its identifier, its code and its label. */
 export interface ProjectChoice {
   readonly id: string;
-  readonly code: string | null | undefined;
+  readonly code: string;
   readonly label: string;
 }
+
+/** The longest correlation the contract takes. */
+const CORRELATION_LENGTH = 64;
 
 /** Change filters of the journal, from the address last asked. */
 function useAuditFilter() {
@@ -261,9 +268,9 @@ function ObjectShown({ name, returnTo }: { readonly name: string; readonly retur
 /** What the filters show: those the address asks, and what each offers to choose. */
 export interface AuditFilterBarProps {
   readonly filters: AuditFilters;
-  /** The accounts that may be authors, by their names; none when the session may not read them. */
+  /** The accounts authors of an inscription of the journal, by their names. */
   readonly users: readonly AuthorChoice[];
-  /** The projects the session may open, by their codes and labels. */
+  /** The projects of the journal, by their codes and labels, whether the session may open them or not. */
   readonly projects: readonly ProjectChoice[];
   /**
    * The names the inscriptions shown give what the address names and no choice offers: the author,
@@ -286,12 +293,9 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
     value: kind,
     text: t(`enums.AuditActorKind.${kind}`),
   }));
-  const authors = users.map((user) => ({
-    value: user.id,
-    text: t("admin.users.named", { firstName: user.firstName, lastName: user.lastName }),
-  }));
+  const authors = users.map((user) => ({ value: user.id, text: user.name }));
   const projectName = ({ code, label }: Omit<ProjectChoice, "id">) =>
-    code === null || code === undefined ? label : t("admin.auditLog.project", { code, label });
+    t("admin.auditLog.project", { code, label });
   const offered = projects.map((project) => ({ value: project.id, text: projectName(project) }));
   const kinds = OBJECT_KINDS.map((kind) => ({
     value: kind,
@@ -311,8 +315,8 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
         chosen={filters.actorKinds}
         page={AUDIT_PAGE}
       />
-      {/* Offered when there is an author to choose, or one to clear: none to a session that may
-      not read the accounts. */}
+      {/* Offered when there is an author to choose, or one to clear: none in a journal only the
+      platform wrote. */}
       {authors.length === 0 && filters.user === undefined ? null : (
         <ChoiceFilter
           id={ids.user}
@@ -355,6 +359,15 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
           returnTo={ids.kind}
         />
       )}
+      <TextFilter
+        name={CORRELATION}
+        label={t("admin.auditLog.filters.correlation")}
+        value={filters.correlation}
+        length={CORRELATION_LENGTH}
+        page={AUDIT_PAGE}
+        pattern={CORRELATION_PATTERN}
+        form={t("admin.auditLog.filters.correlationForm")}
+      />
     </section>
   );
 }
