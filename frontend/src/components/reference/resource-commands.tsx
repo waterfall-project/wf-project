@@ -140,6 +140,16 @@ export function OrgNodeDialog({
   // An active node, or one created active, takes place under an active one alone (WF-REF-0080), a
   // deactivated one under any node read, its parent offered all the same.
   const parents = parentsOf(node, nodes, rows);
+  // What names the node that holds a code taken (409 `ALREADY_EXISTS`): the tree, or the list.
+  const names = Object.fromEntries(
+    [
+      ...rows.map((each) => ({ id: each.org_node_id, code: each.code, label: each.label })),
+      ...nodes,
+    ].map(({ id, code, label }) => [
+      id,
+      code === undefined ? label : t("codedChoice", { code, label }),
+    ]),
+  );
   const body = ({ code = "", label = "", parent_id = "" }: Draft) => ({
     code,
     label,
@@ -151,6 +161,7 @@ export function OrgNodeDialog({
       title={node === undefined ? t("orgNodeForm.create") : t("modifyNamed", { name: node.label })}
       hint={t(node === undefined ? "orgNodeForm.createHint" : "orgNodeForm.modifyHint")}
       creating={node === undefined}
+      names={names}
       fields={[
         required("code", columns("code"), CODE_LENGTH),
         required("label", columns("label"), LABEL_LENGTH),

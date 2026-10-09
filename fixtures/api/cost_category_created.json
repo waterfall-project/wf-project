@@ -1,5 +1,5 @@
 {
-  "summary": "La catégorie « Petites fournitures » créée aujourd'hui sous la nature des débours, son code comptable 606001, active et sa désactivation offerte (WF-REF-0040, WF-IHM-0090).",
+  "summary": "La catégorie « Petites fournitures » créée aujourd'hui sous la nature des débours, son code comptable 606001, active, sa désactivation offerte et son rattachement à une nature d'un autre type disponible, aucune ligne ne l'employant ni aucun taux ne lui étant attaché (WF-REF-0040, WF-IHM-0090).",
   "value": {
     "cost_category_id": "01926f3a-7c00-7000-8000-000000000406",
     "code": "FRN-001",
@@ -11,6 +11,11 @@
     "available_commands": [
       {
         "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "change_cost_type",
         "is_available": true,
         "missing_conditions": []
       }

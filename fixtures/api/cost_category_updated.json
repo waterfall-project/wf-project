@@ -1,5 +1,5 @@
 {
-  "summary": "La sous-traitance renommée « Sous-traitance générale », sa nature et son code comptable inchangés, sa version avancée ; aucune révision marquée n'en est affectée (WF-REF-0040, WF-REF-0130).",
+  "summary": "La sous-traitance renommée « Sous-traitance générale », sa nature et son code comptable inchangés, sa version avancée ; employée par le devis du projet témoin, elle ne se rattache qu'à une nature du même type, et aucune révision marquée n'en est affectée (WF-REF-0040, WF-REF-0130).",
   "value": {
     "cost_category_id": "01926f3a-7c00-7000-8000-000000000401",
     "code": "ACH-001",
@@ -13,6 +13,13 @@
         "command": "deactivate",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "change_cost_type",
+        "is_available": false,
+        "missing_conditions": [
+          "cost_category_unused"
+        ]
       }
     ],
     "audit": {

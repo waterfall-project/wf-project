@@ -124,7 +124,8 @@ Problem:
       description: >-
         Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
         `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
-        `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une
+        `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412
+        `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
         `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui
@@ -157,10 +158,17 @@ Problem:
         un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
-        déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170).
+        déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
+        dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
+        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040).
     fields:
       type: array
-      description: Erreurs par champ, pour une entité refusée à la validation.
+      description: >-
+        Erreurs par champ, pour une entité refusée à la validation (422), ou par une unicité
+        (409 `ALREADY_EXISTS`), chaque champ dont la valeur est déjà portée désigné. Une clé
+        portée par le chemin, et non par le corps — la catégorie et l'année d'un taux horaire
+        (`setHourlyRate`) —, n'a pas de champ à désigner : son `ALREADY_EXISTS` n'a pas de
+        `fields`.
       items: { $ref: '#/FieldProblem' }
     correlation_id:
       type: string
@@ -209,6 +217,10 @@ ErrorCode:
     - NOT_FOUND
     # 409 — l'état courant interdit l'opération ; `params` nomme l'objet ou l'état.
     - STATE_FORBIDS_OPERATION
+    # Une valeur unique déjà portée par un autre objet ; aussi motif par champ du 409 qui dit
+    # quel champ la porte, `fields[].params.conflicting_object_id` nommant l'objet qui la porte
+    # (WF-REF-0030, WF-REF-0040) — sans `fields` quand la clé est celle du chemin, le taux d'une
+    # catégorie et d'une année (`setHourlyRate`).
     - ALREADY_EXISTS
     - CURRENT_REVISION_EXISTS
     - REFERENCE_NOT_CORRECTABLE
@@ -227,7 +239,8 @@ ErrorCode:
     - PASSWORD_RESET_TOKEN_INVALID
     # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
     - ACCOUNT_LOCKED
-    # 412 — `lock_version` périmé ; `params.conflicting_object_id` (WF-IHM-0110).
+    # 412 — `lock_version` périmé ; `params.expected_lock_version`, la version courante de
+    # l'objet que le chemin nomme (WF-IHM-0110).
     - STALE_LOCK_VERSION
     # 413 — fichier au-delà de la taille admise (WF-CMP-0020).
     - FILE_TOO_LARGE
@@ -254,6 +267,9 @@ ErrorCode:
     - NUMBER_INVALID
     - DATE_INVALID
     - UNKNOWN_COST_CATEGORY
+    # Une nature de coût que le référentiel n'a pas, donnée à une catégorie (`/cost_type_id`,
+    # WF-REF-0040).
+    - UNKNOWN_COST_TYPE
     - UNKNOWN_RESOURCE_ROLE
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK

@@ -197,10 +197,9 @@ describe("the sentence of a refusal", () => {
 
   it("says nothing of what a reader cannot use, nor of a value it has no label for", () => {
     const problem: ProblemText = {
-      code: "STALE_LOCK_VERSION",
+      code: "STATE_FORBIDS_OPERATION",
       params: {
         conflicting_object_id: "01926f3a-7c00-7000-8000-000000000501",
-        expected_lock_version: 4,
         missing_permission: "planning.delete",
         missing_condition: 12,
         missing_prerequisites: "active_cost_category",
@@ -208,7 +207,10 @@ describe("the sentence of a refusal", () => {
         component: "toString",
       },
     };
-    expect(say(problem, "en")).toBe(
+    expect(say(problem, "en")).toBe("The current state does not allow this operation.");
+    // A lock version, the one parameter of a refusal of a stale version, names nothing either.
+    const stale = { code: "STALE_LOCK_VERSION", params: { expected_lock_version: 4 } } as const;
+    expect(say(stale, "en")).toBe(
       "Someone changed this data in the meantime; reload it to see its latest version.",
     );
     const unlabelled = { missing_prerequisites: ["constructor", "__proto__"] };

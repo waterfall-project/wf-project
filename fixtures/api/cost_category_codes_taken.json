@@ -1,0 +1,24 @@
+{
+  "summary": "La catégorie « Câbles armés » créée sous les débours avec le code ACH-002, celui du matériel électrique, et le code comptable 604001, celui de la sous-traitance : refusée, chaque champ pris nommant la catégorie qui le porte ; rien n'est écrit (WF-REF-0040).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000403"
+        }
+      },
+      {
+        "pointer": "/accounting_code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000401"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001023"
+  }
+}

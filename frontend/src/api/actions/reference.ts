@@ -25,19 +25,34 @@ type HourlyRate = Schemas["HourlyRate"];
 /**
  * Write the hourly rate of a category for a year (WF-REF-0050): the first one of the year without
  * a version, a correction with the version of the rate read — a correction affects no marked
- * revision (WF-REF-0130). The API answers the rate as it now is, or refuses it.
+ * revision (WF-REF-0130). The API answers the rate as it now is, or refuses it. A first rate answered
+ * reads the page anew: a category that bears rates is no longer attached to a nature of another type
+ * (`cost_category_unrated`, #577), a command of the list of the categories its answer does not carry;
+ * a first rate refused as a second one for its year (409 `ALREADY_EXISTS`, WF-REF-0050) reads it
+ * anew too, for the cell to show the rate the year holds, with its version. A correction changes no
+ * command, and the page is not read for it.
  */
 export async function setHourlyRate(
   costCategoryId: string,
   year: number,
   rate: Schemas["HourlyRateWrite"],
 ): Promise<Outcome<HourlyRate>> {
-  return decode(() =>
+  const outcome = await decode(() =>
     serverClient().PUT("/reference/cost-categories/{cost_category_id}/hourly-rates/{year}", {
       params: { path: { cost_category_id: costCategoryId, year } },
       body: rate,
     }),
   );
+  if (rate.lock_version !== undefined) {
+    return outcome;
+  }
+  // A first rate refused for a year that holds one already (409): the page read anew shows it with
+  // its version, and the next entry corrects it rather than meeting the same refusal again.
+  if (outcome.kind === "conflict" && outcome.problem.code === "ALREADY_EXISTS") {
+    refresh();
+    return outcome;
+  }
+  return readAnew(outcome);
 }
 
 /** An object of the reference data a screen writes, as the server answers a write of it. */
@@ -125,7 +140,9 @@ async function activation(
  * Read the page anew once an object is written: an object is what others are filtered on and
  * attached to — the natures for the categories, the nodes, the categories and the calendars for the
  * roles —, and the server changes with one write the commands of others — the deactivation of the
- * default calendar, the reactivation of the children of a node —, which its answer does not carry. A
+ * default calendar, the reactivation of the children of a node, the deactivation and the change of
+ * type of the natures and the categories of provision (#578), the change of type of the natures a
+ * category leaves or joins (#577) —, which its answer does not carry. A
  * choice that would still offer an object deactivated is a command the server would refuse
  * (WF-REF-0010). The row written shows the answer meanwhile (`useAnswered`).
  */

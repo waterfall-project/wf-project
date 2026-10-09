@@ -139,7 +139,8 @@
     description: >-
       Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son
       code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est
-      refusé par 409, `ALREADY_EXISTS`. Créé actif, il ne prend pas place sous un parent
+      refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`,
+      `fields[].params.conflicting_object_id` le nœud qui le porte. Créé actif, il ne prend pas place sous un parent
       désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
     tags: [reference]
     requestBody:
@@ -157,7 +158,14 @@
               created: { $ref: ../../../fixtures/api/org_node_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le nœud qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé,
@@ -175,7 +183,8 @@
     description: >-
       La modification vaut pour la suite et ne retouche aucune révision marquée
       (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409,
-      `ALREADY_EXISTS`. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud
+      `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le
+      nœud qui le porte. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud
       actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un
       service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas
       actif.
@@ -198,7 +207,14 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le nœud qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -890,8 +906,9 @@
       Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150). Une table plate,
       triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche
       (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se
-      filtrent, et `meta.total` compte les natures retenues. Chaque nature porte la commande
-      qui change son état (`available_commands`, WF-IHM-0090).
+      filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes
+      (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son
+      type, indisponible dès qu'une de ses catégories est employée (WF-REF-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -932,13 +949,17 @@
             examples:
               witness: { $ref: ../../../fixtures/api/cost_types.json }
               reader: { $ref: ../../../fixtures/api/cost_types_reader.json }
+              with_inactive: { $ref: ../../../fixtures/api/cost_types_with_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createCostType
     summary: Créer une nature de coût
     description: >-
-      Nature de coût de l'installation (WF-REF-0030).
+      Nature de coût de l'installation, de l'un des trois types (WF-REF-0030). Son code est
+      unique : un code déjà porté par une autre nature, active ou désactivée, est refusé par 409,
+      `ALREADY_EXISTS`. Créée, elle porte ses commandes (`available_commands`) : la modification
+      de son type est disponible tant qu'aucune de ses catégories n'est employée.
     tags: [reference]
     requestBody:
       required: true
@@ -955,8 +976,27 @@
               created: { $ref: ../../../fixtures/api/cost_type_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '409':
+        description: >-
+          Un code déjà porté par une autre nature, active ou désactivée (WF-REF-0030) :
+          `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la nature qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/cost_type_code_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides,
+          `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet — vingt
+          caractères pour le code, deux cents pour le libellé —, par `VALUE_TOO_LONG` ; rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/cost_type_creation_refused.json }
 
 /reference/cost-types/{cost_type_id}:
   patch:
@@ -964,8 +1004,15 @@
     tags: [reference]
     summary: Modifier une nature de coût
     description: >-
-      Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée
-      (WF-REF-0030).
+      Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les
+      révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie
+      rattachée est employée — portée par une ligne d'une révision, marquée ou non
+      (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance
+      (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté
+      par une autre nature est refusé par 409, `ALREADY_EXISTS`. Un type changé vers ou depuis la
+      provision change la disponibilité des commandes d'autres objets — la désactivation et le
+      changement de type des autres natures provision, la désactivation et le rattachement des
+      catégories provision —, que la réponse ne porte pas : le client relit les listes.
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
     requestBody:
@@ -984,8 +1031,31 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Un autre type pour une nature dont une catégorie est employée (WF-REF-0030), ou pour la
+          dernière nature provision active à porter une catégorie active (#578) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la
+          commande `change_kind` dit manquantes, `cost_type_unused` avant
+          `cost_type_not_last_provision`. Un code déjà porté par une autre nature,
+          active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              kind_frozen: { $ref: ../../../fixtures/api/cost_type_kind_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
+          `/label` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/cost_type_update_refused.json }
 
 /reference/cost-types/{cost_type_id}/activation:
   put:
@@ -993,9 +1063,15 @@
     summary: Désactiver ou réactiver une nature de coût
     description: >-
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
-      (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit : la commande de la nature est
-      toujours disponible (`available_commands`). Relève de la permission de modification des
-      paramètres de coûts (WF-ADM-0100).
+      (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible. La désactivation l'est
+      aussi, sauf pour la dernière nature provision active à porter une catégorie active : il en
+      reste toujours une, dont les lignes de provision des risques prennent la catégorie
+      (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que la commande `deactivate` de
+      la nature dit d'avance (`available_commands`). Relève de la permission de modification des
+      paramètres de coûts (WF-ADM-0100). L'écriture d'une nature provision change la
+      disponibilité des commandes d'autres objets — la désactivation et le changement de type des
+      autres natures provision, la désactivation et le rattachement de leurs catégories —, que la
+      réponse ne porte pas : le client relit les listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
@@ -1020,6 +1096,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La désactivation de la dernière nature provision active à porter une catégorie active
+          (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `cost_type_not_last_provision`, la condition que sa commande `deactivate` dit manquante ;
+          rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              last_provision: { $ref: ../../../fixtures/api/cost_type_last_provision_refused.json }
       '412':
         description: >-
           La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa
@@ -1044,8 +1131,10 @@
       filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`)
       porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et
       sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se
-      filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte la
-      commande qui change son état (`available_commands`, WF-IHM-0090).
+      filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte ses
+      commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son
+      rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des
+      taux (WF-REF-0030, WF-REF-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1060,9 +1149,8 @@
         in: query
         description: >-
           Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code,
-          le libellé, la nature — par son libellé —, le code comptable — une catégorie sans code
-          après les autres dans l'ordre croissant — et l'état, les catégories désactivées après
-          les actives (WF-IHM-0060).
+          le libellé, la nature — par son libellé —, le code comptable, que chaque catégorie porte
+          (WF-REF-0040), et l'état, les catégories désactivées après les actives (WF-IHM-0060).
           À égalité, l'ordre de la liste sans tri, puis l'identifiant.
         schema:
           type: string
@@ -1092,7 +1180,13 @@
     operationId: createCostCategory
     summary: Créer une catégorie de coût
     description: >-
-      La catégorie se rattache à une nature de coût (WF-REF-0040).
+      La catégorie se rattache à une nature de coût, active, et porte un code comptable unique
+      (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou
+      désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit
+      lequel des deux champs la porte. Créée sous une nature provision, elle change la
+      disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres
+      catégories provision, la désactivation et le changement de type des natures provision, la
+      dernière ne l'étant plus —, que la réponse ne porte pas : le client relit les listes.
     tags: [reference]
     requestBody:
       required: true
@@ -1109,15 +1203,50 @@
               created: { $ref: ../../../fixtures/api/cost_category_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '409':
+        description: >-
+          Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée
+          (WF-REF-0040) : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est
+          prise, `/code` ou `/accounting_code`, par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la catégorie qui la porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              codes_taken: { $ref: ../../../fixtures/api/cost_category_codes_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un code, un libellé ou un code
+          comptable vides, `/code`, `/label` ou `/accounting_code` par `VALUE_REQUIRED`, ou plus
+          longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; une nature absente ou nulle — une
+          catégorie sans nature (WF-REF-0040) —, `/cost_type_id` par `VALUE_REQUIRED` ; une nature
+          que le référentiel n'a pas, `/cost_type_id` par `UNKNOWN_COST_TYPE` ; une nature désactivée, qui n'est plus
+          proposée à la saisie, `/cost_type_id` par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010).
+          Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/cost_category_creation_refused.json }
+              without_type: { $ref: ../../../fixtures/api/cost_category_without_type_refused.json }
 
 /reference/cost-categories/{cost_category_id}:
   patch:
     operationId: updateCostCategory
     summary: Modifier une catégorie de coût
     description: >-
-      Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130).
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130). Le code et le
+      code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur
+      déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas
+      sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne
+      se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas
+      la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa
+      commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même
+      type, le rattachement est toujours permis. Un changement de nature change la disponibilité
+      des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature,
+      et, vers ou depuis une nature provision, la désactivation et le rattachement des autres
+      catégories provision, la désactivation et le changement de type des natures provision —, que
+      la réponse ne porte pas : le client relit les listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -1137,7 +1266,37 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée
+          (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ
+          dont la valeur est prise, `/code` ou `/accounting_code`,
+          `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, qui porte des taux (#577),
+          ou seule catégorie active des natures provision actives (#578) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la
+          commande `change_cost_type` dit manquantes, dans l'ordre `cost_category_unused`,
+          `cost_category_unrated`, `cost_category_not_last_provision`. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              accounting_code_taken: { $ref: ../../../fixtures/api/cost_category_accounting_code_taken.json }
+              employed_kind_changed: { $ref: ../../../fixtures/api/cost_category_kind_refused.json }
+              rated_kind_changed: { $ref: ../../../fixtures/api/cost_category_rated_kind_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code`,
+          `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, ou trop longs, par
+          `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie
+          ne reste pas sans nature (WF-REF-0040) —, inconnue, par `UNKNOWN_COST_TYPE`, ou par
+          `INACTIVE_REFERENCE_OBJECT` quand la modification change la catégorie de nature pour une
+          nature désactivée (WF-REF-0010). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/cost_category_update_refused.json }
 
 /reference/cost-categories/{cost_category_id}/activation:
   put:
@@ -1145,10 +1304,16 @@
     summary: Désactiver ou réactiver une catégorie de coût
     description: >-
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
-      (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit — une catégorie se réactive même
-      sous une nature désactivée, aucune exigence ne l'en empêchant : sa commande est toujours
-      disponible (`available_commands`). Relève de la permission de modification des
-      paramètres de coûts (WF-ADM-0100).
+      (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se
+      réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La
+      désactivation l'est aussi, sauf pour la seule catégorie active des natures provision
+      actives : il en reste toujours une, que portent les lignes de provision des risques
+      (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que sa commande `deactivate`
+      dit d'avance (`available_commands`). Relève de la permission de modification des
+      paramètres de coûts (WF-ADM-0100). L'écriture d'une catégorie d'une nature provision change
+      la disponibilité des commandes d'autres objets — la désactivation et le rattachement des
+      autres catégories provision, la désactivation et le changement de type des natures
+      provision —, que la réponse ne porte pas : le client relit les listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -1173,6 +1338,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La désactivation de la seule catégorie active des natures provision actives (#578) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `cost_category_not_last_provision`, la condition que sa commande `deactivate` dit
+          manquante ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              last_provision: { $ref: ../../../fixtures/api/cost_category_last_provision_refused.json }
       '412':
         description: >-
           La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa
@@ -1298,8 +1474,13 @@
     tags: [reference]
     summary: Fixer le taux horaire d'une année
     description: >-
-      Réservé aux catégories de main-d'œuvre. La correction d'un taux n'affecte aucune
-      révision marquée (WF-REF-0050, WF-REF-0130).
+      Réservé aux catégories de main-d'œuvre : les catégories des autres natures ne portent pas
+      de taux (WF-REF-0050). Au plus un taux par année : la première saisie se fait sans
+      compteur, une correction avec la version lue. La correction d'un taux n'affecte aucune
+      révision marquée (WF-REF-0050, WF-REF-0130). Le taux est positif. Le premier taux d'une
+      catégorie rend indisponible son rattachement à une nature d'un autre type
+      (`cost_category_unrated`, #577), que la réponse ne porte pas : le client relit la liste des
+      catégories.
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
       - $ref: ../components/parameters.yaml#/RateYear
@@ -1321,7 +1502,16 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Une première saisie, sans `lock_version`, pour une année qui porte déjà un taux : un
+          second taux pour la même catégorie et la même année (WF-REF-0050). `ALREADY_EXISTS`,
+          rien n'étant écrit ; le taux de l'année se relit, et se corrige avec sa version.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              already_entered: { $ref: ../../../fixtures/api/hourly_rate_already_entered.json }
       '412':
         description: >-
           La version envoyée n'est plus celle du taux de l'année : il a été corrigé depuis
@@ -1333,4 +1523,16 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/hourly_rate_stale.json }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Un montant nul ou négatif : `VALIDATION_FAILED`, `fields` désignant `/amount` par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0.01`, le plus petit taux admis. Une
+          catégorie dont la nature ne relève pas de la main-d'œuvre, qui ne porte pas de taux
+          (WF-REF-0050) : `LABOUR_CATEGORY_REQUIRED`, sans `fields` — la catégorie est celle du
+          chemin. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              amount_out_of_range: { $ref: ../../../fixtures/api/hourly_rate_amount_refused.json }
+              not_labour: { $ref: ../../../fixtures/api/hourly_rate_non_labour_refused.json }

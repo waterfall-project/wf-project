@@ -292,18 +292,49 @@ describe("the organisation", () => {
     expect(client.calls[0]?.body).toEqual({ code: "DG", label: "Direction", parent_id: null });
   });
 
-  it("says the refusal of a code that exists already, the form kept to be corrected [WF-REF-0070-A]", async () => {
-    serve({ [NODES]: { problem: { code: "ALREADY_EXISTS", status: 409 } } });
-    render(organisation());
-    const form = await opened("Nouveau nœud", "Nouveau nœud d’organisation");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DT");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Doublon");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    // La création d'un nœud dont le code existe déjà est refusée.
-    expect(await within(form).findByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
-    expect(within(form).getByRole("textbox", { name: "Code" })).toHaveValue("DT");
-    expect(refresh).not.toHaveBeenCalled();
-  });
+  it.each([
+    // The technical direction, which the tree names.
+    [
+      "01926f3a-7c00-7000-8000-000000000470",
+      "Déjà porté par «\u00a0DT · Direction technique\u00a0».",
+    ],
+    // A node the tree read does not hold.
+    ["01926f3a-7c00-7000-8000-000000000499", "Déjà porté par un autre nœud."],
+  ])(
+    "says at the code the refusal of a code that exists already, naming the node %s that holds it, the form kept to be corrected [WF-REF-0070-A]",
+    async (holder, named) => {
+      // The envelope of the contract: the field taken, and the node that holds it.
+      serve({
+        [NODES]: {
+          problem: {
+            code: "ALREADY_EXISTS",
+            status: 409,
+            fields: [
+              {
+                pointer: "/code",
+                code: "ALREADY_EXISTS",
+                params: { conflicting_object_id: holder },
+              },
+            ],
+          },
+        },
+      });
+      render(organisation());
+      const form = await opened("Nouveau nœud", "Nouveau nœud d’organisation");
+      const code = within(form).getByRole("textbox", { name: "Code" });
+      await userEvent.type(code, "DT");
+      await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Doublon");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      // La création d'un nœud dont le code existe déjà est refusée.
+      await vi.waitFor(() => {
+        expect(code).toHaveFocus();
+      });
+      expect(code).toHaveAccessibleDescription(`Cet élément existe déjà. ${named}`);
+      expect(code).toHaveValue("DT");
+      expect(within(form).queryByRole("alert")).toBeNull();
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
 
   it("says at the parent the refusal of a parent deactivated meanwhile, the parent taking the focus", async () => {
     serve({

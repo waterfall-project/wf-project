@@ -641,21 +641,45 @@ leurs (EP-02/L43b, plus bas), par les mêmes pièces. À une session qui porte `
 (`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
 titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
 ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
-`StateCell`), indisponible avec ses conditions comme la réactivation ; aucune commande ne
+`StateCell`), indisponible avec ses conditions comme la réactivation — la dernière nature provision
+et sa dernière catégorie active, PRV et PRV-001 dans le témoin (#578) ; aucune commande ne
 supprime (WF-REF-0010, WF-DAT-0080). Une autre session n'en voit aucune. La création et la
 modification ouvrent un dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
 de sa nature (`CostDialog`, `useListForm`) : le code, le libellé et le type
-d'une nature, choisi parmi les trois du contrat — sa modification dit que le type ne change plus dès
-qu'une catégorie rattachée est employée, règle du contrat (`CostTypeKind`) — ; le code, le libellé,
-la nature — parmi les actives, et celle de la catégorie modifiée, marquée désactivée — et le code
-comptable d'une catégorie, vide envoyé `null`. Le
+d'une nature, choisi parmi les trois du contrat ; le code, le libellé, la nature — parmi les actives,
+et celle de la catégorie modifiée, marquée désactivée — et le code comptable d'une catégorie, exigé,
+d'un à vingt caractères (WF-REF-0040, décision de l'auteur du 2026-10-09). Ce qu'une modification
+change suit les commandes de l'objet (EP-02/L42g, WF-IHM-0090) : le type d'une nature n'est offert
+que si elle liste `change_kind` disponible, et se présente sinon figé, en lecture seule
+(`control: "fixed"` d'un `FormField`), ses conditions dites sous lui (`note`) — une catégorie
+employée (`cost_type_unused`), la dernière nature provision (`cost_type_not_last_provision`) —, la
+description du dialogue le disant aussi ; une catégorie ne se voit proposer une nature d'un autre
+type que si elle liste `change_cost_type` disponible, et sinon les natures de son type seules, ses
+conditions dites sous le choix — employée, porteuse de taux, dernière catégorie provision (#577,
+#578). Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
+qui écrit, la page lit toutes les natures avec `include_inactive=true` (`every` de `CostDialog`),
+une lecture entière distincte des choix du filtre, qu'elle ne fait pas quand ceux-ci comprennent déjà
+les désactivées ; une catégorie sous une nature désactivée se voit ainsi proposer les natures
+actives de son type, et sa nature désactivée se nomme par son code, que cette lecture donne. Une
+nature qu'aucune lecture ne donne — une session qui écrit sans pouvoir lire les désactivées, à qui
+le contrat refuserait `include_inactive` (403), et pour qui la page ne la demande pas — laisse à la
+catégorie sa seule nature, et la note le dit à part (« Le type de la nature désactivée n'est pas
+lisible : seule elle est proposée. »). `costs/page.test.tsx` éprouve ce que la page passe au
+formulaire, les natures servies par `cost_types_with_inactive`, la lecture avec les désactivées, qui
+ne vaut que pour elle.
+Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste (`OrgNodeDialog`). Le
 formulaire refuse à son champ ce qui manque, ou un nombre qui n'en est pas un dans la langue du
 lecteur (`parseDecimal`), avant toute demande, et le champ prend le focus ; le
 serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
 désigne, par la phrase de son code et de ses paramètres — `problemMessage` d'un `FieldProblem`, le
-premier champ refusé prenant le focus —, tout autre refus sous le formulaire (`OutcomeNotice`), qui
-reste ouvert, la version périmée (412) avec l'offre de relire la page ; un refus par champ que le
-formulaire ne montre pas y reste seul, sans répéter ce qui est dit aux champs. Le bouton d'envoi dit
+premier champ refusé prenant le focus —, comme une valeur déjà portée (409 `ALREADY_EXISTS`,
+`fields[]`), qui nomme l'objet qui la porte (`fields[].params.conflicting_object_id`) par son code et
+son libellé quand la liste le montre (`names` de `ReferenceForm`), de façon générique sinon ; le
+décodeur en tire aussi l'objet du refus (`conflictingObjectId`) quand l'enveloppe n'en nomme pas.
+Tout autre refus se dit sous le formulaire (`OutcomeNotice`), qui reste ouvert — un état qui interdit
+l'écriture (409 `STATE_FORBIDS_OPERATION`) avec sa condition, la version périmée (412) avec l'offre
+de relire la page ; un refus par champ que le formulaire ne montre pas y reste seul, sans répéter ce
+qui est dit aux champs. Le bouton d'envoi dit
 l'écriture en cours ; fermé pendant l'attente, le dialogue ne fait rien taire : le succès se dit dans
 la région de la liste, le refus au-dessus d'elle, sur la lecture d'où il est parti. Fermé, il rend le
 focus à la cellule de la ligne — la grille est un seul arrêt — ou à la commande de création.
@@ -664,7 +688,14 @@ paramètres des refus par champ d'une enveloppe : le minimum d'un taux refusé s
 la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). Toute écriture répondue
 relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
 les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
-nature désactivée serait une commande que le serveur refuserait (WF-REF-0010). Cette relecture, à la
+nature désactivée serait une commande que le serveur refuserait (WF-REF-0010) ; une écriture change
+aussi les commandes d'autres objets — la désactivation d'une nature provision celles des autres
+natures et catégories provision (#578), le rattachement d'une catégorie le type de l'ancienne et de
+la nouvelle nature (#577) —, que sa réponse ne porte pas. Un taux ne relit la page qu'à sa première
+saisie : la catégorie qui porte des taux ne se rattache plus à une nature d'un autre type
+(`cost_category_unrated`) ; une première saisie refusée comme un second taux de l'année (409
+`ALREADY_EXISTS`) relit aussi la page, et la cellule montre le taux de l'année avec sa version, que la
+saisie suivante corrige ; une correction ne change aucune commande. Cette relecture, à la
 même adresse, n'abandonne rien de la grille des taux : un taux parti avant elle reste en attente, le
 refus dit le reste, et un taux répondu, avant ou après elle, garde sa cellule tant qu'il est plus
 récent que la cellule relue, par le `lock_version` du taux — la réponse est le changement d'une
@@ -1440,6 +1471,12 @@ règles d'écriture du SQL et des migrations viennent avec EP-03, en troisième 
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — voir ci-dessous.
 
+Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
+retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
+témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit rien d'autre. Il la
+retire de la session que lit la page (`requestSession` doublé, comme le fait L43c pour
+les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du client.
+
 ### Un test qui cite son exigence
 
 Chaque exigence F0 est couverte par au moins un test qui la cite par son identifiant complet,
@@ -1643,7 +1680,9 @@ ses paramètres, jamais une phrase.
   statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
-  (`params.conflicting_object_id`) nommé quand l'écran le connaît, par `names` ; sur 401, le
+  (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
+  `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
+  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names` ; sur 401, le
   lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
   inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
   dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`

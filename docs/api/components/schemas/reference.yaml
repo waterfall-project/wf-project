@@ -16,7 +16,9 @@ ReferenceCommand:
   enum: [deactivate, reactivate]
   description: >-
     Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource,
-    calendrier, nature et catégorie de coût (WF-IHM-0090) : le désactiver et le réactiver, par
+    calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et
+    `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le
+    désactiver et le réactiver, par
     l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`,
     `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le
     supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il
@@ -48,9 +50,9 @@ ReferenceCommands:
     Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non,
     avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle
     qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide
-    pour qui lit l'objet sans la permission de modifier sa fonction — un rôle ou une catégorie
-    lus pour choisir ceux d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est
-    refusé par son code d'erreur.
+    pour qui lit l'objet sans la permission de modifier sa fonction — un rôle lu pour choisir
+    celui d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son
+    code d'erreur.
   items: { $ref: '#/ReferenceCommandAvailability' }
 
 ReferenceObjectCommands:
@@ -287,8 +289,48 @@ CostTypeKind:
   type: string
   enum: [labor, non_labor, provision]
   description: >-
-    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une
-    catégorie rattachée est employée.
+    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée
+    est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
+
+CostTypeCommand:
+  type: string
+  enum: [deactivate, reactivate, change_kind]
+  description: >-
+    Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par
+    `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne
+    porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un
+    autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused`
+    manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne
+    d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé,
+    se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie
+    active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa
+    désactivation et la modification de son type indisponibles, `cost_type_not_last_provision`
+    manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de
+    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+
+CostTypeCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CostTypeCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CostTypeCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au
+    plus deux, celle qui change son état et la modification de son type. Une commande absente de
+    la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission
+    de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est
+    employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son
+    code d'erreur.
+  items: { $ref: '#/CostTypeCommandAvailability' }
 
 CostType:
   type: object
@@ -296,11 +338,17 @@ CostType:
   description: Nature de coût (WF-REF-0030).
   properties:
     cost_type_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 20 }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté
+        est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030).
     label: { type: string, minLength: 1, maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
     is_active: { type: boolean }
-    available_commands: { $ref: '#/ReferenceCommands' }
+    available_commands: { $ref: '#/CostTypeCommands' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -314,8 +362,9 @@ CostTypeWrite:
 
 CostTypeUpdate:
   description: >-
-    Modification d'un type de coût : porte le compteur lu,
-    qu'une création n'a pas.
+    Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind`
+    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que
+    sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien.
   allOf:
     - $ref: '#/CostTypeWrite'
     - type: object
@@ -329,17 +378,82 @@ CostCategory:
     (`available_commands`, WF-IHM-0090).
   allOf:
     - $ref: '#/CostCategoryImage'
-    - $ref: '#/ReferenceObjectCommands'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands: { $ref: '#/CostCategoryCommands' }
+
+CostCategoryCommand:
+  type: string
+  enum: [deactivate, reactivate, change_cost_type]
+  description: >-
+    Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver,
+    par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une
+    catégorie ne porte que celle qui change son état —, et la
+    rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le
+    `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou
+    la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante,
+    dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et,
+    `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors
+    main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
+    #577). Il reste toujours une catégorie active rattachée à une nature provision active
+    (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son
+    rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision`
+    manquante ; un rattachement à une autre nature provision active la laisse provision, et reste
+    permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend
+    indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la
+    catégorie. Toutes relèvent de la permission de modification des paramètres de coûts
+    (`cost_settings.write`, WF-ADM-0100).
+
+CostCategoryCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CostCategoryCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CostCategoryCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au
+    plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une
+    commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
+    catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit
+    la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est
+    employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré
+    la liste est refusé par son code d'erreur.
+  items: { $ref: '#/CostCategoryCommandAvailability' }
 
 CostCategoryImage:
   type: object
-  required: [cost_category_id, code, label, cost_type_id, cost_type_label, is_active, audit, lock_version]
+  required:
+    - cost_category_id
+    - code
+    - label
+    - cost_type_id
+    - cost_type_label
+    - accounting_code
+    - is_active
+    - audit
+    - lock_version
   description: >-
     Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes :
     celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 20 }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui
+        d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`.
     label: { type: string, minLength: 1, maxLength: 200 }
     cost_type_id: { $ref: ../common.yaml#/Uuid }
     cost_type_label:
@@ -348,25 +462,36 @@ CostCategoryImage:
       maxLength: 200
       description: Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150).
     accounting_code:
-      anyOf:
-        - type: string
-        - type: 'null'
-      description: Code comptable, documentaire (WF-REF-0040).
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code
+        comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est
+        documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040).
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostCategoryWrite:
   type: object
-  required: [code, label, cost_type_id]
+  required: [code, label, cost_type_id, accounting_code]
   properties:
     code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
-    cost_type_id: { $ref: ../common.yaml#/Uuid }
-    accounting_code:
-      anyOf:
-        - type: string
-        - type: 'null'
+    cost_type_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est
+        refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel
+        n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature
+        désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même,
+        `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature
+        — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une
+        nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des
+        taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type,
+        elle est toujours permise.
+    accounting_code: { type: string, minLength: 1, maxLength: 20 }
 
 CostCategoryUpdate:
   description: >-
@@ -443,11 +568,18 @@ HourlyRateRow:
 HourlyRateWrite:
   description: >-
     Le compteur est absent à la première saisie de l'année, où le taux n'existe
-    pas encore, et obligatoire pour corriger un taux déjà saisi.
+    pas encore, et obligatoire pour corriger un taux déjà saisi. Une première saisie, sans
+    compteur, pour une année qui porte déjà un taux en serait un second : refusée par 409,
+    `ALREADY_EXISTS` (WF-REF-0050).
   type: object
   required: [amount]
   properties:
-    amount: { $ref: ../common.yaml#/Money }
+    amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422,
+        `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit
+        montant positif qu'un `Money` écrit.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Installation:

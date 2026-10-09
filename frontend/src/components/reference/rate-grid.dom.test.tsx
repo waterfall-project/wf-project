@@ -26,8 +26,10 @@ import { type HourlyRateGrid, RateGrid } from "./rate-grid";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ search: "" }));
+const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -131,6 +133,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   router.push.mockClear();
+  refresh.mockClear();
   page.search = "";
 });
 
@@ -256,18 +259,35 @@ describe("the grid of the hourly rates", () => {
     expect(written(client)).toEqual([]);
   });
 
-  it("says a rate the server refuses — one already entered for the year, a value out of range —, the cell kept as it was", async () => {
+  it("reads the page anew after a first rate of a year, which changes the commands of its category, and not after a correction", async () => {
+    serve({ [RATE]: ["hourly_rate_entered", "hourly_rate_corrected"] });
+    render(rates());
+    cell(MECHANICAL, 2015).focus();
+    await userEvent.keyboard("85{Enter}");
+    await answered(MECHANICAL, 2015);
+    // A category that bears rates is no longer attached to a nature of another type (#577).
+    expect(refresh).toHaveBeenCalledOnce();
+    cell(MECHANICAL, 2016).focus();
+    await userEvent.keyboard("87{Enter}");
+    await answered(MECHANICAL, 2016);
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("says the refusal of a second rate for the same category and the same year, the cell kept as it was, then a value out of range [WF-REF-0050-A]", async () => {
     serve({
       [RATE]: [
-        { problem: { code: "ALREADY_EXISTS", status: 409 } },
+        { problem: example("hourly_rate_already_entered") as Problem & { status: 409 } },
         { problem: { code: "VALUE_OUT_OF_RANGE", status: 422 } },
       ],
     });
     render(rates());
     cell(MECHANICAL, 2015).focus();
     await userEvent.keyboard("85,48{Enter}");
+    // La saisie d'un second taux pour une même catégorie et une même année est refusée.
     expect(await screen.findByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
     expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^$/);
+    // The page is read anew: the cell shows the rate the year holds, and its version corrects it.
+    expect(refresh).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole("button", { name: "Fermer l’avis" }));
     cell(MECHANICAL, 2016).focus();
     await userEvent.keyboard("0{Enter}");
@@ -275,17 +295,35 @@ describe("the grid of the hourly rates", () => {
       "La valeur sort des limites admises.",
     );
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
+    // A correction refused reads nothing anew.
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("says the refusal of a first rate for a category outside the labour, the cell kept empty, reading nothing anew [WF-REF-0050-A]", async () => {
+    const client = serve({
+      [RATE]: { problem: example("hourly_rate_non_labour_refused") as Problem & { status: 422 } },
+    });
+    render(rates());
+    cell(MECHANICAL, 2015).focus();
+    await userEvent.keyboard("87{Enter}");
+    // Aucun taux ne peut être saisi pour une catégorie hors main-d'œuvre.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Une catégorie de coût de main-d’œuvre est requise.",
+    );
+    expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^$/);
+    // A first rate, without a version, refused otherwise than as a second one: nothing is read anew.
+    expect(written(client)).toEqual([
+      {
+        path: `/reference/cost-categories/${MECHANICAL_ID}/hourly-rates/2015`,
+        body: { amount: "87" },
+      },
+    ]);
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("says with a rate the server refuses by its field the smallest amount it admits", async () => {
     serve({
-      [RATE]: {
-        problem: {
-          code: "VALIDATION_FAILED",
-          status: 422,
-          fields: [{ pointer: "/amount", code: "VALUE_OUT_OF_RANGE", params: { minimum: "0.01" } }],
-        },
-      },
+      [RATE]: { problem: example("hourly_rate_amount_refused") as Problem & { status: 422 } },
     });
     render(rates());
     cell(MECHANICAL, 2016).focus();

@@ -1,0 +1,14 @@
+{
+  "summary": "La sous-traitance renommée d'un libellé de deux cent un caractères quand un libellé en admet deux cents : refusée ; rien n'est écrit (WF-REF-0040).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/label",
+        "code": "VALUE_TOO_LONG"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001026"
+  }
+}

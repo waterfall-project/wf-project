@@ -1,0 +1,17 @@
+{
+  "summary": "Les essais et mise en service recodés SP-CMD, le code du poste de commande : refusé, le code d'un sous-projet étant unique dans le projet, et le sous-projet qui le porte nommé ; rien n'est écrit (WF-PRJ-0050).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000801"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001035"
+  }
+}

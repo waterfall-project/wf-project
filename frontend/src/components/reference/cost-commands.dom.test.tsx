@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -17,11 +17,12 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  type Problem,
 } from "@/test/fixtures";
 
 import type { CostCategory, CostType } from "./cost-grids";
+import { type NatureChoice, natureChoice } from "./cost-kinds";
 import { CostCategoryList, CostTypeList } from "./cost-lists";
-import type { Choice } from "./kinds";
 
 // The server of Next, as far as the lists need it: the fake back, the page rendered again once an
 // object is created, the address they read and the navigations they ask.
@@ -54,11 +55,22 @@ const categories = example("volume/cost_categories_page") as {
 /** The first categories of the volumes: the subcontracting first, under the disbursements. */
 const first = (example("volume/cost_categories") as { items: CostCategory[] }).items.slice(0, 3);
 
+/** A category the server created today under the disbursements, attached to no line nor rate. */
+const created = example("cost_category_created") as CostCategory;
+
+/** The last category of the natures of provision, as the volumes give it. */
+const provision = (example("volume/cost_categories") as { items: CostCategory[] }).items.find(
+  (category) => category.code === "PRV-001",
+);
+
+/** A refusal of the contract, by the name of its example and its status. */
+function refusal<S extends number>(name: string, status: S): Problem & { status: S } {
+  return { ...(example(name) as Problem), status };
+}
+
 /** The natures of the witness, as the page offers them to a category: the labour one deactivated. */
-const NATURES: readonly Choice[] = types.items.map((nature) => ({
-  id: nature.cost_type_id,
-  code: nature.code,
-  label: nature.label,
+const NATURES: readonly NatureChoice[] = types.items.map((nature) => ({
+  ...natureChoice(nature),
   active: nature.code !== "MO",
 }));
 
@@ -106,7 +118,10 @@ function natures(rows: readonly CostType[] = types.items, editable = true) {
 }
 
 /** The list of the categories, for a session that may modify the cost settings. */
-function categoryList(rows: readonly CostCategory[] = first) {
+function categoryList(
+  rows: readonly CostCategory[] = first,
+  offered: readonly NatureChoice[] = NATURES,
+) {
   return inFrench(
     <CostCategoryList
       rows={rows}
@@ -116,7 +131,7 @@ function categoryList(rows: readonly CostCategory[] = first) {
       state={undefined}
       readsInactive
       editable
-      natures={NATURES}
+      natures={offered}
       nature={undefined}
     />,
   );
@@ -228,18 +243,30 @@ describe("the creation of a nature or a category", () => {
     ).toEqual(["Choisir…", "DEB · Débours", "PRV · Provision"]);
   });
 
-  it("creates a category under the nature chosen, an empty accounting code sent as none", async () => {
+  it("refuses a category without its accounting code before asking anything, then creates it under the nature chosen [WF-REF-0040-A]", async () => {
     const client = serve();
     render(categoryList());
     await userEvent.click(screen.getByRole("button", { name: "Nouvelle catégorie" }));
     const form = dialog("Nouvelle catégorie de coût");
+    expect(form).toHaveAccessibleDescription(
+      "Le code et le code comptable, uniques l’un et l’autre, le libellé et la nature sont requis.",
+    );
     await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "FRN-001");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Fournitures");
     await userEvent.selectOptions(
       within(form).getByRole("combobox", { name: "Nature" }),
       "DEB · Débours",
     );
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code comptable" }), "  ");
+    const accounting = within(form).getByRole("textbox", { name: "Code comptable" });
+    expect(accounting).toHaveAttribute("aria-required", "true");
+    expect(accounting).toHaveAttribute("maxlength", "20");
+    await userEvent.type(accounting, "  ");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    // The accounting code is required (decision of the author of 2026-10-09): nothing is asked.
+    expect(accounting).toHaveAccessibleDescription("Une valeur est requise.");
+    expect(accounting).toHaveFocus();
+    expect(client.calls).toEqual([]);
+    await userEvent.type(accounting, "606001");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
@@ -248,46 +275,11 @@ describe("the creation of a nature or a category", () => {
       code: "FRN-001",
       label: "Fournitures",
       cost_type_id: "01926f3a-7c00-7000-8000-000000000462",
-      accounting_code: null,
+      accounting_code: "606001",
     });
     await vi.waitFor(() => {
       expect(announced()).toContain("«\u00a0Petites fournitures\u00a0» créée.");
     });
-  });
-
-  it("says the refusal of a nature whose code exists already, the form kept to be corrected [WF-REF-0030-A]", async () => {
-    serve({ [TYPES]: { problem: { code: "ALREADY_EXISTS", status: 409 } } });
-    render(natures());
-    await userEvent.click(screen.getByRole("button", { name: "Nouvelle nature" }));
-    const form = dialog("Nouvelle nature de coût");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DEB");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Débours");
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Type" }),
-      "Provision",
-    );
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    // La création d'une nature dont le code existe déjà est refusée.
-    expect(await within(form).findByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
-    expect(within(form).getByRole("textbox", { name: "Code" })).toHaveValue("DEB");
-    expect(refresh).not.toHaveBeenCalled();
-  });
-
-  it("says the refusal of a category whose accounting code exists already [WF-REF-0040-A]", async () => {
-    serve({ [CATEGORIES]: { problem: { code: "ALREADY_EXISTS", status: 409 } } });
-    render(categoryList());
-    await userEvent.click(screen.getByRole("button", { name: "Nouvelle catégorie" }));
-    const form = dialog("Nouvelle catégorie de coût");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "FRN-001");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Fournitures");
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Nature" }),
-      "DEB · Débours",
-    );
-    await userEvent.type(within(form).getByRole("textbox", { name: "Code comptable" }), "604001");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    // La création d'une catégorie dont le code comptable existe déjà est refusée.
-    expect(await within(form).findByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
   });
 
   it("says each refusal by field at its field, the first taking the focus, and under the form what points at none", async () => {
@@ -389,54 +381,31 @@ describe("the modification of a nature or a category", () => {
 
   it("keeps the deactivated nature a category is attached to, among the active ones offered", async () => {
     serve();
-    const [labour] = (example("volume/cost_categories_page") as { items: CostCategory[] }).items;
-    if (labour === undefined) {
-      throw new Error("the page holds a category of labour");
-    }
-    render(categoryList([labour]));
+    render(categoryList([created]));
     await userEvent.click(
-      screen.getByRole("button", { name: `Modifier «\u00a0${labour.label}\u00a0»` }),
+      screen.getByRole("button", { name: "Modifier «\u00a0Petites fournitures\u00a0»" }),
     );
-    const nature = within(dialog(`Modifier «\u00a0${labour.label}\u00a0»`)).getByRole("combobox", {
-      name: "Nature",
-    });
-    expect(nature).toHaveValue(labour.cost_type_id);
+    const nature = within(dialog("Modifier «\u00a0Petites fournitures\u00a0»")).getByRole(
+      "combobox",
+      { name: "Nature" },
+    );
+    expect(nature).toHaveValue(created.cost_type_id);
+    // The disbursements deactivated: kept, marked, after the active natures.
+    const deactivated = NATURES.map((choice) => ({ ...choice, active: choice.code === "PRV" }));
+    cleanup();
+    render(categoryList([created], deactivated));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Modifier «\u00a0Petites fournitures\u00a0»" }),
+    );
     expect(
-      within(nature)
+      within(
+        within(dialog("Modifier «\u00a0Petites fournitures\u00a0»")).getByRole("combobox", {
+          name: "Nature",
+        }),
+      )
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Choisir…", "DEB · Débours", "PRV · Provision", "MO · Main-d'œuvre (désactivée)"]);
-  });
-
-  it("says the refusal of the type of a nature whose category is employed [WF-REF-0030-A]", async () => {
-    const client = serve({ [TYPE]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } });
-    render(natures());
-    await userEvent.click(
-      screen.getByRole("button", { name: "Modifier «\u00a0Main-d'œuvre\u00a0»" }),
-    );
-    const form = dialog("Modifier «\u00a0Main-d'œuvre\u00a0»");
-    // The rule is said before the type is changed.
-    expect(form).toHaveAccessibleDescription(
-      "Le code, unique, le libellé et le type sont requis. Le type ne change plus dès qu’une catégorie rattachée est employée.",
-    );
-    const type = within(form).getByRole("combobox", { name: "Type" });
-    expect(type).toHaveValue("labor");
-    await userEvent.selectOptions(type, "Hors main-d’œuvre");
-    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-    // La modification du type est refusée pour une nature dont une catégorie est employée.
-    expect(await within(form).findByRole("alert")).toHaveTextContent(
-      "L’état actuel ne permet pas cette opération.",
-    );
-    expect(client.calls[0]?.body).toEqual({
-      code: "MO",
-      label: "Main-d'œuvre",
-      kind: "non_labor",
-      lock_version: 1,
-    });
-    // The row stays as the page read it.
-    expect(screen.getByRole("grid", { name: "Natures de coût", hidden: true })).toHaveTextContent(
-      "Main-d’œuvre",
-    );
+    ).toEqual(["Choisir…", "PRV · Provision", "DEB · Débours (désactivée)"]);
   });
 
   it("says the version stale, and reading the page anew closes the form", async () => {
@@ -641,8 +610,11 @@ describe("a write whose dialog is closed, and the focus", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+    // The dialog gives the focus back once it has closed, a moment after it is gone.
     const grid = screen.getByRole("grid", { name: "Catégories de coût" });
-    expect(grid.contains(document.activeElement)).toBe(true);
+    await vi.waitFor(() => {
+      expect(grid.contains(document.activeElement)).toBe(true);
+    });
   });
 
   it("gives the focus back to the command of the creation once its dialog is closed by Escape", async () => {
@@ -758,37 +730,76 @@ describe("the activation of a nature or a category", () => {
     ).toBeInTheDocument();
   });
 
-  // The contract lists the activation of a nature or a category always available: the branch is the
-  // one every object of the reference data shares, proven on a nature that would list it otherwise.
-  it("presents an activation listed unavailable with its conditions, and a press says them without asking anything", async () => {
+  it("presents the deactivation of the last nature of provision unavailable with its condition, and a press says it without asking anything [WF-IHM-0090-A]", async () => {
     const client = serve();
-    const [disbursements, ...others] = types.items;
-    if (disbursements === undefined) {
-      throw new Error("the witness has natures");
-    }
-    const held = {
-      ...disbursements,
-      available_commands: [
-        {
-          command: "deactivate" as const,
-          is_available: false,
-          missing_conditions: ["calendar_not_default" as const],
-        },
-      ],
-    };
-    render(natures([held, ...others]));
-    const command = screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" });
+    render(natures());
+    // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+    const command = screen.getByRole("button", { name: "Désactiver «\u00a0Provision\u00a0»" });
     expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: une autre nature provision active portant une catégorie active.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
+    ).not.toHaveAttribute("aria-disabled");
     await userEvent.click(command);
     expect(
       within(screen.getByRole("region", { name: "Natures de coût" }))
         .getAllByRole("status")
         .map((status) => status.textContent),
     ).toContain(
-      "La désactivation de «\u00a0Débours\u00a0» est indisponible. Condition non remplie\u00a0: calendrier autre que celui par défaut.",
+      "La désactivation de «\u00a0Provision\u00a0» est indisponible. Condition non remplie\u00a0: une autre nature provision active portant une catégorie active.",
     );
     expect(client.calls).toEqual([]);
   });
+
+  it("presents the deactivation of the last category of provision unavailable with its condition [WF-IHM-0090-A]", async () => {
+    const client = serve();
+    if (provision === undefined) {
+      throw new Error("the volumes hold the provisions for risks");
+    }
+    render(categoryList([provision]));
+    const command = screen.getByRole("button", {
+      name: "Désactiver «\u00a0Provisions pour risques\u00a0»",
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: une autre catégorie active sous une nature provision active.",
+    );
+    await userEvent.click(command);
+    expect(client.calls).toEqual([]);
+  });
+
+  it.each([
+    [
+      "natures",
+      "Débours",
+      "cost_type_last_provision_refused",
+      "une autre nature provision active portant une catégorie active",
+    ],
+    [
+      "categories",
+      "Sous-traitance",
+      "cost_category_last_provision_refused",
+      "une autre catégorie active sous une nature provision active",
+    ],
+  ])(
+    "says above the list of the %s the refusal of a deactivation the server finds the last of provision meanwhile, naming its condition [WF-IHM-0090-A]",
+    async (list, name, refused, condition) => {
+      serve({
+        [TYPE_ACTIVATION]: { problem: refusal(refused, 409) },
+        [CATEGORY_ACTIVATION]: { problem: refusal(refused, 409) },
+      });
+      render(list === "natures" ? natures() : categoryList());
+      await userEvent.click(
+        screen.getByRole("button", { name: `Désactiver «\u00a0${name}\u00a0»` }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        `L’état actuel ne permet pas cette opération. Condition non remplie : ${condition}.`,
+      );
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
 
   it("presses the deactivation from the keyboard, Enter on the cell of the state, the grid one stop", async () => {
     const client = serve();

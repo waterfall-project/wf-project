@@ -1,0 +1,11 @@
+{
+  "summary": "L'ingénierie mécanique de niveau 1, MO-003, qu'aucune ligne n'emploie, passée sous les débours, refusé : elle porte des taux horaires, de 2016 à 2026, et une catégorie qui porte des taux ne quitte pas la main-d'œuvre, comme sa commande change_cost_type le disait ; rien n'est écrit (WF-REF-0050, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "cost_category_unrated"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001031"
+  }
+}

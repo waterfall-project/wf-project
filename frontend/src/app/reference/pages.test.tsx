@@ -249,6 +249,7 @@ describe("the settings of the costs", () => {
     expect(rows(page, "Natures de coût")[1]).toBe("DEB Débours Hors main-d’œuvre Actif");
     expect(rows(page, "Catégories de coût")[1]).toBe("ACH-001 Sous-traitance Débours 604001 Actif");
     expect(page).not.toContain("Réactiver");
+    expect(queriesOf("GET /reference/cost-types")).toEqual([{}, WHOLE]); // no category form
   });
 
   it("offer the creation and the modification of the natures and the categories to a session that may modify the cost settings, and say the fake back keeps nothing; neither to a session that may only read them [WF-IHM-0090-A]", async () => {
@@ -279,12 +280,12 @@ describe("the settings of the costs", () => {
   it("present the natures of cost by their type, and each category by its nature and its accounting code, on dense grids sorted by each of their columns [WF-IHM-0060-A]", async () => {
     const page = await costsAt();
     // The session may modify the cost settings: each row offers its modification, and the
-    // deactivation each object lists.
+    // deactivation each object lists — that of the last nature of provision unavailable (#578).
     expect(rows(page, "Natures de coût")).toEqual([
       "Code Libellé Type État Modifier",
       "DEB Débours Hors main-d’œuvre Actif Désactiver Modifier",
       "MO Main-d'œuvre Main-d’œuvre Actif Désactiver Modifier",
-      "PRV Provision Provision Actif Désactiver Modifier",
+      "PRV Provision Provision Actif Désactiver Condition non remplie : une autre nature provision active portant une catégorie active. Modifier",
       "3 natures",
     ]);
     expect(sortable(page, "Natures de coût")).toEqual(["Code", "Libellé", "Type", "État"]);
@@ -335,6 +336,8 @@ describe("the settings of the costs", () => {
       },
       // Every nature, which the filter of the categories offers.
       WHOLE,
+      // For a session that writes, every nature, its type compared by the category form (#577).
+      { include_inactive: "true", ...WHOLE },
     ]);
     expect(queriesOf("GET /reference/cost-categories")).toEqual([
       {
@@ -351,7 +354,11 @@ describe("the settings of the costs", () => {
 
   it("ask the active natures, categories and rates alone by default, the deactivated ones too when the address asks for them, and offer to show and hide them back to the first page of each list [WF-REF-0150-A]", async () => {
     const shown = await costsAt();
-    expect(queriesOf("GET /reference/cost-types")).toEqual([{}, WHOLE]);
+    expect(queriesOf("GET /reference/cost-types")).toEqual([
+      {},
+      WHOLE,
+      { include_inactive: "true", ...WHOLE },
+    ]);
     expect(queriesOf("GET /reference/cost-categories")).toEqual([{}]);
     expect(queriesOf(RATES)).toEqual([{}]);
     expect(shown).toMatch(
@@ -380,7 +387,7 @@ describe("the settings of the costs", () => {
     if (labour === undefined || category === undefined) {
       throw new Error("the examples hold a nature and a category");
     }
-    const lists = (commands: CostType["available_commands"]) =>
+    const lists = (commands: components["schemas"]["ReferenceCommands"]) =>
       rendered(
         <>
           <CostTypeList

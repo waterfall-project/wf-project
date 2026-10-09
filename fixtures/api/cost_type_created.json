@@ -1,5 +1,5 @@
 {
-  "summary": "La nature « Fournitures », hors main-d'œuvre, créée aujourd'hui sous le code FRN, active et sa désactivation offerte (WF-REF-0030, WF-IHM-0090).",
+  "summary": "La nature « Fournitures », hors main-d'œuvre, créée aujourd'hui sous le code FRN, active, sa désactivation offerte et la modification de son type disponible, aucune catégorie ne lui étant encore rattachée (WF-REF-0030, WF-IHM-0090).",
   "value": {
     "cost_type_id": "01926f3a-7c00-7000-8000-000000000464",
     "code": "FRN",
@@ -9,6 +9,11 @@
     "available_commands": [
       {
         "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "change_kind",
         "is_available": true,
         "missing_conditions": []
       }

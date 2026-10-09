@@ -1,0 +1,14 @@
+{
+  "summary": "La catégorie « Petites fournitures » créée sous le code FRN-001, son code comptable 606001, sans nature : refusée, une catégorie se rattachant à une nature ; rien n'est écrit (WF-REF-0040).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/cost_type_id",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001032"
+  }
+}

@@ -20,6 +20,7 @@ import {
   readOrFail,
   readOrRefused,
   readUnlessRefused,
+  type Problem,
   SignedOut,
   UnexpectedAnswer,
 } from "./problem";
@@ -73,16 +74,16 @@ describe("the decoder of an answer of the API", () => {
     });
   });
 
-  it("offers to reload an object changed since it was read (412)", async () => {
+  it("offers to reload an object changed since it was read (412), which names no other object", async () => {
     const stale = {
       code: "STALE_LOCK_VERSION",
       status: 412,
-      params: { conflicting_object_id: TASK.node_id, expected_lock_version: 4 },
+      params: { expected_lock_version: 4 },
     } as const;
     expect(await writeTask({ problem: stale })).toEqual({
       kind: "stale",
       problem: stale,
-      conflictingObjectId: TASK.node_id,
+      conflictingObjectId: null,
     });
   });
 
@@ -95,6 +96,27 @@ describe("the decoder of an answer of the API", () => {
     expect(await writeTask({ problem: conflict })).toMatchObject({
       kind: "conflict",
       conflictingObjectId: TASK.node_id,
+    });
+  });
+
+  it("names the object that holds a value already taken, which a 409 says at its first field", async () => {
+    const taken = { ...(example("cost_category_codes_taken") as Problem), status: 409 } as const;
+    const client = fakeClient({ "POST /reference/cost-categories": { problem: taken } });
+    const outcome = await decode(() =>
+      client.POST("/reference/cost-categories", {
+        body: {
+          code: "ACH-002",
+          label: "Câbles armés",
+          cost_type_id: "01926f3a-7c00-7000-8000-000000000462",
+          accounting_code: "604001",
+        },
+      }),
+    );
+    // The code is held by the electrical equipment, which the outcome names; each field says its own.
+    expect(outcome).toEqual({
+      kind: "conflict",
+      problem: taken,
+      conflictingObjectId: "01926f3a-7c00-7000-8000-000000000403",
     });
   });
 

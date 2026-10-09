@@ -1,5 +1,5 @@
 {
-  "summary": "Les trois natures de coût de l'installation, une de chaque type : la main-d'œuvre, les débours et la provision, par lesquelles le devis du projet témoin se ventile, chacune avec la commande qui la désactive (WF-REF-0030, WF-IHM-0090).",
+  "summary": "Les trois natures de coût de l'installation, une de chaque type : la main-d'œuvre, les débours et la provision, par lesquelles le devis du projet témoin se ventile, chacune avec la commande qui la désactive, et la modification de son type indisponible, ses catégories étant employées par ce devis ; la provision, seule nature provision active, garde sa catégorie active, et sa désactivation est indisponible (WF-REF-0030, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -13,6 +13,13 @@
             "command": "deactivate",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused"
+            ]
           }
         ],
         "audit": {
@@ -42,6 +49,13 @@
             "command": "deactivate",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused"
+            ]
           }
         ],
         "audit": {
@@ -69,8 +83,18 @@
         "available_commands": [
           {
             "command": "deactivate",
-            "is_available": true,
-            "missing_conditions": []
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_not_last_provision"
+            ]
+          },
+          {
+            "command": "change_kind",
+            "is_available": false,
+            "missing_conditions": [
+              "cost_type_unused",
+              "cost_type_not_last_provision"
+            ]
           }
         ],
         "audit": {

@@ -1,0 +1,11 @@
+{
+  "summary": "La désactivation de la nature des provisions refusée : elle est la seule nature provision active, et il en reste toujours une dont les lignes de provision des risques prennent la catégorie, comme sa commande deactivate le disait ; rien n'est écrit (WF-REF-0030, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "cost_type_not_last_provision"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001033"
+  }
+}

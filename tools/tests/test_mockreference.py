@@ -124,7 +124,8 @@ def test_the_categories_are_read_whole_by_code_and_their_second_page_follows(
     assert second["meta"] == {"limit": 50, "offset": 50, "total": 200}
     assert second["items"] == whole["items"][50:100]
     for category in whole["items"]:
-        assert category["available_commands"] == DEACTIVATE
+        # Each active: the deactivation first, its availability tried in test_mockcostsettings.
+        assert category["available_commands"][0]["command"] == "deactivate"
 
 
 def test_the_rows_of_the_grid_come_by_code_every_one_active(volumes: dict[str, Any]) -> None:
@@ -212,6 +213,7 @@ def test_each_object_a_reader_reads_is_active_and_bears_no_command(
         ("calendars", "label"),
         ("calendars_with_inactive", "label"),
         ("cost_types", "code"),
+        ("cost_types_with_inactive", "code"),
     ],
 )
 def test_the_lists_written_by_hand_come_in_the_order_of_their_list_without_sort(
@@ -268,7 +270,14 @@ def test_the_inverted_bounds_name_the_upper_one_and_the_lower_one_given() -> Non
 
 
 def _command(entry: Entry) -> tuple[str, bool, list[str]]:
-    [available] = entry["available_commands"]
+    """Return the command that changes the state of an object, the first it lists.
+
+    A nature lists the change of its kind after it (`CostTypeCommand`), a category its move under
+    a nature of another kind (`CostCategoryCommand`, EP-02/L42g); every other object of the
+    reference lists that command alone.
+    """
+    available, *others = entry["available_commands"]
+    assert [other["command"] for other in others] in ([], ["change_kind"], ["change_cost_type"])
     return available["command"], available["is_available"], available["missing_conditions"]
 
 
@@ -282,6 +291,7 @@ def test_each_object_of_the_reference_bears_the_command_that_changes_its_state(
         fixture("calendars")["items"],
         fixture("calendars_with_inactive")["items"],
         fixture("cost_types")["items"],
+        fixture("cost_types_with_inactive")["items"],
         volumes["cost_categories.json"]["items"],
         [fixture("resource_role_reactivated")],
     ]
@@ -403,3 +413,30 @@ def test_the_grid_and_the_calendars_refuse_bounds_inverted_or_a_bound_without_it
     missing = fixture("hourly_rate_grid_rate_year_missing")
     assert (missing["status"], missing["code"]) == (422, "VALIDATION_FAILED")
     assert missing["fields"] == [{"pointer": "/query/rate_year", "code": "VALUE_REQUIRED"}]
+
+
+def test_the_last_category_of_provision_is_the_one_left_and_none_when_two_remain() -> None:
+    # PRV, 463, is the one active nature of provision (#578): its last active category may not go;
+    # two active categories, and neither is the last.
+    def category(number: int, *, active: bool = True) -> Entry:
+        return {
+            "cost_category_id": universe(number),
+            "cost_type_id": universe(463),
+            "is_active": active,
+        }
+
+    alone = [category(404), category(406, active=False), {**category(401), "cost_type_id": "x"}]
+    assert mockreference.last_provision(alone) == {universe(404)}
+    assert mockreference.last_provision([category(404), category(406)]) == set()
+    commands = mockreference.category_commands(category(404), set(), set(), {universe(404)})
+    assert commands[0] == {
+        "command": "deactivate",
+        "is_available": False,
+        "missing_conditions": ["cost_category_not_last_provision"],
+    }
+
+
+def test_the_categories_say_none_is_the_last_of_provision_when_none_is() -> None:
+    entry: Entry = {"cost_category_id": universe(404), "code": "PRV-001", "label": "Provisions"}
+    assert "aucune" in mockreference.last_said([entry], set())
+    assert "PRV-001 (provisions)" in mockreference.last_said([entry], {universe(404)})

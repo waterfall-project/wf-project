@@ -23,6 +23,7 @@
 import { Layers, Tags } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
 import { ListPages } from "@/components/grid/list-pages";
@@ -50,7 +51,7 @@ import {
   type CostTypeKind,
   type CostTypeSort,
 } from "./cost-grids";
-import type { Choice } from "./kinds";
+import type { NatureChoice } from "./cost-kinds";
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
 import { StateFilter } from "./reference-filters";
 import { ListBody, ReferenceSection } from "./section";
@@ -78,6 +79,21 @@ const COST_TYPE_READS = listReads(COST_TYPE_ADDRESS, COST_TYPE_KINDS, COST_TYPE_
 /** The parameters of the address the categories read, their filters among them. */
 const COST_CATEGORY_READS = listReads(COST_CATEGORY_ADDRESS, CATEGORY_COST_TYPE, CATEGORY_STATE);
 
+/**
+ * The names of the rows of a page, by identifier — each by its code and its name —, which name the
+ * object that holds a code a write refuses as taken (409 `ALREADY_EXISTS`).
+ */
+function useNames<Row extends { readonly code: string; readonly label: string }>(): (
+  rows: readonly Row[],
+  id: (row: Row) => string,
+) => ObjectNames {
+  const t = useTranslations("reference");
+  return (rows, id) =>
+    Object.fromEntries(
+      rows.map((row) => [id(row), t("codedChoice", { code: row.code, label: row.label })]),
+    );
+}
+
 /** The natures of cost of a page, each by its code, its name, its type and its state. */
 export function CostTypeList({
   rows,
@@ -94,6 +110,7 @@ export function CostTypeList({
 }) {
   const t = useTranslations("reference");
   const named = useTranslations("enums.CostTypeKind");
+  const namesOf = useNames<CostType>();
   const title = t("costTypes.title");
   const offset = COST_TYPE_ADDRESS.offset;
   const narrowed = query.search !== undefined || kinds.length > 0 || state !== undefined;
@@ -107,7 +124,7 @@ export function CostTypeList({
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costTypes.none") : undefined}
           reads={COST_TYPE_READS}
-          dialog={<CostDialog natures={[]} />}
+          dialog={<CostDialog natures={[]} names={namesOf(rows, (type) => type.cost_type_id)} />}
           filters={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <ValuesFilter
@@ -166,14 +183,24 @@ export function CostCategoryList({
   readsInactive,
   editable,
   natures,
+  every,
   nature,
 }: ListProps<CostCategory, CostCategorySort> & {
-  /** The natures the categories may be restricted to or attached to, in the order of the server. */
-  readonly natures: readonly Choice[];
+  /**
+   * The natures the categories may be restricted to or attached to, each with its type, in the order
+   * of the server.
+   */
+  readonly natures: readonly NatureChoice[];
+  /**
+   * Every nature, deactivated ones included, each with its type, which the form of a category
+   * compares; none read, the natures offered alone.
+   */
+  readonly every?: readonly NatureChoice[] | undefined;
   /** The nature the address restricts the categories to, if any. */
   readonly nature: string | undefined;
 }) {
   const t = useTranslations("reference");
+  const namesOf = useNames<CostCategory>();
   const title = t("costCategories.title");
   const offset = COST_CATEGORY_ADDRESS.offset;
   const narrowed = query.search !== undefined || nature !== undefined || state !== undefined;
@@ -187,7 +214,13 @@ export function CostCategoryList({
         <ListBody
           empty={page.total === 0 && !narrowed ? t("costCategories.none") : undefined}
           reads={COST_CATEGORY_READS}
-          dialog={<CostDialog natures={natures} />}
+          dialog={
+            <CostDialog
+              natures={natures}
+              every={every}
+              names={namesOf(rows, (category) => category.cost_category_id)}
+            />
+          }
           filters={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <ChoiceFilter

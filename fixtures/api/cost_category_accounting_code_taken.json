@@ -1,0 +1,17 @@
+{
+  "summary": "La sous-traitance modifiée avec le code comptable 604002, celui du matériel électrique : refusée, le code comptable d'une catégorie étant unique, et la catégorie qui le porte nommée ; rien n'est écrit (WF-REF-0040).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/accounting_code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000403"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001025"
+  }
+}

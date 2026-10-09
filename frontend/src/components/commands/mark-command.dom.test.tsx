@@ -214,7 +214,22 @@ describe("the marking of a revision", () => {
   });
 
   it("tells a version name already taken, and follows no task", async () => {
-    serve({ [MARK]: { problem: { code: "ALREADY_EXISTS", status: 409 } } });
+    // The name is held by the reference, a marked revision the form does not name.
+    serve({
+      [MARK]: {
+        problem: {
+          code: "ALREADY_EXISTS",
+          status: 409,
+          fields: [
+            {
+              pointer: "/version_name",
+              code: "ALREADY_EXISTS",
+              params: { conflicting_object_id: "01926f3a-7c00-7000-8000-000000000101" },
+            },
+          ],
+        },
+      },
+    });
     open();
     await mark("V1");
     const form = screen.getByRole("form", { name: "Marquer la révision" });

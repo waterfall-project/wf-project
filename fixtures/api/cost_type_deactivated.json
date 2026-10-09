@@ -1,5 +1,5 @@
 {
-  "summary": "La nature des débours désactivée depuis la version lue : elle n'est plus proposée à la saisie, reste lisible là où elle est employée, et offre sa réactivation (WF-REF-0010, WF-REF-0150).",
+  "summary": "La nature des débours désactivée depuis la version lue : elle n'est plus proposée à la saisie, reste lisible là où elle est employée, offre sa réactivation, et la modification de son type reste indisponible (WF-REF-0010, WF-REF-0150, WF-REF-0030).",
   "value": {
     "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
     "code": "DEB",
@@ -11,6 +11,13 @@
         "command": "reactivate",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "change_kind",
+        "is_available": false,
+        "missing_conditions": [
+          "cost_type_unused"
+        ]
       }
     ],
     "audit": {
