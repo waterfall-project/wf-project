@@ -1,7 +1,7 @@
 ---
 id: EP-02
 titre: Tous les écrans, navigables, alimentés par le faux back, avant toute règle métier
-statut: en cours
+statut: livré
 depend_de: EP-01
 famille: front
 issue: 72
@@ -86,7 +86,6 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-04 | US-0180 |
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
-| `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0240 |
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
@@ -95,19 +94,19 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-04 | US-0110, US-0190 |
 | `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0190 |
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
-| `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
-Le §3.6 compte treize exigences ; cet EPIC en réalise douze, et en clôt huit : elles portent
-sur l'interface, et l'interface existe ici pour de bon. La treizième, WF-IHM-0120 (l'écran
-d'accueil), se réalise et se clôt en EP-04 (cadrage d'EP-03). Neuf exigences ne font que commencer, et leurs US
+Le §3.6 compte treize exigences ; cet EPIC en réalise onze, et en clôt sept : elles portent
+sur l'interface, et l'interface existe ici pour de bon. WF-IHM-0120 (l'écran
+d'accueil) se réalise et se clôt en EP-04 (cadrage d'EP-03) ; WF-IHM-0100 (l'accessibilité) passe à
+EP-14 avec son US, US-0200, comme WF-CMP-0010 (les navigateurs) avec US-0290 — voir « Reporté vers
+EP-14 ». Huit exigences ne font que commencer, et leurs US
 disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif des tables et les réglages par compte —
 EP-03, le devis ordonné — EP-07), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
 WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-IHM-0130 (des totaux que le filtre
 restreint, calculés par un serveur réel — EP-11), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03 ; deux utilisateurs
 sur un même projet — EP-04), WF-INTF-0180 (le
-format des fichiers d'échange — EP-07), WF-CMP-0010 (la version majeure précédente et le
-Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
+format des fichiers d'échange — EP-07), et WF-DAT-0100 (l'affichage des dates sans fuseau est
 ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07). WF-IHM-0130 touche aussi
 les grilles et le Gantt d'US-0110, US-0220 et US-0230, qui filtrent par le serveur, et dont
 l'export PNG se clôt en EP-11.
@@ -145,15 +144,37 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
 
 - chaque fonction feuille de l'arborescence FBS est adressable — une page, une route ou un
   onglet — depuis la navigation, et un contrôle du dépôt le vérifie ;
-- les exigences du §3.6 que cet EPIC réalise — de WF-IHM-0010 à WF-IHM-0110, et WF-IHM-0130
-  — ont chacune au moins un test de bout en bout qui les cite ;
-- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme
-  en sombre ;
+- les exigences du §3.6 que cet EPIC réalise — de WF-IHM-0010 à WF-IHM-0110, hors WF-IHM-0100,
+  et WF-IHM-0130 — ont chacune au moins un test de bout en bout qui les cite ;
 - le parcours de bout en bout s'exécute et aboutit en français comme en anglais ;
 - la chaîne échoue sur un appel http au serveur hors du client engendré, sur un texte
   destiné à l'utilisateur écrit en dur, et sur une clé de traduction manquante ou orpheline ;
 - les constats faits sur le contrat sont écrits — soit appliqués dans `docs/api`, soit ouverts
   en issue « Interface contract issue » — et aucun n'est resté dans une tête.
+
+## Reporté vers EP-14
+
+Sur décision de l'auteur du 2026-10-09, EP-02 est fusionné dans `main` pour qu'EP-03 démarre sans
+attendre ; ce qui reste des écrans passe à EP-14, « Maquette du front : finitions », qui le reprend
+tel quel. Sa définition de fini ci-dessus est restreinte en conséquence : le contrôle de contraste au
+niveau AA, en clair comme en sombre, part avec l'accessibilité.
+
+- **US-0200 — Accessibilité minimale** (#84, lot #126) : reportée : EP-14, avec `WF-IHM-0100-A`,
+  qu'EP-14 clôt.
+- **US-0290 — Navigateurs et largeurs d'affichage** (#92, lot #127) : reportée : EP-14, avec
+  `WF-CMP-0010-A`, qu'EP-14 commence et qu'EP-13 clôt.
+- **Les commandes des écrans**, décidées le 2026-10-08, qui n'étaient pas finies à la coupure :
+  l'écran des sauvegardes (#519, sous #512), les paramètres des risques et des indicateurs (#512),
+  les paramètres du projet (#513 : #583, #584, #585, et #524) ; avec eux, le critère d'US-0210
+  qui dit qu'aucun écran du projet ne propose de créer ni de modifier, à réécrire en écart quand
+  ces commandes entrent (#591).
+- **Les parties de contrat restantes de #507** : #574, #575, #579, #586, #588, #590, #592.
+- **L'univers témoin à l'échelle** (#528, qui ferme #287), et les relectures lentes sous charge
+  (#500).
+
+US-0210 et US-0250 restent finies : leurs écrans lisent tout ce qu'ils ont à montrer, et les
+commandes qu'EP-14 leur ajoute sont un complément décidé après coup (décision de l'auteur du
+2026-10-08), non un critère qui manquerait.
 
 ## Conception
 
@@ -1114,36 +1135,6 @@ seul champ de langue.
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
   l'exporte. » attendent l'échange du devis — EP-07 ; ici, seul l'affichage.
 
-## US-0200 — Accessibilité minimale
-
-- **statut** : à faire
-- **exigences** : `WF-IHM-0100-A`
-- **opérations** : aucune en propre
-- **issue** : #84
-
-**En tant que** chef de projet, manager ou administrateur, **je veux** atteindre toute action
-au clavier, lire les textes sans effort et agrandir l'affichage sans rien perdre, **afin
-d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le travail.
-
-**Critères d'acceptation.**
-
-- `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
-  visible. »
-- `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau
-  AA. »
-- `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. »
-- propre à l'US : chaque champ de saisie porte un libellé associé, et chaque image porteuse
-  d'information une description — le quatrième point du corps de WF-IHM-0100, que son Vérif
-  ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne ;
-- propre à l'US : le contrôle de contraste joue en mode clair et en mode sombre — la charte
-  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive.
-
-**Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
-fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
-(§2.2) : ces quatre points, et rien de plus.
-
-**Hors périmètre.** L'aide en ligne, qui n'est pas dans cet EPIC.
-
 ## US-0210 — Écrans du projet, des révisions et des contributeurs
 
 - **statut** : fini
@@ -1628,39 +1619,6 @@ comparaison des révisions (`…/revisions/page.test.tsx`) et la relecture des t
 cherchée (`frontend/src/components/grid/write-totals.dom.test.tsx`) — ; sur les autres écrans, elle se
 tient aussi par la revue. La première est tenue par la garde réseau
 (`frontend/src/api/network-guard.test.ts`), la deuxième par la spécification et la revue.
-
-## US-0290 — Navigateurs et largeurs d'affichage
-
-- **statut** : à faire
-- **exigences** : `WF-CMP-0010-A`
-- **opérations** : aucune en propre
-- **issue** : #92
-
-**En tant que** chef de projet, **je veux** que les grilles, le Gantt et les courbes
-fonctionnent sur le navigateur de mon poste, et consulter les indicateurs depuis mon
-téléphone, **afin de** ne rien installer et de répondre à une question sur un projet loin de
-mon bureau.
-
-**Critères d'acceptation.**
-
-- `WF-CMP-0010-A` — « Les vues d'indicateurs se lisent sur un écran de 360 points de large et
-  n'y proposent aucune saisie. »
-- `WF-CMP-0010-A` — « Aucune fonction n'exige une installation sur le poste. »
-- propre à l'US : les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne
-  sur les quatre navigateurs de la spécification — Chrome et Edge par leurs canaux
-  Playwright, Firefox, et WebKit tenant lieu de Safari —, en version courante, à 1366 points
-  de large ;
-- écart : `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
-  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
-  à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
-  pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
-- écart : `WF-CMP-0010-A` — « Vérifiée en recette pour Safari et les terminaux mobiles. » : la
-  recette se tient sur la plateforme déployée, avec son procès-verbal — EP-13.
-
-**Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
-ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
-Firefox et WebKit ses deux autres moteurs, et le Safari réel reste à la recette (EP-13) —
-et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
 
 ## US-0320 — Connexion et compte personnel
 
