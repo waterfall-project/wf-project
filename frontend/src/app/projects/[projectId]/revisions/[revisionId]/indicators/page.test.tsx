@@ -71,6 +71,7 @@ const REVISION_ROUTE = "GET /projects/{project_id}/revisions/{revision_id}";
 const MARKED = "01926f3a-7c00-7000-8000-000000000101";
 const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
 type Indicators = components["schemas"]["ProjectIndicators"];
 type History = components["schemas"]["IndexHistory"];
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
@@ -225,7 +226,7 @@ describe("the screen of the indicators of a project", () => {
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-05-31" })));
     const banner = page.slice(0, page.indexOf("</section>"));
     expect(text(banner)).toContain(
-      "Subproject: SP-CMD — Poste de commande, on the indicators and the earned value only Calculation date: 31 May 2026",
+      "Subproject: SP-CMD — Poste de commande, except the milestone tracking Calculation date: 31 May 2026",
     );
     const screen = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
     expect(
@@ -234,34 +235,46 @@ describe("the screen of the indicators of a project", () => {
     expect(banner).toContain('aria-label="Remove the filter “Calculation date: 31 May 2026”"');
   });
 
-  it("says of each curve its operation does not restrict to the sub-project that it covers the project whole, and the chip what the sub-project restricts [WF-IHM-0020-A]", async () => {
-    // #495: the indicators and the curves of earned value take the sub-project (`scope`); the
-    // evolution of the indices, the tracking of the milestones and the cumulative costs do not.
+  it("reads the evolution of the indices and the cumulative costs for the sub-project the banner shows, and says the tracking of the milestones covers the whole project [WF-IHM-0020-A]", async () => {
+    // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres : every figure the API
+    // computes for a sub-project is read for the one the banner shows (`scope`, WF-IND-0020); the
+    // time/time diagram, computed for the project alone — it follows milestones, which a
+    // sub-project does not have —, says so where it stands.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/index-history": "index_history_subproject",
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve_subproject",
+    };
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
-    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
-      revision_id: REVISION,
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toEqual({
       scope: SUBPROJECT,
     });
     expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
       revision_id: REVISION,
+      scope: SUBPROJECT,
+    });
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
+      revision_id: REVISION,
+      scope: SUBPROJECT,
     });
     expect(queryOf("GET /projects/{project_id}/indicators/milestone-tracking")).toEqual({});
     const said = text(page);
-    expect(said.match(/it is not restricted to the filtered subproject/g)).toHaveLength(3);
+    // The evolution of each index draws the one scope the API gives: the sub-project.
+    expect(said.match(/Poste de commande Current revision/g)).toHaveLength(2);
+    expect(said).not.toContain("Whole project Current revision");
+    expect(said.match(/covers the whole project/g)).toHaveLength(1);
     expect(said).toMatch(
-      /Milestone tracking This tracking covers the milestones of the whole project: it is not restricted to the filtered subproject\./,
+      /Milestone tracking This tracking covers the whole project: it follows milestones, which a subproject does not have\./,
     );
-    expect(said).toMatch(
-      /Cumulative costs These curves cover the whole project: they are not restricted to the filtered subproject\./,
-    );
-    // The two evolutions of the indices, one in each card.
-    expect(
-      said.match(/This evolution shows every scope of the project: it is not restricted/g),
-    ).toHaveLength(2);
-    expect(said).not.toMatch(/Earned value curves [^.]*not restricted/);
-    // No sub-project filtered, nothing said.
+    // No sub-project filtered, nothing said, every scope of the evolution read.
     server.clients = [];
-    expect(text(html(await IndicatorsPage(at())))).not.toContain("not restricted");
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/index-history": "index_history",
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve",
+    };
+    expect(text(html(await IndicatorsPage(at())))).not.toContain("covers the whole project");
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toEqual({});
   });
 
   it("asks the indicators for the sub-project and the date the address filters, the evolution of the indices dated by its own calculation [WF-IHM-0020-A]", async () => {
@@ -270,9 +283,11 @@ describe("the screen of the indicators of a project", () => {
       scope: SUBPROJECT,
       as_of: "2026-02-01",
     });
-    // The evolution runs to the current day whatever the address asks: it takes no date, and
-    // says its own date of calculation beside that of the indicators.
-    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toEqual({});
+    // The evolution runs to the current day whatever the address asks: it takes no date, but the
+    // sub-project, and says its own date of calculation beside that of the indicators.
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toEqual({
+      scope: SUBPROJECT,
+    });
     const dated = (heading: string) => {
       const from = page.indexOf(heading);
       return /Computed on <time dateTime="([^"]+)">/.exec(page.slice(from))?.[1];
@@ -401,6 +416,93 @@ describe("the screen of the indicators of a project", () => {
     expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
   });
 
+  it("says the indicators unavailable for a sub-project the project does not have, never figures of nothing, the milestones shown", async () => {
+    const unknown = "01926f3a-7c00-7000-8000-000000000899";
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators": {
+        problem: example("indicators_scope_unknown") as Problem & { status: 422 },
+      },
+    };
+    const page = text(html(await IndicatorsPage(at({ subproject_id: unknown }))));
+    expect(queryOf("GET /projects/{project_id}/indicators")).toMatchObject({ scope: unknown });
+    expect(page).toContain(
+      "Indicators unavailable The subproject asked for does not exist in this project",
+    );
+    expect(page).not.toContain("Financial progress");
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
+    expect(page).toContain("Milestone tracking");
+  });
+
+  it("does not take another refusal of the parameters as a sub-project the project does not have", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators": {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/query/revision_id", code: "VALUE_OUT_OF_RANGE" }],
+        },
+      },
+    };
+    await expect(IndicatorsPage(at())).rejects.toBeInstanceOf(UnexpectedAnswer);
+  });
+
+  it("says a cumulative curve with nothing to draw rather than drawing a zero", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve_subproject_empty",
+    };
+    exported.charts = [];
+    const page = text(
+      html(await IndicatorsPage(at({ subproject_id: "01926f3a-7c00-7000-8000-000000000802" }))),
+    );
+    // Nothing to draw, nothing to shift: the command is not offered.
+    expect(page).toContain(
+      "Cumulative costs Nothing to draw: no line and no actual cost belong to this scope.",
+    );
+    expect(page).not.toContain("Shift by the payment delays");
+    // The whole curve empty, no sentence for each of its series is added.
+    expect(page).not.toContain("nothing to draw for this scope");
+    expect(exported.charts.map(([chart]) => chart)).not.toContain("s-curve");
+  });
+
+  it("keeps the way out of the shift by the payment delays of a curve with nothing to draw", async () => {
+    const essays = "01926f3a-7c00-7000-8000-000000000802";
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/cost-curve":
+        "cost_curve_subproject_empty_payment_delays",
+    };
+    const page = html(await IndicatorsPage(at({ subproject_id: essays, payment_delays: "true" })));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      scope: essays,
+      revision_id: REVISION,
+      payment_delays: "true",
+    });
+    expect(text(page)).toContain(
+      "Cumulative costs Remove the shift by the payment delays Nothing to draw: no line and no actual cost belong to this scope.",
+    );
+    // The link keeps the sub-project, and lifts the shift alone.
+    expect(page).toContain(`href="${SCREEN}?subproject_id=${essays}"`);
+  });
+
+  it("says under the chart each series without a point among others that have some, rather than drawing a zero", async () => {
+    // The reference budget of a scope no reference budgets has nothing to draw; the actual cost
+    // and the projection are drawn.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve_subproject_unbudgeted",
+    };
+    exported.charts = [];
+    const said = text(html(await IndicatorsPage(at({ subproject_id: SUBPROJECT }))));
+    expect(exported.charts.map(([chart]) => chart)).toContain("s-curve");
+    expect(said).toContain("Reference budget: nothing to draw for this scope.");
+    expect(said.match(/nothing to draw/gi)).toHaveLength(1);
+    expect(said).not.toContain("Actual cost: nothing to draw");
+  });
+
   it("does not take a refusal of the same status for another reason as the state of the project", async () => {
     server.answers = {
       ...server.answers,
@@ -448,9 +550,10 @@ describe("the curves and the milestones of the screen", () => {
     expect(page).toContain("Milestone tracking No milestone is tracked. Cumulative costs");
   });
 
-  it("asks the cumulative costs at the date the address filters and the earned value for its sub-project too [WF-IND-0100-A] [WF-IND-0110-A]", async () => {
+  it("asks the cumulative costs and the earned value at the date and for the sub-project the address filters [WF-IND-0100-A] [WF-IND-0110-A]", async () => {
     await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" }));
     expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      scope: SUBPROJECT,
       as_of: "2026-02-01",
     });
     expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
@@ -462,6 +565,7 @@ describe("the curves and the milestones of the screen", () => {
   it("shifts the cumulative costs by the payment delays when the address asks it, and names them as the API says [WF-IND-0100-A]", async () => {
     let page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
     expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      scope: SUBPROJECT,
       revision_id: REVISION,
     });
     // The command keeps the other parameters of the address.
@@ -501,7 +605,7 @@ describe("the provenance of the charts the screen exports", () => {
     html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
     expect(exported.charts.map(([chart, provenance]) => [chart, provenance.detail])).toEqual([
       ["milestones", "Whole project, not restricted to the filtered subproject"],
-      ["s-curve", "Whole project, not restricted to the filtered subproject"],
+      ["s-curve", "Subproject: SP-CMD — Poste de commande"],
       ["earned-value", "Subproject: SP-CMD — Poste de commande"],
     ]);
     // No sub-project filtered: every chart is the project whole, and says nothing more.

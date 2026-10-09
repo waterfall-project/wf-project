@@ -11,12 +11,13 @@
  * (`exclude_cost_lines`), the number of a line shows its place in the tracked scope to change it,
  * the line the address names (`line`) among those of the page (WF-CRE-0040). Its head leads to the
  * imports and exports of the project (FBS-4.3.4), where the actual costs are imported, in the same
- * context. The actual costs
- * belong to the project, not to a revision: the revision of the route is the reading context of
- * the banner alone. Every figure as the API gives it: the front computes, sorts, filters and pages
- * nothing. Filters the API refuses (422) — a period that ends before it starts, a sub-project the
- * project does not have — are said in place of the lines, the filters kept to be changed; any
- * other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * context. The actual costs belong to the project, not to a revision: the revision of the route is
+ * the reading context of the banner alone. Every figure as the API gives it: the front computes,
+ * sorts, filters and pages nothing. Filters the API refuses (422) — a period that ends before it
+ * starts, a sub-project the project does not have — are said in place of the lines, the filters
+ * kept to be changed, the end of a period refused said at its field with the start the API was
+ * given (`params.minimum`); any other read the API refuses, or cannot answer, is thrown for the
+ * pages of the shell to say.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -52,6 +53,7 @@ import { CostSummary } from "@/components/costs/cost-totals";
 import { CostsGrid } from "@/components/costs/costs-grid";
 import { ImportJournal } from "@/components/costs/import-journal";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { refusedPeriod } from "@/components/grid/period";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -123,7 +125,8 @@ async function readCosts(
     }),
   );
   if (read.kind === "refused") {
-    return { refused: costsRefusal(read.problem.fields ?? []) } as const;
+    const fields = read.problem.fields ?? [];
+    return { refused: costsRefusal(fields), period: refusedPeriod(fields) } as const;
   }
   const answer = read.data;
   return {
@@ -255,6 +258,7 @@ export default async function ActualCostsPage({
             filters={filters}
             subproject={at.context.parameters.get("subproject_id") ?? undefined}
             subprojects={subprojects}
+            refused={"refused" in costs ? costs.period : undefined}
           />
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">

@@ -82,8 +82,15 @@ describe("the grids of the settings of a project", () => {
     expect(
       screen.getByRole("button", { name: "Colonnes de «\u00a0Contributeurs\u00a0»" }),
     ).toBeInTheDocument();
-    // None of them sorts: the contract sorts none of these lists.
-    expect(container.querySelectorAll("thead button")).toHaveLength(0);
+    // The work breakdown sorts nothing, in the order entered; the two flat tables sort on each of
+    // their three columns.
+    const sorting = (name: string) =>
+      screen
+        .getByRole(name === "Lotissement" ? "treegrid" : "grid", { name })
+        .querySelectorAll("thead button");
+    expect(sorting("Lotissement")).toHaveLength(0);
+    expect(sorting("Sous-projets")).toHaveLength(3);
+    expect(sorting("Contributeurs")).toHaveLength(3);
     await expectAccessible(container);
   });
 
@@ -108,6 +115,97 @@ describe("the grids of the settings of a project", () => {
     );
     await userEvent.keyboard("{Enter}");
     expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&subproject_search=SP-C`);
+  });
+
+  it.each([
+    ["Code ERP", "code"],
+    ["Libellé", "label"],
+    ["Coûts réels", "has_actual_costs"],
+  ] as const)(
+    "ask the server for the sort of the sub-projects by « %s », both ways, under the names of their grid, the rest of the address kept [WF-IHM-0060-A]",
+    async (heading, column) => {
+      // Chaque colonne d'une table plate se trie dans les deux sens.
+      page.search = "contributor_kinds=contributor";
+      const { rerender } = render(settings());
+      const header = () =>
+        within(screen.getByRole("grid", { name: "Sous-projets" })).getByRole("button", {
+          name: heading,
+        });
+      await userEvent.click(header());
+      const sorted = `subproject_sort_by=${column}&subproject_sort_order`;
+      expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&${sorted}=asc`);
+      page.search = `contributor_kinds=contributor&${sorted}=asc`;
+      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      rerender(
+        settings(
+          <SubprojectList subprojects={subprojects} shown={{ query, preferences: undefined }} />,
+        ),
+      );
+      await userEvent.click(header());
+      expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&${sorted}=desc`);
+    },
+  );
+
+  it.each([
+    ["Nom", "display_name"],
+    ["Qualité", "kind"],
+    ["Compte", "is_active"],
+  ] as const)(
+    "ask the server for the sort of the contributors by « %s », both ways, under the names of their grid, the rest of the address kept [WF-IHM-0060-A]",
+    async (heading, column) => {
+      // Chaque colonne d'une table plate se trie dans les deux sens.
+      page.search = "subproject_search=SP";
+      const { rerender } = render(settings());
+      const header = () =>
+        within(screen.getByRole("grid", { name: "Contributeurs" })).getByRole("button", {
+          name: heading,
+        });
+      await userEvent.click(header());
+      const sorted = `contributor_sort_by=${column}&contributor_sort_order`;
+      expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&${sorted}=asc`);
+      page.search = `subproject_search=SP&${sorted}=asc`;
+      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      rerender(
+        settings(
+          <ContributorList contributors={contributors} shown={{ query, preferences: undefined }} />,
+        ),
+      );
+      await userEvent.click(header());
+      expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&${sorted}=desc`);
+    },
+  );
+
+  it("ask the server for the search of the contributors on their names, under the names of their grid", async () => {
+    page.search = "subproject_search=SP";
+    render(settings());
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Rechercher dans «\u00a0Contributeurs\u00a0»" }),
+      "Mar{Enter}",
+    );
+    expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&contributor_search=Mar`);
+  });
+
+  it("filter the sub-projects on their actual costs and the contributors on the state of their account, under the names of their grid", async () => {
+    page.search = "subproject_search=SP";
+    render(settings());
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Coûts réels" }),
+      "Sans coût réel imputé",
+    );
+    expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&subproject_has_actual_costs=false`);
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "État du compte" }),
+      "Comptes désactivés",
+    );
+    expect(lastAddress()).toBe(
+      `${PATH}?subproject_search=SP&subproject_has_actual_costs=false&contributor_is_active=false`,
+    );
+    // Every one chosen again lifts the filter.
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "État du compte" }),
+      "Tous les comptes",
+    );
+    expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&subproject_has_actual_costs=false`);
   });
 
   it("filter the contributors by capacity under the names of their grid, the capacities in the order of the contract [WF-IHM-0130-A]", async () => {

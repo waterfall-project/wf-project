@@ -310,6 +310,13 @@
       "lift": "Lift the bounds",
       "inverted": "The upper bound may not precede the lower one, {minimum}.",
       "money": "Two decimals at most."
+    },
+    "period": {
+      "from": "From",
+      "to": "To",
+      "apply": "Filter",
+      "inverted": "The end of the period may not precede its start, {minimum}.",
+      "invertedUndated": "The end of the period may not precede its start."
     }
   },
   "estimateGrid": {
@@ -679,7 +686,7 @@
     "removeFilter": "Remove the filter “{filter}”",
     "restricts": {
       "grid": "{filter}, on the grid only",
-      "indicators": "{filter}, on the indicators and the earned value only"
+      "exceptMilestones": "{filter}, except the milestone tracking"
     }
   },
   "indicator": {
@@ -708,6 +715,10 @@
     "notInProgress": {
       "title": "Indicators unavailable",
       "explanation": "The indicators of a project are computed from the In progress state; before, only the indicators of the estimate exist."
+    },
+    "unknownScope": {
+      "title": "Indicators unavailable",
+      "explanation": "The subproject asked for does not exist in this project: no indicator is computed for it. Remove the filter of the subproject, or choose another one."
     },
     "elsewhere": {
       "title": "Computed on another revision",
@@ -802,12 +813,12 @@
       "cashOut": "Cash out by month",
       "month": "Month",
       "past": "Paid out",
-      "forecast": "To pay out"
+      "forecast": "To pay out",
+      "empty": "Nothing to draw: no line and no actual cost belong to this scope.",
+      "seriesEmpty": "{series}: nothing to draw for this scope."
     },
     "wholeProject": {
-      "history": "This evolution shows every scope of the project: it is not restricted to the filtered subproject.",
-      "milestones": "This tracking covers the milestones of the whole project: it is not restricted to the filtered subproject.",
-      "costCurve": "These curves cover the whole project: they are not restricted to the filtered subproject."
+      "milestones": "This tracking covers the whole project: it follows milestones, which a subproject does not have."
     },
     "provenance": {
       "subproject": "Subproject: {subproject}",
@@ -889,8 +900,10 @@
       "lift": "Show all projects",
       "apply": "Show only my projects",
       "states": "Filter by state",
-      "everyState": "Every state"
-    }
+      "everyState": "Every state",
+      "period": "Modification period"
+    },
+    "periodRefused": "The list is not read: the server refuses the period asked."
   },
   "projectFacts": {
     "label": "The project",
@@ -910,14 +923,22 @@
       "none": "This project has no subproject.",
       "charged": "Charged",
       "notCharged": "None",
-      "count": "{count, plural, =0 {No subproject} one {# subproject} other {# subprojects}}"
+      "count": "{count, plural, =0 {No subproject} one {# subproject} other {# subprojects}}",
+      "actualCostsFilter": "Actual costs",
+      "everyActualCosts": "Every subproject",
+      "withActualCosts": "With actual costs charged",
+      "withoutActualCosts": "Without actual costs charged"
     },
     "contributors": {
       "title": "Contributors",
       "none": "This project has no contributor.",
       "count": "{count, plural, =0 {No contributor} one {# contributor} other {# contributors}}",
       "kindFilter": "Filter by capacity",
-      "everyKind": "Every capacity"
+      "everyKind": "Every capacity",
+      "accountFilter": "Account state",
+      "everyAccount": "Every account",
+      "activeAccounts": "Active accounts",
+      "inactiveAccounts": "Deactivated accounts"
     },
     "workBreakdown": {
       "title": "Work breakdown",
@@ -1985,6 +2006,10 @@
         "marked_remaining": "Remaining of a marked revision",
         "current_remaining": "Remaining of the current revision"
       }
+    },
+    "WorkloadZone": {
+      "nominal": "Nominal",
+      "alert": "Alert"
     },
     "NotComputableReason": {
       "no_actual_cost": "No actual cost at the calculation date.",

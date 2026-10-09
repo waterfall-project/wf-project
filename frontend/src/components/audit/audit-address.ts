@@ -15,6 +15,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { readValues } from "@/components/grid/filters";
+import { isInstant } from "@/components/grid/period";
 import {
   CONTRACT_ADDRESS,
   type GridQuery,
@@ -152,39 +153,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function uuidOf(search: SearchParameters, name: string): string | undefined {
   const value = search.get(name);
   return value !== null && UUID.test(value) ? value : undefined;
-}
-
-/**
- * An instant as the contract writes it (`date-time` of RFC 3339): the date, the time, the zone —
- * each field caught to be bounded.
- */
-const INSTANT =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):(\d{2}))$/;
-
-/** The days of a month of a year, the last of February included in a leap year. */
-function daysIn(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-/** The lowest value of each field of an instant after its year, from the month to the zone. */
-const LOWEST = [1, 1, 0, 0, 0, 0, 0];
-
-/**
- * Whether a text is an instant the contract takes: its form, and each field within its bounds —
- * a month of the year, a day of that month, an hour up to 23, minutes and seconds up to 59, a
- * zone of 23 hours and 59 minutes at most.
- */
-function isInstant(value: string): boolean {
-  const fields = INSTANT.exec(value);
-  if (fields === null) {
-    return false;
-  }
-  // A field the text leaves out — the seconds, the zone of `Z` — is nought.
-  const [year = 0, ...rest] = fields
-    .slice(1)
-    .map((field: string | undefined) => Number(field ?? 0));
-  const highest = [12, daysIn(year, rest[0] ?? 0), 23, 59, 59, 23, 59];
-  return rest.every((field, at) => field >= (LOWEST[at] ?? 0) && field <= (highest[at] ?? 0));
 }
 
 /** An instant the address names under a parameter, if the API may take it. */

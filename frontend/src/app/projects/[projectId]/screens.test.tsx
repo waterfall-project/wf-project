@@ -232,7 +232,7 @@ describe("the settings of a project", () => {
     ).toBe("Work breakdown This project has no order item.");
   });
 
-  it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched by the server and sorted by none", async () => {
+  it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/subprojects"]).toBe(
       `/projects/${PROJECT}/subprojects`,
@@ -244,11 +244,14 @@ describe("the settings of a project", () => {
       "SP-ESS Essais et mise en service None",
       "2 subprojects",
     ]);
-    expect(sortable(page, "Subprojects")).toEqual([]);
+    expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);
     expect(page).toContain('aria-label="Search in “Subprojects”"');
+    expect(text(page)).toContain(
+      "Actual costs Every subproject With actual costs charged Without actual costs charged",
+    );
   });
 
-  it("lists the contributors of the project on a grid, the project manager told from a contributor in words and by an icon, an account deactivated since said so, filtered by capacity", async () => {
+  it("lists the contributors of the project on a grid, the project manager told from a contributor in words and by an icon, an account deactivated since said so, searched, sorted and filtered by the server on each column", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/contributors"]).toBe(
       `/projects/${PROJECT}/contributors`,
@@ -261,7 +264,8 @@ describe("the settings of a project", () => {
       "Inès Roux Contributor Active",
       "4 contributors",
     ]);
-    expect(sortable(page, "Contributors")).toEqual([]);
+    expect(sortable(page, "Contributors")).toEqual(["Name", "Capacity", "Account"]);
+    expect(page).toContain('aria-label="Search in “Contributors”"');
     // The project manager alone bears the icon, beside the words that say it.
     const capacities = [
       ...table(page, "Contributors").matchAll(/<td[^>]*data-column="kind"[^>]*>(.*?)<\/td>/g),
@@ -269,23 +273,58 @@ describe("the settings of a project", () => {
     expect(capacities).toHaveLength(4);
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
     expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
-    expect(text(page)).toContain("Contributors Every capacity Project manager Contributor");
+    expect(text(page)).toContain(
+      "Contributors Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
+    );
   });
 
-  it("asks the server for the search of the sub-projects and the capacities of the contributors the address names, under the names of the contract", async () => {
+  it("asks the server for the search, the sort and the filters of each list the address names, under the names of the contract", async () => {
     await SettingsPage(
       at({
         subproject_search: "SP-C",
+        subproject_sort_by: "has_actual_costs",
+        subproject_sort_order: "desc",
+        subproject_has_actual_costs: "false",
+        contributor_search: "Mar",
+        contributor_sort_by: "kind",
         contributor_kinds: "contributor,unknown,project_manager",
+        contributor_is_active: "true",
         // The names of the contract alone belong to no grid of this screen.
         search: "ignored",
         kinds: "contributor",
+        is_active: "false",
       }),
     );
-    expect(queriesOf("GET /projects/{project_id}/subprojects")).toEqual([{ search: "SP-C" }]);
-    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([
-      { kinds: "project_manager,contributor" },
+    expect(queriesOf("GET /projects/{project_id}/subprojects")).toEqual([
+      {
+        search: "SP-C",
+        sort_by: "has_actual_costs",
+        sort_order: "desc",
+        has_actual_costs: "false",
+      },
     ]);
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([
+      {
+        search: "Mar",
+        sort_by: "kind",
+        sort_order: "asc",
+        kinds: "project_manager,contributor",
+        is_active: "true",
+      },
+    ]);
+  });
+
+  it("asks nothing the contract would refuse: a column it does not sort by, a filter that is no boolean", async () => {
+    await SettingsPage(
+      at({
+        subproject_sort_by: "actual_costs",
+        subproject_has_actual_costs: "yes",
+        contributor_sort_by: "name",
+        contributor_is_active: "1",
+      }),
+    );
+    expect(queriesOf("GET /projects/{project_id}/subprojects")).toEqual([{}]);
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([{}]);
   });
 
   it("keeps the grid of a list a search or a filter narrows to nothing", () => {
@@ -296,15 +335,31 @@ describe("the settings of a project", () => {
       />,
     );
     expect(rows(searched, "Subprojects")).toContain("No row matches the request.");
+    const charged = html(<SubprojectList subprojects={[]} actualCosts={false} />);
+    expect(rows(charged, "Subprojects")).toContain("No row matches the request.");
     const filtered = html(<ContributorList contributors={[]} kinds={["project_manager"]} />);
     expect(rows(filtered, "Contributors")).toContain("No row matches the request.");
+    const inactive = html(<ContributorList contributors={[]} active={false} />);
+    expect(rows(inactive, "Contributors")).toContain("No row matches the request.");
+    const named = html(
+      <ContributorList
+        contributors={[]}
+        shown={{ query: { sort: undefined, search: "Zoé" }, preferences: undefined }}
+      />,
+    );
+    expect(rows(named, "Contributors")).toContain("No row matches the request.");
+    // Nothing narrows it: the list says it is empty.
+    expect(text(html(<ContributorList contributors={[]} />))).toBe(
+      "Contributors This project has no contributor.",
+    );
   });
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([]);
-    // The one form is the search of the sub-projects.
+    // The forms are the searches of the sub-projects and of the contributors.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
+      expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
     ]);
   });

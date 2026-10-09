@@ -215,7 +215,10 @@ Scope:
   in: query
   description: >-
     Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors
-    sous-projet » compris (WF-IND-0020).
+    sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un
+    identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant
+    `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune
+    lecture nulle ne tient lieu de refus.
   schema:
     anyOf:
       - type: string

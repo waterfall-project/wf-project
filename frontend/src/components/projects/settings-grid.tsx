@@ -9,8 +9,9 @@
  * its folds are kept for. Read only: no cell is entered.
  *
  * The totals row says how many the list holds — the order items of the work breakdown, the rows of
- * the answer for the others, the search and the filter applying to it (WF-IHM-0130) —, never a
- * sum.
+ * the answer for the others, the search and the filters applying to it (WF-IHM-0130) —, never a
+ * sum. The sub-projects and the contributors sort by the columns of the contract, the server
+ * sorting, as the address asks it under the names of their grid.
  */
 "use client";
 
@@ -25,14 +26,18 @@ import {
   type BreakdownRow,
   CONTRIBUTOR_GRID,
   type Contributor,
+  type ContributorSort,
   SUBPROJECT_GRID,
   type Subproject,
+  type SubprojectSort,
 } from "./settings-grids";
 
-/** What a grid of the settings of a project shows, by its kind. */
-interface GridProps<Row> {
+/**
+ * What a grid of the settings of a project shows, by its kind: its rows, its query, its settings.
+ */
+interface GridProps<Row, Sort extends string> {
   readonly rows: readonly Row[];
-  readonly query: GridQuery<never>;
+  readonly query: GridQuery<Sort>;
   readonly preferences: GridPreferences | undefined;
 }
 
@@ -44,9 +49,9 @@ export type SettingsGridProps =
       readonly project: string;
       /** How many order items the work breakdown holds. */
       readonly items: number;
-    } & GridProps<BreakdownRow>)
-  | ({ readonly kind: "subprojects" } & GridProps<Subproject>)
-  | ({ readonly kind: "contributors" } & GridProps<Contributor>);
+    } & GridProps<BreakdownRow, never>)
+  | ({ readonly kind: "subprojects" } & GridProps<Subproject, SubprojectSort>)
+  | ({ readonly kind: "contributors" } & GridProps<Contributor, ContributorSort>);
 
 /** Render a grid of the settings of a project, by its kind. */
 export function SettingsGrid(props: SettingsGridProps) {

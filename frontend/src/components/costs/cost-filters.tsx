@@ -14,14 +14,13 @@
 import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { useDatedEntry } from "@/components/grid/dated-entry";
 import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
+import type { PeriodRefusals } from "@/components/grid/period";
+import { PeriodFilter } from "@/components/grid/period-filter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { UNASSIGNED } from "@/navigation/context";
 
 import {
@@ -46,6 +45,8 @@ export interface CostFiltersProps {
   readonly filters: CostFilters;
   readonly subproject: string | undefined;
   readonly subprojects: readonly SubprojectChoice[];
+  /** The sides of the period the API refused (422); none when it read the lines. */
+  readonly refused?: PeriodRefusals | undefined;
 }
 
 /** The filters of the list and its sub-project, as an address asks them. */
@@ -135,55 +136,11 @@ function SubprojectFilter({
 }
 
 /**
- * The filter by period of the documents: two dates, sent together. An entry is dated by the period
- * of the address (`useDatedEntry`): a period the address changes — back in the history — shows anew,
- * and the form keeps the focus.
+ * Render the filters of the actual costs, as the address asks them; the period of the documents two
+ * days of planning, both included (`PeriodFilter`, `date`), an end the API refuses for preceding
+ * the start said at its field, the start named.
  */
-function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
-  const t = useTranslations("actualCosts.filters");
-  const ids = { from: useId(), to: useId() };
-  const { entered, enter, sent } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
-  const period = { from: entered.from ?? from ?? "", to: entered.to ?? to ?? "" };
-  const filter = useFilter();
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // Sent, the period arrives as the address writes it: only what is typed after it stays.
-    sent();
-    filter(() => ({
-      from: period.from === "" ? undefined : period.from,
-      to: period.to === "" ? undefined : period.to,
-    }));
-  };
-  return (
-    <form aria-label={t("period")} onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      {(["from", "to"] as const).map((bound) => (
-        <div key={bound} className="flex items-center gap-2">
-          <Label htmlFor={ids[bound]}>{t(bound)}</Label>
-          <Input
-            id={ids[bound]}
-            type="date"
-            value={period[bound]}
-            // Each bound keeps the other side of the period: a start after the end is not offered.
-            {...(bound === "from"
-              ? { max: period.to === "" ? undefined : period.to }
-              : { min: period.from === "" ? undefined : period.from })}
-            onChange={(event) => {
-              enter(bound, event.target.value);
-            }}
-            className="h-8 w-40"
-          />
-        </div>
-      ))}
-      <Button type="submit" size="sm" variant="outline">
-        <ListFilter aria-hidden="true" className="size-4" />
-        {t("apply")}
-      </Button>
-    </form>
-  );
-}
-
-/** Render the filters of the actual costs, as the address asks them. */
-export function CostFilterBar({ filters, subproject, subprojects }: CostFiltersProps) {
+export function CostFilterBar({ filters, subproject, subprojects, refused }: CostFiltersProps) {
   const t = useTranslations("actualCosts.filters");
   // The filters share the address last asked with the screen, or among themselves: what is typed
   // while a period sent is on its way survives its arrival, a scope chosen meanwhile too.
@@ -192,7 +149,14 @@ export function CostFilterBar({ filters, subproject, subprojects }: CostFiltersP
       <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <ScopeFilter scope={filters.scope} />
         <SubprojectFilter subproject={subproject} subprojects={subprojects} />
-        <PeriodFilter from={filters.from} to={filters.to} />
+        <PeriodFilter
+          label={t("period")}
+          kind="date"
+          period={{ from: filters.from, to: filters.to }}
+          refused={refused}
+          texts={{ from: t("from"), to: t("to"), apply: t("apply") }}
+          page={COSTS_PAGE}
+        />
       </section>
     </PendingAddress>
   );

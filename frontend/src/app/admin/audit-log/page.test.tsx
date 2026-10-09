@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import AuditLogPage, { generateMetadata } from "./page";
 
@@ -344,21 +350,22 @@ describe("the journal of audit", () => {
     await expect(journal()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
-  it("says a period the API refuses in place of the inscriptions, the filters kept to be changed", async () => {
+  it("says a period the API refuses in place of the inscriptions, and at the field of its end, the filters kept to be changed", async () => {
     server.answers = {
       ...server.answers,
       [EVENTS]: {
-        problem: {
-          code: "VALIDATION_FAILED",
-          status: 422,
-          fields: [{ pointer: "/query/to", code: "VALUE_OUT_OF_RANGE" }],
-        },
+        problem: example("audit_events_period_inverted") as Problem & { status: 422 },
       },
     };
-    const page = await journal({ from: "2026-06-01T00:00:00Z", to: "2026-05-01T00:00:00Z" });
+    const page = await journal({ from: "2026-06-03T14:00:00Z", to: "2026-06-01T00:00:00Z" });
     expect(text(page)).toContain("La période finit avant de commencer");
     expect(page).not.toContain("<table");
     expect(page).toContain('aria-label="Filtres du journal"');
+    // The end refused, said at its field; the start the API names is said in the local time once
+    // hydrated, which only the browser knows (`audit.dom.test.tsx`).
+    const fields = page.match(/<input[^>]*type="datetime-local"[^>]*>/g) ?? [];
+    expect(fields.map((field) => field.includes('aria-invalid="true"'))).toEqual([false, true]);
+    expect(text(page)).toContain("La fin de la période ne peut précéder son début.");
   });
 
   it("says another refusal of the filters by its envelope, never as a period inverted", async () => {

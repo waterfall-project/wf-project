@@ -11,7 +11,15 @@
       dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur
       voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et
       rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total`
-      compte les projets retenus (WF-IHM-0130).
+      compte les projets retenus (WF-IHM-0130). La recherche (`search`) porte sur le libellé
+      et sur le code du projet ; la période (`from`, `to`), sur l'instant de sa dernière
+      modification (`audit.updated_at`), la colonne de date de la liste, comme celle du journal
+      d'audit : deux instants, le début inclus, la fin exclue, que l'écran tire des jours de son
+      lecteur.
+      Sans `states`, les projets en cours seuls, le défaut du périmètre du portefeuille
+      (WF-PTF-0010) que le paramètre partage : un accueil qui liste tous les projets
+      ouvrables nomme les six états. `meta.states` dit toujours les états retenus, nommés ou
+      par défaut, pour que l'écran montre le filtre que le serveur a appliqué.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -21,16 +29,34 @@
         in: query
         description: Vrai, les seuls projets dont l'appelant est contributeur.
         schema: { type: boolean, default: false }
+      - name: from
+        in: query
+        description: >-
+          Début de la période, inclus : restreint aux projets dont la dernière modification
+          (`audit.updated_at`) est à cet instant ou après lui (WF-IHM-0130).
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: to
+        in: query
+        description: >-
+          Fin de la période, exclue : restreint aux projets modifiés avant cet instant
+          (WF-IHM-0130). Antérieure à `from`, elle est refusée par 422 ; égale, la période est
+          vide.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
       - name: sort_by
         in: query
-        description: Colonne du tri ; absente, les projets modifiés le plus récemment d'abord.
+        description: >-
+          Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. Le libellé
+          et le code se comparent dans l'ordre des points de code Unicode, un projet sans code
+          après les autres dans l'ordre croissant ; l'état, dans l'ordre de `ProjectState`, celui
+          du cycle de vie (WF-CYC-0010). À égalité, l'ordre de la liste sans tri, puis
+          l'identifiant.
         schema:
           type: string
           enum: [label, code, state, updated_at]
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Projets.
+        description: Projets, et les états retenus.
         content:
           application/json:
             schema:
@@ -40,12 +66,26 @@
                 items:
                   type: array
                   items: { $ref: ../components/schemas/projects.yaml#/Project }
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                meta: { $ref: ../components/schemas/projects.yaml#/ProjectListMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/projects.json }
               empty: { $ref: ../../../fixtures/api/projects_empty.json }
+              default_states: { $ref: ../../../fixtures/api/projects_default_states.json }
+              search_code: { $ref: ../../../fixtures/api/projects_search_code.json }
+              period: { $ref: ../../../fixtures/api/projects_period.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une période dont la fin précède le début, `fields[]` désignant
+          `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de
+          toute période du contrat ; un instant mal formé, `/query/from` ou `/query/to` par
+          `DATE_INVALID`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/projects_period_inverted.json }
   post:
     operationId: createProject
     tags: [projects]
@@ -274,13 +314,34 @@
     tags: [projects]
     summary: Sous-projets
     description: >-
-      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
+      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une
+      table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060,
+      WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels
+      se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets
+      par projet.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: search
         in: query
         description: Recherche sur le code et le libellé (WF-IHM-0130).
         schema: { type: string, minLength: 1, maxLength: 200 }
+      - name: has_actual_costs
+        in: query
+        description: >-
+          Vrai, les seuls sous-projets auxquels des coûts réels sont imputés, qui ne se
+          suppriment plus ; faux, les autres (WF-PRJ-0050, WF-IHM-0130).
+        schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le code. Le code et le libellé se comparent dans l'ordre des
+          points de code Unicode ; la colonne des coûts réels range les sous-projets qui en
+          portent avant les autres dans l'ordre croissant, comme l'état des comptes range les
+          actifs. À égalité, l'ordre de la liste sans tri, puis l'identifiant (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [code, label, has_actual_costs]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Sous-projets, identifiés par leur code ERP (WF-PRJ-0050).
@@ -291,6 +352,8 @@
               items: { $ref: ../components/schemas/projects.yaml#/Subproject }
             examples:
               witness: { $ref: ../../../fixtures/api/subprojects.json }
+              by_label: { $ref: ../../../fixtures/api/subprojects_by_label.json }
+              with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -376,8 +439,20 @@
       Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet
       nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte
       son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
+      Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes
+      (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se
+      filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis
+      l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2
+      compte cinquante contributeurs par projet. Le compteur est celui de toute la liste,
+      quels que soient le tri et les filtres.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de
+          la liste (WF-IHM-0130).
+        schema: { type: string, minLength: 1, maxLength: 200 }
       - name: kinds
         in: query
         description: Restreint aux contributeurs de ces qualités (WF-IHM-0130).
@@ -385,6 +460,25 @@
           type: array
           items: { $ref: ../components/schemas/projects.yaml#/ContributorKind }
         explode: false
+      - name: is_active
+        in: query
+        description: >-
+          Vrai, les seuls contributeurs dont le compte est actif ; faux, ceux dont le compte a
+          été désactivé depuis leur inscription, que la liste garde (WF-ADM-0060, WF-IHM-0130).
+        schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, les chefs de projet d'abord, puis le nom de famille et le
+          prénom du compte, comme les comptes (`listUsers`). Le nom affiché se compare dans
+          l'ordre des points de code Unicode ; la qualité, dans l'ordre de `ContributorKind`,
+          les chefs de projet d'abord dans l'ordre croissant ; l'état du compte, les actifs
+          avant les désactivés dans l'ordre croissant. À égalité, l'ordre de la liste sans tri,
+          puis l'identifiant du compte (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [display_name, kind, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Contributeurs, et le compteur de la liste.
@@ -393,6 +487,9 @@
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
             examples:
               witness: { $ref: ../../../fixtures/api/contributors.json }
+              by_name: { $ref: ../../../fixtures/api/contributors_by_name.json }
+              search: { $ref: ../../../fixtures/api/contributors_search.json }
+              inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:

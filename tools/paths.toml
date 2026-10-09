@@ -93,8 +93,9 @@ by = "make fixtures"
 # revisions compared and its risks (wftools.mockhistory) —, its indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
 # the views of the portfolio over time that sum it with the other projects
-# (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), and the
-# readings of the lists of the reference written by hand (wftools.mockreference).
+# (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), the
+# readings of the lists of the reference written by hand (wftools.mockreference), and those of the
+# projects, the subprojects and the contributors (wftools.mocklists).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -190,6 +191,19 @@ paths = [
     "fixtures/api/calendars_reader.json",
     "fixtures/api/cost_types_reader.json",
     "fixtures/api/org_node_reactivated.json",
+    "fixtures/api/index_history_subproject.json",
+    "fixtures/api/cost_curve_subproject.json",
+    "fixtures/api/cost_curve_subproject_empty.json",
+    "fixtures/api/cost_curve_subproject_unbudgeted.json",
+    "fixtures/api/cost_curve_subproject_empty_payment_delays.json",
+    "fixtures/api/projects_default_states.json",
+    "fixtures/api/projects_search_code.json",
+    "fixtures/api/projects_period.json",
+    "fixtures/api/subprojects_by_label.json",
+    "fixtures/api/subprojects_with_actual_costs.json",
+    "fixtures/api/contributors_by_name.json",
+    "fixtures/api/contributors_search.json",
+    "fixtures/api/contributors_inactive.json",
 ]
 by = "make mock-data"
 

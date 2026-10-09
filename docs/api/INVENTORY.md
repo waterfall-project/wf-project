@@ -135,7 +135,7 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0030 |
+| GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0010, WF-PTF-0030 |
 | POST | `/projects` | Créer un projet | WF-CYC-0010, WF-CYC-0120, WF-PRJ-0060 |
 | GET | `/projects/{project_id}` | Un projet | WF-CYC-0010, WF-PRJ-0010, WF-PRJ-0080 |
 | PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0090 |
@@ -144,11 +144,11 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-PLA-0130, WF-PRJ-0020 |
-| GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-PRJ-0050 |
+| GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-PRJ-0050 |
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
 | DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Supprimer un sous-projet | WF-DAT-0080, WF-PRJ-0050 |
-| GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-IHM-0110, WF-PRJ-0060 |
+| GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-ADM-0060, WF-IHM-0060, WF-IHM-0110, WF-IHM-0130, WF-PRJ-0060 |
 | PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Contributeurs proposés | WF-PRJ-0070 |
 | GET | `/projects/{project_id}/timelines` | Chronologies du projet | WF-PLA-0140 |
@@ -202,8 +202,8 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | GET | `/projects/{project_id}/remaining-indicators` | Indicateurs de reste à engager | WF-IND-0020, WF-RAE-0020 |
 | GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Tâches du Kanban, par état | WF-PLA-0040, WF-RAE-0030 |
 | GET | `/projects/{project_id}/indicators` | Indicateurs de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |
-| GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0090 |
-| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0100 |
+| GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0020, WF-IND-0090 |
+| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100 |
 | GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0110 |
 | GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 

@@ -5,8 +5,9 @@
  * user may open, its label, a link that opens it, its code, its state by its badge (#523), and
  * when it was last modified. The same dense grid as the other lists, read only — the home creates
  * nothing here —: every column sorts by the column of the contract of the same name, the server
- * sorting, filtering and searching on the label (`listProjects`); the totals row says how many
- * projects the server retained (`meta.total`), never a count of the page.
+ * sorting, filtering — by state, by the period of the last modification — and searching on the
+ * label and the code (`listProjects`); the totals row says how many projects the server retained
+ * (`meta.total`), never a count of the page.
  *
  * Neither server nor client: the page reads the sortable columns to check the address, the grid
  * the rest.

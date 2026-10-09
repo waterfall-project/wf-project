@@ -230,6 +230,9 @@ after their work (WF-IND-0100); the other lines, labour and provision included, 
 nought, paid as they are worked (WF-DEV-0020)."""
 
 SUBPROJECT_CONTROL = universe(801)
+SUBPROJECT_TESTS = universe(802)
+"""The subprojects of the witness: the control station, and the tests and commissioning, which no
+line of the core bears (``subprojects``)."""
 SUBCONTRACTING = universe(401)
 ELECTRICAL_ENGINEERING = universe(402)
 EQUIPMENT = universe(403)

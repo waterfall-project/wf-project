@@ -7,8 +7,9 @@
  * may read every project (`all_projects_read`, WF-ADM-0110): lifted for anyone else, the list
  * would show the same projects, and the link would promise what it does not do (WF-IHM-0090);
  * and the projects themselves, in the dense grid, or, when the server holds none, that it holds
- * none. A link of the filter keeps the rest of the address — the states, the sort, the search —,
- * back to the first page.
+ * none; or, when the server refuses the period asked (422), that the list is not read, the filters
+ * staying to be changed. A link of the filter keeps the rest of the address — the states, the
+ * period, the sort, the search —, back to the first page.
  */
 import { ListFilter, X } from "lucide-react";
 import Link from "next/link";
@@ -80,7 +81,7 @@ export interface ProjectListProps {
   readonly projects: readonly ListedProjectRow[];
   readonly page: ListedProjectPage;
   readonly filtered: boolean;
-  /** Whether the address narrows the list besides its filter: by states, or by a search. */
+  /** Whether the list is narrowed besides its filter: by states, a period or a search. */
   readonly narrowed: boolean;
   readonly query: GridQuery<ListedProjectSort>;
   readonly preferences: GridPreferences | undefined;
@@ -88,9 +89,9 @@ export interface ProjectListProps {
 
 /**
  * The projects of a page of the list, or that there is none: only when the list holds none at
- * all, and the address narrows it by nothing but its filter — a page asked beyond its end is no
- * empty list, and leads back into it; a list emptied by states or a search keeps its grid, whose
- * bar and filter change them. The filter that would empty it is lifted by the link the header
+ * all, and nothing narrows it but its filter — a page asked beyond its end is no empty list, and
+ * leads back into it; a list emptied by states, a period or a search keeps its grid, whose bar and
+ * filters change them. The filter that would empty it is lifted by the link the header
  * shows.
  */
 export function ProjectList({
@@ -107,4 +108,10 @@ export function ProjectList({
   return (
     <ProjectListGrid projects={projects} page={page} query={query} preferences={preferences} />
   );
+}
+
+/** What stands for the grid of a list whose period the server refused (422), the list unread. */
+export function ProjectsRefused() {
+  const t = useTranslations("projectList");
+  return <p className="text-sm text-destructive">{t("periodRefused")}</p>;
 }

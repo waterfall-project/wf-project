@@ -59,6 +59,23 @@ Project:
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+ProjectListMeta:
+  description: >-
+    Où se tient la page dans les projets retenus, et les états retenus : ceux que la requête
+    nomme (`states`), ou, quand elle n'en nomme aucun, ceux du défaut, les projets en cours
+    (WF-PTF-0010), dans l'ordre de `ProjectState`. L'écran montre ainsi le filtre d'état que le
+    serveur a appliqué, sans le deviner (WF-IHM-0130).
+  allOf:
+    - $ref: ../common.yaml#/PaginationMeta
+    - type: object
+      required: [states]
+      properties:
+        states:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/ProjectState' }
+
 CommandCondition:
   type: string
   description: >-

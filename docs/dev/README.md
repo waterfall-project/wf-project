@@ -182,41 +182,60 @@ avant que la page sache l'objet introuvable. Il est le même pour toute adresse 
 ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
 incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
 
-L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour
-qu'il ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les
-projets dont l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que
-l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
-(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture
-(WF-PRJ-0060). Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read`
-(WF-ADM-0110) : levé pour un autre, le filtre rendrait la même liste, et le lien promettrait ce
-qu'il ne fait pas (WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que
-dise l'adresse — `?is_contributor=false` compris, la page demandant `is_contributor=true` —, le
-badge « Mes projets » affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la
-liste levée. La barre
-latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée,
-« Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont
-une configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
+L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
+ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
+l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que l'écran montre et
+qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
+(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture (WF-PRJ-0060).
+Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé
+pour un autre, le filtre rendrait la même liste, et le lien promettrait ce qu'il ne fait pas
+(WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
+`?is_contributor=false` compris, la page demandant `is_contributor=true` —, le badge « Mes projets »
+affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la liste levée. La barre
+latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée, « Tous
+les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont une
+configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
 `projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
-modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui (`search`) et
-filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) ; une adresse qui
-n'en nomme aucun demande tous les états, l'accueil montrant tout ce que l'utilisateur peut
-ouvrir. Sa ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres
-pages par `ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page :
-seule une liste qui ne tient aucun projet, sans état ni recherche, se dit vide. Les écrans du projet lui-même — le
-projet, ses paramètres avec ses sous-projets et ses contributeurs, son cycle de vie — sont en
-lecture ; la sortie du cycle de vie est la seule commande qu'ils exercent (`ExitCommand`),
-confirmée dans la page avant que son action serveur ne la demande. Les tables de données des
-paramètres sont trois grilles denses (#301, `settings-grids.tsx`), chacune avec sa clé de
-préférences et ses noms dans l'adresse (`breakdown_`, `subproject_`, `contributor_`) : le
-lotissement, une grille arborescente — chaque poste, ses lots sous lui, leurs livrables sous eux —,
-dans l'ordre saisi, qui ne se trie pas et se plie ; les sous-projets, cherchés par le serveur sur
-leur code et leur libellé (`subproject_search`) ; les contributeurs, filtrés par le serveur sur
-leur qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualité
-(`ValuesFilter`, `filters.ts`). Le contrat ne trie ni les sous-projets ni les contributeurs, et ne
-cherche pas ces derniers : aucune de ces grilles ne trie, et celle des contributeurs n'offre pas
-de recherche ; ces manques, et les filtres des autres colonnes, sont #536, pour EP-02/L42. Les volumes du §4.6.2 — dix sous-projets, cinquante
-contributeurs par projet — tiennent en une page. L'historique des états, une liste de lecture,
-reste une table simple.
+modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui sur le libellé et le
+code (`search`), filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) — et
+par période sur la dernière modification (`from`, `to`, EP-02/L42e) : deux jours saisis dans l'heure
+locale du lecteur, envoyés comme les instants du début du premier et du début du lendemain du
+dernier, la fin exclue. Une adresse qui ne nomme aucun état demande les six, l'accueil montrant tout
+ce que l'utilisateur peut ouvrir, là où le contrat, sans `states`, ne rendrait que les projets en
+cours (WF-PTF-0010) ; les boutons pressés sont les états que l'adresse nomme, « Tous les états »
+quand elle n'en nomme aucun : l'adresse fait foi. Une période que le serveur refuse — une fin qui
+précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
+dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
+revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
+lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien de projets le serveur
+retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
+et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
+recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
+sous-projets et ses contributeurs, son cycle de vie — sont en lecture ; la sortie du cycle de vie
+est la seule commande qu'ils exercent (`ExitCommand`), confirmée dans la page avant que son action
+serveur ne la demande. Les tables de données des paramètres sont trois grilles denses (#301,
+`settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
+`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
+sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie ; les
+sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
+lui sur chaque colonne (`subproject_sort_by`) et filtrés sur leurs coûts réels
+(`subproject_has_actual_costs`) ; les contributeurs, cherchés par le serveur sur le nom du compte
+(`contributor_search`), triés par lui sur chaque colonne (`contributor_sort_by`), filtrés sur leur
+qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualité (`ValuesFilter`,
+`filters.ts`), et sur l'état du compte (`contributor_is_active`) — une colonne booléenne se filtre
+par un choix (`ChoiceFilter`), `true` ou `false`, aucun retenant toutes les lignes (`readBoolean`) ;
+chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-02/L42e). Les
+volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
+L'historique des états, une liste de lecture, reste une table simple.
+
+Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
+le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
+incluses, que le serveur reçoit tels quels — les pièces des coûts réels — ; deux jours locaux tirés
+en instants, la fin exclue — l'accueil — ; deux instants saisis à la minute en heure locale, la fin
+exclue — le journal d'audit. Seul le navigateur connaît son fuseau : les champs d'instants montrent
+l'adresse, et le bouton envoie, une fois la page hydratée ; un côté laissé intact part tel que
+l'adresse le nomme. Le refus d'une période inversée, la règle de toute période du contrat, est dit
+au champ de la fin, le début nommé tel que son champ le montre.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
@@ -272,11 +291,18 @@ avant l'état En cours, qui n'en a conservé aucun, est refusée comme un projet
 cours, et l'écran le dit. Un avis en tête nomme, des indicateurs et de l'évolution des indices,
 celui qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution,
 toujours au jour sur la révision en cours (`ComputedElsewhere`) ; une courbe nomme la sienne dans
-l'image qu'elle exporte. Le sous-projet de l'adresse restreint ce que l'API lit pour lui — les
-indicateurs et les courbes de valeur acquise (`scope`) —, et la pastille du bandeau le dit
-(`restricts` de `ContextBanner`, comme pour la grille du reste à engager, #459) ; l'évolution des
-indices, le suivi des jalons et les coûts cumulés, dont les opérations ne prennent pas de
-sous-projet, disent chacun qu'ils portent sur le projet entier (`WholeProject`, #495).
+l'image qu'elle exporte. Le sous-projet de l'adresse, celui que le bandeau montre (WF-IHM-0020),
+restreint ce que l'API lit pour lui (`scope`, WF-IND-0020) — les indicateurs, l'évolution des
+indices, les coûts cumulés et les courbes de valeur acquise (EP-02/L42e) —, sauf le diagramme
+temps/temps, calculé pour le seul projet : il suit des jalons, qu'un sous-projet n'a pas
+(WF-IND-0020). La pastille du bandeau le dit (`restricts` de `ContextBanner`, comme pour la grille
+du reste à engager, #459), et le suivi des jalons dit qu'il porte sur le projet entier
+(`WholeProject`). Un sous-projet que le projet n'a pas, refusé par 422 `UNKNOWN_SUBPROJECT` sur
+`/query/scope`, est dit comme les indicateurs d'un projet qui n'est pas en cours, jamais lu comme
+des indicateurs nuls ; une courbe sans point dit qu'elle n'a rien à tracer plutôt que de tracer un
+zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphique — le budget de
+référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
+la décaler, et, décalée, garde la commande qui retire le décalage.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
@@ -978,7 +1004,10 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
   formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
   la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
-  (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`).
+  (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les lectures des listes
+  écrites à la main — les projets de l'accueil, les sous-projets et les contributeurs du témoin —,
+  triées, cherchées et filtrées comme leurs écrans les demandent (`wftools.mocklists`, tenu par
+  `tools/tests/test_mocklists.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

@@ -89,6 +89,28 @@ export function pagedList(address: GridAddress, ...filters: readonly string[]): 
   };
 }
 
+/**
+ * The search a list asks of the server, as the address asks it: alone for a list the server neither
+ * sorts nor pages — the tree of the organisation.
+ */
+export function searched<Sort extends string>(query: GridQuery<Sort>) {
+  return query.search === undefined ? {} : { search: query.search };
+}
+
+/**
+ * What a list asks of the server, as the address asks it of its grid, under the names of the
+ * contract: its search, its sort and its page.
+ */
+export function asked<Sort extends string>(query: GridQuery<Sort>, offset?: number) {
+  return {
+    ...searched(query),
+    ...(query.sort === undefined
+      ? {}
+      : { sort_by: query.sort.column, sort_order: query.sort.order }),
+    ...(offset === undefined ? {} : { offset }),
+  };
+}
+
 /** The longest search the contract accepts. */
 export const SEARCH_LENGTH = 200;
 

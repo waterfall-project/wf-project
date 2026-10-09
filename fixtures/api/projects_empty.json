@@ -1,11 +1,19 @@
 {
-  "summary": "Aucun projet : une installation neuve, ou un appelant contributeur d'aucun projet quand la liste est filtrée sur les siens.",
+  "summary": "Aucun projet : une installation neuve, ou un appelant contributeur d'aucun projet quand la liste est filtrée sur les siens ; les six états nommés, comme l'accueil les demande (meta.states).",
   "value": {
     "items": [],
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 0
+      "total": 0,
+      "states": [
+        "created",
+        "pricing",
+        "in_progress",
+        "completed",
+        "lost",
+        "abandoned"
+      ]
     }
   }
 }

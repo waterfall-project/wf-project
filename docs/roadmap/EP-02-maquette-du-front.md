@@ -1183,7 +1183,22 @@ une liste de lecture, reste une table simple. Écarts au contrat relevés par L4
 grilles ne trie donc, et celle des contributeurs n'offre pas de recherche ; aucune des trois ne
 filtre ses autres colonnes. Aucune pagination ne
 manque : le §4.6.2 compte dix sous-projets et cinquante contributeurs par projet, qui tiennent en
-une page.
+une page. Corrigé par EP-02/L42e (#507) : `listSubprojects` se trie sur ses trois colonnes et se
+filtre sur ses coûts réels (`has_actual_costs`) ; `listContributors` se cherche sur le nom du
+compte, se trie sur ses trois colonnes et se filtre sur l'état du compte (`is_active`) ;
+`listProjects` filtre l'accueil par période (`from`, `to`, deux instants de la dernière
+modification, que l'écran tire des jours de son lecteur),
+cherche sur le libellé et le code, et nomme les états retenus (`meta.states`) ; la courbe de coûts
+cumulés et l'évolution des indices se restreignent au sous-projet (`scope`), le diagramme
+temps/temps restant au seul projet (WF-IND-0020). Le front les adopte dans le même lot :
+l'accueil se filtre par période et presse les états que l'adresse nomme, tous quand elle n'en
+nomme aucun ; les grilles des
+sous-projets et des contributeurs se trient sur chaque colonne, se cherchent et se filtrent sur
+les coûts réels et sur l'état du compte ; l'écran des indicateurs lit l'évolution des indices et
+les coûts cumulés pour le sous-projet du bandeau, dit un sous-projet inconnu comme un refus et une
+courbe sans point comme n'ayant rien à tracer, et seul le suivi des jalons dit porter sur le
+projet entier ; les coûts réels et le journal nomment au champ de la fin le début d'une période
+inversée.
 
 ## US-0220 — Écrans du planning et du devis
 

@@ -57,6 +57,7 @@ test("the home sorts its projects and filters them by state on the server, from 
   await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
     timeout: WORKING,
   });
+  // The state the address names stays pressed, whatever the fake back says it retained.
   await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -64,6 +65,36 @@ test("the home sorts its projects and filters them by state on the server, from 
   // The grid holds in the window: its totals in view.
   const total = list.getByRole("gridcell", { name: "2 projets" });
   expect(await withinBox(list, total)).toBe(true);
+});
+
+test("the home filters its projects by the period of their last modification on the server, from the address, the focus kept (#522)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const list = page.getByRole("grid", { name: "Liste des projets" });
+  // Nothing witnesses the hydration: the sort is pressed again until React answers it.
+  await sortUntilAddress(
+    list.getByRole("columnheader", { name: "Code" }),
+    list,
+    "/?sort_by=code&sort_order=asc",
+  );
+  const period = page.getByRole("form", { name: "Période de modification" });
+  await period.getByLabel("Du").fill("2026-03-01");
+  await period.getByLabel("Au").fill("2026-03-16");
+  const apply = period.getByRole("button", { name: "Filtrer" });
+  await apply.click();
+  // Two instants under the names of the contract, drawn in the time zone of the browser: the start
+  // of the first day, the start of the day after the last; the sort kept, back to the first page.
+  const [from, to] = await page.evaluate(() => [
+    new Date(2026, 2, 1).toISOString(),
+    new Date(2026, 2, 17).toISOString(),
+  ]);
+  const asked = new URLSearchParams({ sort_by: "code", sort_order: "asc", from, to });
+  await expect(page).toHaveURL(`/?${asked.toString()}`, { timeout: WORKING });
+  // The form is never remounted: the period shows, and the button keeps the focus.
+  await expect(period.getByLabel("Du")).toHaveValue("2026-03-01");
+  await expect(period.getByLabel("Au")).toHaveValue("2026-03-16");
+  await expect(apply).toBeFocused();
 });
 
 test("a project, its settings and its lifecycle show what the fake back serves, and offer nothing but the exits", async ({
@@ -156,4 +187,43 @@ test("the settings of a project search the sub-projects, filter the contributors
   await expect(main.getByRole("grid", { name: "Sous-projets" }).getByRole("row").last()).toHaveText(
     "2 sous-projets",
   );
+});
+
+test("the settings of a project sort the sub-projects and the contributors, search the contributors and filter both on their other columns, each grid under its own names", async ({
+  page,
+}) => {
+  await openHydrated(page, `${PROJECT}/settings`);
+  const main = page.getByRole("main");
+  const subprojects = main.getByRole("grid", { name: "Sous-projets" });
+  await sortUntilAddress(
+    subprojects.getByRole("columnheader", { name: "Libellé" }),
+    subprojects,
+    `${PROJECT}/settings?subproject_sort_by=label&subproject_sort_order=asc`,
+  );
+  const charged = main.getByRole("combobox", { name: "Coûts réels" });
+  await charged.selectOption({ label: "Avec coûts réels imputés" });
+  await expect(charged).toHaveValue("true");
+  await expect(page).toHaveURL(
+    `${PROJECT}/settings?subproject_sort_by=label&subproject_sort_order=asc&subproject_has_actual_costs=true`,
+    { timeout: WORKING },
+  );
+  const contributors = main.getByRole("grid", { name: "Contributeurs" });
+  await sortUntilAddress(
+    contributors.getByRole("columnheader", { name: "Qualité" }),
+    contributors,
+    `${PROJECT}/settings?subproject_sort_by=label&subproject_sort_order=asc&subproject_has_actual_costs=true&contributor_sort_by=kind&contributor_sort_order=asc`,
+  );
+  const account = main.getByRole("combobox", { name: "État du compte" });
+  await account.selectOption({ label: "Comptes actifs" });
+  await expect(account).toHaveValue("true");
+  await expect(page).toHaveURL(/&contributor_sort_order=asc&contributor_is_active=true$/, {
+    timeout: WORKING,
+  });
+  await main
+    .getByRole("searchbox", { name: "Rechercher dans «\u00a0Contributeurs\u00a0»" })
+    .fill("Mar");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/&contributor_is_active=true&contributor_search=Mar$/, {
+    timeout: WORKING,
+  });
 });

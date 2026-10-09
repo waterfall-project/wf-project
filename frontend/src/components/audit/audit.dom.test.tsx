@@ -82,6 +82,7 @@ function journal({
   filters = filtersOf(page.search),
   named = NAMED,
   users = AUTHORS,
+  refused,
 }: {
   shown?: Journal;
   query?: GridQuery<AuditSort>;
@@ -91,11 +92,18 @@ function journal({
   filters?: AuditFilters;
   named?: AuditFilterBarProps["named"];
   users?: AuditFilterBarProps["users"];
+  refused?: AuditFilterBarProps["refused"];
 } = {}): ReactNode {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <AuditFilterBar filters={filters} users={users} projects={PROJECTS} named={named} />
+        <AuditFilterBar
+          filters={filters}
+          users={users}
+          projects={PROJECTS}
+          named={named}
+          refused={refused}
+        />
         <AuditGrid
           events={shown.items}
           page={shown.meta}
@@ -421,6 +429,21 @@ describe("the filters of the journal", () => {
       await userEvent.click(within(period).getByRole("button", { name: "Appliquer" }));
       expect(lastAddress()).toBe(
         "/admin/audit-log?from=2026-05-01T06%3A00%3A30.250Z&to=2026-05-31T22%3A00%3A00.000Z",
+      );
+    });
+
+    it("says at its field the end the API refused, by the start it names in the local time, which takes the focus", () => {
+      page.search = "from=2026-06-03T14%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z";
+      render(
+        journal({
+          refused: { to: { code: "VALUE_OUT_OF_RANGE", minimum: "2026-06-03T14:00:00Z" } },
+        }),
+      );
+      const end = screen.getByLabelText("Avant le");
+      expect(end).toHaveAttribute("aria-invalid", "true");
+      expect(end).toHaveFocus();
+      expect(end).toHaveAccessibleDescription(
+        /^La fin de la période ne peut précéder son début, 3 juin 2026.*16:00\.$/,
       );
     });
 

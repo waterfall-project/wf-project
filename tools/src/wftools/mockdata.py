@@ -72,6 +72,7 @@ from wftools import (
     mockcosts,
     mockhistory,
     mockids,
+    mocklists,
     mockportfoliotime,
     mockreference,
     mocksort,
@@ -341,8 +342,9 @@ def named() -> dict[str, JsonObject]:
     Its readings, its writes, its history — its revisions compared and its risks —, its
     indicators today, its actual costs with the journal of their imports; the views of the
     portfolio over time that sum it with the other projects (``mockportfoliotime``); the
-    journal of audit of the universe (``mockaudit``); and the readings of the lists of the
-    reference written by hand (``mockreference``).
+    journal of audit of the universe (``mockaudit``); the readings of the lists of the
+    reference written by hand (``mockreference``), and those of the projects, the subprojects
+    and the contributors (``mocklists``).
     """
     return {
         **readings(),
@@ -353,6 +355,7 @@ def named() -> dict[str, JsonObject]:
         **mockportfoliotime.examples(),
         **mockaudit.examples(),
         **mockreference.named(),
+        **mocklists.examples(),
     }
 
 

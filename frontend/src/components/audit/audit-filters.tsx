@@ -11,8 +11,10 @@
  * last asked (`usePendingAddress`): a filter chosen right after a sort or another filter keeps it.
  *
  * The period is two instants, entered in the local time of the workstation and sent as the
- * contract takes them, in universal time: only the browser knows its time zone, so the fields show
- * the instants of the address once the page is hydrated, and the period is applied from then on.
+ * contract takes them, in universal time, the start included and the end excluded (`PeriodFilter`,
+ * `instant`): only the browser knows its time zone, so the fields show the instants of the address
+ * once the page is hydrated, and the period is applied from then on. An end the API refuses for
+ * preceding the start is said at its field, the start named in the local time.
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
  * hands it over (défaut n° 12 de `typescript.md`).
@@ -23,16 +25,17 @@ import { ChevronDown, ListFilter, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
+import { useId, useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { useDatedEntry } from "@/components/grid/dated-entry";
 import { readValues, valuesHref } from "@/components/grid/filters";
 import {
   PendingAddress,
   usePendingAddress,
   usePendingLink,
 } from "@/components/grid/pending-address";
+import type { PeriodRefusals } from "@/components/grid/period";
+import { PeriodFilter } from "@/components/grid/period-filter";
 import { TextFilter } from "@/components/grid/text-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -44,9 +47,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useHydrated } from "@/components/use-hydrated";
 
 import {
   ACTIONS,
@@ -83,96 +83,6 @@ export interface ProjectChoice {
 
 /** The longest correlation the contract takes. */
 const CORRELATION_LENGTH = 64;
-
-/** Change filters of the journal, from the address last asked. */
-function useAuditFilter() {
-  const pathname = usePathname();
-  const { request } = usePendingAddress();
-  return (changes: Readonly<Record<string, string | undefined>>) => {
-    request((query) => auditHref(pathname, query, changes));
-  };
-}
-
-/** Two digits. */
-function twoDigits(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-/** An instant of the contract as a field of local date and time writes it: `2026-06-03T10:30`. */
-function localField(instant: string): string {
-  const at = new Date(instant);
-  const date = `${String(at.getFullYear())}-${twoDigits(at.getMonth() + 1)}-${twoDigits(at.getDate())}`;
-  return `${date}T${twoDigits(at.getHours())}:${twoDigits(at.getMinutes())}`;
-}
-
-/** A local date and time entered, as the contract takes an instant; none for a field emptied. */
-function instantOfField(field: string): string | undefined {
-  const at = new Date(field);
-  return field === "" || Number.isNaN(at.getTime()) ? undefined : at.toISOString();
-}
-
-/**
- * The filter by period: from an instant, included, to another, excluded, as the contract reads them;
- * sent together. Each field keeps the other side of the period: a start after the end is not offered.
- * A bound left untouched leaves as the address names it, never through its field, which shows it to
- * the minute; an entry is dated by the period of the address it was made over (`useDatedEntry`), so
- * that a period the address changes — back in the history — shows anew, and the form, never
- * remounted, keeps the focus.
- */
-function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
-  const t = useTranslations("admin.auditLog.filters");
-  const ids = { from: useId(), to: useId() };
-  const hydrated = useHydrated();
-  const {
-    entered,
-    enter,
-    sent: settle,
-  } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
-  const filter = useAuditFilter();
-  const asked = { from, to };
-  const shown = (bound: "from" | "to") => {
-    const instant = asked[bound];
-    return entered[bound] ?? (hydrated && instant !== undefined ? localField(instant) : "");
-  };
-  const period = { from: shown("from"), to: shown("to") };
-  /** What a bound sends: its entry, as an instant; untouched, the instant of the address. */
-  const sent = (bound: "from" | "to") => {
-    const entry = entered[bound];
-    return entry === undefined ? asked[bound] : instantOfField(entry);
-  };
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // Sent, the period arrives as the address writes it: only what is typed after it stays.
-    settle();
-    filter({ [FROM]: sent("from"), [TO]: sent("to") });
-  };
-  return (
-    <form aria-label={t("period")} onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      {(["from", "to"] as const).map((bound) => (
-        <div key={bound} className="flex items-center gap-2">
-          <Label htmlFor={ids[bound]}>{t(bound)}</Label>
-          <Input
-            id={ids[bound]}
-            type="datetime-local"
-            value={period[bound]}
-            {...(bound === "from"
-              ? { max: period.to === "" ? undefined : period.to }
-              : { min: period.from === "" ? undefined : period.from })}
-            onChange={(event) => {
-              enter(bound, event.target.value);
-            }}
-            className="h-8 w-52"
-          />
-        </div>
-      ))}
-      {/* Sent by React alone: before the hydration, the browser would send the form itself. */}
-      <Button type="submit" size="sm" variant="outline" disabled={!hydrated}>
-        <ListFilter aria-hidden="true" className="size-4" />
-        {t("apply")}
-      </Button>
-    </form>
-  );
-}
 
 /**
  * The filter by action: a menu of the actions of the contract, in its order, each checked when the
@@ -306,10 +216,12 @@ export interface AuditFilterBarProps {
     readonly object:
       { readonly label: string | null; readonly kind: (typeof OBJECT_KINDS)[number] } | undefined;
   };
+  /** The sides of the period the API refused (422); none when it read the journal. */
+  readonly refused?: PeriodRefusals | undefined;
 }
 
 /** Render the filters of the journal, as the address asks them. */
-export function AuditFilterBar({ filters, users, projects, named }: AuditFilterBarProps) {
+export function AuditFilterBar({ filters, users, projects, named, refused }: AuditFilterBarProps) {
   const t = useTranslations();
   const ids = { user: useId(), project: useId(), kind: useId() };
   const actors: FilterValue<(typeof ACTOR_KINDS)[number]>[] = ACTOR_KINDS.map((kind) => ({
@@ -332,7 +244,19 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
         aria-label={t("admin.auditLog.filters.label")}
         className="flex flex-wrap items-center gap-x-6 gap-y-2"
       >
-        <PeriodFilter from={filters.from} to={filters.to} />
+        <PeriodFilter
+          label={t("admin.auditLog.filters.period")}
+          kind="instant"
+          period={{ from: filters.from, to: filters.to }}
+          refused={refused}
+          texts={{
+            from: t("admin.auditLog.filters.from"),
+            to: t("admin.auditLog.filters.to"),
+            apply: t("admin.auditLog.filters.apply"),
+          }}
+          names={{ from: FROM, to: TO }}
+          page={AUDIT_PAGE}
+        />
         <ValuesFilter
           name={ACTOR_KIND}
           label={t("admin.auditLog.filters.actorKind")}

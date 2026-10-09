@@ -5,11 +5,15 @@
  * (WF-IHM-0020): the state of the project, by its badge, in its header; its inflation rate and its
  * probability of winning, its work breakdown, its sub-projects and its contributors, each list a
  * section of the screen under its own title — the ergonomics gathers the leaves of the function on
- * one screen —, and a dense grid (#301), each with its settings and its own names in the address:
- * the sub-projects searched by the server (`subproject_search`), the contributors filtered by it on
- * their capacity (`contributor_kinds`), asked under the names of the contract. The work breakdown
- * is a tree in the order entered. Read only: the forms that modify them belong to the epic of their
- * domain.
+ * one screen —, and a dense grid (#301), each with its settings and its own names in the address,
+ * asked under the names of the contract: the sub-projects searched, sorted and filtered on their
+ * actual costs by the server (`subproject_search`, `subproject_sort_by`, `subproject_sort_order`,
+ * `subproject_has_actual_costs`), the contributors searched, sorted and filtered by it on their
+ * capacity and the state of their account (`contributor_search`, `contributor_sort_by`,
+ * `contributor_sort_order`, `contributor_kinds`, `contributor_is_active`) — WF-IHM-0060,
+ * WF-IHM-0130 —, the sort each grid keeps in the settings of the account serving when the address
+ * names none. The work breakdown is a tree in the order entered. Read only: the forms that modify
+ * them belong to the epic of their domain.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -18,18 +22,23 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Project } from "@/components/context/reading";
-import { readValues } from "@/components/grid/filters";
+import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { readGridQuery } from "@/components/grid/query";
+import { asked, readGridQuery } from "@/components/grid/query";
 import { SettingsFacts } from "@/components/projects/project-facts";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   BREAKDOWN_GRID_KEY,
+  CONTRIBUTOR_ACTIVE,
+  CONTRIBUTOR_ADDRESS,
   CONTRIBUTOR_GRID_KEY,
   CONTRIBUTOR_KINDS,
+  CONTRIBUTOR_SORT_COLUMNS,
   KINDS,
+  SUBPROJECT_ACTUAL_COSTS,
   SUBPROJECT_ADDRESS,
   SUBPROJECT_GRID_KEY,
+  SUBPROJECT_SORT_COLUMNS,
 } from "@/components/projects/settings-grids";
 import {
   ContributorList,
@@ -87,8 +96,21 @@ export default async function SettingsPage(props: ProjectPageProps) {
     requestSession(),
   ]);
   const grids = session?.user.display_preferences?.grids ?? undefined;
-  const subprojectQuery = readGridQuery<never>(search, [], undefined, SUBPROJECT_ADDRESS);
+  const subprojectQuery = readGridQuery(
+    search,
+    SUBPROJECT_SORT_COLUMNS,
+    grids?.[SUBPROJECT_GRID_KEY]?.sort,
+    SUBPROJECT_ADDRESS,
+  );
+  const actualCosts = readBoolean(search, SUBPROJECT_ACTUAL_COSTS);
+  const contributorQuery = readGridQuery(
+    search,
+    CONTRIBUTOR_SORT_COLUMNS,
+    grids?.[CONTRIBUTOR_GRID_KEY]?.sort,
+    CONTRIBUTOR_ADDRESS,
+  );
   const kinds = readValues(search, CONTRIBUTOR_KINDS, KINDS);
+  const active = readBoolean(search, CONTRIBUTOR_ACTIVE);
   const path = { project_id: address.projectId };
   const client = serverClient();
   const [read, breakdown, subprojects, contributors] = await Promise.all([
@@ -100,13 +122,23 @@ export default async function SettingsPage(props: ProjectPageProps) {
       client.GET("/projects/{project_id}/subprojects", {
         params: {
           path,
-          query: subprojectQuery.search === undefined ? {} : { search: subprojectQuery.search },
+          query: {
+            ...asked(subprojectQuery),
+            ...(actualCosts === undefined ? {} : { has_actual_costs: actualCosts }),
+          },
         },
       }),
     ),
     readOrFail("listContributors", () =>
       client.GET("/projects/{project_id}/contributors", {
-        params: { path, query: kinds.length === 0 ? {} : { kinds: [...kinds] } },
+        params: {
+          path,
+          query: {
+            ...asked(contributorQuery),
+            ...(kinds.length === 0 ? {} : { kinds: [...kinds] }),
+            ...(active === undefined ? {} : { is_active: active }),
+          },
+        },
       }),
     ),
   ]);
@@ -114,7 +146,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
     <>
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.project_settings}>
-        {/* The search of the sub-projects and the filter of the contributors compose their changes. */}
+        {/* The searches, the sorts and the filters of the grids compose their changes. */}
         <PendingAddress>
           <SettingsHeader project={read.project} />
           <SettingsFacts project={read.project} />
@@ -125,6 +157,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
           />
           <SubprojectList
             subprojects={subprojects}
+            actualCosts={actualCosts}
             shown={{
               query: subprojectQuery,
               preferences: grids?.[SUBPROJECT_GRID_KEY] ?? undefined,
@@ -133,7 +166,11 @@ export default async function SettingsPage(props: ProjectPageProps) {
           <ContributorList
             contributors={contributors.items}
             kinds={kinds}
-            shown={{ ...UNASKED, preferences: grids?.[CONTRIBUTOR_GRID_KEY] ?? undefined }}
+            active={active}
+            shown={{
+              query: contributorQuery,
+              preferences: grids?.[CONTRIBUTOR_GRID_KEY] ?? undefined,
+            }}
           />
         </PendingAddress>
       </Screen>

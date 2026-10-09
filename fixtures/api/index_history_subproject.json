@@ -1,0 +1,11 @@
+{
+  "summary": "L'évolution des indices du seul sous-projet « Poste de commande » (scope) : les mêmes révisions que celle du projet, une maille au lieu de toutes, que le contexte nomme ; 2 points, le dernier au 3 juin 2026 pour la révision en cours : Poste de commande, indice de coût 0 (alerte), indice de délai 0 (alerte) (WF-IND-0020, WF-IND-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"01926f3a-7c00-7000-8000-000000000801","is_stored":false},
+    "thresholds": {"cost_watch":"0.9","cost_alert":"0.8","schedule_watch":"0.9","schedule_alert":"0.8"},
+    "scopes": [
+      {"scope":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","points":[{"at":"2026-02-01T09:00:00Z","revision_id":"01926f3a-7c00-7000-8000-000000000101","version_name":"Référence","cost_index":{"value":{"is_computable":false,"value":null,"reason":"no_actual_cost"},"zone":null},"schedule_index":{"value":{"is_computable":false,"value":null,"reason":"no_planned_value"},"zone":null}},{"at":"2026-06-03T14:05:00Z","revision_id":"01926f3a-7c00-7000-8000-000000000102","version_name":null,"cost_index":{"value":{"is_computable":true,"value":"0","reason":null},"zone":"alert"},"schedule_index":{"value":{"is_computable":true,"value":"0","reason":null},"zone":"alert"}}]}
+    ]
+  }
+}

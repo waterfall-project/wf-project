@@ -6,26 +6,30 @@
  * FBS-4.8.5 as the API computes them for the sub-project the address filters, on the revision of
  * the address — a marked one as its marking kept them (WF-DAT-0040) —, or at the date the address
  * asks, which chooses the revision itself (`getProjectIndicators`, `scope`, `revision_id`,
- * `as_of`), with the evolution of the indices (`getIndexHistory`, WF-IND-0130); the tracking of
- * the milestones (`getMilestoneTracking`, WF-IND-0090); the cumulative costs on the same revision
- * or at the same date, shifted by the payment delays when the address asks it (`getCostCurve`,
- * `payment_delays`, WF-IND-0100), and the curves of earned value for the same sub-project
+ * `as_of`), with the evolution of the indices for the same sub-project (`getIndexHistory`, `scope`,
+ * WF-IND-0130); the tracking of the milestones (`getMilestoneTracking`, WF-IND-0090); the
+ * cumulative costs for the same sub-project, on the same revision or at the same date, shifted by
+ * the payment delays when the address asks it (`getCostCurve`, `scope`, `payment_delays`,
+ * WF-IND-0100), and the curves of earned value for the same sub-project too
  * (`getEarnedValueCurves`, WF-IND-0110) — each of the three exported as
  * a PNG image that names the project, the revision of its calculation and its date (WF-IHM-0130).
  *
  * When a date `as_of` computes the indicators on another revision than the one the address names,
  * the banner names the revision of the calculation (#363); the evolution of the indices, always
  * computed on the revision under way, is said at the head of the screen. The sub-project the
- * address filters restricts what the API reads for it — the indicators and the curves of earned
- * value (`scope`) —, and the banner says so on its chip; the evolution of the indices, the
- * tracking of the milestones and the cumulative costs, whose operations take no sub-project, each
- * say they are read for the project whole (#495, WF-IHM-0020).
+ * address filters — the one the banner shows (WF-IHM-0020) — restricts what the API reads for it
+ * (`scope`, WF-IND-0020): the indicators, the evolution of the indices, the cumulative costs and
+ * the curves of earned value. The tracking of the milestones is computed for the project alone: it
+ * follows milestones, which a sub-project does not have (WF-IND-0020); the banner says so on its
+ * chip, and the tracking that it covers the whole project.
  *
  * The indicators of a project are computed from the state In progress only (WF-IND-0010): before,
  * the API refuses them (409, `STATE_FORBIDS_OPERATION`), and the screen says so rather than coming
- * down, the evolution of the indices and the cumulative curves left unasked. Any other answer
- * follows the rule of the reads (`readOrFail`): the screen never shows a figure it did not read,
- * and computes none.
+ * down, the evolution of the indices and the cumulative curves left unasked; so too of a
+ * sub-project the project does not have (422, `UNKNOWN_SUBPROJECT` on `/query/scope`), never read
+ * as figures of nothing. A curve with nothing to draw says so rather than drawing a zero. Any other
+ * answer follows the rule of the reads (`readOrFail`): the screen never shows a figure it did not
+ * read, and computes none.
  */
 import { Info, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
@@ -33,7 +37,13 @@ import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { readOrFail, readUnlessRefused } from "@/api/problem";
+import {
+  type Problem,
+  readOrFail,
+  readOrRefused,
+  readUnlessRefused,
+  refusalOf,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ComputedRevision,
@@ -75,11 +85,10 @@ export async function generateMetadata({
 }
 
 /**
- * The sub-project the screen filters restricts the reads that take it — the indicators and the
- * curves of earned value (`scope`) —, not the evolution of the indices, the tracking of the
- * milestones nor the cumulative costs, whose operations do not (#495).
+ * The sub-project the screen filters restricts every figure of it but the tracking of the
+ * milestones, computed for the project alone (WF-IND-0020).
  */
-const RESTRICTS: Restrictions = { subproject_id: "indicators" };
+const RESTRICTS: Restrictions = { subproject_id: "exceptMilestones" };
 
 /** The filter of a sub-project. */
 type SubprojectFilter = Extract<ContextFilter, { name: "subproject_id" }>;
@@ -91,20 +100,42 @@ function subprojectFilter(reading: ProjectReading): SubprojectFilter | undefined
   );
 }
 
-/** Whether the reading filters a sub-project. */
-function filtersSubproject(reading: ProjectReading): boolean {
-  return subprojectFilter(reading) !== undefined;
-}
+/**
+ * The refusals of the indicators the screen says rather than coming down: a project not yet in
+ * progress (409, WF-IND-0010), and a sub-project the project does not have (422, `/query/scope`).
+ */
+const REFUSED = [
+  { status: 409, code: "STATE_FORBIDS_OPERATION" },
+  { status: 422, code: "VALIDATION_FAILED" },
+] as const;
 
-/** The refusal of the indicators of a project not yet in progress (WF-IND-0010). */
-const NOT_IN_PROGRESS = [{ status: 409, code: "STATE_FORBIDS_OPERATION" }] as const;
+/** Why the screen reads no indicator: the key of what it says in the catalogue. */
+type IndicatorsRefusal = "notInProgress" | "unknownScope";
+
+/**
+ * Why the API refused the indicators: a project not yet in progress, or a sub-project it does not
+ * have; any other refusal of a parameter is the screen's fault, thrown as an unexpected answer.
+ */
+function indicatorsRefusal(status: number, problem: Problem): IndicatorsRefusal {
+  if (status === 409) {
+    return "notInProgress";
+  }
+  const scope = (problem.fields ?? []).some(
+    (field) => field.pointer === "/query/scope" && field.code === "UNKNOWN_SUBPROJECT",
+  );
+  if (!scope) {
+    throw refusalOf("getProjectIndicators", status, problem);
+  }
+  return "unknownScope";
+}
 
 /**
  * The indicators of the project for the sub-project the address filters, on its revision or at the
- * date it asks — the API refuses both together —, then the evolution of its indices and its
- * cumulative curves — the costs on the same revision or at the same date, shifted by the payment
- * delays when the address asks it, the earned value for the same sub-project too —; none of them
- * when the project is not yet in progress, the others left unasked.
+ * date it asks — the API refuses both together —, then the evolution of its indices for the same
+ * sub-project and its cumulative curves — the costs and the earned value for the same sub-project,
+ * on the same revision or at the same date, the costs shifted by the payment delays when the
+ * address asks it —; or why the API refused the indicators — a project not yet in progress, a
+ * sub-project it does not have —, the others left unasked.
  */
 async function readIndicators({ revision, context, address }: GridAddress) {
   const client = serverClient();
@@ -112,21 +143,25 @@ async function readIndicators({ revision, context, address }: GridAddress) {
   const scope = context.parameters.get("subproject_id");
   const asOf = context.parameters.get("as_of");
   const dated = asOf === null ? { revision_id: revision.revisionId } : { as_of: asOf };
-  const query = { ...(scope === null ? {} : { scope }), ...dated };
-  const indicators = await readUnlessRefused("getProjectIndicators", NOT_IN_PROGRESS, () =>
+  const scoped = scope === null ? {} : { scope };
+  const query = { ...scoped, ...dated };
+  const read = await readOrRefused("getProjectIndicators", REFUSED, () =>
     client.GET("/projects/{project_id}/indicators", { params: { path, query } }),
   );
-  if (indicators === undefined) {
-    return undefined;
+  if (read.kind === "refused") {
+    return { refused: indicatorsRefusal(read.refusal.status, read.problem) } as const;
   }
+  const indicators = read.data;
   const delays = address.get(PAYMENT_DELAYS) === "true" ? { payment_delays: true } : {};
   const [history, costs, earnedValue] = await Promise.all([
     readOrFail("getIndexHistory", () =>
-      client.GET("/projects/{project_id}/indicators/index-history", { params: { path } }),
+      client.GET("/projects/{project_id}/indicators/index-history", {
+        params: { path, query: scoped },
+      }),
     ),
     readOrFail("getCostCurve", () =>
       client.GET("/projects/{project_id}/indicators/cost-curve", {
-        params: { path, query: { ...dated, ...delays } },
+        params: { path, query: { ...query, ...delays } },
       }),
     ),
     readOrFail("getEarnedValueCurves", () =>
@@ -138,7 +173,10 @@ async function readIndicators({ revision, context, address }: GridAddress) {
   return { indicators, history, costs, earnedValue };
 }
 
-/** The tracking of the milestones, which the API gives whatever the state of the project. */
+/**
+ * The tracking of the milestones, which the API gives whatever the state of the project, for the
+ * project alone: a sub-project has no milestones (WF-IND-0020).
+ */
 async function readMilestones({ revision }: GridAddress) {
   return readOrFail("getMilestoneTracking", () =>
     serverClient().GET("/projects/{project_id}/indicators/milestone-tracking", {
@@ -148,17 +186,29 @@ async function readMilestones({ revision }: GridAddress) {
 }
 
 /** The figures of the screen: the indicators, the evolution of the indices, the curves. */
-type Figures = NonNullable<Awaited<ReturnType<typeof readIndicators>>>;
+type Figures = Exclude<Awaited<ReturnType<typeof readIndicators>>, { readonly refused: unknown }>;
 
-/** What the screen says when the API does not compute the indicators of the project yet. */
-function NotInProgress() {
-  const t = useTranslations("projectIndicators.notInProgress");
+/**
+ * What the screen says when the API does not compute the indicators: not yet, the project not in
+ * progress; or not for the sub-project the address names, which the project does not have.
+ */
+function IndicatorsRefused({ reason }: { readonly reason: IndicatorsRefusal }) {
+  const t = useTranslations(`projectIndicators.${reason}`);
   return (
     <Alert>
       <TriangleAlert aria-hidden="true" />
       <AlertTitle>{t("title")}</AlertTitle>
       <AlertDescription>{t("explanation")}</AlertDescription>
     </Alert>
+  );
+}
+
+/** The cards of the indicators and the evolution of their indices, or why the API computes none. */
+function IndicatorsOrWhy({ read }: { readonly read: Awaited<ReturnType<typeof readIndicators>> }) {
+  return "refused" in read ? (
+    <IndicatorsRefused reason={read.refused} />
+  ) : (
+    <ProjectIndicatorCards indicators={read.indicators} history={read.history} />
   );
 }
 
@@ -253,10 +303,9 @@ function Sections({
   const label = useRevisionLabel();
   const subprojectName = useSubprojectName();
   const { project } = reading;
-  // A sub-project filtered, which the tracking of the milestones and the costs do not take: the
-  // image of each chart says what it is computed on, the sub-project or the project whole.
+  // A sub-project filtered, which the tracking of the milestones does not have: the image of each
+  // chart says what it is computed on, the sub-project or the project whole.
   const filtered = subprojectFilter(reading);
-  const wholeProject = filtered !== undefined;
   const provenance = (revisionId: string, restricted: boolean) => ({
     project: project.label,
     code: project.code ?? project.project_id,
@@ -274,15 +323,14 @@ function Sections({
       <MilestoneSection
         tracking={milestones}
         provenance={provenance(milestones.context.revision_id, false)}
-        wholeProject={wholeProject}
+        wholeProject={filtered !== undefined}
       />
       {figures === undefined ? null : (
         <>
           <CostCurveSection
             curves={figures.costs}
             address={address}
-            provenance={provenance(figures.costs.context.revision_id, false)}
-            wholeProject={wholeProject}
+            provenance={provenance(figures.costs.context.revision_id, true)}
           />
           <EarnedValueSection
             curves={figures.earnedValue}
@@ -316,11 +364,12 @@ export default async function IndicatorsPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "indicators");
-  const [reading, figures, milestones] = await Promise.all([
+  const [reading, read, milestones] = await Promise.all([
     readProjectContext(at.pathname, at.context, ["subproject_id", "as_of"]),
     readIndicators(at),
     readMilestones(at),
   ]);
+  const figures = "refused" in read ? undefined : read;
   if (reading === "not_found") {
     notFound();
   }
@@ -354,15 +403,7 @@ export default async function IndicatorsPage({
         {history === undefined || history === (computedOn ?? shown?.revision_id) ? null : (
           <ComputedElsewhere history={named.get(history)} />
         )}
-        {figures === undefined ? (
-          <NotInProgress />
-        ) : (
-          <ProjectIndicatorCards
-            indicators={figures.indicators}
-            history={figures.history}
-            wholeProject={filtersSubproject(reading)}
-          />
-        )}
+        <IndicatorsOrWhy read={read} />
         <Sections
           reading={reading}
           figures={figures}
