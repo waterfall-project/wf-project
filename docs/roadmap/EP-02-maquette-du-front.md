@@ -1454,6 +1454,15 @@ laisse, et une borne refusée prend le focus chaque fois que la liste revient re
 bornes » rend le focus à la première borne, et une borne mal tapée le prend à l'envoi. Le filtre
 par valeurs montre la valeur choisie jusqu'à la réponse du serveur, comme la liste de choix depuis
 L41g.
+EP-02/L41, sa partie L41i (#506), oublie l'adresse demandée dès que l'écran en montre une autre que
+celle d'où elle l'a été (#557) : revenu par « Précédent » à l'adresse d'origine, un tri ou un filtre
+ne réapplique plus la recherche abandonnée. Une saisie faite pendant qu'une navigation de l'écran
+est en route — la suite d'une recherche envoyée, une borne tapée pendant qu'une autre part — survit
+à son arrivée, ou à celle d'un tri ou d'un filtre composé dessus, jamais à un retour par
+l'historique ; la grille partage l'adresse demandée avec sa barre, une barre de filtres et un filtre
+entre eux. Le périmètre des coûts réels, les états du portefeuille, l'état des listes du référentiel et
+les actions du journal montrent leur choix jusqu'à la réponse du serveur, comme le filtre par
+valeurs depuis L41h, et le filtre sur un texte rejoint les composants de la grille (`TextFilter`).
 
 ## US-0260 — Écran d'import en deux temps
 

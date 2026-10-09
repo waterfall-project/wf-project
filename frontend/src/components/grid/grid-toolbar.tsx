@@ -74,7 +74,8 @@ export interface GridToolbarProps {
 /**
  * The search on the labels, sent when entered. An entry is dated by the search of the address
  * (`useDatedEntry`): a search the address changes — back in the history — shows anew, what was
- * typed and not sent given up, and the field keeps the focus once the search it sent arrives.
+ * typed and not sent given up, what was typed on while the search sent was on its way kept, and the
+ * field keeps the focus once the search it sent arrives.
  */
 function SearchField({
   search,
@@ -87,10 +88,12 @@ function SearchField({
 }) {
   const t = useTranslations("grid.search");
   const label = grid === undefined ? t("label") : t("labelIn", { grid });
-  const { entered, enter } = useDatedEntry<"text">(search ?? "");
+  const { entered, enter, sent } = useDatedEntry<"text">(search ?? "");
   const text = entered.text ?? search ?? "";
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Sent, the search arrives as the address writes it: only what is typed on after it stays.
+    sent();
     onSearch(text);
   };
   return (

@@ -14,11 +14,11 @@
 import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId } from "react";
+import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
-import { usePendingAddress } from "@/components/grid/pending-address";
+import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,15 +63,23 @@ function useFilter() {
   };
 }
 
-/** The filter by scope: a button for each, pressed as the address shows it. */
+/**
+ * The filter by scope: a button for each, pressed as last asked until the server answers, then as
+ * the address shows it.
+ */
 function ScopeFilter({ scope }: { readonly scope: Scope | undefined }) {
   const t = useTranslations("actualCosts.filters");
   const filter = useFilter();
+  // The scope asked, pressed until the server answers for it: the buttons would otherwise show the
+  // address until the navigation arrives, and again the address should another navigation replace
+  // it (défaut n° 21 de `typescript.md`).
+  const [shown, show] = useOptimistic(scope);
+  const [, startTransition] = useTransition();
   const choices: readonly (Scope | undefined)[] = [undefined, ...SCOPES];
   return (
     <div role="group" aria-label={t("scope")} className="flex flex-wrap items-center gap-1.5">
       {choices.map((choice) => {
-        const pressed = choice === scope;
+        const pressed = choice === shown;
         const Icon = choice === undefined ? ListFilter : pressed ? CircleCheck : Circle;
         return (
           <Button
@@ -80,7 +88,10 @@ function ScopeFilter({ scope }: { readonly scope: Scope | undefined }) {
             variant={pressed ? "default" : "outline"}
             aria-pressed={pressed}
             onClick={() => {
-              filter(() => ({ scope: choice }));
+              startTransition(() => {
+                show(choice);
+                filter(() => ({ scope: choice }));
+              });
             }}
           >
             <Icon aria-hidden="true" className="size-4" />
@@ -131,11 +142,13 @@ function SubprojectFilter({
 function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
   const t = useTranslations("actualCosts.filters");
   const ids = { from: useId(), to: useId() };
-  const { entered, enter } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
+  const { entered, enter, sent } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
   const period = { from: entered.from ?? from ?? "", to: entered.to ?? to ?? "" };
   const filter = useFilter();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Sent, the period arrives as the address writes it: only what is typed after it stays.
+    sent();
     filter(() => ({
       from: period.from === "" ? undefined : period.from,
       to: period.to === "" ? undefined : period.to,
@@ -172,11 +185,15 @@ function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
 /** Render the filters of the actual costs, as the address asks them. */
 export function CostFilterBar({ filters, subproject, subprojects }: CostFiltersProps) {
   const t = useTranslations("actualCosts.filters");
+  // The filters share the address last asked with the screen, or among themselves: what is typed
+  // while a period sent is on its way survives its arrival, a scope chosen meanwhile too.
   return (
-    <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <ScopeFilter scope={filters.scope} />
-      <SubprojectFilter subproject={subproject} subprojects={subprojects} />
-      <PeriodFilter from={filters.from} to={filters.to} />
-    </section>
+    <PendingAddress>
+      <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <ScopeFilter scope={filters.scope} />
+        <SubprojectFilter subproject={subproject} subprojects={subprojects} />
+        <PeriodFilter from={filters.from} to={filters.to} />
+      </section>
+    </PendingAddress>
   );
 }

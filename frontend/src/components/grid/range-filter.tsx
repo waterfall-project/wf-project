@@ -17,9 +17,10 @@
  * last. A change goes on from the address last asked (`usePendingAddress`): a sort under way is
  * kept. What is entered is dated by the bounds and the choice of the address (`useDatedEntry`): the
  * bounds the address changes — sent and arrived, or back in the history — show anew, what was typed
- * and not sent given up, and the form, never remounted, keeps the focus where it was. The button
- * that lifts the bounds goes with the last of them: lifting gives the focus to the first field of
- * the bounds, never to the body of the document.
+ * and not sent given up, what was typed while the bounds sent were on their way kept, and the form,
+ * never remounted, keeps the focus where it was. The button that lifts the bounds goes with the last
+ * of them: lifting gives the focus to the first field of the bounds, never to the body of the
+ * document.
  *
  * Each field is named by its column and its side, both written beside it (« Heures par mois »,
  * « min. »), so that its name holds what the eye reads (WCAG 2.5.3).
@@ -50,7 +51,7 @@ import {
   FIGURES,
   type FigureKind,
 } from "./filters";
-import { usePendingAddress } from "./pending-address";
+import { PendingAddress, usePendingAddress } from "./pending-address";
 
 /** The sides of a column, from the least. */
 const SIDES = ["min", "max"] as const;
@@ -267,8 +268,21 @@ function ScopeField({
   );
 }
 
-/** Render the filter of a list on the bounds of its columns of figures. */
-export function RangeFilter({ label, columns, kind, scope, page }: RangeFilterProps) {
+/**
+ * Render the filter of a list on the bounds of its columns of figures, sharing the address last
+ * asked with its screen, or keeping its own (`PendingAddress`): a bound typed while others sent are
+ * on their way survives their arrival on a screen that shares none too.
+ */
+export function RangeFilter(props: RangeFilterProps) {
+  return (
+    <PendingAddress>
+      <SharedRangeFilter {...props} />
+    </PendingAddress>
+  );
+}
+
+/** Render the filter of a list on the bounds of its figures, the address last asked shared. */
+function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterProps) {
   const t = useTranslations("grid.range");
   const locale = useLocale();
   const pathname = usePathname();
@@ -280,7 +294,7 @@ export function RangeFilter({ label, columns, kind, scope, page }: RangeFilterPr
     columns.map(({ column, bounds }) => [column, bounds.min, bounds.max]),
     scope?.chosen,
   ]);
-  const { entered, enter } = useDatedEntry<Field>(over);
+  const { entered, enter, sent } = useDatedEntry<Field>(over);
   const written = (value: string | undefined) =>
     value === undefined ? "" : editableDecimal(value, locale);
   const texts: Texts = Object.fromEntries(
@@ -343,6 +357,8 @@ export function RangeFilter({ label, columns, kind, scope, page }: RangeFilterPr
       column,
       bounds: { min: figureOf(min), max: figureOf(max) },
     }));
+    // Sent, the bounds arrive as the address writes them: only what is typed after them stays.
+    sent();
     request((query) =>
       boundsHref(pathname, query, asked, {
         scope: scope === undefined ? undefined : { name: scope.name, value: chosen },

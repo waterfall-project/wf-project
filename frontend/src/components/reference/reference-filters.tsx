@@ -5,10 +5,11 @@
  * (WF-IHM-0130): whether they show the deactivated objects too (WF-REF-0150, `include_inactive`);
  * the state of each list (`is_active`, after the prefix of its grid); an object chosen — the node of
  * organisation, the category or the calendar of the roles, the nature of the categories, the node of
- * the accounts (`OrgNodeFilter`, `ChoiceFilter`) —; the code and the depth of the nodes. Each only changes the
- * address, under the name of the contract after the prefix of its grid, back to the first page of a
- * list the server pages, and the server answers anew; the front filters nothing. A change goes on
- * from the address last asked (`usePendingAddress`): a sort or a search under way is kept.
+ * the accounts (`OrgNodeFilter`, `ChoiceFilter`) —; the code (`TextFilter` of the grid) and the depth
+ * of the nodes. Each only changes the address, under the name of the contract after the prefix of its
+ * grid, back to the first page of a list the server pages, and the server answers anew; the front
+ * filters nothing. A change goes on from the address last asked (`usePendingAddress`): a sort or a
+ * search under way is kept.
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
  * hands it over (défaut n° 12 de `typescript.md`).
@@ -19,15 +20,12 @@ import { Circle, CircleCheck, Eye, EyeOff, ListFilter } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId } from "react";
+import { useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { useDatedEntry } from "@/components/grid/dated-entry";
 import { filterHref } from "@/components/grid/filters";
 import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { INCLUDE_INACTIVE } from "./address";
 import { treeLabel } from "./org-tree";
@@ -112,9 +110,10 @@ export function OrgNodeFilter({
 
 /**
  * The filter of a list on the state of its objects (`is_active`): every state — as the switch of the
- * deactivated objects decides —, the active ones alone, or the deactivated ones alone; a button
- * pressed for each, as the address shows it. Offered only to a session that may read the deactivated
- * objects: for another, the list holds the active ones alone, and the filter would change nothing.
+ * deactivated objects decides —, the active ones alone, or the deactivated ones alone; a button for
+ * each, pressed as last asked until the server answers, then as the address shows it. Offered only
+ * to a session that may read the deactivated objects: for another, the list holds the active ones
+ * alone, and the filter would change nothing.
  */
 export function StateFilter({
   name,
@@ -134,6 +133,11 @@ export function StateFilter({
   const t = useTranslations("reference.stateFilter");
   const pathname = usePathname();
   const { request } = usePendingAddress();
+  // The state asked, pressed until the server answers for it: the buttons would otherwise show the
+  // address until the navigation arrives, and again the address should another navigation replace
+  // it (défaut n° 21 de `typescript.md`).
+  const [shown, show] = useOptimistic(chosen);
+  const [, startTransition] = useTransition();
   const states: readonly { readonly value: boolean | undefined; readonly text: string }[] = [
     { value: undefined, text: t("every") },
     { value: true, text: t("active") },
@@ -142,7 +146,7 @@ export function StateFilter({
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
       {states.map(({ value, text }) => {
-        const pressed = chosen === value;
+        const pressed = shown === value;
         const Icon = value === undefined ? ListFilter : pressed ? CircleCheck : Circle;
         return (
           <Button
@@ -151,7 +155,10 @@ export function StateFilter({
             variant={pressed ? "default" : "outline"}
             aria-pressed={pressed}
             onClick={() => {
-              request((query) => filterHref(pathname, query, name, value?.toString(), page));
+              startTransition(() => {
+                show(value);
+                request((query) => filterHref(pathname, query, name, value?.toString(), page));
+              });
             }}
           >
             <Icon aria-hidden="true" className="size-4" />
@@ -160,69 +167,5 @@ export function StateFilter({
         );
       })}
     </div>
-  );
-}
-
-/** What a filter on a text shows: the parameter it writes, its name, the text the address holds. */
-interface TextFilterProps {
-  /** The parameter of the address the filter writes. */
-  readonly name: string;
-  readonly label: string;
-  /** The text the address filters on; none, no filter. */
-  readonly value: string | undefined;
-  /** The longest text the contract takes. */
-  readonly length: number;
-  /** The parameter of the page of a list the server pages, which the filter takes back to its first. */
-  readonly page?: string;
-  /**
-   * The form of a text the contract takes (`pattern` of the field): another is not sent, and the
-   * browser says why.
-   */
-  readonly pattern?: string;
-  /** The form the pattern asks, in words, which the browser says of a text out of it. */
-  readonly form?: string;
-}
-
-/**
- * The filter of a list on a text — the code of the nodes, the correlation of the journal of audit —,
- * sent when entered, lifted when emptied, back to the first page of a list the server pages; of the
- * length the contract takes at most. An entry is dated by the
- * text of the address (`useDatedEntry`): a text the address changes — back in the history — shows
- * anew, what was typed and not sent given up, and the field keeps the focus.
- */
-export function TextFilter({ name, label, value, length, page, pattern, form }: TextFilterProps) {
-  const id = useId();
-  const pathname = usePathname();
-  const { request } = usePendingAddress();
-  const { entered, enter } = useDatedEntry<"text">(value ?? "");
-  const text = entered.text ?? value ?? "";
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // A text out of the form the contract takes is not sent: the browser says why — it sends no
-    // such form itself, and this holds where something submits it all the same.
-    if (!event.currentTarget.reportValidity()) {
-      return;
-    }
-    const trimmed = text.trim();
-    request((query) =>
-      filterHref(pathname, query, name, trimmed === "" ? undefined : trimmed, page ?? []),
-    );
-  };
-  return (
-    <form aria-label={label} onSubmit={submit} className="flex items-center gap-2 text-sm">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="search"
-        value={text}
-        maxLength={length}
-        pattern={pattern}
-        title={form}
-        onChange={(event) => {
-          enter("text", event.target.value);
-        }}
-        className="h-7 w-32 text-xs"
-      />
-    </form>
   );
 }

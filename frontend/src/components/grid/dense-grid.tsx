@@ -103,7 +103,7 @@ import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
-import { usePendingAddress } from "./pending-address";
+import { PendingAddress, usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
@@ -631,8 +631,23 @@ function held<Row>(
   return around === undefined ? grid : around(rows, grid);
 }
 
-/** Render a dense grid. */
-export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
+/**
+ * Render a dense grid, which shares the address last asked with its bar — and with its screen,
+ * when the screen shares one (`PendingAddress`): a search typed on while the one sent is on its
+ * way survives its arrival (`useDatedState`).
+ */
+export function DenseGrid<Row extends RowData, Sort extends string, Totals>(
+  props: DenseGridProps<Row, Sort, Totals>,
+) {
+  return (
+    <PendingAddress>
+      <SharedGrid {...props} />
+    </PendingAddress>
+  );
+}
+
+/** Render a dense grid, the address last asked shared. */
+function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   config,
   rows,
   totals,

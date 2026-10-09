@@ -278,8 +278,25 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     laquelle elle avait été faite — taper une date, l'appliquer, puis « Précédent » —, l'adresse
     montrerait la saisie abandonnée au lieu de sa propre valeur. Elle ne se date que par les
     paramètres que le formulaire écrit : un tri ou un autre filtre arrivé pendant la saisie la
-    laisse. La recherche des grilles (`SearchField`) et les bornes (`RangeFilter`) étaient remontées
-    de même ; elles suivent la même règle (#553). Une borne refusée par le serveur prend le focus
+    laisse. Une saisie faite pendant qu'une navigation de l'écran est en route — « rev » envoyé,
+    « ue » tapé avant la réponse, ou une borne tapée pendant qu'une autre part — survit à
+    l'arrivée de cette navigation, et à elle seule : `usePendingAddress` oublie ce qu'il a demandé
+    dès que l'écran montre une autre adresse que celle d'où il l'a demandé — l'adresse demandée
+    arrivée, ou un retour à celle d'origine, faute de quoi un tri fait après « Précédent »
+    réappliquait la recherche abandonnée —, et la saisie retient la navigation en route quand elle
+    a été faite (`useAskedArrival`), avec la suite des adresses composées sur elle avant son
+    arrivée : un tri cliqué pendant que la recherche part arrive à sa place, et la saisie reste.
+    Envoyer « rev », revenir par « Précédent », taper « zzz », puis « Suivant » montre « rev »,
+    jamais « zzz » ; « Précédent » pressé avant l'arrivée oublie de même la saisie (#557). L'adresse
+    demandée se partage par l'écran, la grille, la barre de filtres ou le filtre lui-même
+    (`PendingAddress`), sans quoi la saisie ne connaît aucune navigation. Un envoi du formulaire
+    solde sa saisie (`sent` de `useDatedEntry`) : ce qu'il envoie arrive tel que l'adresse l'écrit
+    — « ELEC-TRIC » et non « ELEC-TRIC␣␣ », « 20,5 » et non « 20,5␣ » —, et seul ce qui est tapé
+    après lui survit. Une navigation vers l'adresse même qu'on montre ne demande rien et abandonne
+    ce qui était en route : elle ne change pas l'adresse, et Next ne dit pas qu'il a laissé
+    l'autre. La recherche des grilles
+    (`SearchField`) et les bornes (`RangeFilter`) étaient remontées de même ; elles suivent la même
+    règle (#553). Une borne refusée par le serveur prend le focus
     chaque fois qu'une liste revient refusée — la même borne refusée à nouveau comprise —, par un
     effet qui dépend des refus et des bornes de l'adresse, non plus d'un remontage ; une borne mal
     tapée le prend à l'envoi qui la refuse, avant un champ refusé auparavant par le serveur. Un
@@ -288,18 +305,22 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     où se tape la suivante. Des tests appliquent une saisie, rendent à nouveau le filtre sous
     l'adresse appliquée puis sous celle d'origine, et affirment le focus et la valeur ; d'autres le
     rendent sous un tri ou un autre filtre arrivé pendant la saisie, et affirment que la saisie et
-    le focus restent (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
-    `reference-filters.dom.test.tsx`, `audit.dom.test.tsx`, `grid-toolbar.dom.test.tsx`,
-    `range-filter.dom.test.tsx`, `actual-costs.spec.ts`, `grid.spec.ts`) ; aucun outil ne le tient :
-    la revue le cherche.
+    le focus restent ; d'autres encore tapent pendant la navigation, puis par-dessus l'adresse
+    retrouvée par « Précédent » (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
+    `text-filter.dom.test.tsx`, `audit.dom.test.tsx`, `grid-toolbar.dom.test.tsx`,
+    `range-filter.dom.test.tsx`, `pending-address.dom.test.tsx`, `actual-costs.spec.ts`,
+    `grid.spec.ts`) ; aucun outil ne le tient : la revue le cherche.
 21. **Liste contrôlée qui montre l'adresse pendant la navigation.** Un `<select>` dont la valeur est
     celle de l'adresse revient, dès le choix fait, à la valeur d'avant, jusqu'à ce que la page lue à
     nouveau arrive — plusieurs secondes sur le serveur de développement chargé : le choix paraît
     perdu, et un parcours qui choisit à nouveau tant que l'adresse n'a pas changé remplace chaque
     navigation par la suivante (EP-02/L41g). Le choix se montre jusqu'à la réponse du serveur
     (`useOptimistic` dans la transition qui navigue, `ChoiceFilter`) ; de même les boutons pressés
-    d'un filtre par valeurs (`ValuesFilter`, `values-filter.dom.test.tsx`) ; un parcours choisit à
-    nouveau jusqu'à ce que la navigation parte (`page.waitForRequest`), jamais jusqu'à ce qu'elle
-    arrive, et attend l'adresse dans la borne de l'écran (`WORKING` pour un écran de grilles
-    denses). `reference-filters.dom.test.tsx` le prouve ; aucun outil ne le tient : la revue le
-    cherche.
+    d'un filtre par valeurs (`ValuesFilter`, `values-filter.dom.test.tsx`), du périmètre des coûts
+    réels (`ScopeFilter`), des états du portefeuille (`perimeter.tsx`) et de l'état des listes du
+    référentiel (`StateFilter`), et les actions cochées du journal, dont le menu reste ouvert
+    pendant qu'on coche (`ActionsFilter`) — un test retient chaque fois la navigation (#557) ; un
+    parcours choisit à nouveau jusqu'à ce que la navigation parte (`page.waitForRequest`), jamais
+    jusqu'à ce qu'elle arrive, et attend l'adresse dans la borne de l'écran (`WORKING` pour un écran
+    de grilles denses). `reference-filters.dom.test.tsx` le prouve ; aucun outil ne le tient : la
+    revue le cherche.

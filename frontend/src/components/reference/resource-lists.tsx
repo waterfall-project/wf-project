@@ -37,12 +37,13 @@ import { ListPages } from "@/components/grid/list-pages";
 import type { GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
 import type { GridPreferences } from "@/components/grid/settings";
+import { TextFilter } from "@/components/grid/text-filter";
 import { formatDecimal } from "@/i18n/format";
 import type { ListPage } from "@/navigation/pages";
 
 import { listReads } from "./address";
 import { Reactivations } from "./reactivation";
-import { type NodeChoice, OrgNodeFilter, StateFilter, TextFilter } from "./reference-filters";
+import { type NodeChoice, OrgNodeFilter, StateFilter } from "./reference-filters";
 import { ResourceGrid } from "./resource-grid";
 import {
   CALENDAR_ADDRESS,

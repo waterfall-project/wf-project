@@ -15,10 +15,9 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { listReads } from "./address";
-import { InactiveSwitch, StateFilter, TextFilter } from "./reference-filters";
+import { InactiveSwitch, StateFilter } from "./reference-filters";
 import {
   CALENDAR_ADDRESS,
-  ORG_CODE,
   RESOURCE_ROLE_ADDRESS,
   ROLE_COST_CATEGORY,
   ROLE_STATE,
@@ -110,6 +109,37 @@ describe("the filters of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources");
   });
 
+  it("show the state asked pressed while the server reads the list anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const filter = (chosen: boolean | undefined) =>
+      inFrench(<StateFilter name={ROLE_STATE} label="État" chosen={chosen} />);
+    const { rerender } = render(filter(undefined));
+    const inactive = screen.getByRole("button", { name: "Désactivés" });
+    await userEvent.click(inactive);
+    expect(lastAddress()).toBe("/reference/resources?role_is_active=false");
+    // The address has not changed yet: the state asked shows pressed, never the address before it.
+    expect(inactive).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    // The server answers: the address names the state, which the button goes on showing pressed.
+    page.search = "role_is_active=false";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(filter(false));
+    expect(inactive).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("filter on an object chosen, back to the first page, and keep one the list does not offer, to be cleared [WF-IHM-0130-A]", async () => {
     page.search = "role_offset=50";
     render(
@@ -165,59 +195,6 @@ describe("the filters of a list of the reference data", () => {
     });
     rerender(filter("mo-001"));
     expect(select).toHaveValue("mo-001");
-  });
-
-  it("filter the tree on the code entered, lifted when emptied [WF-IHM-0130-A]", async () => {
-    page.search = "org_search=BE";
-    render(
-      inFrench(<TextFilter name={ORG_CODE} label="Code du nœud" value={undefined} length={20} />),
-    );
-    const field = screen.getByRole("searchbox", { name: "Code du nœud" });
-    expect(field).toHaveAttribute("maxlength", "20");
-    await userEvent.type(field, " ELEC {Enter}");
-    expect(lastAddress()).toBe("/reference/resources?org_search=BE&org_code=ELEC");
-    await userEvent.clear(field);
-    await userEvent.type(field, "{Enter}");
-    expect(lastAddress()).toBe("/reference/resources?org_search=BE");
-  });
-
-  it("set the code anew when the address changes it, back in the history, what was typed and not sent given up", async () => {
-    page.search = "org_code=ELEC";
-    const filter = (value: string | undefined) =>
-      inFrench(<TextFilter name={ORG_CODE} label="Code du nœud" value={value} length={20} />);
-    const { rerender } = render(filter("ELEC"));
-    const field = () => screen.getByRole("searchbox", { name: "Code du nœud" });
-    expect(field()).toHaveValue("ELEC");
-    await userEvent.type(field(), "-TRIC");
-    expect(field()).toHaveValue("ELEC-TRIC");
-    // Back to an address that filtered on another code, then on none.
-    page.search = "org_code=BE";
-    rerender(filter("BE"));
-    expect(field()).toHaveValue("BE");
-    page.search = "";
-    rerender(filter(undefined));
-    expect(field()).toHaveValue("");
-    expect(router.push).not.toHaveBeenCalled();
-  });
-
-  it("keep the focus in the field that sent the code once the address arrives", async () => {
-    const filter = (value: string | undefined) =>
-      inFrench(<TextFilter name={ORG_CODE} label="Code du nœud" value={value} length={20} />);
-    const { rerender } = render(filter(undefined));
-    const field = screen.getByRole("searchbox", { name: "Code du nœud" });
-    await userEvent.type(field, "ELEC{Enter}");
-    expect(lastAddress()).toBe("/reference/resources?org_code=ELEC");
-    // The address sent arrives: the field stays, with the focus and the code (#537).
-    page.search = "org_code=ELEC";
-    rerender(filter("ELEC"));
-    expect(screen.getByRole("searchbox", { name: "Code du nœud" })).toBe(field);
-    expect(field).toHaveFocus();
-    expect(field).toHaveValue("ELEC");
-    // Back in the history to the address the code was typed over: it shows no code, the entry
-    // given up.
-    page.search = "";
-    rerender(filter(undefined));
-    expect(field).toHaveValue("");
   });
 
   it("show the deactivated objects too back to the first page of each list the server pages [WF-REF-0150-A]", () => {

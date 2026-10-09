@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -495,6 +495,40 @@ describe("the filters of the journal", () => {
       within(screen.getByRole("menu")).getByRole("menuitem", { name: "Toutes les actions" }),
     );
     expect(lastAddress()).toBe("/admin/audit-log");
+  });
+
+  it("keep the actions asked checked while the server reads the journal anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementationOnce(() => {
+      startTransition(() => navigation);
+    });
+    const { rerender } = render(journal());
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filtrer par action\u00a0: Toutes les actions" }),
+    );
+    const backup = () =>
+      within(screen.getByRole("menu")).getByRole("menuitemcheckbox", { name: "Sauvegarde" });
+    await userEvent.click(backup());
+    expect(lastAddress()).toBe("/admin/audit-log?actions=backup");
+    // The address has not changed yet: the menu, still open, shows the action asked checked, and
+    // its button — hidden from the tree of accessibility while the menu is open — the count asked,
+    // never the address before them.
+    expect(backup()).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("button", { name: "Filtrer par action\u00a0: 1 action", hidden: true }),
+    ).toBeInTheDocument();
+    // The server answers: the address names the action, which the menu goes on showing checked.
+    page.search = "actions=backup";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(journal());
+    expect(backup()).toHaveAttribute("aria-checked", "true");
   });
 
   it("filter by project, one the journal names, back to the first page", async () => {

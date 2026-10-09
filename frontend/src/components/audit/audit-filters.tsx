@@ -23,12 +23,17 @@ import { ChevronDown, ListFilter, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId } from "react";
+import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
 import { readValues, valuesHref } from "@/components/grid/filters";
-import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
+import {
+  PendingAddress,
+  usePendingAddress,
+  usePendingLink,
+} from "@/components/grid/pending-address";
+import { TextFilter } from "@/components/grid/text-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -39,7 +44,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TextFilter } from "@/components/reference/reference-filters";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useHydrated } from "@/components/use-hydrated";
@@ -119,7 +123,11 @@ function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
   const t = useTranslations("admin.auditLog.filters");
   const ids = { from: useId(), to: useId() };
   const hydrated = useHydrated();
-  const { entered, enter } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
+  const {
+    entered,
+    enter,
+    sent: settle,
+  } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
   const filter = useAuditFilter();
   const asked = { from, to };
   const shown = (bound: "from" | "to") => {
@@ -134,6 +142,8 @@ function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Sent, the period arrives as the address writes it: only what is typed after it stays.
+    settle();
     filter({ [FROM]: sent("from"), [TO]: sent("to") });
   };
   return (
@@ -166,31 +176,46 @@ function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
 
 /**
  * The filter by action: a menu of the actions of the contract, in its order, each checked when the
- * address filters on it, and one that lifts the filter; the menu stays open while actions are
- * checked.
+ * address filters on it — or as last asked, until the server answers —, and one that lifts the
+ * filter; the menu stays open while actions are checked.
  */
 function ActionsFilter({ chosen }: { readonly chosen: readonly AuditAction[] }) {
   const t = useTranslations();
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const filter = { name: ACTIONS, values: AUDIT_ACTIONS, page: AUDIT_PAGE };
+  // The actions asked, checked until the server answers for them: the menu, open while actions are
+  // checked, would otherwise show the address until the navigation arrives — an action checked
+  // seemingly unchecked —, and again the address should another navigation replace it (défaut
+  // n° 21 de `typescript.md`).
+  const [asked, show] = useOptimistic(chosen);
+  const [, startTransition] = useTransition();
   /** Filter on the actions a change makes of those last asked. */
-  const change = (make: (asked: readonly AuditAction[]) => readonly AuditAction[]) => {
-    request((query) =>
-      valuesHref(pathname, query, filter, make(readValues(query, ACTIONS, AUDIT_ACTIONS))),
-    );
+  const change = (make: (last: readonly AuditAction[]) => readonly AuditAction[]) => {
+    startTransition(() => {
+      request((query) => {
+        const href = valuesHref(
+          pathname,
+          query,
+          filter,
+          make(readValues(query, ACTIONS, AUDIT_ACTIONS)),
+        );
+        show(readValues(new URLSearchParams(href.split("?")[1] ?? ""), ACTIONS, AUDIT_ACTIONS));
+        return href;
+      });
+    });
   };
   const shown =
-    chosen.length === 0
+    asked.length === 0
       ? t("admin.auditLog.filters.everyAction")
-      : t("admin.auditLog.filters.actionsChosen", { count: chosen.length });
+      : t("admin.auditLog.filters.actionsChosen", { count: asked.length });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
           size="sm"
-          variant={chosen.length === 0 ? "outline" : "default"}
+          variant={asked.length === 0 ? "outline" : "default"}
           aria-label={t("admin.auditLog.filters.actionsNamed", { chosen: shown })}
         >
           <ListFilter aria-hidden="true" className="size-4" />
@@ -210,12 +235,10 @@ function ActionsFilter({ chosen }: { readonly chosen: readonly AuditAction[] }) 
         {AUDIT_ACTIONS.map((action) => (
           <DropdownMenuCheckboxItem
             key={action}
-            checked={chosen.includes(action)}
+            checked={asked.includes(action)}
             onCheckedChange={() => {
-              change((asked) =>
-                asked.includes(action)
-                  ? asked.filter((each) => each !== action)
-                  : [...asked, action],
+              change((last) =>
+                last.includes(action) ? last.filter((each) => each !== action) : [...last, action],
               );
             }}
             onSelect={(event) => {
@@ -301,73 +324,77 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
     value: kind,
     text: t(`enums.AuditObjectKind.${kind}`),
   }));
+  // The filters share the address last asked with the screen, or among themselves: what is typed
+  // while a period sent is on its way survives its arrival, another filter chosen meanwhile too.
   return (
-    <section
-      aria-label={t("admin.auditLog.filters.label")}
-      className="flex flex-wrap items-center gap-x-6 gap-y-2"
-    >
-      <PeriodFilter from={filters.from} to={filters.to} />
-      <ValuesFilter
-        name={ACTOR_KIND}
-        label={t("admin.auditLog.filters.actorKind")}
-        every={t("admin.auditLog.filters.everyActor")}
-        values={actors}
-        chosen={filters.actorKinds}
-        page={AUDIT_PAGE}
-      />
-      {/* Offered when there is an author to choose, or one to clear: none in a journal only the
-      platform wrote. */}
-      {authors.length === 0 && filters.user === undefined ? null : (
-        <ChoiceFilter
-          id={ids.user}
-          name={USER}
-          label={t("admin.auditLog.filters.user")}
-          every={t("admin.auditLog.filters.everyUser")}
-          choices={authors}
-          chosen={filters.user}
-          unknown={named.user}
+    <PendingAddress>
+      <section
+        aria-label={t("admin.auditLog.filters.label")}
+        className="flex flex-wrap items-center gap-x-6 gap-y-2"
+      >
+        <PeriodFilter from={filters.from} to={filters.to} />
+        <ValuesFilter
+          name={ACTOR_KIND}
+          label={t("admin.auditLog.filters.actorKind")}
+          every={t("admin.auditLog.filters.everyActor")}
+          values={actors}
+          chosen={filters.actorKinds}
           page={AUDIT_PAGE}
         />
-      )}
-      <ActionsFilter chosen={filters.actions} />
-      <ChoiceFilter
-        id={ids.project}
-        name={PROJECT}
-        label={t("admin.auditLog.filters.project")}
-        every={t("admin.auditLog.filters.everyProject")}
-        choices={offered}
-        chosen={filters.project}
-        unknown={named.project === undefined ? undefined : projectName(named.project)}
-        page={AUDIT_PAGE}
-      />
-      <ChoiceFilter
-        id={ids.kind}
-        name={OBJECT_KIND}
-        label={t("admin.auditLog.filters.objectKind")}
-        every={t("admin.auditLog.filters.everyObjectKind")}
-        choices={kinds}
-        chosen={filters.objectKind}
-        page={AUDIT_PAGE}
-      />
-      {filters.object === undefined ? null : (
-        <ObjectShown
-          name={
-            named.object === undefined
-              ? filters.object
-              : (named.object.label ?? t(`enums.AuditObjectKind.${named.object.kind}`))
-          }
-          returnTo={ids.kind}
+        {/* Offered when there is an author to choose, or one to clear: none in a journal only the
+      platform wrote. */}
+        {authors.length === 0 && filters.user === undefined ? null : (
+          <ChoiceFilter
+            id={ids.user}
+            name={USER}
+            label={t("admin.auditLog.filters.user")}
+            every={t("admin.auditLog.filters.everyUser")}
+            choices={authors}
+            chosen={filters.user}
+            unknown={named.user}
+            page={AUDIT_PAGE}
+          />
+        )}
+        <ActionsFilter chosen={filters.actions} />
+        <ChoiceFilter
+          id={ids.project}
+          name={PROJECT}
+          label={t("admin.auditLog.filters.project")}
+          every={t("admin.auditLog.filters.everyProject")}
+          choices={offered}
+          chosen={filters.project}
+          unknown={named.project === undefined ? undefined : projectName(named.project)}
+          page={AUDIT_PAGE}
         />
-      )}
-      <TextFilter
-        name={CORRELATION}
-        label={t("admin.auditLog.filters.correlation")}
-        value={filters.correlation}
-        length={CORRELATION_LENGTH}
-        page={AUDIT_PAGE}
-        pattern={CORRELATION_PATTERN}
-        form={t("admin.auditLog.filters.correlationForm")}
-      />
-    </section>
+        <ChoiceFilter
+          id={ids.kind}
+          name={OBJECT_KIND}
+          label={t("admin.auditLog.filters.objectKind")}
+          every={t("admin.auditLog.filters.everyObjectKind")}
+          choices={kinds}
+          chosen={filters.objectKind}
+          page={AUDIT_PAGE}
+        />
+        {filters.object === undefined ? null : (
+          <ObjectShown
+            name={
+              named.object === undefined
+                ? filters.object
+                : (named.object.label ?? t(`enums.AuditObjectKind.${named.object.kind}`))
+            }
+            returnTo={ids.kind}
+          />
+        )}
+        <TextFilter
+          name={CORRELATION}
+          label={t("admin.auditLog.filters.correlation")}
+          value={filters.correlation}
+          length={CORRELATION_LENGTH}
+          page={AUDIT_PAGE}
+          pattern={CORRELATION_PATTERN}
+          form={t("admin.auditLog.filters.correlationForm")}
+        />
+      </section>
+    </PendingAddress>
   );
 }
