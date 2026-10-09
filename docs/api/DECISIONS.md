@@ -186,6 +186,13 @@ d'écriture, ou pas contributeur, c'est 403 avec la condition nommée.
 **`412` pour un `lock_version` périmé**, distinct du `409` d'un conflit d'état. Le front
 peut ainsi proposer de recharger dans un cas et d'expliquer dans l'autre.
 
+**Un identifiant de chemin mal formé est un 404, un autre paramètre de chemin mal formé un
+422** (EP-03/US-0330/L1). Un identifiant qui n'est pas un UUID ne peut nommer aucun objet : il
+reçoit la réponse d'un objet inexistant ou invisible, 404 `NOT_FOUND` (README, 404 contre 403).
+Tout autre paramètre de chemin refusé (`year`, `part_number`, `location_name`…) est une valeur
+que l'opération refuse : 422 `VALIDATION_FAILED`, un champ par faute, au pointeur
+`/path/<nom>` — par analogie avec `/query/<nom>` du paramètre de requête.
+
 **Chaque signalement porte sa zone** (`AlertZone`, EP-02/L4, #139). WF-IHM-0070 veut une
 échelle commune, et une zone que le serveur classe : le dépassement du budget d'un sous-projet
 (`SubprojectBalance.zone`) et les signaux de santé du pilotage (`PilotHealth.signals[].zone`)

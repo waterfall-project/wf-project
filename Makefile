@@ -43,7 +43,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e \
-	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date catalogs \
+	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
@@ -166,7 +166,7 @@ check-spec: build-doc-strict ## The projection builds without warning and is up 
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
 		|| { echo "  the projection is not the one the Word document produces: run make build-doc"; exit 1; }
 
-check-contract: lint-openapi inventory mock-data-up-to-date ## The contract lints, its inventory and its volumes are up to date
+check-contract: lint-openapi inventory mock-data-up-to-date server-models-up-to-date ## The contract lints, its inventory, its volumes and the models of the service are up to date
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 
@@ -208,6 +208,24 @@ generate-client: build-openapi install-front ## Regenerate the API client of the
 client-up-to-date: generate-client ## The versioned client is the one the contract produces
 	@git diff --exit-code --stat -- $(FRONT)/src/api/generated \
 		|| { echo "  the client is not the one the contract produces: run make generate-client"; exit 1; }
+
+# The models of the service, engendered from the bundled contract (WF-ARC-0060). Ruff formats
+# them with the rules of the repository, which they only find under the repository: the check
+# writes its copy beside the versioned one.
+SERVER_MODELS := $(BACK)/src/waterfall/api/contract/models.py
+CODEGEN := cd $(BACK) && uv run --frozen datamodel-codegen --input ../$(BUNDLE) --input-file-type openapi \
+	--output-model-type pydantic_v2.BaseModel --target-python-version 3.13 --use-annotated \
+	--disable-timestamp --formatters ruff-format ruff-check --output
+
+generate-server-models: build-openapi ## Regenerate the Pydantic models of the service from the contract
+	@( $(CODEGEN) "$(abspath $(SERVER_MODELS))" )
+	@echo "  -> $(SERVER_MODELS)"
+
+server-models-up-to-date: build-openapi ## The versioned models of the service are the ones the contract produces
+	@tmp=$$(mktemp -d -p $(abspath $(BACK))); \
+		( $(CODEGEN) "$$tmp/models.py" ) && diff -q "$$tmp/models.py" $(SERVER_MODELS) >/dev/null; \
+		status=$$?; rm -rf "$$tmp"; \
+		[ $$status -eq 0 ] || { echo "  the models are not the ones the contract produces: run make generate-server-models"; exit 1; }
 
 lint-front: install-front ## Lint and format check of the front
 	@$(PNPM) lint

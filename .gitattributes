@@ -7,6 +7,7 @@
 #
 # - what a tool writes (`generated` in tools/paths.toml): the volumes of the fake back, the
 #   listing of the examples, the client of the front, the projection, the inventory;
+# - the models of the service, engendered from the contract;
 # - the front, which Prettier checks with LF line endings, catalogues included;
 # - the examples of the contract, which the generator of the volumes reads;
 # - the originals of the copies the front compares byte for byte: the drawings of docs/assets,
@@ -23,4 +24,5 @@ docs/spec/waterfall-spec.md text eol=lf
 docs/api/INVENTORY.md text eol=lf
 LICENSES/** text eol=lf
 **/uv.lock text eol=lf
+backend/src/waterfall/api/contract/models.py text eol=lf
 *.sh text eol=lf

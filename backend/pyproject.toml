@@ -6,7 +6,13 @@ name = "waterfall"
 version = "0.1.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "email-validator>=2.3.0",
+    "fastapi>=0.143.0",
+    "pydantic-settings>=2.15.0",
+    "structlog>=26.1.0",
+    "uvicorn>=0.54.0",
+]
 
 # One package, two processes: the API and the worker start from the same distribution, and
 # so carry the same version by construction (WF-ARC-0010).
@@ -20,7 +26,10 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "datamodel-code-generator>=0.83.0",
+    "httpx2>=2.13.1",
     "import-linter>=2.15",
+    "openapi-core>=0.23.1",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -38,6 +47,8 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 branch = true
 source = ["waterfall"]
+# The models engendered from the contract are written by a tool, not by us (US-0060).
+omit = ["src/waterfall/api/contract/models.py"]
 
 [tool.coverage.report]
 # The guard that runs a module as a script is run by the entry points, in their own
@@ -48,6 +59,10 @@ exclude_also = ["if __name__ == .__main__.:"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 include = ["src", "tests"]
+# The tests share what ``tests/conftest.py`` holds.
+extraPaths = ["src", "tests"]
+# The models engendered from the contract are written by a tool, not by us.
+exclude = ["src/waterfall/api/contract/models.py"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
 enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"
@@ -57,9 +72,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API nor the worker, which do not import each other"
+name = "The core imports neither the API nor the worker, which do not import each other; the platform imports none of them"
 type = "layers"
-layers = ["waterfall.api | waterfall.worker", "waterfall.core"]
+layers = ["waterfall.api | waterfall.worker", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

@@ -146,3 +146,18 @@ def test_an_excepted_path_is_named_with_its_reason() -> None:
 def test_an_exception_needs_a_reason() -> None:
     with pytest.raises(DeclarationError, match="the reason they are excepted"):
         paths.parse('[[exceptions]]\npaths = ["legacy/**"]\n')
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "backend/src/waterfall/api/contract/models.py",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+    ],
+)
+def test_the_models_generated_from_the_contract_wake_its_family_when_only_the_back_changes(
+    changed: str,
+) -> None:
+    touched = {family.name for family in paths.read().touched([changed])}
+    assert {"contract", "back"} <= touched
