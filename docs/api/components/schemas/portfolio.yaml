@@ -46,7 +46,7 @@ PortfolioProjectRow:
         Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la
         permission de consulter et la qualité de contributeur, ou la permission « consulter
         tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en
-        déduit rien des permissions de la session.
+        déduit rien des permissions de `getMe`.
     reference_budget:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     current_estimate:

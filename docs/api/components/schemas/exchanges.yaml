@@ -25,7 +25,9 @@ FileUploadPurpose:
     en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer
     (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus
     `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`,
-    `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant.
+    `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant. Les deux valeurs restent
+    dans l'énumération : le `FileUpload` que rend `completeChunkedUpload` emploie
+    `external_backup`, et un dépôt se désigne par son usage (`startRestore`, `openImport`).
 
 ChunkedUploadOpen:
   type: object
@@ -57,7 +59,9 @@ ChunkedUpload:
     morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à
     partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent
     (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de
-    reprendre un envoi interrompu à partir de `received_parts`.
+    reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière
+    réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse
+    — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant.
   properties:
     chunked_upload_id: { $ref: ../common.yaml#/Uuid }
     filename: { type: string }
@@ -65,12 +69,12 @@ ChunkedUpload:
     part_size_bytes:
       type: integer
       minimum: 5242880
-      maximum: 67108864
+      maximum: 10485760
       description: >-
         La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre
-        5 Mio et 64 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et
-        le serveur la choisit pour que le nombre de morceaux reste dans ce qu'il accepte. Un
-        morceau est une requête d'au plus cette taille, sous la borne d'un corps de requête.
+        5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et
+        10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un
+        morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`).
     part_count: { type: integer, minimum: 1 }
     received_parts:
       type: array

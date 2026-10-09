@@ -177,8 +177,9 @@ UserUpdate:
   type: object
   required: [lock_version]
   description: >-
-    Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne
-    sont pas modifiables ici (WF-ADM-0050).
+    Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre
+    que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est
+    refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050).
   properties:
     last_name: { type: string, minLength: 1, maxLength: 100 }
     first_name: { type: string, minLength: 1, maxLength: 100 }

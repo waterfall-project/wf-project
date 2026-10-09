@@ -10,9 +10,9 @@
       que l'identité (WF-ARC-0030, WF-SEC-0020). Le front les lit pour savoir quoi présenter,
       sans qu'elles ne remplacent le refus que l'API oppose à un appel qu'il aurait envoyé
       malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant
-      sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à sa
-      première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est refusé par
-      401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
+      sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à
+      sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est
+      refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
     responses:
       '200':
         description: Compte courant.

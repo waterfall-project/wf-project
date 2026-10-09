@@ -702,16 +702,16 @@ L'écran des comptes présente chacun avec ses rôles d'habilitation et son ratt
 (WF-ADM-0050) ; sans les libellés, le front rapprochait `listAccessRoles` et `listOrgNodes` des
 comptes (WF-ARC-0020), et disait inconnu un nœud désactivé auquel un compte reste rattaché
 (WF-REF-0150). Libellés résolus à la lecture, exigés : les rôles dans l'ordre de
-`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que la session
+`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que `getMe`
 rend. Écarté : des objets `{access_role_id, label}` à la place des identifiants, qui auraient
 changé la forme que `setUserAccessRoles` écrit.
 
 **Exemples**, dans l'univers des autres, au 16 mars 2026 : `users` et `users_page` (les comptes
-de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de la session,
+de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de `me`,
 Alix Moreau, désactivée, de `contributors`, et un compte venu du fournisseur d'identité, sans
 rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalogue, dans l'ordre de
 `PermissionCode`) ; `access_roles` (les trois rôles prédéfinis tels que livrés, et celui, composé
-de tout le catalogue, que porte la session) ; `system_status` et `system_status_backup_failed`
+de tout le catalogue, que porte `getMe`) ; `system_status` et `system_status_backup_failed`
 (l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
 échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
 manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
@@ -836,7 +836,8 @@ d'`avatar_max_bytes`, la spécification ne fixant pas la taille d'une sauvegarde
 `FILE_TOO_LARGE`. `FileUpload.purpose` redit l'usage ; un import ne s'ouvre que sur un dépôt
 d'import, une restauration que sur un dépôt de sauvegarde. Le front règle sa borne sur celle des
 imports (`IMPORT_MAX_BYTES`, `bodySizeLimit`). Exemples : `file_upload` (un import),
-`installation` (vingt gigaoctets).
+`installation` (vingt gigaoctets). *`uploadFile` ne reçoit plus la sauvegarde : défait par
+EP-03/US-0350/L1, décision 10.*
 
 **Un paramètre de requête refusé se désigne par `/query/<nom>`** (`FieldProblem.pointer`, #307).
 Le pointeur JSON ne désigne que le corps ; un paramètre de requête a désormais sa forme, préfixée,
@@ -1290,7 +1291,8 @@ permission propre, et une permission nouvelle serait une modification de la spé
 l'adresse du front que #154 demandait de fixer : `<adresse publique du front>/login/reset?token=<jeton>`,
 celle que le front d'EP-02 a posée, l'adresse publique du front étant un paramètre de
 l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne sert pas ; la description de
-`requestPasswordReset` dit le même lien pour le courriel. Exemple : `password_setup_link`.
+`requestPasswordReset` dit le même lien pour le courriel (défait par EP-03/US-0350/L1, décision 5 :
+le lien mène au fournisseur d'identité, `requestPasswordReset` disparaît). Exemple : `password_setup_link`.
 
 **Les lignes du portefeuille disent si le projet s'ouvre** (`can_open`, #389 ; WF-PTF-0030,
 WF-ADM-0110) : un booléen exigé sur `PortfolioProjectRow`, sur les risques les plus lourds de
@@ -2546,7 +2548,7 @@ la produit (EP-03, US-0410).
   soit contributeur ou non, comme les vues du portefeuille nomment les projets qu'elles comptent ;
   le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
   « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin, et à
-  « Auditeur », un rôle composé qui ne porte qu'elle, celui de Noé Vidal (`session_auditor`) : la
+  « Auditeur », un rôle composé qui ne porte qu'elle, celui de Noé Vidal (`me_auditor`) : la
   session d'un auditeur qui ne lit ni les comptes ni les projets dont il n'est pas contributeur
   (EP-02/L41e).
   La spécification révisée par #518, relue et acceptée par l'auteur, porte la fonction FBS-1.5, et
@@ -3556,8 +3558,10 @@ filtrer la même colonne. Ce que le lot ajoute : le départage par identifiant, 
 descriptions des deux listes et de leur `sort_by`, qui rend les pages stables ; la règle générale
 du README (« un tri à égalité se départage… par l'identifiant ») s'y applique désormais en
 terminant par l'identifiant du compte ou du rôle, dans le sens du tri. La recherche de
-`listUsers` garde le nom affiché (« ines roux » trouve Inès Roux), en plus du nom, du prénom et de
-l'adresse : retirer le nom affiché ferait perdre cette recherche (L42f).
+`listUsers` porte sur le nom, le prénom et l'adresse, et sur « le prénom suivi du nom, tels que la
+table les montre » : « ines roux » trouve Inès Roux sans qu'un « nom affiché » soit un champ du
+contrat (L42f). `listAccessRoles` rend un tableau nu : le nombre de rôles retenus se lit de sa
+longueur, la liste n'étant pas paginée.
 
 **8. La suppression d'un rôle est logique.** `deleteAccessRole` le dit (WF-DAT-0080) : le rôle
 n'est plus proposé, sa trace est conservée, et il est un 404 ensuite. Écarté : la suppression
@@ -3568,12 +3572,18 @@ la sauvegarde est celle des deux bases de la plateforme, Waterfall et le fournis
 (WF-ADM-0150), que le journal d'audit n'est pas restauré mais laissé en place, la restauration
 s'y inscrivant (WF-ADM-0160 révisée), et que la plateforme est en maintenance pendant la
 restauration : 503 `COMPONENT_UNAVAILABLE`. Le refus d'une sauvegarde d'une version plus récente
-que l'installation se nomme `BACKUP_FROM_NEWER_VERSION`, en 422 par champ de `startRestore`, sur
-le champ qui désigne la sauvegarde, avec `backup_version` et `installed_version` dans
-`fields[].params`. `BackgroundTaskRef.kind` possédait déjà `restore` : une tâche suit toute la
-restauration, de la mise en maintenance à sa levée, et ne passe à `succeeded` qu'à la levée ; la
-valeur ne gagne rien, le contrat dit ce qu'elle couvre. Écarté : une tâche par phase, qui rendrait
-une restauration « réussie » avant que la plateforme ne réponde.
+que l'installation se nomme `BACKUP_FROM_NEWER_VERSION` et est le fait de **la tâche `restore`**, que
+la conception d'EP-03 charge de refuser l'archive avant de mettre la plateforme en maintenance :
+elle échoue, `BackgroundTaskRef.problem` portant le code, avec `backup_version` et
+`installed_version` dans ses `params` (exemple `task_restore_backup_newer_version`), et aucune
+session n'est fermée pour rien. Écarté : un 422 synchrone de `startRestore`, qui obligerait l'API à
+lire l'archive dans la requête (défaut n° 4 de `docs/dev/python.md`, un traitement lent dans la
+requête). `BackgroundTaskRef.kind` possédait déjà `restore` : une tâche suit toute la restauration,
+de la mise en maintenance à sa levée, et ne passe à `succeeded` qu'à la levée. Écarté : une tâche
+par phase, qui rendrait une restauration « réussie » avant que la plateforme ne réponde. Reste une
+question ouverte, **#604** : pendant la maintenance l'API répond 503 et la tâche vit dans la base
+recréée, de sorte que la façon de suivre la fin d'une restauration n'est pas tranchée ; le lot de
+la restauration (US-0440/L2) la règlera, et le contrat n'y touche pas ici.
 
 **10. Le dépôt par morceaux d'une sauvegarde** (#350). Un dépôt s'ouvre, reçoit ses morceaux et se
 termine : `openChunkedUpload` (`POST /chunked-uploads`, `ChunkedUploadOpen` → `ChunkedUpload`),
@@ -3581,7 +3591,19 @@ termine : `openChunkedUpload` (`POST /chunked-uploads`, `ChunkedUploadOpen` → 
 `ChunkedUpload`), `completeChunkedUpload` (`POST /chunked-uploads/{chunked_upload_id}/completion`
 → `FileUpload`, `purpose` à `external_backup`). Le serveur fixe à l'ouverture la taille d'un
 morceau (`part_size_bytes`, entre 5 Mio, le plus petit morceau que le stockage objet assemble, et
-64 Mio) ; un morceau se redépose, ce qui reprend un envoi interrompu ; l'assemblage est celui du
+10 Mio, la borne du corps d'une action serveur du front, celle des imports, « Un dépôt dit son
+usage » : la raison d'être des morceaux est de passer sous cette borne). À 5 Mio, une sauvegarde
+de 20 Gio, la valeur d'`Installation` du témoin, fait 20 Gio ÷ 5 Mio = 4 096 morceaux, sous la
+limite des dépôts en plusieurs parties du stockage objet (10 000). Chaque morceau est de la taille
+exacte (`part_size_bytes`, le reste pour le dernier), sinon 422 `VALIDATION_FAILED`, `/body` par
+`VALUE_OUT_OF_RANGE` (`params.minimum` et `maximum` égaux à la taille attendue : aucun code
+nouveau) ; un morceau redéposé remplace le précédent, ce qui reprend un envoi interrompu à
+partir de la dernière réponse. Les trois opérations exigent `platform_restore`, comme
+`startRestore` (403). Le 409 de `completeChunkedUpload` dit dans `params.missing_parts` les
+numéros manquants (exemple `chunked_upload_incomplete`). **Pas d'opération de lecture d'un
+dépôt** : la conception dit trois temps, ouvrir, recevoir, terminer ; un envoi que le client ne
+peut plus suivre — un rechargement de page — recommence par une ouverture, le dépôt précédent
+expirant ; une lecture serait une surface de plus pour un cas que l'expiration couvre. L'assemblage est celui du
 dépôt en plusieurs parties du stockage objet (WF-ARC-0050), et l'identifiant du `FileUpload` rendu
 est celui que `startRestore` désigne. `uploadFile` garde sa forme et ne sert plus que les
 imports : `purpose` à `external_backup` y est refusé par `UPLOAD_PURPOSE_MISMATCH`. Écartés

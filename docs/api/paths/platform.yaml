@@ -249,9 +249,13 @@
       Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur
       d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation
       (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste
-      en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Une archive d'une
-      version plus récente que l'installation est refusée, rien n'étant écrit. La tâche
-      (`BackgroundTaskRef.kind` à `restore`) met la plateforme en maintenance : toutes les sessions
+      en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de
+      restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que
+      l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive :
+      la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
+      `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc
+      sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à
+      `restore`) met ensuite la plateforme en maintenance : toutes les sessions
       sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration
       — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la
       tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration
@@ -275,15 +279,9 @@
         description: >-
           Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import
           (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
-          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. Une sauvegarde d'une
-          version plus récente que l'installation, que celle-ci ne saurait pas lire :
-          `VALIDATION_FAILED`, `fields` désignant le champ qui la nomme, `/backup_id` ou
-          `/external_backup_upload_id`, par `BACKUP_FROM_NEWER_VERSION`, `params.backup_version`
-          la version de la sauvegarde et `params.installed_version` celle de l'installation
-          (WF-ADM-0160).
+          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }
-              newer_version: { $ref: ../../../fixtures/api/restore_backup_newer_version.json }

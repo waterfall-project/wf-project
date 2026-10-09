@@ -161,8 +161,11 @@ Problem:
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`,
-        dans `fields[].params`, la version de l'application qui a pris la sauvegarde et celle de
-        l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, WF-ADM-0160).
+        dans `params`, la version de l'application qui a pris la sauvegarde et celle de
+        l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec
+        de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers,
+        des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`,
+        `STATE_FORBIDS_OPERATION`, WF-ADM-0160).
     fields:
       type: array
       description: >-
@@ -273,8 +276,9 @@ ErrorCode:
     - UNKNOWN_RESOURCE_ROLE
     # Motifs par champ des écritures d'un compte (`createUser`, `updateUser`,
     # `setUserAccessRoles`) : un rôle d'habilitation ou un nœud d'organisation que le serveur n'a
-    # pas, et un champ d'identité d'un compte venu d'un fournisseur externe, que le fournisseur
-    # tient (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    # pas, et une valeur différente de celle du compte pour un champ d'identité d'un compte qui
+    # ne vient pas de Waterfall (`origin` autre que `local`), que le fournisseur tient ; envoyer
+    # le champ inchangé n'est pas refusé (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
     - UNKNOWN_ACCESS_ROLE
     - UNKNOWN_ORG_NODE
     - FIELD_READ_ONLY
@@ -285,8 +289,9 @@ ErrorCode:
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
     - UPLOAD_PURPOSE_MISMATCH
-    # Une sauvegarde d'une version plus récente que l'installation, que la restauration refuse
-    # (`startRestore`, WF-ADM-0160) ; `fields[].params.backup_version` et `installed_version`.
+    # Une sauvegarde d'une version plus récente que l'installation, que la tâche `restore`
+    # refuse avant la maintenance (`startRestore`, WF-ADM-0160) : le motif de l'échec de la tâche
+    # (`BackgroundTaskRef.problem`), `params.backup_version` et `params.installed_version`.
     - BACKUP_FROM_NEWER_VERSION
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
@@ -364,7 +369,9 @@ BackgroundTaskRef:
         Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ;
         `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne
         passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue
-        reprend depuis le début (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du
+        reprend depuis le début ; une archive d'une version plus récente que l'installation est
+        refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION`
+        (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du
         fournisseur d'identité (WF-ADM-0070).
       enum:
         - import_analysis

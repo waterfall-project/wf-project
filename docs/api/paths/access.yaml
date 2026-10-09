@@ -12,8 +12,8 @@
       la liste, paginée, ne laisserait pas déduire.
 
       Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le
-      prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et
-      les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes
+      prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ;
+      l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes
       désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les
       comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux
       pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
@@ -23,11 +23,11 @@
       - name: search
         in: query
         description: >-
-          Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom
-          suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé
-          comme toute recherche du contrat, sans égard à la casse ni aux accents (README,
-          « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom
-          affiché, qu'aucune colonne ne porte entier.
+          Recherche sur le nom, le prénom, l'adresse électronique, et sur le prénom suivi du nom,
+          tels que la table les montre : un compte est retenu dès que l'un d'eux contient le
+          texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents
+          (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le
+          prénom suivi du nom, qu'aucune colonne ne porte entier.
         schema: { type: string, minLength: 1, maxLength: 200 }
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - name: is_active
@@ -135,7 +135,7 @@
           Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
           en défaut (WF-ADM-0050) : un rôle
           d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
-          `UNKNOWN_ACCESS_ROLE``) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`,
+          `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`,
           `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
           (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit.
         content:
@@ -197,9 +197,10 @@
       '422':
         description: >-
           Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
-          en défaut (WF-ADM-0050) : le nom,
-          le prénom ou l'adresse d'un compte qui ne vient pas de Waterfall, que le fournisseur
-          d'identité tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) ; un nœud
+          en défaut (WF-ADM-0050) : une valeur du nom, du prénom ou de l'adresse, différente de
+          celle du compte, quand il ne vient pas de Waterfall et que le fournisseur d'identité
+          les tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) — envoyer le champ
+          inchangé n'est pas refusé — ; un nœud
           d'organisation que l'installation n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le
           référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit.
         content:
@@ -297,7 +298,7 @@
           Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
           en défaut (WF-ADM-0050) : un rôle
           d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
-          `UNKNOWN_ACCESS_ROLE``). Rien n'est écrit.
+          `UNKNOWN_ACCESS_ROLE`). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -317,7 +318,8 @@
       sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité
       porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le
       mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois :
-      un lien précédent du même compte cesse de valoir. Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ;
+      un lien précédent du même compte cesse de valoir. Sous la permission de modifier les
+      comptes (`users.write`, WF-ADM-0100) ;
       chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran
       ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément
       d'authentification que Waterfall montre (WF-ADM-0140).
@@ -344,6 +346,9 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_local: { $ref: ../../../fixtures/api/password_link_not_local.json }
+              deactivated: { $ref: ../../../fixtures/api/password_link_deactivated.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/avatar:

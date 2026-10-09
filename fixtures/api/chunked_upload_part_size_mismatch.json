@@ -1,0 +1,18 @@
+{
+  "summary": "Le dépôt du premier morceau de la sauvegarde waterfall-2026-06-02.tar avec 4 Mio d'octets quand le serveur en attend 5 Mio, la taille d'un morceau qui n'est pas le dernier : refusé sur le corps, qui doit faire exactement 5 242 880 octets, et rien n'est reçu (WF-ADM-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/body",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 5242880,
+          "maximum": 5242880
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001044"
+  }
+}

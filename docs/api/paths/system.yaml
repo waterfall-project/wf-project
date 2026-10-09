@@ -171,6 +171,7 @@
               succeeded: { $ref: ../../../fixtures/api/task_succeeded.json }
               running: { $ref: ../../../fixtures/api/task_running.json }
               failed: { $ref: ../../../fixtures/api/task_failed.json }
+              restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }

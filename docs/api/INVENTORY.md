@@ -232,7 +232,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| POST | `/file-uploads` | Déposer un fichier | WF-ADM-0160, WF-DAT-0120 |
+| POST | `/file-uploads` | Déposer un fichier | WF-DAT-0120 |
 | POST | `/chunked-uploads` | Ouvrir le dépôt par morceaux d'une sauvegarde | WF-ADM-0160, WF-DAT-0120 |
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Déposer un morceau | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Terminer le dépôt par morceaux | WF-ADM-0160 |

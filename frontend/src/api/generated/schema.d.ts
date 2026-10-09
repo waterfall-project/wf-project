@@ -258,7 +258,7 @@ export interface paths {
         /**
          * Comptes utilisateurs
          * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
-         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
+         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
          */
         get: operations["listUsers"];
         put?: never;
@@ -612,7 +612,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurer la plateforme
-         * @description Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Une archive d'une version plus récente que l'installation est refusée, rien n'étant écrit. La tâche (`BackgroundTaskRef.kind` à `restore`) met la plateforme en maintenance : toutes les sessions sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090).
+         * @description Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive : la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`, `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à `restore`) met ensuite la plateforme en maintenance : toutes les sessions sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090).
          */
         post: operations["startRestore"];
         delete?: never;
@@ -2288,7 +2288,7 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici : un corps de requête est borné, et une sauvegarde le dépasse ; il se fait par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`), et `purpose` à `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose` par `UPLOAD_PURPOSE_MISMATCH`.
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`) : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici, mais par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`) : `purpose` à `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose` par `UPLOAD_PURPOSE_MISMATCH`.
          */
         post: operations["uploadFile"];
         delete?: never;
@@ -2308,7 +2308,7 @@ export interface paths {
         put?: never;
         /**
          * Ouvrir le dépôt par morceaux d'une sauvegarde
-         * @description Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le fichier se découpe. La taille annoncée est bornée par `Installation.external_backup_max_bytes` : au-delà, 413, `FILE_TOO_LARGE`, avant qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de sa restauration (WF-DAT-0120).
+         * @description Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le fichier se découpe. La taille annoncée est bornée par `Installation.external_backup_max_bytes` : au-delà, 413, `FILE_TOO_LARGE`, avant qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi interrompu — par un rechargement de page — recommence par une ouverture, le dépôt précédent expirant ; aucune opération ne lit un dépôt.
          */
         post: operations["openChunkedUpload"];
         delete?: never;
@@ -2327,7 +2327,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer un morceau
-         * @description Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets bruts, d'au plus `ChunkedUpload.part_size_bytes` : au-delà, 413, `FILE_TOO_LARGE`. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi interrompu reprenable ; les morceaux peuvent arriver dans un ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou inconnu, est un 404. Le morceau est écrit sur le stockage objet avant la réponse, qui dit les morceaux reçus.
+         * @description Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets bruts, de la taille exacte que le dépôt attend : `ChunkedUpload.part_size_bytes` pour tout morceau sauf le dernier, le reste du fichier (`size_bytes` moins les morceaux qui le précèdent) pour le dernier. Autrement, 422, `VALIDATION_FAILED`, `fields` désignant `/body` par `VALUE_OUT_OF_RANGE`, `params.minimum` et `params.maximum` disant la taille attendue ; rien n'est reçu. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi interrompu reprenable avec la dernière réponse ; les morceaux peuvent arriver dans un ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou inconnu, est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403. Le morceau est écrit sur le stockage objet avant la réponse, qui dit les morceaux reçus.
          */
         put: operations["uploadChunk"];
         post?: never;
@@ -2348,7 +2348,7 @@ export interface paths {
         put?: never;
         /**
          * Terminer le dépôt par morceaux
-         * @description Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` : son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ou que les morceaux ne font pas la taille annoncée (`ChunkedUpload.received_parts` dit lesquels manquent) ; rien n'est assemblé. Un dépôt déjà terminé, expiré ou inconnu est un 404.
+         * @description Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` : son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts` dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403.
          */
         post: operations["completeChunkedUpload"];
         delete?: never;
@@ -2631,7 +2631,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`, dans `fields[].params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, WF-ADM-0160). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -2725,7 +2725,7 @@ export interface components {
             default_language: components["schemas"]["Language"];
             /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
             avatar_max_bytes: number;
-            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
+            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`openChunkedUpload`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
             external_backup_max_bytes: number;
         };
         /**
@@ -2737,7 +2737,7 @@ export interface components {
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
             /**
-             * @description Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ; `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du fournisseur d'identité (WF-ADM-0070).
+             * @description Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ; `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début ; une archive d'une version plus récente que l'installation est refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du fournisseur d'identité (WF-ADM-0070).
              * @enum {string}
              */
             kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "identity_sync";
@@ -2876,7 +2876,7 @@ export interface components {
             org_node_id?: components["schemas"]["Uuid"] | null;
             access_role_ids?: components["schemas"]["Uuid"][];
         };
-        /** @description Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne sont pas modifiables ici (WF-ADM-0050). */
+        /** @description Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050). */
         UserUpdate: {
             last_name?: string;
             first_name?: string;
@@ -3052,7 +3052,7 @@ export interface components {
             audit_event_id: components["schemas"]["Uuid"];
             /** @description L'instant où l'action a pris effet : pour une action confiée au worker — marquage, fusion, survenance, application d'un import, restauration —, celui où la tâche a abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle copie. */
             occurred_at: components["schemas"]["Timestamp"];
-            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture de l'annuaire —, et ce que l'installation crée. */
+            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée. */
             actor: components["schemas"]["ActorRef"];
             action: components["schemas"]["AuditAction"];
             object: components["schemas"]["AuditObject"];
@@ -4488,7 +4488,7 @@ export interface components {
             ignored_count: number;
         };
         /**
-         * @description L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant.
+         * @description L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant. Les deux valeurs restent dans l'énumération : le `FileUpload` que rend `completeChunkedUpload` emploie `external_backup`, et un dépôt se désigne par son usage (`startRestore`, `openImport`).
          * @enum {string}
          */
         FileUploadPurpose: "import" | "external_backup";
@@ -4508,12 +4508,12 @@ export interface components {
             /** @description La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de `Installation.external_backup_max_bytes`, l'ouverture est refusée par 413, `FILE_TOO_LARGE`. */
             size_bytes: number;
         };
-        /** @description Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count` morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de reprendre un envoi interrompu à partir de `received_parts`. */
+        /** @description Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count` morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant. */
         ChunkedUpload: {
             chunked_upload_id: components["schemas"]["Uuid"];
             filename: string;
             size_bytes: number;
-            /** @description La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre 5 Mio et 64 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et le serveur la choisit pour que le nombre de morceaux reste dans ce qu'il accepte. Un morceau est une requête d'au plus cette taille, sous la borne d'un corps de requête. */
+            /** @description La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre 5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et 10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`). */
             part_size_bytes: number;
             part_count: number;
             /** @description Les numéros des morceaux reçus, en ordre croissant, sans doublon. */
@@ -4651,7 +4651,7 @@ export interface components {
             label: string;
             code?: string | null;
             state: components["schemas"]["ProjectState"];
-            /** @description Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en déduit rien des permissions de la session. */
+            /** @description Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en déduit rien des permissions de `getMe`. */
             can_open: boolean;
             reference_budget?: components["schemas"]["Money"] | null;
             /** @description Devis courant, présenté à la place du budget pour un projet en chiffrage. */
@@ -5249,7 +5249,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom affiché, qu'aucune colonne ne porte entier. */
+                /** @description Recherche sur le nom, le prénom, l'adresse électronique, et sur le prénom suivi du nom, tels que la table les montre : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le prénom suivi du nom, qu'aucune colonne ne porte entier. */
                 search?: string;
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -5322,7 +5322,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE``) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5394,7 +5394,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : le nom, le prénom ou l'adresse d'un compte qui ne vient pas de Waterfall, que le fournisseur d'identité tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) ; un nœud d'organisation que l'installation n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : une valeur du nom, du prénom ou de l'adresse, différente de celle du compte, quand il ne vient pas de Waterfall et que le fournisseur d'identité les tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) — envoyer le champ inchangé n'est pas refusé — ; un nœud d'organisation que l'installation n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5483,7 +5483,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE``). Rien n'est écrit. */
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6036,7 +6036,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
-            /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. Une sauvegarde d'une version plus récente que l'installation, que celle-ci ne saurait pas lire : `VALIDATION_FAILED`, `fields` désignant le champ qui la nomme, `/backup_id` ou `/external_backup_upload_id`, par `BACKUP_FROM_NEWER_VERSION`, `params.backup_version` la version de la sauvegarde et `params.installed_version` celle de l'installation (WF-ADM-0160). */
+            /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9833,6 +9833,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             413: components["responses"]["PayloadTooLarge"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -9864,8 +9865,17 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            413: components["responses"]["PayloadTooLarge"];
+            /** @description Un morceau qui n'a pas la taille attendue : `VALIDATION_FAILED`, `fields` désignant `/body` par `VALUE_OUT_OF_RANGE`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9890,8 +9900,17 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un morceau manque : `STATE_FORBIDS_OPERATION`, `params.missing_parts` les numéros des morceaux que le dépôt n'a pas reçus, en tableau d'entiers. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
