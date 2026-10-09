@@ -39,7 +39,7 @@ celui de MS Project (EP-06), et non plus avec celui des coûts réels (EP-09).
 | WF-INTF-0070-A — formats Excel de l'annexe B | amorcée en EP-07, close en EP-09 |
 | WF-DAT-0110-A — idempotence garantie par la base | amorcée en EP-07, close en EP-09 |
 | WF-INTF-0120-A, WF-INTF-0130-A — import et export du reste à engager | EP-09, entières |
-| WF-INTF-0010-A — usages du chef de projet | close en EP-10, dernière fonction de son Vérif |
+| WF-INTF-0010-A — usages du chef de projet | close en EP-08, dernière fonction de son Vérif (la gestion des risques) |
 | WF-INTF-0150-A — liste fermée des échanges externes | EP-11, entière : le dernier EPIC qui ajoute un export |
 
 Les opérations d'échange — `uploadFile`, `listImports`, `openImport`, `getImport`,
