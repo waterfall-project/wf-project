@@ -176,7 +176,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
       >
-        <OperationRow name={t("directorySync")} outcome={status.last_directory_sync} />
+        <OperationRow name={t("identitySync")} outcome={status.last_identity_sync} />
         <OperationRow name={t("backup")} outcome={status.last_backup} />
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />

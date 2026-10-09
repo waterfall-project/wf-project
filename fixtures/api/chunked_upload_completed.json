@@ -1,0 +1,11 @@
+{
+  "summary": "Le même dépôt terminé : un fichier déposé pour une restauration, dont l'identifiant est celui que la restauration désigne ; il est supprimé avec elle, ou à son expiration (WF-ADM-0160, WF-DAT-0120).",
+  "value": {
+    "upload_id": "01926f3a-7c00-7000-8000-000000000a03",
+    "purpose": "external_backup",
+    "filename": "waterfall-2026-06-02.tar",
+    "size_bytes": 12582912,
+    "uploaded_at": "2026-06-03T13:58:00Z",
+    "expires_at": "2026-06-04T13:58:00Z"
+  }
+}

@@ -21,10 +21,77 @@ FileUploadPurpose:
   type: string
   enum: [import, external_backup]
   description: >-
-    L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus
-    10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer
+    L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé
+    en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer
     (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus
-    `Installation.external_backup_max_bytes`.
+    `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`,
+    `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant. Les deux valeurs restent
+    dans l'énumération : le `FileUpload` que rend `completeChunkedUpload` emploie
+    `external_backup`, et un dépôt se désigne par son usage (`startRestore`, `openImport`).
+
+ChunkedUploadOpen:
+  type: object
+  required: [filename, size_bytes]
+  description: >-
+    Ouvre le dépôt par morceaux d'une sauvegarde copiée hors de la plateforme, à restaurer
+    (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). Il n'existe pas pour un autre usage :
+    le fichier d'un import se dépose en une fois.
+  properties:
+    filename:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Le nom du fichier, tel que l'utilisateur l'a choisi ; il reste au dépôt qui s'achève.
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      description: >-
+        La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de
+        `Installation.external_backup_max_bytes`, ou qui ne tient pas en 10 000 morceaux de
+        `part_size_bytes` au plus (10 000 × 10 Mio), l'ouverture est refusée par 413,
+        `FILE_TOO_LARGE`.
+
+ChunkedUpload:
+  type: object
+  required: [chunked_upload_id, filename, size_bytes, part_size_bytes, part_count, received_parts, expires_at]
+  description: >-
+    Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count`
+    morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à
+    partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent
+    (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de
+    reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière
+    réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse
+    — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant.
+  properties:
+    chunked_upload_id: { $ref: ../common.yaml#/Uuid }
+    filename: { type: string }
+    size_bytes: { type: integer, minimum: 1 }
+    part_size_bytes:
+      type: integer
+      minimum: 5242880
+      maximum: 10485760
+      description: >-
+        La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre
+        5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et
+        10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un
+        morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`).
+    part_count:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      description: >-
+        Le nombre de morceaux, au plus 10 000, la limite des dépôts en plusieurs parties du
+        stockage objet : le serveur choisit `part_size_bytes` dans ses bornes pour y tenir.
+    received_parts:
+      type: array
+      description: Les numéros des morceaux reçus, en ordre croissant, sans doublon.
+      items: { type: integer, minimum: 1 }
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        Vingt-quatre heures après l'ouverture : au-delà, le dépôt et ses morceaux sont
+        supprimés, comme un fichier d'import expiré (WF-DAT-0120).
 
 ExchangeKind:
   type: string

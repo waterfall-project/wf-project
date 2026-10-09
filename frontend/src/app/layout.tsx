@@ -32,11 +32,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * What the navigation offers for a session: its permissions when it is open; none when the
- * API says there is no session; the status screen alone when it cannot be read.
+ * API says there is no session, or the account is deactivated; the status screen alone when it cannot be read.
  */
 function offered(state: SessionState): ShellProps["permissions"] {
   if (state.kind === "open") {
-    return state.session.permissions;
+    return state.account.permissions;
   }
   return state.kind === "unreadable" ? "unreadable" : undefined;
 }
@@ -66,7 +66,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     requestLanguage(),
     cookies(),
   ]);
-  const account = state.kind === "open" ? state.session.user : undefined;
+  const account = state.kind === "open" ? state.account : undefined;
   const theme = themePreference(account);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>

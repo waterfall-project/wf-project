@@ -39,12 +39,12 @@ rules:
       const: false
     message: 'Un paramètre déclare `explode: false`, jamais `explode: true`.'
 
-  # Toute opération gardée par la session peut répondre 401 — session absente, expirée ou
-  # révoquée (WF-SEC-0020) —, et le contrat déclare toute erreur qu'un client peut rencontrer
-  # (WF-ARC-0060) : une opération qui ne déclare pas `security: []` déclare sa 401. La règle
-  # ne voit qu'un `security` absent — la session héritée de la racine — : une opération
-  # publique le dit par `security: []`, et aucune n'écrit `security: [{ session: [] }]`, que
-  # la règle ne verrait pas.
+  # Toute opération gardée par le jeton `bearer` peut répondre 401 — jeton absent, expiré ou
+  # invalide, compte désactivé (WF-SEC-0020) —, et le contrat déclare toute erreur qu'un client
+  # peut rencontrer (WF-ARC-0060) : une opération qui ne déclare pas `security: []` déclare sa
+  # 401. La règle ne voit qu'un `security` absent — le jeton hérité de la racine — : une
+  # opération publique le dit par `security: []`, et aucune n'écrit `security: [{ bearer: [] }]`,
+  # que la règle ne verrait pas.
   rule/session-operation-declares-401:
     subject:
       type: Responses
@@ -56,4 +56,4 @@ rules:
           defined: false
     assertions:
       required: ['401']
-    message: 'Une opération gardée par la session déclare `401`.'
+    message: 'Une opération gardée par le jeton `bearer` déclare `401`.'

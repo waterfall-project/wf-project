@@ -1,0 +1,14 @@
+{
+  "summary": "Les rôles d'habilitation de Dominique Bernard remplacés par une liste dont le premier n'existe pas, ou a été supprimé : refusé sur ce rang, rien n'est écrit (WF-ADM-0090).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/access_role_ids/0",
+        "code": "UNKNOWN_ACCESS_ROLE"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001041"
+  }
+}

@@ -19,6 +19,7 @@ import {
   type BoundaryError,
   correlationDigest,
   failureOf,
+  ACCOUNT_DEACTIVATED_DIGEST,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "./failure";
@@ -100,6 +101,15 @@ describe("the screen of failure", () => {
       `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}`,
     );
     expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
+    await expectAccessible(container);
+  });
+
+  it("says a read refused because the account is deactivated, without leading to the sign-in page, which would loop", async () => {
+    const { container } = inLanguage(
+      <SystemFailure error={forwarded(ACCOUNT_DEACTIVATED_DIGEST)} retry={vi.fn()} />,
+    );
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Compte désactivé");
+    expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
     await expectAccessible(container);
   });
 
@@ -194,7 +204,7 @@ describe("the empty states", () => {
 
   it("name what an incomplete reference lacks under a heading, each leading to its function", async () => {
     const readiness = example("reference_readiness_incomplete") as ReferenceReadiness;
-    const { permissions } = example("session") as components["schemas"]["Session"];
+    const { permissions } = example("me") as components["schemas"]["UserSelf"];
     const { container } = inLanguage(
       <ReferenceIncomplete readiness={readiness} permissions={permissions} />,
     );

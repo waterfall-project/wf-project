@@ -30,7 +30,7 @@ export interface Examples {
     200: "installation" | "installation_english";
   };
   "GET /me": {
-    200: "me" | "me_directory" | "me_english" | "me_with_avatar" | "me_without_preferences";
+    200: "me" | "me_auditor" | "me_dark" | "me_directory" | "me_english" | "me_estimator" | "me_grid_settings" | "me_manager" | "me_with_avatar" | "me_without_administration" | "me_without_preferences" | "me_without_roles";
   };
   "GET /permissions": {
     200: "permissions";
@@ -188,12 +188,6 @@ export interface Examples {
   "GET /reference/settings": {
     200: "reference_settings";
   };
-  "GET /session": {
-    200: "session" | "session_auditor" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
-  };
-  "GET /session/providers": {
-    200: "auth_providers" | "auth_providers_local";
-  };
   "GET /system/status": {
     200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
   };
@@ -201,7 +195,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
+    200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
@@ -229,6 +223,12 @@ export interface Examples {
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "POST /chunked-uploads": {
+    201: "chunked_upload";
+  };
+  "POST /chunked-uploads/{chunked_upload_id}/completion": {
+    201: "chunked_upload_completed";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
@@ -272,8 +272,8 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
-  "POST /session": {
-    201: "session";
+  "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
+    200: "chunked_upload_part";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";

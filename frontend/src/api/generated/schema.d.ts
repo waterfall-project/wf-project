@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Ce que le front doit savoir de l'installation avant toute session
-         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe oublié.
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion.
          */
         get: operations["getInstallation"];
         put?: never;
@@ -164,134 +164,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/session/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Fournisseurs d'authentification actifs
-         * @description Les comptes locaux sont toujours offerts ; l'annuaire et le fournisseur d'identité s'ajoutent lorsqu'ils sont activés (WF-ADM-0180, WF-ARC-0030).
-         */
-        get: operations["listAuthProviders"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Session courante
-         * @description Le compte, ses préférences — dont la langue choisie, que le front résout —, et ses permissions effectives, évaluées à chaque requête (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
-         */
-        get: operations["getCurrentSession"];
-        put?: never;
-        /**
-         * Ouvrir une session par compte local ou par annuaire
-         * @description Un compte local s'authentifie auprès de Waterfall, un compte importé auprès de l'annuaire (WF-ADM-0140, WF-ADM-0180). Après dix échecs consécutifs, le compte est verrouillé quinze minutes. La session est conservée en base et révocable immédiatement (WF-SEC-0020).
-         */
-        post: operations["openSession"];
-        /**
-         * Se déconnecter
-         * @description Révoque la session courante (WF-SEC-0020).
-         */
-        delete: operations["closeSession"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/session/oidc/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Démarrer une authentification OIDC
-         * @description Redirige vers le fournisseur d'identité. Un compte inconnu est créé à sa première connexion, sans aucun rôle (WF-ADM-0180).
-         */
-        get: operations["startOidcSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/session/oidc/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Retour du fournisseur d'identité
-         * @description Le fournisseur y renvoie l'utilisateur après authentification ; la session est ouverte et le compte créé s'il ne l'était pas encore (WF-ADM-0180, WF-SEC-0020).
-         */
-        get: operations["completeOidcSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/session/password-reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Demander un lien de réinitialisation
-         * @description Envoie un lien valable une heure et à usage unique, dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe. Le lien est `<adresse publique du front>/login/reset?token=<jeton>` : l'adresse publique du front est un paramètre de l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne sert pas ; le jeton se confirme par `confirmPasswordReset`. C'est le même lien que `createPasswordSetupLink` remet à un utilisateur habilité (`PasswordSetupLink`).
-         */
-        post: operations["requestPasswordReset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/session/password-reset/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Fixer un mot de passe avec un lien de réinitialisation
-         * @description Le mot de passe compte au moins douze caractères et ne peut être ni l'adresse électronique ni le nom du compte (WF-ADM-0140).
-         */
-        post: operations["confirmPasswordReset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/me": {
         parameters: {
             query?: never;
@@ -301,7 +173,7 @@ export interface paths {
         };
         /**
          * Mon compte et mes préférences
-         * @description Le compte connecté, ses rôles et ses préférences d'affichage (WF-ADM-0050, WF-ADM-0040).
+         * @description Le compte connecté, ses rôles, ses préférences d'affichage et ses permissions effectives (WF-ADM-0050, WF-ADM-0040, WF-ADM-0110). Les permissions sont évaluées à chaque requête, à partir des rôles que le compte porte en base : l'API ne tire du jeton que l'identité (WF-ARC-0030, WF-SEC-0020). Le front les lit pour savoir quoi présenter, sans qu'elles ne remplacent le refus que l'API oppose à un appel qu'il aurait envoyé malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
          */
         get: operations["getMe"];
         put?: never;
@@ -332,7 +204,7 @@ export interface paths {
         patch: operations["updateMyPreferences"];
         trace?: never;
     };
-    "/me/password": {
+    "/me/sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -340,13 +212,13 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Changer mon mot de passe
-         * @description Réservé aux comptes locaux : un compte venu d'un fournisseur externe n'a pas de mot de passe dans Waterfall (WF-ADM-0140).
-         */
-        put: operations["changeMyPassword"];
+        put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Me déconnecter
+         * @description Ferme toutes les sessions du compte, sur tous ses postes, et non la seule du navigateur qui le demande : la déconnexion « sur tous ses postes » de WF-SEC-0020. L'API demande au fournisseur d'identité de fermer les sessions du compte, qui le notifie au front ; les jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). La désactivation d'un compte et le retrait de tous ses rôles suivent le même chemin (`setUserActivation`, `setUserAccessRoles`).
+         */
+        delete: operations["closeMySessions"];
         options?: never;
         head?: never;
         patch?: never;
@@ -386,7 +258,7 @@ export interface paths {
         /**
          * Comptes utilisateurs
          * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
-         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus.
+         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
          */
         get: operations["listUsers"];
         put?: never;
@@ -420,7 +292,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un compte
-         * @description Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne sont pas modifiables ici (WF-ADM-0050). Aucun écran ne propose de supprimer un compte (WF-ADM-0060).
+         * @description Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre que `local`) ne sont pas modifiables ici : le fournisseur d'identité les tient (WF-ADM-0050, WF-ADM-0070). Aucun écran ne propose de supprimer un compte (WF-ADM-0060).
          */
         patch: operations["updateUser"];
         trace?: never;
@@ -485,7 +357,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/directory-syncs": {
+    "/identity-syncs": {
         parameters: {
             query?: never;
             header?: never;
@@ -495,17 +367,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resynchroniser les comptes depuis l'annuaire
-         * @description Crée les comptes absents, met à jour les trois attributs d'identité des comptes importés, et désactive les comptes importés que l'annuaire ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Confiée au worker (WF-ARC-0090).
+         * Lire les comptes du fournisseur d'identité
+         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090).
          */
-        post: operations["startDirectorySync"];
+        post: operations["startIdentitySync"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/directory-syncs/latest": {
+    "/identity-syncs/latest": {
         parameters: {
             query?: never;
             header?: never;
@@ -513,10 +385,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Résultat de la dernière synchronisation
-         * @description Comptes créés, mis à jour et désactivés lors du dernier import depuis l'annuaire (WF-ADM-0070).
+         * Compte rendu de la dernière lecture des comptes
+         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité, et ceux qu'elle a laissés tels quels avec leur motif (WF-ADM-0070).
          */
-        get: operations["getLatestDirectorySync"];
+        get: operations["getLatestIdentitySync"];
         put?: never;
         post?: never;
         delete?: never;
@@ -554,7 +426,7 @@ export interface paths {
         };
         /**
          * Rôles d'habilitation
-         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris.
+         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se départage par l'identifiant du rôle, pour que deux lectures successives rendent le même ordre (WF-IHM-0060).
          */
         get: operations["listAccessRoles"];
         put?: never;
@@ -585,7 +457,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un rôle
-         * @description Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
+         * @description Suppression logique (WF-DAT-0080) : le rôle n'est plus proposé — ni `listAccessRoles`, ni `getAccessRole`, ni l'attribution à un compte ne le rendent — et sa trace est conservée, avec ce que le journal d'audit en dit. Un rôle supprimé est un 404, comme un rôle qui n'a jamais existé. Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
          */
         delete: operations["deleteAccessRole"];
         options?: never;
@@ -612,7 +484,7 @@ export interface paths {
         put?: never;
         /**
          * Déclencher une sauvegarde
-         * @description Sauvegarde complète de la base dans un état cohérent, vérifiée après sa production (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+         * @description Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état cohérent, à l'exception du journal d'audit ; l'archive est vérifiée après sa production avant de passer `passed` (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
          */
         post: operations["startBackup"];
         delete?: never;
@@ -740,7 +612,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurer la plateforme
-         * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
+         * @description Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive : la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`, `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à `restore`) met ensuite la plateforme en maintenance : toutes les sessions sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090).
          */
         post: operations["startRestore"];
         delete?: never;
@@ -2416,9 +2288,69 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`).
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`) : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici, mais par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`) : `purpose` à `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose` par `UPLOAD_PURPOSE_MISMATCH`.
          */
         post: operations["uploadFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chunked-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ouvrir le dépôt par morceaux d'une sauvegarde
+         * @description Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le fichier se découpe. La taille annoncée est bornée par `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000 morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi interrompu — par un rechargement de page — recommence par une ouverture, le dépôt précédent expirant ; aucune opération ne lit un dépôt.
+         */
+        post: operations["openChunkedUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Déposer un morceau
+         * @description Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets bruts, de la taille exacte que le dépôt attend : `ChunkedUpload.part_size_bytes` pour tout morceau sauf le dernier, le reste du fichier (`size_bytes` moins les morceaux qui le précèdent) pour le dernier. Autrement, 422, `VALIDATION_FAILED`, `fields` désignant `/body` par `VALUE_OUT_OF_RANGE`, `params.minimum` et `params.maximum` disant la taille attendue ; rien n'est reçu. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi interrompu reprenable avec la dernière réponse ; les morceaux peuvent arriver dans un ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou inconnu, est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403. Le morceau est écrit sur le stockage objet avant la réponse, qui dit les morceaux reçus.
+         */
+        put: operations["uploadChunk"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chunked-uploads/{chunked_upload_id}/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Terminer le dépôt par morceaux
+         * @description Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` : son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts` dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403.
+         */
+        post: operations["completeChunkedUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2681,7 +2613,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "ACCOUNT_DEACTIVATED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2699,7 +2631,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -2714,7 +2646,7 @@ export interface components {
          * @description Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
          * @enum {string}
          */
-        PlatformComponent: "api" | "worker" | "database" | "cache" | "object_storage" | "directory" | "metrics";
+        PlatformComponent: "api" | "worker" | "database" | "cache" | "object_storage" | "identity_provider" | "metrics";
         /**
          * Format: date-time
          * @description Horodatage en temps universel (WF-DAT-0100).
@@ -2756,10 +2688,10 @@ export interface components {
         /** @description Alerte en cours, sur une situation qui a une conséquence pour les utilisateurs (WF-OBS-0030). Elle disparaît dès que sa cause cesse. */
         Alert: {
             /** @enum {string} */
-            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "scheduled_backup_copy_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
+            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "scheduled_backup_copy_failed" | "identity_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
             since: components["schemas"]["Timestamp"];
             severity: components["schemas"]["AlertZone"];
-            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif, `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_directory_sync`. */
+            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif, `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_identity_sync`. */
             params?: {
                 component?: components["schemas"]["PlatformComponent"];
                 used_bytes?: number;
@@ -2774,7 +2706,8 @@ export interface components {
             version: string;
             components: components["schemas"]["ComponentHealth"][];
             storage: components["schemas"]["StorageUsage"];
-            last_directory_sync?: components["schemas"]["OperationOutcome"] | null;
+            /** @description Date et résultat de la dernière lecture des comptes du fournisseur d'identité (WF-ADM-0070, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu. */
+            last_identity_sync?: components["schemas"]["OperationOutcome"] | null;
             last_backup?: components["schemas"]["OperationOutcome"] | null;
             /** @description Date et résultat de la dernière copie externe d'une sauvegarde planifiée, que la planification règle (`BackupSchedule.external_copy`) : la copie hors plateforme se vérifie ainsi (WF-ADM-0170, WF-EXP-0050). Nulle quand aucune copie n'est réglée ou n'a encore été faite. Le motif d'une copie échouée est dans l'alerte en cours (`scheduled_backup_copy_failed`), et non dans `problem`, le catalogue des erreurs ne nommant pas les refus d'un emplacement. */
             last_backup_copy: components["schemas"]["OperationOutcome"] | null;
@@ -2792,7 +2725,7 @@ export interface components {
             default_language: components["schemas"]["Language"];
             /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
             avatar_max_bytes: number;
-            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
+            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`openChunkedUpload`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
             external_backup_max_bytes: number;
         };
         /**
@@ -2803,8 +2736,11 @@ export interface components {
         /** @description Référence d'une tâche de fond. Une requête qui déclenche un traitement long rend la main immédiatement en renvoyant cette référence (WF-ARC-0090, WF-IHM-0080). */
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
-            /** @enum {string} */
-            kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "directory_sync";
+            /**
+             * @description Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ; `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début ; une archive d'une version plus récente que l'installation est refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du fournisseur d'identité (WF-ADM-0070).
+             * @enum {string}
+             */
+            kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "identity_sync";
             status: components["schemas"]["BackgroundTaskStatus"];
             progress?: number;
             submitted_at?: components["schemas"]["Timestamp"];
@@ -2819,18 +2755,8 @@ export interface components {
             offset: number;
             total: number;
         };
-        /** @enum {string} */
-        AuthProviderKind: "local" | "ldap" | "oidc";
-        /** @description Fournisseur d'authentification. Les comptes locaux sont toujours actifs ; l'annuaire et le fournisseur d'identité s'activent dans l'administration (WF-ADM-0180, WF-ARC-0030). */
-        AuthProvider: {
-            kind: components["schemas"]["AuthProviderKind"];
-            is_enabled: boolean;
-            label?: string | null;
-            /** @description Point de départ des redirections, pour un fournisseur OIDC (TFX-07). */
-            start_url?: string | null;
-        };
         /**
-         * @description Origine du compte : créé dans Waterfall, importé de l'annuaire, ou créé à sa première connexion par le fournisseur d'identité (WF-ADM-0050).
+         * @description Origine du compte : créé dans Waterfall (`local`), lu du fournisseur d'identité qui fédère l'annuaire (`directory`), ou créé à la première connexion d'une personne venue d'un fournisseur externe (`identity_provider`) (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
          * @enum {string}
          */
         UserOrigin: "local" | "directory" | "identity_provider";
@@ -2850,7 +2776,7 @@ export interface components {
         };
         /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative, le montant corrigé des lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le compteur d'aucun nœud. */
         LockVersion: number;
-        /** @description Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table des comptes complète des siennes (`User`). */
+        /** @description Un compte, sans ses commandes : celui que `getMe` rend (`UserSelf`), et que la table des comptes complète des siennes (`User`). */
         UserAccount: {
             user_id: components["schemas"]["Uuid"];
             last_name: string;
@@ -2860,7 +2786,7 @@ export interface components {
              * @description Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
              */
             email: string;
-            /** @description L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour « désactivé » (`deactivated`). Un compte désactivé ne peut plus ouvrir de session. */
+            /** @description L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour « désactivé » (`deactivated`). Un compte désactivé est refusé à chaque requête, par 401 `ACCOUNT_DEACTIVATED`, et ses sessions sont fermées (WF-SEC-0020). */
             is_active: boolean;
             origin: components["schemas"]["UserOrigin"];
             /** @description Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030). */
@@ -2910,39 +2836,16 @@ export interface components {
                 [key: string]: components["schemas"]["GridPreferences"] | null;
             };
         };
-        /** @description Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les commandes de la table des comptes : la session ne s'administre pas par elle. */
-        UserSelf: components["schemas"]["UserAccount"] & {
-            display_preferences?: components["schemas"]["DisplayPreferences"];
-        };
         /**
          * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait que sa permission de consulter. L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
          * @enum {string}
          */
         PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "audit_log.read" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cost_curve.read" | "portfolio_cost_curve.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "revision_abandon" | "reference_designate" | "structure_merge" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore" | "project_create" | "all_projects_read";
-        /** @description Session conservée en base, révocable immédiatement (WF-SEC-0020). Les permissions effectives sont évaluées à chaque requête et renvoyées ici pour que le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090). */
-        Session: {
-            user: components["schemas"]["UserSelf"];
+        /** @description Le compte connecté, ses préférences d'affichage (WF-ADM-0040) et ses permissions effectives. Il ne porte pas les commandes de la table des comptes : un compte ne s'administre pas par `getMe`. */
+        UserSelf: components["schemas"]["UserAccount"] & {
+            display_preferences?: components["schemas"]["DisplayPreferences"];
+            /** @description Les permissions effectives du compte, l'union de celles de ses rôles, évaluées à chaque requête (WF-ADM-0090, WF-ADM-0110) et rendues pour que le front sache quoi présenter (WF-IHM-0090) : une fonction dont le compte n'a pas la consultation ne se présente pas. Vide pour un compte sans rôle (WF-ADM-0180). */
             permissions: components["schemas"]["PermissionCode"][];
-            expires_at: components["schemas"]["Timestamp"];
-            idle_expires_at?: components["schemas"]["Timestamp"];
-        };
-        LocalCredentials: {
-            /** Format: email */
-            email: string;
-            password: string;
-        };
-        /** @description Demande un lien de réinitialisation, valable une heure et à usage unique (WF-ADM-0140). Le courriel part dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ARC-0110). */
-        PasswordResetRequest: {
-            /** Format: email */
-            email: string;
-        };
-        PasswordResetConfirm: {
-            token: string;
-            password: string;
-        };
-        PasswordChange: {
-            current_password: string;
-            new_password: string;
         };
         /**
          * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
@@ -2950,10 +2853,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "is_local_account" | "is_active_account";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -2973,7 +2876,7 @@ export interface components {
             org_node_id?: components["schemas"]["Uuid"] | null;
             access_role_ids?: components["schemas"]["Uuid"][];
         };
-        /** @description Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne sont pas modifiables ici (WF-ADM-0050). */
+        /** @description Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050). */
         UserUpdate: {
             last_name?: string;
             first_name?: string;
@@ -2986,14 +2889,15 @@ export interface components {
             access_role_ids: components["schemas"]["Uuid"][];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Résultat d'une resynchronisation de l'annuaire. Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
-        DirectorySyncResult: {
+        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
+        IdentitySyncReport: {
             created: number;
             updated: number;
             deactivated: number;
+            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120). */
             skipped: {
                 email: string;
-                code: string;
+                code: components["schemas"]["ErrorCode"];
             }[];
         };
         Permission: {
@@ -3024,7 +2928,7 @@ export interface components {
         AccessRoleUpdate: components["schemas"]["AccessRoleWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
+        /** @description Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs deux vidages et d'un manifeste — la date, la version de l'application, la révision du schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
         Backup: {
             backup_id: components["schemas"]["Uuid"];
             taken_at: components["schemas"]["Timestamp"];
@@ -3033,7 +2937,10 @@ export interface components {
             verification: "pending" | "passed" | "failed";
             /** @description Marquée à conserver, elle échappe à la rotation (WF-ADM-0170). */
             is_retained: boolean;
-            /** @enum {string} */
+            /**
+             * @description Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
+             * @enum {string}
+             */
             scope: "database";
             /** @enum {string} */
             origin?: "manual" | "scheduled";
@@ -3094,7 +3001,7 @@ export interface components {
             /** @description Le motif de l'échec ; nul quand le fichier a été écrit puis effacé. */
             failure: components["schemas"]["ExternalBackupFailure"] | null;
         };
-        /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
+        /** @description Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
         RestoreRequest: {
             backup_id?: components["schemas"]["Uuid"];
             /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). */
@@ -3145,7 +3052,7 @@ export interface components {
             audit_event_id: components["schemas"]["Uuid"];
             /** @description L'instant où l'action a pris effet : pour une action confiée au worker — marquage, fusion, survenance, application d'un import, restauration —, celui où la tâche a abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle copie. */
             occurred_at: components["schemas"]["Timestamp"];
-            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture de l'annuaire —, et ce que l'installation crée. */
+            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée. */
             actor: components["schemas"]["ActorRef"];
             action: components["schemas"]["AuditAction"];
             object: components["schemas"]["AuditObject"];
@@ -4581,7 +4488,7 @@ export interface components {
             ignored_count: number;
         };
         /**
-         * @description L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus 10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`.
+         * @description L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant. Les deux valeurs restent dans l'énumération : le `FileUpload` que rend `completeChunkedUpload` emploie `external_backup`, et un dépôt se désigne par son usage (`startRestore`, `openImport`).
          * @enum {string}
          */
         FileUploadPurpose: "import" | "external_backup";
@@ -4592,6 +4499,27 @@ export interface components {
             filename: string;
             size_bytes: number;
             uploaded_at: components["schemas"]["Timestamp"];
+            expires_at: components["schemas"]["Timestamp"];
+        };
+        /** @description Ouvre le dépôt par morceaux d'une sauvegarde copiée hors de la plateforme, à restaurer (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). Il n'existe pas pour un autre usage : le fichier d'un import se dépose en une fois. */
+        ChunkedUploadOpen: {
+            /** @description Le nom du fichier, tel que l'utilisateur l'a choisi ; il reste au dépôt qui s'achève. */
+            filename: string;
+            /** @description La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de `Installation.external_backup_max_bytes`, ou qui ne tient pas en 10 000 morceaux de `part_size_bytes` au plus (10 000 × 10 Mio), l'ouverture est refusée par 413, `FILE_TOO_LARGE`. */
+            size_bytes: number;
+        };
+        /** @description Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count` morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant. */
+        ChunkedUpload: {
+            chunked_upload_id: components["schemas"]["Uuid"];
+            filename: string;
+            size_bytes: number;
+            /** @description La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre 5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et 10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`). */
+            part_size_bytes: number;
+            /** @description Le nombre de morceaux, au plus 10 000, la limite des dépôts en plusieurs parties du stockage objet : le serveur choisit `part_size_bytes` dans ses bornes pour y tenir. */
+            part_count: number;
+            /** @description Les numéros des morceaux reçus, en ordre croissant, sans doublon. */
+            received_parts: number[];
+            /** @description Vingt-quatre heures après l'ouverture : au-delà, le dépôt et ses morceaux sont supprimés, comme un fichier d'import expiré (WF-DAT-0120). */
             expires_at: components["schemas"]["Timestamp"];
         };
         /**
@@ -4724,7 +4652,7 @@ export interface components {
             label: string;
             code?: string | null;
             state: components["schemas"]["ProjectState"];
-            /** @description Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en déduit rien des permissions de la session. */
+            /** @description Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en déduit rien des permissions de `getMe`. */
             can_open: boolean;
             reference_budget?: components["schemas"]["Money"] | null;
             /** @description Devis courant, présenté à la place du budget pour un projet en chiffrage. */
@@ -4874,7 +4802,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Aucune session valide, ou session révoquée (WF-SEC-0020). */
+        /** @description Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`, WF-SEC-0020) ; ou compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), que le front distingue pour ne pas renvoyer à une connexion qui bouclerait. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -4901,8 +4829,8 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
-        UnprocessableEntity: {
+        /** @description Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2). */
+        PayloadTooLarge: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4919,8 +4847,8 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2). */
-        PayloadTooLarge: {
+        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
+        PreconditionFailed: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4928,8 +4856,8 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
-        PreconditionFailed: {
+        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
+        UnprocessableEntity: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4992,6 +4920,9 @@ export interface components {
         RiskRevision: components["schemas"]["Uuid"];
         RiskId: components["schemas"]["Uuid"];
         CostLineId: components["schemas"]["Uuid"];
+        ChunkedUploadId: components["schemas"]["Uuid"];
+        /** @description Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`). */
+        ChunkedUploadPartNumber: number;
         ImportId: components["schemas"]["Uuid"];
         /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
         PortfolioFrom: components["schemas"]["PlanningDate"];
@@ -5203,200 +5134,6 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    listAuthProviders: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Fournisseurs offerts par cette installation. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthProvider"][];
-                };
-            };
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    getCurrentSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session valide. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    openSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LocalCredentials"];
-            };
-        };
-        responses: {
-            /** @description Session ouverte. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            /** @description Compte verrouillé après dix échecs consécutifs (WF-ADM-0140). */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    closeSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session révoquée. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    startOidcSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Redirection vers le fournisseur. */
-            303: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    completeOidcSession: {
-        parameters: {
-            query: {
-                code: string;
-                state: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session ouverte, redirection vers l'application. */
-            303: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    requestPasswordReset: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordResetRequest"];
-            };
-        };
-        responses: {
-            /** @description Demande enregistrée. */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-        };
-    };
-    confirmPasswordReset: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordResetConfirm"];
-            };
-        };
-        responses: {
-            /** @description Mot de passe fixé. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            /** @description Lien expiré ou déjà employé (WF-ADM-0140). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            422: components["responses"]["UnprocessableEntity"];
-        };
-    };
     getMe: {
         parameters: {
             query?: never;
@@ -5444,20 +5181,16 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
-    changeMyPassword: {
+    closeMySessions: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordChange"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Mot de passe changé. */
+            /** @description Sessions du compte fermées. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -5465,8 +5198,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     putMyAvatar: {
@@ -5518,7 +5250,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom affiché, qu'aucune colonne ne porte entier. */
+                /** @description Recherche sur le nom, le prénom, l'adresse électronique, et sur le prénom suivi du nom, tels que la table les montre : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le prénom suivi du nom, qu'aucune colonne ne porte entier. */
                 search?: string;
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -5530,7 +5262,7 @@ export interface operations {
                 org_node_id?: components["schemas"]["Uuid"];
                 /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. */
                 access_role_ids?: components["schemas"]["Uuid"][];
-                /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode. */
+                /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se rangent par leur identifiant, dans le sens du tri. */
                 sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -5591,6 +5323,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getUser: {
@@ -5644,7 +5385,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Le nom, le prénom ou l'adresse d'un compte venu d'un fournisseur externe (`origin` autre que `local`), qui ne se modifient pas ici (WF-ADM-0050) : `STATE_FORBIDS_OPERATION`, sans paramètre — l'origine du compte, que la lecture porte, le dit, et aucune condition du catalogue ne la nomme. Rien n'est écrit. */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5654,6 +5395,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : une valeur du nom, du prénom ou de l'adresse, différente de celle du compte, quand il ne vient pas de Waterfall et que le fournisseur d'identité les tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) — envoyer le champ inchangé n'est pas refusé — ; un nœud d'organisation que l'installation n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setUserActivation: {
@@ -5734,6 +5484,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getUserAvatar: {
@@ -5761,7 +5520,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    startDirectorySync: {
+    startIdentitySync: {
         parameters: {
             query?: never;
             header?: never;
@@ -5781,19 +5540,10 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Aucun annuaire activé (WF-ADM-0180). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
-    getLatestDirectorySync: {
+    getLatestIdentitySync: {
         parameters: {
             query?: never;
             header?: never;
@@ -5802,13 +5552,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Compte rendu de la dernière synchronisation (WF-ADM-0070, WF-ADM-0130). */
+            /** @description Compte rendu de la dernière lecture (WF-ADM-0070, WF-ADM-0130). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DirectorySyncResult"];
+                    "application/json": components["schemas"]["IdentitySyncReport"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -5847,7 +5597,7 @@ export interface operations {
                 holder_count_min?: number;
                 /** @description Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130). Inférieure à `holder_count_min`, elle est refusée par 422. */
                 holder_count_max?: number;
-                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs. */
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs ; deux rôles à égalité se rangent par leur identifiant, dans le sens du tri. */
                 sort_by?: "label" | "is_predefined" | "holder_count";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -5953,7 +5703,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Rôle encore porté par un compte (WF-ADM-0090). */
+            /** @description Rôle encore porté par un compte, `ACCESS_ROLE_IN_USE` (WF-ADM-0090) ; rien n'est supprimé. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10056,6 +9806,112 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    openChunkedUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChunkedUploadOpen"];
+            };
+        };
+        responses: {
+            /** @description Dépôt ouvert, sans aucun morceau reçu. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChunkedUpload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    uploadChunk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chunked_upload_id: components["parameters"]["ChunkedUploadId"];
+                /** @description Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`). */
+                part_number: components["parameters"]["ChunkedUploadPartNumber"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Morceau reçu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChunkedUpload"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Un morceau qui n'a pas la taille attendue : `VALIDATION_FAILED`, `fields` désignant `/body` par `VALUE_OUT_OF_RANGE`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    completeChunkedUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chunked_upload_id: components["parameters"]["ChunkedUploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fichier assemblé et déposé. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileUpload"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Un morceau manque : `STATE_FORBIDS_OPERATION`, `params.missing_parts` les numéros des morceaux que le dépôt n'a pas reçus, en tableau d'entiers. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };

@@ -34,7 +34,7 @@
         "version": null
       },
       {
-        "component": "directory",
+        "component": "identity_provider",
         "is_available": true,
         "checked_at": "2026-06-03T14:04:30Z",
         "version": "26.0.5"
@@ -50,7 +50,7 @@
       "used_bytes": 220117073920,
       "available_bytes": 9663676416
     },
-    "last_directory_sync": {
+    "last_identity_sync": {
       "at": "2026-06-03T02:00:00Z",
       "succeeded": true,
       "problem": null

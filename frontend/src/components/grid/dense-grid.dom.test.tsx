@@ -592,10 +592,10 @@ describe("the columns and their widths, a display preference of the account", ()
   it("shows the columns and widths the session read, and records a column hidden, the rest of the grid as it came", async () => {
     const client = serve();
     const settings = (
-      example("session_grid_settings") as {
-        user: { display_preferences: { grids: { estimate: GridPreferences } } };
+      example("me_grid_settings") as {
+        display_preferences: { grids: { estimate: GridPreferences } };
       }
-    ).user.display_preferences.grids.estimate;
+    ).display_preferences.grids.estimate;
     // The account keeps a sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the page asks none.
     const { container } = renderGrid(witness, { preferences: settings });

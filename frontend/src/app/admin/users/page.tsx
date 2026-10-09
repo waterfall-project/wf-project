@@ -98,7 +98,7 @@ export default async function UsersPage({
     searchParams.then((asked) => pageSearch(asked)),
     requestSession(),
   ]);
-  const preferences = session?.user.display_preferences?.grids?.[USER_GRID_KEY] ?? undefined;
+  const preferences = session?.display_preferences?.grids?.[USER_GRID_KEY] ?? undefined;
   const query = readGridQuery(search, USER_SORTS, preferences?.sort);
   const origins = readValues(search, ORIGINS, USER_ORIGINS);
   const orgNode = identifierOf(search, ORG_NODE);

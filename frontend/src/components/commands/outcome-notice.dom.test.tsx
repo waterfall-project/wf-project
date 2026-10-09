@@ -4,10 +4,17 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
+import { ACCOUNT_DEACTIVATED_DIGEST, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import { OutcomeNotice } from "./outcome-notice";
 import { rejected } from "./rejection";
+
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  usePathname: () => "/account",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 describe("the notice of an outcome", () => {
   it("shows the reference of the unexpected error, as the screen of failure does, and of no other refusal", () => {
@@ -42,5 +49,25 @@ describe("the notice of an outcome", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+  });
+
+  it("says a deactivated account without leading to the sign-in page, which would loop", () => {
+    const lost = Object.assign(new Error("Server Components render"), {
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+    const deactivated = Object.assign(new Error("Server Components render"), {
+      digest: ACCOUNT_DEACTIVATED_DIGEST,
+    });
+    const notice = (error: Error) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={rejected(error)} onClear={vi.fn()} />
+      </NextIntlClientProvider>
+    );
+    // A session lost leads to the sign-in page: the control of the absence below.
+    const { rerender } = render(notice(lost));
+    expect(screen.getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+    rerender(notice(deactivated));
+    expect(screen.getByRole("alert")).toHaveTextContent("Ce compte est désactivé");
+    expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
   });
 });

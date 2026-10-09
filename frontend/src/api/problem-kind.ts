@@ -17,7 +17,19 @@ const KIND_BY_STATUS: Readonly<Record<number, ProblemKind>> = {
   412: "stale",
 };
 
-/** What a refusal of a status asks of the screen: `refused` for any status but these. */
-export function kindOf(status: number): ProblemKind {
-  return KIND_BY_STATUS[status] ?? "refused";
+/**
+ * Whether a 401 says the account is deactivated (`ACCOUNT_DEACTIVATED`) rather than no session:
+ * leading it back to the sign-in page would loop, the identity provider signing it in again to
+ * the same refusal. The screen says it instead.
+ */
+export function isDeactivation(status: number, code: unknown): boolean {
+  return status === 401 && code === "ACCOUNT_DEACTIVATED";
+}
+
+/**
+ * What a refusal of a status asks of the screen: `refused` for any status but these — and for a
+ * 401 that names the deactivated account, which is no session to open again (`isDeactivation`).
+ */
+export function kindOf(status: number, code?: string): ProblemKind {
+  return isDeactivation(status, code) ? "refused" : (KIND_BY_STATUS[status] ?? "refused");
 }

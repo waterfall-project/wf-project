@@ -234,8 +234,8 @@ def _accounts() -> list[Inscription]:
     come first, before the accounts that hold them. An account inactive was deactivated at its
     last update (WF-ADM-0060). And the roles given to an account after its creation: those
     created after it (``_given``). An update of an account by its holder alone — the preferences
-    of its display, which the session writes — is no inscription: WF-SEC-0030 names the accounts
-    an administrator creates and modifies, not what a user chooses for himself.
+    of its display, which ``updateMyPreferences`` writes — is no inscription: WF-SEC-0030 names
+    the accounts an administrator creates and modifies, not what a user chooses for himself.
     """
     found = [
         Inscription(
@@ -401,12 +401,12 @@ def import_applied_today() -> Inscription:
     The import of the estimate of the « Poste de commande », analysed this morning
     (`import_analysed`), confirmed today and applied by its task, which succeeds at 14 h 08 min 30 s
     (`task_import_succeeded`): the instant of the inscription is the one the task succeeded at. By
-    the account of the session, which confirmed it; in the revision in progress, where an import
+    the account of the witness, which confirmed it; in the revision in progress, where an import
     of an estimate applies (WF-INTF-0090).
     """
     imported = fixture("import_analysed")
     task = fixture("task_import_succeeded")
-    user = fixture("session")["user"]
+    user = fixture("me")
     return Inscription(
         _instant(task["finished_at"]),
         {"kind": "user", "user_id": user["user_id"], "display_name": display_name(user)},

@@ -14,7 +14,6 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
-import { PasswordForm } from "./password-form";
 import { PreferencesForm } from "./preferences-form";
 
 // The server of Next, as far as the forms need it: the fake back behind serverClient, and the
@@ -138,6 +137,17 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("radio", { name: "Clair" })).toBeChecked();
   });
 
+  it("says a deactivated account instead of leading to the sign-in page, which would loop", async () => {
+    serve({ [PREFERENCES]: { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } } });
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Ce compte est désactivé ; contactez un administrateur.");
+    expect(within(alert).queryByRole("link", { name: "Se connecter" })).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("leads to the sign-in page when the session is gone, and keeps the choice", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
     render(inFrench(<PreferencesForm language="default" theme="default" />));
@@ -150,39 +160,6 @@ describe("the preferences on the screen of the account", () => {
     );
     expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
     expect(refresh).not.toHaveBeenCalled();
-  });
-});
-
-describe("the change of the password", () => {
-  it("sends the current and the new password as typed, says it is changed, and empties the form", async () => {
-    const client = serve({ "PUT /me/password": { status: 204 } });
-    const { container } = render(inFrench(<PasswordForm />));
-    await expectAccessible(container);
-    await userEvent.type(screen.getByLabelText("Mot de passe actuel"), "ancien mot de passe");
-    await userEvent.type(screen.getByLabelText("Nouveau mot de passe"), "court");
-    await userEvent.click(screen.getByRole("button", { name: "Changer le mot de passe" }));
-
-    expect(sent(client, "PUT /me/password")).toEqual([
-      { current_password: "ancien mot de passe", new_password: "court" },
-    ]);
-    expect(screen.getByRole("status")).toHaveTextContent("Votre mot de passe est changé.");
-    expect(screen.getByLabelText("Mot de passe actuel")).toHaveValue("");
-    expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("");
-  });
-
-  it("tells a password the API refuses by the code of the catalogue, and keeps what was typed", async () => {
-    serve({ "PUT /me/password": { problem: { code: "VALIDATION_FAILED", status: 422 } } });
-    render(inFrench(<PasswordForm />));
-    await userEvent.type(screen.getByLabelText("Mot de passe actuel"), "ancien mot de passe");
-    await userEvent.type(screen.getByLabelText("Nouveau mot de passe"), "court");
-    await userEvent.click(screen.getByRole("button", { name: "Changer le mot de passe" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Les données saisies ne sont pas valides.",
-    );
-    expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("court");
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    // The focus stays on the button pressed, from which the refusal is read next.
-    expect(screen.getByRole("button", { name: "Changer le mot de passe" })).toHaveFocus();
   });
 });
 

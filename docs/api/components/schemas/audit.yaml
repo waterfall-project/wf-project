@@ -149,7 +149,7 @@ AuditEvent:
         L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa
         désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même —
         une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur
-        d'identité ou par la lecture de l'annuaire —, et ce que l'installation crée.
+        d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée.
     action: { $ref: '#/AuditAction' }
     object: { $ref: '#/AuditObject' }
     project:

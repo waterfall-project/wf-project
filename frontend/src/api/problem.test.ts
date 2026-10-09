@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
 import {
+  ACCOUNT_DEACTIVATED_DIGEST,
   failureOf,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
@@ -12,6 +13,7 @@ import {
 
 import { createApiClient, Unreachable } from "./client";
 import {
+  AccountDeactivated,
   type BackgroundTask,
   decode,
   decodeTask,
@@ -128,6 +130,16 @@ describe("the decoder of an answer of the API", () => {
       client.PATCH("/me/preferences", { body: { theme: "dark" } }),
     );
     expect(outcome).toMatchObject({ kind: "signed_out", problem: { code: "SESSION_REQUIRED" } });
+  });
+
+  it("says a deactivated account (401) as a refusal, not as a session to open again, which would loop", async () => {
+    const client = fakeClient({
+      "PATCH /me/preferences": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
+    });
+    const outcome = await decode(() =>
+      client.PATCH("/me/preferences", { body: { theme: "dark" } }),
+    );
+    expect(outcome).toMatchObject({ kind: "refused", problem: { code: "ACCOUNT_DEACTIVATED" } });
   });
 
   it("tells an API out of reach apart from any refusal", async () => {
@@ -279,6 +291,18 @@ describe("a read a screen cannot do without", () => {
     await expect(read).rejects.toMatchObject({
       operation: "getReferenceReadiness",
       digest: SESSION_REQUIRED_DIGEST,
+    });
+  });
+
+  it("throws a refusal for a deactivated account as such, for the screen of failure to say it", async () => {
+    const client = fakeClient({
+      "GET /reference/readiness": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
+    });
+    const read = readiness(client);
+    await expect(read).rejects.toBeInstanceOf(AccountDeactivated);
+    await expect(read).rejects.toMatchObject({
+      operation: "getReferenceReadiness",
+      digest: ACCOUNT_DEACTIVATED_DIGEST,
     });
   });
 

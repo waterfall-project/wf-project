@@ -20,7 +20,7 @@ import {
   readableGroups,
 } from "./functions";
 
-type Session = components["schemas"]["Session"];
+type Account = components["schemas"]["UserSelf"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -40,7 +40,7 @@ function text(catalogue: object, key: string): unknown {
 
 /** The codes of the functions of the groups offered to a session. */
 function offered(name: string): string[] {
-  const { permissions } = example(name) as Session;
+  const { permissions } = example(name) as Account;
   return readableGroups(permissions).flatMap((group) => [
     group.code,
     ...group.functions.map((fn) => fn.code),
@@ -239,13 +239,13 @@ describe("the sections of the table", () => {
 
 describe("the functions offered", () => {
   it("are all of them to a session granted the whole catalogue", () => {
-    expect(offered("session")).toEqual([
+    expect(offered("me")).toEqual([
       ...FUNCTION_GROUPS.flatMap((group) => [group.code, ...group.functions.map((fn) => fn.code)]),
     ]);
   });
 
   it("leave out the functions whose read permission the session lacks", () => {
-    const codes = offered("session_without_administration");
+    const codes = offered("me_without_administration");
     expect(codes).not.toContain("FBS-1");
     expect(codes.filter((code) => code.startsWith("FBS-1"))).toEqual([]);
     expect(codes).toContain("FBS-2.1");

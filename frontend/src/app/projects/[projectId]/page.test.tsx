@@ -68,7 +68,7 @@ function routes(): string[] {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project_pricing",
     "GET /projects/{project_id}/revisions": "revisions_empty",
     [IMPORT_READ]: "import_analysed",

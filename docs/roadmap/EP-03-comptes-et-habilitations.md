@@ -756,7 +756,7 @@ sert.
 
 ## US-0350 — Se connecter par le fournisseur d'identité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0030-A`, `WF-ADM-0140-A`, `WF-ADM-0180-A`, `WF-SEC-0020-A`
 - **opérations** : `getMe`, `closeMySessions`, `createPasswordSetupLink`
 - **issue** : #427

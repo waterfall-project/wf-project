@@ -119,10 +119,12 @@ au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table
 qui a son écran. Chaque route
 de la table a sa page, ce que `frontend/src/app/[...path]/page.test.tsx` vérifie ; toute autre
 adresse mène, par `frontend/src/app/[...path]/page.tsx`, à l'écran « introuvable ». Les pages du compte
-(`/account`, `/account/password`, `/account/avatar`, `frontend/src/navigation/account.ts`)
+(`/account`, `/account/avatar`, `frontend/src/navigation/account.ts`)
 ont leurs écrans (US-0320) : les informations du compte et ses préférences d'affichage — la
-langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble —, le
-changement du mot de passe, offert au seul compte local, et l'avatar. L'image de l'avatar,
+langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble — et
+l'avatar. Aucun écran de Waterfall ne demande, n'affiche ni ne change un mot de passe : le
+fournisseur d'identité les tient (WF-ADM-0140), et l'écran du compte mènera à sa page du compte
+en US-0400/L2. L'image de l'avatar,
 servie par l'API seule, est lue par le serveur de Next en rendant la page et écrite dans la
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
@@ -141,16 +143,20 @@ de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à 
 projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
 mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
 clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
-(`closeSession`, un 401 valant session déjà close) oublie ce que le navigateur gardait de la
-session — le témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi
-— puis charge la page de connexion en document entier. L'entrée — la connexion, `/login`, et
-le mot de passe oublié, `/login/reset` — est hors de la coquille : ni barre latérale, ni barre,
-ni tâches (`shell-frame.tsx`, `isOutsideShell`), le logo au-dessus d'une carte. La page de
-connexion présente les fournisseurs de `listAuthProviders` : le compte local toujours, que
-l'annuaire partage quand il est activé, et le fournisseur d'identité activé par un lien vers
-son `start_url`. La session ouverte, le navigateur charge en document entier l'écran visé
-(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil — : le layout relit la session, et
-le suivi reprend les tâches qu'une session perdue avait interrompues.
+(`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
+le compte désactivé compris) oublie ce que le navigateur gardait de la session — le témoin
+`wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge `/login`
+en document entier. `/login?next=…` est un gestionnaire de route (`src/app/login/route.ts`), non
+une page : Waterfall n'a ni formulaire de connexion, ni liste de fournisseurs, ni mot de passe
+oublié, le fournisseur d'identité tenant ses écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui
+accorde la session, il mène droit à l'écran visé (`returnTarget(next)`,
+`frontend/src/navigation/login.ts`) — sans lui, ou hors du front, l'accueil — : le layout relit la
+session, et le suivi reprend les tâches qu'une session perdue avait interrompues ; hors de ce mode
+il répond 501 jusqu'à US-0350/L4, qui en fait le départ du flux OIDC. La session est
+`getMe` (`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses
+permissions. Un 401 `ACCOUNT_DEACTIVATED` n'est pas une session absente : l'écran le dit (la
+panne `failure.deactivated`, le refus d'une action), et ne renvoie pas à la connexion, qui
+bouclerait.
 Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
 illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
 menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
@@ -1182,8 +1188,17 @@ identifiant, son index ou son numéro trouvés par son libellé —, jamais un n
 sauf là où le numéro est ce que le test éprouve (#400).
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
-serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
-celle dont part la maquette (EP-02). Rien d'autre ne change.
+serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`security`
+retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
+jeton. Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
+(`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
+navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
+`WATERFALL_E2E=1` : le harnais Playwright construit et démarre le front de production pour la
+mesure, et pose les deux variables à ses serveurs (`playwright.config.ts`) ; `make dev` pose
+`WATERFALL_AUTH=mock` au front (`compose.dev.yaml`), `make build-front` n'en a pas besoin. Contre
+une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose ni l'une ni
+l'autre.
 
 - `make mock` : le faux back seul, sur `http://localhost:4010`.
 - `make dev` : le front (`http://localhost:3000`) contre le faux back, par
@@ -1694,9 +1709,10 @@ ses paramètres, jamais une phrase.
   l'erreur inattendue avec sa référence, celle-ci gardée seulement si elle a la forme d'un
   `correlation_id` du contrat. La connexion
   est `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
-  `frontend/src/navigation/login.ts`) : la page de connexion (US-0320), la session rouverte,
+  `frontend/src/navigation/login.ts`) : la route de connexion (US-0320), la session rouverte,
   mène à `returnTarget(next)`, qui ne suit qu'un chemin du front — ni `//hôte`, ni une
-  adresse d'un autre site — et ramène sinon à l'accueil.
+  adresse d'un autre site — et ramène sinon à l'accueil. Un 401 `ACCOUNT_DEACTIVATED` n'y mène
+  pas, il bouclerait : `kindOf` le range en `refused`, et une lecture lève `AccountDeactivated`.
 
   *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
   qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.

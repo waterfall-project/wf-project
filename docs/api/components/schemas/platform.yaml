@@ -12,8 +12,11 @@ SystemStatus:
       type: array
       items: { $ref: '#/ComponentHealth' }
     storage: { $ref: '#/StorageUsage' }
-    last_directory_sync:
+    last_identity_sync:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+      description: >-
+        Date et résultat de la dernière lecture des comptes du fournisseur d'identité
+        (WF-ADM-0070, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu.
     last_backup:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
     last_backup_copy:
@@ -48,7 +51,7 @@ PlatformComponent:
   description: >-
     Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et
     qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
-  enum: [api, worker, database, cache, object_storage, directory, metrics]
+  enum: [api, worker, database, cache, object_storage, identity_provider, metrics]
 
 StorageUsage:
   type: object
@@ -80,7 +83,7 @@ Alert:
         - task_queue_stalled
         - scheduled_backup_failed
         - scheduled_backup_copy_failed
-        - directory_sync_failed
+        - identity_sync_failed
         - storage_nearly_full
         - error_rate_abnormal
     since: { $ref: ../common.yaml#/Timestamp }
@@ -95,7 +98,7 @@ Alert:
         que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif,
         `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde
         échouée et la synchronisation échouée disent leur motif dans `last_backup` et
-        `last_directory_sync`.
+        `last_identity_sync`.
       properties:
         component: { $ref: '#/PlatformComponent' }
         used_bytes: { type: integer, minimum: 0 }
@@ -108,9 +111,12 @@ Backup:
   type: object
   required: [backup_id, taken_at, size_bytes, verification, is_retained, scope]
   description: >-
-    Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les
-    fichiers importés ne vivent que le temps de leur import et n'y figurent pas
-    (WF-DAT-0120).
+    Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du
+    fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs
+    deux vidages et d'un manifeste — la date, la version de l'application, la révision du
+    schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une
+    restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et
+    n'y figurent pas (WF-DAT-0120).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     taken_at: { $ref: ../common.yaml#/Timestamp }
@@ -124,6 +130,9 @@ Backup:
     scope:
       type: string
       enum: [database]
+      description: >-
+        Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du
+        fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
     origin:
       type: string
       enum: [manual, scheduled]
@@ -299,10 +308,10 @@ RestoreRequest:
     - required: [backup_id]
     - required: [external_backup_upload_id]
   description: >-
-    Restauration : elle remplace l'intégralité de la base, déconnecte les
-    utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui
-    énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160,
-    WF-DAT-0130).
+    Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et
+    fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les
+    caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et
+    son caractère irréversible (WF-ADM-0160, WF-DAT-0130).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
@@ -319,22 +328,26 @@ RestoreRequest:
       type: boolean
       const: true
 
-DirectorySyncResult:
+IdentitySyncReport:
   type: object
   required: [created, updated, deactivated, skipped]
   description: >-
-    Résultat d'une resynchronisation de l'annuaire. Les comptes créés dans
-    Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de
-    désactiver est conservé actif et signalé (WF-ADM-0070).
+    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`).
+    Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120
+    interdit de désactiver est conservé actif et signalé (WF-ADM-0070).
   properties:
     created: { type: integer, minimum: 0 }
     updated: { type: integer, minimum: 0 }
     deactivated: { type: integer, minimum: 0 }
     skipped:
       type: array
+      description: >-
+        Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du
+        catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne
+        connaît plus (WF-ADM-0120).
       items:
         type: object
         required: [email, code]
         properties:
           email: { type: string }
-          code: { type: string }
+          code: { $ref: ../common.yaml#/ErrorCode }

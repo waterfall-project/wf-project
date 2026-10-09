@@ -312,16 +312,16 @@ def test_the_roles_are_inscribed_before_the_accounts_that_hold_them(
 def test_an_account_updated_by_its_holder_alone_is_no_inscription(
     journal: dict[str, Node],
 ) -> None:
-    # The session's own account was last updated today by its holder, its preferences of display:
+    # The witness account was last updated today by its holder, its preferences of display:
     # no administrator modified it, and the journal says nothing of it (WF-SEC-0030).
-    session = fixture("session")["user"]
-    audit = session["audit"]
+    account = fixture("me")
+    audit = account["audit"]
     assert audit["updated_at"] == mockhistory.stamp(TODAY)
-    assert audit["updated_by"]["user_id"] == session["user_id"]
+    assert audit["updated_by"]["user_id"] == account["user_id"]
     about = [
         e
         for e in _events(journal["audit_events"])
-        if e["object"]["object_id"] == session["user_id"]
+        if e["object"]["object_id"] == account["user_id"]
         and e["occurred_at"] == audit["updated_at"]
     ]
     assert about == []
@@ -553,12 +553,12 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     # The import of the estimate analysed this morning, applied by its task, which succeeds just
     # after today: one inscription of its own request, on the import under its file name, in the
     # revision in progress where an estimate applies (WF-INTF-0090), by the account of the
-    # session; the rest is the journal of the witness as it was.
+    # witness; the rest is the journal of the witness as it was.
     imported = _events(journal["audit_events_import_applied"])
     head, rest = imported[0], imported[1:]
     analysed = fixture("import_analysed")
     task = fixture("task_import_succeeded")
-    session = fixture("session")["user"]
+    account = fixture("me")
     current = fixture("project")["current_revision_id"]
     assert analysed["kind"] == "estimate"
     assert task["kind"] == "import_apply"
@@ -572,8 +572,8 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     }
     assert head["actor"] == {
         "kind": "user",
-        "user_id": session["user_id"],
-        "display_name": mockaudit.display_name(session),
+        "user_id": account["user_id"],
+        "display_name": mockaudit.display_name(account),
     }
     assert head["project"] is not None
     assert head["project"]["project_id"] == fixture("project")["project_id"]

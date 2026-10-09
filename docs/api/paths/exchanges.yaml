@@ -9,14 +9,15 @@
     description: >-
       Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
       il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
-      Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse
-      pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des
-      imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration
-      désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413,
-      `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
-      que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le
-      champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`,
-      `startRestore`).
+      Le dépôt dit son usage (`purpose`) : le fichier d'un import ne dépasse pas 10 Mio
+      (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports
+      (§4.6.2) ; au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import,
+      une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422,
+      `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH`
+      (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici, mais par
+      morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`) : `purpose` à
+      `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose`
+      par `UPLOAD_PURPOSE_MISMATCH`.
     requestBody:
       required: true
       content:
@@ -37,6 +38,129 @@
               estimate: { $ref: ../../../fixtures/api/file_upload.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads:
+  post:
+    operationId: openChunkedUpload
+    tags: [exchanges]
+    summary: Ouvrir le dépôt par morceaux d'une sauvegarde
+    description: >-
+      Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera
+      (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine
+      (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le
+      fichier se découpe. La taille annoncée est bornée par
+      `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet
+      admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
+      morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est
+      refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant
+      qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit
+      que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme
+      (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi
+      interrompu — par un rechargement de page — recommence par une ouverture, le dépôt
+      précédent expirant ; aucune opération ne lit un dépôt.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUploadOpen }
+    responses:
+      '201':
+        description: Dépôt ouvert, sans aucun morceau reçu.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
+            examples:
+              opened: { $ref: ../../../fixtures/api/chunked_upload.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads/{chunked_upload_id}/parts/{part_number}:
+  put:
+    operationId: uploadChunk
+    tags: [exchanges]
+    summary: Déposer un morceau
+    description: >-
+      Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets
+      bruts, de la taille exacte que le dépôt attend : `ChunkedUpload.part_size_bytes` pour tout
+      morceau sauf le dernier, le reste du fichier (`size_bytes` moins les morceaux qui le
+      précèdent) pour le dernier. Autrement, 422, `VALIDATION_FAILED`, `fields` désignant `/body`
+      par `VALUE_OUT_OF_RANGE`, `params.minimum` et `params.maximum` disant la taille attendue ;
+      rien n'est reçu. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi
+      interrompu reprenable avec la dernière réponse ; les morceaux peuvent arriver dans un
+      ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou
+      inconnu, est un 404. Sous la permission de restaurer la plateforme (`platform_restore`),
+      comme `startRestore` : sans elle, 403. Le morceau est écrit sur le stockage objet avant la
+      réponse, qui dit les morceaux reçus.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ChunkedUploadId
+      - $ref: ../components/parameters.yaml#/ChunkedUploadPartNumber
+    requestBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema: { type: string, format: binary }
+    responses:
+      '200':
+        description: Morceau reçu.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
+            examples:
+              received: { $ref: ../../../fixtures/api/chunked_upload_part.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Un morceau qui n'a pas la taille attendue : `VALIDATION_FAILED`, `fields` désignant
+          `/body` par `VALUE_OUT_OF_RANGE`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              part_size_mismatch: { $ref: ../../../fixtures/api/chunked_upload_part_size_mismatch.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads/{chunked_upload_id}/completion:
+  post:
+    operationId: completeChunkedUpload
+    tags: [exchanges]
+    summary: Terminer le dépôt par morceaux
+    description: >-
+      Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur
+      le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` :
+      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé
+      par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
+      dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
+      terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
+      (`platform_restore`), comme `startRestore` : sans elle, 403.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ChunkedUploadId
+    responses:
+      '201':
+        description: Fichier assemblé et déposé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
+            examples:
+              completed: { $ref: ../../../fixtures/api/chunked_upload_completed.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un morceau manque : `STATE_FORBIDS_OPERATION`, `params.missing_parts` les numéros des
+          morceaux que le dépôt n'a pas reçus, en tableau d'entiers.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              missing_part: { $ref: ../../../fixtures/api/chunked_upload_incomplete.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports:

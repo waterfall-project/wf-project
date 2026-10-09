@@ -81,7 +81,7 @@ test("the bar shows where the page sits, and the side bar names the project its 
 
 test("the menu of the account leads to the pages of the account", async ({ page }) => {
   // The page reached from the menu, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/account/password");
+  await compile(page.request, "/account/avatar");
   await page.goto("/");
   await openMenu(
     page.getByRole("button", { name: "Compte de Camille Martin" }),
@@ -90,10 +90,11 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
     "aria-disabled",
   );
-  await page.getByRole("menuitem", { name: "Changer le mot de passe" }).click();
+  await expect(page.getByRole("menuitem", { name: "Changer le mot de passe" })).toHaveCount(0);
+  await page.getByRole("menuitem", { name: "Changer l’avatar" }).click();
 
-  await expect(page).toHaveURL("/account/password");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer le mot de passe");
-  await expect(page.getByLabel("Nouveau mot de passe")).toBeVisible();
-  await expect(page).toHaveTitle("Changer le mot de passe — Waterfall");
+  await expect(page).toHaveURL("/account/avatar");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer l’avatar");
+  await expect(page.getByLabel("Image PNG ou JPEG")).toBeVisible();
+  await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
 });

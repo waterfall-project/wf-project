@@ -10,7 +10,8 @@
  *   which passes for out of reach too — the one limit of the rule;
  * - any other rejection is classed by its `digest`, the one thing of an error thrown on the server
  *   Next forwards: the API out of reach (`UNREACHABLE_DIGEST`), a session lost
- *   (`SESSION_REQUIRED_DIGEST`), which leads to the sign-in page, or the unexpected error
+ *   (`SESSION_REQUIRED_DIGEST`), which leads to the sign-in page, an account deactivated
+ *   (`ACCOUNT_DEACTIVATED_DIGEST`), which it does not — signing in again would loop —, or the unexpected error
  *   (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the API, or
  *   the digest Next computed —, kept only when it has the form the contract gives a
  *   `correlation_id`: the notice shows it as the screen of failure does (WF-OBS-0020).
@@ -33,6 +34,27 @@ function asBoundaryError(error: unknown): BoundaryError {
   });
 }
 
+/** The outcome of a loss the screen of failure tells apart: out of reach, signed out, deactivated. */
+function outcomeOfLoss(kind: "unreachable" | "signed_out" | "deactivated"): Outcome<never> {
+  switch (kind) {
+    case "unreachable":
+      return { kind: "unreachable" };
+    case "signed_out":
+      return {
+        kind: "signed_out",
+        problem: { code: "SESSION_REQUIRED", status: 401 },
+        conflictingObjectId: null,
+      };
+    case "deactivated":
+      // A refusal that says so, not a session lost: no link to the sign-in page.
+      return {
+        kind: "refused",
+        problem: { code: "ACCOUNT_DEACTIVATED", status: 401 },
+        conflictingObjectId: null,
+      };
+  }
+}
+
 /** The outcome a rejected server action stands for. */
 export function rejected(error: unknown): Outcome<never> {
   if (error instanceof TypeError) {
@@ -40,13 +62,7 @@ export function rejected(error: unknown): Outcome<never> {
   }
   const failure = failureOf(asBoundaryError(error));
   if (failure.kind !== "unexpected") {
-    return failure.kind === "unreachable"
-      ? { kind: "unreachable" }
-      : {
-          kind: "signed_out",
-          problem: { code: "SESSION_REQUIRED", status: 401 },
-          conflictingObjectId: null,
-        };
+    return outcomeOfLoss(failure.kind);
   }
   const { reference } = failure;
   return {

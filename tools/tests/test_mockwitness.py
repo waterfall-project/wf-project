@@ -344,6 +344,7 @@ _KEYS = {
         "lignes de coût réel",
     ),
     "upload_id": ("imports et téléversements",),
+    "chunked_upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
     "timeline_id": ("chronologies",),
     "cost_line_id": ("lignes de coût réel",),

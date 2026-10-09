@@ -165,6 +165,19 @@ BackupId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+ChunkedUploadId:
+  name: chunked_upload_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+ChunkedUploadPartNumber:
+  name: part_number
+  in: path
+  required: true
+  description: Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`).
+  schema: { type: integer, minimum: 1 }
+
 ExternalBackupLocationName:
   name: location_name
   in: path

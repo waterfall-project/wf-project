@@ -58,7 +58,7 @@ import { ACCOUNT_ICONS } from "./function-display";
 
 /** What the menu shows of the account: the name and the address of the user. */
 export type MenuAccount = Pick<
-  components["schemas"]["Session"]["user"],
+  components["schemas"]["UserSelf"],
   "first_name" | "last_name" | "email"
 >;
 

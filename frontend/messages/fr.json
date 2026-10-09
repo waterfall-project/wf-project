@@ -46,37 +46,8 @@
     "name": "{first} {last}",
     "preferences": "Préférences",
     "account": "Mon compte",
-    "password": "Changer le mot de passe",
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
-  },
-  "signIn": {
-    "title": "Connexion",
-    "local": "Avec votre compte Waterfall.",
-    "directory": "Avec votre compte Waterfall ou celui de l’annuaire de l’entreprise.",
-    "namedDirectory": "Avec votre compte Waterfall ou celui de l’annuaire « {directory} ».",
-    "email": "Adresse électronique",
-    "password": "Mot de passe",
-    "submit": "Se connecter",
-    "or": "ou",
-    "identityProvider": "Se connecter avec le fournisseur d’identité",
-    "namedIdentityProvider": "Se connecter avec {provider}",
-    "forgotten": "Mot de passe oublié ?"
-  },
-  "passwordReset": {
-    "title": "Mot de passe oublié",
-    "request": "Indiquez l’adresse électronique de votre compte : un lien pour choisir un nouveau mot de passe lui sera envoyé.",
-    "email": "Adresse électronique",
-    "send": "Envoyer le lien",
-    "sent": "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
-    "chooseTitle": "Nouveau mot de passe",
-    "choose": "Choisissez le nouveau mot de passe de votre compte.",
-    "newPassword": "Nouveau mot de passe",
-    "save": "Enregistrer le mot de passe",
-    "saved": "Votre mot de passe est enregistré : vous pouvez vous connecter.",
-    "askAgain": "Demander un nouveau lien",
-    "back": "Retour à la connexion",
-    "signIn": "Se connecter"
   },
   "account": {
     "details": "Informations du compte",
@@ -87,13 +58,6 @@
     "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
-    "password": {
-      "current": "Mot de passe actuel",
-      "new": "Nouveau mot de passe",
-      "submit": "Changer le mot de passe",
-      "changed": "Votre mot de passe est changé.",
-      "external": "Votre mot de passe est celui de l’annuaire ou du fournisseur d’identité dont vient votre compte : il ne se change pas dans Waterfall."
-    },
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
@@ -1045,6 +1009,10 @@
       "title": "Session requise",
       "explanation": "L’écran demande une session ouverte : connectez-vous, vous y reviendrez ensuite."
     },
+    "deactivated": {
+      "title": "Compte désactivé",
+      "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
@@ -1322,7 +1290,7 @@
       "succeeded": "Réussie",
       "failed": "Échouée",
       "never": "Jamais effectuée",
-      "directorySync": "Lecture des comptes du fournisseur d’identité",
+      "identitySync": "Lecture des comptes du fournisseur d’identité",
       "backup": "Sauvegarde",
       "backupCopy": "Copie externe de la sauvegarde",
       "restoreTest": "Test de restauration",
@@ -1444,7 +1412,6 @@
     "CONFIRMATION_REQUIRED": "Cette opération demande une confirmation explicite.",
     "SESSION_REQUIRED": "Vous devez vous connecter.",
     "SESSION_EXPIRED": "Votre session a expiré ; reconnectez-vous.",
-    "INVALID_CREDENTIALS": "Adresse électronique ou mot de passe incorrect.",
     "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
     "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
     "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",
@@ -1464,8 +1431,6 @@
     "TASK_COMPLETED": "La tâche est terminée.",
     "WIN_PROBABILITY_FROZEN": "La probabilité de gain ne se modifie plus une fois le projet en cours.",
     "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
-    "PASSWORD_RESET_TOKEN_INVALID": "Ce lien de réinitialisation n’est plus valable.",
-    "ACCOUNT_LOCKED": "Compte verrouillé après trop d’échecs ; réessayez dans quinze minutes.",
     "STALE_LOCK_VERSION": "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
     "FILE_TOO_LARGE": "Le fichier dépasse la taille admise.",
     "VALIDATION_FAILED": "Les données saisies ne sont pas valides.",
@@ -1501,7 +1466,12 @@
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
-    "INTERNAL_ERROR": "Erreur inattendue du service."
+    "INTERNAL_ERROR": "Erreur inattendue du service.",
+    "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
+    "UNKNOWN_ACCESS_ROLE": "Ce rôle d’habilitation n’existe pas.",
+    "UNKNOWN_ORG_NODE": "Ce nœud d’organisation n’existe pas.",
+    "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
+    "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
@@ -1632,7 +1602,7 @@
       "database": "Base de données",
       "cache": "Cache",
       "object_storage": "Stockage des fichiers",
-      "directory": "Annuaire",
+      "identity_provider": "Fournisseur d’identité",
       "metrics": "Métriques"
     },
     "AlertZone": {
@@ -1646,7 +1616,7 @@
         "task_queue_stalled": "File des traitements bloquée",
         "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
         "scheduled_backup_copy_failed": "Échec de la copie externe d’une sauvegarde planifiée",
-        "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
+        "identity_sync_failed": "Échec de la lecture des comptes du fournisseur d’identité",
         "storage_nearly_full": "Stockage presque plein",
         "error_rate_abnormal": "Taux d’erreur anormal"
       }
@@ -1665,7 +1635,7 @@
         "export": "Export",
         "backup": "Sauvegarde",
         "restore": "Restauration",
-        "directory_sync": "Synchronisation de l’annuaire"
+        "identity_sync": "Lecture des comptes du fournisseur d’identité"
       }
     },
     "BackgroundTaskStatus": {
@@ -1673,11 +1643,6 @@
       "running": "En cours",
       "succeeded": "Réussie",
       "failed": "Échouée"
-    },
-    "AuthProviderKind": {
-      "local": "Compte local",
-      "ldap": "Annuaire LDAP",
-      "oidc": "Fournisseur d’identité (OIDC)"
     },
     "UserOrigin": {
       "local": "Créé dans Waterfall",
@@ -1851,7 +1816,9 @@
       "cost_category_unrated": "catégorie sans taux horaire",
       "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
       "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
-      "last_administrator": "un autre compte actif portant les permissions d’administration"
+      "last_administrator": "un autre compte actif portant les permissions d’administration",
+      "is_local_account": "compte créé dans Waterfall",
+      "is_active_account": "compte actif"
     },
     "ProjectExit": {
       "to_state": {

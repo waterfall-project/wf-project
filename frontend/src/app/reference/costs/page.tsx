@@ -320,7 +320,7 @@ export default async function CostSettingsPage({
     requestSession(),
   ]);
   const permissions = session?.permissions ?? [];
-  const grids = session?.user.display_preferences?.grids ?? undefined;
+  const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
   const editable = platformOffer(permissions, "cost_settings") !== undefined;
   const readsInactive = permissions.includes("cost_settings.read");

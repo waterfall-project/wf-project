@@ -1,0 +1,50 @@
+{
+  "summary": "Le compte de Lucas Petit, chiffreur : il lit les révisions, les paramètres, le reste à engager et les indicateurs du projet, consulte les paramètres de coûts du référentiel sans les modifier, et saisit le devis ; il ne lit pas le planning.",
+  "value": {
+    "user_id": "01926f3a-7c00-7000-8000-000000000305",
+    "last_name": "Petit",
+    "first_name": "Lucas",
+    "email": "lucas.petit@example.com",
+    "is_active": true,
+    "origin": "local",
+    "org_node_id": null,
+    "org_node_label": null,
+    "access_role_ids": [
+      "01926f3a-7c00-7000-8000-000000000705"
+    ],
+    "access_role_labels": [
+      "Chiffreur"
+    ],
+    "has_avatar": false,
+    "audit": {
+      "created_at": "2025-11-03T08:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2025-11-03T08:00:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 1,
+    "display_preferences": {
+      "language": "default",
+      "theme": "default",
+      "highlight_tasks_added_after_reference": false,
+      "grids": {}
+    },
+    "permissions": [
+      "cost_settings.read",
+      "revisions.read",
+      "project_settings.read",
+      "estimate.read",
+      "estimate.write",
+      "remaining.read",
+      "project_indicators.read"
+    ]
+  }
+}

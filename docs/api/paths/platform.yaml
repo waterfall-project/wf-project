@@ -31,8 +31,10 @@
     tags: [platform]
     summary: Déclencher une sauvegarde
     description: >-
-      Sauvegarde complète de la base dans un état cohérent, vérifiée après sa
-      production (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+      Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du
+      fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état
+      cohérent, à l'exception du journal d'audit ; l'archive est vérifiée après sa production
+      avant de passer `passed` (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
     responses:
       '202':
         description: Sauvegarde mise en file.
@@ -244,9 +246,20 @@
     tags: [platform]
     summary: Restaurer la plateforme
     description: >-
-      Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les
-      utilisateurs, vide le cache, et n'est appliquée qu'après confirmation
-      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
+      Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur
+      d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation
+      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste
+      en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de
+      restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que
+      l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive :
+      la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
+      `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc
+      sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à
+      `restore`) met ensuite la plateforme en maintenance : toutes les sessions
+      sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration
+      — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la
+      tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration
+      interrompue reprend depuis le début (WF-ARC-0090).
     requestBody:
       required: true
       content:

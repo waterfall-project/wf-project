@@ -46,37 +46,8 @@
     "name": "{first} {last}",
     "preferences": "Preferences",
     "account": "My account",
-    "password": "Change password",
     "avatar": "Change avatar",
     "signOut": "Sign out"
-  },
-  "signIn": {
-    "title": "Sign in",
-    "local": "With your Waterfall account.",
-    "directory": "With your Waterfall account or your account in the company directory.",
-    "namedDirectory": "With your Waterfall account or your account in the “{directory}” directory.",
-    "email": "Email address",
-    "password": "Password",
-    "submit": "Sign in",
-    "or": "or",
-    "identityProvider": "Sign in with the identity provider",
-    "namedIdentityProvider": "Sign in with {provider}",
-    "forgotten": "Forgotten your password?"
-  },
-  "passwordReset": {
-    "title": "Forgotten password",
-    "request": "Give the email address of your account: a link to choose a new password will be sent to it.",
-    "email": "Email address",
-    "send": "Send the link",
-    "sent": "If an account has this address, a link has just been sent to it.",
-    "chooseTitle": "New password",
-    "choose": "Choose the new password of your account.",
-    "newPassword": "New password",
-    "save": "Save the password",
-    "saved": "Your password is saved: you may sign in.",
-    "askAgain": "Ask for a new link",
-    "back": "Back to sign in",
-    "signIn": "Sign in"
   },
   "account": {
     "details": "Account details",
@@ -87,13 +58,6 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
-    "password": {
-      "current": "Current password",
-      "new": "New password",
-      "submit": "Change the password",
-      "changed": "Your password is changed.",
-      "external": "Your password is the one of the directory or of the identity provider your account comes from: it is not changed in Waterfall."
-    },
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -1045,6 +1009,10 @@
       "title": "Session required",
       "explanation": "The screen needs an open session: sign in, and you will come back to it."
     },
+    "deactivated": {
+      "title": "Account deactivated",
+      "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
@@ -1322,7 +1290,7 @@
       "succeeded": "Succeeded",
       "failed": "Failed",
       "never": "Never run",
-      "directorySync": "Reading of the identity provider accounts",
+      "identitySync": "Reading of the identity provider accounts",
       "backup": "Backup",
       "backupCopy": "External copy of the backup",
       "restoreTest": "Restoration test",
@@ -1444,7 +1412,6 @@
     "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
     "SESSION_REQUIRED": "You need to sign in.",
     "SESSION_EXPIRED": "Your session has expired; please sign in again.",
-    "INVALID_CREDENTIALS": "Incorrect email address or password.",
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
@@ -1464,8 +1431,6 @@
     "TASK_COMPLETED": "The task is completed.",
     "WIN_PROBABILITY_FROZEN": "The win probability can no longer be changed once the project is in progress.",
     "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
-    "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
-    "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
     "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
     "FILE_TOO_LARGE": "The file is larger than allowed.",
     "VALIDATION_FAILED": "The data entered is not valid.",
@@ -1501,7 +1466,12 @@
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
-    "INTERNAL_ERROR": "Unexpected service error."
+    "INTERNAL_ERROR": "Unexpected service error.",
+    "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
+    "UNKNOWN_ACCESS_ROLE": "This access role does not exist.",
+    "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
+    "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
+    "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -1632,7 +1602,7 @@
       "database": "Database",
       "cache": "Cache",
       "object_storage": "File storage",
-      "directory": "Directory",
+      "identity_provider": "Identity provider",
       "metrics": "Metrics"
     },
     "AlertZone": {
@@ -1646,7 +1616,7 @@
         "task_queue_stalled": "Task queue stalled",
         "scheduled_backup_failed": "Scheduled backup failed",
         "scheduled_backup_copy_failed": "External copy of a scheduled backup failed",
-        "directory_sync_failed": "Directory synchronisation failed",
+        "identity_sync_failed": "Reading of the identity provider accounts failed",
         "storage_nearly_full": "Storage nearly full",
         "error_rate_abnormal": "Abnormal error rate"
       }
@@ -1665,7 +1635,7 @@
         "export": "Export",
         "backup": "Backup",
         "restore": "Restore",
-        "directory_sync": "Directory synchronisation"
+        "identity_sync": "Reading of the identity provider accounts"
       }
     },
     "BackgroundTaskStatus": {
@@ -1673,11 +1643,6 @@
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed"
-    },
-    "AuthProviderKind": {
-      "local": "Local account",
-      "ldap": "LDAP directory",
-      "oidc": "Identity provider (OIDC)"
     },
     "UserOrigin": {
       "local": "Created in Waterfall",
@@ -1851,7 +1816,9 @@
       "cost_category_unrated": "category without hourly rates",
       "cost_type_not_last_provision": "another active provision nature holding an active category",
       "cost_category_not_last_provision": "another active category under an active provision nature",
-      "last_administrator": "another active account holding the administration permissions"
+      "last_administrator": "another active account holding the administration permissions",
+      "is_local_account": "account created in Waterfall",
+      "is_active_account": "active account"
     },
     "ProjectExit": {
       "to_state": {

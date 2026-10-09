@@ -54,6 +54,12 @@ const NAMED_API = process.env.WATERFALL_API_ADDRESS;
 const API = NAMED_API ?? `http://127.0.0.1:${String(API_PORT)}`;
 const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
 const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
+// The fake back grants the session, and the front sends it a fixed token (`WATERFALL_AUTH=mock`,
+// `src/api/server.ts`); the front built for production refuses that mode unless the harness
+// says it is the harness (`WATERFALL_E2E`). Against an API the environment names, the real
+// authentication stands.
+const AUTHENTICATION =
+  NAMED_API === undefined ? { WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" } : {};
 const PARTS = ["paths", "measure"] as const;
 type Part = (typeof PARTS)[number];
 
@@ -136,7 +142,7 @@ function developmentServer(): WebServer[] {
     {
       command: `pnpm dev --hostname 127.0.0.1 --port ${String(FRONT_PORT)}`,
       url: FRONT,
-      env: { WATERFALL_API_ADDRESS: API },
+      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
       reuseExistingServer: false,
       timeout: 120_000,
       // Signal the whole process group: make and pnpm start the servers as children.
@@ -157,7 +163,7 @@ function productionServer(): WebServer[] {
       // the two live side by side.
       command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${String(PRODUCTION_PORT)}`,
       url: PRODUCTION,
-      env: { WATERFALL_API_ADDRESS: API },
+      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
       reuseExistingServer: false,
       timeout: 300_000,
       // Signal the whole process group: make and pnpm start the servers as children.

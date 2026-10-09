@@ -1,5 +1,5 @@
 {
-  "summary": "Dominique Bernard, manager, compte importé de l'annuaire : son mot de passe est celui de l'annuaire, et ne se change pas dans Waterfall.",
+  "summary": "Dominique Bernard, manager, compte venu de l'annuaire que le fournisseur d'identité fédère : il s'authentifie auprès d'eux, et Waterfall ne connaît pas son mot de passe.",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000302",
     "last_name": "Bernard",
@@ -32,6 +32,31 @@
       "theme": "default",
       "highlight_tasks_added_after_reference": false,
       "grids": {}
-    }
+    },
+    "permissions": [
+      "portfolio_projects.read",
+      "portfolio_workload.read",
+      "portfolio_performance.read",
+      "portfolio_cost_structure.read",
+      "portfolio_risks.read",
+      "portfolio_cost_curve.read",
+      "portfolio_pilot_health.read",
+      "cost_settings.read",
+      "cost_settings.write",
+      "resource_settings.read",
+      "resource_settings.write",
+      "risk_settings.read",
+      "indicator_settings.read",
+      "revisions.read",
+      "project_settings.read",
+      "planning.read",
+      "estimate.read",
+      "remaining.read",
+      "risks.read",
+      "actual_costs.read",
+      "project_indicators.read",
+      "lifecycle.read",
+      "all_projects_read"
+    ]
   }
 }

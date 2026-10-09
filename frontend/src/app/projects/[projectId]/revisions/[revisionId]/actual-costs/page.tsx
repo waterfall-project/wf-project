@@ -216,7 +216,7 @@ export default async function ActualCostsPage({
   const at = gridAddress(revision, search, "actual-costs");
   const filters = readCostFilters(at.address);
   const settings = requestSession().then(
-    (session) => session?.user.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
+    (session) => session?.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
   );
   // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
   const asked = settings.then((kept) => {

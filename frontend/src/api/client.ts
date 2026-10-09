@@ -29,6 +29,8 @@ export interface ApiClientOptions {
   readonly address: string;
   /** The function that sends requests; the platform's by default. */
   readonly fetch?: (request: Request) => Promise<Response>;
+  /** The bearer token every request carries (`Authorization: Bearer …`); none by default. */
+  readonly token?: string;
 }
 
 /**
@@ -73,5 +75,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = new URL(API_PREFIX, options.address).toString();
   // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
   const send = options.fetch ?? ((request: Request) => fetch(request));
-  return createClient<paths>({ baseUrl, fetch: marking(send), querySerializer: QUERY });
+  return createClient<paths>({
+    baseUrl,
+    fetch: marking(send),
+    querySerializer: QUERY,
+    ...(options.token === undefined
+      ? {}
+      : { headers: { Authorization: `Bearer ${options.token}` } }),
+  });
 }

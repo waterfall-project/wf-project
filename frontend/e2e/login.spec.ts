@@ -1,69 +1,24 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
 
-// The fake back opens the session of Camille Martin, whose role grants the whole catalogue of
-// permissions, and lists the three providers of its first example: the local accounts, the
-// directory and the identity provider.
+// The fake back grants the session of Camille Martin, whose role grants the whole catalogue of
+// permissions, and the front sends it a fixed token (`WATERFALL_AUTH=mock`): `/login` has nothing
+// to sign in to, and leads to the screen aimed at. Waterfall shows no sign-in screen and asks for
+// no password: the identity provider does (WF-ADM-0140).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
 
-/** The account and the password the journeys type. */
-const EMAIL = "camille.martin@example.com";
-const PASSWORD = "le mot de passe de Camille";
-
-/**
- * The search part of every address the page navigates to, as it leaves. A form sent by the
- * browser before the hydration goes by GET, its fields in the search of the address (#499).
- */
-function navigationsOf(page: Page): string[] {
-  const searches: string[] = [];
-  page.on("request", (request) => {
-    if (request.isNavigationRequest()) {
-      searches.push(new URL(request.url()).search);
-    }
-  });
-  return searches;
-}
-
-/** Check the page navigated, and that no search of its addresses carries what was typed. */
-function expectNoFieldIn(searches: readonly string[]) {
-  expect(searches.length).toBeGreaterThan(0);
-  for (const search of searches) {
-    const values = [...new URLSearchParams(search).values()];
-    expect(values).not.toContain(EMAIL);
-    expect(values).not.toContain(PASSWORD);
-  }
-}
-
-test("signs in, comes to the screen aimed at, then signs out to the sign-in page, forgetting what the session left", async ({
+test("`/login` leads to the screen aimed at, then signing out closes the sessions, forgetting what they left", async ({
   page,
   context,
 }) => {
-  const asked = navigationsOf(page);
   await page.goto(`/login?next=${encodeURIComponent(LIFECYCLE)}`);
 
-  // The way in stands outside the shell: neither bar nor side bar.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connexion");
-  await expect(page.getByRole("banner")).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Fonctions" })).toHaveCount(0);
-  await expect(page.getByRole("main")).toContainText("l’annuaire « Annuaire Exemple »");
-  await expect(page.getByRole("link", { name: "Se connecter avec Exemple SSO" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Mot de passe oublié ?" })).toHaveAttribute(
-    "href",
-    "/login/reset",
-  );
-  await expect(page).toHaveTitle("Connexion — Waterfall");
-
-  await page.getByLabel("Adresse électronique").fill(EMAIL);
-  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Se connecter" }).click();
-
-  // The screen aimed at, in the shell, which keeps the project it reads in.
+  // The screen aimed at, in the shell, which keeps the project it reads in; no sign-in page.
   await expect(page).toHaveURL(LIFECYCLE);
-  expectNoFieldIn(asked);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
   await expect(page.getByRole("navigation", { name: "Fonctions" })).toBeVisible();
   await expect
@@ -84,66 +39,52 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
     );
   });
 
+  // The home page, where `/login` leads without a screen aimed at, compiled first
+  // (`e2e/compile.ts`).
+  await compile(page.request, "/");
   await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
   await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
 
-  await expect(page).toHaveURL("/login");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connexion");
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
   expect((await context.cookies()).map(({ name }) => name)).not.toContain("wf_last_project");
   expect(
     await page.evaluate(() => window.sessionStorage.getItem("wf_background_tasks")),
   ).toBeNull();
 });
 
-test("signs in without a screen aimed at, and comes to the list of projects", async ({ page }) => {
-  // The home, the list of projects, reached by the sign-in, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/");
-  const asked = navigationsOf(page);
-  await page.goto("/login");
-  await page.getByLabel("Adresse électronique").fill(EMAIL);
-  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
-  // Its button is disabled until React sends the form, by a server action: Playwright waits for
-  // it to be enabled, so the press is never the browser's own sending, by GET (#499).
-  await page.getByRole("button", { name: "Se connecter" }).click();
-
-  await expect(page).toHaveURL("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
-  expectNoFieldIn(asked);
-});
-
-test("asks for the link of a forgotten password, outside the shell", async ({ page }) => {
-  await compile(page.request, "/login/reset");
-  const asked = navigationsOf(page);
-  await page.goto("/login");
-  await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
-
-  await expect(page).toHaveURL("/login/reset");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mot de passe oublié");
-  await expect(page.getByRole("banner")).toHaveCount(0);
-  await page.getByLabel("Adresse électronique").fill(EMAIL);
-  const send = page.getByRole("button", { name: "Envoyer le lien" });
-  await send.click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
-  );
-  // The focus stays on the button pressed: it was never disabled under it.
-  await expect(send).toBeFocused();
-  expectNoFieldIn(asked);
-});
-
-test("the screens of the account show it, and offer its password and its avatar", async ({
+test("`/login` follows a path of the front only: no screen aimed at, or another site, leads home", async ({
   page,
 }) => {
-  await compile(page.request, "/account/password");
+  await compile(page.request, "/");
+  await page.goto("/login");
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+
+  await page.goto(`/login?next=${encodeURIComponent("https://elsewhere.example/")}`);
+  await expect(page).toHaveURL("/");
+  await page.goto(`/login?next=${encodeURIComponent("//elsewhere.example/")}`);
+  await expect(page).toHaveURL("/");
+});
+
+test("no screen asks for a password or offers to change one [WF-ADM-0140-A]", async ({ page }) => {
   await page.goto("/account");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon compte");
   await expect(page.getByRole("main")).toContainText("camille.martin@example.com");
   await expect(page.getByRole("radiogroup", { name: "Langue" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Changer le mot de passe" })).toHaveCount(0);
+  await expect(page.getByLabel("Mot de passe", { exact: false })).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Changer le mot de passe" }).click();
-  await expect(page).toHaveURL("/account/password");
-  await expect(page.getByLabel("Mot de passe actuel")).toBeVisible();
-  await expect(page).toHaveTitle("Changer le mot de passe — Waterfall");
+  await page.goto("/account/password");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Introuvable");
+
+  await page.goto("/login/reset");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Introuvable");
+});
+
+test("the screens of the account show it, and offer its avatar", async ({ page }) => {
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon compte");
 
   await page.goto("/account/avatar");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer l’avatar");

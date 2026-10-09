@@ -26,8 +26,7 @@
     description: >-
       La langue par défaut de l'installation, sur laquelle le front se replie quand le
       compte suit le navigateur et que celui-ci ne demande aucune langue offerte
-      (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe
-      oublié.
+      (WF-INTF-0160) — y compris avant toute connexion.
     responses:
       '200':
         description: Paramètres publics de l'installation.
@@ -172,6 +171,7 @@
               succeeded: { $ref: ../../../fixtures/api/task_succeeded.json }
               running: { $ref: ../../../fixtures/api/task_running.json }
               failed: { $ref: ../../../fixtures/api/task_failed.json }
+              restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }

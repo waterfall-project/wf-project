@@ -1,0 +1,113 @@
+/me:
+  get:
+    operationId: getMe
+    tags: [me]
+    summary: Mon compte et mes préférences
+    description: >-
+      Le compte connecté, ses rôles, ses préférences d'affichage et ses permissions
+      effectives (WF-ADM-0050, WF-ADM-0040, WF-ADM-0110). Les permissions sont évaluées à
+      chaque requête, à partir des rôles que le compte porte en base : l'API ne tire du jeton
+      que l'identité (WF-ARC-0030, WF-SEC-0020). Le front les lit pour savoir quoi présenter,
+      sans qu'elles ne remplacent le refus que l'API oppose à un appel qu'il aurait envoyé
+      malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant
+      sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à
+      sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est
+      refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
+    responses:
+      '200':
+        description: Compte courant.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/UserSelf }
+            examples:
+              witness: { $ref: ../../../fixtures/api/me.json }
+              english: { $ref: ../../../fixtures/api/me_english.json }
+              without_preferences: { $ref: ../../../fixtures/api/me_without_preferences.json }
+              with_avatar: { $ref: ../../../fixtures/api/me_with_avatar.json }
+              directory: { $ref: ../../../fixtures/api/me_directory.json }
+              dark: { $ref: ../../../fixtures/api/me_dark.json }
+              without_administration: { $ref: ../../../fixtures/api/me_without_administration.json }
+              grid_settings: { $ref: ../../../fixtures/api/me_grid_settings.json }
+              estimator: { $ref: ../../../fixtures/api/me_estimator.json }
+              without_roles: { $ref: ../../../fixtures/api/me_without_roles.json }
+              manager: { $ref: ../../../fixtures/api/me_manager.json }
+              auditor: { $ref: ../../../fixtures/api/me_auditor.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/me/sessions:
+  delete:
+    operationId: closeMySessions
+    tags: [me]
+    summary: Me déconnecter
+    description: >-
+      Ferme toutes les sessions du compte, sur tous ses postes, et non la seule du navigateur
+      qui le demande : la déconnexion « sur tous ses postes » de WF-SEC-0020. L'API demande au
+      fournisseur d'identité de fermer les sessions du compte, qui le notifie au front ; les
+      jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). La
+      désactivation d'un compte et le retrait de tous ses rôles suivent le même chemin
+      (`setUserActivation`, `setUserAccessRoles`).
+    responses:
+      '204':
+        description: Sessions du compte fermées.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/me/preferences:
+  patch:
+    operationId: updateMyPreferences
+    tags: [me]
+    summary: Modifier mes préférences d'affichage
+    description: >-
+      Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles
+      d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans
+      reconnexion (WF-INTF-0160).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+    responses:
+      '200':
+        description: Préférences enregistrées.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+            examples:
+              witness: { $ref: ../../../fixtures/api/preferences.json }
+              dark: { $ref: ../../../fixtures/api/preferences_dark.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/me/avatar:
+  put:
+    operationId: putMyAvatar
+    tags: [me]
+    summary: Déposer ou remplacer mon avatar
+    description: >-
+      L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base
+      avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation :
+      `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne,
+      au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse
+      jamais 8 Mio.
+    requestBody:
+      required: true
+      content:
+        image/png:
+          schema: { type: string, format: binary }
+        image/jpeg:
+          schema: { type: string, format: binary }
+    responses:
+      '204':
+        description: Avatar enregistré.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+  delete:
+    operationId: deleteMyAvatar
+    tags: [me]
+    summary: Retirer mon avatar
+    description: >-
+      Le compte retrouve son avatar par défaut (WF-ADM-0080).
+    responses:
+      '204':
+        description: Avatar retiré ; le compte s'affiche avec une image par défaut (WF-ADM-0080).
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }

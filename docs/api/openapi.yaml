@@ -34,12 +34,10 @@ tags:
     description: Sondes, métriques et écran d'état (FBS-1.3).
   - name: tasks
     description: Traitements de fond confiés au worker (WF-ARC-0090).
-  - name: session
-    description: Ouverture, révocation et fournisseurs d'authentification (FBS-1.1).
   - name: me
-    description: Compte courant, préférences et avatar (FBS-1.1).
+    description: Compte courant, déconnexion, préférences et avatar (FBS-1.1).
   - name: users
-    description: Comptes utilisateurs et annuaire (FBS-1.1).
+    description: Comptes utilisateurs et lecture des comptes du fournisseur d'identité (FBS-1.1).
   - name: access
     description: Rôles d'habilitation et catalogue des permissions (FBS-1.2).
   - name: platform
@@ -70,15 +68,18 @@ tags:
     description: Échanges par fichier, FLX-01 à FLX-07 (FBS-4.3.4, FBS-4.4, FBS-4.5, FBS-4.7).
 components:
   securitySchemes:
-    session:
-      type: apiKey
-      in: cookie
-      name: wf_session
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
       description: >-
-        Session conservée en base et révocable immédiatement (WF-SEC-0020). Le témoin est
-        httpOnly et transmis sur une connexion chiffrée (WF-SEC-0010).
+        Le jeton d'accès que le fournisseur d'identité délivre (WF-ARC-0030, WF-SEC-0020). Le
+        front le garde côté serveur et le porte à l'API sur une connexion chiffrée
+        (WF-SEC-0010) ; le navigateur n'en détient aucun. L'API le valide — signature, émetteur,
+        audience, expiration — et n'en tire que l'identité du compte : les rôles et l'état du
+        compte se lisent en base à chaque requête.
 security:
-  - session: []
+  - bearer: []
 paths:
   /health:
     $ref: ./paths/system.yaml#/~1health
@@ -96,26 +97,14 @@ paths:
     $ref: ./paths/system.yaml#/~1tasks~1{task_id}
   /tasks/{task_id}/result:
     $ref: ./paths/system.yaml#/~1tasks~1{task_id}~1result
-  /session/providers:
-    $ref: ./paths/session.yaml#/~1session~1providers
-  /session:
-    $ref: ./paths/session.yaml#/~1session
-  /session/oidc/start:
-    $ref: ./paths/session.yaml#/~1session~1oidc~1start
-  /session/oidc/callback:
-    $ref: ./paths/session.yaml#/~1session~1oidc~1callback
-  /session/password-reset:
-    $ref: ./paths/session.yaml#/~1session~1password-reset
-  /session/password-reset/confirm:
-    $ref: ./paths/session.yaml#/~1session~1password-reset~1confirm
   /me:
-    $ref: ./paths/session.yaml#/~1me
+    $ref: ./paths/me.yaml#/~1me
   /me/preferences:
-    $ref: ./paths/session.yaml#/~1me~1preferences
-  /me/password:
-    $ref: ./paths/session.yaml#/~1me~1password
+    $ref: ./paths/me.yaml#/~1me~1preferences
+  /me/sessions:
+    $ref: ./paths/me.yaml#/~1me~1sessions
   /me/avatar:
-    $ref: ./paths/session.yaml#/~1me~1avatar
+    $ref: ./paths/me.yaml#/~1me~1avatar
   /users:
     $ref: ./paths/access.yaml#/~1users
   /users/{user_id}:
@@ -126,10 +115,10 @@ paths:
     $ref: ./paths/access.yaml#/~1users~1{user_id}~1access-roles
   /users/{user_id}/avatar:
     $ref: ./paths/access.yaml#/~1users~1{user_id}~1avatar
-  /directory-syncs:
-    $ref: ./paths/access.yaml#/~1directory-syncs
-  /directory-syncs/latest:
-    $ref: ./paths/access.yaml#/~1directory-syncs~1latest
+  /identity-syncs:
+    $ref: ./paths/access.yaml#/~1identity-syncs
+  /identity-syncs/latest:
+    $ref: ./paths/access.yaml#/~1identity-syncs~1latest
   /permissions:
     $ref: ./paths/access.yaml#/~1permissions
   /access-roles:
@@ -308,6 +297,12 @@ paths:
     $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1cost-imports
   /file-uploads:
     $ref: ./paths/exchanges.yaml#/~1file-uploads
+  /chunked-uploads:
+    $ref: ./paths/exchanges.yaml#/~1chunked-uploads
+  /chunked-uploads/{chunked_upload_id}/parts/{part_number}:
+    $ref: ./paths/exchanges.yaml#/~1chunked-uploads~1{chunked_upload_id}~1parts~1{part_number}
+  /chunked-uploads/{chunked_upload_id}/completion:
+    $ref: ./paths/exchanges.yaml#/~1chunked-uploads~1{chunked_upload_id}~1completion
   /projects/{project_id}/imports:
     $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports
   /projects/{project_id}/imports/{import_id}:

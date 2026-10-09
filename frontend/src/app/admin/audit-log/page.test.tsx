@@ -112,7 +112,7 @@ function gridLinks(markup: string): string[] {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     [EVENTS]: "audit_events",
     [FACETS]: "audit_facets",
     "GET /projects": "projects",
@@ -194,7 +194,7 @@ describe("the journal of audit", () => {
     // An auditor contributes to no project: none he may open.
     server.answers = {
       ...server.answers,
-      "GET /session": "session_auditor",
+      "GET /me": "me_auditor",
       "GET /projects": "projects_empty",
     };
     const page = await journal();
@@ -212,7 +212,7 @@ describe("the journal of audit", () => {
     // alone reads its facets.
     server.answers = {
       ...server.answers,
-      "GET /session": "session_auditor",
+      "GET /me": "me_auditor",
       "GET /projects": "projects_empty",
     };
     const page = await journal();
@@ -334,11 +334,11 @@ describe("the journal of audit", () => {
   });
 
   it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     await expect(journal()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     // The session alone is read: nothing of the journal, its facets or the projects.
     expect(server.clients.flatMap((client) => client.calls).map((call) => call.route)).toEqual([
-      "GET /session",
+      "GET /me",
     ]);
   });
 

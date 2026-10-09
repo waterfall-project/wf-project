@@ -15,9 +15,6 @@
  * The shell follows the background tasks the screens start, and, for an account, those of its user
  * the API says still run, in a panel under its bar, whatever screen the user goes to meanwhile
  * (WF-IHM-0080).
- *
- * The way in — the sign-in page, the password forgotten — stands outside it: the texts and the
- * mode still, but neither side bar, nor bar, nor tasks (`ShellFrame`).
  */
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The pages of the account of the user, which the menu of the account leads to: the account
- * itself — its details and its display preferences —, the change of its password, the change of
- * its avatar (US-0320, `src/app/account/`).
+ * itself — its details and its display preferences —, the change of its avatar (US-0320,
+ * `src/app/account/`). The password is the identity provider's: no page of Waterfall shows or
+ * changes one (WF-ADM-0140).
  */
 
 /** A page of the account. */
-export type AccountPage = "account" | "password" | "avatar";
+export type AccountPage = "account" | "avatar";
 
 /** A page of the account, its route, and the key of its name in the catalogues. */
 export interface AccountEntry {
@@ -19,7 +20,6 @@ export interface AccountEntry {
 /** The pages of the account, in the order the menu offers them. */
 export const ACCOUNT_PAGES: readonly AccountEntry[] = [
   { page: "account", route: "/account", label: "accountMenu.account" },
-  { page: "password", route: "/account/password", label: "accountMenu.password" },
   { page: "avatar", route: "/account/avatar", label: "accountMenu.avatar" },
 ];
 
