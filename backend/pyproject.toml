@@ -51,7 +51,7 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source = ["waterfall"]
+source_dirs = ["src/waterfall"]
 # The models engendered from the contract are written by a tool, not by us (US-0060).
 omit = ["src/waterfall/api/contract/models.py"]
 

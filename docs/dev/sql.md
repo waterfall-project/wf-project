@@ -154,7 +154,7 @@ le nom d'une table d'un autre module peut figurer.
   tient »).
 - Une règle qui porte sur un ensemble de lignes — le dernier administrateur — prend un verrou
   consultatif de transaction (`pg_advisory_xact_lock`), toujours le même pour la même règle.
-- Une modification qui porte un `lock_version` le teste **dans l'écriture même** : 
+- Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
