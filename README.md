@@ -14,10 +14,11 @@ is negotiated over months, the baseline moves only by contract, and the question
 still where we said we would be? » has to be answerable years after the people who
 answered it first have left.
 
-> **Status: the foundation is in place, the product is not yet.** The specification and the
-> interface contract come first; the repository now also carries the empty back and front,
-> the tooling and the chain every line of product code will pass through. The product is
-> built epic by epic, as [`docs/roadmap`](docs/roadmap/README.md) plans it.
+> **Status: the foundation and the mockup are in place, the product is not yet.** The
+> specification and the interface contract come first; the repository also carries the
+> tooling and the chain every line of product code passes through, and a front that shows
+> every screen against a simulated contract (EP-02). The back comes next, epic by epic, as
+> [`docs/roadmap`](docs/roadmap/README.md) plans it, starting with accounts and access (EP-03).
 
 ## What makes it different
 
@@ -54,7 +55,7 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 |---|---|
 | `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the tools that produce it, and the reviews that shaped it |
 | `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
-| `docs/roadmap` | the plan: thirteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
+| `docs/roadmap` | the plan: fourteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
 | `docs/dev` | the development guide, the coding rules per language, and the rules the agents follow |
 | `backend/` | one Python package: the business core, the API service and the worker |
 | `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |

@@ -129,3 +129,11 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
 - un collage depuis un tableur est prévisualisé, puis crée les tâches collées ;
 - l'export de l'arborescence et celui d'une chronologie produisent leurs fichiers ;
 - le parcours de bout en bout construit un planning contre le service réel.
+
+## Constats reçus
+
+- #196 [EP-06] US-0120 : le recalcul qui suit une saisie tient la seconde du §4.6.2 — écart
+  déclaré par US-0120 d'EP-02 : il n'y a pas de recalcul sur le faux back ; la mesure, contre le
+  vrai service, du temps entre la validation d'une cellule de la grille (`updateEstimateLine`,
+  `updateTaskFacet`) et l'application de la ligne rendue revient à EP-06, et s'écrit au relevé
+  de livraison.

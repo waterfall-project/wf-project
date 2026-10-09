@@ -21,7 +21,7 @@ c'est le fichier qu'on relira dans cinq ans.
 **Les EPIC couvrent tout l'horizon ; les US ne sont détaillées qu'un EPIC à l'avance.**
 Détailler aujourd'hui les US de la dernière tranche coûterait le prix de les réécrire :
 ce que le premier incrément apprend change le découpage du suivant. Ce qui est fixé pour
-tout l'horizon, ce sont les 203 exigences — pas leur découpage en travaux.
+tout l'horizon, ce sont les 211 exigences — pas leur découpage en travaux.
 
 ## Organisation
 
@@ -119,8 +119,9 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | EPIC | Titre | Statut | Dépend de |
 |---|---|---|---|
 | [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | livré | rien |
-| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | en cours | EP-01 |
+| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | en cours | EP-01, EP-02 |
+| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | à planifier | EP-02 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
@@ -143,6 +144,9 @@ fichiers n'ont plus d'EPIC propre (revue de la ventilation, 2026-10-09) : chaque
 se valide dans son bloc fonctionnel — MS Project en EP-06, qui construit la mécanique d'import,
 le devis en EP-07, le reste à engager en EP-09 —, et EP-03 rend la plateforme déployable et
 sauvegardable dès le premier service, pour des démonstrations.
+
+EP-14 achève les écrans d'EP-02, fusionné dans `main` le 2026-10-09 pour qu'EP-03 démarre sans
+attendre : il avance en parallèle d'EP-03, sans toucher à son domaine.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -206,7 +210,7 @@ l'EPIC ne les recopie pas.
 ## Suivi sur GitHub
 
 Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
-lots `[EP-nn/Ln]` leur titre.
+lots `[EP-nn/Ln]` leur titre, y compris ceux qu'EP-14 reprend d'EP-02.
 
 L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
 sous-issues suit le découpage :
