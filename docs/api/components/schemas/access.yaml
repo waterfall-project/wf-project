@@ -98,7 +98,63 @@ UserOrigin:
     première connexion par le fournisseur d'identité (WF-ADM-0050).
 
 User:
+  description: >-
+    Un compte tel que la table des comptes le lit : le compte, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/UserAccount'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands:
+          type: array
+          maxItems: 2
+          description: >-
+            Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
+            non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
+            `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses
+            rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
+            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100).
+            Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier
+            administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste
+            est refusé par son code d'erreur.
+          items: { $ref: '#/UserCommandAvailability' }
+
+UserCommand:
+  type: string
+  enum: [deactivate, reactivate, set_access_roles]
+  description: >-
+    Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
+    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles
+    d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui
+    change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte
+    toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
+    (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de
+    modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa
+    désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est
+    disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste
+    disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner
+    davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
+    attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
+    `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
+    disponible.
+
+UserCommandAvailability:
   type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/UserCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+UserAccount:
+  type: object
+  description: >-
+    Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table
+    des comptes complète des siennes (`User`).
   required:
     - user_id
     - last_name
@@ -149,8 +205,11 @@ User:
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserSelf:
+  description: >-
+    Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les
+    commandes de la table des comptes : la session ne s'administre pas par elle.
   allOf:
-    - $ref: '#/User'
+    - $ref: '#/UserAccount'
     - type: object
       properties:
         display_preferences: { $ref: '#/DisplayPreferences' }
@@ -258,9 +317,10 @@ PermissionCode:
     projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La
     déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
     pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
-    (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification doit lui
-    donner sous l'administration (FBS-1.5, #518) ; le journal ne se modifiant pas, elle n'a
-    pas de permission de modifier. L'énumération est le catalogue : une permission
+    (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne
+    sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle
+    n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait
+    que sa permission de consulter. L'énumération est le catalogue : une permission
     nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.

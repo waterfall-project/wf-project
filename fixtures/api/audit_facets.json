@@ -1,0 +1,12 @@
+{
+  "summary": "Les auteurs et les projets du journal d'audit du 3 juin 2026 (listAuditFacets) : les comptes auteurs d'au moins une inscription, par nom affiché, désactivés compris ; ici la seule autrice, Camille Martin. Et le projet témoin, seul projet du journal. Lisibles sous la seule permission de consulter le journal (WF-SEC-0030, WF-ADM-0100, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "actors": [
+      {"user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}
+    ],
+    "projects": [
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande"}
+    ]
+  }
+}

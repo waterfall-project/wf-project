@@ -142,11 +142,12 @@ la liste n'est pas présentée, et le front n'a pas à savoir quelle permission 
 commande — ce serait une règle recopiée. Une exception, décidée par l'utilisateur le
 2026-10-05 : sans révision en cours, un import que l'appelant a la permission d'exercer mais
 qui créerait une révision qu'il n'a pas la permission de créer est listé indisponible, la
-condition `may_create_revision` manquante (EP-02/L17). Les autres fonctions — comptes, rôles,
+condition `may_create_revision` manquante (EP-02/L17). Les autres fonctions — rôles,
 sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
 permission de modification de la fonction, que la session porte, et la restauration sa
 permission propre ; c'est la règle même du catalogue. Le référentiel en a trois, que chacun de ses
-objets nomme sur sa commande (`ReferenceCommand`, EP-02/L42a). La saisie d'une révision est trois commandes —
+objets nomme sur sa commande (`ReferenceCommand`, EP-02/L42a), et les comptes une, le dernier
+administrateur (`UserCommand`, `last_administrator`, EP-02/L42d). La saisie d'une révision est trois commandes —
 planning, devis, reste à engager —, parce que trois permissions la gardent : un chiffreur
 peut saisir le devis sans pouvoir toucher au planning. Les coûts réels ont leurs commandes sur
 le projet ; la saisie des risques est une commande de la révision (`edit_risks`), et chaque
@@ -2755,6 +2756,146 @@ trié par heures, décroissant — le débours et la provision, sans heures, d'a
 plan, puis la main-d'œuvre. Sous un tri, le
 collage d'un bloc qui écrirait dans une ligne du plan autre que celle affichée à la suite est
 refusé par le front, la garde de L41a, quelle que soit la colonne.
+
+## Le dernier administrateur, les nœuds désactivés, le journal trié et ses facettes (EP-02/L42d)
+
+Trois constats d'EP-02 rangés dans EP-02/L42 (#507) : #540, #547 et #550, chacun selon la
+proposition de son issue, sauf là où il est dit. Les écarts à ces propositions sont des décisions
+de l'agent de livraison du lot, chacune avec sa raison, qui est l'exigence appliquée à la lettre ;
+aucune n'est une décision de l'auteur.
+
+**Un compte porte ses commandes** (`User.available_commands`, #540 ; WF-ADM-0120, WF-IHM-0090), sur
+le modèle de `Risk.available_commands` et de `ReferenceCommand` : `UserCommand` vaut `deactivate`,
+`reactivate` — un compte ne porte que celle qui change son état, l'une étant le contraire de l'autre
+par la même opération — et `set_access_roles`, toujours listée. Toutes suivent `users.write` : la
+liste est vide pour qui lit les comptes sans pouvoir les modifier. WF-ADM-0120 veut qu'au moins un
+compte actif porte les permissions de modifier les comptes et les rôles d'habilitation ; le front ne
+peut pas trouver ce compte lui-même — il ne rapproche pas les rôles des comptes (WF-ARC-0020), et la
+liste est paginée. Le compte le dit donc : une condition s'ajoute à `CommandCondition`,
+`last_administrator`, qui manque à la désactivation du dernier compte actif qui porte
+`users.write` et `access_roles.write` ; elle redevient disponible dès qu'un second compte actif
+les porte. **L'attribution de ses rôles reste disponible**, à l'écart de l'issue, qui la proposait
+indisponible — décision de l'agent de livraison, appliquant WF-ADM-0120 à la lettre : l'exigence
+n'interdit que de *retirer* au dernier administrateur l'une de ces permissions, et lui en donner
+davantage reste possible ; une commande n'est présentée indisponible que si elle l'est
+(WF-IHM-0090). Le compte de la session n'a pas ces commandes : `UserSelf` lit désormais
+`UserAccount`, le compte sans ses commandes, que `User` complète des siennes, comme
+`ResourceRoleImage` et `ResourceRole` — la session ne s'administre pas par elle. Écarté : une
+commande de modification du compte (`update`), que rien ne rend indisponible.
+
+**Deux refus du dernier administrateur, selon ce que la commande dit d'avance** (#540). La
+désactivation, que la commande annonce indisponible, est refusée comme toute commande qu'un état
+rend indisponible : 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+`last_administrator` (`setUserActivation`, exemple `user_deactivation_refused`). Le retrait d'une
+permission par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles ou des permissions
+envoyés : aucune commande ne peut le dire d'avance, la commande restant offerte. Il est refusé par
+409 `LAST_ADMINISTRATOR`, sans condition, comme `LAST_PROJECT_MANAGER` refuse une liste de
+contributeurs qui ne garderait aucun chef de projet (exemples `user_access_roles_refused`,
+`access_role_update_refused`). `LAST_ADMINISTRATOR` reste donc au catalogue — décision de l'agent de
+livraison sur la revue du lot : la retirer, comme le premier passage le faisait sur le modèle de
+`DEFAULT_CALENDAR_REQUIRED` (EP-02/L42a), aurait nommé une condition qu'aucune commande ne porte
+manquante, et fait mentir le critère de US-0360 d'EP-03 et sa conception, que ce lot précise.
+`setUserActivation`, `setUserAccessRoles` et `updateAccessRole` déclaraient un 409 sans son code ou
+générique ; ils le nomment, rien n'étant écrit. `users` et `users_page`, écrits à la main, portent
+les commandes de chaque compte : Camille Martin, seule active à porter ces permissions, a sa
+désactivation indisponible et l'attribution de ses rôles disponible ; `test_mockuniverse.py` le
+tient, calculé des rôles, et lie le code de chaque refus à sa commande. Les corrélations écrites à
+la main ayant rempli leur plage, elles en prennent une seconde, 1010 à 1099 (`mockids`).
+
+**Créer ou déplacer un objet actif sous un nœud désactivé est refusé par champ** (#547 ;
+WF-REF-0080). La règle n'était tenue que par les opérations d'activation ; `createOrgNode`, sous un
+parent désactivé, `updateOrgNode`, qui y déplacerait un nœud actif, et `createResourceRole`, sous
+un nœud désactivé, sont refusés par 422, `VALIDATION_FAILED`, `fields` désignant `/parent_id` ou
+`/org_node_id` par `INACTIVE_REFERENCE_OBJECT`. Décision de l'agent de livraison, que l'issue
+laissait ouverte, appliquant la convention des refus par champ (#293, et `UPLOAD_PURPOSE_MISMATCH`,
+EP-02/L38) : la valeur d'un champ ne convient pas — elle désigne un objet que WF-REF-0010 ne propose
+plus à la saisie —, l'objet écrit n'a pas d'état qui l'interdise, et le motif existe pour cela,
+celui d'une ligne de devis qui emploierait un objet désactivé. Le 409 `STATE_FORBIDS_OPERATION`
+reste à la réactivation, où c'est l'état de l'objet même qui change, et que sa commande dit
+d'avance. Un nœud désactivé se déplace sous un nœud désactivé : il n'y est pas actif, et le motif de
+l'exigence, qu'aucun objet actif ne subsiste dans un service fermé, tient. Exemples
+`org_node_creation_refused`, `org_node_move_refused` (l'atelier de câblage, actif, vers le bureau
+d'études automatismes) et `resource_role_creation_refused`, sous le bureau d'études automatismes,
+désactivé ; `test_mockuniverse.py` les tient.
+
+**Un rôle ne change pas de nœud** (#547). Décision de l'agent de livraison, appliquant le
+§3.4.4.2.1 : « les rôles ne se déplacent pas d'un nœud à l'autre, ils sont recréés sous les
+nouveaux nœuds ». `ResourceRoleUpdate` perd `org_node_id`, et ne reprend plus `ResourceRoleWrite`,
+dont il garde le reste ; `updateResourceRole` n'a donc plus de rattachement à refuser. Le nœud se
+fixe à la création.
+
+**Le journal se trie sur chacune de ses colonnes** (#550 ; WF-IHM-0060, qui veut chaque colonne
+d'une table plate triable). `sort_by` de `listAuditEvents` vaut `occurred_at`, par défaut, `actor`,
+`action`, `object_kind`, `object_label`, `project` et `correlation_id`. L'auteur se compare par son
+nom affiché, le libellé de l'objet tel que l'inscription le garde, le projet par son code et la
+corrélation, en points de code Unicode, comme les textes des tables plates (#292) ; la plateforme,
+qui n'a pas de nom, un objet sans libellé — une sauvegarde — et une inscription sans projet viennent
+après les autres dans l'ordre croissant, comme une valeur nulle. L'action et la nature de l'objet se
+rangent dans l'ordre de leur énumération — celui de WF-SEC-0030 pour `AuditAction` —, à l'écart de
+la comparaison des libellés, décision de l'agent de livraison : l'API ne rend pas leur libellé, que
+le front choisit dans la langue du lecteur (WF-ARC-0110), et un tri par le code anglais ne suivrait
+l'ordre d'aucune langue. Une égalité se départage par l'ordre sans tri, puis par l'identifiant
+(EP-02/L42a). `sort_order` absent vaut décroissant pour la date, croissant pour une autre colonne.
+Exemples `audit_events_by_actor` et `audit_events_by_object_label`, triés par `mockaudit.sorted_by`.
+
+**Le journal se filtre par corrélation et se cherche sur le libellé de l'objet** (#550 ;
+WF-IHM-0130, WF-OBS-0020). `correlation_id` retient les inscriptions d'une requête et de la tâche
+de fond qu'elle déclenche — la fusion d'un avenant et les deux inscriptions qu'elle produit
+(`audit_events_correlation`) ; `search`, le paramètre partagé, porte sur le libellé que l'inscription
+garde, sans égard à la casse (`audit_events_search`, les imports de coûts réels de mai, cherchés
+dans une autre casse que la leur). Une sauvegarde, sans libellé, n'est retenue par aucune recherche.
+
+**Un objet qui vit dans une révision la nomme** (`AuditObject.revision`, `AuditRevision`, #550),
+par son identifiant et son nom de version au moment de l'action, nul pour une révision en cours qui
+n'en a pas : le risque, dans la révision dont le registre le porte — pour une survenance, la
+révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, le différentiel d'un avenant,
+dans la sienne (`CostStructure.revision_id`), l'import d'un planning, d'un devis ou d'un reste à
+engager, dans celle où il s'applique (WF-INTF-0090). **Une ligne de coût réel et l'import des coûts
+réels n'en ont pas**, à l'écart de l'issue, qui les citait — décision de l'agent de livraison,
+appliquant WF-INTF-0090 et WF-CRE-0010 : une ligne de coût est imputée au projet et à son
+sous-projet, non à une révision (WF-CRE-0010), et seuls les imports d'un planning, d'un devis ou
+d'un reste à engager s'appliquent à une révision (WF-INTF-0090) ; `listActualCosts` et
+`listCostImports` vivent sous `/projects/{project_id}`. Leur inventer une révision dirait faux. Le
+projet, une révision elle-même, un compte, un rôle, une sauvegarde et un dépôt n'en ont pas non
+plus. Le champ est exigé, nul quand il ne s'applique pas, comme `AuditEvent.project`. Dans les
+exemples, la survenance de 752 nomme la révision en cours, 102, et la fusion de l'avenant 1 la
+révision 101, « Référence » ; `audit_events_import_applied`, le journal du témoin juste après
+l'application de l'import du devis analysé ce matin — la suite de `task_import_succeeded`, à
+14 h 08 min 30 s, par Camille Martin —, nomme pour cet import la révision en cours, 102, sans nom
+de version. Comme la sortie du cycle de vie (`audit_events_exited`), c'est une variante : l'une ne
+suit pas l'autre, et leurs inscriptions ont chacune leur identifiant et leur corrélation. La description de `CommandCondition`, qui citait WF-INTF-0080 pour
+dire que l'import des coûts réels n'écrit pas dans la révision, cite de même WF-INTF-0090 et
+WF-CRE-0010.
+
+**Les auteurs et les projets du journal se lisent à part** (`listAuditFacets`,
+`GET /audit-events/facets`, #550 ; WF-SEC-0030, WF-ADM-0100, WF-IHM-0130). Les filtres de l'écran
+s'appuyaient sur `listUsers`, offert seulement avec `users.read`, et sur `listProjects`, qui n'offre
+que les projets ouvrables, quand `audit_log.read` ouvre tout le journal : un auditeur, dont la
+fonction en lecture seule n'a que la permission de consulter (WF-ADM-0100), ne pouvait filtrer ni
+par auteur ni par projet. L'opération rend `AuditFacets` : les comptes auteurs d'au moins une
+inscription, désactivés compris, par leur nom affiché d'aujourd'hui, et les projets d'au moins une
+inscription, consultables ou non, par leur code et leur libellé d'aujourd'hui, chacun une fois, par
+nom ou par code puis par identifiant. Elle ne prend **aucun filtre** — le journal entier —,
+décision de l'agent de livraison, sur la recommandation de l'issue : une liste de choix qui se
+viderait au gré des autres filtres empêcherait d'en changer un sans lever les autres, et le journal
+entier se calcule une fois. **Sans pagination** : au plus autant d'auteurs que de comptes et de
+projets que l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt
+ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de cinquante
+inscriptions en pèse une vingtaine. La plateforme n'y est pas, `actor_kind` la retient. Gardée par
+`audit_log.read` comme `listAuditEvents`, 404 sans elle ; un sous-chemin du journal, comme
+`risks/matrix` l'est des risques. Exemple engendré, `audit_facets` : la seule autrice, Camille
+Martin, et le témoin.
+
+**`PermissionCode` ne dit plus que la spécification « doit » donner FBS-1.5** (#550) : #518 est
+fusionnée, et sa description dit la fonction « Journal d'audit » que WF-ADM-0100 admet en lecture
+seule ; le résumé d'`access_roles` perd son « à confirmer par #518 ».
+
+Engendrés par `wftools.mockaudit` : `audit_events_by_actor`, `audit_events_by_object_label`,
+`audit_events_import_applied`,
+`audit_events_correlation`, `audit_events_search`, `audit_facets`, et la révision de l'objet dans
+toutes les lectures du journal ; `test_mockaudit.py` les tient au journal, et éprouve le tri, la
+recherche et les facettes sur des inscriptions de synthèse. Le client est régénéré ; le front les
+adopte.
 
 ## Collage et annulation
 

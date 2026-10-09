@@ -325,3 +325,261 @@ def test_an_account_updated_by_its_holder_alone_is_no_inscription(
         and e["occurred_at"] == audit["updated_at"]
     ]
     assert about == []
+
+
+# --- The revision of an object, the sort, the filters and the facets (#550) ----------------------
+
+
+def test_an_object_that_lives_in_a_revision_names_it_as_it_was(journal: dict[str, Node]) -> None:
+    # The risk that occurred lives in the revision in progress, where its occurrence merges its own
+    # estimate (WF-RIS-0060), open before it; the amendment in the revision of its structure,
+    # which the merge marks. A line of cost is imputed to the project (WF-CRE-0010), and only the
+    # imports of a planning, an estimate or a remaining apply to a revision (WF-INTF-0090); a
+    # revision is no object of a revision.
+    revisions = {each["revision_id"]: each for each in fixture("revisions")["items"]}
+    [amendment] = [
+        each
+        for each in fixture("structures_amendments")
+        if each["kind"] == "amendment" and each["is_merged"]
+    ]
+    named: dict[str, list[Node | None]] = {}
+    for event in _events(journal["audit_events"]):
+        named.setdefault(event["action"], []).append(event["object"]["revision"])
+    current = fixture("project")["current_revision_id"]
+    [occurred] = named["risk_occurrence"]
+    assert occurred == {"revision_id": current, "label": None}
+    [occurrence] = [e for e in _events(journal["audit_events"]) if e["action"] == "risk_occurrence"]
+    assert revisions[current]["audit"]["created_at"] <= occurrence["occurred_at"]
+    lived = revisions[amendment["revision_id"]]
+    assert named["amendment_merge"] == [
+        {"revision_id": lived["revision_id"], "label": lived["version_name"]}
+    ]
+    for action in ("import_apply", "cost_line_exclude", "revision_mark", "reference_designate"):
+        assert named[action], action
+    others = set(named) - {"risk_occurrence", "amendment_merge"}
+    assert all(revision is None for action in others for revision in named[action])
+
+
+def _inscription(
+    number: int,
+    actor: str | None = None,
+    *,
+    label: str | None = "x",
+    project: tuple[str, str] | None = None,
+    user: str | None = None,
+) -> Node:
+    """Return a synthetic inscription: its number, its author, its object's label, its project."""
+    return {
+        "audit_event_id": universe(number),
+        "actor": (
+            {"kind": "platform"}
+            if actor is None
+            else {"kind": "user", "user_id": user or universe(300 + number), "display_name": actor}
+        ),
+        "object": {"label": label},
+        "project": (
+            None
+            if project is None
+            else {"project_id": project[0], "code": project[1], "label": f"Projet {project[1]}"}
+        ),
+        "correlation_id": f"c-{number:02d}",
+    }
+
+
+def _sorted(events: list[Node], column: str, *, descending: bool = False) -> list[int]:
+    found = mockaudit.sorted_by(cast("list[Any]", events), column, descending=descending)
+    return [int(cast("Node", each)["audit_event_id"][-3:]) for each in found]
+
+
+def test_a_text_column_sorts_by_code_point_without_value_last_and_ties_in_journal_order() -> None:
+    # « Zoé » before « Émile »: É (U+00C9) comes after every unaccented letter by code point, the
+    # lower case too — « alix » after « Zoé », before « Émile » (WF-IHM-0060, #292). The platform,
+    # with no name, last in the ascending order, first in the descending; two inscriptions of one
+    # name keep the order of the journal, whichever the way.
+    events = [
+        _inscription(1, "Émile"),
+        _inscription(2, None),
+        _inscription(3, "Zoé"),
+        _inscription(4, "Alix"),
+        _inscription(5, "alix"),
+        _inscription(6, "Zoé"),
+    ]
+    assert _sorted(events, "actor") == [4, 3, 6, 5, 1, 2]
+    assert _sorted(events, "actor", descending=True) == [2, 1, 5, 3, 6, 4]
+    labels = [
+        _inscription(1, "A", label="Référence"),
+        _inscription(2, "A", label=None),
+        _inscription(3, "A", label="Retard"),
+        _inscription(4, "A", label="couts.xlsx"),
+    ]
+    assert _sorted(labels, "object_label") == [3, 1, 4, 2]
+    projects = [
+        _inscription(1, "A", project=(universe(2), "PRJ-010")),
+        _inscription(2, "A"),
+        _inscription(3, "A", project=(universe(1), "PRJ-002")),
+    ]
+    assert _sorted(projects, "project") == [3, 1, 2]
+    assert _sorted(events, "correlation_id", descending=True) == [6, 5, 4, 3, 2, 1]
+    with pytest.raises(ValueError, match="no text column"):
+        mockaudit.sorted_by([], "occurred_at")
+
+
+def test_the_journal_is_sorted_by_author_and_by_label_as_the_examples_read(
+    journal: dict[str, Node],
+) -> None:
+    events = _events(journal["audit_events"])
+    for name, column in (
+        ("audit_events_by_actor", "actor"),
+        ("audit_events_by_object_label", "object_label"),
+    ):
+        assert _events(journal[name]) == mockaudit.sorted_by(cast("list[Any]", events), column)
+        assert sorted(map(json.dumps, _events(journal[name]))) == sorted(map(json.dumps, events))
+    names = [
+        event["actor"].get("display_name") for event in _events(journal["audit_events_by_actor"])
+    ]
+    assert names[-1] is None
+    assert names[0] == "Camille Martin"
+    labels = [
+        event["object"]["label"] for event in _events(journal["audit_events_by_object_label"])
+    ]
+    assert labels.index("Retard de livraison des armoires") < labels.index("Référence")
+    assert labels[-1] is None
+
+
+def test_a_correlation_retains_the_inscriptions_of_one_request(journal: dict[str, Node]) -> None:
+    retained = _events(journal["audit_events_correlation"])
+    assert [event["action"] for event in retained] == [
+        "reference_designate",
+        "revision_mark",
+        "amendment_merge",
+    ]
+    assert len({event["correlation_id"] for event in retained}) == 1
+    others = [
+        event
+        for event in _events(journal["audit_events"])
+        if event["correlation_id"] == retained[0]["correlation_id"]
+    ]
+    assert others == retained
+
+
+def test_a_search_holds_the_text_whatever_its_case_and_retains_no_object_without_label() -> None:
+    events = [
+        _inscription(1, "A", label="COUTS-reels-2026-05.xlsx"),
+        _inscription(2, "A", label="couts-reels-2026-04.xlsx"),
+        _inscription(3, "A", label=None),
+        _inscription(4, "A", label="Réception couts-Reels-2026-05"),
+    ]
+    found = mockaudit.searched(cast("list[Any]", events), "Couts-Reels-2026-05")
+    assert [cast("Node", each)["audit_event_id"] for each in found] == [
+        universe(1),
+        universe(4),
+    ]
+    assert mockaudit.searched(cast("list[Any]", events), "") == [events[0], events[1], events[3]]
+
+
+def test_the_search_example_retains_the_labels_that_hold_the_text_in_any_case(
+    journal: dict[str, Node],
+) -> None:
+    def holds(event: Node) -> bool:
+        label = event["object"]["label"]
+        return label is not None and mockaudit.SEARCHED.casefold() in label.casefold()
+
+    retained = _events(journal["audit_events_search"])
+    assert mockaudit.SEARCHED not in "".join(event["object"]["label"] for event in retained)
+    assert retained == [event for event in _events(journal["audit_events"]) if holds(event)]
+    assert [event["object"]["label"] for event in retained] == [
+        "couts-reels-2026-05.xlsx",
+        "couts-reels-2026-05-06.xlsx",
+    ]
+
+
+def test_the_facets_order_authors_by_name_then_identifier_and_projects_by_code() -> None:
+    # Two accounts of one name, by their identifiers; « Zoé » before « Émile » by code point; the
+    # platform no author. Two projects whose codes go the other way of their identifiers, by their
+    # codes; each once, under its latest inscription — the journal reads the latest first.
+    events = [
+        _inscription(1, "Émile", user=universe(305), project=(universe(1), "PRJ-020")),
+        _inscription(2, "Zoé", user=universe(309)),
+        _inscription(3, "Zoé", user=universe(302), project=(universe(2), "PRJ-003")),
+        _inscription(4, None, project=(universe(1), "PRJ-001")),
+        _inscription(5, "Alix", user=universe(307)),
+        _inscription(6, "Émile, avant", user=universe(305)),
+    ]
+    found = mockaudit.facets(cast("list[Any]", events))
+    assert found["actors"] == [
+        {"user_id": universe(307), "display_name": "Alix"},
+        {"user_id": universe(302), "display_name": "Zoé"},
+        {"user_id": universe(309), "display_name": "Zoé"},
+        {"user_id": universe(305), "display_name": "Émile"},
+    ]
+    assert found["projects"] == [
+        {"project_id": universe(2), "code": "PRJ-003", "label": "Projet PRJ-003"},
+        {"project_id": universe(1), "code": "PRJ-020", "label": "Projet PRJ-020"},
+    ]
+    assert mockaudit.facets([]) == {"actors": [], "projects": []}
+
+
+def test_the_facets_name_each_author_and_project_of_the_journal_once(
+    journal: dict[str, Node],
+) -> None:
+    events = _events(journal["audit_events"])
+    users = {user["user_id"]: user for user in fixture("users")["items"]}
+    facets = journal["audit_facets"]
+    authors = {event["actor"]["user_id"] for event in events if event["actor"]["kind"] == "user"}
+    assert {actor["user_id"] for actor in facets["actors"]} == authors
+    names = [(actor["display_name"], actor["user_id"]) for actor in facets["actors"]]
+    assert names == sorted(names)
+    for actor in facets["actors"]:
+        # The name of today: the account's, which its latest inscription displays.
+        assert actor["display_name"] == mockaudit.display_name(users[actor["user_id"]])
+    projects = {event["project"]["project_id"] for event in events if event["project"] is not None}
+    assert {project["project_id"] for project in facets["projects"]} == projects
+    codes = [(project["code"], project["project_id"]) for project in facets["projects"]]
+    assert codes == sorted(codes)
+    witness = fixture("project")
+    assert facets["projects"] == [
+        {"project_id": witness["project_id"], "code": witness["code"], "label": witness["label"]}
+    ]
+
+
+def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_revision(
+    journal: dict[str, Node],
+) -> None:
+    # The import of the estimate analysed this morning, applied by its task, which succeeds just
+    # after today: one inscription of its own request, on the import under its file name, in the
+    # revision in progress where an estimate applies (WF-INTF-0090), by the account of the
+    # session; the rest is the journal of the witness as it was.
+    imported = _events(journal["audit_events_import_applied"])
+    head, rest = imported[0], imported[1:]
+    analysed = fixture("import_analysed")
+    task = fixture("task_import_succeeded")
+    session = fixture("session")["user"]
+    current = fixture("project")["current_revision_id"]
+    assert analysed["kind"] == "estimate"
+    assert task["kind"] == "import_apply"
+    assert head["action"] == "import_apply"
+    assert head["occurred_at"] == task["finished_at"]
+    assert head["object"] == {
+        "kind": "import",
+        "object_id": analysed["import_id"],
+        "label": analysed["filename"],
+        "revision": {"revision_id": current, "label": None},
+    }
+    assert head["actor"] == {
+        "kind": "user",
+        "user_id": session["user_id"],
+        "display_name": mockaudit.display_name(session),
+    }
+    assert head["project"] is not None
+    assert head["project"]["project_id"] == fixture("project")["project_id"]
+    assert head["correlation_id"] not in {event["correlation_id"] for event in rest}
+    # A variant of the exit, not its sequel: neither its identifier nor its correlation is the
+    # exit's.
+    exited = _events(journal["audit_events_exited"])[0]
+    assert head["audit_event_id"] != exited["audit_event_id"]
+    assert head["correlation_id"] != exited["correlation_id"]
+    assert rest == _events(journal["audit_events_project"])
+    # The import of actual costs, applied before, lives in no revision (WF-CRE-0010).
+    assert all(
+        event["object"]["revision"] is None for event in rest if event["action"] == "import_apply"
+    )

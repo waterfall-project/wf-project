@@ -1391,9 +1391,13 @@ aucune suppression (WF-ADM-0060) ; une session qui peut modifier les rôles voit
 « Modifier » et « Supprimer » — la suppression logique du cadrage d'EP-03 (#456) —, indisponible tant
 qu'un compte porte le rôle, comme le serveur la refuserait (WF-ADM-0090) ; une autre session n'en
 voit aucun. Écart au contrat : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
-permissions d'administration, ou de lui retirer le rôle qui les porte, et `User` ne déclare ni ce
-refus ni la disponibilité de ces commandes (#540) — « Désactiver » et « Attribuer les rôles » sont
-offertes sur tout compte, et le refus du serveur se dira comme tout autre. Les filtres par colonne que le contrat ne porte pas — les rôles des comptes, la nature
+permissions d'administration, ou de lui retirer le rôle qui les porte, et `User` ne déclarait ni ce
+refus ni la disponibilité de ces commandes (#540) — « Désactiver » et « Attribuer les rôles »
+étaient offertes sur tout compte. Corrigé par EP-02/L42d (#507) : chaque compte porte ses commandes
+(`User.available_commands`), que l'écran présente comme le compte les liste — la désactivation du
+dernier administrateur indisponible avec sa condition, `last_administrator`, l'attribution de ses
+rôles disponible, le serveur refusant par `LAST_ADMINISTRATOR` des rôles qui lui retireraient ces
+permissions. Les filtres par colonne que le contrat ne porte pas — les rôles des comptes, la nature
 et les porteurs des rôles — et ce que lit la recherche des comptes sont #536.
 US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
 compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
@@ -1411,11 +1415,19 @@ nature d'auteur, auteur, action, projet, nature de l'objet et objet, paginée pa
 inscription nommant son objet et son projet, avec un lien là où la session peut les consulter
 (WF-ADM-0110) ; l'écran est gardé par `audit_log.read` et s'atteint depuis la navigation de
 l'administration ; la fonction en lecture seule entre dans la table de la navigation, et la matrice
-des permissions nomme son groupe par elle. Écarts au contrat relevés par L41e : le journal ne se trie
-que par date et ne se filtre ni sur la corrélation ni sur le libellé de l'objet (WF-IHM-0060,
-WF-IHM-0130) ; une inscription ne nomme pas la révision où s'adressent un risque, une ligne de coût
-ou un import, qui restent nommés sans lien ; aucune opération ne liste les auteurs ni les projets
-du journal entier, et les filtres s'appuient sur `listUsers` et `listProjects` (#550). Un exemple de
+des permissions nomme son groupe par elle. Écarts au contrat relevés par L41e : le journal ne se
+triait que par date et ne se filtrait ni sur la corrélation ni sur le libellé de l'objet
+(WF-IHM-0060, WF-IHM-0130) ; une inscription ne nommait pas la révision où s'adressent un risque,
+une ligne de coût ou un import, qui restaient nommés sans lien ; aucune opération ne listait les
+auteurs ni les projets du journal entier, et les filtres s'appuyaient sur `listUsers` et
+`listProjects` (#550). Corrigé par EP-02/L42d (#507) : la grille se trie sur chacune de ses
+colonnes, se cherche sur le libellé de l'objet et se filtre par corrélation, saisie ou suivie
+depuis une inscription ; un objet qui vit dans une révision mène à son écran propre dans celle que
+l'inscription nomme (`AuditObject.revision`), si la session lit sa fonction, sinon à la révision — un risque à son détail parmi les risques, un import
+à son compte rendu parmi les échanges, le différentiel d'un avenant aux structures de coûts de
+l'écran des révisions ; une ligne de coût réel et l'import des coûts réels n'en ont pas — ; les
+auteurs et les projets à choisir sont ceux du journal entier (`listAuditFacets`), si bien qu'un
+auditeur sans `users.read` filtre par auteur. Un exemple de
 session d'auditeur, qui consulte le journal sans lire les comptes (`session_auditor`, rôle composé
 « Auditeur »), porte les réglages gardés de sa grille.
 

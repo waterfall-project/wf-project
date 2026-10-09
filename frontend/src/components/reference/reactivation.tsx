@@ -26,7 +26,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import {
   createContext,
   type ReactNode,
@@ -42,13 +42,13 @@ import {
 import { type ActivationTarget, reactivate } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useUnmet } from "@/components/commands/command";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
-import { formatLocale } from "@/i18n/format";
 import { readingOf } from "@/navigation/pages";
 
 import { ActiveState } from "./section";
@@ -99,22 +99,6 @@ const Report = createContext<
 
 /** The cell a grid of the list keeps active, the one stop of its tabulation; none outside a grid. */
 const ACTIVE_CELL = '[role="grid"] [tabindex="0"], [role="treegrid"] [tabindex="0"]';
-
-/** The sentence that names the conditions an unavailable command lacks. */
-function useUnmet(): (offer: CommandOffer) => string {
-  const t = useTranslations("commands");
-  const conditionLabel = useTranslations("enums.CommandCondition");
-  const locale = useLocale();
-  return (offer) => {
-    const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
-    return t("unmet", {
-      count: missing.length,
-      conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
-        missing,
-      ),
-    });
-  };
-}
 
 /**
  * The region that says what the last unavailable command pressed lacks, rendered from the start so

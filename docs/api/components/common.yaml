@@ -211,6 +211,9 @@ ErrorCode:
     - CURRENT_REVISION_EXISTS
     - REFERENCE_NOT_CORRECTABLE
     - UNDO_CONFLICT
+    # Des rôles envoyés, ou un rôle modifié, qui retireraient au dernier compte actif qui les
+    # porte la permission de modifier les comptes ou les rôles d'habilitation (WF-ADM-0120) ;
+    # la désactivation de ce compte, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_ADMINISTRATOR
     - LAST_PROJECT_MANAGER
     - ACCESS_ROLE_IN_USE

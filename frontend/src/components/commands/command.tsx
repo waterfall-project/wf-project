@@ -67,23 +67,34 @@ export function UnmetConditions({
   readonly id: string | undefined;
   readonly offer: CommandOffer;
 }) {
-  const t = useTranslations("commands");
-  const conditionLabel = useTranslations("enums.CommandCondition");
-  const locale = useLocale();
+  const unmet = useUnmet();
   if (id === undefined) {
     return null;
   }
-  const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
   return (
     <p id={id} className="max-w-64 text-xs text-muted-foreground">
-      {t("unmet", {
-        count: missing.length,
-        conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
-          missing,
-        ),
-      })}
+      {unmet(offer)}
     </p>
   );
+}
+
+/**
+ * The sentence that names the conditions an unavailable command lacks, each by its label in the
+ * language of the reader: the one sentence of every command a screen presents unavailable.
+ */
+export function useUnmet(): (offer: CommandOffer) => string {
+  const t = useTranslations("commands");
+  const conditionLabel = useTranslations("enums.CommandCondition");
+  const locale = useLocale();
+  return (offer) => {
+    const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
+    return t("unmet", {
+      count: missing.length,
+      conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
+        missing,
+      ),
+    });
+  };
 }
 
 /** Render a command as the screen offers it, and tell of the outcome of running it. */

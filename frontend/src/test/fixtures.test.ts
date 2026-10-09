@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { Problem } from "@/api/problem";
+
 import { example, type FakeAnswers, fakeClient } from "./fixtures";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -149,7 +151,8 @@ describe("fakeClient", () => {
   });
 
   it("answers a refusal with the Problem as error, not data", async () => {
-    const problem = { code: "LAST_ADMINISTRATOR", status: 409 } as const;
+    // The deactivation of the last administrator, which the contract refuses (WF-ADM-0120).
+    const problem = example("user_deactivation_refused") as Problem & { status: 409 };
     const client = fakeClient({ "PUT /users/{user_id}/activation": { problem } });
     const body = { is_active: false, lock_version: 1 };
     const params = { path: { user_id: USER } };

@@ -11,7 +11,8 @@
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
  *   the commands to modify each, to deactivate or reactivate it, and to attribute its roles, which
- *   EP-03 wires (`UserCommand`) — none deletes an account.
+ *   EP-03 wires (`UserCommand`) — none deletes an account —, the last two as the account lists them
+ *   (`available_commands`): the deactivation of the last administrator unavailable (WF-ADM-0120).
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, the commands to modify and to delete
  *   each, which EP-03 wires (`RoleCommand`) — the deletion unavailable while an account holds it.
@@ -99,7 +100,7 @@ function UserCommandCell({
     <UserCommand
       command={command}
       name={t("named", { firstName: user.first_name, lastName: user.last_name })}
-      active={user.is_active}
+      offers={user.available_commands}
     />
   );
 }

@@ -97,6 +97,12 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly sorts?: false;
   /**
+   * Whether a click on its header asks its sort descending first, where the server gives it
+   * descending unasked — the date of the journal of audit, the most recent first —; ascending first
+   * otherwise.
+   */
+  readonly descendingFirst?: true;
+  /**
    * What it reads of a row: the value its cell formats — or, for a column that renders its cell,
    * only what TanStack Table asks of a column to offer its sort, never shown nor sorted here.
    */

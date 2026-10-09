@@ -5,8 +5,9 @@
  * author, an account by the name the inscription keeps — that of the moment of the action, kept
  * after the account is deactivated (WF-ADM-0060) — or the platform; the action and the nature of
  * the object, in words; the object and the project, by the names the inscription keeps, each a link
- * to it when the session may consult it (WF-ADM-0110), its name alone otherwise; and the link to
- * the history of the object, the journal filtered on it. A link is out of the order of tabulation,
+ * to it when the session may consult it (WF-ADM-0110), its name alone otherwise; the link to the
+ * history of the object, the journal filtered on it; and the correlation, a link to the inscriptions
+ * of its request alone (WF-OBS-0020). A link is out of the order of tabulation,
  * the grid being one stop, which follows it on Enter (`grid-keyboard.ts`).
  */
 "use client";
@@ -19,7 +20,12 @@ import { useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { usePendingLink } from "@/components/grid/pending-address";
 
-import { type AuditAction, type AuditObjectKind, historyHref } from "./audit-address";
+import {
+  type AuditAction,
+  type AuditObjectKind,
+  correlationHref,
+  historyHref,
+} from "./audit-address";
 
 type AuditEvent = components["schemas"]["AuditEvent"];
 
@@ -119,6 +125,30 @@ export function HistoryCell({ object }: { readonly object: AuditEvent["object"] 
       className="flex items-center justify-center text-muted-foreground hover:text-foreground"
     >
       <History aria-hidden="true" className="size-4" />
+    </Link>
+  );
+}
+
+/**
+ * Render the correlation of an inscription, a link to the inscriptions of its request alone — those
+ * of the background task it set off too —, the sort kept, from the address last asked.
+ */
+export function CorrelationCell({ correlation }: { readonly correlation: string }) {
+  const t = useTranslations("admin.auditLog");
+  const pathname = usePathname();
+  const { href, onClick } = usePendingLink((query) =>
+    correlationHref(pathname, query, correlation),
+  );
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      scroll={false}
+      tabIndex={-1}
+      aria-label={t("correlated", { correlation })}
+      className={LINK}
+    >
+      {correlation}
     </Link>
   );
 }

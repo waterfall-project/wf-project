@@ -202,6 +202,74 @@ def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
         assert role["holder_count"] == len(held), role["label"]
 
 
+def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
+    # The accounts are read by Camille Martin, who may modify them: each carries the command that
+    # changes its state and the attribution of its roles. The one active account that holds the
+    # permissions to modify the accounts and the access roles has its deactivation unavailable,
+    # the condition `last_administrator` missing (WF-ADM-0120); giving it more roles stays
+    # possible, and every other command listed is available.
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+
+    def administers(user: Node) -> bool:
+        held = {p for role in user["access_role_ids"] for p in roles[role]["permissions"]}
+        return user["is_active"] and {"users.write", "access_roles.write"} <= held
+
+    users = fixture("users")["items"]
+    administrators = [user["user_id"] for user in users if administers(user)]
+    assert administrators == [universe(301)]
+    listed = {user["user_id"]: user for user in users}
+    for user in [*users, *fixture("users_page")["items"]]:
+        assert user["available_commands"] == listed[user["user_id"]]["available_commands"]
+        last = user["user_id"] in administrators
+        unmet = ["last_administrator"] if last else []
+        assert user["available_commands"] == [
+            {
+                "command": "deactivate" if user["is_active"] else "reactivate",
+                "is_available": not last,
+                "missing_conditions": unmet,
+            },
+            {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
+        ], user["last_name"]
+
+
+def test_the_refusals_of_the_last_administrator_say_what_its_commands_say() -> None:
+    # The deactivation of Camille Martin, which her command says unavailable beforehand, is
+    # refused by the condition the command misses; the attribution of her roles, offered because
+    # giving her more stays possible, is refused by `LAST_ADMINISTRATOR` alone when the roles sent
+    # would take a permission away, as is the modification of the role she holds (WF-ADM-0120).
+    [camille] = [user for user in fixture("users")["items"] if user["user_id"] == universe(301)]
+    commands = {each["command"]: each for each in camille["available_commands"]}
+    deactivate, attribute = commands["deactivate"], commands["set_access_roles"]
+    deactivation = fixture("user_deactivation_refused")
+    assert not deactivate["is_available"]
+    assert deactivation["code"] == "STATE_FORBIDS_OPERATION"
+    assert deactivation["status"] == 409
+    assert [deactivation["params"]["missing_condition"]] == deactivate["missing_conditions"]
+    assert attribute["is_available"]
+    assert attribute["missing_conditions"] == []
+    for name in ("user_access_roles_refused", "access_role_update_refused"):
+        refusal = fixture(name)
+        assert (refusal["code"], refusal["status"]) == ("LAST_ADMINISTRATOR", 409), name
+        assert "params" not in refusal, name
+
+
+def test_an_active_object_is_refused_under_a_deactivated_node_by_its_field() -> None:
+    # WF-REF-0080: the office of automation studies (474) is deactivated, the wiring workshop
+    # (472) active; creating a node or a role under the first, or moving the second under it, is
+    # refused on the field that names it, by `INACTIVE_REFERENCE_OBJECT` (#293, #547).
+    nodes = {node["org_node_id"]: node for node in fixture("org_nodes_with_inactive")}
+    assert nodes[universe(474)]["is_active"] is False
+    assert nodes[universe(472)]["is_active"] is True
+    for name, pointer in (
+        ("org_node_creation_refused", "/parent_id"),
+        ("org_node_move_refused", "/parent_id"),
+        ("resource_role_creation_refused", "/org_node_id"),
+    ):
+        refusal = fixture(name)
+        assert (refusal["code"], refusal["status"]) == ("VALIDATION_FAILED", 422), name
+        assert refusal["fields"] == [{"pointer": pointer, "code": "INACTIVE_REFERENCE_OBJECT"}]
+
+
 def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> None:
     audits: list[tuple[Node, int]] = []
     for name in ("session", "me", "users"):

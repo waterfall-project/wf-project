@@ -16,7 +16,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
-import { type AuditEvent, type AuditSort, NEWEST_FIRST } from "./audit-columns";
+import { type AuditEvent, auditReach, type AuditSort, NEWEST_FIRST } from "./audit-columns";
 import { AuditFilterBar, type AuditFilterBarProps } from "./audit-filters";
 import { AuditGrid } from "./audit-grid";
 
@@ -42,14 +42,26 @@ interface Journal {
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const CAMILLE = "01926f3a-7c00-7000-8000-000000000301";
 const witness = example("audit_events") as Journal;
+const applied = example("audit_events_import_applied") as Journal;
+const CURRENT = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102`;
+
+/** The permissions of a session the contract gives as its example. */
+function permissionsOf(name: string): readonly components["schemas"]["PermissionCode"][] {
+  return (example(name) as components["schemas"]["Session"]).permissions;
+}
 const second = example("audit_events_page") as Journal;
 const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
-const AUTHORS: AuditFilterBarProps["users"] = [
-  { id: CAMILLE, firstName: "Camille", lastName: "Martin" },
-];
-const PROJECTS: AuditFilterBarProps["projects"] = [
-  { id: PROJECT, code: "PRJ-001", label: "Modernisation du poste de commande" },
-];
+const facets = example("audit_facets") as components["schemas"]["AuditFacets"];
+const AUTHORS: AuditFilterBarProps["users"] = facets.actors.map((actor) => ({
+  id: actor.user_id,
+  name: actor.display_name,
+}));
+const PROJECTS: AuditFilterBarProps["projects"] = facets.projects.map((project) => ({
+  id: project.project_id,
+  code: project.code,
+  label: project.label,
+}));
+const MERGE = "01926f3a-7c00-7000-8000-000800000018";
 const NAMED: AuditFilterBarProps["named"] = {
   user: undefined,
   project: undefined,
@@ -66,6 +78,7 @@ function journal({
   shown = witness,
   query = NEWEST,
   openable = [PROJECT],
+  session = "session",
   filters = filtersOf(page.search),
   named = NAMED,
   users = AUTHORS,
@@ -73,6 +86,8 @@ function journal({
   shown?: Journal;
   query?: GridQuery<AuditSort>;
   openable?: readonly string[];
+  /** The example of the session, whose permissions say which screens the links lead to. */
+  session?: string;
   filters?: AuditFilters;
   named?: AuditFilterBarProps["named"];
   users?: AuditFilterBarProps["users"];
@@ -86,7 +101,7 @@ function journal({
           page={shown.meta}
           query={query}
           preferences={undefined}
-          openable={openable}
+          reach={auditReach(permissionsOf(session), openable)}
         />
         <ListPages
           list={AUDIT_LIST}
@@ -148,20 +163,43 @@ describe("the grid of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
   });
 
-  it("sorts no other column: the contract sorts the journal by its dates alone (#550)", () => {
-    render(journal());
-    for (const name of [
-      "Auteur",
-      "Action",
-      "Nature de l’objet",
-      "Objet",
-      "Projet",
-      "Corrélation",
-    ]) {
-      expect(
-        within(within(grid()).getByRole("columnheader", { name })).queryByRole("button"),
-      ).toBeNull();
+  it("asks the server for each column the contract sorts both ways, never lifting the sort, back to the first page [WF-IHM-0060-A]", async () => {
+    page.search = "actions=backup&offset=50";
+    const { rerender } = render(journal());
+    const header = (name: string) => within(grid()).getByRole("columnheader", { name });
+    for (const [name, column] of [
+      ["Auteur", "actor"],
+      ["Action", "action"],
+      ["Nature de l’objet", "object_kind"],
+      ["Objet", "object_label"],
+      ["Projet", "project"],
+      ["Corrélation", "correlation_id"],
+    ] as const) {
+      await userEvent.click(within(header(name)).getByRole("button"));
+      expect(lastAddress()).toBe(
+        `/admin/audit-log?actions=backup&sort_by=${column}&sort_order=asc`,
+      );
     }
+    page.search = "sort_by=actor&sort_order=asc";
+    rerender(journal({ query: { sort: { column: "actor", order: "asc" }, search: undefined } }));
+    expect(header("Auteur")).toHaveAttribute("aria-sort", "ascending");
+    await userEvent.click(within(header("Auteur")).getByRole("button"));
+    expect(lastAddress()).toBe("/admin/audit-log?sort_by=actor&sort_order=desc");
+    page.search = "sort_by=actor&sort_order=desc";
+    rerender(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
+    await userEvent.click(within(header("Auteur")).getByRole("button"));
+    expect(lastAddress()).toBe("/admin/audit-log?sort_by=actor&sort_order=asc");
+    // The date, from another sort, asks the most recent first, as the server gives them unasked.
+    await userEvent.click(within(header("Date")).getByRole("button"));
+    expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
+  });
+
+  it("is searched by the server on the label of the object, back to the first page, its filters kept", async () => {
+    page.search = "actions=import_apply&offset=50";
+    render(journal());
+    const search = screen.getByRole("searchbox", { name: "Rechercher un libellé" });
+    await userEvent.type(search, "couts-reels{Enter}");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=import_apply&search=couts-reels");
   });
 
   it("names a backup, which has no label, by its nature, never by its identifier", () => {
@@ -191,10 +229,29 @@ describe("the grid of the journal", () => {
         name: "PRJ-001 · Modernisation du poste de commande",
       })[0],
     ).toHaveAttribute("href", `/projects/${PROJECT}`);
-    // An import is addressed in a revision the inscription does not name: its name alone.
+    // An object that lives in a revision leads to its own screen in the one the inscription
+    // names: the risk 752 to the risks of the revision in progress, its detail open; the
+    // differential of the amendment to the cost structures of the reference, on the screen of the
+    // revisions read in it.
+    expect(
+      within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102/risks?risk=01926f3a-7c00-7000-8000-000000000752`,
+    );
+    expect(
+      within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
+    );
+    // The import of actual costs belongs to the project and to no revision: its name alone.
     expect(within(grid()).queryByRole("link", { name: "couts-reels-2026-05.xlsx" })).toBeNull();
     rerender(journal({ openable: [] }));
     expect(within(grid()).queryByRole("link", { name: "Référence" })).toBeNull();
+    expect(
+      within(grid()).queryByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toBeNull();
     expect(
       within(grid()).queryByRole("link", { name: "PRJ-001 · Modernisation du poste de commande" }),
     ).toBeNull();
@@ -214,6 +271,59 @@ describe("the grid of the journal", () => {
       "/admin/audit-log?sort_by=occurred_at&sort_order=asc&object_kind=import&object_id=01926f3a-7c00-7000-8000-000000000a07";
     expect(history).toHaveAttribute("href", address);
     await userEvent.click(history);
+    expect(lastAddress()).toBe(address);
+  });
+
+  it("leads the import of an estimate applied to a revision to the exchanges of that revision, its report shown", () => {
+    render(journal({ shown: applied }));
+    expect(
+      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+    ).toHaveAttribute("href", `${CURRENT}/exchanges?import=01926f3a-7c00-7000-8000-000000000a11`);
+  });
+
+  it("leads an object whose screen the session may not read to its revision, and to nothing without a function of a revision to read [WF-ADM-0110-A]", () => {
+    // An estimator reads neither the risks nor the planning, of which the exchanges are a leaf,
+    // but reads the revisions and the estimate: the risk and the import lead to the revision,
+    // which leads to the estimate; the amendment, to the screen of the revisions.
+    const { rerender } = render(journal({ shown: applied, session: "session_estimator" }));
+    expect(
+      within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
+    ).toHaveAttribute("href", CURRENT);
+    expect(
+      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+    ).toHaveAttribute("href", CURRENT);
+    expect(
+      within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
+    );
+    // An auditor reads no function of a revision: none of its objects is a link.
+    rerender(journal({ shown: applied, session: "session_auditor" }));
+    for (const name of [
+      "Retard de livraison des armoires",
+      "devis-poste-de-commande.xlsx",
+      "Avenant 1 — extension du poste",
+      "Référence",
+    ]) {
+      expect(within(grid()).queryByRole("link", { name })).toBeNull();
+    }
+  });
+
+  it("leads to the inscriptions of one request, every other filter and the search lifted, its sort kept, back to the first page", async () => {
+    page.search = `sort_by=action&sort_order=asc&search=avenant&user_id=${CAMILLE}&object_kind=revision&offset=10`;
+    render(journal());
+    const correlated = within(grid()).getAllByRole("link", {
+      name: `Les inscriptions de la corrélation ${MERGE}`,
+    });
+    // The merge of the amendment, its marking and its designation: three inscriptions, one request.
+    expect(correlated).toHaveLength(3);
+    const address = `/admin/audit-log?sort_by=action&sort_order=asc&correlation_id=${MERGE}`;
+    for (const link of correlated) {
+      expect(link).toHaveAttribute("href", address);
+    }
+    const merge = within(grid()).getByRole("row", { name: /Contractualisation d’un avenant/ });
+    await userEvent.click(within(merge).getByRole("link", { name: /^Les inscriptions/ }));
     expect(lastAddress()).toBe(address);
   });
 
@@ -347,7 +457,7 @@ describe("the filters of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
   });
 
-  it("filter by author, an account the session may read, back to the first page", async () => {
+  it("filter by author, an account the journal names, back to the first page", async () => {
     page.search = "offset=50";
     render(journal());
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Auteur" }), CAMILLE);
@@ -387,7 +497,7 @@ describe("the filters of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log");
   });
 
-  it("filter by project, one the session may open, back to the first page", async () => {
+  it("filter by project, one the journal names, back to the first page", async () => {
     page.search = "offset=50";
     render(journal());
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Projet" }), PROJECT);
@@ -438,6 +548,37 @@ describe("the filters of the journal", () => {
     expect(
       screen.getByRole("link", { name: "Lever le filtre sur «\u00a0Sauvegarde\u00a0»" }),
     ).toBeInTheDocument();
+  });
+
+  it("filter by correlation, entered and sent as the contract takes it, back to the first page, the filter lifted when emptied", async () => {
+    page.search = "actions=amendment_merge&offset=50";
+    const { rerender } = render(journal());
+    const field = screen.getByRole("searchbox", { name: "Corrélation" });
+    // A correlation pasted, blanks around it: trimmed, as the contract takes it.
+    await userEvent.type(field, ` ${MERGE} {Enter}`);
+    expect(lastAddress()).toBe(`/admin/audit-log?actions=amendment_merge&correlation_id=${MERGE}`);
+    expect(field).toHaveFocus();
+    page.search = `actions=amendment_merge&correlation_id=${MERGE}`;
+    rerender(journal());
+    expect(field).toHaveValue(MERGE);
+    await userEvent.clear(field);
+    await userEvent.type(field, "{Enter}");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=amendment_merge");
+  });
+
+  it("send no correlation the contract would refuse: the browser says why, and the address stays", async () => {
+    page.search = "actions=amendment_merge";
+    render(journal());
+    const field = screen.getByRole("searchbox", { name: "Corrélation" });
+    await userEvent.type(field, "a b{Enter}");
+    expect(field).toBeInvalid();
+    // The browser says the form it asks.
+    expect(field).toHaveAttribute(
+      "title",
+      "Lettres, chiffres, «\u00a0.\u00a0», «\u00a0_\u00a0», «\u00a0-\u00a0»\u00a0; 64 au plus.",
+    );
+    expect(router.push).not.toHaveBeenCalled();
+    expect(field).toHaveAttribute("maxLength", "64");
   });
 
   it("offer no filter of authors when no account may be chosen and none is", () => {

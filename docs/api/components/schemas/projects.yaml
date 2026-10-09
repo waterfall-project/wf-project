@@ -80,7 +80,7 @@ CommandCondition:
     `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration
     d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un
     import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
-    coûts réels n'écrit pas dans la révision (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090,
+    coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090,
     WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
     cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une
     commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
@@ -97,7 +97,12 @@ CommandCondition:
     parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé
     (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant
     qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans
-    leur 409.
+    leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
+    `last_administrator` manque à la désactivation du dernier compte actif qui porte les
+    permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
+    `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
+    `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
   enum:
     - is_contributor
     - is_project_manager
@@ -123,6 +128,7 @@ CommandCondition:
     - org_node_parent_active
     - org_node_active
     - calendar_not_default
+    - last_administrator
 
 ProjectCommand:
   type: string

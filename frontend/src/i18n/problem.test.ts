@@ -71,6 +71,18 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says the last administrator kept, by the condition her deactivation lacks, or by its own code for roles that would take her permissions away [WF-ADM-0120-A]", () => {
+    const deactivation = example("user_deactivation_refused") as ProblemText;
+    expect(say(deactivation, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: un autre compte actif portant les permissions d\u2019administration.",
+    );
+    for (const name of ["user_access_roles_refused", "access_role_update_refused"]) {
+      expect(say(example(name) as ProblemText, "fr")).toBe(
+        "Au moins un compte actif doit garder les permissions d\u2019administration.",
+      );
+    }
+  });
+
   it("names the state that forbids the operation by its label in the enumeration the refusal names, and the object it is the state of", () => {
     // The indicators of a project in pricing, and its workload on a reference it does not have:
     // the state of a project, said so (#413).

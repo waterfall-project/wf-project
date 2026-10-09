@@ -64,12 +64,13 @@ AuditObjectKind:
 
 AuditObject:
   type: object
-  required: [kind, object_id, label]
+  required: [kind, object_id, label, revision]
   description: >-
     L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce
     moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis —
     ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets
-    (WF-SEC-0030).
+    (WF-SEC-0030). Un objet qui vit dans une révision la nomme (`revision`), pour que l'écran
+    y mène.
   properties:
     kind: { $ref: '#/AuditObjectKind' }
     object_id: { $ref: ../common.yaml#/Uuid }
@@ -80,12 +81,40 @@ AuditObject:
         numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché
         d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a
         pas : sa date est celle de l'inscription.
+    revision:
+      anyOf: [{ $ref: '#/AuditRevision' }, { type: 'null' }]
+      description: >-
+        La révision où l'objet vit, au moment de l'action : celle dont le registre porte le
+        risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son
+        devis propre (WF-RIS-0060) —, celle du différentiel d'un avenant
+        (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning,
+        d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas
+        dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée
+        au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un
+        planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090),
+        un compte, un rôle, une sauvegarde, un dépôt.
+
+AuditRevision:
+  type: object
+  required: [revision_id, label]
+  description: >-
+    La révision d'un objet du journal, par son identifiant et son libellé au moment de l'action
+    (WF-SEC-0030).
+  properties:
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le nom de version de la révision au moment de l'action ; nul pour une révision en
+        cours d'élaboration, qui n'en a pas encore (WF-REV-0010).
 
 AuditProject:
   type: object
   required: [project_id, code, label]
   description: >-
-    Le projet de l'objet, par son identifiant, son code et son libellé au moment de l'action.
+    Un projet du journal, par son identifiant, son code et son libellé : ceux du moment de
+    l'action dans une inscription (`AuditEvent.project`), ceux d'aujourd'hui dans les facettes
+    (`AuditFacets.projects`).
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string }
@@ -131,3 +160,37 @@ AuditEvent:
       description: >-
         L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de
         fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme.
+
+AuditActorFacet:
+  type: object
+  required: [user_id, display_name]
+  description: Un compte auteur d'au moins une inscription du journal.
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    display_name:
+      type: string
+      description: >-
+        Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime
+        jamais (WF-ADM-0060).
+
+AuditFacets:
+  type: object
+  required: [actors, projects]
+  description: >-
+    Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres
+    de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les
+    lire, sans celle de lire les comptes ni les projets (WF-ADM-0100).
+  properties:
+    actors:
+      type: array
+      description: >-
+        Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis
+        par identifiant ; la plateforme n'y est pas : `actor_kind` la retient.
+      items: { $ref: '#/AuditActorFacet' }
+    projects:
+      type: array
+      description: >-
+        Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé
+        d'aujourd'hui, dans l'ordre des codes puis des identifiants : consultables ou non par
+        l'appelant, comme le journal les nomme.
+      items: { $ref: '#/AuditProject' }

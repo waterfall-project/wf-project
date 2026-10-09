@@ -7,14 +7,18 @@
  * modify one, delete one — a logical deletion, decided by the framing of EP-03 (#456): the role is
  * no longer read nor attributable. They are offered only to a session that may modify the function
  * — `users.write`, `access_roles.write` (`platformOffer`) —, and none to another: the screen
- * presents only what the user may do (WF-IHM-0090). Pressed, a command says it is available with
- * EP-03, in one region announced — each press, the same one pressed again too —; nothing is asked
- * of the server.
+ * presents only what the user may do (WF-IHM-0090). An account lists its own commands besides
+ * (`User.available_commands`): its deactivation or its reactivation, and the attribution of its
+ * roles, each presented as the server lists it — absent, not presented; unavailable, with the
+ * condition it lacks: the last account active that holds the permissions of administration is not
+ * deactivated (WF-ADM-0120), which the front could not find itself, the list being paged. Pressed,
+ * a command says it is available with EP-03, in one region announced — each press, the same one
+ * pressed again too —; nothing is asked of the server.
  *
  * A command the server declares it would refuse is presented unavailable, as `Command` does: a
- * role an account holds is not deleted (`deleteAccessRole`, 409, WF-ADM-0090) — its deletion is
- * marked `aria-disabled`, described by the condition it lacks; a press does not run it, and says in
- * the region the condition it lacks.
+ * role an account holds is not deleted (`deleteAccessRole`, 409, WF-ADM-0090), the last
+ * administrator is not deactivated — its command is marked `aria-disabled`, described by the
+ * condition it lacks; a press does not run it, and says in the region the condition it lacks.
  *
  * Every prop is data — the command, the name of the object —, never a function: a server component
  * hands them over (défaut n° 12 de `typescript.md`). In a dense grid, a command is out of the order
@@ -35,7 +39,9 @@ import {
 import { useTranslations } from "next-intl";
 import { createContext, type ReactNode, useContext, useId, useMemo, useState } from "react";
 
-import { UNAVAILABLE } from "@/components/commands/offer";
+import type { components } from "@/api/generated/schema";
+import { useUnmet } from "@/components/commands/command";
+import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
@@ -190,50 +196,69 @@ export function RoleCommand({
 /** A command of an account: none deletes it (WF-ADM-0060). */
 export type UserCommandName = "modify" | "activation" | "assignRoles";
 
+/** The commands an account lists, each available or naming what it lacks (`available_commands`). */
+type UserCommandOffers = components["schemas"]["User"]["available_commands"];
+
 /**
- * A command of an account, named after it: its modification, its deactivation or its reactivation
- * as it is active or not, the attribution of its roles.
+ * A command of an account, named after it: its modification; its deactivation or its reactivation,
+ * whichever the account lists; the attribution of its roles, if it lists it — each unavailable with
+ * the condition it lacks as the server says, and none the account does not list.
  */
 export function UserCommand({
   command,
   name,
-  active,
+  offers,
 }: {
   readonly command: UserCommandName;
   /** The name of the account, as the list shows it. */
   readonly name: string;
-  readonly active: boolean;
+  /** The commands the account lists. */
+  readonly offers: UserCommandOffers;
 }) {
   const t = useTranslations("admin.users");
+  const unmet = useUnmet();
+  /** What an offer lacks, in a sentence; nothing when it is available. */
+  const lacking = (offer: CommandOffer) => (offer.is_available ? undefined : unmet(offer));
   switch (command) {
     case "modify":
       return (
         <LaterButton icon={PencilLine} text={t("modify")} named={t("modifyUser", { name })} cell />
       );
-    case "activation":
-      return active ? (
-        <LaterButton
-          icon={UserX}
-          text={t("deactivate")}
-          named={t("deactivateUser", { name })}
-          cell
-        />
-      ) : (
+    case "activation": {
+      const deactivation = findOffer(offers, "deactivate");
+      const reactivation = findOffer(offers, "reactivate");
+      if (deactivation !== undefined) {
+        return (
+          <LaterButton
+            icon={UserX}
+            text={t("deactivate")}
+            named={t("deactivateUser", { name })}
+            cell
+            unavailable={lacking(deactivation)}
+          />
+        );
+      }
+      return reactivation === undefined ? null : (
         <LaterButton
           icon={RotateCcw}
           text={t("reactivate")}
           named={t("reactivateUser", { name })}
           cell
+          unavailable={lacking(reactivation)}
         />
       );
-    case "assignRoles":
-      return (
+    }
+    case "assignRoles": {
+      const attribution = findOffer(offers, "set_access_roles");
+      return attribution === undefined ? null : (
         <LaterButton
           icon={KeyRound}
           text={t("assignRoles")}
           named={t("assignRolesUser", { name })}
           cell
+          unavailable={lacking(attribution)}
         />
       );
+    }
   }
 }

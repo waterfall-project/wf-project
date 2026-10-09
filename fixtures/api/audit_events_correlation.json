@@ -1,0 +1,12 @@
+{
+  "summary": "Les inscriptions de la requête qui a fusionné l'avenant 1 (correlation_id) : la fusion, le marquage de la révision « Référence » et sa désignation comme référence, 3 inscriptions d'un même instant ; la fusion nomme la révision où vit le différentiel, « Référence » (WF-SEC-0030, WF-OBS-0020, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "items": [
+      {"audit_event_id":"01926f3a-7c00-7000-8000-000700000020","occurred_at":"2026-02-01T09:00:00Z","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"action":"reference_designate","object":{"kind":"revision","object_id":"01926f3a-7c00-7000-8000-000000000101","label":"Référence","revision":null},"project":{"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande"},"correlation_id":"01926f3a-7c00-7000-8000-000800000018"},
+      {"audit_event_id":"01926f3a-7c00-7000-8000-000700000019","occurred_at":"2026-02-01T09:00:00Z","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"action":"revision_mark","object":{"kind":"revision","object_id":"01926f3a-7c00-7000-8000-000000000101","label":"Référence","revision":null},"project":{"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande"},"correlation_id":"01926f3a-7c00-7000-8000-000800000018"},
+      {"audit_event_id":"01926f3a-7c00-7000-8000-000700000018","occurred_at":"2026-02-01T09:00:00Z","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"action":"amendment_merge","object":{"kind":"cost_structure","object_id":"01926f3a-7c00-7000-8000-000000000212","label":"Avenant 1 — extension du poste","revision":{"revision_id":"01926f3a-7c00-7000-8000-000000000101","label":"Référence"}},"project":{"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande"},"correlation_id":"01926f3a-7c00-7000-8000-000800000018"}
+    ],
+    "meta": {"limit":50,"offset":0,"total":3}
+  }
+}

@@ -9,16 +9,19 @@ import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole
 // catalogue — the consultation of the journal included —, the journal of the installation on
-// 3 June 2026, thirty-four inscriptions, whatever the filters, the sort or the page asked, the
-// accounts and the projects of the witness: the page and component tests prove what the screen asks
-// of each, and that a session without the consultation finds it not found.
+// 3 June 2026, thirty-six inscriptions, whatever the filters, the search, the sort or the page asked,
+// the authors and the projects the journal names, and the projects of the witness: the page and
+// component tests prove what the screen asks of each, and that a session without the consultation
+// finds it not found.
 const JOURNAL = "/admin/audit-log";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+/** The risks of the revision in progress, where the risk 752 occurred, its detail open. */
+const RISK = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102/risks?risk=01926f3a-7c00-7000-8000-000000000752`;
 
 test("reaches the journal of audit from the navigation of the administration, and reads it on a grid that holds in the window", async ({
   page,
 }) => {
-  await compile(page.request, JOURNAL, `/projects/${PROJECT}`);
+  await compile(page.request, JOURNAL, `/projects/${PROJECT}`, RISK);
   await page.goto("/admin/users");
   const nav = page.getByRole("navigation", { name: "Fonctions" });
   await setExpanded(nav.getByRole("button", { name: "Administration", exact: true }), true);
@@ -51,9 +54,14 @@ test("reaches the journal of audit from the navigation of the administration, an
     .getByRole("link", { name: "PRJ-001 · Modernisation du poste de commande" })
     .click();
   await expect(page).toHaveURL(`/projects/${PROJECT}`, { timeout: WORKING });
+
+  // The risk, which lives in a revision, leads to the risks of the one the inscription names.
+  await page.goBack();
+  await grid.getByRole("link", { name: "Retard de livraison des armoires", exact: true }).click();
+  await expect(page).toHaveURL(RISK, { timeout: WORKING });
 });
 
-test("sorts the journal by date both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
+test("sorts the journal on its columns both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
   page,
 }) => {
   test.slow();
@@ -68,6 +76,18 @@ test("sorts the journal by date both ways and filters it by the server, under th
     timeout: WORKING,
   });
   await expect(date).toHaveAttribute("aria-sort", "descending");
+  // The author, sorted by the server: the header asks it ascending, the date header then unsorted.
+  await grid
+    .getByRole("columnheader", { name: /^Auteur/ })
+    .getByRole("button")
+    .click();
+  await expect(page).toHaveURL(`${JOURNAL}?sort_by=actor&sort_order=asc`, { timeout: WORKING });
+  await expect(date).not.toHaveAttribute("aria-sort", "descending");
+  // The date, from another sort, asks the most recent first, as the server gives them unasked.
+  await date.getByRole("button").click();
+  await expect(page).toHaveURL(`${JOURNAL}?sort_by=occurred_at&sort_order=desc`, {
+    timeout: WORKING,
+  });
 
   // The platform alone, then the backups, in a menu of the actions.
   await page
@@ -112,4 +132,16 @@ test("sorts the journal by date both ways and filters it by the server, under th
     timeout: WORKING,
   });
   await expect(page.getByRole("combobox", { name: "Nature de l’objet" })).toBeFocused();
+
+  // The inscriptions of one request: the merge of the amendment, every other filter lifted.
+  const merge = "01926f3a-7c00-7000-8000-000800000018";
+  await grid
+    .getByRole("link", { name: `Les inscriptions de la corrélation ${merge}` })
+    .first()
+    .click();
+  await expect(page).toHaveURL(
+    `${JOURNAL}?sort_by=occurred_at&sort_order=desc&correlation_id=${merge}`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("searchbox", { name: "Corrélation" })).toHaveValue(merge);
 });

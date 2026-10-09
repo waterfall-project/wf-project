@@ -12,7 +12,10 @@ export interface Examples {
     200: "access_roles";
   };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_empty" | "audit_events_exited" | "audit_events_page" | "audit_events_project";
+    200: "audit_events" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
+  };
+  "GET /audit-events/facets": {
+    200: "audit_facets";
   };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";

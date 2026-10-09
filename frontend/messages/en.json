@@ -1278,6 +1278,7 @@
       "noProject": "No project",
       "project": "{code} · {label}",
       "history": "History of “{object}”",
+      "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
       "filters": {
         "label": "Filters of the log",
@@ -1298,7 +1299,9 @@
         "everyObjectKind": "Every kind",
         "object": "Object: {object}",
         "lift": "Lift",
-        "liftObject": "Lift the filter on “{object}”"
+        "liftObject": "Lift the filter on “{object}”",
+        "correlation": "Correlation",
+        "correlationForm": "Letters, digits, “.”, “_”, “-”; 64 at most."
       }
     }
   },
@@ -1745,7 +1748,8 @@
       "risk_identified": "risk identified",
       "org_node_parent_active": "parent node active",
       "org_node_active": "organisation node active",
-      "calendar_not_default": "calendar other than the default one"
+      "calendar_not_default": "calendar other than the default one",
+      "last_administrator": "another active account holding the administration permissions"
     },
     "ProjectExit": {
       "to_state": {
@@ -2032,6 +2036,11 @@
     "ReferenceCommand": {
       "deactivate": "Deactivate",
       "reactivate": "Reactivate"
+    },
+    "UserCommand": {
+      "deactivate": "Deactivate the account",
+      "reactivate": "Reactivate the account",
+      "set_access_roles": "Assign the roles of the account"
     },
     "RiskComputedField": {
       "field": {

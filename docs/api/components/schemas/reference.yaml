@@ -121,6 +121,10 @@ OrgNodeWrite:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
+      description: >-
+        Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous
+        un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
+        Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`.
 
 OrgNodeUpdate:
   description: >-
@@ -199,21 +203,30 @@ ResourceRoleWrite:
   required: [label, org_node_id, cost_category_id, calendar_id, capacity]
   properties:
     label: { type: string, minLength: 1, maxLength: 200 }
-    org_node_id: { $ref: ../common.yaml#/Uuid }
+    org_node_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à
+        l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif,
+        ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur
+        `/org_node_id` (WF-REF-0080).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
 
 ResourceRoleUpdate:
+  type: object
+  required: [label, cost_category_id, calendar_id, capacity, lock_version]
   description: >-
-    Modification d'un rôle de ressource : porte le compteur lu,
-    qu'une création n'a pas.
-  allOf:
-    - $ref: '#/ResourceRoleWrite'
-    - type: object
-      required: [lock_version]
-      properties:
-        lock_version: { $ref: ../common.yaml#/LockVersion }
+    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le
+    compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
+    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 200 }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    capacity: { $ref: '#/RoleCapacity' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Calendar:
   description: >-

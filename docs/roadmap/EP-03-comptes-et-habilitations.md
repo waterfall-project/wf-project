@@ -354,8 +354,11 @@ permissions effectives sont l'union des permissions des rôles non supprimés du
 ou `access_roles.write` — désactivation, attribution des rôles, modification ou suppression
 d'un rôle, désactivation par la lecture des comptes — prend d'abord un verrou consultatif de
 transaction unique (`pg_advisory_xact_lock`), relit sous lui, puis vérifie qu'un compte actif
-au moins garde les deux permissions (WF-ADM-0120). Le refus est `LAST_ADMINISTRATOR` (409) ;
-la lecture des comptes, elle, garde le compte actif et le signale.
+au moins garde les deux permissions (WF-ADM-0120). La désactivation, que la commande du compte
+dit d'avance (`last_administrator`), est refusée par `STATE_FORBIDS_OPERATION` (409) ; le retrait
+d'une permission par l'attribution des rôles ou la modification d'un rôle, qui dépend des rôles
+envoyés, par `LAST_ADMINISTRATOR` (409) (contrat, EP-02/L42d) ; la lecture des comptes, elle,
+garde le compte actif et le signale.
 
 ### Le service d'API
 

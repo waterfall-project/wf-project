@@ -12,7 +12,9 @@
  * unavailable, lacking `may_create_revision`. Elsewhere — accounts, roles, reference data,
  * backups — the commands of a function follow its permission of modification in the session, and
  * the restoration its own, `platform_restore`: the rule of the catalogue itself (WF-ADM-0100),
- * with no condition to name.
+ * with no condition to name; save those an object lists itself, as a project does — the
+ * reactivation of an object of the reference data, the deactivation, the reactivation and the
+ * attribution of the roles of an account (`available_commands`).
  *
  * Greying a command out is a convenience of reading, not a protection: the server judges the
  * command anyway, and its refusal is rendered (`OutcomeNotice`).

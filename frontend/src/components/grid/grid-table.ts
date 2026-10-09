@@ -88,7 +88,7 @@ function tableColumns<Row extends RowData, Sort extends string, Totals>(
         maxSize: MAX_WIDTH,
         enableHiding: column.pinned !== true,
         enableSorting: sortedBy(config, column) !== undefined,
-        sortDescFirst: false,
+        sortDescFirst: column.descendingFirst === true,
       }),
     ),
   ];
