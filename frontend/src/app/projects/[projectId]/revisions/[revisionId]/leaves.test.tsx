@@ -41,11 +41,21 @@ function html(page: ReactNode): string {
   );
 }
 
+/** The text of some markup: its tags removed until none is left, a tag split by another included. */
+function textOf(markup: string): string {
+  let text = markup;
+  for (let before = ""; before !== text;) {
+    before = text;
+    text = text.replace(/<[^>]*>/g, "");
+  }
+  return text.trim();
+}
+
 /** The address each link of a page leads to, by the text of the link. */
 function links(markup: string): Record<string, string> {
   return Object.fromEntries(
     [...markup.matchAll(/<a [^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g)].map((match) => [
-      (match[2] ?? "").replace(/<[^>]*>/g, "").trim(),
+      textOf(match[2] ?? ""),
       (match[1] ?? "").replaceAll("&amp;", "&"),
     ]),
   );
