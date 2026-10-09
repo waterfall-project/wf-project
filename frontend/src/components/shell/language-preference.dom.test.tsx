@@ -118,7 +118,7 @@ describe("the language in the menu of the account", () => {
 
   it("applies the chosen language without signing in again [WF-INTF-0160-A]", async () => {
     // The back keeps the choice, and the next read of the session returns it; the fake back
-    // keeps nothing, so the second answer of GET /session stands in for what it would keep.
+    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
     const client = await open({
       "GET /me": ["me", "me_english"],
       [PREFERENCES]: "preferences",

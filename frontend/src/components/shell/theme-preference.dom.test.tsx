@@ -118,7 +118,7 @@ describe("the mode selector", () => {
 
   it("records the mode chosen in the account, and renders the page in it", async () => {
     // The back keeps the choice, and the next read of the session returns it; the fake back
-    // keeps nothing, so the second answer of GET /session stands in for what it would keep.
+    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
     const client = await open({
       "GET /me": ["me", "me_dark"],
       [PREFERENCES]: "preferences_dark",

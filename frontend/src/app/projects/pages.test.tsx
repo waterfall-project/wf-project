@@ -151,7 +151,7 @@ type CitedRead = {
 
 /** The examples the reads of a revision answer, by the end of their path, the others aside. */
 const EXAMPLE_BY_END = {
-  "/session": ["GET /me", "me"],
+  "/me": ["GET /me", "me"],
   "/structures": ["GET /projects/{project_id}/revisions/{revision_id}/structures", "structures"],
   "/nodes": [
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",

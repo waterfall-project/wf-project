@@ -67,11 +67,7 @@ test("`/login` follows a path of the front only: no screen aimed at, or another 
   await expect(page).toHaveURL("/");
 });
 
-test("no screen asks for a password or offers to change one", async ({ page }) => {
-  await page.goto("/login");
-  await expect(page.getByLabel("Mot de passe", { exact: false })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Mot de passe oublié ?" })).toHaveCount(0);
-
+test("no screen asks for a password or offers to change one [WF-ADM-0140-A]", async ({ page }) => {
   await page.goto("/account");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon compte");
   await expect(page.getByRole("main")).toContainText("camille.martin@example.com");

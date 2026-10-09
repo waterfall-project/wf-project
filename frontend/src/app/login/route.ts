@@ -16,7 +16,11 @@ import { NEXT_PARAMETER, returnTarget } from "@/navigation/login";
 /** Lead to the screen aimed at, once the session is open. */
 export function GET(request: Request): Response {
   if (!isMockAuthentication()) {
-    return new Response(null, { status: 501 });
+    // For the operator, not the user: no catalogue of translation speaks to it.
+    return new Response("Sign-in is not available yet: it comes with US-0350/L4.\n", {
+      status: 501,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
   const next = new URL(request.url).searchParams.get(NEXT_PARAMETER);
   // A relative address: behind a proxy, the address the request carries is not the browser's.

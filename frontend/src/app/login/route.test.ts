@@ -29,8 +29,11 @@ describe("the sign-in route", () => {
     },
   );
 
-  it("answers nothing else yet, where a redirect would loop", () => {
+  it("answers nothing else yet, where a redirect would loop", async () => {
     vi.stubEnv("WATERFALL_AUTH", undefined);
-    expect(login("?next=/").status).toBe(501);
+    const response = login("?next=/");
+    expect(response.status).toBe(501);
+    expect(response.headers.get("Content-Type")).toContain("text/plain");
+    expect(await response.text()).not.toBe("");
   });
 });

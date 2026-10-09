@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ACCOUNT_DEACTIVATED_DIGEST,
   correlationDigest,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
@@ -40,6 +41,14 @@ describe("a server action whose promise rejected", () => {
     expect(rejected(thrown(SESSION_REQUIRED_DIGEST))).toEqual({
       kind: "signed_out",
       problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    });
+  });
+
+  it("is a refusal that says the account deactivated, not a session lost, by its digest", () => {
+    expect(rejected(thrown(ACCOUNT_DEACTIVATED_DIGEST))).toEqual({
+      kind: "refused",
+      problem: { code: "ACCOUNT_DEACTIVATED", status: 401 },
       conflictingObjectId: null,
     });
   });
