@@ -1,0 +1,11 @@
+{
+  "summary": "L'ingénierie électrique, MO-001, passée sous les débours, refusé : le devis du projet témoin l'emploie, et une catégorie employée ne se rattache qu'à une nature du même type, comme sa commande change_cost_type le disait ; rien n'est écrit (WF-REF-0030, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "cost_category_unused"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001030"
+  }
+}

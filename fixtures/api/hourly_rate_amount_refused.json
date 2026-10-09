@@ -1,0 +1,17 @@
+{
+  "summary": "Le taux de 2016 de l'ingénierie mécanique de niveau 1 corrigé à 0,00 : refusé, un taux étant positif, et le plus petit admis nommé ; rien n'est écrit (WF-REF-0050).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/amount",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "0.01"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001028"
+  }
+}

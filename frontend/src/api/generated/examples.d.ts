@@ -168,7 +168,7 @@ export interface Examples {
     200: "volume/hourly_rates";
   };
   "GET /reference/cost-types": {
-    200: "cost_types" | "cost_types_reader";
+    200: "cost_types" | "cost_types_reader" | "cost_types_with_inactive";
   };
   "GET /reference/duration-units": {
     200: "duration_units";

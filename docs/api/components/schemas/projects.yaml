@@ -114,7 +114,21 @@ CommandCondition:
     parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé
     (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant
     qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans
-    leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
+    leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme
+    (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une
+    nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans
+    son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme
+    (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une
+    nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des
+    taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409.
+    Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de
+    provision des risques prennent la catégorie (WF-REF-0030, #578) :
+    `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la
+    dernière nature provision active à porter une catégorie active, et
+    `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un
+    autre type de la seule catégorie active des natures provision actives ; les opérations
+    d'activation et de modification les nomment dans leur 409.
+    Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
     `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
@@ -145,6 +159,11 @@ CommandCondition:
     - org_node_parent_active
     - org_node_active
     - calendar_not_default
+    - cost_type_unused
+    - cost_category_unused
+    - cost_category_unrated
+    - cost_type_not_last_provision
+    - cost_category_not_last_provision
     - last_administrator
 
 ProjectCommand:

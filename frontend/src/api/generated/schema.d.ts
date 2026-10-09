@@ -848,7 +848,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un nœud d'organisation
-         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`. Créé actif, il ne prend pas place sous un parent désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
+         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Créé actif, il ne prend pas place sous un parent désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
          */
         post: operations["createOrgNode"];
         delete?: never;
@@ -872,7 +872,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un nœud d'organisation
-         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas actif.
+         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas actif.
          */
         patch: operations["updateOrgNode"];
         trace?: never;
@@ -1078,13 +1078,13 @@ export interface paths {
         };
         /**
          * Natures de coût
-         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se filtrent, et `meta.total` compte les natures retenues. Chaque nature porte la commande qui change son état (`available_commands`, WF-IHM-0090).
+         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son type, indisponible dès qu'une de ses catégories est employée (WF-REF-0030).
          */
         get: operations["listCostTypes"];
         put?: never;
         /**
          * Créer une nature de coût
-         * @description Nature de coût de l'installation (WF-REF-0030).
+         * @description Nature de coût de l'installation, de l'un des trois types (WF-REF-0030). Son code est unique : un code déjà porté par une autre nature, active ou désactivée, est refusé par 409, `ALREADY_EXISTS`. Créée, elle porte ses commandes (`available_commands`) : la modification de son type est disponible tant qu'aucune de ses catégories n'est employée.
          */
         post: operations["createCostType"];
         delete?: never;
@@ -1108,7 +1108,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une nature de coût
-         * @description Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée (WF-REF-0030).
+         * @description Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté par une autre nature est refusé par 409, `ALREADY_EXISTS`. Un type changé vers ou depuis la provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement des catégories provision —, que la réponse ne porte pas : le client relit les listes.
          */
         patch: operations["updateCostType"];
         trace?: never;
@@ -1123,7 +1123,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une nature de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit : la commande de la nature est toujours disponible (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible. La désactivation l'est aussi, sauf pour la dernière nature provision active à porter une catégorie active : il en reste toujours une, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que la commande `deactivate` de la nature dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement de leurs catégories —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setCostTypeActivation"];
         post?: never;
@@ -1142,13 +1142,13 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte la commande qui change son état (`available_commands`, WF-IHM-0090).
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des taux (WF-REF-0030, WF-REF-0050).
          */
         get: operations["listCostCategories"];
         put?: never;
         /**
          * Créer une catégorie de coût
-         * @description La catégorie se rattache à une nature de coût (WF-REF-0040).
+         * @description La catégorie se rattache à une nature de coût, active, et porte un code comptable unique (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit lequel des deux champs la porte. Créée sous une nature provision, elle change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision, la dernière ne l'étant plus —, que la réponse ne porte pas : le client relit les listes.
          */
         post: operations["createCostCategory"];
         delete?: never;
@@ -1172,7 +1172,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une catégorie de coût
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130). Le code et le code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même type, le rattachement est toujours permis. Un changement de nature change la disponibilité des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature, et, vers ou depuis une nature provision, la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
          */
         patch: operations["updateCostCategory"];
         trace?: never;
@@ -1187,7 +1187,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une catégorie de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant : sa commande est toujours disponible (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La désactivation l'est aussi, sauf pour la seule catégorie active des natures provision actives : il en reste toujours une, que portent les lignes de provision des risques (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que sa commande `deactivate` dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une catégorie d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setCostCategoryActivation"];
         post?: never;
@@ -1247,7 +1247,7 @@ export interface paths {
         get?: never;
         /**
          * Fixer le taux horaire d'une année
-         * @description Réservé aux catégories de main-d'œuvre. La correction d'un taux n'affecte aucune révision marquée (WF-REF-0050, WF-REF-0130).
+         * @description Réservé aux catégories de main-d'œuvre : les catégories des autres natures ne portent pas de taux (WF-REF-0050). Au plus un taux par année : la première saisie se fait sans compteur, une correction avec la version lue. La correction d'un taux n'affecte aucune révision marquée (WF-REF-0050, WF-REF-0130). Le taux est positif. Le premier taux d'une catégorie rend indisponible son rattachement à une nature d'un autre type (`cost_category_unrated`, #577), que la réponse ne porte pas : le client relit la liste des catégories.
          */
         put: operations["setHourlyRate"];
         post?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2699,13 +2699,13 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
                 [key: string]: unknown;
             };
-            /** @description Erreurs par champ, pour une entité refusée à la validation. */
+            /** @description Erreurs par champ, pour une entité refusée à la validation (422), ou par une unicité (409 `ALREADY_EXISTS`), chaque champ dont la valeur est déjà portée désigné. Une clé portée par le chemin, et non par le corps — la catégorie et l'année d'un taux horaire (`setHourlyRate`) —, n'a pas de champ à désigner : son `ALREADY_EXISTS` n'a pas de `fields`. */
             fields?: components["schemas"]["FieldProblem"][];
             /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) : engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel dans un chemin ou un digest. */
             correlation_id?: string;
@@ -2950,10 +2950,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "last_administrator";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3208,7 +3208,7 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource, calendrier, nature et catégorie de coût (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource, calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
          * @enum {string}
          */
         ReferenceCommand: "deactivate" | "reactivate";
@@ -3218,7 +3218,7 @@ export interface components {
             /** @description Vide lorsque la commande est disponible. */
             missing_conditions: components["schemas"]["CommandCondition"][];
         };
-        /** @description Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit l'objet sans la permission de modifier sa fonction — un rôle ou une catégorie lus pour choisir ceux d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        /** @description Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit l'objet sans la permission de modifier sa fonction — un rôle lu pour choisir celui d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
         ReferenceCommands: components["schemas"]["ReferenceCommandAvailability"][];
         /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). */
         OrgNode: {
@@ -3340,18 +3340,32 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée est employée.
+         * @description Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
          * @enum {string}
          */
         CostTypeKind: "labor" | "non_labor" | "provision";
+        /**
+         * @description Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused` manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé, se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa désactivation et la modification de son type indisponibles, `cost_type_not_last_provision` manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @enum {string}
+         */
+        CostTypeCommand: "deactivate" | "reactivate" | "change_kind";
+        CostTypeCommandAvailability: {
+            command: components["schemas"]["CostTypeCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au plus deux, celle qui change son état et la modification de son type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        CostTypeCommands: components["schemas"]["CostTypeCommandAvailability"][];
         /** @description Nature de coût (WF-REF-0030). */
         CostType: {
             cost_type_id: components["schemas"]["Uuid"];
+            /** @description Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030). */
             code: string;
             label: string;
             kind: components["schemas"]["CostTypeKind"];
             is_active: boolean;
-            available_commands: components["schemas"]["ReferenceCommands"];
+            available_commands: components["schemas"]["CostTypeCommands"];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3360,31 +3374,48 @@ export interface components {
             label: string;
             kind: components["schemas"]["CostTypeKind"];
         };
-        /** @description Modification d'un type de coût : porte le compteur lu, qu'une création n'a pas. */
+        /** @description Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind` autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien. */
         CostTypeUpdate: components["schemas"]["CostTypeWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
         CostCategoryImage: {
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`. */
             code: string;
             label: string;
             cost_type_id: components["schemas"]["Uuid"];
             /** @description Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150). */
             cost_type_label: string;
-            /** @description Code comptable, documentaire (WF-REF-0040). */
-            accounting_code?: string | null;
+            /** @description Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040). */
+            accounting_code: string;
             is_active: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une catégorie ne porte que celle qui change son état —, et la rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante, dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et, `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09, #577). Il reste toujours une catégorie active rattachée à une nature provision active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision` manquante ; un rattachement à une autre nature provision active la laisse provision, et reste permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @enum {string}
+         */
+        CostCategoryCommand: "deactivate" | "reactivate" | "change_cost_type";
+        CostCategoryCommandAvailability: {
+            command: components["schemas"]["CostCategoryCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        CostCategoryCommands: components["schemas"]["CostCategoryCommandAvailability"][];
         /** @description Catégorie de coût telle que le référentiel la lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
-        CostCategory: components["schemas"]["CostCategoryImage"] & components["schemas"]["ReferenceObjectCommands"];
+        CostCategory: components["schemas"]["CostCategoryImage"] & {
+            available_commands: components["schemas"]["CostCategoryCommands"];
+        };
         CostCategoryWrite: {
             code: string;
             label: string;
+            /** @description La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même, `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type, elle est toujours permise. */
             cost_type_id: components["schemas"]["Uuid"];
-            accounting_code?: string | null;
+            accounting_code: string;
         };
         /** @description Modification d'une catégorie de coût : porte le compteur lu, qu'une création n'a pas. */
         CostCategoryUpdate: components["schemas"]["CostCategoryWrite"] & {
@@ -3418,8 +3449,9 @@ export interface components {
             rows: components["schemas"]["HourlyRateRow"][];
             meta: components["schemas"]["PaginationMeta"];
         };
-        /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. */
+        /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. Une première saisie, sans compteur, pour une année qui porte déjà un taux en serait un second : refusée par 409, `ALREADY_EXISTS` (WF-REF-0050). */
         HourlyRateWrite: {
+            /** @description Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit. */
             amount: components["schemas"]["Money"];
             lock_version?: components["schemas"]["LockVersion"];
         };
@@ -4851,7 +4883,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description L'état courant interdit l'opération, ou une unicité est violée. */
+        /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -4896,7 +4928,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture. `params` porte l'objet en conflit (WF-IHM-0110). */
+        /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
         PreconditionFailed: {
             headers: {
                 [name: string]: unknown;
@@ -5550,7 +5582,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050). */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5612,7 +5644,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Le nom, le prénom ou l'adresse d'un compte venu d'un fournisseur externe (`origin` autre que `local`), qui ne se modifient pas ici (WF-ADM-0050) : `STATE_FORBIDS_OPERATION`, sans paramètre — l'origine du compte, que la lecture porte, le dit, et aucune condition du catalogue ne la nomme. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -6482,7 +6522,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
             422: {
                 headers: {
@@ -6521,7 +6569,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
             /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
             422: {
@@ -7112,8 +7168,24 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un code déjà porté par une autre nature, active ou désactivée (WF-REF-0030) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides, `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet — vingt caractères pour le code, deux cents pour le libellé —, par `VALUE_TOO_LONG` ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateCostType: {
@@ -7143,8 +7215,25 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un autre type pour une nature dont une catégorie est employée (WF-REF-0030), ou pour la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_kind` dit manquantes, `cost_type_unused` avant `cost_type_not_last_provision`. Un code déjà porté par une autre nature, active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou `/label` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setCostTypeActivation: {
@@ -7177,6 +7266,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La désactivation de la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
             412: {
                 headers: {
@@ -7201,7 +7299,7 @@ export interface operations {
                 cost_type_id?: components["schemas"]["Uuid"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
                 is_active?: components["parameters"]["IsActive"];
-                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code, le libellé, la nature — par son libellé —, le code comptable — une catégorie sans code après les autres dans l'ordre croissant — et l'état, les catégories désactivées après les actives (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code, le libellé, la nature — par son libellé —, le code comptable, que chaque catégorie porte (WF-REF-0040), et l'état, les catégories désactivées après les actives (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
                 sort_by?: "code" | "label" | "cost_type" | "accounting_code" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -7253,8 +7351,24 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040) : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la catégorie qui la porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un code, un libellé ou un code comptable vides, `/code`, `/label` ou `/accounting_code` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; une nature absente ou nulle — une catégorie sans nature (WF-REF-0040) —, `/cost_type_id` par `VALUE_REQUIRED` ; une nature que le référentiel n'a pas, `/cost_type_id` par `UNKNOWN_COST_TYPE` ; une nature désactivée, qui n'est plus proposée à la saisie, `/cost_type_id` par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateCostCategory: {
@@ -7284,7 +7398,25 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, qui porte des taux (#577), ou seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_cost_type` dit manquantes, dans l'ordre `cost_category_unused`, `cost_category_unrated`, `cost_category_not_last_provision`. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code`, `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie ne reste pas sans nature (WF-REF-0040) —, inconnue, par `UNKNOWN_COST_TYPE`, ou par `INACTIVE_REFERENCE_OBJECT` quand la modification change la catégorie de nature pour une nature désactivée (WF-REF-0010). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setCostCategoryActivation: {
@@ -7317,6 +7449,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La désactivation de la seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_category_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
             412: {
                 headers: {
@@ -7431,7 +7572,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Une première saisie, sans `lock_version`, pour une année qui porte déjà un taux : un second taux pour la même catégorie et la même année (WF-REF-0050). `ALREADY_EXISTS`, rien n'étant écrit ; le taux de l'année se relit, et se corrige avec sa version. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description La version envoyée n'est plus celle du taux de l'année : il a été corrigé depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante ; le taux, sans identifiant propre, est celui que nomment la catégorie et l'année du chemin. */
             412: {
                 headers: {
@@ -7441,7 +7590,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un montant nul ou négatif : `VALIDATION_FAILED`, `fields` désignant `/amount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0.01`, le plus petit taux admis. Une catégorie dont la nature ne relève pas de la main-d'œuvre, qui ne porte pas de taux (WF-REF-0050) : `LABOUR_CATEGORY_REQUIRED`, sans `fields` — la catégorie est celle du chemin. Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listProjects: {
@@ -7519,7 +7676,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010). */
+            /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7582,7 +7739,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -7801,7 +7966,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Code déjà employé dans ce projet (WF-PRJ-0050). */
+            /** @description Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7873,6 +8038,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -8204,7 +8378,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020). */
+            /** @description Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`, `fields` désignant `/version_name` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la révision qui le porte. Ou révision déjà marquée (WF-REV-0020). Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;

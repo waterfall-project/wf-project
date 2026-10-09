@@ -1511,6 +1511,28 @@ réutilisable par L43b, L43c et L44). La saisie des taux reste celle de la grill
 minimum que le serveur nomme. Les exemples de succès de ces écritures entrent au contrat ; les refus
 qu'il ne dit pas, ou dit mal, sont des « Interface contract issue » ouvertes sous #507. L43b fera les
 paramètres de ressources et ceux des risques et des indicateurs, L43c l'écran des sauvegardes (#519).
+Écarts au contrat relevés par L43a (#562) : le type figé d'une nature n'était ni annoncé ni nommé,
+les refus des écritures n'étaient pas dits par champ, ni le code pris, et le code comptable unique de
+WF-REF-0040 était facultatif. Corrigé par EP-02/L42g (#507), la partie contrat : chaque nature porte
+la modification de son type (`change_kind`), indisponible dès qu'une de ses catégories est employée
+(`cost_type_unused`, WF-REF-0030) ; chaque refus d'une nature, d'une catégorie ou d'un taux est dit à
+son champ, le code ou le code comptable pris nommant l'objet qui le porte, le taux nul ou négatif son
+minimum ; le code comptable est exigé, sur décision de l'auteur du 2026-10-09. Sur décision de
+l'auteur du même jour (#577), une catégorie employée ne se rattache qu'à une nature du même type, et
+une catégorie qui porte des taux ne quitte pas la main-d'œuvre : chaque catégorie porte son
+rattachement à une nature d'un autre type (`change_cost_type`), indisponible avec sa condition
+(`cost_category_unused`, `cost_category_unrated`). Et, sur décision de l'auteur du même jour
+(#578), il reste toujours une nature provision active qui porte une catégorie active : la dernière
+a sa désactivation et son changement de type indisponibles (`cost_type_not_last_provision`), sa
+dernière catégorie active sa désactivation et son rattachement à une nature d'un autre type
+(`cost_category_not_last_provision`). La partie front de L42g l'adopte, après L43b : le type d'une
+nature n'est offert que si `change_kind` est disponible, présenté figé sinon, sa condition dite ;
+une catégorie ne se voit proposer une nature d'un autre type que si `change_cost_type` l'est, les
+natures de son type seules sinon, avec la condition ; la désactivation de PRV et de PRV-001 est
+présentée indisponible avec la sienne ; le code comptable est exigé, borné à vingt caractères ; chaque
+refus est dit à son champ, le code ou le code comptable pris nommant l'objet qui le porte quand la
+liste le montre ; un premier taux saisi relit la page, la catégorie ne se rattachant plus ensuite à
+une nature d'un autre type.
 
 Sa partie L43b (#512) donne de même leurs commandes aux paramètres de ressources, sur les pièces de
 L43a devenues communes à tout le référentiel (`CommandedList`, `ReferenceForm`, `StateCell`) : à une

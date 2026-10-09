@@ -325,7 +325,12 @@ _KEYS = {
     "task_id": ("tâches de fond",),
     "paste_id": ("collages",),
     "correlation_id": ("corrélations", "corrélations, suite", "corrélations engendrées"),
-    "conflicting_object_id": ("nœuds d'organisation",),
+    "conflicting_object_id": (
+        "nœuds d'organisation",
+        "natures de coût",
+        "catégories de coût",
+        "sous-projets",
+    ),
     "audit_event_id": ("inscriptions du journal d'audit",),
     "object_id": (
         "projets",

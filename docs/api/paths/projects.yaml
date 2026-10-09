@@ -108,7 +108,10 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
-        description: Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010).
+        description: >-
+          Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) :
+          `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` le projet qui le porte.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -163,7 +166,14 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields`
+          désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet
+          qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -412,7 +422,10 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
-        description: Code déjà employé dans ce projet (WF-PRJ-0050).
+        description: >-
+          Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant
+          `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le
+          porte.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -441,6 +454,16 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le sous-projet qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
   delete:
     operationId: deleteSubproject

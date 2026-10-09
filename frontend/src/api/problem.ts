@@ -9,7 +9,8 @@
  * - `refused`, a `Problem` whose code and parameters the catalogue renders;
  * - `stale` (412), the object changed since it was read: the screen offers to reload it;
  * - `conflict` (409), the state of an object forbids the operation: the screen explains it,
- *   naming the object in conflict when the envelope carries it and the screen knows it;
+ *   naming the object in conflict when the envelope carries it — or one of its refusals by field,
+ *   the object that holds a value already taken — and the screen knows it;
  * - `signed_out` (401), no session: the screen leads to the sign-in page, which comes back to
  *   the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
@@ -47,7 +48,10 @@ export type Outcome<T> =
   | {
       readonly kind: ProblemKind;
       readonly problem: Problem;
-      /** The object the refusal is about, `params.conflicting_object_id`, when it names one. */
+      /**
+       * The object the refusal is about, `params.conflicting_object_id` — or that of its first refusal
+       * by field that names one —, when it names one.
+       */
       readonly conflictingObjectId: string | null;
     }
   | { readonly kind: "unreachable" };
@@ -261,12 +265,19 @@ function decodeAnswer<T>(answer: Answer<T>): Outcome<T> {
     return { kind: "unreachable" };
   }
   const problem = envelope(answer.error, status);
-  const conflicting = problem.params?.conflicting_object_id;
-  return {
-    kind: kindOf(status),
-    problem,
-    conflictingObjectId: typeof conflicting === "string" ? conflicting : null,
-  };
+  return { kind: kindOf(status), problem, conflictingObjectId: conflictingOf(problem) };
+}
+
+/**
+ * The object a refusal is about: the one its envelope names (`params.conflicting_object_id`), or else
+ * the first one its refusals by field name — a value already held, which a 409 `ALREADY_EXISTS` says
+ * at each field it points at, by the object that holds it (WF-REF-0030, WF-REF-0040).
+ */
+function conflictingOf({ params, fields }: Problem): string | null {
+  const named = [params, ...(fields ?? []).map((field) => field.params)]
+    .map((each) => each?.conflicting_object_id)
+    .find((id) => typeof id === "string");
+  return typeof named === "string" ? named : null;
 }
 
 /** Call the API and decode its answer, `unreachable` when it does not answer at all. */

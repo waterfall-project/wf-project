@@ -357,6 +357,37 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
+test("presents fixed the type of a nature whose category is employed, and the deactivation of the last nature of provision unavailable, each with its condition [WF-IHM-0090-A]", async ({
+  page,
+}) => {
+  await page.goto("/reference/costs");
+  const natures = page.getByRole("grid", { name: "Natures de coût" });
+  // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+  const deactivation = natures.getByRole("button", { name: "Désactiver « Provision »" });
+  await expect(deactivation).toHaveAttribute("aria-disabled", "true");
+  await expect(deactivation).toHaveAccessibleDescription(
+    /^Condition non remplie\s:\sune autre nature provision active portant une catégorie active\.$/,
+  );
+
+  // The modification of the labour opened from its row, pressed again until React opens it.
+  const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
+  await expect(async () => {
+    if (!(await form.isVisible())) {
+      await natures.getByRole("button", { name: "Modifier « Main-d'œuvre »" }).click();
+    }
+    await expect(form).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  const type = form.getByRole("textbox", { name: "Type" });
+  await expect(type).toHaveAttribute("readonly", "");
+  await expect(type).toHaveValue("Main-d’œuvre");
+  await expect(type).toHaveAccessibleDescription(
+    /^Le type ne se modifie pas\. Condition non remplie\s:\saucune catégorie de la nature employée\.$/,
+  );
+  await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(form).toBeHidden();
+});
+
 test("creates a role in its form and designates the default calendar, its row showing the answer, the mock-up saying the fake back keeps nothing (EP-02/L43b)", async ({
   page,
 }) => {

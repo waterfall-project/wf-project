@@ -1,5 +1,5 @@
 {
-  "summary": "La nature des débours renommée « Débours et achats », son type inchangé, sa version avancée ; aucune révision marquée n'en est affectée (WF-REF-0030, WF-REF-0130).",
+  "summary": "La nature des débours renommée « Débours et achats », son type inchangé, sa version avancée ; la modification de son type reste indisponible, ses catégories étant employées, et aucune révision marquée n'en est affectée (WF-REF-0030, WF-REF-0130).",
   "value": {
     "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
     "code": "DEB",
@@ -11,6 +11,13 @@
         "command": "deactivate",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "change_kind",
+        "is_available": false,
+        "missing_conditions": [
+          "cost_type_unused"
+        ]
       }
     ],
     "audit": {

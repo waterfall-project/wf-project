@@ -153,7 +153,11 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020).
+        description: >-
+          Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`,
+          `fields` désignant `/version_name` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la révision qui le porte. Ou révision déjà
+          marquée (WF-REV-0020). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

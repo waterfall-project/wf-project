@@ -1,0 +1,8 @@
+{
+  "summary": "Un premier taux de 2016 saisi pour l'ingénierie mécanique de niveau 1, sans version, quand l'année en porte déjà un, 86,98 : un second taux pour la même catégorie et la même année, refusé ; rien n'est écrit, et le taux se relit pour être corrigé (WF-REF-0050).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001027"
+  }
+}

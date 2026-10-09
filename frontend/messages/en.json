@@ -1099,6 +1099,8 @@
     "form": {
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
+      "takenBy": "Already held by “{name}”.",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
@@ -1113,8 +1115,14 @@
       "createCostType": "New cost nature",
       "createCostCategory": "New cost category",
       "costTypeHint": "The code, unique, the label and the type are required.",
-      "costTypeModifyHint": "The code, unique, the label and the type are required. The type no longer changes once a category attached to it is employed.",
-      "costCategoryHint": "The code, unique, the label and the nature are required; the accounting code, unique as well, may stay empty."
+      "costTypeFixedHint": "The code, unique, and the label are required; the type of this nature does not change.",
+      "costCategoryHint": "The code and the accounting code, both unique, the label and the nature are required.",
+      "kindFixed": "The type does not change.",
+      "kindFixedFor": "The type does not change. {unmet}",
+      "sameKind": "Only the natures of the same type are offered.",
+      "sameKindFor": "Only the natures of the same type are offered. {unmet}",
+      "ownOnly": "The type of the deactivated nature cannot be read: it alone is offered.",
+      "ownOnlyFor": "The type of the deactivated nature cannot be read: it alone is offered. {unmet}"
     },
     "orgNodeForm": {
       "create": "New organisation node",
@@ -1478,6 +1486,7 @@
     "NUMBER_INVALID": "This is not a valid number.",
     "DATE_INVALID": "This is not a valid date.",
     "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
+    "UNKNOWN_COST_TYPE": "Unknown cost type.",
     "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
     "UNKNOWN_TASK": "Unknown task.",
@@ -1837,6 +1846,11 @@
       "org_node_parent_active": "parent node active",
       "org_node_active": "organisation node active",
       "calendar_not_default": "calendar other than the default one",
+      "cost_type_unused": "no category of the nature employed",
+      "cost_category_unused": "category employed by no line",
+      "cost_category_unrated": "category without hourly rates",
+      "cost_type_not_last_provision": "another active provision nature holding an active category",
+      "cost_category_not_last_provision": "another active category under an active provision nature",
       "last_administrator": "another active account holding the administration permissions"
     },
     "ProjectExit": {
@@ -2133,6 +2147,16 @@
     "ReferenceCommand": {
       "deactivate": "Deactivate",
       "reactivate": "Reactivate"
+    },
+    "CostTypeCommand": {
+      "deactivate": "Deactivate the nature",
+      "reactivate": "Reactivate the nature",
+      "change_kind": "Change the type of the nature"
+    },
+    "CostCategoryCommand": {
+      "deactivate": "Deactivate the category",
+      "reactivate": "Reactivate the category",
+      "change_cost_type": "Attach the category to a nature of another type"
     },
     "UserCommand": {
       "deactivate": "Deactivate the account",

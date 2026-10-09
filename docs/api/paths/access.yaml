@@ -121,7 +121,10 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
-        description: Adresse électronique déjà portée par un autre compte (WF-ADM-0050).
+        description: >-
+          Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
+          `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le compte qui la porte ; rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -167,7 +170,19 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
+          `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le compte qui la porte. Le nom, le prénom ou l'adresse d'un compte venu d'un fournisseur
+          externe (`origin` autre que `local`), qui ne se modifient pas ici (WF-ADM-0050) :
+          `STATE_FORBIDS_OPERATION`, sans paramètre — l'origine du compte, que la lecture porte,
+          le dit, et aucune condition du catalogue ne la nomme. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              external_account: { $ref: ../../../fixtures/api/user_external_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
 /users/{user_id}/activation:

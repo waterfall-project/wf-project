@@ -42,7 +42,7 @@ import {
 import { setActivation } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { findOffer } from "@/components/commands/offer";
+import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
@@ -59,8 +59,16 @@ import {
 import { UnavailableActivation, useListReport } from "./reactivation";
 import { ActiveState } from "./section";
 
-/** The commands an object of the reference data lists: at most the one that changes its state. */
-export type ReferenceCommands = components["schemas"]["ReferenceCommands"];
+/**
+ * The commands an object of the reference data lists: the one that changes its state, and, for a
+ * nature or a category of cost, the change of its type (`CostTypeCommand`, `CostCategoryCommand`),
+ * which its form reads.
+ */
+export type ReferenceCommands = readonly ListedCommand<
+  | components["schemas"]["ReferenceCommand"]
+  | components["schemas"]["CostTypeCommand"]
+  | components["schemas"]["CostCategoryCommand"]
+>[];
 
 /**
  * The server answered the modification of another object than the one modified: an unexpected error

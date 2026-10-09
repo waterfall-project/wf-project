@@ -119,12 +119,12 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-ADM-0100, WF-REF-0010, WF-REF-0120 |
 | GET | `/reference/cost-types` | Natures de coût | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
-| PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030 |
-| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0040, WF-REF-0150 |
+| PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030, WF-REF-0130 |
+| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |
+| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0150 |
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
-| PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0040, WF-REF-0130 |
-| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020 |
+| PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0130 |
+| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |
 | GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |

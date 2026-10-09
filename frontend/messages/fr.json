@@ -1099,6 +1099,8 @@
     "form": {
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
+      "takenBy": "Déjà porté par « {name} ».",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
@@ -1113,8 +1115,14 @@
       "createCostType": "Nouvelle nature de coût",
       "createCostCategory": "Nouvelle catégorie de coût",
       "costTypeHint": "Le code, unique, le libellé et le type sont requis.",
-      "costTypeModifyHint": "Le code, unique, le libellé et le type sont requis. Le type ne change plus dès qu’une catégorie rattachée est employée.",
-      "costCategoryHint": "Le code, unique, le libellé et la nature sont requis ; le code comptable, unique lui aussi, peut rester vide."
+      "costTypeFixedHint": "Le code, unique, et le libellé sont requis ; le type de cette nature ne se modifie pas.",
+      "costCategoryHint": "Le code et le code comptable, uniques l’un et l’autre, le libellé et la nature sont requis.",
+      "kindFixed": "Le type ne se modifie pas.",
+      "kindFixedFor": "Le type ne se modifie pas. {unmet}",
+      "sameKind": "Seules les natures du même type sont proposées.",
+      "sameKindFor": "Seules les natures du même type sont proposées. {unmet}",
+      "ownOnly": "Le type de la nature désactivée n’est pas lisible : seule elle est proposée.",
+      "ownOnlyFor": "Le type de la nature désactivée n’est pas lisible : seule elle est proposée. {unmet}"
     },
     "orgNodeForm": {
       "create": "Nouveau nœud d’organisation",
@@ -1478,6 +1486,7 @@
     "NUMBER_INVALID": "Ce n’est pas un nombre valide.",
     "DATE_INVALID": "Ce n’est pas une date valide.",
     "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
+    "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
     "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
     "UNKNOWN_TASK": "Tâche inconnue.",
@@ -1837,6 +1846,11 @@
       "org_node_parent_active": "nœud parent actif",
       "org_node_active": "nœud d’organisation actif",
       "calendar_not_default": "calendrier autre que celui par défaut",
+      "cost_type_unused": "aucune catégorie de la nature employée",
+      "cost_category_unused": "catégorie employée par aucune ligne",
+      "cost_category_unrated": "catégorie sans taux horaire",
+      "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
+      "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
       "last_administrator": "un autre compte actif portant les permissions d’administration"
     },
     "ProjectExit": {
@@ -2133,6 +2147,16 @@
     "ReferenceCommand": {
       "deactivate": "Désactiver",
       "reactivate": "Réactiver"
+    },
+    "CostTypeCommand": {
+      "deactivate": "Désactiver la nature",
+      "reactivate": "Réactiver la nature",
+      "change_kind": "Modifier le type de la nature"
+    },
+    "CostCategoryCommand": {
+      "deactivate": "Désactiver la catégorie",
+      "reactivate": "Réactiver la catégorie",
+      "change_cost_type": "Rattacher la catégorie à une nature d’un autre type"
     },
     "UserCommand": {
       "deactivate": "Désactiver le compte",

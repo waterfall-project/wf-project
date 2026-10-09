@@ -17,7 +17,8 @@
  * category carries the command that reactivates it, as the server lists it. The categories are
  * filtered by a nature chosen among every one the session reads, read whole as a list of choices is
  * (#303). A session that may modify the cost settings creates and modifies the natures and the
- * categories, and deactivates them as each lists it (EP-02/L43a); the screen then says that the fake
+ * categories, and deactivates them as each lists it (EP-02/L43a), the form of a category reading the
+ * type of every nature, deactivated ones included (EP-02/L42g); the screen then says that the fake
  * back keeps none of what is written (`MockupNotice`). Bounds of the rate the API refuses (422) leave the grid unread, the bound said at its
  * field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
@@ -62,6 +63,7 @@ import {
   type CostTypeKind,
   type CostTypeSort,
 } from "@/components/reference/cost-grids";
+import { type CostType, type NatureChoice, natureChoice } from "@/components/reference/cost-kinds";
 import {
   CostCategoryList,
   CostTypeList,
@@ -182,11 +184,19 @@ function readQueries(
 
 /**
  * Read the grid of the hourly rates, the natures and the categories of the pages the address asks,
- * and every nature, which the filter of the categories offers.
+ * and every nature, which the filter of the categories offers — and, for a session that modifies the
+ * categories, every nature deactivated ones included, whose types the form of a category
+ * compares (#577): a category under a deactivated nature is offered the active natures of its type.
+ * Read only when the natures the filter offers leave the deactivated ones out, and only by a session
+ * that may read them (403 otherwise).
  */
-async function readCosts(queries: CostQueries) {
+async function readCosts(
+  queries: CostQueries,
+  session: { readonly editable: boolean; readonly readsInactive: boolean },
+) {
   const client = serverClient();
   const { inactive } = queries;
+  const typing = session.editable && session.readsInactive && inactive.include_inactive !== true;
   return Promise.all([
     readOrRefused("getHourlyRateGrid", BOUNDS_REFUSED, () =>
       client.GET("/reference/hourly-rates", {
@@ -227,6 +237,13 @@ async function readCosts(queries: CostQueries) {
     readEveryPage("listCostTypes", (page) =>
       client.GET("/reference/cost-types", { params: { query: { ...inactive, ...page } } }),
     ),
+    typing
+      ? readEveryPage("listCostTypes", (page) =>
+          client.GET("/reference/cost-types", {
+            params: { query: { include_inactive: true, ...page } },
+          }),
+        )
+      : undefined,
   ]);
 }
 
@@ -279,6 +296,19 @@ function rateFiltered(
       };
 }
 
+/**
+ * Every nature, each with its type, which the form of a category compares: those read with the
+ * deactivated ones, or those the filter offers when they were not read apart; none for a session
+ * that does not write, which has no form.
+ */
+function typesOf(
+  editable: boolean,
+  typed: readonly CostType[] | undefined,
+  natures: readonly CostType[],
+): NatureChoice[] | undefined {
+  return editable ? (typed ?? natures).map(natureChoice) : undefined;
+}
+
 /** Render the settings of the costs: the grid of the hourly rates, the natures, the categories. */
 export default async function CostSettingsPage({
   searchParams,
@@ -292,12 +322,12 @@ export default async function CostSettingsPage({
   const permissions = session?.permissions ?? [];
   const grids = session?.user.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
-  const [settings, [rates, types, categories, natures]] = await Promise.all([
-    readReferenceSettings(),
-    readCosts(queries),
-  ]);
   const editable = platformOffer(permissions, "cost_settings") !== undefined;
   const readsInactive = permissions.includes("cost_settings.read");
+  const [settings, [rates, types, categories, natures, typed]] = await Promise.all([
+    readReferenceSettings(),
+    readCosts(queries, { editable, readsInactive }),
+  ]);
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings} fillWide>
       <PendingAddress>
@@ -344,12 +374,8 @@ export default async function CostSettingsPage({
               state={queries.categoryState}
               readsInactive={readsInactive}
               editable={editable}
-              natures={natures.map((nature) => ({
-                id: nature.cost_type_id,
-                code: nature.code,
-                label: nature.label,
-                active: nature.is_active,
-              }))}
+              natures={natures.map(natureChoice)}
+              every={typesOf(editable, typed, natures)}
               nature={queries.nature}
             />
           </aside>

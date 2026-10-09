@@ -1,5 +1,5 @@
 {
-  "summary": "Le matériel électrique désactivé depuis la version lue : il n'est plus proposé à la saisie, reste lisible là où il est employé, et offre sa réactivation (WF-REF-0010, WF-REF-0150).",
+  "summary": "Le matériel électrique désactivé depuis la version lue : il n'est plus proposé à la saisie, reste lisible là où il est employé, offre sa réactivation, et, employé, ne se rattache qu'à une nature du même type (WF-REF-0010, WF-REF-0150).",
   "value": {
     "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
     "code": "ACH-002",
@@ -13,6 +13,13 @@
         "command": "reactivate",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "change_cost_type",
+        "is_available": false,
+        "missing_conditions": [
+          "cost_category_unused"
+        ]
       }
     ],
     "audit": {

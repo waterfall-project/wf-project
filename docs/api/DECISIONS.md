@@ -3036,8 +3036,8 @@ main-d'œuvre, 464), `cost_type_updated` (les débours renommés « Débours et 
 406), `cost_category_updated` (la sous-traitance renommée « Sous-traitance générale », version 2) et
 `cost_category_deactivated` (le matériel électrique désactivé, version 2). Chacun ne vaut que pour
 la réponse de son écriture : aucune lecture n'en tient compte. Les refus que ces écritures
-opposeraient ne sont pas encore dits par le contrat (« Interface contract issue » relevées par
-EP-02/L43a, #562) : aucun exemple ne les fige.
+opposeraient, que le contrat ne disait pas (« Interface contract issue » relevée par EP-02/L43a,
+#562), sont dits par EP-02/L42g, section suivante.
 
 ## Les filtres des comptes, des rôles d'habilitation et du lotissement (EP-02/L42f)
 
@@ -3215,6 +3215,259 @@ semaine de quatre jours renommée, version 2), `calendar_deactivated` (la même 
 que pour la réponse de son écriture : aucune lecture n'en tient compte. Les refus que ces écritures
 opposeraient sans que le contrat les dise sont des « Interface contract issue » relevées par
 EP-02/L43b, #575, sous #507.
+
+## Les refus des écritures des paramètres de coûts (EP-02/L42g)
+
+Les six constats de #562, relevés par EP-02/L43a. Le quatrième suit la décision de l'auteur du
+2026-10-09 ; les autres, la proposition de l'issue, et ce qu'elle laissait ouvert est une décision
+de l'agent de livraison du lot, dite à sa place avec sa raison.
+
+**Le code comptable d'une catégorie est exigé et unique** (point 4, décision de l'auteur du
+2026-10-09 ; WF-REF-0040, « porte un code comptable unique »). `CostCategoryWrite.accounting_code`
+et `CostCategoryImage.accounting_code` sont requis, une chaîne d'un à vingt caractères, comme le
+code, jamais nulle : le contrat suit la spécification, que le schéma contredisait. Le tri par code
+comptable ne prévoit plus de catégorie sans code. Les exemples en portaient déjà chacun un,
+distinct — les catégories engendrées le leur, `641nnn`, `604nnn` et `681nnn` selon leur nature, et
+celle créée aujourd'hui, 606001, qu'aucune autre ne porte ; `make mock-data` ne change rien. La
+borne de vingt caractères est celle du code : la spécification n'en fixe pas, et une colonne en a
+une.
+
+**La modification du type d'une nature est une commande de la nature** (point 1 ; WF-REF-0030,
+WF-IHM-0090). `CostType.available_commands` lit `CostTypeCommand` — `deactivate`, `reactivate` et
+`change_kind` —, sur le modèle de `UserCommand` (EP-02/L42d) : celle qui change l'état de la nature,
+toujours disponible, et une seconde commande, toujours listée, dont une condition dit la
+disponibilité, comme `set_access_roles`. `change_kind` est indisponible dès qu'une catégorie
+rattachée à la nature est employée, la condition `cost_type_unused` manquante, nouvelle au catalogue
+(`CommandCondition`) ; le code et le libellé se modifient toujours. Une catégorie est employée dès
+qu'une ligne d'une révision, marquée ou non, la porte : c'est le motif de l'exigence, qu'un type
+modifié après coup rende incohérentes les lignes déjà saisies, et une ligne d'une révision marquée
+en est une. Le refus, `updateCostType` envoyé avec un autre `kind` malgré la commande, est le 409 de
+toute commande qu'un état rend indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition`
+à `cost_type_unused`, sans `conflicting_object_id` — aucune action de l'utilisateur ne rend une
+catégorie inemployée, et WF-IHM-0090 ne demande de dire quoi faire que lorsque la condition est
+atteignable. Écartés : une condition seule, sans commande, qu'aucun objet n'aurait portée ;
+`change_kind` dans `ReferenceCommand`, que les autres objets du référentiel partagent et qui ne
+porte que la commande de l'état (`maxItems: 1`, EP-02/L42a) ; une commande `update`, dont seul le
+type est indisponible. Les natures du témoin — main-d'œuvre, débours, provision — ont chacune une
+catégorie que le devis du projet témoin emploie : leur type est figé ; la nature créée aujourd'hui
+(FRN, `cost_type_created`), sans catégorie, a le sien libre. Une catégorie employée rattachée à une
+nature d'un autre type changerait de même le type de ses lignes : c'est la « Specification
+finding » #577, tranchée par l'auteur le 2026-10-09, section suivante.
+
+**Une valeur unique déjà portée est refusée par champ** (points 2 et 3 ; WF-REF-0030,
+WF-REF-0040). Le 409 `ALREADY_EXISTS` dit quel champ porte la valeur prise : `fields`, chaque champ
+désigné par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` l'objet qui la porte, actif ou
+désactivé — l'utilisateur sait alors quelle catégorie porte déjà le code, et peut la réactiver
+plutôt que d'en créer une seconde (WF-IHM-0090). La règle vaut pour tout `ALREADY_EXISTS` du
+contrat, au tableau de `docs/api/README.md`, et les 409 d'unicité qui existaient la disent
+désormais (revue de L42g) : `createOrgNode` et `updateOrgNode` (`/code`), `createUser` et
+`updateUser` (`/email`), `markRevision` (`/version_name`), `createProject` et `updateProject`
+(`/code`), `createSubproject` et `updateSubproject` (`/code`), chacun par un 409 décrit en place —
+ceux des nœuds et d'`updateProject` renvoyaient à la réponse partagée `Conflict`.
+`updateSubproject` ne déclarait aucun 409, alors que le code d'un sous-projet est unique dans le
+projet (WF-PRJ-0050) : il le déclare, exemple `subproject_code_taken` (les essais et mise en
+service recodés SP-CMD, le code du poste de commande). Écarté : un test qui chercherait de
+lui-même toute opération dont le corps porte un champ unique — l'unicité n'est dite qu'en prose,
+dans les descriptions, et un tel test la devinerait d'après des mots. `test_mockcostsettings.py`
+tient à la place une table explicite (`UNIQUE`) des treize écritures d'une valeur unique et de
+leur champ, chacune devant déclarer en place un 409 qui dit `ALREADY_EXISTS`, son pointeur et
+`conflicting_object_id` ; une écriture nouvelle d'une valeur unique s'y ajoute.
+
+**Le nom d'un compte externe se refuse par 409** (revue 3 de L42g, décision de l'agent de
+livraison). `updateUser` renvoyait à `Conflict` ; son 409 décrit en place ne disait plus que
+l'adresse prise, et le refus de modifier le nom, le prénom ou l'adresse d'un compte venu d'un
+fournisseur externe (WF-ADM-0050) n'avait plus de statut. C'est un 409
+`STATE_FORBIDS_OPERATION`, sans paramètre : aucune condition du catalogue ne dit l'origine d'un
+compte, que la lecture porte déjà (`User.origin`), et en ajouter une pour un refus que le
+formulaire évite d'avance en ne présentant pas ces champs n'apporterait rien. Exemple
+`user_external_update_refused` (le nom de Dominique Bernard, venu de l'annuaire). Une exception, une seule : une clé portée par le chemin et non par le
+corps n'a pas de champ à désigner — la catégorie et l'année d'un taux horaire, dont le 409 de
+`setHourlyRate` n'a pas de `fields` ; `Problem.fields` et le tableau le disent. La réponse
+partagée `Conflict`, qui sert aussi bien un état qui interdit l'opération (`deleteNode`,
+`setLineRemaining`, `updateProject`, `redoLastUndo`…), reste générique, ces deux codes donnés en
+exemple. Le code d'une nature est unique parmi les natures
+(WF-REF-0030), le code et le code comptable d'une catégorie parmi les catégories, désactivées
+comprises, comme le code d'un nœud : la spécification ne dit unique que le code comptable, et le
+contrat fait du code d'une catégorie ce qu'il fait de celui d'une nature ou d'un nœud, ce que
+l'issue tenait pour acquis, pour qu'un code désigne une seule catégorie, à l'écran comme dans la
+liste triée par code.
+L'unicité vaut à la modification : `updateCostCategory` déclare le 409, `updateCostType` le dit
+avec le refus du type.
+
+**Les refus par champ d'une nature et d'une catégorie** (points 2 et 3, convention #293). Les deux
+créations et les deux modifications déclarent leur 422 `VALIDATION_FAILED`, `fields` désignant
+chaque champ : `/code`, `/label` et, pour une catégorie, `/accounting_code` vides, `VALUE_REQUIRED`,
+ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle,
+`VALUE_REQUIRED` — la catégorie sans nature que le Vérif de WF-REF-0040 refuse (revue de L42g) — ;
+d'une nature que le référentiel n'a pas, `UNKNOWN_COST_TYPE`, nouveau au catalogue — il n'y avait pas de code générique
+d'une référence inconnue, chaque objet a le sien (`UNKNOWN_COST_CATEGORY`, `UNKNOWN_RESOURCE_ROLE`,
+`UNKNOWN_SUBPROJECT`) — ; d'une nature désactivée, `INACTIVE_REFERENCE_OBJECT`, comme un rôle
+sous un nœud désactivé (#547) : une nature désactivée n'est plus proposée à la saisie
+(WF-REF-0010). À la modification, seulement quand elle change la catégorie de nature : une catégorie
+se réactive sous une nature désactivée (EP-02/L42a), et la garder sous elle en la renommant ne
+choisit rien. Écarté : la longueur admise en paramètre de `VALUE_TOO_LONG`, que le schéma dit déjà
+et que le formulaire contrôle avant l'envoi.
+
+**Les refus d'un taux horaire** (point 5 ; WF-REF-0050). Un montant nul ou négatif — `Money`
+admet le signe — est refusé par 422 `VALIDATION_FAILED`, `/amount` par `VALUE_OUT_OF_RANGE`,
+`fields[].params.minimum` à `0.01`, le plus petit montant positif à deux décimales : le front le
+dit, comme le minimum de la rétention des sauvegardes. La spécification ne dit pas qu'un taux est
+positif ; un taux nul chiffrerait des heures pour rien, ce qu'aucun écran ne doit laisser saisir par
+mégarde, et tous les taux de l'univers témoin l'atteignent. Une catégorie hors main-d'œuvre, qui ne
+porte pas de taux, est refusée par 422 `LABOUR_CATEGORY_REQUIRED`, au catalogue sans qu'aucune
+réponse le déclare, et dont c'est le sens : sans `fields`, la catégorie étant celle du chemin, qu'un
+pointeur ne désigne pas. Le 409 est le second taux d'une année que le Vérif refuse : une première
+saisie, sans `lock_version`, pour une année qui porte déjà un taux, `ALREADY_EXISTS`, sans
+paramètre — le taux se relit, et se corrige avec sa version.
+
+**Une seule règle pour les paramètres d'un 412** (point 6, #296). `STALE_LOCK_VERSION` porte
+`params.expected_lock_version`, la version courante de l'objet que le chemin nomme, et rien
+d'autre : c'est ce que disaient les 412 déclarés en place et leurs exemples. Le commentaire
+d'`ErrorCode`, qui disait `params.conflicting_object_id`, et la réponse partagée
+`PreconditionFailed`, qui disait « l'objet en conflit », le disent désormais ; la règle est au
+tableau de `docs/api/README.md`.
+
+**Exemples**, écrits à la main, aux corrélations 1022 à 1029, 1032 et 1037 à 1039 (1019 à 1021 sont celles des
+refus de période et de bornes d'EP-02/L42f). `cost_types`, `cost_type_created`,
+`cost_type_updated` et `cost_type_deactivated` portent `change_kind`. Refus : `cost_type_code_taken`
+(FRN « Fournitures » créée sous le code DEB, celui des débours), `cost_type_creation_refused` (un
+code de trente-six caractères, un libellé vide), `cost_type_kind_refused` (les débours passés en
+main-d'œuvre), `cost_type_update_refused` (les débours sans libellé),
+`cost_category_codes_taken` (le code ACH-002 du matériel électrique et le code comptable 604001 de
+la sous-traitance, chacun nommant sa catégorie), `cost_category_creation_refused` (une nature
+inconnue, un code comptable vide), `cost_category_without_type_refused` (une catégorie créée sans
+nature), `cost_category_accounting_code_taken` (la sous-traitance sous le
+code comptable 604002 du matériel électrique), `cost_category_update_refused` (un libellé de deux
+cent un caractères), `hourly_rate_already_entered` (une première saisie du taux de 2016 de
+l'ingénierie mécanique de niveau 1, qui en porte un), `hourly_rate_amount_refused` (ce taux corrigé
+à 0,00) et `hourly_rate_non_labour_refused` (un taux de 2026 pour la sous-traitance). La
+désactivation d'une nature n'a pas d'exemple de refus à la création d'une catégorie : aucune nature
+de l'univers n'est désactivée, `cost_type_deactivated` ne valant que pour sa réponse.
+`cost_types_with_inactive`, cité par `listCostTypes` comme `listOrgNodes` et `listCalendars`
+citent le leur, est la lecture des natures avec les désactivées (`include_inactive`), les débours
+désactivés tels que `cost_type_deactivated` les répond (revue 3 de la partie front de L42g) :
+l'univers témoin n'a aucune nature désactivée, et l'exemple ne vaut que pour cette lecture, celle
+que fait le formulaire d'une catégorie pour connaître le type de chaque nature ; `make mock-data` ne
+l'écrit pas, et `test_mockcostsettings.py` le tient contre `cost_types` et `cost_type_deactivated`.
+`test_mockcostsettings.py` les tient contre l'univers — le type figé des natures dont une ligne
+emploie une catégorie, le code pris nommé par l'objet qui le porte, l'unicité des codes comptables,
+le minimum que tous les taux atteignent, une grille sans catégorie hors main-d'œuvre —, confronte
+chaque refus à ce que dit son résumé — ses champs et leurs motifs dans l'ordre, la nature ou la
+catégorie qu'il nomme, la longueur qu'il dit trop grande au `maxLength` du schéma —, tient que tout
+`ALREADY_EXISTS` désigne ses champs sauf la clé d'un chemin, et tient la règle des 412, dans les
+exemples et dans le texte du contrat.
+
+## La nature d'une catégorie employée (EP-02/L42g, #577)
+
+**Une catégorie employée ne se rattache qu'à une nature du même type, et une catégorie qui porte
+des taux ne quitte pas la main-d'œuvre** (décision de l'auteur du 2026-10-09, option (a) de #577 ;
+WF-REF-0030, WF-REF-0050). `CostCategoryUpdate` porte `cost_type_id` : sans cette règle, une
+catégorie employée passée sous une nature d'un autre type changeait le type de ses lignes, ce que
+WF-REF-0030 interdit à la nature, et une catégorie de main-d'œuvre passée ailleurs gardait des taux
+que WF-REF-0050 refuse aux autres natures. La phrase que la décision demande à WF-REF-0040 — « Une
+catégorie employée ne se rattache qu'à une nature du même type », et une catégorie qui porte des
+taux ne quitte pas la main-d'œuvre — reste à écrire dans la spécification : ce lot ne touche pas
+`docs/spec`, et le contrat la cite par #577 en attendant.
+
+**La commande dit le rattachement à une nature d'un autre type, et lui seul.**
+`CostCategory.available_commands` lit `CostCategoryCommand` — `deactivate`, `reactivate` et
+`change_cost_type` —, comme la nature lit `CostTypeCommand` : la commande de l'état, toujours
+disponible, puis `change_cost_type`, toujours listée, qui rattache la catégorie à une nature dont le
+`kind` diffère du sien. Le rattachement à une autre nature du même type reste permis, employée ou
+non, taux ou non : il n'est pas une commande, rien ne le rendant indisponible, comme la modification
+du libellé — l'écart de `update` d'EP-02/L42a. Décision de l'agent de livraison, entre les deux
+formes que la décision laissait : une commande « changer de nature » que la condition rendrait
+indisponible dirait indisponible un changement vers une nature du même type qui ne l'est pas, et
+WF-IHM-0090 ne présente indisponible que ce qui l'est ; la commande restreinte au cas refusé le
+dit juste, et le front propose les natures du même type sans réserve, les autres selon la
+commande. Le nom suit celui que la demande donnait ; sa description le restreint.
+
+**Deux conditions, parce que deux causes se lèvent séparément.** `cost_category_unused` manque
+tant que la catégorie est employée — portée par une ligne d'une révision, marquée ou non, comme pour
+une nature —, `cost_category_unrated` tant qu'elle porte des taux horaires. L'emploi ne couvre pas
+les taux : une catégorie de main-d'œuvre porte ses taux sans qu'aucune ligne l'emploie, ainsi les
+cent quarante-huit catégories de la grille que le devis du témoin n'emploie pas. Une catégorie hors
+main-d'œuvre ne porte pas de taux (WF-REF-0050) : seule une catégorie de main-d'œuvre peut manquer
+la seconde, et tout autre type la sort de la main-d'œuvre. Le refus, `updateCostCategory` envoyé
+avec une nature d'un autre type malgré la commande, est le 409 de toute commande qu'un état rend
+indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que
+la commande dit manquantes, `cost_category_unused` avant `cost_category_unrated` — un seul paramètre,
+comme les autres refus d'une commande ; la commande, relue, les dit toutes. Sans
+`conflicting_object_id` : ni l'emploi ni les taux ne se lèvent par une action que le refus pourrait
+désigner.
+
+**Exemples.** Les catégories engendrées (`cost_categories`, sa page) portent `change_cost_type`,
+calculée de l'emploi réel — les cinq catégories que portent les lignes du cœur du témoin, dont les
+lignes engendrées après lui reprennent les catégories (`mockreference.employed`) — et des taux de
+la grille : 47 libres, 3 employées (la sous-traitance, le matériel électrique, la provision), 148
+qui portent des taux, 2 les deux (l'ingénierie électrique, MO-001, et la mise en service, MO-002).
+`cost_category_created` l'a disponible, `cost_category_updated` et `cost_category_deactivated`
+indisponible, `cost_category_unused` manquante. Refus : `cost_category_kind_refused` (MO-001,
+employée, passée sous les débours : `cost_category_unused`, la première de ses deux conditions) et
+`cost_category_rated_kind_refused` (MO-003, qu'aucune ligne n'emploie, passée sous les débours :
+`cost_category_unrated`), corrélations 1030 et 1031. `test_mockcostsettings.py` les tient contre
+l'emploi et les taux que lisent les exemples, et tient que seules les catégories portent
+`change_cost_type`, et seules les natures `change_kind`.
+
+## La dernière nature provision et sa dernière catégorie (EP-02/L42g, #578)
+
+**Il reste toujours au moins une nature de type provision active, qui porte au moins une catégorie
+active** (décision de l'auteur du 2026-10-09, option (b) de #578 ; WF-REF-0030). L'exigence crée à
+l'amorçage une nature provision et sa catégorie, « c'est cette catégorie que portent les lignes de
+provision des risques » ; rien n'empêchait de les désactiver, ou de changer le type de la nature,
+et la déclaration d'un risque n'aurait plus eu de catégorie où se ranger. Sont refusés : la
+désactivation et le changement de type de la dernière nature provision active à porter une
+catégorie active ; la désactivation et le rattachement à une nature d'un autre type de la seule
+catégorie active des natures provision actives. La phrase que la décision demande à WF-REF-0030
+reste à écrire dans la spécification : ce lot ne touche pas `docs/spec`, et le contrat cite #578 en
+attendant.
+
+**Deux conditions, portées par les commandes qu'elles rendent indisponibles.**
+`cost_type_not_last_provision` manque à `deactivate` et à `change_kind` de la nature ;
+`cost_category_not_last_provision` à `deactivate` et à `change_cost_type` de la catégorie. La
+désactivation d'une nature ou d'une catégorie n'était jamais indisponible (EP-02/L42a, et les
+descriptions de `CostTypeCommand` et `CostCategoryCommand` de L42g) : elle l'est désormais dans ce
+seul cas, et `setCostTypeActivation` et `setCostCategoryActivation`, qui n'avaient pas de 409 faute de
+cas, en déclarent un. « Dernière » se juge sur l'invariant, pas sur un compte : une nature provision
+n'est la dernière que si aucune autre nature provision active ne porte de catégorie active, et une
+catégorie que si elle est la seule active de toutes les natures provision actives — deux natures
+provision, chacune avec sa catégorie, et aucune n'est la dernière. Le rattachement de la dernière
+catégorie à une autre nature provision active la laisse provision et reste permis ; vers une nature
+d'un autre type, c'est `change_cost_type`, qui le dit simplement. Les refus sont le 409 de toute
+commande indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition`, la première des
+conditions manquantes quand il y en a plusieurs — `cost_type_unused` avant
+`cost_type_not_last_provision`, et `cost_category_unused`, `cost_category_unrated`,
+`cost_category_not_last_provision` dans cet ordre —, sans `conflicting_object_id` : la condition se
+lève en créant une autre nature provision et sa catégorie, que le refus ne peut pas désigner.
+Écarté : une seule condition pour la nature et la catégorie, qui aurait laissé le front deviner
+laquelle des deux est la dernière.
+
+**Dans le témoin**, la provision (PRV, 463) est la seule nature provision, et les provisions pour
+risques (PRV-001, 404) sa seule catégorie : `cost_types` porte sa désactivation indisponible et la
+modification de son type avec ses deux conditions ; `cost_categories`, engendré
+(`mockreference.last_provision`), la désactivation de PRV-001 indisponible et son rattachement avec
+`cost_category_unused` et `cost_category_not_last_provision`. Exemples :
+`cost_type_last_provision_refused` (la désactivation de la provision) et
+`cost_category_last_provision_refused` (celle de PRV-001), corrélations 1033 et 1034.
+`test_mockcostsettings.py` calcule la dernière nature et la dernière catégorie des natures et des
+catégories lues, et tient les commandes et les refus contre elles.
+
+**Pour EP-03.** « Dernière » se juge sur un ensemble d'objets : deux désactivations concurrentes de
+deux natures provision, chacune non dernière quand elle est lue, briseraient l'invariant ; le back
+verrouille donc l'ensemble des natures et des catégories provision, avant de le lire, sur les
+quatre écritures qui peuvent l'entamer — les deux activations et les deux modifications —, et pas
+sur la seule route modifiée (`docs/dev/python.md`, défaut n° 2). Laquelle des catégories provision
+porte la ligne de provision d'un risque quand il y en a plusieurs reste ouvert : #579.
+
+**Une écriture qui change les commandes d'autres objets le dit** (revue 2 de L42g), comme
+`setOrgNodeActivation` et `setDefaultCalendar` : la réponse ne porte que l'objet écrit, et le client
+relit les listes. `setCostTypeActivation`, `setCostCategoryActivation`, `updateCostType`,
+`updateCostCategory` et `createCostCategory` changent la désactivation et le changement de type des
+natures provision, la désactivation et le rattachement des catégories provision (#578) ;
+`updateCostCategory` aussi le changement de type de l'ancienne et de la nouvelle nature (#577), et
+`setHourlyRate`, par un premier taux, le rattachement de la catégorie à une nature d'un autre type
+(`cost_category_unrated`). `test_mockcostsettings.py` exige « relit » de chacune ; le résumé de
+`cost_categories` dit la désactivation de PRV-001 indisponible.
 
 ## Collage et annulation
 
