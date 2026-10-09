@@ -32,7 +32,9 @@ function modules(): string[] {
 /** Whether a module runs in the browser: it opens on the directive, after its comments if any. */
 function isClient(source: string): boolean {
   // A line comment runs to the end of its line: a directive written within it is none.
-  return /^(?:\s+|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*["']use client["']/.test(source);
+  // Each alternative opens on its own character, and a block comment ends at its first `*/`: no
+  // string can be matched two ways, so the test runs in linear time (CodeQL, inefficient regex).
+  return /^(?:\s|\/\/[^\n]*\n|\/\*(?:[^*]|\*(?!\/))*\*\/)*["']use client["']/.test(source);
 }
 
 /** A source without its comments: a comment that names `useId` is no use of it. */
