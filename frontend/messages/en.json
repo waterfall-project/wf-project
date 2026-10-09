@@ -316,7 +316,11 @@
       "to": "To",
       "apply": "Filter",
       "inverted": "The end of the period may not precede its start, {minimum}.",
-      "invertedUndated": "The end of the period may not precede its start."
+      "invertedUndated": "The end of the period may not precede its start.",
+      "late": "The start of the period may not follow its end, {maximum}.",
+      "lateUndated": "The start of the period may not follow its end.",
+      "invertedDefault": "The end of the period may not precede its default start, {minimum}.",
+      "lateDefault": "The start of the period may not follow its default end, the date of calculation, {maximum}."
     }
   },
   "estimateGrid": {
@@ -615,7 +619,8 @@
       "past": "Paid out",
       "forecast": "To be paid out",
       "file": "cash-out-by-month"
-    }
+    },
+    "periodRefused": "The view is not read: the server refuses the period asked."
   },
   "computedValue": {
     "title": "Computed value",
@@ -946,10 +951,12 @@
     "workBreakdown": {
       "title": "Work breakdown",
       "none": "This project has no order item.",
-      "orderItem": "Order item",
-      "workPackage": "Work package",
-      "deliverable": "Deliverable",
-      "count": "{count, plural, =0 {No order item} one {# order item} other {# order items}}"
+      "count": "{count, plural, =0 {No order item} one {# order item} other {# order items}}",
+      "kindFilter": "Filter by kind",
+      "everyKind": "Every kind",
+      "partial": "The order items and work packages show only what the search and the filter retain.",
+      "partialSearch": "The order items and work packages show only what the search retains.",
+      "partialKinds": "The order items and work packages show only what the filter by kind retains."
     },
     "transitions": {
       "title": "History of states",
@@ -1230,8 +1237,12 @@
       "deactivateUser": "Deactivate “{name}”",
       "reactivateUser": "Reactivate “{name}”",
       "assignRolesUser": "Assign the roles of “{name}”",
-      "hideInactive": "Hide the deactivated",
-      "showInactive": "Show the deactivated"
+      "roleFilter": "Filter by role",
+      "everyRole": "Every role",
+      "stateFilter": "Account state",
+      "everyState": "Every state",
+      "activeAccounts": "Active accounts",
+      "inactiveAccounts": "Deactivated accounts"
     },
     "accessRoles": {
       "title": "Access roles",
@@ -1244,7 +1255,12 @@
       "delete": "Delete",
       "modifyRole": "Modify “{name}”",
       "deleteRole": "Delete “{name}”",
-      "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it."
+      "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it.",
+      "kindFilter": "Kind",
+      "everyKind": "Every kind",
+      "predefinedRoles": "Predefined roles",
+      "composedRoles": "Composed roles",
+      "bounds": "Bounds of the access roles"
     },
     "permissions": {
       "title": "Permissions by function",
@@ -1810,6 +1826,11 @@
     "ContributorKind": {
       "project_manager": "Project manager",
       "contributor": "Contributor"
+    },
+    "WorkBreakdownKind": {
+      "order_item": "Order item",
+      "work_package": "Work package",
+      "deliverable": "Deliverable"
     },
     "RevisionStatus": {
       "draft": "Draft",

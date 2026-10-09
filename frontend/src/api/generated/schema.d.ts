@@ -386,6 +386,7 @@ export interface paths {
         /**
          * Comptes utilisateurs
          * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
+         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus.
          */
         get: operations["listUsers"];
         put?: never;
@@ -553,7 +554,7 @@ export interface paths {
         };
         /**
          * Rôles d'habilitation
-         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060).
+         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris.
          */
         get: operations["listAccessRoles"];
         put?: never;
@@ -1373,7 +1374,7 @@ export interface paths {
         };
         /**
          * Lotissement
-         * @description En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020).
+         * @description En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020). Une grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments qu'ils contiennent. Une lecture filtrée rend un compteur nul : `setWorkBreakdown` écrit le lotissement entier, et un renvoi tel quel, qui supprimerait ce qu'elle omet, est refusé par 422 (`WorkBreakdownReading`).
          */
         get: operations["getWorkBreakdown"];
         /**
@@ -1445,12 +1446,12 @@ export interface paths {
         };
         /**
          * Contributeurs du projet
-         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2 compte cinquante contributeurs par projet. Le compteur est celui de toute la liste, quels que soient le tri et les filtres.
+         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2 compte cinquante contributeurs par projet. Le compteur est celui de toute la liste, quel que soit le tri ; une lecture filtrée le rend nul, pour qu'elle ne soit pas renvoyée à `setContributors`, qui écrit la liste entière et retirerait ce qu'elle omet (`ContributorList.lock_version`).
          */
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant.
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ; un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
          */
         put: operations["setContributors"];
         post?: never;
@@ -2698,7 +2699,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -3513,6 +3514,11 @@ export interface components {
             /** @description Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130). */
             reason?: string | null;
         };
+        /**
+         * @description Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot, livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
+         * @enum {string}
+         */
+        WorkBreakdownKind: "order_item" | "work_package" | "deliverable";
         Deliverable: {
             deliverable_id: components["schemas"]["Uuid"];
             label: string;
@@ -3527,9 +3533,16 @@ export interface components {
             label: string;
             work_packages: components["schemas"]["WorkPackage"][];
         };
-        /** @description Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son absence, un poste, un lot, aucun livrable (WF-PRJ-0020). */
+        /** @description Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en retiennent (WF-PRJ-0020, WF-IHM-0130). */
+        WorkBreakdownReading: {
+            order_items: components["schemas"]["OrderItem"][];
+            /** @description Le compteur du lotissement, que `setWorkBreakdown` exige, rendu par la seule lecture entière ; nul pour une lecture filtrée (`search` ou `kinds`), qui omet des éléments : la renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur nul l'en empêche (422). */
+            lock_version: components["schemas"]["LockVersion"] | null;
+        };
+        /** @description Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son absence, un poste, un lot, aucun livrable (WF-PRJ-0020). Le lotissement entier, que `setWorkBreakdown` écrit et rend. */
         WorkBreakdown: {
             order_items: components["schemas"]["OrderItem"][];
+            /** @description Le compteur du lotissement lu entier (`WorkBreakdownReading.lock_version`) ; nul — celui d'une lecture filtrée —, la saisie est refusée par 422, périmé par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050). */
@@ -3565,8 +3578,8 @@ export interface components {
         /** @description La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste : la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110). */
         ContributorList: {
             items: components["schemas"]["Contributor"][];
-            /** @description Le compteur de la liste, que `setContributors` exige tel qu'il a été lu. */
-            lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur de la liste, que `setContributors` exige tel qu'il a été lu, rendu par une lecture de la liste entière, triée ou non ; nul pour une lecture filtrée (`search`, `kinds`, `is_active`), qui omet des contributeurs : écrite telle quelle, la liste les retirerait, et le compteur nul l'empêche (422). */
+            lock_version: components["schemas"]["LockVersion"] | null;
         };
         ContributorWrite: {
             user_id: components["schemas"]["Uuid"];
@@ -3575,7 +3588,7 @@ export interface components {
         /** @description La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet (WF-PRJ-0060). */
         ContributorsWrite: {
             contributors: components["schemas"]["ContributorWrite"][];
-            /** @description Le compteur de la liste lue (`ContributorList.lock_version`) ; périmé, la liste est refusée par 412 (WF-IHM-0110). */
+            /** @description Le compteur de la liste lue entière (`ContributorList.lock_version`) ; nul — celui d'une lecture filtrée —, la liste est refusée par 422 ; périmé, par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Proposition fondée sur les nœuds d'organisation des rôles employés par le planning ; jamais appliquée sans confirmation (WF-PRJ-0070). */
@@ -4892,18 +4905,27 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Une période du portefeuille refusée, selon la règle de toute période du contrat (WF-IHM-0130) : une fin qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne seule se complète par celle de la période par défaut — la fin, la date de calcul ; le début, la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — et la période complétée suit la même règle : le refus désigne la borne envoyée, `params` nommant la borne complétée — un début postérieur à la date de calcul, `/query/from` par `VALUE_OUT_OF_RANGE`, `params.maximum` la fin complétée ; une fin antérieure au début par défaut, `/query/to`, `params.minimum` le début complété. Aucune vue vide ne tient lieu de refus. */
+        PortfolioPeriodRefused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         Limit: number;
         Offset: number;
         TaskId: components["schemas"]["Uuid"];
-        /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
-        Search: string;
         /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
         IncludeInactive: boolean;
         /** @description Sens du tri demandé par `sort_by`. */
         SortOrder: components["schemas"]["SortOrder"];
         UserId: components["schemas"]["Uuid"];
+        /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+        Search: string;
         AccessRoleId: components["schemas"]["Uuid"];
         BackupId: components["schemas"]["Uuid"];
         /** @description Le nom d'un emplacement externe que l'installation déclare. */
@@ -4939,8 +4961,9 @@ export interface components {
         RiskId: components["schemas"]["Uuid"];
         CostLineId: components["schemas"]["Uuid"];
         ImportId: components["schemas"]["Uuid"];
-        /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+        /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
         PortfolioFrom: components["schemas"]["PlanningDate"];
+        /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
         PortfolioTo: components["schemas"]["PlanningDate"];
         /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
         PortfolioOrgNode: components["schemas"]["Uuid"];
@@ -5463,14 +5486,18 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
-                search?: components["parameters"]["Search"];
+                /** @description Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom affiché, qu'aucune colonne ne porte entier. */
+                search?: string;
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état filtrée (WF-IHM-0130, WF-ADM-0060) : vrai, les seuls comptes actifs ; faux, les seuls désactivés, qui restent lisibles. Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. */
+                is_active?: boolean;
                 /** @description Restreint aux comptes de ces origines (WF-IHM-0130). */
                 origins?: components["schemas"]["UserOrigin"][];
                 /** @description Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à l'un de ses descendants (WF-IHM-0130, WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. */
+                access_role_ids?: components["schemas"]["Uuid"][];
                 /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode. */
                 sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
@@ -5772,8 +5799,14 @@ export interface operations {
     listAccessRoles: {
         parameters: {
             query?: {
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint à l'une des deux natures, la colonne de la nature filtrée (WF-IHM-0130) : vrai, les seuls rôles prédéfinis livrés avec la plateforme (WF-ADM-0010) ; faux, les seuls rôles composés ensuite (WF-ADM-0090). Absent, ne restreint rien. */
+                is_predefined?: boolean;
+                /** @description Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au moins autant de comptes (WF-IHM-0130). */
+                holder_count_min?: number;
+                /** @description Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130). Inférieure à `holder_count_min`, elle est refusée par 422. */
+                holder_count_max?: number;
                 /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs. */
                 sort_by?: "label" | "is_predefined" | "holder_count";
                 /** @description Sens du tri demandé par `sort_by`. */
@@ -5796,6 +5829,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createAccessRole: {
@@ -6237,7 +6279,7 @@ export interface operations {
                 object_kind?: components["schemas"]["AuditObjectKind"];
                 /** @description Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de coût, d'un compte. */
                 object_id?: components["schemas"]["Uuid"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une corrélation que le journal ne porte pas ne retient rien. */
                 correlation_id?: string;
@@ -6375,7 +6417,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux nœuds dont le code contient le texte donné, comparé comme la recherche (WF-IHM-0130). */
                 code?: string;
@@ -6552,7 +6594,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
@@ -6787,7 +6829,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
                 is_active?: components["parameters"]["IsActive"];
@@ -7013,7 +7055,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
                 is_active?: components["parameters"]["IsActive"];
@@ -7153,7 +7195,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux catégories d'une nature de coût (WF-IHM-0130). */
                 cost_type_id?: components["schemas"]["Uuid"];
@@ -7293,7 +7335,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
                 is_active?: components["parameters"]["IsActive"];
@@ -7407,7 +7449,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
@@ -7634,7 +7676,12 @@ export interface operations {
     };
     getWorkBreakdown: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Recherche sur le libellé des postes, des lots et des livrables — le seul texte que chacun porte (WF-PRJ-0020) —, comparé comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). Un élément dont le libellé contient le texte est retenu, non ce qu'il contient. */
+                search?: string;
+                /** @description Restreint aux éléments de ces natures, la colonne de la nature filtrée (WF-IHM-0130) : `kinds=deliverable`, les livrables, sous leurs lots et leurs postes. */
+                kinds?: components["schemas"]["WorkBreakdownKind"][];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -7643,13 +7690,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Lotissement du projet. */
+            /** @description Lotissement du projet, ou ce que les filtres en retiennent. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkBreakdown"];
+                    "application/json": components["schemas"]["WorkBreakdownReading"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -7684,7 +7731,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0130) : `VALIDATION_FAILED`, `fields` sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et `work_package_node_ids` les tâches du poste et du lot. */
+            /** @description Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) : `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`. Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0130) : `VALIDATION_FAILED`, `fields` sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et `work_package_node_ids` les tâches du poste et du lot. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7698,7 +7745,7 @@ export interface operations {
     listSubprojects: {
         parameters: {
             query?: {
-                /** @description Recherche sur le code et le libellé (WF-IHM-0130). */
+                /** @description Recherche sur le code et le libellé, comparés comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). */
                 search?: string;
                 /** @description Vrai, les seuls sous-projets auxquels des coûts réels sont imputés, qui ne se suppriment plus ; faux, les autres (WF-PRJ-0050, WF-IHM-0130). */
                 has_actual_costs?: boolean;
@@ -7832,7 +7879,7 @@ export interface operations {
     listContributors: {
         parameters: {
             query?: {
-                /** @description Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de la liste (WF-IHM-0130). */
+                /** @description Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de la liste, comparé comme toute recherche du contrat (README, « Une recherche… » ; WF-IHM-0130). */
                 search?: string;
                 /** @description Restreint aux contributeurs de ces qualités (WF-IHM-0130). */
                 kinds?: components["schemas"]["ContributorKind"][];
@@ -7879,7 +7926,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liste enregistrée, avec le compteur suivant. */
+            /** @description Liste enregistrée. Une écriture rend toujours la liste entière avec son compteur suivant, jamais nul : `ContributorList` n'admet un compteur nul que pour une lecture filtrée (WF-IHM-0110). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8014,7 +8061,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Les états retenus, en cours ou marquée ; absents, toutes (WF-IHM-0130). */
                 status?: components["schemas"]["RevisionStatus"][];
-                /** @description Recherche sur le nom de version et la description. */
+                /** @description Recherche sur le nom de version et la description, comparés comme toute recherche du contrat (README, « Une recherche… »). */
                 search?: string;
             };
             header?: never;
@@ -8386,7 +8433,7 @@ export interface operations {
             query?: {
                 /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
                 kinds?: components["schemas"]["NodeKind"][];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
                 subtree_of?: components["schemas"]["Uuid"];
@@ -9390,7 +9437,7 @@ export interface operations {
                 states?: components["schemas"]["RiskState"][];
                 /** @description Restreint aux risques dont la case de matrice est dans l'une de ces zones. */
                 zones?: components["schemas"]["AlertZone"][];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Colonne du tri ; absente, l'ordre de déclaration. */
                 sort_by?: "label" | "probability" | "severity" | "provision_amount" | "state" | "last_review_on";
@@ -10055,8 +10102,9 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -10064,7 +10112,7 @@ export interface operations {
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130). */
                 zones?: components["schemas"]["AlertZone"][];
@@ -10094,6 +10142,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioValue: {
@@ -10101,8 +10150,9 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -10126,6 +10176,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioWorkload: {
@@ -10165,8 +10216,9 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -10190,6 +10242,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioCostStructure: {
@@ -10226,8 +10279,9 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, pour les projets terminés et les statistiques de période. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -10249,6 +10303,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["PortfolioPeriodRefused"];
         };
     };
     getPortfolioCostCurve: {

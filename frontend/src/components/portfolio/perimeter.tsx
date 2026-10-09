@@ -10,19 +10,22 @@
  * changes the address, under the names of the contract, and the page reads anew what the server
  * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
  * the server retained it by default (`scope.states`): the front assumes no default of its own; the
- * last state pressed cannot be released, a perimeter retaining at least one. A change goes on from
- * the address last asked (`usePendingAddress`).
+ * last state pressed cannot be released, a perimeter retaining at least one. A period the server
+ * refuses (422) is said at its field, the start named. A change goes on from the address last asked
+ * (`usePendingAddress`).
  */
 "use client";
 
 import { CalendarRange, Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useOptimistic, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useOptimistic, useRef, useTransition } from "react";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { useDatedEntry } from "@/components/grid/dated-entry";
 import { PendingAddress, usePendingAddress } from "@/components/grid/pending-address";
+import type { PeriodRefusals } from "@/components/grid/period";
+import { usePeriodProblem } from "@/components/grid/period-filter";
 import { OFFSET } from "@/components/grid/query";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
@@ -63,14 +66,16 @@ function useParameters() {
 /**
  * The filter by state: a button for each state of a portfolio, pressed as retained — or as last
  * asked, until the server answers —, the state by its badge (#523), as the filter of the home shows
- * it.
+ * it. Without the states the server retained — a view it did not read —, the states the address
+ * names show pressed; naming none, the filter is not offered: nothing would say what is retained,
+ * and a state pressed would restrict the perimeter to it alone in silence.
  */
 function StatesFilter({
   asked,
   retained,
 }: {
   readonly asked: readonly ProjectState[];
-  readonly retained: readonly ProjectState[];
+  readonly retained: readonly ProjectState[] | undefined;
 }) {
   const t = useTranslations();
   const change = useParameters();
@@ -79,7 +84,10 @@ function StatesFilter({
   // replace it (défaut n° 21 de `typescript.md`).
   const [last, show] = useOptimistic(asked);
   const [, startTransition] = useTransition();
-  const shown = last.length === 0 ? retained : last;
+  const shown = last.length === 0 ? (retained ?? []) : last;
+  if (shown.length === 0) {
+    return null;
+  }
   return (
     <div
       role="group"
@@ -105,7 +113,7 @@ function StatesFilter({
               startTransition(() => {
                 change((query) => {
                   const before = readStates(query);
-                  const from = before.length === 0 ? retained : before;
+                  const from = before.length === 0 ? (retained ?? []) : before;
                   const next = from.includes(state)
                     ? from.filter((each) => each !== state)
                     : [...from, state];
@@ -127,19 +135,29 @@ function StatesFilter({
 /** The dates a view takes: the bounds of its period, if it has one, and the date of calculation. */
 const DATES = { period: ["from", "to", "asOf"], date: ["asOf"] } as const;
 
+/** The fields marked wrong, of which the first takes the focus when a view comes back refused. */
+const WRONG = '[aria-invalid="true"]';
+
 /**
  * The bounds of the period, if the view takes one, and the date of calculation, sent together. An
  * entry is dated by the dates of the address (`useDatedEntry`): dates the address changes — back in
- * the history — show anew, and the form keeps the focus.
+ * the history — show anew, and the form keeps the focus. A side of the period the server refuses
+ * (422) — an end before the start — is said at its field, the start named, as the period of the
+ * actual costs says it (`usePeriodProblem`), and takes the focus each time the view comes back
+ * refused.
  */
 function DatesForm({
   perimeter,
   fields,
+  refused,
 }: {
   readonly perimeter: Perimeter;
   readonly fields: (typeof DATES)[keyof typeof DATES];
+  readonly refused: PeriodRefusals | undefined;
 }) {
   const t = useTranslations("portfolio.perimeter");
+  const problemOf = usePeriodProblem("date");
+  const form = useRef<HTMLFormElement>(null);
   const ids = { from: useId(), to: useId(), asOf: useId() };
   const { entered, enter, sent } = useDatedEntry<"from" | "to" | "asOf">(
     `${perimeter.from ?? ""}/${perimeter.to ?? ""}/${perimeter.asOf ?? ""}`,
@@ -150,6 +168,17 @@ function DatesForm({
     asOf: entered.asOf ?? perimeter.asOf ?? "",
   };
   const change = useParameters();
+  // The sides refused, by what they are and the dates they came back for: a view refused anew takes
+  // the focus to its field, the same side refused again too.
+  const refusal =
+    refused === undefined
+      ? undefined
+      : JSON.stringify([perimeter.from, perimeter.to, perimeter.asOf, refused]);
+  useEffect(() => {
+    if (refusal !== undefined) {
+      form.current?.querySelector<HTMLElement>(WRONG)?.focus();
+    }
+  }, [refusal]);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     // Sent, the dates arrive as the address writes them: only what is typed after them stays.
@@ -160,24 +189,43 @@ function DatesForm({
     }));
   };
   return (
-    <form aria-label={t("period")} onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      {fields.map((field) => (
-        <div key={field} className="flex items-center gap-2">
-          <Label htmlFor={ids[field]}>{t(field)}</Label>
-          <Input
-            id={ids[field]}
-            type="date"
-            value={dates[field]}
-            // A period is never asked backwards: its start no later than its end (WF-PTF-0010).
-            max={field === "from" && dates.to !== "" ? dates.to : undefined}
-            min={field === "to" && dates.from !== "" ? dates.from : undefined}
-            onChange={(event) => {
-              enter(field, event.target.value);
-            }}
-            className="h-8 w-40"
-          />
-        </div>
-      ))}
+    <form
+      ref={form}
+      aria-label={t("period")}
+      onSubmit={submit}
+      className="flex flex-wrap items-start gap-2"
+    >
+      {fields.map((field) => {
+        const sideRefusal = field === "asOf" ? undefined : refused?.[field];
+        const problem = `${ids[field]}-problem`;
+        return (
+          <div key={field} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor={ids[field]}>{t(field)}</Label>
+              <Input
+                id={ids[field]}
+                type="date"
+                value={dates[field]}
+                // A period is never asked backwards: its start no later than its end (WF-PTF-0010).
+                max={field === "from" && dates.to !== "" ? dates.to : undefined}
+                min={field === "to" && dates.from !== "" ? dates.from : undefined}
+                aria-invalid={sideRefusal === undefined ? undefined : true}
+                aria-describedby={sideRefusal === undefined ? undefined : problem}
+                onChange={(event) => {
+                  enter(field, event.target.value);
+                }}
+                className="h-8 w-40"
+              />
+            </div>
+            {sideRefusal === undefined ? null : (
+              <p id={problem} className="text-xs text-destructive">
+                {/* The other side absent, the server completed the period with its default. */}
+                {problemOf(sideRefusal, perimeter[field === "from" ? "to" : "from"] === undefined)}
+              </p>
+            )}
+          </div>
+        );
+      })}
       <Button type="submit" size="sm" variant="outline">
         <CalendarRange aria-hidden="true" className="size-4" />
         {t("apply")}
@@ -211,13 +259,16 @@ export interface ViewParameters {
  */
 export interface PerimeterBarProps {
   readonly perimeter: Perimeter;
-  readonly retained: readonly ProjectState[];
+  /** The states the server retained; none for a view it did not read, its period refused. */
+  readonly retained?: readonly ProjectState[] | undefined;
   /** What of the perimeter the view takes besides its states and its date: a period, a node. */
   readonly takes?: Takes;
   /** The nodes of organisation, when the view takes one. */
   readonly nodes?: readonly NodeChoice[];
   /** The parameters the view takes, and their value; none, and none is offered. */
   readonly view?: ViewParameters;
+  /** The sides of the period the server refused (422), the view then unread; none when read. */
+  readonly refused?: PeriodRefusals | undefined;
 }
 
 /** Render the perimeter of a view of the portfolio, as the address asks it. */
@@ -227,6 +278,7 @@ export function PerimeterBar({
   takes = WHOLE,
   nodes = [],
   view,
+  refused,
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
   const locale = useLocale();
@@ -236,7 +288,11 @@ export function PerimeterBar({
     <PendingAddress>
       <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <StatesFilter asked={perimeter.states} retained={retained} />
-        <DatesForm perimeter={perimeter} fields={takes.period ? DATES.period : DATES.date} />
+        <DatesForm
+          perimeter={perimeter}
+          fields={takes.period ? DATES.period : DATES.date}
+          refused={refused}
+        />
         {/* No node to choose — none in the reference, none the API lets one read —: none offered,
           unless the address already filters on one, which stays shown to be cleared. */}
         {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (

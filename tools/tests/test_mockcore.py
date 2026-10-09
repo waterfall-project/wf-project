@@ -370,6 +370,18 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     assert readings["nodes.json"]["totals"]["estimate_line_count"] == 1
 
 
+def test_a_search_of_the_structure_ignores_the_case_and_the_accents(
+    rows: list[mockcore.Row],
+) -> None:
+    # « etudes » finds the tasks labelled « Études… », which hold it only without their accent.
+    reading: dict[str, Any] = mockcore.search(rows, "etudes")
+    found = {node["node_id"] for node in reading["items"]}
+    accented = [row for row in rows if "Études" in row.label]
+    assert accented
+    assert all("etudes" not in row.label.lower() for row in accented)
+    assert {cast("str", row.node["node_id"]) for row in accented} <= found
+
+
 def test_the_dependencies_name_the_rows_of_the_tree_by_their_number_and_label(
     readings: dict[str, Any], rows: list[mockcore.Row]
 ) -> None:

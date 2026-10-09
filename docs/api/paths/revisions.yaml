@@ -20,7 +20,9 @@
         explode: false
       - name: search
         in: query
-        description: Recherche sur le nom de version et la description.
+        description: >-
+          Recherche sur le nom de version et la description, comparés comme toute recherche du
+          contrat (README, « Une recherche… »).
         schema: { type: string, minLength: 1, maxLength: 200 }
     responses:
       '200':

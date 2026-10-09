@@ -70,6 +70,7 @@
               empty: { $ref: ../../../fixtures/api/portfolio_projects_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/value:
   get:
@@ -96,6 +97,7 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_value.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/workload:
   get:
@@ -154,6 +156,7 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_performance.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/cost-structure:
   get:
@@ -204,6 +207,7 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_risks.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
 
 /portfolio/cost-curve:
   get:

@@ -49,13 +49,17 @@ function NodeLine({ scope }: { readonly scope: PortfolioScope }) {
   );
 }
 
-/** Render the header of a view of the portfolio, the perimeter and the date under its title. */
+/**
+ * Render the header of a view of the portfolio, the perimeter and the date under its title; the
+ * title alone for a view the server did not read — its period refused —, of which no perimeter was
+ * retained.
+ */
 export function PortfolioHeader({
   fn,
   scope,
 }: {
   readonly fn: PortfolioFunction;
-  readonly scope: PortfolioScope;
+  readonly scope: PortfolioScope | undefined;
 }) {
   const t = useTranslations();
   return (
@@ -64,10 +68,12 @@ export function PortfolioHeader({
       icon={FUNCTION_ICONS[fn]}
       density={FUNCTION_DENSITY[fn]}
       subtitle={
-        <>
-          <ScopeLine scope={scope} />
-          <NodeLine scope={scope} />
-        </>
+        scope === undefined ? undefined : (
+          <>
+            <ScopeLine scope={scope} />
+            <NodeLine scope={scope} />
+          </>
+        )
       }
     />
   );

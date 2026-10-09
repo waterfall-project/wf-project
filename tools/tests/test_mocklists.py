@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the readings of the list of the projects, of the subprojects and of the contributors.
+"""Tests of the readings of the lists of the projects, of a project and of the administration.
 
-They try the rules of sort, search and filter the fake back applies (#536) on rows made for them,
+The list of the projects, the subprojects and the contributors (#536), the accounts, the access
+roles and the work breakdown (#560). They try the rules of sort, search and filter the fake back
+applies on rows made for them,
 and the examples against the lists written by hand and the contract they illustrate — not the
 Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
@@ -15,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mocklists
+from wftools import REPOSITORY, mockdata, mocklists, mocktext, mockwitness
 from wftools.mockwitness import fixture
 
 type Row = dict[str, Any]
@@ -67,6 +69,7 @@ def _ids(rows: list[Row], key: str = "project_id") -> list[str]:
 def test_the_orders_follow_the_enumerations_of_the_contract() -> None:
     assert list(mocklists.PROJECT_STATES) == _enumeration("projects.yaml", "ProjectState")
     assert list(mocklists.CONTRIBUTOR_KINDS) == _enumeration("projects.yaml", "ContributorKind")
+    assert list(mocklists.BREAKDOWN_KINDS) == _enumeration("projects.yaml", "WorkBreakdownKind")
 
 
 def test_without_states_the_projects_in_progress_alone_and_the_answer_names_them() -> None:
@@ -248,9 +251,10 @@ def test_the_readings_of_the_contributors_follow_their_parameters(lists: dict[st
     assert [row["display_name"] for row in lists["contributors_inactive"]["items"]] == [
         "Alix Moreau"
     ]
-    # Whatever the sort and the filters, the counter is that of the whole list.
-    for name in ("contributors_by_name", "contributors_search", "contributors_inactive"):
-        assert lists[name]["lock_version"] == written["lock_version"]
+    # Sorted, the reading is the whole list, with its counter; filtered, it has none (#560).
+    assert lists["contributors_by_name"]["lock_version"] == written["lock_version"]
+    for name in ("contributors_search", "contributors_inactive"):
+        assert lists[name]["lock_version"] is None
 
 
 _INSTANT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
@@ -280,3 +284,299 @@ def test_the_instants_of_the_periods_are_those_the_screen_asks_for_its_days() ->
     assert ended < begun
     [field] = inverted["value"]["fields"]
     assert datetime.fromisoformat(field["params"]["minimum"]) == begun
+
+
+# --- The accounts and the access roles (#560) ---------------------------------------------------
+
+
+def _user(identifier: str, last: str, first: str, email: str, roles: list[str]) -> Row:
+    return {
+        "user_id": identifier,
+        "last_name": last,
+        "first_name": first,
+        "email": email,
+        "access_role_ids": roles,
+    }
+
+
+USERS: list[Row] = [
+    _user("u1", "Durand", "Élise", "e.durand@example.com", ["r1"]),
+    _user("u2", "Masson", "Léa", "lmasson@example.com", ["r2", "r3"]),
+    _user("u3", "Noël", "Paul", "pn@example.com", []),
+    _user("u4", "Paul", "Anne", "contact.ap@example.com", ["r3"]),
+]
+"""Accounts whose addresses hold neither their name nor their first name."""
+
+
+def test_the_search_of_the_accounts_reads_the_name_the_first_name_the_address_and_the_display() -> (
+    None
+):
+    # « paul » is the first name of u3 and the name of u4, whatever the case.
+    assert _ids(mocklists.searched_users(USERS, "PAUL"), "user_id") == ["u3", "u4"]
+    # The address: « lmasson » is in that of u2 alone.
+    assert _ids(mocklists.searched_users(USERS, "lmasson"), "user_id") == ["u2"]
+    # Compared by code point: « Élise » and « Noël » keep their accents.
+    assert _ids(mocklists.searched_users(USERS, "élise"), "user_id") == ["u1"]
+    assert _ids(mocklists.searched_users(USERS, "elise"), "user_id") == ["u1"]
+    assert _ids(mocklists.searched_users(USERS, "NOEL"), "user_id") == ["u3"]
+    # The displayed name, the first name then the name, which no column holds whole.
+    assert _ids(mocklists.searched_users(USERS, "Léa Masson"), "user_id") == ["u2"]
+    assert mocklists.searched_users(USERS, "Masson Léa") == []
+
+
+def test_the_accounts_are_filtered_by_one_at_least_of_the_roles_named() -> None:
+    assert _ids(mocklists.holding(USERS, ["r3"]), "user_id") == ["u2", "u4"]
+    # Either role retains: u1 by r1, u2 by r2 — once, though it holds r3 too.
+    assert _ids(mocklists.holding(USERS, ["r2", "r1"]), "user_id") == ["u1", "u2"]
+    # An account without a role is retained by no value; a role nobody holds retains nobody.
+    assert mocklists.holding(USERS, ["r9"]) == []
+
+
+def test_a_page_of_the_accounts_counts_every_account_retained() -> None:
+    page: dict[str, Any] = mocklists.user_page(USERS, limit=2)
+    assert _ids(page["items"], "user_id") == ["u1", "u2"]
+    assert page["meta"] == {"limit": 2, "offset": 0, "total": 4}
+
+
+ROLES: list[Row] = [
+    {"access_role_id": "a", "is_predefined": True, "holder_count": 0},
+    {"access_role_id": "b", "is_predefined": False, "holder_count": 2},
+    {"access_role_id": "c", "is_predefined": True, "holder_count": 1},
+    {"access_role_id": "d", "is_predefined": False, "holder_count": 3},
+]
+
+
+def test_the_roles_are_filtered_by_their_nature() -> None:
+    assert _ids(mocklists.of_nature(ROLES, predefined=True), "access_role_id") == ["a", "c"]
+    assert _ids(mocklists.of_nature(ROLES, predefined=False), "access_role_id") == ["b", "d"]
+
+
+def test_the_bounds_of_the_holders_are_both_included() -> None:
+    def held(minimum: int | None, maximum: int | None) -> list[str]:
+        return _ids(mocklists.held_within(ROLES, minimum, maximum), "access_role_id")
+
+    assert held(1, 2) == ["b", "c"]
+    assert held(None, 0) == ["a"]
+    assert held(3, None) == ["d"]
+    assert held(2, 2) == ["b"]
+    assert held(None, None) == ["a", "b", "c", "d"]
+    with pytest.raises(ValueError, match="below the lower bound"):
+        mocklists.held_within(ROLES, 2, 1)
+
+
+def test_the_readings_of_the_accounts_follow_their_parameters(lists: dict[str, Any]) -> None:
+    written = fixture("users")["items"]
+    # The accounts written by hand come in the order without sort: by name, then first name.
+    assert written == sorted(written, key=lambda row: (row["last_name"], row["first_name"]))
+    held = lists["users_by_access_role"]
+    assert [mocklists.display_name(row) for row in held["items"]] == [
+        "Dominique Bernard",
+        "Alix Moreau",
+    ]
+    assert held["meta"]["total"] == 2
+    asked = set(mocklists.HELD_ROLES)
+    assert all(asked & set(row["access_role_ids"]) for row in held["items"])
+    others = [row for row in written if row not in held["items"]]
+    assert not any(asked & set(row["access_role_ids"]) for row in others)
+    # Held by an account deactivated: the reading counts it, as the role counts its holders.
+    assert [row["is_active"] for row in held["items"]] == [True, False]
+    [found] = lists["users_search"]["items"]
+    assert mocklists.display_name(found) == "Inès Roux"
+    # Found by the address alone: neither the name nor the first name holds the text.
+    # Found by its displayed name alone, without its accent nor its case: no column, nor the
+    # address, holds the text, and the displayed name holds it only so compared.
+    for column in ("last_name", "first_name", "email"):
+        assert mocklists.SEARCHED_ACCOUNT not in found[column].lower()
+    assert mocklists.SEARCHED_ACCOUNT not in mocklists.display_name(found).lower()
+    assert mocktext.holds(mocklists.display_name(found), mocklists.SEARCHED_ACCOUNT)
+
+
+def test_the_readings_of_the_roles_follow_their_parameters(lists: dict[str, Any]) -> None:
+    written = fixture("access_roles")
+    composed = lists["access_roles_composed"]
+    assert [row["label"] for row in composed] == [
+        "Auditeur",
+        "Chiffreur",
+        "Direction de projet",
+        "Pilotage de projet",
+    ]
+    assert [row for row in written if row["is_predefined"] is False] == composed
+    unheld = lists["access_roles_unheld"]
+    assert [(row["label"], row["holder_count"]) for row in unheld] == [("Administrateur", 0)]
+    assert all(row["holder_count"] >= 1 for row in written if row not in unheld)
+
+
+def test_the_bounds_of_the_holders_inverted_are_refused_by_the_rule_of_the_bounds() -> None:
+    refused = fixture("access_roles_bounds_inverted")
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    [field] = refused["fields"]
+    # An integer, in the type of the column, as `holder_count` is.
+    assert field == {
+        "pointer": "/query/holder_count_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {"minimum": 2},
+    }
+
+
+# --- The work breakdown (#560) ------------------------------------------------------------------
+
+
+def _element(kind: str, identifier: str, label: str, below: list[Row] | None = None) -> Row:
+    held = {"order_item": "work_packages", "work_package": "deliverables"}
+    row: Row = {f"{kind}_id": identifier, "label": label}
+    if kind in held:
+        row[held[kind]] = below or []
+    return row
+
+
+BREAKDOWN: Row = {
+    "order_items": [
+        _element(
+            "order_item",
+            "o1",
+            "Études",
+            [
+                _element("work_package", "w1", "Plans", [_element("deliverable", "d1", "Plan A")]),
+                _element("work_package", "w2", "Notes", [_element("deliverable", "d2", "Note")]),
+            ],
+        ),
+        _element(
+            "order_item",
+            "o2",
+            "Montage des plans",
+            [_element("work_package", "w3", "Câblage", [_element("deliverable", "d3", "Essai")])],
+        ),
+    ],
+    "lock_version": 7,
+}
+
+
+def _tree(breakdown: dict[str, Any]) -> list[tuple[str, list[tuple[str, list[str]]]]]:
+    """Say a work breakdown by its identifiers: order items, their packages, their deliverables."""
+    return [
+        (
+            item["order_item_id"],
+            [
+                (
+                    package["work_package_id"],
+                    [each["deliverable_id"] for each in package["deliverables"]],
+                )
+                for package in item["work_packages"]
+            ],
+        )
+        for item in breakdown["order_items"]
+    ]
+
+
+def test_the_search_of_the_breakdown_retains_its_matches_under_their_parents_alone() -> None:
+    found: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, "PLAN")
+    # « plan » is in o2 alone — its package w3 is not —, in w1 and in d1, under o1, whose
+    # package w2 holds nothing that matches.
+    assert _tree(found) == [("o1", [("w1", ["d1"])]), ("o2", [])]
+    assert _tree(mocklists.filtered_breakdown(BREAKDOWN, "absent")) == []
+
+
+def test_a_filtered_reading_of_the_breakdown_has_no_counter_the_whole_one_has_its_own() -> None:
+    # Sent back to setWorkBreakdown, a filtered reading would remove what it leaves out: its
+    # counter is none, which the write refuses (#560) — even when the filter retains everything.
+    assert mocklists.filtered_breakdown(BREAKDOWN)["lock_version"] == 7
+    assert mocklists.filtered_breakdown(BREAKDOWN, "PLAN")["lock_version"] is None
+    every = mocklists.filtered_breakdown(BREAKDOWN, kinds=mocklists.BREAKDOWN_KINDS)
+    assert _tree(every) == _tree(BREAKDOWN)
+    assert every["lock_version"] is None
+
+
+def test_a_reading_of_the_contributors_has_a_counter_unless_it_is_filtered() -> None:
+    contributors: Row = {"items": [], "lock_version": 4}
+    rows: list[Row] = [{"user_id": "u1"}]
+    assert mocklists.contributor_list(contributors, rows, filtered=False)["lock_version"] == 4
+    assert mocklists.contributor_list(contributors, rows, filtered=True)["lock_version"] is None
+
+
+def test_the_kinds_of_the_breakdown_retain_their_elements_under_their_parents() -> None:
+    def kept(*kinds: str) -> list[tuple[str, list[tuple[str, list[str]]]]]:
+        return _tree(mocklists.filtered_breakdown(BREAKDOWN, kinds=kinds))
+
+    assert kept("order_item") == [("o1", []), ("o2", [])]
+    assert kept("work_package") == [("o1", [("w1", []), ("w2", [])]), ("o2", [("w3", [])])]
+    assert kept("deliverable") == _tree(BREAKDOWN)
+    assert kept() == _tree(BREAKDOWN)
+    with pytest.raises(ValueError, match="no kind of an element"):
+        mocklists.filtered_breakdown(BREAKDOWN, kinds=("lot",))
+
+
+def test_the_filters_of_the_breakdown_combine() -> None:
+    # The work packages whose label holds « n »: w1 « Plans » and w2 « Notes », under o1, given
+    # as their parent; not w3 « Câblage ». o2 « Montage des plans » holds it, but is no work
+    # package, and holds none retained: it is left out.
+    combined: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, "n", ("work_package",))
+    assert _tree(combined) == [("o1", [("w1", []), ("w2", [])])]
+
+
+def test_the_readings_of_the_breakdown_follow_their_parameters(lists: dict[str, Any]) -> None:
+    whole: dict[str, Any] = mocklists.work_breakdown(mockwitness.WORK_BREAKDOWN, 1)
+    [item] = whole["order_items"]
+    [package] = item["work_packages"]
+    searched = lists["work_breakdown_search"]
+    # The order item, whose label holds the text in another case, without what it holds.
+    assert mocklists.SEARCHED_LABEL not in item["label"]
+    assert mocktext.folded(mocklists.SEARCHED_LABEL) in mocktext.folded(item["label"])
+    assert searched == {"order_items": [{**item, "work_packages": []}], "lock_version": None}
+    packages = lists["work_breakdown_work_packages"]
+    assert packages == {
+        "order_items": [{**item, "work_packages": [{**package, "deliverables": []}]}],
+        "lock_version": None,
+    }
+    # The witness holds a deliverable, which the reading of the work packages leaves out.
+    assert package["deliverables"] != []
+
+
+def _examples_of(operation: str, path: str) -> dict[str, str]:
+    """Return the fixtures the 200 of an operation cites, by the name of their example."""
+    text = (REPOSITORY / "docs/api/paths" / path).read_text(encoding="utf-8")
+    block = text.split(f"operationId: {operation}\n", 1)[1].split("'401'", 1)[0]
+    return dict(re.findall(r"(\w+): \{ \$ref: [./]*fixtures/api/(\w+)\.json \}", block))
+
+
+def test_the_filtered_readings_the_contract_cites_have_no_counter_the_others_have_one() -> None:
+    # The reading a write may follow — whole, sorted or not — has its counter; a filtered one,
+    # none, so that setWorkBreakdown and setContributors refuse it sent back as it is (#560).
+    expected = {
+        ("getWorkBreakdown", "projects.yaml"): {
+            "witness": True,
+            "default": True,
+            "search": False,
+            "work_packages": False,
+        },
+        ("listContributors", "projects.yaml"): {
+            "witness": True,
+            "by_name": True,
+            "search": False,
+            "inactive": False,
+        },
+    }
+    for (operation, path), counted in expected.items():
+        cited = _examples_of(operation, path)
+        assert set(cited) == set(counted), operation
+        for name, fixture_name in cited.items():
+            counter = fixture(fixture_name)["lock_version"]
+            assert isinstance(counter, int) is counted[name], (operation, name)
+            assert (counter is None) is not counted[name], (operation, name)
+
+
+def test_the_accounts_are_filtered_by_their_state() -> None:
+    rows: list[Row] = [
+        {"user_id": "u1", "is_active": True},
+        {"user_id": "u2", "is_active": False},
+        {"user_id": "u3", "is_active": True},
+    ]
+    assert _ids(mocklists.in_state(rows, active=True), "user_id") == ["u1", "u3"]
+    assert _ids(mocklists.in_state(rows, active=False), "user_id") == ["u2"]
+
+
+def test_the_reading_of_the_accounts_deactivated_holds_them_alone(lists: dict[str, Any]) -> None:
+    written = fixture("users")["items"]
+    inactive = lists["users_inactive"]
+    assert [mocklists.display_name(row) for row in inactive["items"]] == ["Alix Moreau"]
+    assert inactive["items"] == [row for row in written if row["is_active"] is False]
+    assert inactive["meta"]["total"] == 1

@@ -1,5 +1,5 @@
 {
-  "summary": "Les contributeurs triés par nom, croissant (sort_by=display_name) : Alix Moreau, Camille Martin, Inès Roux et Lucas Petit, comparés par points de code, quand la liste sans tri met les chefs de projet d'abord, puis les autres par nom de famille ; le compteur est celui de toute la liste (WF-IHM-0060, WF-PRJ-0060).",
+  "summary": "Les contributeurs triés par nom, croissant (sort_by=display_name) : Alix Moreau, Camille Martin, Inès Roux et Lucas Petit, comparés par points de code, quand la liste sans tri met les chefs de projet d'abord, puis les autres par nom de famille ; le compteur est celui de toute la liste, qu'un tri n'écourte pas (WF-IHM-0060, WF-PRJ-0060).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "items": [

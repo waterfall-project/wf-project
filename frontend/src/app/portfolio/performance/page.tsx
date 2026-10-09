@@ -6,11 +6,11 @@
  * their zone, the cumulated variances, the three projections against the aggregated reference
  * budget, the distribution of the projects by zone of each index, and the evolution of the two
  * indices quarter by quarter — every figure as the server computes it, a ratio of sums
- * (WF-PTF-0020); the front computes nothing.
+ * (WF-PTF-0020); the front computes nothing. A period the server refuses is said at its field, the
+ * view unread (`RefusedView`).
  */
 import type { Metadata } from "next";
 
-import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { perimeterQuery, readPerimeter } from "@/components/portfolio/address";
@@ -24,6 +24,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 
 import { screenMetadata } from "../../title";
 import { readNodes } from "../nodes";
+import { readView, RefusedView } from "../refused";
 
 /** Title the tab with the function. */
 export function generateMetadata(): Promise<Metadata> {
@@ -38,20 +39,32 @@ export default async function PortfolioPerformancePage({
 }) {
   const perimeter = readPerimeter(pageSearch(await searchParams));
   const [answer, nodes] = await Promise.all([
-    readOrFail("getPortfolioPerformance", () =>
+    readView("getPortfolioPerformance", () =>
       serverClient().GET("/portfolio/performance", {
         params: { query: perimeterQuery(perimeter) },
       }),
     ),
     readNodes(),
   ]);
+  if (answer.kind === "refused") {
+    return (
+      <PendingAddress>
+        <RefusedView
+          fn="portfolio_performance"
+          perimeter={perimeter}
+          refused={answer.refused}
+          nodes={nodes}
+        />
+      </PendingAddress>
+    );
+  }
   return (
     <PendingAddress>
       <Screen density={FUNCTION_DENSITY.portfolio_performance}>
-        <PortfolioHeader fn="portfolio_performance" scope={answer.scope} />
-        <PerimeterBar perimeter={perimeter} retained={answer.scope.states} nodes={nodes} />
-        <PerformanceView performance={answer} />
-        <QuarterlyChart quarters={answer.quarterly} scope={answer.scope} />
+        <PortfolioHeader fn="portfolio_performance" scope={answer.data.scope} />
+        <PerimeterBar perimeter={perimeter} retained={answer.data.scope.states} nodes={nodes} />
+        <PerformanceView performance={answer.data} />
+        <QuarterlyChart quarters={answer.data.quarterly} scope={answer.data.scope} />
       </Screen>
     </PendingAddress>
   );

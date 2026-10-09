@@ -1,0 +1,10 @@
+{
+  "summary": "Les comptes cherchés par « ines roux », désactivés compris (include_inactive=true) : Inès Roux, trouvée par son nom affiché, le prénom suivi du nom, qu'aucune colonne ne porte entier — la recherche ignore la casse et les accents (WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "items": [
+      {"user_id":"01926f3a-7c00-7000-8000-000000000306","last_name":"Roux","first_name":"Inès","email":"ines.roux@example.com","is_active":true,"origin":"local","org_node_id":null,"org_node_label":null,"access_role_ids":["01926f3a-7c00-7000-8000-000000000706"],"access_role_labels":["Pilotage de projet"],"has_avatar":false,"available_commands":[{"command":"deactivate","is_available":true,"missing_conditions":[]},{"command":"set_access_roles","is_available":true,"missing_conditions":[]}],"audit":{"created_at":"2026-01-15T10:30:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-01-15T10:30:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1}
+    ],
+    "meta": {"limit":50,"offset":0,"total":1}
+  }
+}

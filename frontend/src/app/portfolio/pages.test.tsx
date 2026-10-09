@@ -9,7 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectsGridProps } from "@/components/portfolio/projects-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import CostCurvePage, { generateMetadata as costCurveTitle } from "./cost-curve/page";
 import CostStructurePage, { generateMetadata as costStructureTitle } from "./cost-structure/page";
@@ -365,5 +371,75 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain(
       "Delivered and conversion rate over the period from 4 Jun 2025 to 3 Jun 2026",
     );
+  });
+});
+
+describe("a period of the portfolio the server refuses", () => {
+  const inverted = { problem: example("portfolio_period_inverted") as Problem & { status: 422 } };
+  const period = { from: "2026-03-31", to: "2026-01-01" };
+
+  /** The field of a side of the period, and what describes it. */
+  function field(markup: string, value: string): { readonly tag: string; readonly said: string } {
+    const tag = new RegExp(`<input[^>]*value="${value}"[^>]*>`).exec(markup)?.[0] ?? "";
+    const described = /aria-describedby="([^"]+)"/.exec(tag)?.[1];
+    const said =
+      described === undefined
+        ? ""
+        : (new RegExp(`<p id="${described}"[^>]*>([^<]*)</p>`).exec(markup)?.[1] ?? "");
+    return { tag, said };
+  }
+
+  it.each([
+    ["the projects", ProjectsPage, "GET /portfolio/projects" as const],
+    ["the value", ProjectsPage, "GET /portfolio/value" as const],
+    ["the performance", PerformancePage, "GET /portfolio/performance" as const],
+    ["the risks", RisksPage, "GET /portfolio/risks" as const],
+  ])(
+    "says at the field of its end the period %s are refused for, the start named, the view unread and the perimeter kept",
+    async (_view, page, route) => {
+      server.answers = { ...server.answers, [route]: inverted };
+      const markup = await render(page, period);
+      const end = field(markup, "2026-01-01");
+      expect(end.tag).toContain('aria-invalid="true"');
+      expect(end.said).toBe("The end of the period may not precede its start, 31 Mar 2026.");
+      expect(field(markup, "2026-03-31").tag).not.toContain("aria-invalid");
+      expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+      expect(markup).not.toContain('role="grid"');
+      // No state named, nothing says what is retained: the filter by state is not offered, which
+      // would restrict the perimeter to one state in silence.
+      expect(markup).not.toContain('aria-label="States retained"');
+    },
+  );
+
+  it("presses in the filter by state of a view refused the states the address names, as it asks them", async () => {
+    server.answers = { ...server.answers, "GET /portfolio/performance": inverted };
+    const markup = await render(PerformancePage, { ...period, states: "in_progress,completed" });
+    const group = markup.slice(markup.indexOf('aria-label="States retained"'));
+    const pressed = [
+      ...group.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>(.*?)<\/button>/g),
+    ]
+      .slice(0, 3)
+      .map((match) => [text(match[2] ?? ""), match[1]]);
+    expect(pressed).toEqual([
+      ["In progress", "true"],
+      ["Pricing", "false"],
+      ["Completed", "true"],
+    ]);
+  });
+
+  it("says at the field of its start a start the server refuses for following the end it completed the period with, the end named", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /portfolio/performance": {
+        problem: example("portfolio_open_period_inverted") as Problem & { status: 422 },
+      },
+    };
+    const markup = await render(PerformancePage, { from: "2026-09-01" });
+    const start = field(markup, "2026-09-01");
+    expect(start.tag).toContain('aria-invalid="true"');
+    expect(start.said).toBe(
+      "The start of the period may not follow its default end, the date of calculation, 3 Jun 2026.",
+    );
+    expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
   });
 });

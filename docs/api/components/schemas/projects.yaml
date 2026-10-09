@@ -289,12 +289,35 @@ WorkBreakdown:
   required: [order_items, lock_version]
   description: >-
     Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son
-    absence, un poste, un lot, aucun livrable (WF-PRJ-0020).
+    absence, un poste, un lot, aucun livrable (WF-PRJ-0020). Le lotissement entier, que
+    `setWorkBreakdown` écrit et rend.
   properties:
     order_items:
       type: array
       items: { $ref: '#/OrderItem' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du lotissement lu entier (`WorkBreakdownReading.lock_version`) ; nul — celui
+        d'une lecture filtrée —, la saisie est refusée par 422, périmé par 412 (WF-IHM-0110).
+
+WorkBreakdownReading:
+  type: object
+  required: [order_items, lock_version]
+  description: >-
+    Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en
+    retiennent (WF-PRJ-0020, WF-IHM-0130).
+  properties:
+    order_items:
+      type: array
+      items: { $ref: '#/OrderItem' }
+    lock_version:
+      anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
+      description: >-
+        Le compteur du lotissement, que `setWorkBreakdown` exige, rendu par la seule lecture
+        entière ; nul pour une lecture filtrée (`search` ou `kinds`), qui omet des éléments : la
+        renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur
+        nul l'en empêche (422).
 
 OrderItem:
   type: object
@@ -322,6 +345,14 @@ Deliverable:
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
+
+WorkBreakdownKind:
+  type: string
+  enum: [order_item, work_package, deliverable]
+  description: >-
+    Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot,
+    livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que
+    `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
 
 Subproject:
   type: object
@@ -393,8 +424,12 @@ ContributorList:
       type: array
       items: { $ref: '#/Contributor' }
     lock_version:
-      allOf: [{ $ref: ../common.yaml#/LockVersion }]
-      description: Le compteur de la liste, que `setContributors` exige tel qu'il a été lu.
+      anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
+      description: >-
+        Le compteur de la liste, que `setContributors` exige tel qu'il a été lu, rendu par une
+        lecture de la liste entière, triée ou non ; nul pour une lecture filtrée (`search`,
+        `kinds`, `is_active`), qui omet des contributeurs : écrite telle quelle, la liste les
+        retirerait, et le compteur nul l'empêche (422).
 
 ContributorWrite:
   type: object
@@ -417,8 +452,8 @@ ContributorsWrite:
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
-        Le compteur de la liste lue (`ContributorList.lock_version`) ; périmé, la liste est
-        refusée par 412 (WF-IHM-0110).
+        Le compteur de la liste lue entière (`ContributorList.lock_version`) ; nul — celui d'une
+        lecture filtrée —, la liste est refusée par 422 ; périmé, par 412 (WF-IHM-0110).
 
 ContributorSuggestion:
   type: object

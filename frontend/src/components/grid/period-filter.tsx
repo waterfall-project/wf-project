@@ -92,9 +92,10 @@ export interface PeriodFilterProps {
 }
 
 /**
- * The start an end was refused against, as the field of the start shows it: a day of planning, the
- * local day of an instant drawn from days, or an instant in the local time; none while only the
- * browser could say it, before the hydration, or of a start the form of the period does not take.
+ * The bound a side was refused against — the start of an end, the end of a start —, as a field of
+ * the period shows it: a day of planning, the local day of an instant drawn from days, or an instant
+ * in the local time; none while only the browser could say it, before the hydration, or of a bound
+ * the form of the period does not take.
  */
 function startShown(
   kind: PeriodKind,
@@ -113,18 +114,35 @@ function startShown(
     : formatTimestamp(minimum, locale);
 }
 
-/** The sentence that says why the API refused a side of the period. */
-function useProblem(kind: PeriodKind): (refusal: PeriodRefusal) => string {
+/**
+ * The sentence that says why the API refused a side of a period, the bound it names shown as a field
+ * of the period shows it — this filter's, or a form of dates of its own (the perimeter of the
+ * portfolio). A bound the server completed a period sent with one side alone with (`completed`) is
+ * said its bound by default — the end, the date of calculation of the portfolio.
+ */
+export function usePeriodProblem(
+  kind: PeriodKind,
+): (refusal: PeriodRefusal, completed?: boolean) => string {
   const t = useTranslations("grid.period");
   const errors = useTranslations("errors");
   const locale = useLocale();
   const hydrated = useHydrated();
-  return (refusal) => {
+  return (refusal, completed = false) => {
     if (refusal.code === "DATE_INVALID") {
       return errors("DATE_INVALID");
     }
+    if ("maximum" in refusal) {
+      const end = startShown(kind, refusal.maximum, locale, hydrated);
+      if (end === undefined) {
+        return t("lateUndated");
+      }
+      return completed ? t("lateDefault", { maximum: end }) : t("late", { maximum: end });
+    }
     const start = startShown(kind, refusal.minimum, locale, hydrated);
-    return start === undefined ? t("invertedUndated") : t("inverted", { minimum: start });
+    if (start === undefined) {
+      return t("invertedUndated");
+    }
+    return completed ? t("invertedDefault", { minimum: start }) : t("inverted", { minimum: start });
   };
 }
 
@@ -140,7 +158,7 @@ export function PeriodFilter({
 }: PeriodFilterProps) {
   const t = useTranslations("grid.period");
   const shownTexts = texts ?? { from: t("from"), to: t("to"), apply: t("apply") };
-  const problemOf = useProblem(kind);
+  const problemOf = usePeriodProblem(kind);
   const id = useId();
   const hydrated = useHydrated();
   // A day of planning needs no time zone; an instant shows, and is sent, once in the browser.

@@ -139,7 +139,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
-    from wftools.mockwitness import OrderItem, Task
+    from wftools.mockwitness import Task
 
 _day, _count, _amount, _example = mocktext.day, mocktext.count, mocktext.amount, mocktext.example
 """How the summaries write a day, a count and an amount, and the envelope of an example."""
@@ -309,31 +309,6 @@ _MILESTONE = "Réception usine"
 """The nodes of the core the readings and the dependencies are about (``mockwitness``)."""
 
 _TASKS = frozenset({mockcore.TASK})
-
-
-def work_breakdown(items: tuple[OrderItem, ...], lock_version: int) -> JsonObject:
-    """Return a work breakdown: its order items, their packages and deliverables, its version."""
-    return {
-        "order_items": [
-            {
-                "order_item_id": item.identifier,
-                "label": item.label,
-                "work_packages": [
-                    {
-                        "work_package_id": package.identifier,
-                        "label": package.label,
-                        "deliverables": [
-                            {"deliverable_id": deliverable, "label": label}
-                            for deliverable, label in package.deliverables
-                        ],
-                    }
-                    for package in item.work_packages
-                ],
-            }
-            for item in items
-        ],
-        "lock_version": lock_version,
-    }
 
 
 def named() -> dict[str, JsonObject]:
@@ -551,13 +526,13 @@ def readings() -> dict[str, JsonObject]:
             f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un poste, « Fourniture et "
             f"montage des armoires », que porte la récapitulative « Poste de commande » ; son lot "
             f"« Armoires », qu'aucune tâche ne porte (WF-PLA-0130) ; et le livrable de ce lot.",
-            work_breakdown(WORK_BREAKDOWN, 1),
+            mocklists.work_breakdown(WORK_BREAKDOWN, 1),
         ),
         "work_breakdown_default.json": _example(
             f"Le lotissement d'un projet dont la commande n'est pas saisie, le {day} : le "
             f"lotissement par défaut, un poste comprenant un lot sans livrable (WF-PRJ-0020), "
             f"que rien n'a encore écrit.",
-            work_breakdown(DEFAULT_BREAKDOWN, 0),
+            mocklists.work_breakdown(DEFAULT_BREAKDOWN, 0),
         ),
         "timelines_empty.json": _example(
             f"Un projet qui n'a encore aucune chronologie nommée, le {day} : la liste est vide, "

@@ -15,7 +15,8 @@ Search:
   in: query
   description: >-
     Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code
-    par exemple, le dit dans sa description.
+    par exemple, le dit dans sa description. Le texte se compare comme toute recherche du
+    contrat, sans égard à la casse ni aux accents (README, « Une recherche… »).
   schema: { type: string, minLength: 1, maxLength: 200 }
 
 SortOrder:
@@ -247,12 +248,24 @@ PortfolioStates:
 PortfolioFrom:
   name: from
   in: query
-  description: Début de la période, pour les projets terminés et les statistiques de période.
+  description: >-
+    Début de la période, inclus, pour les projets terminés et les statistiques de période.
+    Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période
+    par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`,
+    `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les
+    statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des
+    projets aucune période ; `scope.from` et `scope.to` disent la période retenue.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:
   name: to
   in: query
+  description: >-
+    Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par
+    422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut :
+    la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain —
+    le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui
+    lui est antérieure est refusée de même, `params.minimum` le début complété.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioOrgNode:

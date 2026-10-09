@@ -316,7 +316,11 @@
       "to": "Au",
       "apply": "Filtrer",
       "inverted": "La fin de la période ne peut précéder son début, {minimum}.",
-      "invertedUndated": "La fin de la période ne peut précéder son début."
+      "invertedUndated": "La fin de la période ne peut précéder son début.",
+      "late": "Le début de la période ne peut suivre sa fin, {maximum}.",
+      "lateUndated": "Le début de la période ne peut suivre sa fin.",
+      "invertedDefault": "La fin de la période ne peut précéder son début par défaut, {minimum}.",
+      "lateDefault": "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, {maximum}."
     }
   },
   "estimateGrid": {
@@ -615,7 +619,8 @@
       "past": "Décaissé",
       "forecast": "À décaisser",
       "file": "decaissements-par-mois"
-    }
+    },
+    "periodRefused": "La vue n’est pas lue : le serveur refuse la période demandée."
   },
   "computedValue": {
     "title": "Valeur calculée",
@@ -946,10 +951,12 @@
     "workBreakdown": {
       "title": "Lotissement",
       "none": "Ce projet n’a aucun poste.",
-      "orderItem": "Poste",
-      "workPackage": "Lot",
-      "deliverable": "Livrable",
-      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}"
+      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}",
+      "kindFilter": "Filtrer par nature",
+      "everyKind": "Toutes les natures",
+      "partial": "Les postes et les lots ne montrent que ce que la recherche et le filtre retiennent.",
+      "partialSearch": "Les postes et les lots ne montrent que ce que la recherche retient.",
+      "partialKinds": "Les postes et les lots ne montrent que ce que le filtre par nature retient."
     },
     "transitions": {
       "title": "Historique des états",
@@ -1230,8 +1237,12 @@
       "deactivateUser": "Désactiver « {name} »",
       "reactivateUser": "Réactiver « {name} »",
       "assignRolesUser": "Attribuer les rôles de « {name} »",
-      "hideInactive": "Masquer les désactivés",
-      "showInactive": "Afficher les désactivés"
+      "roleFilter": "Filtrer par rôle",
+      "everyRole": "Tous les rôles",
+      "stateFilter": "État du compte",
+      "everyState": "Tous les états",
+      "activeAccounts": "Comptes actifs",
+      "inactiveAccounts": "Comptes désactivés"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
@@ -1244,7 +1255,12 @@
       "delete": "Supprimer",
       "modifyRole": "Modifier « {name} »",
       "deleteRole": "Supprimer « {name} »",
-      "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte."
+      "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte.",
+      "kindFilter": "Nature",
+      "everyKind": "Toutes les natures",
+      "predefinedRoles": "Rôles prédéfinis",
+      "composedRoles": "Rôles composés",
+      "bounds": "Bornes des rôles d’habilitation"
     },
     "permissions": {
       "title": "Permissions par fonction",
@@ -1810,6 +1826,11 @@
     "ContributorKind": {
       "project_manager": "Chef de projet",
       "contributor": "Contributeur"
+    },
+    "WorkBreakdownKind": {
+      "order_item": "Poste",
+      "work_package": "Lot",
+      "deliverable": "Livrable"
     },
     "RevisionStatus": {
       "draft": "En cours d’élaboration",

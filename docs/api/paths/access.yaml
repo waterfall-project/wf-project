@@ -10,11 +10,33 @@
       disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier
       compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que
       la liste, paginée, ne laisserait pas déduire.
+
+      Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le
+      prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et
+      les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes
+      désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les
+      comptes retenus.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
-      - $ref: ../components/parameters.yaml#/Search
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom
+          suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé
+          comme toute recherche du contrat, sans égard à la casse ni aux accents (README,
+          « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom
+          affiché, qu'aucune colonne ne porte entier.
+        schema: { type: string, minLength: 1, maxLength: 200 }
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - name: is_active
+        in: query
+        description: >-
+          Restreint à l'un des deux états, la colonne de l'état filtrée (WF-IHM-0130,
+          WF-ADM-0060) : vrai, les seuls comptes actifs ; faux, les seuls désactivés, qui restent
+          lisibles. Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux
+          actifs ; absent, `include_inactive` décide.
+        schema: { type: boolean }
       - name: origins
         in: query
         description: Restreint aux comptes de ces origines (WF-IHM-0130).
@@ -28,6 +50,17 @@
           Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à
           l'un de ses descendants (WF-IHM-0130, WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: access_role_ids
+        in: query
+        description: >-
+          Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne
+          des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par
+          aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme
+          `org_node_id` un nœud inconnu.
+        schema:
+          type: array
+          items: { $ref: ../components/common.yaml#/Uuid }
+        explode: false
       - name: sort_by
         in: query
         description: >-
@@ -57,6 +90,9 @@
             examples:
               witness: { $ref: ../../../fixtures/api/users.json }
               page: { $ref: ../../../fixtures/api/users_page.json }
+              by_access_role: { $ref: ../../../fixtures/api/users_by_access_role.json }
+              search: { $ref: ../../../fixtures/api/users_search.json }
+              inactive: { $ref: ../../../fixtures/api/users_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -350,9 +386,33 @@
     description: >-
       Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010,
       WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le
-      serveur (WF-IHM-0060).
+      serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche
+      (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes
+      incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre
+      de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés
+      compris.
     parameters:
       - $ref: ../components/parameters.yaml#/Search
+      - name: is_predefined
+        in: query
+        description: >-
+          Restreint à l'une des deux natures, la colonne de la nature filtrée (WF-IHM-0130) :
+          vrai, les seuls rôles prédéfinis livrés avec la plateforme (WF-ADM-0010) ; faux, les
+          seuls rôles composés ensuite (WF-ADM-0090). Absent, ne restreint rien.
+        schema: { type: boolean }
+      - name: holder_count_min
+        in: query
+        description: >-
+          Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au
+          moins autant de comptes (WF-IHM-0130).
+        schema: { type: integer, minimum: 0 }
+      - name: holder_count_max
+        in: query
+        description: >-
+          Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au
+          plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130).
+          Inférieure à `holder_count_min`, elle est refusée par 422.
+        schema: { type: integer, minimum: 0 }
       - name: sort_by
         in: query
         description: >-
@@ -373,8 +433,21 @@
               items: { $ref: ../components/schemas/access.yaml#/AccessRole }
             examples:
               witness: { $ref: ../../../fixtures/api/access_roles.json }
+              composed: { $ref: ../../../fixtures/api/access_roles_composed.json }
+              unheld: { $ref: ../../../fixtures/api/access_roles_unheld.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`,
+          `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure
+          inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par
+          `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              bounds_inverted: { $ref: ../../../fixtures/api/access_roles_bounds_inverted.json }
   post:
     operationId: createAccessRole
     tags: [access]

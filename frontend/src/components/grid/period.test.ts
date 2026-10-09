@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { example, type Problem } from "@/test/fixtures";
+
 import {
   addressOf,
   fieldOf,
@@ -51,6 +53,11 @@ describe("a period in the address", () => {
     ).toEqual({
       to: { code: "VALUE_OUT_OF_RANGE", minimum: "2026-03-31" },
       from: { code: "DATE_INVALID" },
+    });
+    // A start after the end the server completed a period sent without one with, which it names.
+    const open = example("portfolio_open_period_inverted") as Problem;
+    expect(refusedPeriod(open.fields ?? [])).toEqual({
+      from: { code: "VALUE_OUT_OF_RANGE", maximum: "2026-06-03" },
     });
     // Another field, another code, or a start not named, name no side.
     expect(

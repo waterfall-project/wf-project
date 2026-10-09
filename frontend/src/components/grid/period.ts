@@ -209,12 +209,15 @@ export function addressOf(kind: PeriodKind, side: PeriodSide, field: string): st
 type FieldProblem = components["schemas"]["FieldProblem"];
 
 /**
- * Why the API refused one side of a period (422): a bound it does not take (`DATE_INVALID`), or an
- * end before the start, which it names as it was given (`VALUE_OUT_OF_RANGE`, `params.minimum`).
+ * Why the API refused one side of a period (422): a bound it does not take (`DATE_INVALID`); an end
+ * before the start, which it names (`VALUE_OUT_OF_RANGE` on the end, `params.minimum`); or a start
+ * after the end, which it names — the end it completed a period sent without one with, the date
+ * of calculation of the portfolio (`VALUE_OUT_OF_RANGE` on the start, `params.maximum`).
  */
 export type PeriodRefusal =
   | { readonly code: "DATE_INVALID" }
-  | { readonly code: "VALUE_OUT_OF_RANGE"; readonly minimum: string };
+  | { readonly code: "VALUE_OUT_OF_RANGE"; readonly minimum: string }
+  | { readonly code: "VALUE_OUT_OF_RANGE"; readonly maximum: string };
 
 /** The refusals of the two sides of a period, by side; none on a side the API accepted. */
 export interface PeriodRefusals {
@@ -237,9 +240,11 @@ export function refusedPeriod(
     if (side === undefined) {
       continue;
     }
-    const minimum = params?.minimum;
+    const { minimum, maximum } = params ?? {};
     if (code === "VALUE_OUT_OF_RANGE" && typeof minimum === "string") {
       refused[side] = { code, minimum };
+    } else if (code === "VALUE_OUT_OF_RANGE" && typeof maximum === "string") {
+      refused[side] = { code, maximum };
     } else if (code === "DATE_INVALID") {
       refused[side] = { code };
     }

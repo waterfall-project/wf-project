@@ -12,8 +12,10 @@
  * capacity and the state of their account (`contributor_search`, `contributor_sort_by`,
  * `contributor_sort_order`, `contributor_kinds`, `contributor_is_active`) — WF-IHM-0060,
  * WF-IHM-0130 —, the sort each grid keeps in the settings of the account serving when the address
- * names none. The work breakdown is a tree in the order entered. Read only: the forms that modify
- * them belong to the epic of their domain.
+ * names none. The work breakdown is a tree in the order entered, searched on its labels and filtered
+ * on its kinds by the server (`breakdown_search`, `breakdown_kinds`). Read only: the forms that
+ * modify them belong to the epic of their domain — and a work breakdown read narrowed is never the
+ * whole one to write back (`setWorkBreakdown`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -24,11 +26,14 @@ import { ContextBanner } from "@/components/context/context-banner";
 import type { Project } from "@/components/context/reading";
 import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { asked, readGridQuery } from "@/components/grid/query";
+import { asked, readGridQuery, searched } from "@/components/grid/query";
 import { SettingsFacts } from "@/components/projects/project-facts";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
+  BREAKDOWN_ADDRESS,
   BREAKDOWN_GRID_KEY,
+  BREAKDOWN_KIND_FILTER,
+  BREAKDOWN_KINDS,
   CONTRIBUTOR_ACTIVE,
   CONTRIBUTOR_ADDRESS,
   CONTRIBUTOR_GRID_KEY,
@@ -43,7 +48,6 @@ import {
 import {
   ContributorList,
   SubprojectList,
-  UNASKED,
   WorkBreakdownList,
 } from "@/components/projects/settings-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -96,6 +100,8 @@ export default async function SettingsPage(props: ProjectPageProps) {
     requestSession(),
   ]);
   const grids = session?.user.display_preferences?.grids ?? undefined;
+  const breakdownQuery = readGridQuery<never>(search, [], undefined, BREAKDOWN_ADDRESS);
+  const breakdownKinds = readValues(search, BREAKDOWN_KIND_FILTER, BREAKDOWN_KINDS);
   const subprojectQuery = readGridQuery(
     search,
     SUBPROJECT_SORT_COLUMNS,
@@ -116,7 +122,15 @@ export default async function SettingsPage(props: ProjectPageProps) {
   const [read, breakdown, subprojects, contributors] = await Promise.all([
     readProjectScreen(address),
     readOrFail("getWorkBreakdown", () =>
-      client.GET("/projects/{project_id}/work-breakdown", { params: { path } }),
+      client.GET("/projects/{project_id}/work-breakdown", {
+        params: {
+          path,
+          query: {
+            ...searched(breakdownQuery),
+            ...(breakdownKinds.length === 0 ? {} : { kinds: [...breakdownKinds] }),
+          },
+        },
+      }),
     ),
     readOrFail("listSubprojects", () =>
       client.GET("/projects/{project_id}/subprojects", {
@@ -153,7 +167,11 @@ export default async function SettingsPage(props: ProjectPageProps) {
           <WorkBreakdownList
             breakdown={breakdown}
             project={address.projectId}
-            shown={{ ...UNASKED, preferences: grids?.[BREAKDOWN_GRID_KEY] ?? undefined }}
+            kinds={breakdownKinds}
+            shown={{
+              query: breakdownQuery,
+              preferences: grids?.[BREAKDOWN_GRID_KEY] ?? undefined,
+            }}
           />
           <SubprojectList
             subprojects={subprojects}

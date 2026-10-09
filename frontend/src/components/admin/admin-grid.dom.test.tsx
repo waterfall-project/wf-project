@@ -13,9 +13,10 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, fakeClient } from "@/test/fixtures";
+import { refusedBounds } from "@/components/grid/filters";
+import { example, fakeClient, type Problem } from "@/test/fixtures";
 
-import { AccessRoleList, UserList } from "./account-lists";
+import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
 import { CreateCommand, LaterCommands } from "./later-commands";
 import {
   ACCESS_ROLE_SORTS,
@@ -48,6 +49,7 @@ const NO_QUERY = { sort: undefined, search: undefined };
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const second = example("users_page") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const roles = example("access_roles") as AccessRole[];
+const roleChoices = roles.map((role) => ({ id: role.access_role_id, label: role.label }));
 const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
   id: node.org_node_id,
   code: node.code,
@@ -71,7 +73,8 @@ function userList(
   filters: {
     origins?: readonly Schemas["UserOrigin"][];
     orgNode?: string;
-    inactive?: boolean;
+    accessRoles?: readonly string[];
+    active?: boolean;
     editable?: boolean;
   } = {},
 ) {
@@ -85,17 +88,36 @@ function userList(
         origins={filters.origins ?? []}
         nodes={nodes}
         orgNode={filters.orgNode}
-        inactive={filters.inactive ?? true}
+        roles={roleChoices}
+        accessRoles={filters.accessRoles ?? []}
+        active={filters.active}
         editable={filters.editable ?? false}
       />
     </LaterCommands>,
   );
 }
 
+/** No filter of the access roles. */
+const NO_ROLE_FILTER: RoleFilters = {
+  predefined: undefined,
+  holders: { min: undefined, max: undefined },
+};
+
 /** The list of the access roles, as the address asks it. */
-function roleList(editable: boolean, query: GridQuery<AccessRoleSort> = NO_QUERY) {
+function roleList(
+  editable: boolean,
+  query: GridQuery<AccessRoleSort> = NO_QUERY,
+  filters: RoleFilters = NO_ROLE_FILTER,
+  shown: readonly AccessRole[] = roles,
+) {
   return inFrench(
-    <AccessRoleList roles={roles} query={query} preferences={undefined} editable={editable} />,
+    <AccessRoleList
+      roles={shown}
+      query={query}
+      preferences={undefined}
+      filters={filters}
+      editable={editable}
+    />,
   );
 }
 
@@ -196,6 +218,42 @@ describe("the grid of the accounts", () => {
     expect(lastAddress()).toBe("/admin/users?sort_by=email&sort_order=desc");
   });
 
+  it("is filtered by access role under the name of the contract, choosing every role still filtering, back to the first page [WF-IHM-0130-A]", async () => {
+    page.search = "offset=2";
+    const { rerender } = render(userList(NO_QUERY, second));
+    const filter = screen.getByRole("group", { name: "Filtrer par rôle" });
+    const first = roleChoices[0] ?? { id: "", label: "" };
+    await userEvent.click(within(filter).getByRole("button", { name: first.label }));
+    expect(lastAddress()).toBe(`/admin/users?access_role_ids=${first.id}`);
+    // Every role chosen still filters: an account without a role is retained by none.
+    const every = roleChoices.map((role) => role.id);
+    page.search = `access_role_ids=${every.slice(0, -1).join("%2C")}`;
+    rerender(userList(NO_QUERY, users, { accessRoles: every.slice(0, -1) }));
+    const last = roleChoices.at(-1) ?? first;
+    await userEvent.click(within(filter).getByRole("button", { name: last.label }));
+    expect(lastAddress()).toBe(`/admin/users?access_role_ids=${every.join("%2C")}`);
+  });
+
+  it("is filtered by state by one choice, which says what the grid shows, and lifts the hiding of the deactivated accounts of an address of before", async () => {
+    // Every account by default: « Tous les états » chosen, and no other control of the state.
+    page.search = "offset=2";
+    const { rerender } = render(userList(NO_QUERY, second));
+    const state = () => screen.getByRole("combobox", { name: "État du compte" });
+    expect(state()).toHaveValue("");
+    expect(screen.queryByRole("link", { name: /les désactivés$/ })).toBeNull();
+    await userEvent.selectOptions(state(), "Comptes désactivés");
+    expect(lastAddress()).toBe("/admin/users?is_active=false");
+    // An address of before hid the deactivated accounts: it says the active ones alone, which the
+    // grid shows, and every state chosen lifts that hiding, the deactivated ones listed again.
+    page.search = "origins=local&include_inactive=false&offset=2";
+    rerender(userList(NO_QUERY, second, { origins: ["local"], active: true }));
+    expect(state()).toHaveValue("true");
+    await userEvent.selectOptions(state(), "Tous les états");
+    expect(lastAddress()).toBe("/admin/users?origins=local");
+    await userEvent.selectOptions(state(), "Comptes désactivés");
+    expect(lastAddress()).toBe("/admin/users?origins=local&is_active=false");
+  });
+
   it("is filtered by node of organisation under the name of the contract, back to the first page", async () => {
     page.search = "offset=2";
     render(userList(NO_QUERY, second));
@@ -246,21 +304,6 @@ describe("the grid of the accounts", () => {
 });
 
 describe("the commands and the state of the accounts", () => {
-  it("hides the deactivated accounts under the name of the contract, back to the first page, and shows them again", () => {
-    page.search = "origins=local&offset=2";
-    const { rerender } = render(userList(NO_QUERY, second, { origins: ["local"] }));
-    expect(screen.getByRole("link", { name: "Masquer les désactivés" })).toHaveAttribute(
-      "href",
-      "/admin/users?origins=local&include_inactive=false",
-    );
-    page.search = "origins=local&include_inactive=false&offset=2";
-    rerender(userList(NO_QUERY, second, { origins: ["local"], inactive: false }));
-    expect(screen.getByRole("link", { name: "Afficher les désactivés" })).toHaveAttribute(
-      "href",
-      "/admin/users?origins=local",
-    );
-  });
-
   it("offers to a session that may modify the accounts to modify each, to deactivate or reactivate it as it is, and to attribute its roles, each saying it is available with EP-03, and to delete none", async () => {
     const { container } = render(userList(NO_QUERY, users, { editable: true }));
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
@@ -348,7 +391,9 @@ describe("the commands and the state of the accounts", () => {
             origins={[]}
             nodes={nodes}
             orgNode={undefined}
-            inactive
+            roles={roleChoices}
+            accessRoles={[]}
+            active={undefined}
             editable
           />
         </LaterCommands>,
@@ -482,10 +527,66 @@ describe("the grid of the access roles", () => {
 
   it("says an empty list, and offers to create a role all the same to who may", () => {
     page.path = "/admin/access-roles";
-    render(
-      inFrench(<AccessRoleList roles={[]} query={NO_QUERY} preferences={undefined} editable />),
-    );
+    render(roleList(true, NO_QUERY, NO_ROLE_FILTER, []));
     expect(screen.getByText("Aucun rôle d’habilitation.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Créer un rôle" })).toBeInTheDocument();
+  });
+
+  it("is filtered by its kind under the name of the contract, and keeps its grid when a filter retains nothing", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "sort_by=label&sort_order=asc";
+    const { rerender } = render(roleList(false));
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Nature" }),
+      "Rôles composés",
+    );
+    expect(lastAddress()).toBe(
+      "/admin/access-roles?sort_by=label&sort_order=asc&is_predefined=false",
+    );
+    rerender(roleList(false, NO_QUERY, { ...NO_ROLE_FILTER, predefined: false }, []));
+    expect(screen.queryByText("Aucun rôle d’habilitation.")).toBeNull();
+    expect(screen.getByRole("grid", { name: "Rôles d’habilitation" })).toBeInTheDocument();
+  });
+
+  it("is bounded on the number of its holders, nought included, under the names of the contract [WF-IHM-0130-A]", async () => {
+    page.path = "/admin/access-roles";
+    render(roleList(false));
+    const bounds = screen.getByRole("form", { name: "Bornes des rôles d’habilitation" });
+    await userEvent.type(
+      within(bounds).getByRole("textbox", { name: "Comptes porteurs, max." }),
+      "0",
+    );
+    await userEvent.click(within(bounds).getByRole("button", { name: "Filtrer" }));
+    expect(lastAddress()).toBe("/admin/access-roles?holder_count_max=0");
+  });
+
+  it("says at its field the upper bound the server refuses for preceding the lower one, the list unread, and takes no count that is none", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "holder_count_min=2&holder_count_max=1";
+    const refused = refusedBounds(
+      (example("access_roles_bounds_inverted") as Problem).fields ?? [],
+    );
+    render(
+      roleList(
+        false,
+        NO_QUERY,
+        { predefined: undefined, holders: { min: "2", max: "1" }, refused },
+        [],
+      ),
+    );
+    const most = screen.getByRole("textbox", { name: "Comptes porteurs, max." });
+    expect(most).toHaveAttribute("aria-invalid", "true");
+    expect(most).toHaveFocus();
+    expect(most).toHaveAccessibleDescription(
+      "La borne supérieure ne peut précéder la borne inférieure, 2.",
+    );
+    expect(screen.queryByRole("grid", { name: "Rôles d’habilitation" })).toBeNull();
+    expect(document.body.textContent).toContain(CATALOGUES.fr.reference.boundsRefused);
+    // A count is a whole number: 1,5 is not one, and nothing is asked.
+    router.push.mockClear();
+    await userEvent.clear(most);
+    await userEvent.type(most, "1,5{Enter}");
+    expect(router.push).not.toHaveBeenCalled();
+    expect(most).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
   });
 });

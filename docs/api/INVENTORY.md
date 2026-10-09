@@ -50,7 +50,7 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-IHM-0060, WF-IHM-0090 |
+| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
 | POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180 |
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060 |
@@ -61,7 +61,7 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | POST | `/directory-syncs` | Resynchroniser les comptes depuis l'annuaire | WF-ADM-0070, WF-ARC-0090 |
 | GET | `/directory-syncs/latest` | Résultat de la dernière synchronisation | WF-ADM-0070 |
 | GET | `/permissions` | Catalogue des permissions | WF-ADM-0100 |
-| GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0090, WF-IHM-0060 |
+| GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0090, WF-IHM-0060, WF-IHM-0130 |
 | POST | `/access-roles` | Composer un rôle d'habilitation | WF-ADM-0020 |
 | GET | `/access-roles/{access_role_id}` | Un rôle d'habilitation | WF-ADM-0090, WF-ADM-0100 |
 | PATCH | `/access-roles/{access_role_id}` | Modifier un rôle | WF-ADM-0090 |
@@ -142,7 +142,7 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050 |
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
-| GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-PRJ-0020 |
+| GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-PLA-0130, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-PRJ-0050 |

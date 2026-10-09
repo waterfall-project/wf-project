@@ -138,7 +138,9 @@ Problem:
         `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur
         admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un
         champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
-        plateforme, WF-EXP-0050), `component` (un `PlatformComponent`,
+        plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop
+        grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
+        portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
