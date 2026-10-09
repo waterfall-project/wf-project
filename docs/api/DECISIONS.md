@@ -118,12 +118,22 @@ a lancé le traitement.
 
 ## Session et erreurs
 
-**Témoin de session `httpOnly`, pas de jeton Bearer.** La session est conservée en base et
-révocable immédiatement (WF-SEC-0020, constat C-074 de la revue du §4) : un témoin
-correspond à ce modèle, et il évite de faire circuler un jeton dans des en-têtes que du
-code client pourrait stocker.
+**Un jeton `bearer`, le jeton d'accès du fournisseur d'identité** (EP-03, US-0350/L1 ; défait
+« témoin de session `httpOnly`, pas de jeton Bearer », décision d'EP-02). Le front obtient les
+jetons du fournisseur d'identité côté serveur, les garde dans Redis sous un identifiant opaque
+et ne donne au navigateur que cet identifiant, dans un témoin qui n'est pas celui de l'API : le
+navigateur ne détient aucun jeton (WF-ARC-0030). Le front porte le jeton d'accès à l'API, qui le
+valide et n'en tire que l'identité du compte ; les rôles et l'état du compte se lisent en base à
+chaque requête (WF-SEC-0020). Le schéma de sécurité du contrat est donc `bearer` (`type: http`,
+`scheme: bearer`, `bearerFormat: JWT`), non plus un témoin `wf_session` ; le motif de C-074, un
+jeton qui circule dans des en-têtes que du code client pourrait stocker, vaut pour le navigateur,
+et le navigateur n'en voit aucun. Écarté : garder la session ouverte par Waterfall, un mot de
+passe reçu et une session conservée en base — contraire à WF-ARC-0030 (l'authentification est
+déléguée), à WF-ADM-0140 (aucun écran de Waterfall ne demande de mot de passe) et au §4.4.1
+(la session du front est dans Redis).
 
-**Les permissions effectives sont renvoyées avec la session.** Sans elles, le front ne peut
+**Les permissions effectives sont renvoyées par `getMe`** (EP-02 : avec la session ; EP-03 :
+avec le compte). Sans elles, le front ne peut
 pas tenir WF-IHM-0090, qui distingue une commande indisponible d'une commande absente.
 Aucune exigence ne l'impose — voir C-087. Elles règlent la navigation : une fonction dont
 l'utilisateur n'a pas la consultation ne s'y présente pas.
@@ -3468,6 +3478,117 @@ natures provision, la désactivation et le rattachement des catégories provisio
 `setHourlyRate`, par un premier taux, le rattachement de la catégorie à une nature d'un autre type
 (`cost_category_unrated`). `test_mockcostsettings.py` exige « relit » de chacune ; le résumé de
 `cost_categories` dit la désactivation de PRV-001 indisponible.
+
+## L'authentification déléguée, les comptes et la sauvegarde de la plateforme (EP-03/US-0350/L1)
+
+Les dix modifications du contrat de la conception d'EP-03 (« Modifications du contrat »),
+faites par le premier lot avant le code qui les consomme. Elles défont, pour la première, une
+décision d'EP-02 (« Session et erreurs ») ; chacune dit l'option écartée.
+
+**1. Le schéma de sécurité est `bearer`.** Voir « Session et erreurs ». La règle
+`rule/session-operation-declares-401` de `redocly.yaml` garde son nom — la conception d'EP-03 et
+d'EP-02 la citent — et son sens : toute opération gardée déclare le 401, une opération publique
+le dit par `security: []`. Le 401 porte désormais le jeton absent, expiré ou invalide, et le
+compte désactivé.
+
+**2. La famille `session` disparaît.** Retirées : `listAuthProviders`, `getCurrentSession`,
+`openSession`, `startOidcSession`, `completeOidcSession`, `requestPasswordReset`,
+`confirmPasswordReset`, `changeMyPassword`, avec `AuthProviderKind`, `AuthProvider`,
+`LocalCredentials`, `Session`, `PasswordResetRequest`, `PasswordResetConfirm`, `PasswordChange`,
+et leurs exemples (`auth_providers*`). Le fournisseur d'identité authentifie, réinitialise et
+change les mots de passe sur ses pages ; Waterfall n'en voit aucun (WF-ADM-0140). `closeSession`
+devient `closeMySessions` (`DELETE /me/sessions`, famille `me`) et ferme toutes les sessions du
+compte, sur tous ses postes : c'est la lecture de WF-SEC-0020, « à la requête suivante, sur tous
+ses postes ». Écarté : ne fermer que la session du navigateur, qui ne tient pas la phrase.
+Les opérations de la famille `me` (`getMe`, `updateMyPreferences`, `putMyAvatar`,
+`deleteMyAvatar`) vivent dans `paths/me.yaml`, qui remplace `paths/session.yaml`.
+
+**3. `getMe` porte les permissions.** `UserSelf.permissions` est l'union des permissions des
+rôles du compte, ce que `Session.permissions` portait ; `expires_at` et `idle_expires_at`
+disparaissent, la durée de la session étant celle du fournisseur d'identité. Les exemples de
+session deviennent des exemples de `getMe`, un par ancien exemple : `session` → `me`,
+`session_english` → `me_english`, `session_without_preferences` → `me_without_preferences`,
+`session_dark` → `me_dark`, `session_without_administration` → `me_without_administration`,
+`session_grid_settings` → `me_grid_settings`, `session_estimator` → `me_estimator`,
+`session_without_roles` → `me_without_roles`, `session_manager` → `me_manager`,
+`session_auditor` → `me_auditor` ; les exemples `me*` qui existaient (`me_directory`,
+`me_with_avatar` compris) gagnent leurs permissions. Écarté : une opération de plus pour lire
+les permissions, un aller-retour de plus à chaque page pour une donnée du même compte.
+
+**4. Codes d'erreur.** `ACCOUNT_DEACTIVATED` (401) entre ; `INVALID_CREDENTIALS`,
+`ACCOUNT_LOCKED` et `PASSWORD_RESET_TOKEN_INVALID` sortent, le fournisseur d'identité tenant les
+identifiants, le verrouillage et le lien de réinitialisation. Un compte désactivé est un 401 et
+non un 403 : toute opération gardée le déclare déjà, et le front distingue le code, ne renvoie
+pas à la connexion, qui bouclerait. Par champ entrent `UNKNOWN_ACCESS_ROLE`, `UNKNOWN_ORG_NODE`
+et `FIELD_READ_ONLY`, et `createUser`, `updateUser`, `setUserAccessRoles` déclarent leur 422,
+`VALIDATION_FAILED` avec `fields`, comme les écritures du référentiel. Le refus du nom, du
+prénom ou de l'adresse d'un compte qui ne vient pas de Waterfall, qui était un 409
+`STATE_FORBIDS_OPERATION` sans paramètre (EP-02/L42g), devient un 422 par champ,
+`FIELD_READ_ONLY` sur le champ en défaut (`user_external_update_refused` change de statut) :
+c'est un refus de champ, que le formulaire peut montrer sur le champ. Écarté : garder le 409,
+qui ne dit pas quel champ.
+
+**5. Le lien de fixation mène au fournisseur d'identité.** `PasswordSetupLink.url` est une
+adresse de la page du fournisseur d'identité qui fixe le mot de passe, non plus `/login/reset`
+du front, qui n'existe plus. Le 409 de `createPasswordSetupLink` nomme sa condition par
+`params.missing_condition`, deux valeurs de plus de `CommandCondition` : `is_local_account`,
+`is_active_account`. Écarté : `params.state`, que #413 dit ambigu, et qui n'a de sens que pour
+`ProjectState`.
+
+**6. La lecture des comptes passe par le fournisseur d'identité.** `/directory-syncs` devient
+`/identity-syncs` (`startIdentitySync`, `getLatestIdentitySync`) ; `BackgroundTaskRef.kind`
+`directory_sync` devient `identity_sync` ; `DirectorySyncResult` devient `IdentitySyncReport`, dont
+chaque signalement (`skipped[].code`) est un `ErrorCode` et non une chaîne libre ; le 409 « aucun
+annuaire activé » disparaît, une installation sans annuaire lisant simplement zéro compte ;
+`PlatformComponent` remplace `directory` par `identity_provider`, et, qui suivent, l'alerte
+`directory_sync_failed` devient `identity_sync_failed` et `SystemStatus.last_directory_sync`
+`last_identity_sync`. Waterfall ne lit jamais l'annuaire lui-même (WF-ADM-0070, WF-ADM-0180).
+Écarté : lire l'annuaire en LDAP depuis Waterfall, un second chemin vers l'annuaire que la
+spécification révisée a retiré.
+
+**7. Les tables des comptes et des rôles.** EP-02/L42f avait déjà ajouté les filtres que la
+conception d'EP-03 nomme sous d'autres noms : sur `listUsers`, les rôles (`access_role_ids`) et
+l'état (`is_active`, avec `include_inactive`, plus riche qu'une liste d'états) ; sur
+`listAccessRoles`, la nature (`is_predefined`) et les porteurs (`holder_count_min`,
+`holder_count_max`, plus riches qu'un booléen « a des porteurs » : `holder_count_max=0` dit « sans
+porteur »). Ils restent, ce lot n'en ajoute pas un second jeu qui ferait deux façons de
+filtrer la même colonne. Ce que le lot ajoute : le départage par identifiant, dit dans les
+descriptions des deux listes et de leur `sort_by`, qui rend les pages stables ; la règle générale
+du README (« un tri à égalité se départage… par l'identifiant ») s'y applique désormais en
+terminant par l'identifiant du compte ou du rôle, dans le sens du tri. La recherche de
+`listUsers` garde le nom affiché (« ines roux » trouve Inès Roux), en plus du nom, du prénom et de
+l'adresse : retirer le nom affiché ferait perdre cette recherche (L42f).
+
+**8. La suppression d'un rôle est logique.** `deleteAccessRole` le dit (WF-DAT-0080) : le rôle
+n'est plus proposé, sa trace est conservée, et il est un 404 ensuite. Écarté : la suppression
+physique, contraire à WF-DAT-0080.
+
+**9. La sauvegarde couvre les deux bases.** `Backup`, `startBackup` et `startRestore` disent que
+la sauvegarde est celle des deux bases de la plateforme, Waterfall et le fournisseur d'identité
+(WF-ADM-0150), que le journal d'audit n'est pas restauré mais laissé en place, la restauration
+s'y inscrivant (WF-ADM-0160 révisée), et que la plateforme est en maintenance pendant la
+restauration : 503 `COMPONENT_UNAVAILABLE`. Le refus d'une sauvegarde d'une version plus récente
+que l'installation se nomme `BACKUP_FROM_NEWER_VERSION`, en 422 par champ de `startRestore`, sur
+le champ qui désigne la sauvegarde, avec `backup_version` et `installed_version` dans
+`fields[].params`. `BackgroundTaskRef.kind` possédait déjà `restore` : une tâche suit toute la
+restauration, de la mise en maintenance à sa levée, et ne passe à `succeeded` qu'à la levée ; la
+valeur ne gagne rien, le contrat dit ce qu'elle couvre. Écarté : une tâche par phase, qui rendrait
+une restauration « réussie » avant que la plateforme ne réponde.
+
+**10. Le dépôt par morceaux d'une sauvegarde** (#350). Un dépôt s'ouvre, reçoit ses morceaux et se
+termine : `openChunkedUpload` (`POST /chunked-uploads`, `ChunkedUploadOpen` → `ChunkedUpload`),
+`uploadChunk` (`PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}`, octets bruts →
+`ChunkedUpload`), `completeChunkedUpload` (`POST /chunked-uploads/{chunked_upload_id}/completion`
+→ `FileUpload`, `purpose` à `external_backup`). Le serveur fixe à l'ouverture la taille d'un
+morceau (`part_size_bytes`, entre 5 Mio, le plus petit morceau que le stockage objet assemble, et
+64 Mio) ; un morceau se redépose, ce qui reprend un envoi interrompu ; l'assemblage est celui du
+dépôt en plusieurs parties du stockage objet (WF-ARC-0050), et l'identifiant du `FileUpload` rendu
+est celui que `startRestore` désigne. `uploadFile` garde sa forme et ne sert plus que les
+imports : `purpose` à `external_backup` y est refusé par `UPLOAD_PURPOSE_MISMATCH`. Écartés
+(« Décisions » du fichier d'EP-03) : une action serveur, dont la taille de corps est bornée ; une
+adresse signée du stockage objet, où le navigateur parlerait au stockage, hors des flux du
+§4.3.2 ; un gestionnaire de route qui relaie l'API, écarté par EP-02 (WF-ARC-0020). Écarté
+aussi : une opération d'abandon, l'expiration (24 heures, comme un fichier d'import) suffit.
 
 ## Collage et annulation
 

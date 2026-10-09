@@ -10,8 +10,8 @@ Two differences, and only these, so that the fake back answers what the contract
 - every path is prefixed with the path of the contract's server, ``/api/v1``: Prism serves
   paths at the root and ignores a relative server, and the front must call the fake back
   exactly as it will call the real service;
-- no operation requires a session: the fake back grants the session the mock-up starts
-  from (EP-02), and authentication is EP-03's.
+- no operation requires a bearer token: the fake back answers whoever calls it, as the account
+  the mock-up starts from, and authentication is the real service's (EP-03).
 
 No response is written here: responses are the examples of the contract.
 """
@@ -53,7 +53,7 @@ def main(arguments: list[str]) -> int:
     bundle = Path(arguments[0])
     contract = cast("dict[str, object]", json.loads(bundle.read_text(encoding="utf-8")))
     bundle.write_text(json.dumps(derive(contract), ensure_ascii=False), encoding="utf-8")
-    print(f"  -> {bundle} (fake back: paths under the server prefix, no session required)")
+    print(f"  -> {bundle} (fake back: paths under the server prefix, no bearer token required)")
     return 0
 
 

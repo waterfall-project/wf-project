@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the invariants that hold the examples of the universe together, across their files.
 
-The examples written by hand — sessions, accounts, roles, imports and their reports, background
-tasks, the state of the system and the backups — and those the generator writes must tell one
-witness at one instant (#287; C3, C5, C6 and #421). They try the simplifications of the fake back
-against one another, not the Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui
-ne couvre aucune exigence »).
+The examples written by hand — accounts and their permissions, roles, imports and their
+reports, background tasks, the state of the system and the backups — and those the generator
+writes must tell one witness at one instant (#287; C3, C5, C6 and #421). They try the
+simplifications of the fake back against one another, not the Vérif of a requirement: none cites
+one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -169,20 +169,19 @@ def test_the_paste_follows_the_label_entered_and_the_reestimate_the_hours_entere
         assert then["structure_lock_version"] == first["structure_lock_version"] + 1
 
 
-# --- The accounts and the sessions (C6) ---------------------------------------------------------
+# --- The accounts and their permissions (C6) ---------------------------------------------------
 
 
-def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
+def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_holds(
     examples: dict[str, Any],
 ) -> None:
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     contributors = {each["user_id"] for each in fixture("contributors")["items"]}
     for name, value in examples.items():
-        if not (name.startswith("session") and isinstance(value, dict) and "user" in value):
+        if not (name.startswith("me") and isinstance(value, dict) and "permissions" in value):
             continue
-        session = cast("Node", value)
-        user = session["user"]
+        user = cast("Node", value)
         listed = users[user["user_id"]]
         assert listed["access_role_ids"] == user["access_role_ids"], name
         assert (listed["last_name"], listed["first_name"]) == (
@@ -194,8 +193,8 @@ def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
             for role in user["access_role_ids"]
             for permission in roles[role]["permissions"]
         }
-        assert set(session["permissions"]) == granted, name
-        # A session that reads the witness without reading every project is a contributor's
+        assert set(user["permissions"]) == granted, name
+        # An account that reads the witness without reading every project is a contributor's
         # (WF-PRJ-0060, WF-ADM-0110).
         if "revisions.read" in granted and "all_projects_read" not in granted:
             assert user["user_id"] in contributors, name
@@ -272,11 +271,11 @@ def test_an_active_object_is_refused_under_a_deactivated_node_by_its_field() -> 
         assert refusal["fields"] == [{"pointer": pointer, "code": "INACTIVE_REFERENCE_OBJECT"}]
 
 
-def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> None:
+def test_the_account_of_the_caller_is_written_alike_wherever_it_is_read() -> None:
     audits: list[tuple[Node, int]] = []
-    for name in ("session", "me", "users"):
+    for name in ("me", "users"):
         value = fixture(name)
-        accounts = value["items"] if "items" in value else [value.get("user", value)]
+        accounts = value.get("items", [value])
         mine = next(each for each in accounts if each["user_id"] == universe(301))
         audits.append((mine["audit"], mine["lock_version"]))
         assert _instant(mine["audit"]["updated_at"]) <= TODAY, name

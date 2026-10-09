@@ -11,13 +11,13 @@ from wftools import mock
 CONTRACT: dict[str, object] = {
     "openapi": "3.1.0",
     "servers": [{"url": "/api/v1"}],
-    "security": [{"session": []}],
+    "security": [{"bearer": []}],
     "paths": {
         "/projects": {
             "parameters": [],
             "get": {
                 "operationId": "listProjects",
-                "security": [{"session": []}],
+                "security": [{"bearer": []}],
                 "responses": {"200": {"description": "ok"}},
             },
         },
@@ -35,7 +35,7 @@ def test_paths_are_served_under_the_prefix_of_the_server() -> None:
     assert list(paths_of(mock.derive(CONTRACT))) == ["/api/v1/projects", "/api/v1/health"]
 
 
-def test_no_session_is_required() -> None:
+def test_no_bearer_token_is_required() -> None:
     derived = mock.derive(CONTRACT)
     assert "security" not in derived
     assert "security" not in json.dumps(derived["paths"])

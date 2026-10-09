@@ -131,8 +131,12 @@ CommandCondition:
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
-    `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
-    `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et
+    `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
+    n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
+    du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
+    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Le retrait de l'une de
+    ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
   enum:
     - is_contributor
@@ -165,6 +169,8 @@ CommandCondition:
     - cost_type_not_last_provision
     - cost_category_not_last_provision
     - last_administrator
+    - is_local_account
+    - is_active_account
 
 ProjectCommand:
   type: string

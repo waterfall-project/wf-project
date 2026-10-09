@@ -1,60 +1,9 @@
-# Session, comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
+# Comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
 # Il n'existe aucune inscription libre : un compte est créé par un utilisateur
-# habilité, importé de l'annuaire, ou créé à sa première connexion par le
-# fournisseur d'identité (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
-
-AuthProviderKind:
-  type: string
-  enum: [local, ldap, oidc]
-
-AuthProvider:
-  type: object
-  required: [kind, is_enabled]
-  description: >-
-    Fournisseur d'authentification. Les comptes locaux sont toujours actifs ;
-    l'annuaire et le fournisseur d'identité s'activent dans l'administration
-    (WF-ADM-0180, WF-ARC-0030).
-  properties:
-    kind: { $ref: '#/AuthProviderKind' }
-    is_enabled: { type: boolean }
-    label:
-      anyOf: [{ type: string }, { type: 'null' }]
-    start_url:
-      anyOf: [{ type: string }, { type: 'null' }]
-      description: Point de départ des redirections, pour un fournisseur OIDC (TFX-07).
-
-LocalCredentials:
-  type: object
-  required: [email, password]
-  properties:
-    email: { type: string, format: email }
-    password: { type: string, minLength: 12, maxLength: 200 }
-
-Session:
-  type: object
-  required: [user, permissions, expires_at]
-  description: >-
-    Session conservée en base, révocable immédiatement (WF-SEC-0020). Les
-    permissions effectives sont évaluées à chaque requête et renvoyées ici pour que
-    le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090).
-  properties:
-    user: { $ref: '#/UserSelf' }
-    permissions:
-      type: array
-      items: { $ref: '#/PermissionCode' }
-    expires_at: { $ref: ../common.yaml#/Timestamp }
-    idle_expires_at: { $ref: ../common.yaml#/Timestamp }
-
-PasswordResetRequest:
-  type: object
-  required: [email]
-  description: >-
-    Demande un lien de réinitialisation, valable une heure et à usage unique
-    (WF-ADM-0140). Le courriel part dans la langue que le compte a choisie, `fr` ou
-    `en` ; si elle vaut `default`, dans la première langue offerte que demande la
-    requête, et à défaut dans la langue par défaut de l'installation (WF-ARC-0110).
-  properties:
-    email: { type: string, format: email }
+# habilité, lu du fournisseur d'identité qui fédère l'annuaire, ou créé à sa première
+# connexion venue d'un fournisseur externe (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
+# Waterfall ne voit jamais de mot de passe : l'authentification est celle du fournisseur
+# d'identité (WF-ARC-0030, WF-ADM-0140).
 
 PasswordSetupLink:
   type: object
@@ -62,11 +11,11 @@ PasswordSetupLink:
   description: >-
     Le lien par lequel le porteur d'un compte local fixe ou réinitialise son mot de passe,
     rendu à l'utilisateur habilité qui l'a demandé pour le remettre par un autre canal
-    (WF-ADM-0140) : le même lien que le courriel porte, à usage unique et valable une heure,
-    vers l'adresse du front qui fixe le mot de passe — `<adresse publique du front>/login/reset?token=<jeton>`,
-    l'adresse publique du front étant un paramètre de l'installation, fixé à son déploiement
-    (WF-EXP-0020), comme pour `requestPasswordReset`. Il n'est rendu qu'une fois, jamais relu, et sa demande est
-    inscrite au journal d'audit (WF-SEC-0030) ; le jeton n'y figure pas.
+    (WF-ADM-0140) : le même lien qu'un courriel du fournisseur d'identité porterait, à usage
+    unique et valable une heure. Il mène à la page du fournisseur d'identité qui fixe le mot de
+    passe, non à un écran de Waterfall, qui n'en présente aucun (WF-ADM-0140, WF-ARC-0030). Il
+    n'est rendu qu'une fois, jamais relu, et sa demande est inscrite au journal d'audit
+    (WF-SEC-0030) ; le jeton n'y figure pas.
   properties:
     url:
       type: string
@@ -76,26 +25,13 @@ PasswordSetupLink:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140).
 
-PasswordResetConfirm:
-  type: object
-  required: [token, password]
-  properties:
-    token: { type: string, minLength: 20 }
-    password: { type: string, minLength: 12, maxLength: 200 }
-
-PasswordChange:
-  type: object
-  required: [current_password, new_password]
-  properties:
-    current_password: { type: string }
-    new_password: { type: string, minLength: 12, maxLength: 200 }
-
 UserOrigin:
   type: string
   enum: [local, directory, identity_provider]
   description: >-
-    Origine du compte : créé dans Waterfall, importé de l'annuaire, ou créé à sa
-    première connexion par le fournisseur d'identité (WF-ADM-0050).
+    Origine du compte : créé dans Waterfall (`local`), lu du fournisseur d'identité qui fédère
+    l'annuaire (`directory`), ou créé à la première connexion d'une personne venue d'un
+    fournisseur externe (`identity_provider`) (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
 
 User:
   description: >-
@@ -153,7 +89,7 @@ UserCommandAvailability:
 UserAccount:
   type: object
   description: >-
-    Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table
+    Un compte, sans ses commandes : celui que `getMe` rend (`UserSelf`), et que la table
     des comptes complète des siennes (`User`).
   required:
     - user_id
@@ -179,7 +115,7 @@ UserAccount:
       type: boolean
       description: >-
         L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour
-        « désactivé » (`deactivated`). Un compte désactivé ne peut plus ouvrir de session.
+        « désactivé » (`deactivated`). Un compte désactivé est refusé à chaque requête, par 401 `ACCOUNT_DEACTIVATED`, et ses sessions sont fermées (WF-SEC-0020).
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -206,13 +142,23 @@ UserAccount:
 
 UserSelf:
   description: >-
-    Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les
-    commandes de la table des comptes : la session ne s'administre pas par elle.
+    Le compte connecté, ses préférences d'affichage (WF-ADM-0040) et ses permissions
+    effectives. Il ne porte pas les commandes de la table des comptes : un compte ne
+    s'administre pas par `getMe`.
   allOf:
     - $ref: '#/UserAccount'
     - type: object
+      required: [permissions]
       properties:
         display_preferences: { $ref: '#/DisplayPreferences' }
+        permissions:
+          type: array
+          description: >-
+            Les permissions effectives du compte, l'union de celles de ses rôles, évaluées à
+            chaque requête (WF-ADM-0090, WF-ADM-0110) et rendues pour que le front sache quoi
+            présenter (WF-IHM-0090) : une fonction dont le compte n'a pas la consultation ne se
+            présente pas. Vide pour un compte sans rôle (WF-ADM-0180).
+          items: { $ref: '#/PermissionCode' }
 
 UserCreate:
   type: object

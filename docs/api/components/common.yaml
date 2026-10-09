@@ -160,7 +160,9 @@ Problem:
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
-        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040).
+        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`,
+        dans `fields[].params`, la version de l'application qui a pris la sauvegarde et celle de
+        l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, WF-ADM-0160).
     fields:
       type: array
       description: >-
@@ -200,10 +202,11 @@ ErrorCode:
     # 400 — requête mal formée ou confirmation absente.
     - MALFORMED_REQUEST
     - CONFIRMATION_REQUIRED
-    # 401 — aucune session valide (WF-SEC-0020).
+    # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé, que le front distingue de
+    # l'absence de jeton pour ne pas renvoyer à une connexion qui bouclerait (WF-ADM-0060).
     - SESSION_REQUIRED
     - SESSION_EXPIRED
-    - INVALID_CREDENTIALS
+    - ACCOUNT_DEACTIVATED
     # 403 — permission présente, condition manquante : `params.missing_permission`
     # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
     # structurante ou le paramétrage du projet exigent la qualité de chef de projet
@@ -236,9 +239,6 @@ ErrorCode:
     - TASK_COMPLETED
     - WIN_PROBABILITY_FROZEN
     - REFERENCE_INCOMPLETE
-    - PASSWORD_RESET_TOKEN_INVALID
-    # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
-    - ACCOUNT_LOCKED
     # 412 — `lock_version` périmé ; `params.expected_lock_version`, la version courante de
     # l'objet que le chemin nomme (WF-IHM-0110).
     - STALE_LOCK_VERSION
@@ -271,6 +271,13 @@ ErrorCode:
     # WF-REF-0040).
     - UNKNOWN_COST_TYPE
     - UNKNOWN_RESOURCE_ROLE
+    # Motifs par champ des écritures d'un compte (`createUser`, `updateUser`,
+    # `setUserAccessRoles`) : un rôle d'habilitation ou un nœud d'organisation que le serveur n'a
+    # pas, et un champ d'identité d'un compte venu d'un fournisseur externe, que le fournisseur
+    # tient (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    - UNKNOWN_ACCESS_ROLE
+    - UNKNOWN_ORG_NODE
+    - FIELD_READ_ONLY
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
@@ -278,6 +285,9 @@ ErrorCode:
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
     - UPLOAD_PURPOSE_MISMATCH
+    # Une sauvegarde d'une version plus récente que l'installation, que la restauration refuse
+    # (`startRestore`, WF-ADM-0160) ; `fields[].params.backup_version` et `installed_version`.
+    - BACKUP_FROM_NEWER_VERSION
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
@@ -350,6 +360,12 @@ BackgroundTaskRef:
     task_id: { $ref: '#/Uuid' }
     kind:
       type: string
+      description: >-
+        Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ;
+        `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne
+        passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue
+        reprend depuis le début (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du
+        fournisseur d'identité (WF-ADM-0070).
       enum:
         - import_analysis
         - import_apply
@@ -359,7 +375,7 @@ BackgroundTaskRef:
         - export
         - backup
         - restore
-        - directory_sync
+        - identity_sync
     status: { $ref: '#/BackgroundTaskStatus' }
     progress:
       type: integer

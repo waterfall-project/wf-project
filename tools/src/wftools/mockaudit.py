@@ -401,12 +401,12 @@ def import_applied_today() -> Inscription:
     The import of the estimate of the « Poste de commande », analysed this morning
     (`import_analysed`), confirmed today and applied by its task, which succeeds at 14 h 08 min 30 s
     (`task_import_succeeded`): the instant of the inscription is the one the task succeeded at. By
-    the account of the session, which confirmed it; in the revision in progress, where an import
+    the account of the witness, which confirmed it; in the revision in progress, where an import
     of an estimate applies (WF-INTF-0090).
     """
     imported = fixture("import_analysed")
     task = fixture("task_import_succeeded")
-    user = fixture("session")["user"]
+    user = fixture("me")
     return Inscription(
         _instant(task["finished_at"]),
         {"kind": "user", "user_id": user["user_id"], "display_name": display_name(user)},

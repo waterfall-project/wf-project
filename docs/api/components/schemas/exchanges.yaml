@@ -21,10 +21,66 @@ FileUploadPurpose:
   type: string
   enum: [import, external_backup]
   description: >-
-    L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus
-    10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer
+    L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé
+    en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer
     (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus
-    `Installation.external_backup_max_bytes`.
+    `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`,
+    `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant.
+
+ChunkedUploadOpen:
+  type: object
+  required: [filename, size_bytes]
+  description: >-
+    Ouvre le dépôt par morceaux d'une sauvegarde copiée hors de la plateforme, à restaurer
+    (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). Il n'existe pas pour un autre usage :
+    le fichier d'un import se dépose en une fois.
+  properties:
+    filename:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Le nom du fichier, tel que l'utilisateur l'a choisi ; il reste au dépôt qui s'achève.
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      description: >-
+        La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de
+        `Installation.external_backup_max_bytes`, l'ouverture est refusée par 413,
+        `FILE_TOO_LARGE`.
+
+ChunkedUpload:
+  type: object
+  required: [chunked_upload_id, filename, size_bytes, part_size_bytes, part_count, received_parts, expires_at]
+  description: >-
+    Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count`
+    morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à
+    partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent
+    (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de
+    reprendre un envoi interrompu à partir de `received_parts`.
+  properties:
+    chunked_upload_id: { $ref: ../common.yaml#/Uuid }
+    filename: { type: string }
+    size_bytes: { type: integer, minimum: 1 }
+    part_size_bytes:
+      type: integer
+      minimum: 5242880
+      maximum: 67108864
+      description: >-
+        La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre
+        5 Mio et 64 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et
+        le serveur la choisit pour que le nombre de morceaux reste dans ce qu'il accepte. Un
+        morceau est une requête d'au plus cette taille, sous la borne d'un corps de requête.
+    part_count: { type: integer, minimum: 1 }
+    received_parts:
+      type: array
+      description: Les numéros des morceaux reçus, en ordre croissant, sans doublon.
+      items: { type: integer, minimum: 1 }
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        Vingt-quatre heures après l'ouverture : au-delà, le dépôt et ses morceaux sont
+        supprimés, comme un fichier d'import expiré (WF-DAT-0120).
 
 ExchangeKind:
   type: string

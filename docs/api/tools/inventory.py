@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FAMILIES: list[tuple[str, str]] = [
     ("system", "Système, métriques et traitements de fond"),
-    ("session", "Session, compte courant et préférences"),
+    ("me", "Compte courant, préférences et avatar"),
     ("access", "Comptes, rôles et permissions"),
     ("platform", "Sauvegarde et restauration"),
     ("audit", "Journal d'audit"),

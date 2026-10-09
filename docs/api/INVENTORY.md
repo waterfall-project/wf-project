@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**163 opérations sur 127 chemins, dans 13 familles.**
-Le contrat cite **186 des 211 exigences** de la spécification.
+**158 opérations sur 124 chemins, dans 13 familles.**
+Le contrat cite **187 des 211 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -24,23 +24,15 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-DAT-0120 |
 
-## Session, compte courant et préférences
+## Compte courant, préférences et avatar
 
-`paths/session.yaml` — 13 opérations
+`paths/me.yaml` — 5 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/session/providers` | Fournisseurs d'authentification actifs | WF-ADM-0180, WF-ARC-0030 |
-| GET | `/session` | Session courante | WF-ADM-0110, WF-INTF-0160, WF-SEC-0020 |
-| POST | `/session` | Ouvrir une session par compte local ou par annuaire | WF-ADM-0140, WF-ADM-0180, WF-SEC-0020 |
-| DELETE | `/session` | Se déconnecter | WF-SEC-0020 |
-| GET | `/session/oidc/start` | Démarrer une authentification OIDC | WF-ADM-0180 |
-| GET | `/session/oidc/callback` | Retour du fournisseur d'identité | WF-ADM-0180, WF-SEC-0020 |
-| POST | `/session/password-reset` | Demander un lien de réinitialisation | WF-ADM-0140, WF-ARC-0110, WF-EXP-0020 |
-| POST | `/session/password-reset/confirm` | Fixer un mot de passe avec un lien de réinitialisation | WF-ADM-0140 |
-| GET | `/me` | Mon compte et mes préférences | WF-ADM-0040, WF-ADM-0050 |
+| GET | `/me` | Mon compte et mes préférences | WF-ADM-0040, WF-ADM-0050, WF-ADM-0060, WF-ADM-0110, WF-ADM-0180, WF-ARC-0030, WF-IHM-0090, WF-SEC-0020 |
+| DELETE | `/me/sessions` | Me déconnecter | WF-ARC-0030, WF-SEC-0020 |
 | PATCH | `/me/preferences` | Modifier mes préférences d'affichage | WF-ADM-0040, WF-INTF-0160 |
-| PUT | `/me/password` | Changer mon mot de passe | WF-ADM-0140 |
 | PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080 |
 | DELETE | `/me/avatar` | Retirer mon avatar | WF-ADM-0080 |
 
@@ -53,19 +45,19 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
 | POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180 |
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
-| PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060 |
+| PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060, WF-ADM-0070 |
 | PUT | `/users/{user_id}/activation` | Désactiver ou réactiver un compte | WF-ADM-0060, WF-ADM-0120, WF-SEC-0020 |
 | PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |
-| POST | `/directory-syncs` | Resynchroniser les comptes depuis l'annuaire | WF-ADM-0070, WF-ARC-0090 |
-| GET | `/directory-syncs/latest` | Résultat de la dernière synchronisation | WF-ADM-0070 |
+| POST | `/identity-syncs` | Lire les comptes du fournisseur d'identité | WF-ADM-0070, WF-ADM-0180, WF-ARC-0090 |
+| GET | `/identity-syncs/latest` | Compte rendu de la dernière lecture des comptes | WF-ADM-0070 |
 | GET | `/permissions` | Catalogue des permissions | WF-ADM-0100 |
 | GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0090, WF-IHM-0060, WF-IHM-0130 |
 | POST | `/access-roles` | Composer un rôle d'habilitation | WF-ADM-0020 |
 | GET | `/access-roles/{access_role_id}` | Un rôle d'habilitation | WF-ADM-0090, WF-ADM-0100 |
 | PATCH | `/access-roles/{access_role_id}` | Modifier un rôle | WF-ADM-0090 |
-| DELETE | `/access-roles/{access_role_id}` | Supprimer un rôle | WF-ADM-0090, WF-ADM-0120 |
+| DELETE | `/access-roles/{access_role_id}` | Supprimer un rôle | WF-ADM-0090, WF-ADM-0120, WF-DAT-0080 |
 
 ## Sauvegarde et restauration
 
@@ -82,7 +74,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
 | POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
-| POST | `/restores` | Restaurer la plateforme | WF-ADM-0160, WF-DAT-0130 |
+| POST | `/restores` | Restaurer la plateforme | WF-ADM-0160, WF-ARC-0090, WF-DAT-0130, WF-SEC-0030 |
 
 ## Journal d'audit
 
@@ -236,11 +228,14 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 ## Échanges par fichier
 
-`paths/exchanges.yaml` — 7 opérations
+`paths/exchanges.yaml` — 10 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | POST | `/file-uploads` | Déposer un fichier | WF-ADM-0160, WF-DAT-0120 |
+| POST | `/chunked-uploads` | Ouvrir le dépôt par morceaux d'une sauvegarde | WF-ADM-0160, WF-DAT-0120 |
+| PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Déposer un morceau | WF-ADM-0160 |
+| POST | `/chunked-uploads/{chunked_upload_id}/completion` | Terminer le dépôt par morceaux | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0170 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0040, WF-INTF-0080, WF-PLA-0130 |
@@ -265,12 +260,12 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-25 sur 211. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+24 sur 211. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
-| ARC | WF-ARC-0010, WF-ARC-0040, WF-ARC-0050, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
+| ARC | WF-ARC-0010, WF-ARC-0040, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0030 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |

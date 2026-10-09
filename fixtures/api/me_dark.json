@@ -1,45 +1,50 @@
 {
-  "summary": "La session d'Inès Roux, dont le rôle « Pilotage de projet » n'accorde aucune habilitation d'administration : ni les comptes, ni les rôles, ni l'état du système, ni les sauvegardes.",
+  "summary": "Le même compte, qui a choisi le mode sombre : il prime sur le réglage du poste.",
   "value": {
-    "user": {
-      "user_id": "01926f3a-7c00-7000-8000-000000000306",
-      "last_name": "Roux",
-      "first_name": "Inès",
-      "email": "ines.roux@example.com",
-      "is_active": true,
-      "origin": "local",
-      "org_node_id": null,
-      "org_node_label": null,
-      "access_role_ids": [
-        "01926f3a-7c00-7000-8000-000000000706"
-      ],
-      "access_role_labels": [
-        "Pilotage de projet"
-      ],
-      "has_avatar": false,
-      "audit": {
-        "created_at": "2026-01-15T10:30:00Z",
-        "created_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
-        },
-        "updated_at": "2026-01-15T10:30:00Z",
-        "updated_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
-        }
+    "user_id": "01926f3a-7c00-7000-8000-000000000301",
+    "last_name": "Martin",
+    "first_name": "Camille",
+    "email": "camille.martin@example.com",
+    "is_active": true,
+    "origin": "local",
+    "org_node_id": null,
+    "org_node_label": null,
+    "access_role_ids": [
+      "01926f3a-7c00-7000-8000-000000000701"
+    ],
+    "access_role_labels": [
+      "Direction de projet"
+    ],
+    "has_avatar": false,
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
       },
-      "lock_version": 1,
-      "display_preferences": {
-        "language": "default",
-        "theme": "default",
-        "highlight_tasks_added_after_reference": false,
-        "grids": {}
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
       }
     },
+    "lock_version": 4,
+    "display_preferences": {
+      "language": "default",
+      "theme": "dark",
+      "highlight_tasks_added_after_reference": false,
+      "grids": {}
+    },
     "permissions": [
+      "users.read",
+      "users.write",
+      "access_roles.read",
+      "access_roles.write",
+      "system_status.read",
+      "system_status.write",
+      "backups.read",
+      "backups.write",
+      "audit_log.read",
       "portfolio_projects.read",
       "portfolio_projects.write",
       "portfolio_workload.read",
@@ -87,9 +92,9 @@
       "project_exit",
       "risk_occurrence",
       "cost_line_exclude",
-      "project_create"
-    ],
-    "expires_at": "2026-06-04T08:00:00Z",
-    "idle_expires_at": "2026-06-03T16:05:00Z"
+      "platform_restore",
+      "project_create",
+      "all_projects_read"
+    ]
   }
 }

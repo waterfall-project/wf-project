@@ -1,5 +1,5 @@
 {
-  "summary": "Dominique Bernard, manager, compte venu de l'annuaire que le fournisseur d'identité fédère : il s'authentifie auprès d'eux, et Waterfall ne connaît pas son mot de passe.",
+  "summary": "Le compte de Dominique Bernard, manager : il lit tous les projets, le planning compris, et le portefeuille, sans aucun droit d'écriture sur un projet — ni saisie ni import (#521).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000302",
     "last_name": "Bernard",

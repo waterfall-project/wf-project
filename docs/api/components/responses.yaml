@@ -7,7 +7,10 @@ BadRequest:
       schema: { $ref: common.yaml#/Problem }
 
 Unauthorized:
-  description: Aucune session valide, ou session révoquée (WF-SEC-0020).
+  description: >-
+    Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`,
+    WF-SEC-0020) ; ou compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), que le front
+    distingue pour ne pas renvoyer à une connexion qui bouclerait.
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }

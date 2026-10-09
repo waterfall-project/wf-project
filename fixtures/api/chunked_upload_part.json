@@ -1,0 +1,15 @@
+{
+  "summary": "Le même dépôt, après le dépôt du deuxième morceau puis du premier : les morceaux reçus se disent dans l'ordre croissant, et le troisième manque encore (WF-ADM-0160).",
+  "value": {
+    "chunked_upload_id": "01926f3a-7c00-7000-8000-000000000a02",
+    "filename": "waterfall-2026-06-02.tar",
+    "size_bytes": 12582912,
+    "part_size_bytes": 5242880,
+    "part_count": 3,
+    "received_parts": [
+      1,
+      2
+    ],
+    "expires_at": "2026-06-04T13:50:00Z"
+  }
+}
