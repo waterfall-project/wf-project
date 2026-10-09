@@ -47,11 +47,12 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   le compte ;
 - le worker, la file de tâches et le dépôt périodique d'une tâche en file, la lecture des
   comptes du fournisseur pour premier traitement ;
-- le journal d'audit, pour les comptes, les rôles et leurs attributions ;
+- le journal d'audit, pour les comptes, les rôles et leurs attributions, et sa consultation
+  (FBS-1.5, `audit_log.read`), que la plateforme ne peut ni modifier ni supprimer ;
 - les journaux structurés du service et du worker, dès leur premier enregistrement :
   l'identifiant de corrélation engendré à l'entrée et transmis aux tâches, l'auteur, la
   gravité, et aucun mot de passe, jeton ni secret — faute de quoi tout le code d'EP-04 à
-  EP-12 s'écrirait sans eux et serait à reprendre ;
+  EP-11 s'écrirait sans eux et serait à reprendre ;
 - l'amorçage d'une installation neuve : catalogue, rôles prédéfinis, compte administrateur
   et son lien de fixation, langue par défaut ;
 - la comparaison, par la chaîne, des réponses de l'API au schéma déclaré, et les parcours de
@@ -59,7 +60,15 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   relevé des exigences comme preuve du back ;
 - les écrans de connexion, de mon compte, des comptes et des rôles de la maquette, branchés
   sur le service : la saisie en ligne de la table des comptes (#379) et la matrice des
-  permissions comme lieu de la modification des rôles (#380).
+  permissions comme lieu de la modification des rôles (#380) ;
+- une plateforme déployable pour des démonstrations (revue de la ventilation, 2026-10-09) :
+  les images de production, publiées par la chaîne, et un Compose de production qui les
+  déploie sur une machine seule, derrière un frontal TLS, secrets injectés au démarrage ;
+- la sauvegarde et la restauration de la plateforme entière — les deux bases, Waterfall et le
+  fournisseur d'identité —, le téléchargement d'une sauvegarde et le dépôt d'une sauvegarde
+  venue d'une autre installation : c'est ainsi qu'une installation de référence, son
+  référentiel et ses comptes se reproduisent d'une machine à l'autre (WF-ADM-0160 : aucune
+  restauration partielle) ; et les écrans de la sauvegarde de la maquette, branchés.
 
 ## Ce qui n'en fait pas partie
 
@@ -70,10 +79,13 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
 - l'écran d'accueil (WF-IHM-0120) — EP-04, qui sert la liste des projets et les
   contributeurs ; ici, la connexion mène à l'accueil tel que la maquette le présente ;
 - la garde des lectures du référentiel avec `include_inactive` (#351) — EP-05, qui les sert ;
-- l'écran d'état, la sauvegarde et la restauration, qui complètent les usages de
-  l'administrateur (WF-INTF-0030) — EP-13 ; la consultation du journal d'audit — EP-13 ;
-- le chiffrement des échanges et l'injection des secrets par la plateforme — EP-13. Ici, un
-  service qui démarre sans ses secrets échoue en le disant, et c'est tout ;
+- l'écran d'état, qui complète les usages de l'administrateur (WF-INTF-0030), la
+  planification et la rétention des sauvegardes, leur copie vers un emplacement externe, le
+  test de restauration périodique — EP-13 ; la conservation du journal aussi longtemps que
+  les projets (WF-SEC-0030) — EP-13 ;
+- le chart Helm, le chiffrement des échanges entre les services, la mise à jour sans
+  interruption — EP-13. Ici, le navigateur ne parle qu'en HTTPS au frontal, et un service qui
+  démarre sans ses secrets échoue en le disant ;
 - tout écran de mot de passe dans Waterfall : la fixation, la réinitialisation et le
   changement du mot de passe d'un compte local se font sur les pages du fournisseur
   d'identité (WF-ADM-0140) ; les écrans de mot de passe d'US-0320 disparaissent.
@@ -103,7 +115,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-04 | US-0390 |
 | `WF-ADM-0120-A` | Dernier administrateur | entière | US-0380 |
 | `WF-ARC-0060-A` | Contrat OpenAPI | fin — amorcée en EP-01 | US-0340 |
-| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-13 | US-0410 |
+| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-06 | US-0410 |
 | `WF-ARC-0030-A` | Authentification déléguée | entière | US-0350 |
 | `WF-ARC-0090-A` | Traitements longs confiés au worker | début — close en EP-13 | US-0370 |
 | `WF-DAT-0060-A` | Identifiants | début — close en EP-04 | US-0330 |
@@ -117,6 +129,10 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-SEC-0020-A` | Session et révocation | entière | US-0350 |
 | `WF-SEC-0030-A` | Journal d'audit des actions irréversibles ou structurantes | début — close en EP-13 | US-0410 |
 | `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | US-0330 |
+| `WF-ARC-0050-A` | Empaquetage et déploiement | début — close en EP-13 | US-0430 |
+| `WF-ADM-0150-A` | Sauvegarde | entière | US-0440 |
+| `WF-ADM-0160-A` | Restauration | début — close en EP-04 | US-0440 |
+| `WF-DAT-0120-A` | Contenu et purge du stockage objet | début — close en EP-06 | US-0440 |
 
 Décisions du cadrage, 2026-10-07, sur des phrases de Vérif que cet EPIC ne peut pas
 constater faute des objets d'un EPIC ultérieur : WF-IHM-0120 passe entière en EP-04 ;
@@ -125,8 +141,13 @@ consultables) ; WF-ADM-0100 en EP-08 (le devis, le marquage, la création d'un p
 fusion, dernière action gardée) ; WF-ADM-0020 en EP-05 (la première action d'un autre acteur
 que l'administrateur) ; WF-ADM-0040 en EP-04 (« le même projet ») ; WF-IHM-0060 en EP-07 (le
 tri de la grille de devis, qu'EP-02 attribuait à tort à EP-03) ; WF-IHM-0130 entre ici pour les
-tables des comptes et des rôles, et reste close en EP-11 ; WF-ARC-0110 en EP-13, où le
-journal d'audit se consulte, et non plus en EP-12. Les tableaux des EPIC concernés le disent.
+tables des comptes et des rôles, et reste close en EP-11. WF-ARC-0110, un temps déplacée en
+EP-13 faute de lecture du journal d'audit, revient se clore avec le premier import, en EP-06
+(EP-12 abandonné) : la revue de la
+ventilation du 2026-10-09 donne aussi à EP-03 un Compose de production pour des
+démonstrations, et la sauvegarde et la restauration (WF-ADM-0150, entière ; WF-ADM-0160,
+close en EP-04 sur des projets et des révisions), ainsi que la consultation du journal, qu'EP-02 a ajoutée au
+contrat (`listAuditEvents`, FBS-1.5). Les tableaux des EPIC concernés le disent.
 
 ## Opérations du contrat
 
@@ -158,7 +179,7 @@ conception :
   la présence de porteurs sur `listAccessRoles`, avec le nombre de rôles retenus ; et, sur
   les deux, un ordre de départage qui rend les pages stables.
 
-Servies ici pour la première fois, après cette modification (25) :
+Servies ici pour la première fois, après cette modification (33) :
 
 - `system` : `getLiveness`, `getInstallation`, `getBackgroundTask`, `listBackgroundTasks` ;
 - `me` : `getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` ;
@@ -166,7 +187,10 @@ Servies ici pour la première fois, après cette modification (25) :
   `setUserAccessRoles`, `createPasswordSetupLink`, `getUserAvatar`, `startDirectorySync`,
   `getLatestDirectorySync` ;
 - `access` : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
-  `updateAccessRole`, `deleteAccessRole`.
+  `updateAccessRole`, `deleteAccessRole` ;
+- `audit` : `listAuditEvents`, `listAuditFacets` ;
+- `platform` : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore` ;
+- `exchanges` : `uploadFile`, pour le dépôt d'une sauvegarde venue d'ailleurs.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (0) :
 
@@ -193,7 +217,12 @@ d'`epic/EP-02` dès L30, qui ferait reposer EP-03 sur un EPIC non livré.
 - l'installation d'une plateforme neuve crée le catalogue, les trois rôles et le compte
   administrateur, et produit son lien de fixation ; relancée, elle ne crée rien ;
 - le parcours de bout en bout traverse la connexion, mon compte, les comptes et les rôles
-  contre le service réel, et le relevé des exigences le compte comme preuve du back.
+  contre le service réel, et le relevé des exigences le compte comme preuve du back ;
+- le Compose de production, sur des images publiées par la chaîne, démarre une plateforme
+  complète sur une machine neuve, en HTTPS, qu'un administrateur atteint par le lien de
+  l'amorçage ;
+- une sauvegarde prise sur une installation, téléchargée puis déposée sur une autre et
+  restaurée, rend sur la seconde les comptes, les rôles et les réglages de la première.
 
 ## Conception
 
@@ -314,6 +343,8 @@ rien d'autre que leurs deux clés.
 | `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
 | `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
 | `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `action`, `object_kind`, `object_id`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune mise à jour ni suppression : le rôle de base du service n'a que `INSERT` et `SELECT`, et un déclencheur refuse l'une et l'autre |
+| `backup` | `taken_at`, `size_bytes`, `verification` (`pending`, `passed`, `failed`), `origin` (`manual`, `scheduled`), `is_retained`, `object_key`, la version de l'application et la révision du schéma qui l'ont produite, la tâche | `verification` et `origin` dans leurs énumérations ; aucune ligne supprimée en EP-03 (la rotation est d'EP-13) |
+| `file_upload` | `purpose`, `object_key`, `size_bytes`, `requested_by`, `expires_at`, l'état du dépôt par morceaux | `purpose` dans `FileUploadPurpose` ; un dépôt non employé expire |
 
 - **Identifiants** : UUID v7 engendrés par le service (`uuid-utils`), jamais par un
   défaut de la base ; Python 3.13 n'a pas encore `uuid.uuid7`.
@@ -418,7 +449,15 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
 son état, de ses rôles ; création, modification et suppression d'un rôle ; demande d'un lien
 de fixation ; création, mise à jour et désactivation par la lecture des comptes. Une
 inscription est un code et des données, sans phrase (WF-ARC-0110), et ne porte jamais le
-jeton du lien. Aucune opération ne la lit en EP-03.
+jeton du lien.
+
+La consultation (FBS-1.5, revue de la ventilation, 2026-10-09) est `listAuditEvents`, sous
+`audit_log.read` : une table plate, paginée, triée sur ses sept colonnes — date, auteur,
+action, nature de l'objet, libellé, projet, corrélation — et filtrée par période, auteur,
+action, projet, objet, corrélation et une recherche sur le libellé que l'inscription garde ;
+`listAuditFacets` rend les auteurs et les projets que le journal nomme. L'inscription garde le
+libellé de son objet et le nom de son auteur au moment de l'action, pour se lire sans joindre
+les tables des autres modules. Les index suivent les tris et les filtres du contrat.
 
 ### Amorçage
 
@@ -435,6 +474,69 @@ jeton du lien. Aucune opération ne la lit en EP-03.
 
 Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
 calendrier et la nature de provision.
+
+### Déploiement de démonstration
+
+Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
+
+- **les images** : `front`, `waterfall` — une image, deux commandes, l'API et le worker,
+  l'amorçage et la planification — et `keycloak`, l'image de Keycloak avec l'extension et
+  le royaume ; construites par la chaîne à chaque fusion dans `main` et dans une branche
+  d'EPIC, publiées sur `ghcr.io/waterfall-project/…`, étiquetées par version, par commit et
+  par branche ; aucun secret dedans (WF-SEC-0010) ;
+- **le Compose de production** (`deploy/compose/compose.prod.yaml`) : Caddy en frontal, seul
+  port ouvert, qui obtient ses certificats Let's Encrypt pour `WATERFALL_DOMAIN` et sert le
+  front à la racine et Keycloak sous `/auth` ; le front, l'API, le worker, le planificateur ;
+  PostgreSQL (deux bases, Waterfall et Keycloak), Redis, Garage pour le stockage objet et
+  son service d'initialisation — topologie, clé d'accès, compartiments `imports` et `backups` —,
+  Keycloak et keycloak-config-cli ; des volumes nommés pour les données ;
+- **les secrets** : un fichier `.env` que l'exploitant remplit d'après un modèle versionné,
+  lu au démarrage ; un service qui en manque s'arrête en nommant la variable ;
+- **l'amorçage** : `docker compose run --rm api waterfall-api install`, qui écrit le lien du
+  premier administrateur ;
+- **la notice** : `deploy/compose/README.md` — installer, amorcer, mettre à jour (tirer une
+  étiquette, relancer, les migrations s'appliquent au démarrage de l'API), sauvegarder,
+  arrêter ;
+- **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
+  publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
+  administrateur et une sauvegarde.
+
+### Stockage objet
+
+Garage (Deuxfleurs, AGPL-3.0), décision de l'auteur du 2026-10-09 : MinIO Community Edition,
+en maintenance depuis décembre 2025, est archivé depuis avril 2026, sans binaires ni
+correctifs. Garage tient dans la machine de WF-CMP-0020 et couvre ce dont Waterfall a besoin.
+Le code ne parle au stockage que par les opérations S3 standard — écrire, lire, supprimer,
+lister, dépôt en plusieurs parties — par boto3, sans extension propre à un produit, et les
+compartiments sont des réglages : un exploitant branche le stockage qu'il opère déjà
+(WF-ARC-0050, WF-CMP-0020). Garage sert aussi la plateforme de développement et les parcours
+contre le service. La purge des fichiers d'import (WF-DAT-0120) est faite par le worker, non
+par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
+
+### Sauvegarde et restauration
+
+- **La sauvegarde** est une tâche du worker (`backup`) : `pg_dump` de chaque base, au format
+  personnalisé, chacune dans un instantané cohérent ; la table du journal d'audit est exclue
+  de la base de Waterfall ; une archive des deux vidages et d'un manifeste — date, version de
+  l'application, révision du schéma, empreintes — est écrite dans le compartiment
+  `backups` du stockage objet, puis vérifiée (relecture de l'archive et des empreintes,
+  `pg_restore --list` de chaque vidage) avant de passer `passed`.
+- **Le téléchargement** (`downloadBackup`) lit l'archive du stockage objet et la rend en flux.
+- **Le dépôt d'une sauvegarde venue d'ailleurs** (`uploadFile`, `external_backup`, #350) ne
+  passe pas par une action serveur, dont la taille de corps est bornée : il se fait par
+  morceaux, chacun sous la borne, qui s'assemblent sur le stockage objet — une modification
+  du contrat (ci-dessous).
+- **La restauration** est une tâche du worker (`restore`), demandée avec la date de la
+  sauvegarde confirmée : elle refuse une archive d'une version plus récente que
+  l'installation ; met la plateforme en maintenance — l'API répond 503
+  `COMPONENT_UNAVAILABLE`, et toutes les sessions sont fermées ; recrée les deux bases depuis
+  les vidages, sauf la table du journal d'audit ; applique les migrations postérieures à la
+  sauvegarde ; vide les caches de Keycloak par son API d'administration et Redis ; inscrit la
+  restauration au journal ; lève la maintenance. Une restauration interrompue reprend depuis le
+  début et ne lève la maintenance qu'une fois finie (WF-ARC-0090).
+- **Reproduire une installation** est une restauration entière : la seconde installation
+  devient une copie de la première, comptes et fournisseur d'identité compris (WF-ADM-0160,
+  décision de l'auteur du 2026-10-09).
 
 ### Modifications du contrat
 
@@ -469,6 +571,13 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    `listAccessRoles`, les filtres par nature (`is_predefined`) et par porteurs
    (`has_holders`) ; sur les deux, le départage par identifiant, qui rend les pages stables.
 8. **Rôles** : `deleteAccessRole` dit la suppression logique ; un rôle supprimé est un 404.
+9. **Sauvegarde** : `Backup`, `startBackup` et `startRestore` disent que la sauvegarde couvre
+   les deux bases, Waterfall et le fournisseur d'identité (WF-ADM-0150), et que la restauration
+   laisse le journal d'audit en place et s'y inscrit (WF-ADM-0160 révisée) ; le refus d'une
+   sauvegarde d'une version plus récente se nomme ; `BackgroundTaskRef.kind` gagne ce qui
+   manque pour suivre la restauration jusqu'à la levée de la maintenance.
+10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
+   une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
 
 ### Conformité au contrat et parcours contre le service
 
@@ -509,6 +618,9 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 8. Mon compte : préférences, langue — reportée sur l'attribut `locale` du compte dans
    Keycloak, pour les courriels —, avatar, `getInstallation`.
 9. L'amorçage, puis les parcours de la Définition de fini.
+10. Les images publiées et le Compose de production, dès que la connexion et l'amorçage
+    existent.
+11. La sauvegarde, puis la restauration, sur le worker et le stockage objet.
 
 ### Décisions
 
@@ -530,6 +642,11 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | `installation` porte la langue par défaut ; `ReferenceSettings.default_language` (EP-05) la lira | une langue dans `reference_setting` dès EP-03 : table d'EP-05 |
 | `org_node_id` ajouté par EP-05 avec sa clé étrangère | une colonne sans clé dès EP-03 : contraire à WF-DAT-0090 |
 | La lecture des comptes passe par Keycloak, qui fédère l'annuaire (WF-ADM-0070) | lire l'annuaire en LDAP depuis Waterfall : un second chemin vers l'annuaire, que la spécification révisée a retiré |
+| Une plateforme de démonstration dès EP-03 : images publiées par la chaîne, Compose de production, frontal Caddy (auteur, 2026-10-09) | attendre EP-13 : aucune démonstration sur une installation réelle avant la fin ; construire les images sur le serveur : ce ne seraient pas les mêmes images partout (WF-ARC-0050) |
+| Sauvegarde et restauration dès EP-03, la plateforme entière (auteur, 2026-10-09) | un échange du seul référentiel : contraire à WF-ADM-0160 (aucune restauration partielle) et à WF-INTF-0150 (aucun import du référentiel) |
+| Garage pour le stockage objet, le code limité aux opérations S3 standard (auteur, 2026-10-09) | MinIO : archivé, sans binaires ni correctifs ; SeaweedFS : plusieurs composants, lourd pour une démonstration ; RustFS : trop jeune |
+| Le journal d'audit hors des vidages, laissé en place par la restauration | le restaurer avec le reste : WF-ADM-0160 révisée le garde, et la restauration doit s'y inscrire |
+| Le dépôt d'une sauvegarde par morceaux (#350) | une action serveur : sa taille de corps est bornée ; une adresse signée du stockage objet : le navigateur parlerait au stockage, hors des flux du §4.3.2 ; un gestionnaire de route qui relaie l'API : écarté par EP-02 (WF-ARC-0020) |
 
 ### Issues à ouvrir avec la conception
 
@@ -590,7 +707,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme. » et « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : le chiffrement des
   échanges et la publication des images relèvent d'EP-13.
 - `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. »
-- écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-09 et EP-12 ; ici,
+- écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-06 ; ici,
   une tâche de lecture des comptes échouée se suit de la requête qui l'a lancée à son échec
   par un seul identifiant, que l'enveloppe d'erreur (`Problem.correlation_id`) contient.
 - `WF-OBS-0020-A` — « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. »
@@ -740,7 +857,9 @@ cessent d'être attribuables.
 - propre à l'US : l'affectation des rôles s'y fait cellule par cellule — zéro, un ou plusieurs
   rôles (WF-ADM-0050) — et s'applique sans reconnexion du compte concerné (WF-ADM-0090) ; le
   retrait de son rôle au dernier administrateur y est refusé par `LAST_ADMINISTRATOR`
-  (WF-ADM-0120) ; les rôles proposés sont ceux de l'installation, quel que soit le
+  (WF-ADM-0120), et sa désactivation présentée indisponible, avec la condition
+  `last_administrator` que portent les commandes du compte (`available_commands`, WF-IHM-0090,
+  contrat d'EP-02/L42d) ; les rôles proposés sont ceux de l'installation, quel que soit le
   rattachement (WF-ADM-0030, #379).
 - propre à l'US — **filtres** : la table se filtre sur chacune de ses colonnes, par le
   serveur (WF-IHM-0130) : le nom, le prénom et l'adresse par une recherche qui porte sur les
@@ -795,7 +914,7 @@ qu'elle se soit connectée.
   l'installation, et le worker la prend comme celle qu'un administrateur demande (PBS-5.3).
 
 **Notes de réalisation.** Le worker et la file servent ensuite le marquage (EP-04), les
-imports (EP-09, EP-12) et la sauvegarde (EP-13) : le genre d'une tâche est déjà une
+imports (EP-06, EP-07, EP-09) et la sauvegarde planifiée (EP-13) : le genre d'une tâche est déjà une
 énumération du contrat (`BackgroundTaskRef.kind`).
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
@@ -831,7 +950,8 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0120-A` — « La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. »
 - `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. »
 - écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3) et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
-  rôle sont ici ; l'écran d'état et la sauvegarde arrivent en EP-13, qui clôt l'exigence.
+  rôle sont ici, et le déclenchement d'une sauvegarde (US-0440) ; l'écran d'état arrive en
+  EP-13, qui clôt l'exigence.
 - propre à l'US — **pagination** : la table des rôles n'est pas paginée — `listAccessRoles`
   rend la liste entière, une installation comptant quelques dizaines de rôles — et elle
   annonce le nombre de rôles retenus.
@@ -854,7 +974,8 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 
 **Notes de réalisation.** Le contenu des trois rôles prédéfinis est celui que l'exemple
 `access_roles` du contrat livre ; le catalogue est l'énumération `PermissionCode`, trois
-permissions comprises depuis #384. La suppression d'un rôle est logique (décision du
+permissions comprises depuis #384, et `audit_log.read`, la seule permission de FBS-1.5, en
+lecture seule (WF-ADM-0100 révisée), que le rôle administrateur porte. La suppression d'un rôle est logique (décision du
 cadrage, 2026-10-07) : WF-DAT-0080 ne laisse disparaître aucun objet de la plateforme, et
 WF-ADM-0090 veut qu'un rôle se supprime ; une issue « Specification finding » propose de le
 dire dans la spécification.
@@ -929,13 +1050,15 @@ US-0410). `getInstallation` rend la langue par défaut posée à l'amorçage (US
 
 - **statut** : à faire
 - **exigences** : `WF-SEC-0030-A`, `WF-ARC-0110-A`
-- **opérations** : aucune en propre — les écritures des comptes et des rôles l'alimentent
+- **opérations** : `listAuditEvents`, `listAuditFacets` — les écritures des comptes et des
+  rôles l'alimentent
 - **issue** : #430
 
 **En tant qu'**administrateur, **je veux** que chaque création ou modification d'un compte,
 d'un rôle ou d'une attribution soit inscrite dans un journal que la plateforme ne peut pas
-réécrire, et conservée sous forme de code et de données, **afin de** pouvoir dire après coup
-qui a donné quel droit, dans la langue de celui qui le relit.
+réécrire, conservée sous forme de code et de données, et que je puisse parcourir et filtrer,
+**afin de** pouvoir dire après coup qui a donné quel droit, dans la langue de celui qui le
+relit.
 
 **Critères d'acceptation.**
 
@@ -943,13 +1066,18 @@ qui a donné quel droit, dans la langue de celui qui le relit.
   modification des comptes, des rôles et de leurs attributions, et la demande d'un lien de
   fixation ; les autres actions énumérées arrivent avec leur EPIC.
 - `WF-SEC-0030-A` — « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription. »
-- écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal et les projets
-  arrivent en EP-04 et EP-13, qui clôt l'exigence.
+- écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal est ici ; les projets
+  et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
+  l'exigence.
 - `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
-- écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-09 et EP-12.
-- écart : `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : ici, une inscription est conservée sous forme
-  de code et de données, sans phrase ; sa lecture arrive en EP-13, qui clôt l'exigence.
+- écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-06, qui clôt l'exigence.
+- `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : constaté sur la consultation du journal ; l'inscription est
+  conservée sous forme de code et de données, sans phrase.
 - `WF-ARC-0110-A` — « Un courriel de réinitialisation part du fournisseur d'identité, dans la langue du compte. »
+- propre à l'US : le journal se consulte sous `audit_log.read`, en table plate, paginée, triée
+  sur chacune de ses colonnes et filtrée par période, auteur, action, projet, objet,
+  corrélation et libellé, par le serveur (FBS-1.5, WF-IHM-0060, WF-IHM-0130) ; aucune commande
+  n'y modifie ni n'y supprime une inscription.
 
 ## US-0420 — Amorçage d'une installation neuve
 
@@ -975,3 +1103,89 @@ traîne dans une procédure, et que la relancer soit sans danger.
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et
   dans Waterfall, et la langue par défaut de l'installation ; les libellés des rôles sont dans
   cette langue (WF-EXP-0020).
+
+## US-0430 — Déployer une plateforme de démonstration
+
+- **statut** : à faire
+- **exigences** : `WF-ARC-0050-A`
+- **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
+- **issue** : #564
+
+**En tant qu'**exploitant, **je veux** déployer Waterfall sur une machine seule, à partir
+d'images que la chaîne publie, derrière un frontal HTTPS, **afin de** montrer le produit
+à des utilisateurs sur une installation réelle, sans poste de développement.
+
+**Critères d'acceptation.**
+
+- écart : `WF-ARC-0050-A` — « Le chart s’installe sur un cluster vierge avec ses composants de données, et sur un cluster où PostgreSQL, Redis et le stockage objet sont fournis par des adresses et des secrets externes. » : le chart Helm arrive en EP-13, qui clôt
+  l'exigence.
+- écart : `WF-ARC-0050-A` — « Le passage de une à trois instances de l’API ne demande qu’un changement de paramètre et aucune interruption. » : EP-13.
+- `WF-ARC-0050-A` — « Le fichier Compose démarre une plateforme complète sur une machine seule, à partir des mêmes images que le chart, et les tests de la chaîne CI/CD s’exécutent contre elle. » : pour le Compose, sur les images que la chaîne
+  publie et que le chart d'EP-13 reprendra ; les parcours contre le service (US-0340) s'y
+  jouent.
+- propre à l'US : la chaîne construit et publie les images du front, de l'API et du worker —
+  une même image, deux commandes — et celle de Keycloak avec son extension, sur ghcr.io,
+  étiquetées par version et par commit de `main`, et par commit d'une branche d'EPIC pour les
+  démonstrations ; aucune image ne contient de secret (WF-SEC-0010).
+- propre à l'US : le Compose de production démarre sur une machine neuve, à partir d'un
+  fichier de réglages et de secrets que l'exploitant remplit, la plateforme complète —
+  frontal TLS, front, API, worker, planificateur, PostgreSQL, Redis, stockage objet, Keycloak
+  et sa configuration — ; le frontal obtient seul ses certificats pour le nom de la machine, et
+  le navigateur ne parle qu'en HTTPS (WF-SEC-0010) ; l'amorçage (US-0420) s'y lance par une
+  commande, qui rend le lien de fixation du premier administrateur.
+- propre à l'US : une notice de déploiement dit, pas à pas, comment installer, amorcer,
+  mettre à jour et arrêter une plateforme de démonstration.
+
+**Notes de réalisation.** Décisions de l'auteur du 2026-10-09 : images publiées par la
+chaîne, frontal Caddy avec certificats Let's Encrypt. Sans messagerie sur une démonstration,
+les liens de fixation se remettent par `createPasswordSetupLink` (WF-CMP-0030).
+
+**Hors périmètre.** Le chart Helm, plusieurs instances de l'API, le chiffrement entre les
+services, la mise à jour sans interruption — EP-13.
+
+## US-0440 — Sauvegarder et restaurer la plateforme
+
+- **statut** : à faire
+- **exigences** : `WF-ADM-0150-A`, `WF-ADM-0160-A`, `WF-DAT-0120-A`
+- **opérations** : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore`,
+  `uploadFile`
+- **issue** : #565
+
+**En tant qu'**administrateur, **je veux** sauvegarder la plateforme, télécharger la
+sauvegarde, et la restaurer ici ou sur une autre installation, **afin de** remettre une
+installation dans un état connu, ou d'en reproduire une — son référentiel, ses comptes, ses
+réglages — sur une autre machine.
+
+**Critères d'acceptation.**
+
+- `WF-ADM-0150-A` — « Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification réussie. »
+- `WF-ADM-0150-A` — « Elle peut être téléchargée ou copiée vers un emplacement externe. » : par le téléchargement ; la copie vers un
+  emplacement externe paramétré relève de la planification — EP-13.
+- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, qui garde ses inscriptions et nomme la restauration. » : constaté ici pour les comptes, les rôles
+  et le référentiel présent ; les projets et les révisions arrivent en EP-04, qui clôt
+  l'exigence.
+- `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. »
+- `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. »
+- écart : `WF-DAT-0120-A` — « Après application ou abandon d’un import, le fichier correspondant n’est plus sur le stockage objet. » : les imports arrivent en EP-06, qui clôt
+  l'exigence.
+- écart : `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai d’expiration. » : EP-06.
+- écart : `WF-DAT-0120-A` — « Le même export demandé deux fois est engendré deux fois et n’occupe aucun espace entre les deux. » : EP-06.
+- propre à l'US : une sauvegarde couvre les deux bases, Waterfall et le fournisseur
+  d'identité, chacune dans un état cohérent, sauf le journal d'audit, qui reste hors de ce
+  qu'une restauration remplace et y inscrit la restauration une fois faite (WF-ADM-0160) ; elle
+  vit dans le compartiment des sauvegardes du stockage objet (WF-DAT-0120).
+- propre à l'US : une sauvegarde prise sur une installation, téléchargée, puis déposée sur une
+  autre installation de même version ou plus récente et restaurée, y rend les comptes, les
+  rôles et les réglages de la première, et l'administrateur de la première s'y connecte ; une
+  sauvegarde d'une version plus récente que l'installation est refusée.
+- propre à l'US : pendant une restauration, les utilisateurs sont déconnectés, et l'écran le
+  dit ; les écrans de la sauvegarde de la maquette sont branchés sur le service.
+
+**Notes de réalisation.** Décision de l'auteur du 2026-10-09 : on reproduit une installation
+par une restauration entière, conformément à WF-ADM-0160 ; aucun échange partiel du
+référentiel n'existe (WF-INTF-0150). Le dépôt d'une sauvegarde volumineuse (#350) se fait par
+morceaux (conception).
+
+**Hors périmètre.** La planification, la rétention, la sauvegarde marquée à conserver, la
+copie vers un emplacement externe, le test de restauration périodique et l'alerte d'échec —
+EP-13.

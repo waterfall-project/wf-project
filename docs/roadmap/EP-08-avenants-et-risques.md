@@ -68,10 +68,10 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (10) :
+Servies ici pour la première fois (11) :
 
 - `revisions` : `createCostStructure`, `mergeCostStructure` ;
-- `risks` : `listRisks`, `createRisk`, `getRisk`, `updateRisk`, `listRiskReviews`, `reviewRisk`, `declareRiskOccurrence`, `getProjectRiskMatrix`.
+- `risks` : `listRisks`, `createRisk`, `getRisk`, `updateRisk`, `listRiskReviews`, `reviewRisk`, `declareRiskOccurrence`, `getProjectRiskMatrix`, `deleteRisk`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (3) :
 

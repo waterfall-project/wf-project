@@ -129,14 +129,18 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-09 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-08 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-10 |
-| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | à planifier | EP-09 |
+| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
 
 L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
 renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —
 un projet ne se crée pas sans lui (WF-CYC-0120) —, l'import des coûts réels dans EP-09 — une
 ligne de coût n'existe que par import (WF-CRE-0010) —, et les risques après le reste à
-engager — la survenance se chiffre par lui, et fusionne comme un avenant.
+engager — la survenance se chiffre par lui, et fusionne comme un avenant. Les échanges de
+fichiers n'ont plus d'EPIC propre (revue de la ventilation, 2026-10-09) : chaque aller-retour
+se valide dans son bloc fonctionnel — MS Project en EP-06, qui construit la mécanique d'import,
+le devis en EP-07, le reste à engager en EP-09 —, et EP-03 rend la plateforme déployable et
+sauvegardable dès le premier service, pour des démonstrations.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.

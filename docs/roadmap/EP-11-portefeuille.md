@@ -65,6 +65,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03 | — |
 | `WF-IHM-0140-A` | Aide en ligne | entière | — |
+| `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 
 ## Opérations du contrat
 

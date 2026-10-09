@@ -71,6 +71,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | fin — amorcée en EP-04 | — |
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04 | — |
 | `WF-DAT-0130-A` | Contenu et invalidation du cache | entière | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06 | — |
 
 ## Opérations du contrat
 
@@ -78,9 +79,9 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (4) :
+Servies ici pour la première fois (5) :
 
-- `analysis` : `getProjectIndicators`, `getMilestoneTracking`, `getCostCurve`, `getEarnedValueCurves`.
+- `analysis` : `getProjectIndicators`, `getMilestoneTracking`, `getCostCurve`, `getEarnedValueCurves`, `getIndexHistory`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 

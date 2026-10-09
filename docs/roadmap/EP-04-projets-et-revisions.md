@@ -102,6 +102,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | fin — amorcée en EP-03 | — |
 | `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | fin — amorcée en EP-03 | — |
 | `WF-IHM-0120-A` | Écran d’accueil | entière | — |
+| `WF-ADM-0160-A` | Restauration | fin — amorcée en EP-03 | — |
 
 ## Opérations du contrat
 

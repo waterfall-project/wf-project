@@ -81,9 +81,9 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (25) :
+Servies ici pour la première fois (28) :
 
-- `reference` : `getReferenceSettings`, `updateReferenceSettings`, `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `listResourceRoles`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation`, `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`, `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `listHourlyRates`, `setHourlyRate`.
+- `reference` : `getReferenceSettings`, `updateReferenceSettings`, `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `listResourceRoles`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation`, `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`, `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`, `setDurationUnits`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
