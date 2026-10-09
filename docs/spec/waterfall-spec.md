@@ -286,6 +286,7 @@ flowchart LR
     Waterfall -->|"Indicateurs agrégés"| Manager
     Manager -->|"Paramètres application"| Waterfall
     Chef_de_projets -->|"Planning"| Waterfall
+    Waterfall -->|"Journal d'audit"| Administrateur
     Waterfall -->|"États du système"| Administrateur
     Administrateur -->|"Gestion des utilisateurs"| Waterfall
     Excel -->|"Devis"| Waterfall
@@ -904,7 +905,7 @@ flowchart LR
     Avant_lancement -.->|"Abandonner"| Abandonne
     N -->|"Création<br>du projet"| Cree
     Cree -->|"Première<br>révision créee"| Chiffrage
-    Chiffrage -->|"Révision de<br>référence<br>désignée"| En_cours
+    Chiffrage -->|"Révision de référence<br>désignée et code<br>projet renseigné"| En_cours
     Chiffrage -.->|"Déclarer perdu"| Perdu
     En_cours -.->|"Terminer"| Termine
     En_cours -.->|"Abandonner"| Abandonne
@@ -3615,6 +3616,7 @@ flowchart LR
         Prometheus["Prometheus"]
     end
     Annuaire["Annuaire LDAP ou<br>fournisseur d'identité externe"]
+    SMTP["Serveur de messagerie"]
     Navigateur --> Front
     Navigateur --> IdP
     Front --> API
@@ -3628,7 +3630,11 @@ flowchart LR
     Worker --> Redis
     Worker --> IdP
     Worker --> S3
+    IdP --> PG
     IdP --> Annuaire
+    IdP --> SMTP
+    API --> SMTP
+    Worker --> SMTP
     Prometheus --> API
     Prometheus --> Worker
     Prometheus --> Front
@@ -3705,10 +3711,19 @@ sequenceDiagram
         U->>A: demande l'application
         A->>F: met en file la tâche d'application
         W->>F: prend la tâche
-        W->>B: applique en une transaction unique
-        W->>S: supprime le fichier
-        W-->>U: import appliqué
+        W->>B: revérifie permission, contributeur et état du projet
+        alt Conditions toujours vraies
+            W->>B: applique en une transaction unique
+            W->>S: supprime le fichier
+            W-->>U: import appliqué
+        else Une condition a cessé d'être vraie
+            W-->>U: import refusé, condition nommée
+            W->>S: supprime le fichier
+        end
     else L'utilisateur abandonne ou laisse expirer
+        U->>A: abandonne l'import
+        A->>F: met en file la suppression
+        Note over F: ou, sans réponse, au terme de vingt-quatre heures (WF-ARC-0100)
         W->>S: supprime le fichier
         Note over B: le projet est inchangé
     end

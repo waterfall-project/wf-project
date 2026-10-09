@@ -11,6 +11,7 @@ flowchart LR
         Prometheus["Prometheus"]
     end
     Annuaire["Annuaire LDAP ou<br>fournisseur d'identité externe"]
+    SMTP["Serveur de messagerie"]
     Navigateur --> Front
     Navigateur --> IdP
     Front --> API
@@ -24,7 +25,11 @@ flowchart LR
     Worker --> Redis
     Worker --> IdP
     Worker --> S3
+    IdP --> PG
     IdP --> Annuaire
+    IdP --> SMTP
+    API --> SMTP
+    Worker --> SMTP
     Prometheus --> API
     Prometheus --> Worker
     Prometheus --> Front
