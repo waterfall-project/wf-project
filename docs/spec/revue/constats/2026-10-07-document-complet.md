@@ -68,19 +68,19 @@ index.
 
 | # | Gravité | Emplacement | Constat | Statut |
 |---|---|---|---|---|
-| C-091 | majeur | §3.4.5.5.3, WF-RAE-0050 | Deux passages font déplacer le budget de référence par un risque survenu | à traiter |
-| C-092 | majeur | §3.2.3 | Le §3.2.3 donne encore aux structures deux natures qui n'existent plus | à traiter |
-| C-093 | majeur | WF-RIS-0020, §3.2.6, §4.4.1, WF-DAT-0010, WF-RIS-0060 | Un risque est porté par le projet, mais ses saisies appartiennent à la révision en cours | à traiter |
-| C-094 | majeur | WF-PLA-0010, §3.4.4, WF-INTF-0100 | Le refus d'une tâche sans heure travaillée n'est pas borné | à traiter |
-| C-095 | majeur | WF-RAE-0010, WF-RAE-0040 | Le reste à engager ignore la réestimation d'une tâche non démarrée, et compte peut-être deux fois les provisions | à traiter |
-| C-096 | majeur | WF-PLA-0100, WF-PLA-0020 | Le signalement du conflit avec une tâche manuelle renvoie à une exigence qui ne le décrit pas | à traiter |
-| C-097 | majeur | annexe A, WF-PLA-0100 | Le glossaire définit encore le chemin critique par la seule marge nulle | à traiter |
-| C-098 | majeur | §3.2.6, WF-RIS-0010, WF-PLA-0040 | Aucune exigence ne dit quelle tâche porte la ligne de provision | à traiter |
-| C-099 | mineur | WF-DEV-0060, WF-PRJ-0030 | Le rattachement s'ouvre aux feuilles, mais trois passages parlent encore de récapitulatives | à traiter |
-| C-100 | mineur | annexe A, §2.1 | Deux formules d'avant le modèle | à traiter |
-| C-101 | mineur | WF-PLA-0080, WF-PLA-0130 | La grille de planning n'affiche pas tous les attributs que WF-PLA-0130 dit affichés | à traiter |
-| C-102 | mineur | WF-DEV-0070 | Le plan de charge calcule une charge « sur les montants » | à traiter |
-| C-103 | mineur | WF-ADM-0050, WF-ADM-0040 | Deux ponctuations qui coupent une énumération | à traiter |
+| C-091 | majeur | §3.4.5.5.3, WF-RAE-0050 | Deux passages font déplacer le budget de référence par un risque survenu | intégré |
+| C-092 | majeur | §3.2.3 | Le §3.2.3 donne encore aux structures deux natures qui n'existent plus | intégré |
+| C-093 | majeur | WF-RIS-0020, §3.2.6, §4.4.1, WF-DAT-0010, WF-RIS-0060 | Un risque est porté par le projet, mais ses saisies appartiennent à la révision en cours | intégré avec écart |
+| C-094 | majeur | WF-PLA-0010, §3.4.4, WF-INTF-0100 | Le refus d'une tâche sans heure travaillée n'est pas borné | intégré |
+| C-095 | majeur | WF-RAE-0010, WF-RAE-0040 | Le reste à engager ignore la réestimation d'une tâche non démarrée, et compte peut-être deux fois les provisions | intégré avec écart |
+| C-096 | majeur | WF-PLA-0100, WF-PLA-0020 | Le signalement du conflit avec une tâche manuelle renvoie à une exigence qui ne le décrit pas | intégré |
+| C-097 | majeur | annexe A, WF-PLA-0100 | Le glossaire définit encore le chemin critique par la seule marge nulle | intégré |
+| C-098 | majeur | §3.2.6, WF-RIS-0010, WF-PLA-0040 | Aucune exigence ne dit quelle tâche porte la ligne de provision | intégré |
+| C-099 | mineur | WF-DEV-0060, WF-PRJ-0030 | Le rattachement s'ouvre aux feuilles, mais trois passages parlent encore de récapitulatives | intégré |
+| C-100 | mineur | annexe A, §2.1 | Deux formules d'avant le modèle | intégré |
+| C-101 | mineur | WF-PLA-0080, WF-PLA-0130 | La grille de planning n'affiche pas tous les attributs que WF-PLA-0130 dit affichés | intégré |
+| C-102 | mineur | WF-DEV-0070 | Le plan de charge calcule une charge « sur les montants » | intégré |
+| C-103 | mineur | WF-ADM-0050, WF-ADM-0040 | Deux ponctuations qui coupent une énumération | intégré avec écart |
 
 ---
 
@@ -111,7 +111,7 @@ Dans le texte du §3.4.5.5.3 :
 > Ces ajouts ne changent pas le budget de référence, qui n’est déplacé que par un avenant ; un
 > risque survenu entre lui aussi au reste à engager sans le toucher (WF-RIS-0060).
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -135,7 +135,7 @@ en déduit une énumération à quatre valeurs que le contrat n'a pas.
 > référence, lui, est un attribut de la révision : c’est elle qui fait foi pour le budget de
 > référence et les dates contractuelles.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -182,7 +182,7 @@ l'évaluation qu'il porte) du régime projet au régime révisionné, en gardant
 projet pour l'identité et les notes. Au §3.2.6, remplacer « c’est lui qui traverse le temps » par
 une phrase qui dit la même répartition.
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : WF-RIS-0020, WF-RIS-0060 et le §3.2.6 sont rédigés ; au §4.4.1, le réexamen d’un risque reste au régime projet, le passage au régime révisionné ayant été signalé en commentaire et résolu par l’auteur sans retouche du tableau 10
 
 ---
 
@@ -222,7 +222,7 @@ laisserait une tâche sans heure dans un projet que le manager ne peut pas consu
 nommant ce projet par son libellé et son code. » Ajouter le motif de rejet à la Vérif de
 WF-INTF-0100.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -258,7 +258,7 @@ Vérif, ajouter : « La réestimation à 120 d’une ligne budgétée à 100 sur
 saisie depuis la grille, porte le reste à engager de 100 à 120. Un projet portant un risque de
 provision 40 compte cette provision une fois. »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : une rédaction unique de WF-RAE-0010 concilie C-095 et C-154
 
 ---
 
@@ -286,7 +286,7 @@ prédécesseur est signalée dans la grille et dans le Gantt, avec ce prédéces
 tâche manuelle fait disparaître le signalement. » Et ajouter « conflit entre une tâche manuelle et
 ses prédécesseurs (WF-PLA-0020) » à la liste des signalements de WF-IHM-0070.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -312,7 +312,7 @@ n'affiche pas sur le chemin critique la tâche que la Vérif de WF-PLA-0100 y at
 > une date imposée par une tâche en mode manuel. Elle est négative lorsque la tâche ne peut pas
 > finir à temps pour une tâche manuelle qui la suit.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -349,7 +349,7 @@ principale, et le total du devis est inchangé. » Et remplacer la phrase citée
 « Cette ligne est portée par la tâche que l’utilisateur désigne, la phase que le risque menace
 le plus souvent, et peut être déplacée (WF-RIS-0010). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -376,7 +376,7 @@ récapitulative par poste, une tâche récapitulative par lot subordonnée à ce
 toutes deux rattachées au poste ou au lot qu’elles représentent (WF-PLA-0130), une tâche feuille
 par livrable sous celle de son lot ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -401,7 +401,7 @@ la première est dans le glossaire, qui fait foi pour les termes.
 §2.1 : « Chaque révision porte le planning et le devis de l’offre, deux vues d’un même arbre de
 tâches. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -421,7 +421,7 @@ vérifiées par le même écran, et l'une des deux Vérif échouera.
 critique, ses dates de démarrage et de terminaison, son rattachement à un poste ou à un lot
 (WF-PLA-0130), ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -440,7 +440,7 @@ révision en cours.
 **Proposition.** « la charge des lignes de main-d’œuvre, prise, au choix, dans la révision de
 référence, dans une révision marquée pour sa charge réestimée, ou dans la révision en cours. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -457,4 +457,4 @@ attributs. Dans WF-ADM-0040, le point manquant soude deux phrases.
 **Proposition.** « un avatar facultatif, et son origine : compte local, » ; « après la révision de
 référence. La langue de l'interface ».
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : le point de WF-ADM-0040 est venu avec la rédaction de C-159

@@ -112,84 +112,84 @@ leur fichier.
 
 | # | Gravité | Emplacement | Constat | Statut |
 |---|---|---|---|---|
-| C-104 | majeur | §3.4.2.5 « FBS-1.5 : Journal d’audit » ; §3.1.3, WF-INTF-0030-A | FBS-1.5 est une fonction sans exigence, et aucun rôle livré ne la porte | à traiter |
-| C-105 | majeur | §3.1.3, WF-INTF-0020-A ; §4.5.2, WF-EXP-0020-A et texte | Sur une installation neuve, personne ne peut saisir les bornes, les seuils ni le délai entre revues, et ils n'ont aucune valeur | à traiter |
-| C-106 | majeur | §3.1.3 — exigence WF-INTF-0010-A ; à rapprocher de WF-ADM-0010-A,… | Les usages du chef de projet ignorent FBS-4.9 et les permissions distinctes | à traiter |
-| C-107 | majeur | §3.3.2 — exigence WF-CYC-0030-A ; WF-REV-0040-A | La désignation d'une révision vide comme référence se lit de deux façons, dont l'une mène à une impasse | à traiter |
-| C-108 | mineur | §3.2.2 « Référentiel de l’entreprise », paragraphe « Organisation… | Le modèle dit que l'arbre d'organisation ne sert qu'aux rôles ; trois exigences y rattachent les utilisateurs | à traiter |
-| C-109 | mineur | §3.2.1 « Conventions », troisième règle et tableau 5 ; §3.2.3,… | Deux écarts aux conventions du modèle | à traiter |
-| C-110 | mineur | annexe A ; WF-INTF-0040-A, WF-INTF-0100-A, WF-INTF-0120-A | Deux termes employés par les exigences du §3.1.4 sans entrée au glossaire | à traiter |
-| C-111 | mineur | annexe A, entrées « Sauvegarde », « Mode manuel », « Mode… | Quatre entrées en retard sur les exigences, et « projeté du chef de projet » | à traiter |
-| C-112 | mineur | §1.2 « Sigles et terminologie », tableau 1 | Neuf sigles employés dans le document manquent au tableau des abréviations | à traiter |
-| C-113 | majeur | annexe B « Formats d’échanges Excel », première phrase ; §3.1.4,… | Le sous-projet d'une ligne de reste à engager est dans un onglet selon WF-INTF-0120, dans une colonne selon l'annexe B | à traiter |
-| C-114 | majeur | annexe A | « Révision courante » n'est défini nulle part, et n'est pas « révision en cours » | à traiter |
-| C-115 | mineur | §3.3.1 — exigence WF-CYC-0120-A  ; WF-IHM-0120-A | La Vérif de WF-CYC-0120 teste l'écran d'accueil, que WF-IHM-0120 spécifie déjà | à traiter |
-| C-116 | majeur | §3.4.2.4, WF-ADM-0160-A et WF-ADM-0150-A ; §4.6.1, WF-SEC-0030-A | Le journal d'audit survit à la restauration, mais rien ne dit où il vit pour cela | à traiter |
-| C-117 | majeur | §4.6.1, WF-SEC-0030-A ; §3.4.2.2, WF-ADM-0100-A | La liste des actions journalisées n'est pas celle du catalogue, et l'inscription ne porte pas l'action | à traiter |
-| C-118 | majeur | §4.4.1, WF-DAT-0080-A et texte « Suppression », tableau 10 ;… | La suppression d'un rôle d'habilitation face aux régimes de suppression (issue #456) | à traiter — issue #456 |
-| C-119 | mineur | §3.4.2.2, exigence WF-ADM-0100-A | Les fonctions en lecture seule ne sont pas nommées | à traiter |
-| C-120 | mineur | §3.4.2.2 « FBS-1.2 : Gestion des rôles d’habilitation », texte… | « Une seule permission échappe à la liste » : les vues du portefeuille y échappent aussi | à traiter |
-| C-121 | majeur | §3.4.3.3, exigence WF-PTF-0070-A ; §3.4.3, WF-PTF-0020-A | La projection au rythme constaté agrégée : somme des projections ou quotient des sommes ? | à traiter |
-| C-122 | majeur | §3.4.3, exigence WF-PTF-0020-A ; §3.4.3.4, WF-PTF-0080-A | Ce qu'un projet en chiffrage apporte à la structure des coûts et aux risques du portefeuille n'est pas dit | à traiter |
-| C-123 | majeur | §3.4.4.2.2, exigences WF-REF-0090-A, WF-REF-0100-A ; §3.4.4.2.3,… | Un rôle de ressource n'a pas de libellé, et la Vérif de WF-REF-0110 interdit d'en donner un à un calendrier | à traiter |
-| C-124 | mineur | §3.4.4.3, exigence WF-REF-0160-A, Vérif | Une Vérif qui n'est vraie que pour des valeurs bien choisies | à traiter |
-| C-125 | mineur | §3.4.4, exigence WF-REF-0130-A ; à rapprocher de WF-DAT-0040-A et… | Rien ne dit si une révision marquée est lue avec les seuils et bornes de son époque ou ceux d'aujourd'hui | à traiter |
-| C-126 | mineur | §3.4.4 « FBS-3 : Paramètres applicatifs », texte d'introduction | « Il se divise en deux familles » : FBS-3 en compte quatre | à traiter |
-| C-127 | mineur | §3.3.1, exigence WF-CYC-0120-A  ; §4.5.2, WF-EXP-0020-A | « Au moins une catégorie de coût active » est satisfait dès l'amorçage, par la catégorie de provision | à traiter |
-| C-128 | mineur | §3.4.4.2.1 « FBS-3.2.1 : Arbre d’organisation », texte… | Le déplacement d'un nœud n'existe qu'en prose | à traiter |
-| C-129 | mineur | §3.4.2.1, exigence WF-ADM-0070-A ; à rapprocher de WF-ADM-0170-A… | « À intervalle régulier » : ni valeur ni paramètre | à traiter |
-| C-130 | mineur | annexe A ; WF-PTF-0050-A | « Réalisé », « Couverture des risques » et « Révision courante » manquent au glossaire | à traiter |
-| C-131 | mineur | §3.4.5.1 « Gestion des révisions » — exigence WF-REV-0010-A  ; à… | La Vérif de WF-REV-0010 suppose l'année de référence inchangée | à traiter |
-| C-132 | mineur | §3.4.5.1 — exigence WF-REV-0010-A ; à rapprocher de §3.3.2 | L'abandon de l'unique révision d'un projet en chiffrage n'a pas d'issue dite | à traiter |
-| C-133 | majeur | §3.4.5.1 — exigence WF-REV-0060-A ; WF-REV-0050-A | La mise à jour des taux n'a lieu qu'à la création d'une révision, et quatre créations se font sans dialogue | à traiter |
-| C-134 | mineur | §3.4.5.1 — exigence WF-REV-0080-A | La comparaison de deux révisions ne dit pas quel montant elle compare | à traiter |
-| C-135 | mineur | §3.4.5.1 — exigence WF-REV-0090-A ; à rapprocher de WF-REV-0030-A | Le taux d'inflation et la probabilité de gain conservés manquent aux attributs d'une révision | à traiter |
-| C-136 | mineur | §3.4.5.2 — exigence WF-PRJ-0010-A  ; à rapprocher de… | Un « refus » pour une transition qui n'est pas une action | à traiter |
-| C-137 | mineur | §3.4.5.2.1 « Lotissement du projet », texte d'introduction ; §3.2.3 | Le filtre par poste ou par lot est promis par le texte et porté par aucune exigence | à traiter |
-| C-138 | mineur | §3.4.5.2.1 — exigences WF-PRJ-0020-A et WF-PRJ-0030-A | Lotissement implicite et squelette : trois valeurs par défaut non dites | à traiter |
-| C-139 | majeur | §3.4.5.2.1 — exigence WF-PRJ-0030-A ; WF-PLA-0130-A | Ce que devient le rattachement quand le lot est supprimé ou déplacé n'est pas dit, et le §4 répond à l'envers | à traiter |
-| C-140 | mineur | §3.4.5.2.2 — exigence WF-PRJ-0040-A  ; à rapprocher de… | « Charges » pour « lignes » : le rechiffrage exempterait les lignes hors main-d'œuvre | à traiter |
-| C-141 | majeur | §3.4.5.2.4 — exigence WF-PRJ-0060-A ; à rapprocher de… | Rien n'empêche un projet de perdre son dernier chef de projet | à traiter |
-| C-142 | majeur | §3.4.5.3 — exigence WF-PLA-0020-A ; WF-PLA-0010-A | Aucune date de début de planning : une tâche automatique sans prédécesseur n'a pas d'ancre | à traiter |
-| C-143 | mineur | §3.4.5.3 — exigences WF-PLA-0040-A, WF-PLA-0130-A ; WF-INTF-0040-A | Une récapitulative en mode manuel : sans sens ici, importable depuis MS Project | à traiter |
-| C-144 | majeur | §3.4.5.3 — exigences WF-PLA-0030-A  et WF-PLA-0160-A | Les suffixes d'unités renvoient à MS Project et le contredisent | à traiter |
-| C-145 | majeur | §3.4.5.3 — exigence WF-PLA-0160-A  ; à rapprocher de WF-PLA-0010-A… | L'exemple des 2 ej fait commencer une tâche un dimanche, hors de tout calendrier | à traiter |
-| C-146 | mineur | §3.4.5.3 — exigence WF-PLA-0040-A  ; WF-IHM-0070-A | Les lignes propres « signalées » : dans quel écran, selon quelle échelle ? | à traiter |
-| C-147 | mineur | §3.4.5.3 — exigence WF-PLA-0050-A  ; WF-RAE-0030-A | Un jalon porteur de lignes terminé depuis le Kanban : accepté ou refusé ? | à traiter |
-| C-148 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A  ; WF-PLA-0040-A | Une récapitulative qui perd sa dernière subordonnée ne sait plus ce qu'elle est | à traiter |
-| C-149 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A ; WF-PRJ-0030-A | Le rattachement n'a pas de périmètre : structures, fusion, survenance, jalons | à traiter |
-| C-150 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A ; §3.1.4 — WF-INTF-0040-A | L'import MS Project ne dit pas ce qu'il fait d'un déplacement refusé par WF-PLA-0130 ni d'une tâche rattachée supprimée | à traiter |
-| C-151 | mineur | §3.4.5.3.3 — exigence WF-PLA-0100-A ; WF-PLA-0080-A | La marge et la criticité d'une récapitulative ne sont pas définies | à traiter |
-| C-152 | mineur | §3.4.5.3.5 — exigence WF-PLA-0120-A | « Tenir sur une page A4 » n'est pas une condition observable | à traiter |
-| C-153 | mineur | §3.4.5.3 — exigence WF-PLA-0150-A  ; §4.4.2, second paragraphe | « Cent quatre-vingts révisions au plus » est une hypothèse, pas une borne | à traiter |
-| C-154 | majeur | §3.4.5.4, WF-DEV-0020-A ; §3.4.5.4.3, WF-DEV-0030-A | Rien ne dit si les montants et leurs agrégats sont à l'année de référence ou corrigés de l'inflation | à traiter |
-| C-155 | majeur | §3.4.5.8.7, WF-IND-0100-A ; §3.4.5.4.4, WF-DEV-0070-A | Le reste à engager est étalé sur toute la durée de la tâche, dates passées comprises | à traiter |
-| C-156 | mineur | §3.4.5.4.4, WF-DEV-0070-A | La Vérif de WF-DEV-0070 ne propose que la révision en cours là où une révision marquée existe | à traiter |
-| C-157 | majeur | §3.4.5.5.1, WF-RAE-0020-A | L'écart « avec le budget de référence » compare un reste à un total ; la ventilation par sous-projet compare autre chose | à traiter |
-| C-158 | mineur | §3.4.5.5.2, WF-RAE-0030-A ; à rapprocher de WF-PLA-0050-A | Un jalon rouvert passe à un état qu'il n'a pas | à traiter |
-| C-159 | mineur | §3.4.5.5.3, WF-RAE-0040-A ; §3.4.2.1, WF-ADM-0040-A | La préférence distingue des lignes ici, des tâches là | à traiter |
-| C-160 | majeur | §3.4.5.6, WF-RIS-0030-A | La Vérif de WF-RIS-0030 dit qu'un devis propre modifié ne change aucun indicateur ; il change le reste à engager | à traiter |
-| C-161 | majeur | §3.4.5.6.2, WF-RIS-0050-A ; annexe A, entrée « Écart de couverture » | Le coût d'un risque survenu est un montant réestimé, donc nul quand ses tâches sont terminées | à traiter |
-| C-162 | majeur | §3.4.5.6.2, WF-RIS-0050-A | La suite de scénarios de WF-RIS-0050 ne dit pas qu'elle repart de zéro, et l'écart de −30 est faux dans la continuité | à traiter |
-| C-163 | mineur | §3.4.5.7, WF-CRE-0020-A | La Vérif de WF-CRE-0020 rejette une forme d'OTP que le corps ne mentionne pas | à traiter |
-| C-164 | mineur | §3.4.5.7, WF-CRE-0040-A | « Leur somme est cohérente » n'est pas une condition observable | à traiter |
-| C-165 | majeur | §3.4.5.8, WF-IND-0010-A ; §3.4.5.8.5, WF-IND-0130-A | Un projet sans révision en cours n'a pas d'indicateurs au jour courant | à traiter |
-| C-166 | majeur | §3.4.5.8, WF-IND-0010-A ; §4.4.2, WF-DAT-0040-A | Le coût réel d'une révision marquée est défini par date de pièce ici, par date d'import là | à traiter |
-| C-167 | mineur | §3.4.5.8, WF-IND-0020-A | Le budget de référence par sous-projet n'est pas dans la liste des grandeurs par sous-projet | à traiter |
-| C-168 | mineur | §3.4.5.8, WF-IND-0030-A | La valeur acquise n'exclut pas les lignes de provision, contrairement à la valeur planifiée | à traiter |
-| C-169 | mineur | §3.4.5.8.6, WF-IND-0090-A | La pente 1 suppose des revues mensuelles, et le dernier point sur la diagonale suppose une abscisse non dite | à traiter |
-| C-170 | majeur | §3.4.5.8.7, WF-IND-0100-A ; à rapprocher de WF-RAE-0010-A | En mode décaissements, les provisions sont ajoutées à un reste à engager qui les contient déjà | à traiter |
-| C-171 | majeur | §3.4.5.8.7, WF-IND-0100-A ; à rapprocher de WF-DEV-0080-A | La courbe du budget ne peut pas présenter une marche si elle se lit sur la seule référence en vigueur | à traiter |
-| C-172 | majeur | §4.5.4, tableau 12 Modes dégradés, ligne « Redis » ; §4.4.5… | Redis indisponible : la session du front y vit, donc ni la consultation ni la saisie ne continuent, et personne ne peut se reconnecter | à traiter |
-| C-173 | majeur | §4.3.4 WF-ARC-0090-A ; §4.4.4  et WF-DAT-0120-A | Un export est une tâche de fond dont le fichier n'a nulle part où attendre son téléchargement | à traiter |
-| C-174 | majeur | §4.6.1, texte « Un mot des données personnelles » ; §3.4.2.1… | Le traitement d'une demande d'effacement est promis en prose et porté par aucune exigence | à traiter |
-| C-175 | mineur | §4.2 Découpage technique, texte d'introduction | Deux phrases d'introduction du §4.2 contredisent WF-DAT-0010 et WF-ARC-0040 | à traiter |
-| C-176 | mineur | §4.4.1, tableau 10 Correspondance entre objets et tables ; §4.3.4… | Trois données conservées sans table : le compte rendu d'import, la tâche de fond, les préférences d'affichage | à traiter |
-| C-177 | mineur | §4.4.5 WF-DAT-0130-A ; §4.6.3 WF-OBS-0030-A | Trois seuils ni fixés ni déclarés paramétrables | à traiter |
-| C-178 | mineur | §3.6 WF-IHM-0130-A | L'export PNG exige un nom de projet et une révision sur des diagrammes de portefeuille qui n'en ont pas | à traiter |
-| C-179 | mineur | §4.3.1 figure 18 ; §4.3.2 tableau 8 | Deux flux techniques absents : le fournisseur d'identité vers PostgreSQL, et les courriels | à traiter |
-| C-180 | mineur | §4.3.4, figure 19 Diagramme de séquence des imports  ; WF-ARC-0100-A | La figure 19 ne montre ni la revérification à l'application (WF-ARC-0100) ni la demande d'abandon | à traiter |
-| C-181 | mineur | §4.2.2, tableau 7 ; WF-SEC-0030-A | La matrice FBS–PBS n'a pas de ligne pour FBS-1.5, et la ligne FBS-1.3 n'a pas PBS-4.2 | à traiter |
+| C-104 | majeur | §3.4.2.5 « FBS-1.5 : Journal d’audit » ; §3.1.3, WF-INTF-0030-A | FBS-1.5 est une fonction sans exigence, et aucun rôle livré ne la porte | intégré |
+| C-105 | majeur | §3.1.3, WF-INTF-0020-A ; §4.5.2, WF-EXP-0020-A et texte | Sur une installation neuve, personne ne peut saisir les bornes, les seuils ni le délai entre revues, et ils n'ont aucune valeur | intégré avec écart |
+| C-106 | majeur | §3.1.3 — exigence WF-INTF-0010-A ; à rapprocher de WF-ADM-0010-A,… | Les usages du chef de projet ignorent FBS-4.9 et les permissions distinctes | intégré |
+| C-107 | majeur | §3.3.2 — exigence WF-CYC-0030-A ; WF-REV-0040-A | La désignation d'une révision vide comme référence se lit de deux façons, dont l'une mène à une impasse | intégré |
+| C-108 | mineur | §3.2.2 « Référentiel de l’entreprise », paragraphe « Organisation… | Le modèle dit que l'arbre d'organisation ne sert qu'aux rôles ; trois exigences y rattachent les utilisateurs | intégré |
+| C-109 | mineur | §3.2.1 « Conventions », troisième règle et tableau 5 ; §3.2.3,… | Deux écarts aux conventions du modèle | intégré |
+| C-110 | mineur | annexe A ; WF-INTF-0040-A, WF-INTF-0100-A, WF-INTF-0120-A | Deux termes employés par les exigences du §3.1.4 sans entrée au glossaire | intégré |
+| C-111 | mineur | annexe A, entrées « Sauvegarde », « Mode manuel », « Mode… | Quatre entrées en retard sur les exigences, et « projeté du chef de projet » | intégré |
+| C-112 | mineur | §1.2 « Sigles et terminologie », tableau 1 | Neuf sigles employés dans le document manquent au tableau des abréviations | intégré |
+| C-113 | majeur | annexe B « Formats d’échanges Excel », première phrase ; §3.1.4,… | Le sous-projet d'une ligne de reste à engager est dans un onglet selon WF-INTF-0120, dans une colonne selon l'annexe B | intégré avec écart |
+| C-114 | majeur | annexe A | « Révision courante » n'est défini nulle part, et n'est pas « révision en cours » | intégré |
+| C-115 | mineur | §3.3.1 — exigence WF-CYC-0120-A  ; WF-IHM-0120-A | La Vérif de WF-CYC-0120 teste l'écran d'accueil, que WF-IHM-0120 spécifie déjà | intégré |
+| C-116 | majeur | §3.4.2.4, WF-ADM-0160-A et WF-ADM-0150-A ; §4.6.1, WF-SEC-0030-A | Le journal d'audit survit à la restauration, mais rien ne dit où il vit pour cela | intégré |
+| C-117 | majeur | §4.6.1, WF-SEC-0030-A ; §3.4.2.2, WF-ADM-0100-A | La liste des actions journalisées n'est pas celle du catalogue, et l'inscription ne porte pas l'action | intégré avec écart |
+| C-118 | majeur | §4.4.1, WF-DAT-0080-A et texte « Suppression », tableau 10 ;… | La suppression d'un rôle d'habilitation face aux régimes de suppression (issue #456) | intégré |
+| C-119 | mineur | §3.4.2.2, exigence WF-ADM-0100-A | Les fonctions en lecture seule ne sont pas nommées | intégré |
+| C-120 | mineur | §3.4.2.2 « FBS-1.2 : Gestion des rôles d’habilitation », texte… | « Une seule permission échappe à la liste » : les vues du portefeuille y échappent aussi | intégré |
+| C-121 | majeur | §3.4.3.3, exigence WF-PTF-0070-A ; §3.4.3, WF-PTF-0020-A | La projection au rythme constaté agrégée : somme des projections ou quotient des sommes ? | intégré |
+| C-122 | majeur | §3.4.3, exigence WF-PTF-0020-A ; §3.4.3.4, WF-PTF-0080-A | Ce qu'un projet en chiffrage apporte à la structure des coûts et aux risques du portefeuille n'est pas dit | intégré |
+| C-123 | majeur | §3.4.4.2.2, exigences WF-REF-0090-A, WF-REF-0100-A ; §3.4.4.2.3,… | Un rôle de ressource n'a pas de libellé, et la Vérif de WF-REF-0110 interdit d'en donner un à un calendrier | intégré |
+| C-124 | mineur | §3.4.4.3, exigence WF-REF-0160-A, Vérif | Une Vérif qui n'est vraie que pour des valeurs bien choisies | intégré |
+| C-125 | mineur | §3.4.4, exigence WF-REF-0130-A ; à rapprocher de WF-DAT-0040-A et… | Rien ne dit si une révision marquée est lue avec les seuils et bornes de son époque ou ceux d'aujourd'hui | intégré |
+| C-126 | mineur | §3.4.4 « FBS-3 : Paramètres applicatifs », texte d'introduction | « Il se divise en deux familles » : FBS-3 en compte quatre | intégré avec écart |
+| C-127 | mineur | §3.3.1, exigence WF-CYC-0120-A  ; §4.5.2, WF-EXP-0020-A | « Au moins une catégorie de coût active » est satisfait dès l'amorçage, par la catégorie de provision | intégré |
+| C-128 | mineur | §3.4.4.2.1 « FBS-3.2.1 : Arbre d’organisation », texte… | Le déplacement d'un nœud n'existe qu'en prose | intégré |
+| C-129 | mineur | §3.4.2.1, exigence WF-ADM-0070-A ; à rapprocher de WF-ADM-0170-A… | « À intervalle régulier » : ni valeur ni paramètre | intégré |
+| C-130 | mineur | annexe A ; WF-PTF-0050-A | « Réalisé », « Couverture des risques » et « Révision courante » manquent au glossaire | intégré |
+| C-131 | mineur | §3.4.5.1 « Gestion des révisions » — exigence WF-REV-0010-A  ; à… | La Vérif de WF-REV-0010 suppose l'année de référence inchangée | intégré |
+| C-132 | mineur | §3.4.5.1 — exigence WF-REV-0010-A ; à rapprocher de §3.3.2 | L'abandon de l'unique révision d'un projet en chiffrage n'a pas d'issue dite | intégré |
+| C-133 | majeur | §3.4.5.1 — exigence WF-REV-0060-A ; WF-REV-0050-A | La mise à jour des taux n'a lieu qu'à la création d'une révision, et quatre créations se font sans dialogue | intégré |
+| C-134 | mineur | §3.4.5.1 — exigence WF-REV-0080-A | La comparaison de deux révisions ne dit pas quel montant elle compare | intégré |
+| C-135 | mineur | §3.4.5.1 — exigence WF-REV-0090-A ; à rapprocher de WF-REV-0030-A | Le taux d'inflation et la probabilité de gain conservés manquent aux attributs d'une révision | intégré |
+| C-136 | mineur | §3.4.5.2 — exigence WF-PRJ-0010-A  ; à rapprocher de… | Un « refus » pour une transition qui n'est pas une action | intégré avec écart |
+| C-137 | mineur | §3.4.5.2.1 « Lotissement du projet », texte d'introduction ; §3.2.3 | Le filtre par poste ou par lot est promis par le texte et porté par aucune exigence | intégré |
+| C-138 | mineur | §3.4.5.2.1 — exigences WF-PRJ-0020-A et WF-PRJ-0030-A | Lotissement implicite et squelette : trois valeurs par défaut non dites | intégré |
+| C-139 | majeur | §3.4.5.2.1 — exigence WF-PRJ-0030-A ; WF-PLA-0130-A | Ce que devient le rattachement quand le lot est supprimé ou déplacé n'est pas dit, et le §4 répond à l'envers | intégré |
+| C-140 | mineur | §3.4.5.2.2 — exigence WF-PRJ-0040-A  ; à rapprocher de… | « Charges » pour « lignes » : le rechiffrage exempterait les lignes hors main-d'œuvre | intégré |
+| C-141 | majeur | §3.4.5.2.4 — exigence WF-PRJ-0060-A ; à rapprocher de… | Rien n'empêche un projet de perdre son dernier chef de projet | intégré |
+| C-142 | majeur | §3.4.5.3 — exigence WF-PLA-0020-A ; WF-PLA-0010-A | Aucune date de début de planning : une tâche automatique sans prédécesseur n'a pas d'ancre | intégré |
+| C-143 | mineur | §3.4.5.3 — exigences WF-PLA-0040-A, WF-PLA-0130-A ; WF-INTF-0040-A | Une récapitulative en mode manuel : sans sens ici, importable depuis MS Project | intégré |
+| C-144 | majeur | §3.4.5.3 — exigences WF-PLA-0030-A  et WF-PLA-0160-A | Les suffixes d'unités renvoient à MS Project et le contredisent | intégré |
+| C-145 | majeur | §3.4.5.3 — exigence WF-PLA-0160-A  ; à rapprocher de WF-PLA-0010-A… | L'exemple des 2 ej fait commencer une tâche un dimanche, hors de tout calendrier | intégré |
+| C-146 | mineur | §3.4.5.3 — exigence WF-PLA-0040-A  ; WF-IHM-0070-A | Les lignes propres « signalées » : dans quel écran, selon quelle échelle ? | intégré |
+| C-147 | mineur | §3.4.5.3 — exigence WF-PLA-0050-A  ; WF-RAE-0030-A | Un jalon porteur de lignes terminé depuis le Kanban : accepté ou refusé ? | intégré |
+| C-148 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A  ; WF-PLA-0040-A | Une récapitulative qui perd sa dernière subordonnée ne sait plus ce qu'elle est | intégré |
+| C-149 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A ; WF-PRJ-0030-A | Le rattachement n'a pas de périmètre : structures, fusion, survenance, jalons | intégré |
+| C-150 | majeur | §3.4.5.3 — exigence WF-PLA-0130-A ; §3.1.4 — WF-INTF-0040-A | L'import MS Project ne dit pas ce qu'il fait d'un déplacement refusé par WF-PLA-0130 ni d'une tâche rattachée supprimée | intégré |
+| C-151 | mineur | §3.4.5.3.3 — exigence WF-PLA-0100-A ; WF-PLA-0080-A | La marge et la criticité d'une récapitulative ne sont pas définies | intégré |
+| C-152 | mineur | §3.4.5.3.5 — exigence WF-PLA-0120-A | « Tenir sur une page A4 » n'est pas une condition observable | intégré |
+| C-153 | mineur | §3.4.5.3 — exigence WF-PLA-0150-A  ; §4.4.2, second paragraphe | « Cent quatre-vingts révisions au plus » est une hypothèse, pas une borne | intégré |
+| C-154 | majeur | §3.4.5.4, WF-DEV-0020-A ; §3.4.5.4.3, WF-DEV-0030-A | Rien ne dit si les montants et leurs agrégats sont à l'année de référence ou corrigés de l'inflation | intégré avec écart |
+| C-155 | majeur | §3.4.5.8.7, WF-IND-0100-A ; §3.4.5.4.4, WF-DEV-0070-A | Le reste à engager est étalé sur toute la durée de la tâche, dates passées comprises | intégré |
+| C-156 | mineur | §3.4.5.4.4, WF-DEV-0070-A | La Vérif de WF-DEV-0070 ne propose que la révision en cours là où une révision marquée existe | intégré |
+| C-157 | majeur | §3.4.5.5.1, WF-RAE-0020-A | L'écart « avec le budget de référence » compare un reste à un total ; la ventilation par sous-projet compare autre chose | intégré avec écart |
+| C-158 | mineur | §3.4.5.5.2, WF-RAE-0030-A ; à rapprocher de WF-PLA-0050-A | Un jalon rouvert passe à un état qu'il n'a pas | intégré avec écart |
+| C-159 | mineur | §3.4.5.5.3, WF-RAE-0040-A ; §3.4.2.1, WF-ADM-0040-A | La préférence distingue des lignes ici, des tâches là | intégré |
+| C-160 | majeur | §3.4.5.6, WF-RIS-0030-A | La Vérif de WF-RIS-0030 dit qu'un devis propre modifié ne change aucun indicateur ; il change le reste à engager | intégré |
+| C-161 | majeur | §3.4.5.6.2, WF-RIS-0050-A ; annexe A, entrée « Écart de couverture » | Le coût d'un risque survenu est un montant réestimé, donc nul quand ses tâches sont terminées | intégré avec écart |
+| C-162 | majeur | §3.4.5.6.2, WF-RIS-0050-A | La suite de scénarios de WF-RIS-0050 ne dit pas qu'elle repart de zéro, et l'écart de −30 est faux dans la continuité | intégré |
+| C-163 | mineur | §3.4.5.7, WF-CRE-0020-A | La Vérif de WF-CRE-0020 rejette une forme d'OTP que le corps ne mentionne pas | intégré |
+| C-164 | mineur | §3.4.5.7, WF-CRE-0040-A | « Leur somme est cohérente » n'est pas une condition observable | intégré |
+| C-165 | majeur | §3.4.5.8, WF-IND-0010-A ; §3.4.5.8.5, WF-IND-0130-A | Un projet sans révision en cours n'a pas d'indicateurs au jour courant | intégré avec écart |
+| C-166 | majeur | §3.4.5.8, WF-IND-0010-A ; §4.4.2, WF-DAT-0040-A | Le coût réel d'une révision marquée est défini par date de pièce ici, par date d'import là | intégré |
+| C-167 | mineur | §3.4.5.8, WF-IND-0020-A | Le budget de référence par sous-projet n'est pas dans la liste des grandeurs par sous-projet | intégré |
+| C-168 | mineur | §3.4.5.8, WF-IND-0030-A | La valeur acquise n'exclut pas les lignes de provision, contrairement à la valeur planifiée | intégré |
+| C-169 | mineur | §3.4.5.8.6, WF-IND-0090-A | La pente 1 suppose des revues mensuelles, et le dernier point sur la diagonale suppose une abscisse non dite | intégré |
+| C-170 | majeur | §3.4.5.8.7, WF-IND-0100-A ; à rapprocher de WF-RAE-0010-A | En mode décaissements, les provisions sont ajoutées à un reste à engager qui les contient déjà | intégré |
+| C-171 | majeur | §3.4.5.8.7, WF-IND-0100-A ; à rapprocher de WF-DEV-0080-A | La courbe du budget ne peut pas présenter une marche si elle se lit sur la seule référence en vigueur | intégré |
+| C-172 | majeur | §4.5.4, tableau 12 Modes dégradés, ligne « Redis » ; §4.4.5… | Redis indisponible : la session du front y vit, donc ni la consultation ni la saisie ne continuent, et personne ne peut se reconnecter | intégré avec écart |
+| C-173 | majeur | §4.3.4 WF-ARC-0090-A ; §4.4.4  et WF-DAT-0120-A | Un export est une tâche de fond dont le fichier n'a nulle part où attendre son téléchargement | intégré |
+| C-174 | majeur | §4.6.1, texte « Un mot des données personnelles » ; §3.4.2.1… | Le traitement d'une demande d'effacement est promis en prose et porté par aucune exigence | intégré |
+| C-175 | mineur | §4.2 Découpage technique, texte d'introduction | Deux phrases d'introduction du §4.2 contredisent WF-DAT-0010 et WF-ARC-0040 | intégré |
+| C-176 | mineur | §4.4.1, tableau 10 Correspondance entre objets et tables ; §4.3.4… | Trois données conservées sans table : le compte rendu d'import, la tâche de fond, les préférences d'affichage | intégré |
+| C-177 | mineur | §4.4.5 WF-DAT-0130-A ; §4.6.3 WF-OBS-0030-A | Trois seuils ni fixés ni déclarés paramétrables | intégré |
+| C-178 | mineur | §3.6 WF-IHM-0130-A | L'export PNG exige un nom de projet et une révision sur des diagrammes de portefeuille qui n'en ont pas | intégré |
+| C-179 | mineur | §4.3.1 figure 18 ; §4.3.2 tableau 8 | Deux flux techniques absents : le fournisseur d'identité vers PostgreSQL, et les courriels | intégré |
+| C-180 | mineur | §4.3.4, figure 19 Diagramme de séquence des imports  ; WF-ARC-0100-A | La figure 19 ne montre ni la revérification à l'application (WF-ARC-0100) ni la demande d'abandon | intégré |
+| C-181 | mineur | §4.2.2, tableau 7 ; WF-SEC-0030-A | La matrice FBS–PBS n'a pas de ligne pour FBS-1.5, et la ligne FBS-1.3 n'a pas PBS-4.2 | intégré avec écart |
 
 ---
 
@@ -234,7 +234,7 @@ d’audit et y applique un filtre (FBS-1.5), et déclenche une sauvegarde (FBS-1
 ajouter : « FLX-19 Journal d’audit | Waterfall | Administrateur | Sortant | IHM | À la demande »,
 et l'arc correspondant dans la page « Contexte » du fichier draw.io.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -278,7 +278,7 @@ indice — modifiables ensuite (WF-REF-0160 à WF-REF-0180), » ; au texte du §
 taux restent à saisir » : « ; les bornes, les seuils et le délai sont livrés avec des valeurs que
 l’entreprise ajuste. » Les valeurs livrées des bornes et du délai sont à fixer par l'auteur.
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : les valeurs livrées des bornes de la matrice et du délai entre revues restent à fixer, seules celles des seuils (0,9 et 0,8) sont écrites
 
 
 ---
@@ -319,7 +319,7 @@ vie (FBS-4.9) et d’échange des fichiers du tableau des flux (FLX-01 à FLX-07
 jusqu’à leur terme, marquage d’une révision, exclusion d’une ligne de coût et déclaration d’une
 sortie compris. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -359,7 +359,7 @@ WF-PRJ-0010, remplacer « Le passage à En cours est refusé tant qu’il n’es
 « Le projet ne passe pas à En cours tant qu’il n’est pas renseigné, et la condition manquante est
 nommée (WF-CYC-0050) ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -390,7 +390,7 @@ ressources et, facultativement, les utilisateurs. Ils ne portent aucune habilita
 « Utilisateur » : ajouter « Il peut être rattaché à un nœud d'organisation, sans que ce
 rattachement lui donne aucun droit (WF-ADM-0030). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -418,7 +418,7 @@ Ajouter au glossaire :
 > rôle de ressource, calendrier, nature de coût, catégorie de coût ou taux horaire — tel qu'une
 > révision en conserve la valeur employée (WF-REV-0030).
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -446,7 +446,7 @@ qui, lui, parle de « travail qui n’avait pas été anticipé » sans nommer l
 > chiffré (WF-RAE-0050). Elle porte un montant budgété nul et pèse sur le reste à engager, jamais
 > sur le budget de référence.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -491,7 +491,7 @@ qui, lui, parle de « travail qui n’avait pas été anticipé » sans nommer l
 
 Et « projection du chef de projet » dans l'entrée « Avancement financier » et au §3.4.5.8.1.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -519,7 +519,7 @@ glossaire « Élément d'OTP », qui ne développe pas le sigle), UML (§3.2.1).
 > | URL | Adresse d’une ressource Web (Uniform Resource Locator) |
 > | XML | Format de données structurées (eXtensible Markup Language) |
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -552,7 +552,7 @@ Si l'auteur préfère au contraire une colonne pour les deux formats, c'est WF-I
 faut corriger : « Le sous-projet d’une ligne est celui de sa colonne de sous-projet, absent
 lorsqu’elle est vide. »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : le format « Reste à engager » à un onglet par sous-projet ; l’alternative de la colonne, signalée en commentaire, n’a pas été retenue
 
 
 ---
@@ -594,7 +594,7 @@ ses indicateurs au jour courant. » Vérif, ajouter : « Un projet dont la revue
 et qui n’a pas de révision en cours contribue par cette revue. » Ce que valent alors les
 indicateurs « au jour courant » d'un tel projet fait l'objet de C-165.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -616,7 +616,7 @@ la création d’un projet est refusée, et le refus nomme chaque prérequis man
 aboutit dès que tous les prérequis sont satisfaits. L’énoncé des prérequis manquants à l’accueil
 relève de WF-IHM-0120. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -679,7 +679,7 @@ et dont la protection relève de la base comme pour les révisions marquées (WF
    consulte (FBS-1.5), ne se modifie ni ne se supprime, et survit à une restauration
    (WF-ADM-0160). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -715,7 +715,7 @@ pas l'action : la date, l'auteur, l'objet et le projet, sans dire ce qui a été
 Vérif, ajouter : « L'abandon d'une révision en cours et la suppression d'un rôle produisent
 chacun une inscription qui nomme l'action et l'objet. »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : la phrase ajoutée à la Vérif de WF-SEC-0030 suit « datée et attribuée » plutôt que de clore le champ, et l’anonymisation de C-174 y est jointe
 
 ---
 
@@ -753,7 +753,7 @@ du journal d’audit qui l’attribuait à un compte le nomme toujours. » Au §
 physiquement : un objet se désactive (WF-REF-0130, WF-ADM-0060), et un rôle d’habilitation se
 supprime en conservant sa ligne (WF-ADM-0090) ».
 
-**Statut.** à traiter — porté par l'issue #456
+**Statut.** intégré
 
 
 ---
@@ -776,7 +776,7 @@ fonction en lecture seule » — ne tranche pas entre eux.
 que la permission de consulter. » Vérif : « ou par la seule permission de consulter pour FBS-1.3,
 FBS-1.5 et FBS-2.1 à FBS-2.7. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -799,7 +799,7 @@ projets », qui ouvre à un manager la lecture de tous les projets sans lui perm
 et les vues du portefeuille (FBS-2), qui agrègent tous les projets du périmètre et n’ouvrent que
 ceux que l’utilisateur peut consulter (WF-PTF-0030). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -833,7 +833,7 @@ agrégées face au budget de référence agrégé » par :
 Vérif, ajouter : « Sur deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût
 réel 500 et 500, la projection au rythme constaté agrégée vaut 2 222 et non 2 250. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -867,7 +867,7 @@ projets en cours, seuls à avoir une référence. » Vérif de WF-PTF-0080, ajou
 40 % dont le devis porte 100 de main-d’œuvre ajoute 40 à la main-d’œuvre du budget agrégé
 lorsqu’elle est incluse. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -899,7 +899,7 @@ au dimanche, et aucune autre donnée n’est demandée ; deux calendriers de mê
 refusés. » Reporter les deux attributs dans le §3.2.2 (paragraphes « Rôles de ressources » et
 « Calendriers ») et dans WF-DAT-0090, qui déclare les unicités en base.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -920,7 +920,7 @@ document le font.
 troisième niveau sur un projet de budget 1 000 (6 %) et au deuxième sur un projet de budget
 2 000 (3 %). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -947,7 +947,7 @@ l’organigramme courant (§3.4.4.2.1) ; ses indicateurs conservés (WF-DAT-0040
 seule la zone qui les qualifie peut changer. » Vérif, ajouter : « Après abaissement du seuil
 d’alerte, la zone de l’indice de coût d’une révision marquée peut changer, sa valeur non. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -972,7 +972,7 @@ des revues (FBS-3.4). Deux règles valent pour les objets des deux premières fa
 supprime, tout se désactive (WF-REF-0010), et une modification du référentiel n’impose jamais de
 retoucher un projet (WF-REF-0020, WF-REF-0130). »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : l’introduction de FBS-3 reste une liste, portée à quatre familles, plutôt qu’un paragraphe unique
 
 
 ---
@@ -994,7 +994,7 @@ relève de la main-d’œuvre ; au moins un rôle de ressource actif ». Vérif,
 installation neuve, dont la seule catégorie est celle des provisions, la création est refusée en
 nommant la catégorie de main-d’œuvre et le rôle manquants. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1018,7 +1018,7 @@ descendants et ses rôles ; le plan de charge agrégé filtré sur le nœud d’
 ces rôles, et les valeurs par rôle sont inchangées. Le déplacement sous un nœud désactivé est
 refusé. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1041,7 +1041,7 @@ un utilisateur habilité, quotidienne par défaut, comme celle des sauvegardes (
 Vérif, ajouter : « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la
 périodicité choisie, sans intervention. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1069,7 +1069,7 @@ une période. « Couverture des risques » est employé par WF-RIS-0050, WF-PTF-
 > et du coût réestimé des risques survenus ; leur différence est l'écart de couverture
 > (WF-RIS-0050).
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -1091,7 +1091,7 @@ refuse toutes les mises à jour sans que la Vérif le lui dise.
 > année de référence égale, elle porte aussi les mêmes valeurs de référentiel, et sinon celles que la
 > mise à jour de WF-REV-0060 n’a pas remplacées.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1117,7 +1117,7 @@ depuis Chiffrage seulement) : un développeur choisira l'un ou l'autre.
 Vérif, ajouter : « L’abandon de l’unique révision d’un projet en chiffrage le laisse sans révision,
 à l’état Chiffrage, et la création d’une révision y est de nouveau proposée. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1156,7 +1156,7 @@ Vérif, ajouter : « Une révision créée en 2027 par un import de reste à eng
 2026 projetés d’une année ; la mise à jour catégorie par catégorie reste proposée jusqu’à son
 marquage, et l’accepter pour une catégorie la rechiffre au taux de 2027. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1181,7 +1181,7 @@ nature de coût et par sous-projet ». Vérif :
 > précède, lorsqu’aucune autre modification n’a été faite entre les deux, restitue exactement les
 > tâches et les montants budgétés de ce différentiel, et aucun écart de montant réestimé.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1203,7 +1203,7 @@ bougé.
 probabilité de gain qu’elle conserve (WF-REV-0030, WF-REV-0060), et le cas échéant son caractère de
 révision de référence. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1222,7 +1222,7 @@ termes : « ne fait pas passer le projet à En cours, et la condition manquante 
 **Proposition.** « Le projet ne passe pas à En cours tant qu’il n’est pas renseigné, et le code
 manquant figure parmi les conditions restantes (WF-CYC-0050). »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : réalisé par la rédaction de C-107 sur la Vérif de WF-PRJ-0010
 
 
 ---
@@ -1248,7 +1248,7 @@ récapitulative ou le poste ou le lot porté par une tâche rattachée (WF-PLA-0
 WF-PLA-0080, ajouter : « Le filtre sur un lot ne laisse voir que la tâche qui le porte, son
 sous-arbre et ses parents. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1271,7 +1271,7 @@ le libellé du projet, sans livrable ». WF-PRJ-0030 : « une tâche feuille par
 automatique et d’une durée d’un jour (WF-PLA-0160), sous la récapitulative de son lot ; un jalon de
 fin par lot, sous la récapitulative du lot, et un jalon de fin par poste, sous celle du poste ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1306,7 +1306,7 @@ toujours rattachée. » Dans WF-DAT-0090, nommer cette exception au refus par d�
 suppression d’un poste ou d’un lot met à nul le rattachement des tâches de la révision en cours
 (WF-PLA-0130) ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1326,7 +1326,7 @@ exempte les fournitures du rechiffrage, ce que WF-DEV-0030 interdit.
 référence (WF-DEV-0030) ». Vérif : « les lignes, de main-d’œuvre ou non, dont l’année de
 consommation suit l’année de référence sont rechiffrées, les autres non ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1355,7 +1355,7 @@ administrateur) ; le projet n'en a pas.
 Vérif, ajouter : « Le retrait du seul chef de projet d’un projet est refusé, de même que son passage
 en participant ; il est accepté dès qu’un second chef de projet est inscrit. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1388,7 +1388,7 @@ Vérif, ajouter : « Une tâche en mode automatique sans prédécesseur commence
 planning ; avancer cette date d’une semaine l’avance d’autant, ainsi que ses successeurs
 automatiques. » Ajouter la date de début de planning aux attributs d'une structure dans WF-REV-0100.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1410,7 +1410,7 @@ garder, contre WF-PLA-0040, ou les écraser, contre WF-INTF-0040 ?
 son mode n’est pas saisissable. » WF-INTF-0040, ajouter : « une récapitulative en mode manuel dans le
 fichier est importée en mode automatique, et le compte rendu la signale avec l’écart de dates ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1441,7 +1441,7 @@ corps :
 Vérif, ajouter : « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des
 langues de l’interface. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1467,7 +1467,7 @@ hors de son calendrier.
 > lundi à la première heure travaillée. Un décalage de 2 j sur la même liaison le fait commencer le
 > mercredi.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1487,7 +1487,7 @@ un signalement que chaque écran inventera.
 seules lignes ouvertes de la phase ». Ajouter « lignes propres d’une récapitulative dont toutes les
 subordonnées sont terminées (WF-PLA-0040) » à la liste des signalements de WF-IHM-0070.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1509,7 +1509,7 @@ WF-RAE-0030, ou le geste est-il refusé ?
 lignes sinon ; le Kanban renvoie alors à cette saisie. » Vérif, ajouter : « La terminaison depuis le
 Kanban d’un jalon portant une ligne est refusée en renvoyant à la saisie de son reste à engager. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1538,7 +1538,7 @@ courant à la reprise d'un planning importé, et la Vérif citée le suppose pos
 Vérif, ajouter : « La suppression de la seule subordonnée d’une récapitulative de dix jours laisse
 une tâche feuille de dix jours, à laquelle une sous-tâche peut de nouveau être ajoutée. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1573,7 +1573,7 @@ Vérif, ajouter : « La génération du squelette n’est pas proposée sur le d
 fusion d’un différentiel qui déplacerait la tâche d’un lot hors du sous-arbre de la tâche de son poste
 est refusée en nommant la tâche. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1608,7 +1608,7 @@ tâche de son poste est rejeté et le compte rendu nomme les deux tâches ; un f
 rattachée a disparu est appliqué et le compte rendu nomme le lot qu’elle portait ; une tâche
 rattachée réimportée conserve son rattachement. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1631,7 +1631,7 @@ d’elles y appartient ; une récapitulative dont toutes les subordonnées sont 
 pas de marge. » Vérif, ajouter : « Une récapitulative dont une subordonnée est critique est critique
 et affiche une marge nulle. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1654,7 +1654,7 @@ contenu exige, et c’est le niveau de profondeur qui règle l’encombrement. �
 « L’export d’une arborescence trop large pour une page produit une image plus large que la page, sans
 réduction. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1675,7 +1675,7 @@ ordre de grandeur, que le §4.4.2 réemploie comme borne de dimensionnement.
 de grandeur connu : cent quatre-vingts révisions marquées par projet pour une revue mensuelle sur
 quinze ans (§4.6.2). » §4.4.2 : « cent quatre-vingts révisions par projet pour une revue mensuelle ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -1693,7 +1693,7 @@ quinze ans (§4.6.2). » §4.4.2 : « cent quatre-vingts révisions par projet p
 
 Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de référence et, dans une colonne distincte, ce montant corrigé de l'inflation (WF-DEV-0040) ». Dans WF-RAE-0010, corps : « du montant budgété de ses lignes, reporté de l'année de consommation que lui donnait la référence sur son année de consommation courante, si elle n'est pas démarrée ». Au glossaire, ajouter à « Budget de référence » et à « Montant budgété » : « inflation comprise, à l'année de consommation des lignes ». Si l'auteur choisit au contraire des montants à l'année de référence, c'est WF-DEV-0030 (« ce montant est ensuite projeté »), le Motif de WF-REV-0030 et le Motif de WF-DEV-0030 (« une fourniture achetée dans trois ans coûtera plus cher ») qu'il faut reprendre, et dire alors comment le coût réel, qui est en euros courants, se compare à un budget en euros de l'année de référence.
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : une rédaction unique de WF-RAE-0010 concilie C-095 et C-154 ; l’alternative des montants à l’année de référence, signalée en commentaire, n’a pas été retenue
 
 
 ---
@@ -1708,7 +1708,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** WF-IND-0100, corps : « et, au-delà, la projection du chef de projet : le reste à engager de chaque ligne est étalé, au prorata des heures travaillées (WF-DEV-0040), sur la part de la durée de sa tâche postérieure à la date de calcul, et porté entier à la date de calcul lorsque la fin de la tâche est dépassée (WF-RAE-0040). » WF-DEV-0070, corps, après la phrase citée : « Sur la base du reste à engager, la charge restante d'une ligne d'une tâche démarrée est répartie sur la seule part de la durée de la tâche postérieure au jour courant, et portée au mois courant lorsque la fin de la tâche est dépassée. » Vérif de WF-DEV-0070, ajouter : « Une tâche démarrée de quatre mois, à mi-parcours, dont une ligne porte un reste de 80 heures, présente 40 heures sur chacun des deux mois restants et rien sur les mois écoulés. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1723,7 +1723,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « Les trois bases sont proposées ; sur un projet sans révision de référence, la base de la référence est absente, et sur un projet sans aucune révision marquée, seule la révision en cours est proposée. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1738,7 +1738,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Corps : « ainsi que deux écarts, signés : entre la somme de son coût réel et de son reste à engager — la projection du chef de projet (WF-IND-0050) — et le budget de référence ; et entre son reste à engager et celui de la révision marquée précédente. Pour chaque sous-projet, il présente le premier de ces écarts, entre le budget du sous-projet et la somme de son coût réel et de son reste à engager. » Vérif : « Sur un projet sans revue précédente, l'écart correspondant est absent plutôt que nul ; sur un projet sans révision de référence, l'écart au budget l'est aussi. L'écart au budget du projet égale la somme des écarts de ses sous-projets, ensemble hors sous-projet compris. »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : « et la couverture des risques (WF-RIS-0050) » est conservé dans l’énumération de WF-RAE-0020
 
 
 ---
@@ -1753,7 +1753,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Corps : « y compris une tâche terminée que l'on rouvre ; un jalon terminé que l'on rouvre redevient non démarré, seul cas où une tâche revient à cet état, et sa date de terminaison est effacée ». Et remplacer « Aucun geste ne ramène une tâche à l'état non démarré » par « Aucun geste ne ramène une tâche autre qu'un jalon à l'état non démarré ». Vérif, ajouter : « Un jalon terminé que l'on rouvre est non démarré et ne contribue plus à la valeur acquise. »
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : la clause du jalon rouvert est ajoutée après « (WF-PLA-0130) », hors de l’énumération
 
 
 ---
@@ -1768,7 +1768,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Dans WF-ADM-0040 : « Une préférence d'affichage permet de distinguer visuellement les tâches ajoutées après la révision de référence et les lignes dont le montant budgété est nul (WF-RAE-0040). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1783,7 +1783,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « La modification du devis propre d'un risque identifié ne change ni le budget de référence, ni la valeur planifiée, ni la valeur acquise, ni les indices de coût et de délai ; elle change la provision, donc le reste à engager, l'avancement financier et la projection du chef de projet (WF-RAE-0010). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1798,7 +1798,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Figer le coût à la survenance, comme la réserve l'est à la référence. WF-RIS-0010, corps, ajouter : « Un risque survenu conserve son coût à la survenance : le total de son devis propre au moment où il est déclaré survenu (WF-RIS-0060). » WF-RIS-0050, corps : « face à la somme des provisions des risques identifiés dans la révision courante et du coût à la survenance des risques survenus (WF-RIS-0010). La différence, signée, est l'écart de couverture. » Glossaire, « Écart de couverture » : remplacer « du montant réestimé des lignes issues des risques survenus » par « du coût à la survenance des risques survenus ». Vérif de WF-RIS-0050, ajouter : « La terminaison des tâches issues d'un risque survenu ne change ni le coût des survenus ni l'écart de couverture. » Si l'auteur préfère un coût qui suit les réestimations ultérieures, il faut alors conserver, par ligne issue d'un risque, le dernier montant réestimé non nul, et le dire dans WF-DEV-0020.
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : le coût figé à la survenance est retenu ; l’alternative du dernier montant réestimé non nul, signalée en commentaire, n’a pas été retenue
 
 
 ---
@@ -1813,7 +1813,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060, le budget de référence 1 000 et la réserve 60. Après survenance de ce risque, réévalué à 250, le budget de référence vaut toujours 1 000, les provisions restantes 0, le coût des survenus 250, et l'écart de couverture −190. Sur le même projet, un second risque de provision 40 présent dans la référence porte la réserve à 100 ; l'écarter fait passer les provisions restantes de 40 à 0 sans toucher le budget de référence, et l'écart de couverture de −190 à −150. Sur un projet dont la réserve est nulle et sans risque survenu, un risque identifié après la référence, de provision 30, porte les provisions restantes à 30 et l'écart de couverture à −30. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1828,7 +1828,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Corps, après la première phrase : « Une ligne dont l'élément d'OTP n'a pas cette forme est rejetée et signalée au compte rendu, comme une ligne d'un autre projet. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1843,7 +1843,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « Les trois totaux sont présents, et le total général égale la somme du total du périmètre suivi et du total exclu. Un filtre par sous-projet ou par période s'applique aux trois (WF-IHM-0130). »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1858,7 +1858,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** WF-IND-0010, corps, après la première phrase : « Lorsque le projet ne comporte pas de révision en cours, ses indicateurs au jour courant se calculent sur sa dernière révision marquée, avec le coût réel au jour courant ; les indicateurs conservés de cette révision à sa date de marquage restent inchangés (WF-DAT-0040). » Vérif, ajouter : « Sur un projet sans révision en cours, un import de coûts réels change les indicateurs au jour courant et laisse inchangés ceux conservés de la dernière révision marquée. » Dans WF-IND-0130 et WF-PTF-0010, remplacer « pour la révision en cours » et « par sa révision en cours » par « au jour courant (WF-IND-0010) ».
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : WF-IND-0130 et WF-PTF-0010 disent « au jour courant (WF-IND-0010) » sans redoubler l’expression
 
 
 ---
@@ -1873,7 +1873,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** WF-IND-0010, corps : « Le coût réel à une date est la somme des lignes de coût du périmètre suivi, connues au moment du calcul, dont la date de pièce est antérieure ou égale à cette date. Pour une révision marquée, ce sont les lignes connues à son marquage, telles qu'elles étaient alors : une ligne importée, mise à jour ou exclue ensuite n'y entre pas, quelle que soit sa date de pièce. Les courbes d'une révision marquée (WF-IND-0100, WF-IND-0110) sont conservées avec ses indicateurs (WF-DAT-0040). » Vérif : remplacer « même après import de coûts réels postérieurs » par « même après l'import d'une ligne de coût datée avant le marquage, qui n'entre ni dans son coût réel ni dans ses courbes ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1888,7 +1888,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « Le budget de référence, la valeur planifiée, la valeur acquise, le coût réel, le reste à engager et les indicateurs qui en dérivent se calculent pour le projet et pour chacun de ses sous-projets, l'ensemble « hors sous-projet » compris ; le budget de référence d'un sous-projet est la somme des montants budgétés de ses lignes dans la révision de référence, hors lignes de provision. » Vérif : ajouter « le budget de référence » à l'énumération.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1903,7 +1903,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « La valeur acquise à une date est la somme des montants budgétés des lignes portées par les tâches terminées à cette date, hors lignes de provision (WF-DEV-0080), la date de terminaison de la tâche faisant foi. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1918,7 +1918,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** Corps : « La diagonale des dates égales y figure ; la courbe d'un jalon s'arrête par un point à sa date de terminaison, en abscisse comme en ordonnée, et aucune révision marquée après cette date n'y ajoute de point. » Vérif : « Un jalon repoussé d'un mois à chacune de trois revues mensuelles trace une droite de pente 1. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1933,7 +1933,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** « Sur demande, chaque montant est décalé du délai de paiement de sa ligne — une ligne de provision, qui n'en porte pas, reste à la date de la tâche qui la porte — : la courbe présente alors les décaissements, passés et à venir, par mois. » Vérif, préciser : « la somme des décaissements à venir égale le reste à engager, provisions des risques identifiés comprises ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1948,7 +1948,7 @@ Dans WF-DEV-0050, corps : « son montant réestimé aux taux de l'année de réf
 
 **Proposition.** WF-IND-0100, corps : « le budget de référence cumulé : à chaque date, celui de la révision de référence en vigueur à cette date, lu sur ses propres dates par la règle de la valeur planifiée (WF-DEV-0080) ; au passage d'une référence à la suivante, la courbe saute de la différence des deux cumulés à la date de l'avenant, ce qui en fait une marche datée ». Vérif : « Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du budget présente à la date de l'avenant une marche égale à l'écart des deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence. » Et dans WF-DEV-0080, Motif, ajouter : « contrairement à la courbe de coûts cumulés (WF-IND-0100), qui garde l'histoire des références ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -1995,7 +1995,7 @@ tableau 10, et WF-ARC-0040 sans « aucune session n’est conservée en base »)
 proposait. La ligne « Redis » du tableau 12 devient alors : « Tout, les indicateurs de la révision
 en cours étant recalculés à chaque requête | La prise de nouvelles tâches ».
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : la première voie, session conservée dans Redis ; la seconde, signalée en commentaire, n’a pas été retenue
 
 
 ---
@@ -2047,7 +2047,7 @@ objet, borné dans le temps.
 
 La ligne « Stockage objet » du tableau 12 devient alors exacte sans changer.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2082,7 +2082,7 @@ réactivation est refusée. » Dans WF-SEC-0030, remplacer « la création et la
 comptes » par « la création, la modification et l’anonymisation des comptes ». Dans le §4.6.1 :
 « une demande d'effacement se traite en anonymisant le compte (WF-ADM-0060) ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2113,7 +2113,7 @@ tâches, et rien d'autre : ce qu'on y met doit pouvoir se recalculer ou se refai
 reconnexion, faute de quoi sa perte devient une panne (WF-ARC-0040). » Si C-172 fait passer la
 session en base, retirer « la session du front » de cette phrase.
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2153,7 +2153,7 @@ demande de son porteur. » Et compléter WF-DAT-0080 en conséquence : « hors l
 comptes rendus d’import et les préférences d’affichage, qui se suppriment selon leur propre
 règle (§4.4.1) ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2183,7 +2183,7 @@ livrée.
   minutes produit une alerte ; chaque seuil est vérifiable par un essai à sa borne. »
 - §4.4.1 : « La taille d'un avatar est bornée par un paramètre d'exploitation, livré à 512 Ko. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2206,7 +2206,7 @@ le périmètre affiché (WF-PTF-0010). » Vérif : « Le plan de charge d’un p
 image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé
 exporté porte le périmètre et la date de calcul. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2243,7 +2243,7 @@ navigateur ne parle qu’au front et, le cas échéant, au fournisseur d’ident
 parle hors du cluster qu’à l’annuaire et au serveur de messagerie ; aucun composant de données
 n’est joignable de l’extérieur. »
 
-**Statut.** à traiter
+**Statut.** intégré
 
 
 ---
@@ -2268,7 +2268,7 @@ nommée » puis « W->>S: supprime le fichier ». Dans la branche d'abandon, en 
 l'import » puis « A->>F: met en file la suppression » avant « W->>S: supprime le fichier » ; pour
 l'expiration, une note « au terme de vingt-quatre heures (WF-ARC-0100) ».
 
-**Statut.** à traiter
+**Statut.** intégré
 
 ---
 
@@ -2287,5 +2287,5 @@ pas. C'est la règle que C-068 et C-069 ont fait écrire ; les ajouts du 8 octob
 de la table du journal, WF-SEC-0030) | » si C-116 fait du journal une table de PostgreSQL, sinon
 « PBS-4.2 ». Ligne FBS-1.3 : « PBS-4.1, PBS-4.2, PBS-4.3 ».
 
-**Statut.** à traiter
+**Statut.** intégré avec écart : la ligne FBS-1.5 porte « — (lecture de la table du journal, WF-SEC-0030) », le journal étant une table (C-116)
 
