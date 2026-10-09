@@ -35,16 +35,14 @@ import {
   refusedBounds,
 } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import { asked, type GridQuery, readGridQuery, searched } from "@/components/grid/query";
 import {
-  asked,
   asksInactive,
   given,
   identifierOf,
   inactiveQuery,
   type KeptGrids,
   levelOf,
-  searched,
   shownPage,
   stateOf,
   textOf,

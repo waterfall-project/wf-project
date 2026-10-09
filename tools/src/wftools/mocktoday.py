@@ -9,7 +9,8 @@ the remaining to commit and of the project, the evolution of the indices, the tr
 milestones, the curves, the workload); a reading of an earlier instant (the estimate the offer
 kept at its marking, the indicators the reference kept, the rate update its creation proposed);
 the sequel of a write made today (the remaining to commit after ``remaining_reestimated``); or a
-counterfactual variant declared as such (``*_missing_rates``, ``cost_curve_amendment``). The
+counterfactual variant declared as such (``*_missing_rates``, ``cost_curve_amendment``,
+``cost_curve_subproject_unbudgeted``). The
 portfolio sums the indicators of the project in memory (``project_today``), never read back from
 the file the same command writes.
 """
@@ -17,7 +18,7 @@ the file the same command writes.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -53,6 +54,8 @@ from wftools.mockwitness import (
     RISKS_IDENTIFIED,
     STUDIES_LINE,
     STUDIES_STARTED,
+    SUBPROJECT_CONTROL,
+    SUBPROJECT_TESTS,
     fixture,
 )
 
@@ -154,10 +157,19 @@ def values() -> dict[str, JsonValue]:
         "project_indicators": project_today(found),
         "project_indicators_marked": project_indicators(base, base, costs),
         "index_history": index_history(points, costs),
+        "index_history_subproject": index_history(points, costs, SUBPROJECT_CONTROL),
         "milestone_tracking": milestone_tracking(points[:-1], points[-1]),
         "cost_curve": cost_curve(now, found.eras, costs),
         "cost_curve_payment_delays": cost_curve(now, found.eras, costs, delays=True),
         "cost_curve_amendment": cost_curve(now, [*found.eras, Era(AMENDMENT_2_ON, amended)], costs),
+        "cost_curve_subproject": cost_curve(now, found.eras, costs, scope=SUBPROJECT_CONTROL),
+        "cost_curve_subproject_empty": cost_curve(now, found.eras, costs, scope=SUBPROJECT_TESTS),
+        "cost_curve_subproject_unbudgeted": cost_curve(
+            now, found.eras[:1], costs, scope=SUBPROJECT_CONTROL
+        ),
+        "cost_curve_subproject_empty_payment_delays": cost_curve(
+            now, found.eras, costs, delays=True, scope=SUBPROJECT_TESTS
+        ),
         "earned_value_curves": earned_value_curves(now, base, costs),
         "workload": workload(now, "current_remaining"),
         "workload_reference_budget": workload(base, "reference_budget"),
@@ -168,7 +180,7 @@ def values() -> dict[str, JsonValue]:
 
 # --- What the summaries say ---------------------------------------------------------------------
 
-_day = mocktext.day
+_day, _count = mocktext.day, mocktext.count
 _TODAY = _day(READ_ON)
 _ZONES = {"nominal": "nominal", "watch": "vigilance", "alert": "alerte"}
 
@@ -378,6 +390,7 @@ def _project_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     studies, acceptance = _objs(_get(found, "milestone_tracking")["milestones"])
     history = _get(found, "index_history")
     indices = " ; ".join(_indices(scope) for scope in _objs(history["scopes"]))
+    [control] = _objs(_get(found, "index_history_subproject")["scopes"])
     thresholds = _obj(history["thresholds"])
     marked_names = ", ".join(
         f"« {point['version_name']} »"
@@ -415,6 +428,12 @@ def _project_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"{_value(thresholds['cost_watch'])} et {_value(thresholds['cost_alert'])} "
             f"(WF-IND-0130, WF-REF-0170)."
         ),
+        "index_history_subproject": (
+            f"L'évolution des indices du seul sous-projet « {control['label']} » (scope) : les "
+            f"mêmes révisions que celle du projet, une maille au lieu de toutes, que le contexte "
+            f"nomme ; {_count(len(_objs(control['points'])))} points, le dernier au {_TODAY} pour "
+            f"la révision en cours : {_indices(control)} (WF-IND-0020, WF-IND-0130)."
+        ),
         "milestone_tracking": (
             f"Le diagramme temps/temps du projet au {_TODAY} : la réception des études, prévue au "
             f"{_on(studies['completed_on'])} par l'offre et par la référence, terminée ce jour-là, "
@@ -442,6 +461,20 @@ def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     cash = _objs(_get(found, "cost_curve_payment_delays")["cash_out_by_month"])
     to_come = sum((Decimal(cast("str", month["forecast"])) for month in cash), Decimal(0))
     planned_end = _series(_get(found, "earned_value_curves"), "planned_value")[-1]
+    control = _get(found, "cost_curve_subproject")
+    [control_step] = _objs(control["steps"])
+    control_budget = _series(control, "reference_budget")
+    control_projection = _series(control, "project_manager_projection")
+    control_spent = _series(control, "actual_cost")[-1]
+    # The day the budget of the subproject starts to grow: the day after the last point at nought.
+    amounts = [Decimal(cast("str", point["amount"])) for point in control_budget]
+    if not amounts or amounts[0] != 0 or amounts[-1] == 0:
+        message = "the budget of the control station should start at nought and grow"
+        raise ValueError(message)
+    rest = next(at for at, amount in enumerate(amounts) if amount > 0)
+    rising = date.fromisoformat(cast("str", control_budget[rest - 1]["date"])) + timedelta(days=1)
+    labels = {entry["subproject_id"]: entry["label"] for entry in fixture("subprojects")}
+    unbudgeted = _get(found, "cost_curve_subproject_unbudgeted")
     return {
         "cost_curve": (
             f"La courbe de coûts cumulés du projet au {_TODAY} : le budget de référence cumulé sur "
@@ -473,6 +506,44 @@ def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"{_money(after)} —, puis cumulé sur la nouvelle référence, jusqu'à "
             f"{_money(_series(amended, 'reference_budget')[-1]['amount'])} ; les études étant "
             f"terminées, le reste à engager et la projection ne changent pas (WF-IND-0100)."
+        ),
+        "cost_curve_subproject": (
+            f"La courbe de coûts cumulés du seul sous-projet « {labels[SUBPROJECT_CONTROL]} » au "
+            f"{_TODAY} (scope), que le contexte nomme : la marche de l'avenant 1, "
+            f"{_money(control_step['amount'])}, le {_on(control_step['date'])} — tout le budget "
+            f"du sous-projet, l'offre n'en déclarant aucun —, deux points à cette date, avant et "
+            f"après, nuls tous deux, rien n'étant encore prévu de dépenser ; puis le budget de "
+            f"référence de ses seules lignes, cumulé sur les dates de la référence à partir du "
+            f"{_day(rising)}, jusqu'à {_money(control_budget[-1]['amount'])} le "
+            f"{_on(control_budget[-1]['date'])} ; le coût réel de ses seules pièces, "
+            f"{_money(control_spent['amount'])} ; la projection du chef de projet, qui étale son "
+            f"reste à engager jusqu'à {_money(control_projection[-1]['amount'])} (WF-IND-0020, "
+            f"WF-IND-0100)."
+        ),
+        "cost_curve_subproject_empty": (
+            f"La courbe de coûts cumulés du seul sous-projet « {labels[SUBPROJECT_TESTS]} » au "
+            f"{_TODAY} (scope) : aucune ligne de la référence ni de la révision en cours ne "
+            f"relève de lui, et aucune ligne de coût réel ne lui est imputée — ses trois séries "
+            f"sans point et aucune marche ; rien à tracer, que l'écran dit (WF-IND-0020, "
+            f"WF-IND-0100)."
+        ),
+        "cost_curve_subproject_unbudgeted": (
+            f"Variante contrefactuelle : la courbe du seul sous-projet "
+            f"« {labels[SUBPROJECT_CONTROL]} » au {_TODAY} (scope) si l'avenant 1 n'avait pas été "
+            f"contractualisé, l'offre restant la référence, la révision en cours et les pièces "
+            f"inchangées. L'offre ne déclarait aucun sous-projet : le budget de référence est sans "
+            f"point, et aucune marche ; le coût réel de ses pièces, "
+            f"{_money(_series(unbudgeted, 'actual_cost')[-1]['amount'])}, et la projection du chef "
+            f"de projet, jusqu'à "
+            f"{_money(_series(unbudgeted, 'project_manager_projection')[-1]['amount'])}, restent "
+            f"tracés — une série sans point n'est que celle qui n'a rien à tracer (WF-IND-0020, "
+            f"WF-IND-0100)."
+        ),
+        "cost_curve_subproject_empty_payment_delays": (
+            f"La même courbe du sous-projet « {labels[SUBPROJECT_TESTS]} » demandée avec les "
+            f"délais de paiement (payment_delays) : ses trois séries sans point, aucune marche, "
+            f"et aucun mois de décaissement — rien n'est payé ni à payer pour lui (WF-IND-0020, "
+            f"WF-IND-0100)."
         ),
         "earned_value_curves": (
             f"Les courbes de valeur acquise du projet au {_TODAY} : la valeur planifiée, "
@@ -574,6 +645,10 @@ def examples() -> dict[str, JsonObject]:
         "remaining_indicators",
         "project_indicators",
         "cost_curve",
+        "cost_curve_subproject",
+        "cost_curve_subproject_empty",
+        "cost_curve_subproject_unbudgeted",
+        "cost_curve_subproject_empty_payment_delays",
         "earned_value_curves",
     ):
         summaries[name] = f"{summaries[name]} {mocktext.CORE_ONLY}"

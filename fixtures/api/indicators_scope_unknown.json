@@ -1,0 +1,14 @@
+{
+  "summary": "Les indicateurs du projet témoin demandés pour un sous-projet qu'il n'a pas (scope) : le paramètre est refusé, désigné par /query/scope, plutôt que de rendre des indicateurs nuls (WF-IND-0020).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/scope",
+        "code": "UNKNOWN_SUBPROJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001018"
+  }
+}

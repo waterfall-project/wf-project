@@ -2162,7 +2162,7 @@ présente donc pas de taux de charge** (décision de l'auteur du 2026-10-08 sur 
 réalisée par EP-02/L41) : la capacité de chaque rôle y figure dans le tableau, en regard de sa
 charge (WF-DEV-0070), mais n'est plus dessinée dans le graphique, où sa ligne écrasait les barres ;
 le faux back n'émet plus `load_ratio` dans les exemples `workload*`, champ que `WorkloadPlan` laisse
-facultatif. Le taux de charge reste propre au plan agrégé du portefeuille (WF-PTF-0060), où
+facultatif (retiré par EP-02/L42e). Le taux de charge reste propre au plan agrégé du portefeuille (WF-PTF-0060), où
 `load_ratio` est exigé. La date d'audit des rôles est celle de
 l'installation, le 1er septembre 2025, depuis EP-02/L23 : le test d'invariants le tient.
 
@@ -2896,6 +2896,133 @@ Engendrés par `wftools.mockaudit` : `audit_events_by_actor`, `audit_events_by_o
 toutes les lectures du journal ; `test_mockaudit.py` les tient au journal, et éprouve le tri, la
 recherche et les facettes sur des inscriptions de synthèse. Le client est régénéré ; le front les
 adopte.
+
+## Les filtres des listes du projet et les courbes d'un sous-projet (EP-02/L42e)
+
+Les quatre premiers constats de #536 et son sixième, rangés dans EP-02/L42 (#507). Le cinquième —
+les filtres par colonne des comptes, des rôles d'habilitation et du lotissement — reste ouvert dans
+#536. Les décisions sont de l'agent de livraison du lot, chacune avec sa raison ; aucune n'est une
+décision de l'auteur.
+
+**L'accueil nomme les états qu'il retient** (`ProjectListMeta.states`, #536). `listProjects`
+partage `states` avec les vues du portefeuille (`PortfolioStates`), dont le défaut, les projets en
+cours, est le périmètre de WF-PTF-0010. La spécification ne fixe aucun défaut d'état pour
+l'accueil : WF-IHM-0120 n'y nomme que le filtre des projets dont l'utilisateur est contributeur, et
+son Vérif — un contributeur de deux projets les voit à sa connexion — veut un accueil qui nomme tous
+les états, ce que le front fait. Décision de l'agent de livraison : le défaut ne change pas, et la
+réponse dit les états retenus, nommés ou par défaut, chacun une fois, dans l'ordre de
+`ProjectState`. Changer le défaut du paramètre partagé aurait changé six vues du portefeuille, que
+WF-PTF-0010 fixe ; donner à `listProjects` un paramètre à lui, de même nom et d'un autre défaut,
+aurait fait d'un nom deux règles. Un client qui ne nomme aucun état ne lit donc que les projets en
+cours, et le lit dans `meta.states` ; l'accueil, qui les nomme toujours, montre ceux de son adresse.
+`projects` et `projects_empty`, écrits à la main, nomment les six états, comme l'accueil
+les demande ; `projects_default_states`, engendré, rend les projets en cours seuls.
+
+**L'accueil se filtre par période sur l'instant de la dernière modification** (`from`, `to`, #536,
+#522). #522 demande un filtre par période sans dire sur quoi ; la liste n'a qu'une colonne de date,
+la dernière modification (`audit.updated_at`), que `sort_by` trie déjà. Décision de l'agent de
+livraison, appliquant WF-IHM-0130 — toute table se filtre sur chacune de ses colonnes — : la période
+borne cet instant, dans la forme du journal d'audit (`listAuditEvents`), sur la revue du lot : deux
+`Timestamp`, le début inclus, la fin exclue. Le front tire ces instants des jours de son lecteur —
+mars à Paris va de `2026-02-28T23:00:00Z` à `2026-03-31T22:00:00Z` —, ce qu'un jour en temps
+universel, le premier passage, ne permettait pas : une modification faite à 23 h 30 UTC le 28 février
+est du 1er mars à Paris. Une colonne d'horodatage se filtre donc comme le journal, une colonne de
+dates de planning comme les coûts réels. Écartée : la période du portefeuille (`PortfolioFrom`), qui
+ne retient que les projets terminés dans la période (WF-PTF-0010) — elle ne dit rien d'un projet
+d'un autre état, et l'accueil n'est pas une vue du portefeuille. Exemples `projects_period`, mars à
+Paris, et `projects_period_inverted`. La recherche porte sur le libellé et sur le code, comme #522 le
+demande : `projects_search_code` trouve l'offre par son code, qu'aucun libellé ne contient. Le tri dit
+enfin comment il compare : les textes en points de code, un projet sans code après les autres dans
+l'ordre croissant, l'état dans l'ordre du cycle de vie (`ProjectState`), une égalité par l'ordre
+sans tri, puis l'identifiant (EP-02/L42a) ; `projects`, écrit à la main, suit cet ordre, les plus
+récemment modifiés d'abord, et `test_mocklists.py` le tient de chaque exemple de `listProjects`.
+
+**Une période inversée est refusée par une seule règle, pour tout le contrat** (revue du lot). Une
+fin qui précède le début : 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par
+`VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, comme une borne supérieure inférieure à
+l'inférieure (#545) ; un début ou une fin mal formés, `/query/from` ou `/query/to` par
+`DATE_INVALID`. `listProjects`, `listActualCosts` et `listAuditEvents` la déclarent :
+`actual_costs_period_inverted`, qui ne nommait pas le début, le nomme, et le journal gagne son
+exemple, `audit_events_period_inverted`, ainsi que `DATE_INVALID`. La convention est au tableau de
+`docs/api/README.md` ; `test_mockuniverse.py` tient chaque exemple `*_period_inverted` à la règle, le
+début dans le type de `from`. Une fin égale au début est une période vide pour un instant, d'un jour
+pour une date, jamais un refus.
+
+**Une maille inconnue est refusée** (`scope`, revue du lot ; WF-IND-0020). Un sous-projet que le
+projet n'a pas, ou un identifiant mal formé : 422 `VALIDATION_FAILED`, `fields[]` désignant
+`/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels (#293), plutôt que des
+indicateurs nuls qu'on prendrait pour ceux d'un sous-projet vide. Les cinq opérations qui prennent
+`scope` le déclarent : `getEstimateIndicators`, `getProjectIndicators`, `getCostCurve`,
+`getEarnedValueCurves` et `getIndexHistory`, exemple `indicators_scope_unknown`, écrit à la main ; le
+paramètre partagé le dit.
+
+**Les sous-projets se trient et se filtrent sur chaque colonne** (#536 ; WF-IHM-0060,
+WF-IHM-0130). `sort_by` vaut `code`, l'ordre sans tri, `label` et `has_actual_costs` ; la colonne
+des coûts réels range ceux qui en portent d'abord dans l'ordre croissant, comme l'état des comptes
+range les actifs et la nature des rôles les prédéfinis. Le code et le libellé se filtrent par la
+recherche, qui les lisait déjà ; la colonne des coûts réels par `has_actual_costs`. **Aucune
+borne**, à l'écart de la demande, qui proposait `_min` et `_max` sur les colonnes de coûts réels —
+décision de l'agent de livraison : `Subproject` ne porte aucun montant, seulement le fait qu'un coût
+réel lui est imputé, qui le rend insupprimable (WF-PRJ-0050). Les bornes valent pour une colonne de
+nombres ; en inventer une ici — le coût réel du sous-projet — ajouterait à la liste un calcul que
+WF-PRJ-0050 ne demande pas, et que les indicateurs restreints au sous-projet rendent déjà
+(WF-IND-0020). Exemples `subprojects_by_label` et `subprojects_with_actual_costs`.
+
+**Les contributeurs se cherchent, se trient et se filtrent** (#536). `search` porte sur le nom
+affiché du compte, la seule colonne de texte de la liste ; `is_active` filtre l'état du compte, un
+compte désactivé depuis l'inscription restant listé (WF-ADM-0060) ; `kinds` filtrait déjà la
+qualité. `sort_by` vaut `display_name`, comparé en points de code, `kind`, dans l'ordre de
+`ContributorKind`, les chefs de projet d'abord, et `is_active`, les actifs d'abord. Sans tri, les
+chefs de projet d'abord, puis le nom de famille et le prénom du compte, l'ordre des comptes
+(`listUsers`) : celui que `contributors`, écrit à la main, suivait sans que le contrat le dise. Le
+compteur reste celui de toute la liste, quels que soient le tri et les filtres : `setContributors`
+écrit la liste entière (WF-IHM-0110). Exemples `contributors_by_name`, `contributors_search` et
+`contributors_inactive`.
+
+**La courbe de coûts cumulés et l'évolution des indices se restreignent au sous-projet** (`scope`,
+#536, #495 ; WF-IND-0020), comme `getProjectIndicators` et `getEarnedValueCurves`. Restreinte, la
+courbe ne compte que les lignes de la maille — budget, coût réel par date de pièce, reste à engager,
+provisions —, et sa marche est ce que l'avenant a changé du budget de la maille ; l'évolution des
+indices rend la seule maille demandée, et chaque maille sans `scope`, comme avant. `context.scope`
+nomme la maille. **Le diagramme temps/temps ne prend pas de sous-projet**, à l'écart de la demande —
+décision de l'agent de livraison, appliquant WF-IND-0020 à la lettre : « Le diagramme temps/temps se
+calcule pour le seul projet : il suit des jalons, qu'un sous-projet n'a pas. » Sa description le
+dit. Exemples engendrés par `wftools.mocktoday` : `cost_curve_subproject`, le poste de commande —
+la marche de l'avenant 1, tout son budget, l'offre ne déclarant aucun sous-projet, puis son budget
+cumulé sur les dates de la référence —, et `index_history_subproject` ; `test_mocktoday.py` tient que les courbes des mailles
+somment celle du projet, à chaque date qu'elles partagent avec elle — le coût réel à chaque date de
+la sienne —, avec et sans les délais de paiement, et les décaissements mois par mois.
+
+**Une maille sans rien à tracer rend des séries sans point** (revue du lot). Les essais et la mise en
+service ne portent aucune ligne du cœur ni aucun coût réel : leur courbe, qui faisait échouer le
+générateur, rend ses trois séries sans point, aucune marche et, avec les délais de paiement, aucun
+mois de décaissement — `cost_curve_subproject_empty`. Décision de l'agent de livraison : `CurveSeries`
+exige ses séries, non leurs points, et une série vide dit « rien à tracer », que l'écran dit, là où
+une série de zéros ferait croire à un budget nul planifié. Une marche ne se rend que si l'avenant
+change le budget de la maille : celle des essais n'en a aucune, celle du poste de commande la sienne.
+Une seule série peut aussi être sans point : `cost_curve_subproject_unbudgeted`, variante
+contrefactuelle déclarée, lit le poste de commande comme si l'avenant 1 n'avait pas été
+contractualisé — l'offre, qui ne déclarait aucun sous-projet, restant la référence, la révision en
+cours et les pièces inchangées. Le témoin n'a pas de maille à lignes ou à pièces sans budget ; cette
+variante l'obtient sans toucher à l'univers, comme `cost_curve_amendment` en ajoute un second, et
+l'écran y éprouve un budget sans point à côté d'un coût réel et d'une projection tracés.
+
+**Le plan de charge d'un projet perd `load_ratio`** (#536 ; WF-DEV-0070, WF-PTF-0060). Le champ
+restait facultatif et sans description depuis la décision de l'auteur sur #375, option b, qui
+retire le taux de charge du plan d'un projet ; le retirer du schéma dit qu'aucun service ne le
+calcule pour un projet. `zone` reste, et se décrit : l'alerte d'un mois dont les heures dépassent la
+capacité du rôle, nominal sinon. **Elle ne vaut plus jamais `watch`** (revue du lot) : la vigilance du
+plan de charge est la sous-charge, un taux de charge sous le seuil que l'utilisateur choisit
+(WF-PTF-0060), sans base dans un plan qui n'a pas de taux ; WF-DEV-0070 ne demande que la capacité en
+regard. Ses valeurs sont restreintes à `nominal` et `alert`, celles d'`AlertZone`, par un schéma à
+lui, `WorkloadZone`, dont le front catalogue les deux libellés. Le plan agrégé du
+portefeuille garde son `load_ratio`, exigé, et sa vigilance.
+
+Engendrés par `wftools.mocklists`, des listes écrites à la main (`projects`, `subprojects`,
+`contributors`) : `projects_default_states`, `projects_search_code`, `projects_period`,
+`subprojects_by_label`, `subprojects_with_actual_costs`, `contributors_by_name`,
+`contributors_search`, `contributors_inactive` ; `test_mocklists.py` éprouve le tri, la recherche et
+les filtres sur des lignes de synthèse. Le client est régénéré ; le front les adopte.
 
 ## Collage et annulation
 

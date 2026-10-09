@@ -10,7 +10,13 @@ import { SignedOut } from "@/api/problem";
 import type { ProjectListGridProps } from "@/components/projects/project-list-view";
 import { SCREEN } from "@/components/shell/page-header";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import HomePage, { generateMetadata } from "./page";
 
@@ -119,7 +125,9 @@ describe("the home, the list of projects", () => {
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Projects<\/h1>/);
     expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
     const [grid] = grids.props;
+    // The order of the server, unsorted: the projects modified most recently first.
     expect(grid?.projects).toEqual([
+      expect.objectContaining({ code: "PRJ-002", state: "pricing" }),
       {
         project_id: PROJECT,
         label: "Modernisation du poste de commande",
@@ -127,9 +135,8 @@ describe("the home, the list of projects", () => {
         state: "in_progress",
         updated_at: "2026-02-02T09:00:00Z",
       },
-      expect.objectContaining({ code: "PRJ-002", state: "pricing" }),
     ]);
-    expect(grid?.page).toEqual({ limit: 50, offset: 0, total: 2 });
+    expect(grid?.page).toMatchObject({ limit: 50, offset: 0, total: 2 });
     expect(text(html)).toContain("2 projects");
   });
 
@@ -162,8 +169,70 @@ describe("the home, the list of projects", () => {
     const html = await home();
     expect(html).toMatch(/role="group" aria-label="Filter by state"/);
     expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Every state/);
-    const pressed = await home({ states: "pricing" });
-    expect(pressed).toMatch(/aria-pressed="false"[^>]*>.*?Every state/);
+  });
+
+  it("presses in the filter by state the states the address names: the address is the truth of the filter", async () => {
+    const html = await home({ states: "pricing" });
+    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
+      text(match[1] ?? ""),
+    );
+    expect(pressed).toEqual(["Pricing"]);
+  });
+
+  it("asks the period of the last modification the address holds, two instants as it names them, back to the first page", async () => {
+    // March in Paris: from the start of 1 March, included, to the start of 1 April, excluded.
+    const from = "2026-02-28T23:00:00.000Z";
+    const to = "2026-03-31T22:00:00.000Z";
+    server.answers = { ...server.answers, "GET /projects": "projects_period" };
+    const html = await home({ from, to, offset: "50" });
+    expect(listQuery()).toEqual({
+      is_contributor: "true",
+      states: EVERY_STATE,
+      from,
+      to,
+      offset: "50",
+    });
+    expect(html).toMatch(/<form aria-label="Modification period"/);
+    // Only the browser knows its time zone: the days show, and the period is sent, once hydrated.
+    expect(html.match(/<input[^>]*type="date"[^>]*value=""/g)).toHaveLength(2);
+    const period = html.slice(html.indexOf('<form aria-label="Modification period"'));
+    expect(period.slice(0, period.indexOf("</form>"))).toMatch(
+      /<button[^>]*type="submit"[^>]*disabled=""/,
+    );
+    expect(grids.props[0]?.projects.map((project) => project.code)).toEqual(["PRJ-002"]);
+    // A bound that is no instant — a day alone, a 30 February — is not asked: the API would
+    // refuse it.
+    server.clients = [];
+    await home({ from: "2026-03-01", to: "2026-02-30T00:00:00Z" });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
+  });
+
+  it("says at its field the end of a period the server refuses for preceding its start, the list unread and the filters kept", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects": {
+        problem: example("projects_period_inverted") as Problem & { status: 422 },
+      },
+    };
+    const from = "2026-03-31T22:00:00.000Z";
+    const to = "2026-02-28T23:00:00.000Z";
+    const html = await home({ from, to, states: "pricing" });
+    expect(listQuery()).toMatchObject({ from, to });
+    expect(html).not.toContain('role="grid"');
+    expect(grids.props).toEqual([]);
+    expect(text(html)).toContain("The list is not read: the server refuses the period asked.");
+    // The end refused, said at its field; the start the server names is said by its local day
+    // once hydrated (`period-filter.dom.test.tsx`), the start left as it is.
+    const fields = html.match(/<input[^>]*type="date"[^>]*>/g) ?? [];
+    expect(fields).toHaveLength(2);
+    expect(fields[0]).not.toContain("aria-invalid");
+    expect(fields[1]).toContain('aria-invalid="true"');
+    const described = /aria-describedby="([^"]+)"/.exec(fields[1] ?? "")?.[1];
+    expect(html).toContain(
+      `<p id="${described ?? ""}" class="text-xs text-destructive">The end of the period may not precede its start.</p>`,
+    );
+    // The states of the address stay pressed, to be changed.
+    expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Pricing/);
   });
 
   it("is filtered on the projects the user contributes to, by the filter of the contract, shown with the link that lifts it", async () => {
@@ -238,8 +307,9 @@ describe("the empty states of the home", () => {
   it.each([
     [{ states: "lost" }, { states: "lost" }],
     [{ search: "x" }, { search: "x" }],
+    [{ to: "2025-01-31T23:00:00.000Z" }, { to: "2025-01-31T23:00:00.000Z" }],
   ])(
-    "keeps the grid of a list its states or its search empty, to change them, and never says the user contributes to no project (%o)",
+    "keeps the grid of a list its states, its period or its search empty, to change them, and never says the user contributes to no project (%o)",
     async (address, asked) => {
       server.answers = { ...server.answers, "GET /projects": "projects_empty" };
       const html = await home(address);
@@ -300,7 +370,7 @@ describe("the empty states of the home", () => {
     expect(text(html)).toBe(
       "Projects Show only my projects Incomplete reference data No project can be created until the common reference data has: " +
         "a default calendar with working hours an active cost category " +
-        "Every state Created Pricing In progress Completed Lost Abandoned No project.",
+        "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
     );
   });
 

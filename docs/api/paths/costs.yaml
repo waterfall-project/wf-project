@@ -79,7 +79,8 @@
         description: >-
           `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans
           `fields` — une période dont la fin précède le début (`/query/to`,
-          `VALUE_OUT_OF_RANGE`), une date mal formée (`/query/from` ou `/query/to`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du
+          contrat), une date mal formée (`/query/from` ou `/query/to`,
           `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé
           (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de
           refus.

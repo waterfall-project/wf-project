@@ -11,15 +11,19 @@
  *   order is the one entered, as `getWorkBreakdown` gives it —, folds and unfolds as the grids of
  *   the tasks do (`GridTree.parent`, `fold.tsx`), and is not searched: the operation has no search.
  * - The sub-projects, each by the code the ERP knows it by, and whether actual costs are charged to
- *   it (WF-PRJ-0050), searched by the server on their code and their label. The contract sorts them
- *   by no column: the grid sorts none, in the order the server gives.
+ *   it (WF-PRJ-0050): searched by the server on their code and their label, sorted by it on each
+ *   column (`code`, `label`, `has_actual_costs`), filtered by it on their actual costs
+ *   (`has_actual_costs`).
  * - The contributors, the project manager told from the others, and whether their account is still
- *   active (WF-PRJ-0060), filtered by capacity (`kinds`). The contract neither searches nor sorts
- *   them: the grid does neither.
+ *   active (WF-PRJ-0060): searched by the server on the name of their account, sorted by it on each
+ *   column (`display_name`, `kind`, `is_active`), filtered by it on their capacity (`kinds`) and on
+ *   the state of their account (`is_active`).
  *
- * What the contract lacks for these flat tables — the sort of the sub-projects, the search and the
- * sort of the contributors — is #536, for EP-02/L42. The volumes of §4.6.2 — ten sub-projects,
- * fifty contributors a project — hold in one page, which the contract does not page.
+ * Each flat table is so filtered on each of its columns (WF-IHM-0130, `listSubprojects`,
+ * `listContributors`), its filters under the names of the contract after the prefix of its grid
+ * (`subproject_has_actual_costs`, `contributor_kinds`, `contributor_is_active`). The volumes of
+ * §4.6.2 — ten sub-projects, fifty contributors a project — hold in one page, which the contract
+ * does not page.
  *
  * Neither server nor client: the page reads the keys and the names; the grids, in the browser, the
  * rest — the functions that read a row never cross to the server.
@@ -27,8 +31,8 @@
 import { User, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { components } from "@/api/generated/schema";
-import type { GridConfig } from "@/components/grid/columns";
+import type { components, operations } from "@/api/generated/schema";
+import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
 
@@ -45,6 +49,16 @@ export type WorkBreakdown = components["schemas"]["WorkBreakdown"];
 
 /** The capacity of a contributor, as the contract names it. */
 export type ContributorKind = components["schemas"]["ContributorKind"];
+
+/** The column of the contract the server sorts the sub-projects by. */
+export type SubprojectSort = NonNullable<
+  NonNullable<operations["listSubprojects"]["parameters"]["query"]>["sort_by"]
+>;
+
+/** The column of the contract the server sorts the contributors by. */
+export type ContributorSort = NonNullable<
+  NonNullable<operations["listContributors"]["parameters"]["query"]>["sort_by"]
+>;
 
 /** What a row of the work breakdown is: an order item, a work package, a deliverable. */
 export type BreakdownKind = "orderItem" | "workPackage" | "deliverable";
@@ -70,6 +84,12 @@ export const CONTRIBUTOR_ADDRESS = prefixedAddress("contributor_");
 
 /** The capacities the contributors are restricted to, in the address: `kinds` of the contract. */
 export const CONTRIBUTOR_KINDS = "contributor_kinds";
+
+/** The state of the accounts the contributors are restricted to: `is_active` of the contract. */
+export const CONTRIBUTOR_ACTIVE = "contributor_is_active";
+
+/** The sub-projects restricted on their actual costs: `has_actual_costs` of the contract. */
+export const SUBPROJECT_ACTUAL_COSTS = "subproject_has_actual_costs";
 
 /**
  * Every capacity of the contract, in the order of its enumeration: one the contract adds fails the
@@ -161,12 +181,11 @@ function ActualCosts({ subproject }: { readonly subproject: Subproject }) {
   return t(subproject.has_actual_costs ? "charged" : "notCharged");
 }
 
-/** The grid of the sub-projects, searched by the server. */
-export const SUBPROJECT_GRID: GridConfig<Subproject, never, null> = {
+/** The grid of the sub-projects, searched and sorted by the server on each column. */
+export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
   key: SUBPROJECT_GRID_KEY,
   name: "subprojects",
   address: SUBPROJECT_ADDRESS,
-  sorts: false,
   searched: true,
   rowKey: (subproject) => subproject.subproject_id,
   columns: [
@@ -176,6 +195,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, never, null> = {
       format: "text",
       width: 130,
       pinned: true,
+      contract: "code",
       value: (subproject) => subproject.code,
     },
     {
@@ -183,6 +203,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, never, null> = {
       label: "label",
       format: "text",
       width: 320,
+      contract: "label",
       value: (subproject) => subproject.label,
     },
     {
@@ -190,6 +211,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, never, null> = {
       label: "actualCosts",
       format: "text",
       width: 130,
+      contract: "has_actual_costs",
       value: (subproject) => (subproject.has_actual_costs ? "charged" : "none"),
       render: (subproject) => <ActualCosts subproject={subproject} />,
     },
@@ -219,13 +241,14 @@ function Capacity({ contributor }: { readonly contributor: Contributor }) {
   );
 }
 
-/** The grid of the contributors, filtered by capacity by the server. */
-export const CONTRIBUTOR_GRID: GridConfig<Contributor, never, null> = {
+/**
+ * The grid of the contributors, searched on their names and sorted by the server on each column.
+ */
+export const CONTRIBUTOR_GRID: GridConfig<Contributor, ContributorSort, null> = {
   key: CONTRIBUTOR_GRID_KEY,
   name: "contributors",
   address: CONTRIBUTOR_ADDRESS,
-  sorts: false,
-  searched: false,
+  searched: true,
   rowKey: (contributor) => contributor.user_id,
   columns: [
     {
@@ -234,6 +257,7 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, never, null> = {
       format: "text",
       width: 240,
       pinned: true,
+      contract: "display_name",
       value: (contributor) => contributor.display_name,
       render: (contributor) => <ContributorName contributor={contributor} />,
     },
@@ -242,6 +266,7 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, never, null> = {
       label: "contributorKind",
       format: "text",
       width: 180,
+      contract: "kind",
       value: (contributor) => contributor.kind,
       render: (contributor) => <Capacity contributor={contributor} />,
     },
@@ -250,8 +275,15 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, never, null> = {
       label: "account",
       format: "text",
       width: 140,
+      contract: "is_active",
       value: (contributor) => (contributor.is_active ? "active" : "inactive"),
       render: (contributor) => <ActiveState active={contributor.is_active} />,
     },
   ],
 };
+
+/** The columns of the contract the grid of the sub-projects sorts by. */
+export const SUBPROJECT_SORT_COLUMNS = sortColumns(SUBPROJECT_GRID);
+
+/** The columns of the contract the grid of the contributors sorts by. */
+export const CONTRIBUTOR_SORT_COLUMNS = sortColumns(CONTRIBUTOR_GRID);

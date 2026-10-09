@@ -6,6 +6,7 @@ import {
   boundNames,
   boundsHref,
   filterHref,
+  readBoolean,
   readBounds,
   readValues,
   refusedBounds,
@@ -139,5 +140,15 @@ describe("the bounds of a column of figures in the address", () => {
     // By the two sides of a column of the contract.
     expect(refusedSides(refused, "monday")).toEqual({ min: { code: "NUMBER_INVALID" } });
     expect(refusedSides(refused, "headcount")).toBeUndefined();
+  });
+});
+
+describe("a boolean column in the address", () => {
+  it("is filtered on true or false alone, any other value retaining every row", () => {
+    const search = new URLSearchParams("contributor_is_active=false&subproject_has_actual_costs=1");
+    expect(readBoolean(search, "contributor_is_active")).toBe(false);
+    expect(readBoolean(new URLSearchParams("a=true"), "a")).toBe(true);
+    expect(readBoolean(search, "subproject_has_actual_costs")).toBeUndefined();
+    expect(readBoolean(search, "absent")).toBeUndefined();
   });
 });

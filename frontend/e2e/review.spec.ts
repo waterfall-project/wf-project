@@ -52,8 +52,8 @@ interface Language {
     readonly banner: string;
     readonly activeFilters: string;
     /**
-     * The chip of the sub-project of the indicators, which restricts the indicators and the earned
-     * value alone (#495).
+     * The chip of the sub-project of the indicators, which restricts every figure but the tracking
+     * of the milestones (WF-IND-0020).
      */
     readonly indicatorsChip: string;
     /** The chip of the sub-project of the remaining to commit, which restricts its grid alone. */
@@ -92,7 +92,7 @@ const FRENCH: Language = {
     indicators: "Indicateurs projets",
     banner: "Contexte de lecture",
     activeFilters: "Filtres actifs",
-    indicatorsChip: `Sous-projet : ${SUBPROJECT_NAME}, sur les indicateurs et la valeur acquise seulement`,
+    indicatorsChip: `Sous-projet : ${SUBPROJECT_NAME}, hors suivi des jalons`,
     gridOnlyChip: `Sous-projet : ${SUBPROJECT_NAME}, sur la grille seulement`,
     estimateGrid: "Grille de devis",
     labelColumn: "Libellé",
@@ -132,7 +132,7 @@ const ENGLISH: Language = {
     indicators: "Project indicators",
     banner: "Reading context",
     activeFilters: "Active filters",
-    indicatorsChip: `Subproject: ${SUBPROJECT_NAME}, on the indicators and the earned value only`,
+    indicatorsChip: `Subproject: ${SUBPROJECT_NAME}, except the milestone tracking`,
     gridOnlyChip: `Subproject: ${SUBPROJECT_NAME}, on the grid only`,
     estimateGrid: "Estimate grid",
     labelColumn: "Label",

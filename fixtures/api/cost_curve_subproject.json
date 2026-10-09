@@ -1,0 +1,17 @@
+{
+  "summary": "La courbe de coûts cumulés du seul sous-projet « Poste de commande » au 3 juin 2026 (scope), que le contexte nomme : la marche de l'avenant 1, 20 534,56, le 1er février 2026 — tout le budget du sous-projet, l'offre n'en déclarant aucun —, deux points à cette date, avant et après, nuls tous deux, rien n'étant encore prévu de dépenser ; puis le budget de référence de ses seules lignes, cumulé sur les dates de la référence à partir du 4 mai 2026, jusqu'à 20 534,56 le 1er janvier 2027 ; le coût réel de ses seules pièces, 2 400,00 ; la projection du chef de projet, qui étale son reste à engager jusqu'à 22 934,56 (WF-IND-0020, WF-IND-0100). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"01926f3a-7c00-7000-8000-000000000801","is_stored":false},
+    "payment_delays": false,
+    "series": [
+      {"name":"reference_budget","points":[{"date":"2026-02-01","amount":"0.00"},{"date":"2026-02-01","amount":"0.00"},{"date":"2026-05-03","amount":"0.00"},{"date":"2026-05-31","amount":"1064.08"},{"date":"2026-06-03","amount":"1223.69"},{"date":"2026-06-30","amount":"2234.56"},{"date":"2026-07-31","amount":"4557.00"},{"date":"2026-08-31","amount":"6677.49"},{"date":"2026-09-30","amount":"8898.95"},{"date":"2026-10-31","amount":"11120.41"},{"date":"2026-11-30","amount":"13240.90"},{"date":"2026-12-18","amount":"14654.56"},{"date":"2026-12-20","amount":"14654.56"},{"date":"2026-12-31","amount":"19946.56"},{"date":"2027-01-01","amount":"20534.56"}]},
+      {"name":"actual_cost","points":[{"date":"2026-02-01","amount":"0.00"},{"date":"2026-05-18","amount":"2400.00"},{"date":"2026-06-03","amount":"2400.00"}]},
+      {"name":"project_manager_projection","points":[{"date":"2026-06-03","amount":"2400.00"},{"date":"2026-06-30","amount":"4634.56"},{"date":"2026-07-31","amount":"6957.00"},{"date":"2026-08-31","amount":"9077.49"},{"date":"2026-09-30","amount":"11298.95"},{"date":"2026-10-31","amount":"13520.41"},{"date":"2026-11-30","amount":"15640.90"},{"date":"2026-12-18","amount":"17054.56"},{"date":"2026-12-20","amount":"17054.56"},{"date":"2026-12-31","amount":"22346.56"},{"date":"2027-01-01","amount":"22934.56"}]}
+    ],
+    "steps": [
+      {"date":"2026-02-01","amount":"20534.56","cause":"amendment"}
+    ],
+    "cash_out_by_month": null
+  }
+}

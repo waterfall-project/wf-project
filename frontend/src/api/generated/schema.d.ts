@@ -1265,7 +1265,7 @@ export interface paths {
         };
         /**
          * Projets
-         * @description Les projets que l'appelant peut ouvrir, et eux seuls : ceux dont il est contributeur et, s'il porte la permission « consulter tous les projets », tous les autres (WF-PRJ-0060, WF-ADM-0110) — le portefeuille, lui, compte tous les projets du périmètre (WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total` compte les projets retenus (WF-IHM-0130).
+         * @description Les projets que l'appelant peut ouvrir, et eux seuls : ceux dont il est contributeur et, s'il porte la permission « consulter tous les projets », tous les autres (WF-PRJ-0060, WF-ADM-0110) — le portefeuille, lui, compte tous les projets du périmètre (WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total` compte les projets retenus (WF-IHM-0130). La recherche (`search`) porte sur le libellé et sur le code du projet ; la période (`from`, `to`), sur l'instant de sa dernière modification (`audit.updated_at`), la colonne de date de la liste, comme celle du journal d'audit : deux instants, le début inclus, la fin exclue, que l'écran tire des jours de son lecteur. Sans `states`, les projets en cours seuls, le défaut du périmètre du portefeuille (WF-PTF-0010) que le paramètre partage : un accueil qui liste tous les projets ouvrables nomme les six états. `meta.states` dit toujours les états retenus, nommés ou par défaut, pour que l'écran montre le filtre que le serveur a appliqué.
          */
         get: operations["listProjects"];
         put?: never;
@@ -1397,7 +1397,7 @@ export interface paths {
         };
         /**
          * Sous-projets
-         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
+         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets par projet.
          */
         get: operations["listSubprojects"];
         put?: never;
@@ -1445,7 +1445,7 @@ export interface paths {
         };
         /**
          * Contributeurs du projet
-         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
+         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le nom du compte, la qualité se filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2 compte cinquante contributeurs par projet. Le compteur est celui de toute la liste, quels que soient le tri et les filtres.
          */
         get: operations["listContributors"];
         /**
@@ -2137,7 +2137,7 @@ export interface paths {
         };
         /**
          * Diagramme temps/temps
-         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage ; la courbe s'arrête à la terminaison (WF-IND-0090).
+         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage ; la courbe s'arrête à la terminaison (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un sous-projet n'a pas (WF-IND-0020).
          */
         get: operations["getMilestoneTracking"];
         put?: never;
@@ -2157,7 +2157,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés (WF-DAT-0040), et `context.is_stored`, faux, le dit.
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -2197,7 +2197,7 @@ export interface paths {
         };
         /**
          * Évolution des indices
-         * @description Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de marquage, tel que son marquage l'a conservé (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un point non calculable, jamais omis.
+         * @description Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de marquage, tel que son marquage l'a conservé (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que `context.scope` nomme (WF-IND-0020).
          */
         get: operations["getIndexHistory"];
         put?: never;
@@ -3465,6 +3465,10 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Où se tient la page dans les projets retenus, et les états retenus : ceux que la requête nomme (`states`), ou, quand elle n'en nomme aucun, ceux du défaut, les projets en cours (WF-PTF-0010), dans l'ordre de `ProjectState`. L'écran montre ainsi le filtre d'état que le serveur a appliqué, sans le deviner (WF-IHM-0130). */
+        ProjectListMeta: components["schemas"]["PaginationMeta"] & {
+            states: components["schemas"]["ProjectState"][];
+        };
         ProjectCreate: {
             label: string;
             description?: string | null;
@@ -4185,6 +4189,11 @@ export interface components {
             /** @description L'écart avec la révision marquée précédente : le devis en cours moins le sien, positif quand il le dépasse ; nul sans elle. */
             delta_to_previous_revision?: components["schemas"]["ComputableMoney"] | null;
         };
+        /**
+         * @description Zone d'un mois du plan de charge d'un projet : en alerte, quand ses heures dépassent la capacité du rôle ; nominal sinon. Jamais en vigilance : la vigilance du plan de charge est la sous-charge, un taux de charge sous le seuil que l'utilisateur choisit (WF-PTF-0060), et le plan d'un projet ne présente pas de taux de charge, la capacité étant celle de toute l'installation (WF-DEV-0070) ; le plan agrégé du portefeuille le porte (`PortfolioWorkload`). Ses valeurs sont celles d'`AlertZone`, et le front les dit de même (WF-IHM-0070).
+         * @enum {string}
+         */
+        WorkloadZone: "nominal" | "alert";
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
             context: components["schemas"]["CalculationContext"];
@@ -4205,8 +4214,7 @@ export interface components {
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
-                    load_ratio?: components["schemas"]["Computable"];
-                    zone?: components["schemas"]["AlertZone"];
+                    zone?: components["schemas"]["WorkloadZone"];
                 }[];
             }[];
         };
@@ -4313,7 +4321,7 @@ export interface components {
             past: components["schemas"]["Money"];
             forecast: components["schemas"]["Money"];
         };
-        /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. */
+        /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans point plutôt que de tracer un zéro. */
         CurveSeries: {
             context: components["schemas"]["CalculationContext"];
             /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon. */
@@ -4358,7 +4366,7 @@ export interface components {
         IndexHistory: {
             context: components["schemas"]["CalculationContext"];
             thresholds: components["schemas"]["IndexThresholds"];
-            /** @description Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet ». */
+            /** @description Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet » ; la seule maille demandée par `scope`. */
             scopes: components["schemas"]["IndexHistoryScope"][];
         };
         /**
@@ -4918,7 +4926,7 @@ export interface components {
         /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
         SubprojectFilter: "unassigned" | components["schemas"]["Uuid"];
         NodeId: components["schemas"]["Uuid"];
-        /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+        /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
         /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
@@ -6258,7 +6266,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`). Aucune liste vide ne tient lieu de refus. */
+            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat) ; un instant mal formé, `/query/from` ou `/query/to` par `DATE_INVALID`. Aucune liste vide ne tient lieu de refus. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7405,7 +7413,11 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Vrai, les seuls projets dont l'appelant est contributeur. */
                 is_contributor?: boolean;
-                /** @description Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. */
+                /** @description Début de la période, inclus : restreint aux projets dont la dernière modification (`audit.updated_at`) est à cet instant ou après lui (WF-IHM-0130). */
+                from?: components["schemas"]["Timestamp"];
+                /** @description Fin de la période, exclue : restreint aux projets modifiés avant cet instant (WF-IHM-0130). Antérieure à `from`, elle est refusée par 422 ; égale, la période est vide. */
+                to?: components["schemas"]["Timestamp"];
+                /** @description Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. Le libellé et le code se comparent dans l'ordre des points de code Unicode, un projet sans code après les autres dans l'ordre croissant ; l'état, dans l'ordre de `ProjectState`, celui du cycle de vie (WF-CYC-0010). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
                 sort_by?: "label" | "code" | "state" | "updated_at";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -7416,7 +7428,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Projets. */
+            /** @description Projets, et les états retenus. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7424,12 +7436,21 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["Project"][];
-                        meta: components["schemas"]["PaginationMeta"];
+                        meta: components["schemas"]["ProjectListMeta"];
                     };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat ; un instant mal formé, `/query/from` ou `/query/to` par `DATE_INVALID`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createProject: {
@@ -7679,6 +7700,12 @@ export interface operations {
             query?: {
                 /** @description Recherche sur le code et le libellé (WF-IHM-0130). */
                 search?: string;
+                /** @description Vrai, les seuls sous-projets auxquels des coûts réels sont imputés, qui ne se suppriment plus ; faux, les autres (WF-PRJ-0050, WF-IHM-0130). */
+                has_actual_costs?: boolean;
+                /** @description Colonne du tri ; absente, le code. Le code et le libellé se comparent dans l'ordre des points de code Unicode ; la colonne des coûts réels range les sous-projets qui en portent avant les autres dans l'ordre croissant, comme l'état des comptes range les actifs. À égalité, l'ordre de la liste sans tri, puis l'identifiant (WF-IHM-0060). */
+                sort_by?: "code" | "label" | "has_actual_costs";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -7805,8 +7832,16 @@ export interface operations {
     listContributors: {
         parameters: {
             query?: {
+                /** @description Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de la liste (WF-IHM-0130). */
+                search?: string;
                 /** @description Restreint aux contributeurs de ces qualités (WF-IHM-0130). */
                 kinds?: components["schemas"]["ContributorKind"][];
+                /** @description Vrai, les seuls contributeurs dont le compte est actif ; faux, ceux dont le compte a été désactivé depuis leur inscription, que la liste garde (WF-ADM-0060, WF-IHM-0130). */
+                is_active?: boolean;
+                /** @description Colonne du tri ; absente, les chefs de projet d'abord, puis le nom de famille et le prénom du compte, comme les comptes (`listUsers`). Le nom affiché se compare dans l'ordre des points de code Unicode ; la qualité, dans l'ordre de `ContributorKind`, les chefs de projet d'abord dans l'ordre croissant ; l'état du compte, les actifs avant les désactivés dans l'ordre croissant. À égalité, l'ordre de la liste sans tri, puis l'identifiant du compte (WF-IHM-0060). */
+                sort_by?: "display_name" | "kind" | "is_active";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -8976,7 +9011,7 @@ export interface operations {
         parameters: {
             query?: {
                 revision_id?: components["schemas"]["Uuid"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -8998,6 +9033,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getMissingRates: {
@@ -9136,7 +9180,7 @@ export interface operations {
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -9167,7 +9211,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9209,6 +9253,8 @@ export interface operations {
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
+                scope?: components["parameters"]["Scope"];
                 /** @description Vrai, les séries sont décalées des délais de paiement et portent les provisions des risques identifiés : ce sont les décaissements (WF-IND-0100). */
                 payment_delays?: boolean;
             };
@@ -9240,7 +9286,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9258,7 +9304,7 @@ export interface operations {
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
             };
             header?: never;
@@ -9289,7 +9335,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9302,7 +9348,10 @@ export interface operations {
     };
     getIndexHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
+                scope?: components["parameters"]["Scope"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -9322,6 +9371,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listRisks: {
@@ -9678,7 +9736,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans `fields` — une période dont la fin précède le début (`/query/to`, `VALUE_OUT_OF_RANGE`), une date mal formée (`/query/from` ou `/query/to`, `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de refus. */
+            /** @description `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans `fields` — une période dont la fin précède le début (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat), une date mal formée (`/query/from` ou `/query/to`, `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de refus. */
             422: {
                 headers: {
                     [name: string]: unknown;
