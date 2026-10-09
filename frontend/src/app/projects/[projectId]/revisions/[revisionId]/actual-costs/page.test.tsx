@@ -264,6 +264,21 @@ describe("the screen of the actual costs", () => {
     },
   );
 
+  it("says at the field of its end a period the API refuses, by the start it names", async () => {
+    server.answers = {
+      ...server.answers,
+      [COSTS]: { problem: example("actual_costs_period_inverted") as Problem & { status: 422 } },
+    };
+    const markup = await costsAt({ from: "2026-04-30", to: "2026-03-01" });
+    const end = /<input[^>]*value="2026-03-01"[^>]*>/.exec(markup)?.[0] ?? "";
+    expect(end).toContain('aria-invalid="true"');
+    const described = /aria-describedby="([^"]+)"/.exec(end)?.[1] ?? "";
+    expect(markup).toContain(
+      `<p id="${described}" class="text-xs text-destructive">The end of the period may not precede its start, 30 Apr 2026.</p>`,
+    );
+    expect(/<input[^>]*value="2026-04-30"[^>]*>/.exec(markup)?.[0]).not.toContain("aria-invalid");
+  });
+
   it.each([
     [
       "two parameters at once",

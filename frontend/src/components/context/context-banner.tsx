@@ -8,8 +8,9 @@
  * computed on another revision than the one the address names — a date `as_of` reads the last
  * marked revision before it —, the revision of the calculation (`CalculationContext.revision_id`),
  * named as the screen read it (#363). A filter that restricts only a part of the screen says so on
- * its chip: the chip says what it restricts — the grid and not the indicators (#459), the
- * indicators and the curves of earned value and not the other curves (#495). An icon before each
+ * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
+ * of the indicators but the tracking of the milestones, which a sub-project does not have
+ * (WF-IND-0020). An icon before each
  * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
  * words.
  *
@@ -51,14 +52,15 @@ export interface ContextBannerProps {
   /**
    * The filters the screen reads that restrict a part of it alone, and which part: the grid — the
    * sub-project of the remaining to commit, whose indicators are those of the project whole —, or
-   * the indicators — the sub-project of the screen of the indicators, which its other curves do
-   * not take. A filter not named restricts the whole screen.
+   * all but the tracking of the milestones — the sub-project of the screen of the indicators, the
+   * time/time diagram being computed for the project alone (WF-IND-0020). A filter not named
+   * restricts the whole screen.
    */
   readonly restricts?: Restrictions | undefined;
 }
 
 /** The part of a screen a filter restricts alone, by the key of its text in the catalogue. */
-export type Restriction = "grid" | "indicators";
+export type Restriction = "grid" | "exceptMilestones";
 
 /** The filters that restrict a part of a screen alone, and the part each restricts. */
 export type Restrictions = Readonly<Partial<Record<ContextFilter["name"], Restriction>>>;

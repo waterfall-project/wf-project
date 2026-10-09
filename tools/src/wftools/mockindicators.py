@@ -198,6 +198,10 @@ class Cost:
     amount: Decimal
     subproject: str | None
 
+    def counts_in(self, scope: str) -> bool:
+        """Whether the line counts in a scope: the project, or its own (WF-IND-0020)."""
+        return scope in (PROJECT, self.subproject or UNASSIGNED)
+
 
 def actual_costs() -> list[Cost]:
     """Return the lines of actual cost of the tracked scope known today, by date of document.
@@ -214,11 +218,7 @@ def actual_costs() -> list[Cost]:
 def actual(costs: Iterable[Cost], day: date, scope: str = PROJECT) -> Decimal:
     """Return the actual cost at a day: the lines dated that day or before (WF-IND-0010)."""
     return sum(
-        (
-            cost.amount
-            for cost in costs
-            if cost.on <= day and scope in (PROJECT, cost.subproject or UNASSIGNED)
-        ),
+        (cost.amount for cost in costs if cost.on <= day and cost.counts_in(scope)),
         Decimal(0),
     )
 
@@ -350,18 +350,25 @@ def scopes() -> list[tuple[str, str | None]]:
 # --- Envelopes ----------------------------------------------------------------------------------
 
 
-def context(reading: Reading, *, stored: bool = False, at: datetime | None = None) -> JsonObject:
+def context(
+    reading: Reading,
+    *,
+    stored: bool = False,
+    at: datetime | None = None,
+    scope: str = PROJECT,
+) -> JsonObject:
     """Return the context of a calculation (`CalculationContext`, WF-IHM-0020).
 
     At the instant of the reading, or at another — a curve of a marked revision is computed
-    today, nothing keeping it (WF-DAT-0040); ``stored`` for what a marking kept.
+    today, nothing keeping it (WF-DAT-0040); ``stored`` for what a marking kept; for the scope
+    computed, the whole project by default (WF-IND-0020).
     """
     draft = reading.revision == mockhistory.CURRENT
     return {
         "revision_id": reading.revision,
         "revision_status": "draft" if draft else "marked",
         "computed_at": mockhistory.stamp(reading.at if at is None else at),
-        "scope": PROJECT,
+        "scope": scope,
         "is_stored": stored,
     }
 
@@ -739,8 +746,12 @@ class Point:
     version_name: str | None
 
 
-def index_history(points: Sequence[Point], costs: list[Cost]) -> JsonObject:
+def index_history(
+    points: Sequence[Point], costs: list[Cost], only: str | None = None
+) -> JsonObject:
     """Return the evolution of the indices of each scope (`IndexHistory`, WF-IND-0130).
+
+    Of the one scope asked (`scope`), when one is, which the context names (WF-IND-0020).
 
     A point for each revision marked from the state In progress, at its marking, as it kept them
     — one marked while pricing kept the indicators of its estimate alone (WF-DAT-0040,
@@ -753,6 +764,8 @@ def index_history(points: Sequence[Point], costs: list[Cost]) -> JsonObject:
     kept = [point for point in points if state_at(point.reading.at) == IN_PROGRESS]
     entries: list[JsonValue] = []
     for scope, label in scopes():
+        if only is not None and scope != only:
+            continue
         series: list[JsonValue] = []
         for point in kept:
             day = point.reading.day
@@ -770,7 +783,7 @@ def index_history(points: Sequence[Point], costs: list[Cost]) -> JsonObject:
             )
         entries.append({"scope": scope, "label": label, "points": series})
     return {
-        "context": context(current.reading),
+        "context": context(current.reading, scope=PROJECT if only is None else only),
         "thresholds": fixture("reference_settings")["index_thresholds"],
         "scopes": entries,
     }

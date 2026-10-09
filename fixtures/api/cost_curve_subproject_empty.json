@@ -1,0 +1,15 @@
+{
+  "summary": "La courbe de coûts cumulés du seul sous-projet « Essais et mise en service » au 3 juin 2026 (scope) : aucune ligne de la référence ni de la révision en cours ne relève de lui, et aucune ligne de coût réel ne lui est imputée — ses trois séries sans point et aucune marche ; rien à tracer, que l'écran dit (WF-IND-0020, WF-IND-0100). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"01926f3a-7c00-7000-8000-000000000802","is_stored":false},
+    "payment_delays": false,
+    "series": [
+      {"name":"reference_budget","points":[]},
+      {"name":"actual_cost","points":[]},
+      {"name":"project_manager_projection","points":[]}
+    ],
+    "steps": [],
+    "cash_out_by_month": null
+  }
+}

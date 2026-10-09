@@ -6,7 +6,9 @@
  * accounts, the capacities of the contributors —, written in one parameter, its values separated by
  * commas, as the contract declares every list (`explode: false`); and the bounds of a column of
  * figures, `<column>_min` and `<column>_max`, both included, as the contract names them for every
- * list (#545, `docs/api/DECISIONS.md`). A filter chosen only changes the
+ * list (#545, `docs/api/DECISIONS.md`) — a period, `from` and `to`, is in `period.ts`. A
+ * boolean column — the actual costs of the sub-projects, the state of an account — is filtered by
+ * `true` or `false`, none retaining every row. A filter chosen only changes the
  * address, and the page reads anew: the server filters, never the front (WF-ARC-0020). A list the
  * server pages starts again from its first page, the place of a row in the list shown meaning
  * nothing in the one filtered otherwise.
@@ -224,4 +226,13 @@ export function refusedSides(
   return min === undefined && max === undefined
     ? undefined
     : { ...(min === undefined ? {} : { min }), ...(max === undefined ? {} : { max }) };
+}
+
+/**
+ * The value a parameter of the address filters a boolean column on: `true` or `false`; none for
+ * any other value — every row, the server reading no filter.
+ */
+export function readBoolean(search: SearchParameters, name: string): boolean | undefined {
+  const value = search.get(name);
+  return value === "true" ? true : value === "false" ? false : undefined;
 }

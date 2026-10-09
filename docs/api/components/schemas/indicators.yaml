@@ -380,8 +380,18 @@ WorkloadPlan:
               properties:
                 month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
                 hours: { $ref: ../common.yaml#/Hours }
-                load_ratio: { $ref: '#/Computable' }
-                zone: { $ref: reference.yaml#/AlertZone }
+                zone: { $ref: '#/WorkloadZone' }
+
+WorkloadZone:
+  type: string
+  enum: [nominal, alert]
+  description: >-
+    Zone d'un mois du plan de charge d'un projet : en alerte, quand ses heures dépassent la
+    capacité du rôle ; nominal sinon. Jamais en vigilance : la vigilance du plan de charge est la
+    sous-charge, un taux de charge sous le seuil que l'utilisateur choisit (WF-PTF-0060), et le
+    plan d'un projet ne présente pas de taux de charge, la capacité étant celle de toute
+    l'installation (WF-DEV-0070) ; le plan agrégé du portefeuille le porte (`PortfolioWorkload`).
+    Ses valeurs sont celles d'`AlertZone`, et le front les dit de même (WF-IHM-0070).
 
 MilestoneTracking:
   type: object
@@ -417,7 +427,12 @@ CurveSeries:
     Séries temporelles cumulées. Les changements du budget de référence y
     apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec
     les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses
-    séries sont décalées, et `cash_out_by_month` les détaille par mois.
+    séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point
+    n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune
+    référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût
+    réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce
+    reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans
+    point plutôt que de tracer un zéro.
   properties:
     context: { $ref: '#/CalculationContext' }
     payment_delays:
@@ -506,7 +521,9 @@ IndexHistory:
     thresholds: { $ref: reference.yaml#/IndexThresholds }
     scopes:
       type: array
-      description: Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet ».
+      description: >-
+        Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet » ; la seule maille
+        demandée par `scope`.
       items: { $ref: '#/IndexHistoryScope' }
 
 IndexHistoryScope:

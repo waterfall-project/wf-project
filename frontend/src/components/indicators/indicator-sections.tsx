@@ -10,10 +10,13 @@
  * reads and sends to the API — the front shifts nothing and computes nothing (WF-ARC-0020); the
  * command keeps the other parameters of the address, the filters of the context among them.
  *
- * The tracking of the milestones and the cumulative costs are read for the project whole: their
- * operations take no sub-project (#495). When the address filters one, each says it is not
- * restricted to it, never in silence (WF-IHM-0020) — the banner says the sub-project restricts the
- * indicators and the curves of earned value alone.
+ * The cumulative costs and the curves of earned value are read for the sub-project the address
+ * filters (`scope`); a curve with nothing to draw — a sub-project no line and no actual cost belong
+ * to — says so rather than drawing a zero, and so does each series without a point under a chart
+ * whose other series have some. The tracking of the milestones is computed for the project alone:
+ * it follows milestones, which a sub-project does not have (WF-IND-0020). When the address filters
+ * one, it says it covers the whole project, never in silence (WF-IHM-0020) — the banner says the
+ * sub-project restricts every figure but it.
  */
 import { Banknote, Info } from "lucide-react";
 import Link from "next/link";
@@ -63,15 +66,54 @@ function Said({ children }: { readonly children: ReactNode }) {
 }
 
 /**
- * What a figure says when the address filters a sub-project its operation does not take: that it
- * is read for the project whole.
+ * What the tracking of the milestones says when the address filters a sub-project: that it covers
+ * the whole project, a sub-project having no milestones (WF-IND-0020).
  */
-export function WholeProject({ children }: { readonly children: ReactNode }) {
+function WholeProject({ children }: { readonly children: ReactNode }) {
   return (
     <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <Info aria-hidden="true" className="size-4 shrink-0" />
       {children}
     </p>
+  );
+}
+
+/**
+ * Whether a curve has nothing to draw — the scope of a sub-project no line and no actual cost
+ * belong to: every series without a point —, which the screen says rather than drawing a zero.
+ */
+function isEmptyCurve(curves: CurveSeries): boolean {
+  return curves.series.every((series) => series.points.length === 0);
+}
+
+/**
+ * A curve, or, when it has nothing to draw, that it has not; under the chart, each series without a
+ * point among others that have some — the reference budget of a scope no reference budgets —, said
+ * by its name rather than drawn as a zero.
+ */
+function CurveOrNothing({
+  curves,
+  children,
+}: {
+  readonly curves: CurveSeries;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations();
+  if (isEmptyCurve(curves)) {
+    return <Said>{t("projectIndicators.curves.empty")}</Said>;
+  }
+  const empty = curves.series.filter((series) => series.points.length === 0);
+  return (
+    <>
+      {children}
+      {empty.map((series) => (
+        <Said key={series.name}>
+          {t("projectIndicators.curves.seriesEmpty", {
+            series: t(`enums.CurveSeries.series.name.${series.name}`),
+          })}
+        </Said>
+      ))}
+    </>
   );
 }
 
@@ -83,7 +125,7 @@ export function MilestoneSection({
 }: {
   readonly tracking: MilestoneTracking;
   readonly provenance: ChartProvenance;
-  /** Whether the address filters a sub-project, which the tracking does not take. */
+  /** Whether the address filters a sub-project, which has no milestones to track. */
   readonly wholeProject?: boolean;
 }) {
   const t = useTranslations("projectIndicators");
@@ -100,42 +142,43 @@ export function MilestoneSection({
 }
 
 /**
- * The cumulative costs, and the command that shifts them by the payment delays or takes the shift
- * back: the curves are named as the API says they are — shifted or not —, not as asked.
+ * The cumulative costs, for the sub-project the address filters, and the command that shifts them
+ * by the payment delays or takes the shift back: the curves are named as the API says they are —
+ * shifted or not —, not as asked. A curve with nothing to draw has nothing to shift: the command is
+ * not offered; shifted, it keeps the one that takes the shift back, the way out of it.
  */
 export function CostCurveSection({
   curves,
   address,
   provenance,
-  wholeProject = false,
 }: {
   readonly curves: CurveSeries;
   readonly address: ScreenAddress;
   readonly provenance: ChartProvenance;
-  /** Whether the address filters a sub-project, which the cumulative costs do not take. */
-  readonly wholeProject?: boolean;
 }) {
   const t = useTranslations("projectIndicators.costCurve");
-  const whole = useTranslations("projectIndicators.wholeProject");
   const shifted = curves.payment_delays;
   return (
     <Section title={t("title")}>
-      {wholeProject ? <WholeProject>{whole("costCurve")}</WholeProject> : null}
-      <Link
-        href={addressWith(address, PAYMENT_DELAYS, shifted ? undefined : "true")}
-        scroll={false}
-        className={buttonVariants({ variant: "outline", size: "sm" })}
-      >
-        <Banknote aria-hidden="true" />
-        {shifted ? t("undelay") : t("delay")}
-      </Link>
-      <CurveSeriesChart
-        curves={curves}
-        title={shifted ? t("chartTitleDelayed") : t("chartTitle")}
-        description={shifted ? t("descriptionDelayed") : t("description")}
-        file={shifted ? t("fileDelayed") : t("file")}
-        provenance={provenance}
-      />
+      {isEmptyCurve(curves) && !shifted ? null : (
+        <Link
+          href={addressWith(address, PAYMENT_DELAYS, shifted ? undefined : "true")}
+          scroll={false}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <Banknote aria-hidden="true" />
+          {shifted ? t("undelay") : t("delay")}
+        </Link>
+      )}
+      <CurveOrNothing curves={curves}>
+        <CurveSeriesChart
+          curves={curves}
+          title={shifted ? t("chartTitleDelayed") : t("chartTitle")}
+          description={shifted ? t("descriptionDelayed") : t("description")}
+          file={shifted ? t("fileDelayed") : t("file")}
+          provenance={provenance}
+        />
+      </CurveOrNothing>
     </Section>
   );
 }
@@ -151,13 +194,15 @@ export function EarnedValueSection({
   const t = useTranslations("projectIndicators.earnedValue");
   return (
     <Section title={t("title")}>
-      <CurveSeriesChart
-        curves={curves}
-        title={t("chartTitle")}
-        description={t("description")}
-        file={t("file")}
-        provenance={provenance}
-      />
+      <CurveOrNothing curves={curves}>
+        <CurveSeriesChart
+          curves={curves}
+          title={t("chartTitle")}
+          description={t("description")}
+          file={t("file")}
+          provenance={provenance}
+        />
+      </CurveOrNothing>
     </Section>
   );
 }

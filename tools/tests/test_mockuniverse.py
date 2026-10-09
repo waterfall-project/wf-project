@@ -603,3 +603,30 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
     assert Decimal(portfolio["remaining_provisions"]) == Decimal(
         fixture("volume/portfolio_risks")["identified_total"]
     )
+
+
+def test_every_inverted_period_is_refused_by_one_rule() -> None:
+    # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
+    # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
+    found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
+    assert [path.name.removesuffix("_period_inverted.json") for path in found] == [
+        "actual_costs",
+        "audit_events",
+        "projects",
+    ]
+    for path in found:
+        value = json.loads(path.read_text(encoding="utf-8"))["value"]
+        assert (value["code"], value["status"]) == ("VALIDATION_FAILED", 422), path.name
+        [field] = value["fields"]
+        assert {key: field[key] for key in ("pointer", "code")} == {
+            "pointer": "/query/to",
+            "code": "VALUE_OUT_OF_RANGE",
+        }, path.name
+        assert list(field["params"]) == ["minimum"], path.name
+        # The start in the type of `from`: a date of planning for the actual costs, an instant
+        # for the journal and the home.
+        minimum = field["params"]["minimum"]
+        if path.name.startswith("actual_costs"):
+            assert date.fromisoformat(minimum).isoformat() == minimum
+        else:
+            assert datetime.fromisoformat(minimum).tzinfo == UTC, path.name

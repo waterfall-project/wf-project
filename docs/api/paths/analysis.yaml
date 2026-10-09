@@ -33,6 +33,16 @@
               missing_rates: { $ref: ../../../fixtures/api/estimate_indicators_missing_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal
+          formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`
+          (WF-IND-0020).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
 
 /projects/{project_id}/estimate-indicators/missing-rates:
   get:
@@ -232,10 +242,14 @@
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
-          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+          choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou
+          un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`,
+          `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
 
 /projects/{project_id}/indicators/milestone-tracking:
   get:
@@ -245,7 +259,8 @@
     description: >-
       Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait,
       en fonction de sa date de marquage ; la courbe s'arrête à la terminaison
-      (WF-IND-0090).
+      (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
+      sous-projet n'a pas (WF-IND-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -277,11 +292,18 @@
       marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les
       lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou
       égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés
-      (WF-DAT-0040), et `context.is_stored`, faux, le dit.
+      (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à
+      l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les
+      lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce
+      que l'avenant change du budget de la maille, aucune s'il n'en change rien ;
+      `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la
+      révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune
+      marche, et `cash_out_by_month` vide avec les délais de paiement.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
       - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/Scope
       - name: payment_delays
         in: query
         description: >-
@@ -298,6 +320,10 @@
               witness: { $ref: ../../../fixtures/api/cost_curve.json }
               payment_delays: { $ref: ../../../fixtures/api/cost_curve_payment_delays.json }
               amendment: { $ref: ../../../fixtures/api/cost_curve_amendment.json }
+              subproject: { $ref: ../../../fixtures/api/cost_curve_subproject.json }
+              subproject_empty: { $ref: ../../../fixtures/api/cost_curve_subproject_empty.json }
+              subproject_unbudgeted: { $ref: ../../../fixtures/api/cost_curve_subproject_unbudgeted.json }
+              subproject_empty_payment_delays: { $ref: ../../../fixtures/api/cost_curve_subproject_empty_payment_delays.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -313,10 +339,14 @@
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
-          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+          choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou
+          un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`,
+          `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
 
 /projects/{project_id}/indicators/earned-value-curves:
   get:
@@ -358,10 +388,14 @@
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
-          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+          choisissant la révision du calcul, `fields` désignant `/query/revision_id` ; ou
+          un sous-projet que le projet n'a pas, ou un identifiant mal formé, dans `scope`,
+          `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT` (WF-IND-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
 
 /projects/{project_id}/indicators/index-history:
   get:
@@ -375,9 +409,12 @@
       (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec
       les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un
       indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un
-      point non calculable, jamais omis.
+      point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule
+      maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que
+      `context.scope` nomme (WF-IND-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/Scope
     responses:
       '200':
         description: Courbes des indices par maille, et les seuils.
@@ -386,5 +423,16 @@
             schema: { $ref: ../components/schemas/indicators.yaml#/IndexHistory }
             examples:
               witness: { $ref: ../../../fixtures/api/index_history.json }
+              subproject: { $ref: ../../../fixtures/api/index_history_subproject.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal
+          formé, dans `scope`, `fields` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`
+          (WF-IND-0020).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }

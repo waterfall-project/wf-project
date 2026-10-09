@@ -60,7 +60,7 @@ export interface Examples {
     200: "portfolio_workload" | "portfolio_workload_org_node";
   };
   "GET /projects": {
-    200: "projects" | "projects_empty";
+    200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
   };
   "GET /projects/{project_id}": {
     200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
@@ -69,7 +69,7 @@ export interface Examples {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
   };
   "GET /projects/{project_id}/contributors": {
-    200: "contributors";
+    200: "contributors" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
   };
   "GET /projects/{project_id}/cost-imports": {
     200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty";
@@ -90,13 +90,13 @@ export interface Examples {
     200: "project_indicators" | "project_indicators_marked";
   };
   "GET /projects/{project_id}/indicators/cost-curve": {
-    200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays";
+    200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays" | "cost_curve_subproject" | "cost_curve_subproject_empty" | "cost_curve_subproject_empty_payment_delays" | "cost_curve_subproject_unbudgeted";
   };
   "GET /projects/{project_id}/indicators/earned-value-curves": {
     200: "earned_value_curves";
   };
   "GET /projects/{project_id}/indicators/index-history": {
-    200: "index_history";
+    200: "index_history" | "index_history_subproject";
   };
   "GET /projects/{project_id}/indicators/milestone-tracking": {
     200: "milestone_tracking" | "milestone_tracking_none";
@@ -147,7 +147,7 @@ export interface Examples {
     200: "state_transitions" | "state_transitions_exited";
   };
   "GET /projects/{project_id}/subprojects": {
-    200: "subprojects";
+    200: "subprojects" | "subprojects_by_label" | "subprojects_with_actual_costs";
   };
   "GET /projects/{project_id}/timelines": {
     200: "timelines" | "timelines_empty";

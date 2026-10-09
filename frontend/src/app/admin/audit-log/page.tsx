@@ -18,7 +18,8 @@
  * an auditor who may not read the accounts filters by author all the same. The links lead to the
  * projects the session may open (`listProjects`), and to the screens of their objects whose function
  * it may read (`auditReach`). A period that ends before it starts, which
- * the API refuses (422), is said in place of the inscriptions, the filters kept to be changed; any
+ * the API refuses (422), is said in place of the inscriptions, the filters kept to be changed, and
+ * at the field of its end, which names the start the API was given (`params.minimum`); any
  * other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
@@ -53,6 +54,7 @@ import {
 import { AuditGrid } from "@/components/audit/audit-grid";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { refusedPeriod } from "@/components/grid/period";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -261,6 +263,7 @@ export default async function AuditLogPage({
           users={facets.authors}
           projects={facets.projects}
           named={namedBy(journal?.items ?? [], filters)}
+          refused={"refused" in read ? refusedPeriod(read.refused.fields ?? []) : undefined}
         />
         {"refused" in read ? (
           <Refused problem={read.refused} />

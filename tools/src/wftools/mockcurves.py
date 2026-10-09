@@ -22,6 +22,7 @@ from wftools import mockhistory
 from wftools.mockcalendar import Instant
 from wftools.mockindicators import (
     END_OF_DAY,
+    PROJECT,
     Cost,
     Flow,
     Reading,
@@ -42,27 +43,28 @@ if TYPE_CHECKING:
     from wftools import mockcore
 
 
-def budget_flows(base: Reading, *, delays: bool = False) -> list[Flow]:
-    """Return the reference budget spread on the dates of the reference, each line by its task."""
+def budget_flows(base: Reading, *, delays: bool = False, scope: str = PROJECT) -> list[Flow]:
+    """Return the reference budget of a scope spread on the dates of the reference, by task."""
     return [
         over(base.bearer(line), line.amounts.budgeted, base.delays[line.number] if delays else 0)
-        for line in budgeted(base)
+        for line in budgeted(base, scope)
     ]
 
 
-def remaining_flows(reading: Reading, *, delays: bool = False) -> list[Flow]:
-    """Return the remaining to commit spread on the dates of the current revision, after today.
+def remaining_flows(reading: Reading, *, delays: bool = False, scope: str = PROJECT) -> list[Flow]:
+    """Return the remaining to commit of a scope spread on the dates of the current revision.
 
     Each line over the hours its task has left to work after the day of the reading; one whose
     task has none left on the first working day after (WF-IND-0100). With the payment delays,
     each shifted by its line's, and a provision of a risk identified at the date of its task —
-    its finish, or the first working day after today when it is past.
+    its finish, or the first working day after today when it is past. The lines of the scope
+    alone: the project, a subproject or none (WF-IND-0020).
     """
     after = Instant(reading.day, END_OF_DAY)
     flows: list[Flow] = []
     for line in reading.lines:
         amount = remaining_of(reading, line)
-        if amount == 0:
+        if amount == 0 or not reading.in_scope(line, scope):
             continue
         placed = reading.bearer(line)
         calendar, delay = placed.calendar, reading.delays[line.number] if delays else 0
@@ -136,13 +138,18 @@ class Era:
     base: Reading
 
 
-def budget_series(eras: Sequence[Era], day: date, *, delays: bool = False) -> list[JsonValue]:
-    """Return the cumulative reference budget, by the reference in force at each day.
+def budget_series(
+    eras: Sequence[Era], day: date, *, delays: bool = False, scope: str = PROJECT
+) -> list[JsonValue]:
+    """Return the cumulative reference budget of a scope, by the reference in force at each day.
 
     At the day of an amendment, two points: the budget of the reference before it, then that of
-    the reference it produced, a vertical step (DECISIONS, « Les exemples des courbes »).
+    the reference it produced, a vertical step (DECISIONS, « Les exemples des courbes »). No point
+    for a scope no reference budgets a line of.
     """
-    flows = [budget_flows(era.base, delays=delays) for era in eras]
+    flows = [budget_flows(era.base, delays=delays, scope=scope) for era in eras]
+    if not any(flows):
+        return []
     steps = [era.since for era in eras[1:]]
     found = sorted({*days_of([f for each in flows for f in each], [day]), *steps})
     values: list[tuple[date, Decimal]] = []
@@ -160,42 +167,61 @@ def actual_series(costs: list[Cost], origin: date, day: date) -> list[JsonValue]
     return _points((each, actual(costs, each)) for each in found)
 
 
+def in_scope(costs: Iterable[Cost], scope: str) -> list[Cost]:
+    """Return the lines of actual cost of a scope: all for the project (WF-IND-0020)."""
+    return [cost for cost in costs if cost.counts_in(scope)]
+
+
 def cost_curve(
-    reading: Reading, eras: Sequence[Era], costs: list[Cost], *, delays: bool = False
+    reading: Reading,
+    eras: Sequence[Era],
+    costs: list[Cost],
+    *,
+    delays: bool = False,
+    scope: str = PROJECT,
 ) -> JsonObject:
-    """Return the curve of the cumulative costs (`CurveSeries`, WF-IND-0100).
+    """Return the curve of the cumulative costs of a scope (`CurveSeries`, WF-IND-0100).
 
     The reference budget by the dates of the reference in force, stepped at each amendment; the
     actual cost by date of document up to today; beyond, the projection of the project manager,
     the remaining spread on the dates of the current revision. With the payment delays, each
     amount shifted by its line's, the provisions of the risks identified at the date of their
-    task: the disbursements, past and to come, by month.
+    task: the disbursements, past and to come, by month. Of a subproject, or of what belongs to
+    none, the lines of that scope alone, and a step what an amendment changed of its budget —
+    none where it changed nothing (`scope`, WF-IND-0020). A scope without a line in any reference
+    or in the current revision, nor a line of actual cost, has nothing to draw: its three series
+    without a point, no step, no month of disbursement.
     """
     day = reading.day
-    budget_points = budget_series(eras, day, delays=delays)
-    origin = date.fromisoformat(cast("str", cast("JsonObject", budget_points[0])["date"]))
-    flows = remaining_flows(reading, delays=delays)
+    costs = in_scope(costs, scope)
+    budget_points = budget_series(eras, day, delays=delays, scope=scope)
+    flows = remaining_flows(reading, delays=delays, scope=scope)
+    drawn = bool(budget_points or costs or flows)
+    if budget_points:
+        origin = date.fromisoformat(cast("str", cast("JsonObject", budget_points[0])["date"]))
+    else:
+        origin = min((cost.on for cost in costs), default=day + timedelta(days=1))
+        origin = min(origin - timedelta(days=1), day)
     spent = actual(costs, day)
-    projection = [day, *(each for each in days_of(flows) if each > day)]
-    cash_out = cash_out_by_month(flows, costs, day) if delays else None
+    projection = [day, *(each for each in (days_of(flows) if flows else []) if each > day)]
+    cash_out = (cash_out_by_month(flows, costs, day) if drawn else []) if delays else None
     return {
-        "context": context(reading, at=TODAY),
+        "context": context(reading, at=TODAY, scope=scope),
         "payment_delays": delays,
         "series": [
             {"name": "reference_budget", "points": budget_points},
-            {"name": "actual_cost", "points": actual_series(costs, origin, day)},
+            {"name": "actual_cost", "points": actual_series(costs, origin, day) if drawn else []},
             {
                 "name": "project_manager_projection",
-                "points": _points((each, spent + cumulated(flows, each)) for each in projection),
+                "points": _points(
+                    (each, spent + cumulated(flows, each)) for each in (projection if drawn else [])
+                ),
             },
         ],
         "steps": [
-            {
-                "date": era.since.isoformat(),
-                "amount": money(budget(era.base) - budget(eras[rank].base)),
-                "cause": "amendment",
-            }
+            {"date": era.since.isoformat(), "amount": money(change), "cause": "amendment"}
             for rank, era in enumerate(eras[1:])
+            if (change := budget(era.base, scope) - budget(eras[rank].base, scope)) != 0
         ],
         "cash_out_by_month": cash_out,
     }

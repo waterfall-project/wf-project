@@ -1,0 +1,15 @@
+{
+  "summary": "Variante contrefactuelle : la courbe du seul sous-projet « Poste de commande » au 3 juin 2026 (scope) si l'avenant 1 n'avait pas été contractualisé, l'offre restant la référence, la révision en cours et les pièces inchangées. L'offre ne déclarait aucun sous-projet : le budget de référence est sans point, et aucune marche ; le coût réel de ses pièces, 2 400,00, et la projection du chef de projet, jusqu'à 22 934,56, restent tracés — une série sans point n'est que celle qui n'a rien à tracer (WF-IND-0020, WF-IND-0100). Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"01926f3a-7c00-7000-8000-000000000801","is_stored":false},
+    "payment_delays": false,
+    "series": [
+      {"name":"reference_budget","points":[]},
+      {"name":"actual_cost","points":[{"date":"2026-05-17","amount":"0.00"},{"date":"2026-05-18","amount":"2400.00"},{"date":"2026-06-03","amount":"2400.00"}]},
+      {"name":"project_manager_projection","points":[{"date":"2026-06-03","amount":"2400.00"},{"date":"2026-06-30","amount":"4634.56"},{"date":"2026-07-31","amount":"6957.00"},{"date":"2026-08-31","amount":"9077.49"},{"date":"2026-09-30","amount":"11298.95"},{"date":"2026-10-31","amount":"13520.41"},{"date":"2026-11-30","amount":"15640.90"},{"date":"2026-12-18","amount":"17054.56"},{"date":"2026-12-20","amount":"17054.56"},{"date":"2026-12-31","amount":"22346.56"},{"date":"2027-01-01","amount":"22934.56"}]}
+    ],
+    "steps": [],
+    "cash_out_by_month": null
+  }
+}

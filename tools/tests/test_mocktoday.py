@@ -15,6 +15,7 @@ import pytest
 
 from wftools import (
     mockcore,
+    mockcurves,
     mockdata,
     mockhistory,
     mockindicators,
@@ -422,3 +423,121 @@ def test_each_subproject_in_alert_is_named_in_the_summary_and_none_said_nominal(
                 overrun = mocktext.amount(-Decimal(entry["variance"]))
                 assert f"{named}, en alerte, dépasse son budget de {overrun}" in summary, name
                 assert f"{named} nominal" not in summary, name
+
+
+def _by_date(points: list[Node]) -> dict[str, list[Decimal]]:
+    """Return the amounts of a series by date: two at the date of a step, before and after."""
+    found: dict[str, list[Decimal]] = {}
+    for point in points:
+        found.setdefault(point["date"], []).append(Decimal(point["amount"]))
+    return found
+
+
+def _spent_by(points: list[Node], day: str) -> Decimal:
+    """Return the cumulative actual cost a series reaches by a day: nothing before its first."""
+    return max(
+        ((point["date"], Decimal(point["amount"])) for point in points if point["date"] <= day),
+        default=("", Decimal(0)),
+    )[1]
+
+
+@pytest.mark.parametrize("delays", [False, True])
+def test_the_curves_of_the_scopes_sum_to_the_curve_of_the_project(*, delays: bool) -> None:
+    # Each series of the cost curve counts the lines of its scope alone (`scope`, WF-IND-0020):
+    # at every date the curves of the scopes share with the project's, those of the subprojects
+    # and of what belongs to none sum to the project's. A scope without a line nor a cost — the
+    # tests and commissioning — has no point, and adds nothing.
+    found = mocktoday.witness()
+    curves: dict[str, Any] = {
+        scope: mockcurves.cost_curve(
+            found.today, found.eras, found.costs, delays=delays, scope=scope
+        )
+        for scope, _ in mockindicators.scopes()
+    }
+    project = curves.pop("project")
+    assert all(not _series(curves[TESTS], name) for name in ("reference_budget", "actual_cost"))
+    for name in ("reference_budget", "actual_cost", "project_manager_projection"):
+        whole = _by_date(_series(project, name))
+        parts = [_by_date(_series(curve, name)) for curve in curves.values()]
+        drawn = [part for part in parts if part]
+        common = [day for day in whole if all(day in part for part in drawn)]
+        assert len(common) >= 2, name
+        for day in common:
+            summed = [sum(amounts) for amounts in zip(*(part[day] for part in drawn), strict=True)]
+            assert summed == whole[day], (name, day)
+    # The actual cost steps at the dates of documents alone: read at every date of the project's.
+    for day, amounts in _by_date(_series(project, "actual_cost")).items():
+        spent = [_spent_by(_series(curve, "actual_cost"), day) for curve in curves.values()]
+        assert sum(spent) == amounts[-1], day
+    steps = sum(Decimal(step["amount"]) for curve in curves.values() for step in curve["steps"])
+    assert steps == sum(Decimal(step["amount"]) for step in project["steps"])
+    if delays:
+        # Each scope's months from its own first document: summed month by month.
+        months = [
+            {month["month"]: month for month in curve["cash_out_by_month"]}
+            for curve in curves.values()
+        ]
+        for month in project["cash_out_by_month"]:
+            for key in ("past", "forecast"):
+                summed = sum(
+                    (
+                        Decimal(part[month["month"]][key])
+                        for part in months
+                        if month["month"] in part
+                    ),
+                    Decimal(0),
+                )
+                assert summed == Decimal(month[key]), (month["month"], key)
+    assert {curve["context"]["scope"] for curve in curves.values()} == set(curves)
+
+
+def test_the_curve_of_a_subproject_counts_its_lines_alone(today: dict[str, Any]) -> None:
+    curve = today["cost_curve_subproject"]
+    project: dict[str, Any] = mockindicators.project_indicators(
+        mockindicators.today(), mockindicators.reference(), mockindicators.actual_costs(), CONTROL
+    )
+    assert curve["context"]["scope"] == CONTROL
+    assert _series(curve, "reference_budget")[-1]["amount"] == project["reference_budget"]
+    assert _series(curve, "actual_cost")[-1]["amount"] == project["actual_cost"] == "2400.00"
+    assert (
+        _series(curve, "project_manager_projection")[-1]["amount"]
+        == project["projections"]["project_manager"]
+    )
+    # The offer declared no subproject: the amendment 1 gave the control station its whole budget.
+    assert [step["amount"] for step in curve["steps"]] == [project["reference_budget"]]
+    assert today["cost_curve"]["steps"][0]["amount"] != curve["steps"][0]["amount"]
+
+
+def test_the_evolution_of_the_indices_of_a_scope_is_its_entry_alone(today: dict[str, Any]) -> None:
+    whole, alone = today["index_history"], today["index_history_subproject"]
+    [entry] = alone["scopes"]
+    assert entry == next(each for each in whole["scopes"] if each["scope"] == CONTROL)
+    assert alone["context"] == {**whole["context"], "scope": CONTROL}
+    assert whole["context"]["scope"] == "project"
+
+
+def test_a_scope_without_line_nor_cost_has_nothing_to_draw(today: dict[str, Any]) -> None:
+    curve = today["cost_curve_subproject_empty"]
+    assert curve["context"]["scope"] == TESTS
+    assert [each["points"] for each in curve["series"]] == [[], [], []]
+    assert curve["steps"] == []
+    assert curve["cash_out_by_month"] is None
+    delayed = today["cost_curve_subproject_empty_payment_delays"]
+    assert delayed["payment_delays"] is True
+    assert [each["points"] for each in delayed["series"]] == [[], [], []]
+    assert delayed["steps"] == []
+    assert delayed["cash_out_by_month"] == []
+
+
+def test_a_scope_without_budget_draws_its_cost_and_its_projection(today: dict[str, Any]) -> None:
+    # The counterfactual variant: the offer, which declared no subproject, still the reference.
+    curve, budgeted = today["cost_curve_subproject_unbudgeted"], today["cost_curve_subproject"]
+    assert curve["context"]["scope"] == CONTROL
+    assert _series(curve, "reference_budget") == []
+    assert curve["steps"] == []
+    spent = _series(curve, "actual_cost")
+    # Drawn from the day before its first document, the invoice of the control station.
+    assert spent[0] == {"date": "2026-05-17", "amount": "0.00"}
+    assert spent[-1] == _series(budgeted, "actual_cost")[-1]
+    projection = _series(curve, "project_manager_projection")
+    assert projection == _series(budgeted, "project_manager_projection")

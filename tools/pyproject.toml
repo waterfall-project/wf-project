@@ -17,6 +17,7 @@ dev = [
     "reuse>=6.2.0",
     "ruff>=0.16.9",
     "shellcheck-py>=0.11.0.1",
+    "tzdata>=2025.2",
 ]
 
 [build-system]

@@ -133,11 +133,14 @@
       '422':
         description: >-
           `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans
-          `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`). Aucune liste vide ne tient lieu de
-          refus.
+          `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle
+          de toute période du contrat) ; un instant mal formé, `/query/from` ou `/query/to` par
+          `DATE_INVALID`. Aucune liste vide ne tient lieu de refus.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/audit_events_period_inverted.json }
 
 /audit-events/facets:
   get:

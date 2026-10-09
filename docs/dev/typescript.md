@@ -308,8 +308,8 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     le focus restent ; d'autres encore tapent pendant la navigation, puis par-dessus l'adresse
     retrouvée par « Précédent » (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
     `text-filter.dom.test.tsx`, `audit.dom.test.tsx`, `grid-toolbar.dom.test.tsx`,
-    `range-filter.dom.test.tsx`, `pending-address.dom.test.tsx`, `actual-costs.spec.ts`,
-    `grid.spec.ts`) ; aucun outil ne le tient : la revue le cherche.
+    `range-filter.dom.test.tsx`, `period-filter.dom.test.tsx`, `pending-address.dom.test.tsx`,
+    `actual-costs.spec.ts`, `grid.spec.ts`) ; aucun outil ne le tient : la revue le cherche.
 21. **Liste contrôlée qui montre l'adresse pendant la navigation.** Un `<select>` dont la valeur est
     celle de l'adresse revient, dès le choix fait, à la valeur d'avant, jusqu'à ce que la page lue à
     nouveau arrive — plusieurs secondes sur le serveur de développement chargé : le choix paraît
