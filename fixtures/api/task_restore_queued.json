@@ -1,0 +1,13 @@
+{
+  "summary": "La restauration de la plateforme depuis la sauvegarde de la nuit, confirmée aujourd'hui à 14 h 04 min 30 s et mise en file : elle n'a pas encore commencé (WF-ADM-0160, WF-ARC-0090).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000937",
+    "kind": "restore",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:04:30Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

@@ -3469,6 +3469,21 @@ natures provision, la désactivation et le rattachement des catégories provisio
 (`cost_category_unrated`). `test_mockcostsettings.py` exige « relit » de chacune ; le résumé de
 `cost_categories` dit la désactivation de PRV-001 indisponible.
 
+## Les écritures des sauvegardes (EP-02/L43c)
+
+Les écritures que l'écran des sauvegardes exerce (#519) reçoivent l'exemple de leur succès, chacune à
+son instant, avant celui de l'univers : `task_backup_queued` (une sauvegarde manuelle mise en file à
+14 h 04), `backup_retained` (la sauvegarde de la nuit marquée à conserver), `backup_released` (celle
+du 30 janvier qui ne l'est plus) et `task_restore_queued` (une restauration mise en file à 14 h 04 min
+30 s). Chacun ne vaut que pour la réponse de son écriture : aucune lecture n'en tient compte.
+
+**Le téléchargement d'une sauvegarde est gardé par la permission de la restauration**
+(`platform_restore`, décision de l'auteur du 2026-10-09, #588) : une sauvegarde porte toute la base,
+comptes et projets compris, et la copier hors de la plateforme se confie aussi peu que la
+restaurer. `downloadBackup` le dit ; l'écran n'offre « Télécharger » qu'à une session qui la porte.
+Les refus que ces écritures opposeraient sans que le contrat les dise sont des « Interface contract
+issue » relevées par EP-02/L43c, sous #507.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

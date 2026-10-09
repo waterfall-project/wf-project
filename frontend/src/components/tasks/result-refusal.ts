@@ -16,6 +16,7 @@ import type { ErrorCode, Outcome } from "@/api/problem";
 import { kindOf } from "@/api/problem-kind";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
+import type { SearchParameters } from "@/navigation/context";
 import { returnTarget } from "@/navigation/login";
 
 /** The parameter of the address that names the task whose result was refused. */
@@ -38,11 +39,17 @@ export function resultHref(taskId: string, from: string): string {
 
 /**
  * The address of the screen the download left from — a path of the front, the home otherwise —,
- * with the task and the refusal of its result.
+ * with the object whose download was refused, under its parameter — the task of a result by
+ * default, `refused_backup` for a backup (`backup-address.ts`) —, and the refusal.
  */
-export function refusedHref(from: string | null, taskId: string, refusal: ResultRefusal): string {
+export function refusedHref(
+  from: string | null,
+  id: string,
+  refusal: ResultRefusal,
+  parameter = REFUSED_TASK,
+): string {
   const target = new URL(returnTarget(from), "http://front.invalid");
-  target.searchParams.set(REFUSED_TASK, taskId);
+  target.searchParams.set(parameter, id);
   target.searchParams.set(
     REFUSAL,
     refusal.kind === "unreachable"
@@ -53,19 +60,21 @@ export function refusedHref(from: string | null, taskId: string, refusal: Result
 }
 
 /**
- * The refusal an address carries, and the task it is about; none when it carries none it can
- * stand for. A code the catalogue does not know is the unexpected error, as the decoder makes it.
+ * The refusal an address carries, and the object it is about, under its parameter; none when it
+ * carries none it can stand for. A code the catalogue does not know is the unexpected error, as the
+ * decoder makes it.
  */
 export function readRefusal(
-  search: URLSearchParams,
-): { readonly taskId: string; readonly refusal: ResultRefusal } | undefined {
-  const taskId = search.get(REFUSED_TASK);
+  search: SearchParameters,
+  parameter = REFUSED_TASK,
+): { readonly id: string; readonly refusal: ResultRefusal } | undefined {
+  const id = search.get(parameter);
   const said = search.get(REFUSAL);
-  if (taskId === null || !/^[\w-]+$/.test(taskId) || said === null) {
+  if (id === null || !/^[\w-]+$/.test(id) || said === null) {
     return undefined;
   }
   if (said === "unreachable") {
-    return { taskId, refusal: { kind: "unreachable" } };
+    return { id, refusal: { kind: "unreachable" } };
   }
   const [, status = "", code = ""] = /^(\d{3}):([A-Z_]+)$/.exec(said) ?? [];
   if (status === "") {
@@ -76,20 +85,16 @@ export function readRefusal(
     code: known ? (code as ErrorCode) : "INTERNAL_ERROR",
     status: Number(status),
   } as const;
-  return {
-    taskId,
-    refusal: {
-      kind: kindOf(problem.status),
-      problem,
-      conflictingObjectId: null,
-    },
-  };
+  return { id, refusal: { kind: kindOf(problem.status), problem, conflictingObjectId: null } };
 }
 
-/** The address without the refusal it carried. */
-export function withoutRefusal(location: { readonly pathname: string; readonly search: string }) {
+/** The address without the refusal it carried, and the object named under its parameter. */
+export function withoutRefusal(
+  location: { readonly pathname: string; readonly search: string },
+  parameter = REFUSED_TASK,
+): string {
   const search = new URLSearchParams(location.search);
-  search.delete(REFUSED_TASK);
+  search.delete(parameter);
   search.delete(REFUSAL);
   const text = search.toString();
   return text === "" ? location.pathname : `${location.pathname}?${text}`;

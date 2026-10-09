@@ -344,7 +344,14 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     jugée ligne à ligne, elle ramenait la récapitulative et les totaux à la première réponse. Le rendu ne change rien de ce que l'état tient : il pose une
     copie des réponses sur la relecture ; seuls les rappels changent celles qu'ils écrivent.
     `cell-writes.dom.test.tsx`, `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx`
-    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche.
+    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche. Une
+    exception est admise, et une seule : la liste des sauvegardes (`BackupCommands`) ajuste son état
+    pendant le rendu quand les sauvegardes lues changent, le motif que React admet pour un état tiré
+    d'une prop qui change. Une sauvegarde n'a pas de compteur, et le repli doit comparer chaque
+    relecture à la précédente, pas à celle du clic : le faire dans le rendu, sur une copie, laisserait
+    reparaître une réponse qu'une relecture intermédiaire a démentie (le marquage d'un autre, puis
+    sa démarque). L'état n'y change que lorsqu'une nouvelle lecture arrive, jamais d'un rendu à
+    l'autre de la même ; la limite du repli est dite en #588.
 23. **Test du front qui fait le travail de plusieurs.** Sous happy-dom et le React de développement,
     chaque touche, chaque clic sur une grille la rend à nouveau entière — près d'une centaine de
     millisecondes de calcul —, le premier contrôle d'axe d'un fichier coûte trois fois les suivants,

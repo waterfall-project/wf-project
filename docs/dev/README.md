@@ -785,8 +785,9 @@ permission dans l'ordre du catalogue, les permissions consécutives d'une même 
 niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
-accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
+accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, dont
+les commandes sont branchées au contrat (EP-02/L43c, plus bas). Seule exception aux écrans en lecture
+de ce paragraphe, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
 seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
 `users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
 en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
@@ -811,6 +812,43 @@ elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la r
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
 heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
+
+L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519) présente leur planification en
+lecture — son formulaire vient avec L43d — et une page de leur liste sur la grille dense
+(`backup-grid.tsx`, préférences sous la clé `backups`) : la date, en heure locale, la taille, la
+vérification, le déclenchement et la conservation, dans l'ordre du serveur, la ligne des totaux
+disant combien il en retient (`meta.total`). Le contrat ne trie, ne cherche ni ne filtre les
+sauvegardes : la grille n'offre que le choix et la largeur de ses colonnes, et aucun filtre n'est
+simulé (WF-IHM-0090). Les commandes suivent les permissions du catalogue (WF-ADM-0100,
+`platformOffer`), chacune offerte sur toute sauvegarde, aucune ne supprimant
+(`backup-commands.tsx`) : à une session qui porte `backups.write`, « Sauvegarder maintenant » dans
+la tête de la liste, liste vide comprise — une tâche de fond remise au suivi avec sa commande —, et
+« Conserver » ou « Ne plus conserver » sur chaque ligne ; à une session qui porte `platform_restore`,
+« Télécharger » et « Restaurer » — le téléchargement est gardé par la permission de la restauration
+(décision de l'auteur du 2026-10-09, #588). La tête de la liste dit ce que la dernière commande a
+fait dès que la session en exerce une. Une sauvegarde n'ayant pas de compteur, la réponse d'un
+marquage reste montrée tant que chaque relecture lit la sauvegarde comme la précédente ; une
+relecture qui l'a changée l'emporte pour de bon, et une démarque par un tiers que la relecture ne
+montre pas reste invisible (#588). Le téléchargement est un lien vers la route
+`/admin/backups/[backupId]/content`, qui relaie `downloadBackup` en flux comme le résultat d'une
+tâche (`src/api/relay.ts`, commun aux deux routes) : des octets, seul type que le contrat déclare —
+tout autre renvoie l'erreur d'une mauvaise passerelle (502) —, sous le nom que l'API donne, à défaut
+`backup-<identifiant>`, avec sa longueur quand le corps arrive sans `Content-Encoding`. Un refus —
+403, 404 sans distinction (WF-ADM-0110), 502, l'API injoignable — renvoie à l'écran des sauvegardes,
+sa page gardée, l'adresse nommant la sauvegarde et le refus (`refused_backup`, `refusal`, les noms
+paramétrés de `result-refusal.ts`) : l'écran le dit au-dessus de la liste jusqu'à ce qu'on ferme
+son avis — le téléchargement nommé, la sauvegarde par sa date quand la page la porte —, et l'avis,
+rendu avec la page, prend le focus au montage, sans quoi aucun lecteur d'écran ne l'annoncerait ;
+l'adresse est rendue sans le refus une fois la page révélée (`afterReveal`), l'avis fermé ou non. « Restaurer » ouvre un
+dialogue (`restore-dialog.tsx`) qui énonce la date de la sauvegarde et sa vérification, la perte sans
+retour de ce qui a été saisi depuis, la déconnexion des utilisateurs et l'inscription au journal
+d'audit (WF-ADM-0160, WF-SEC-0030) ; le bouton ne s'active qu'une fois l'identifiant de la
+sauvegarde saisi, sans égard à la casse, et la demande énonce la date dite
+(`acknowledged_backup_taken_at`). Pendant la demande, ni Échap, ni un clic au-dehors, ni « Annuler »
+ne ferment le dialogue : un refus s'y dit, et rien ne part qu'on croie abandonné. La tâche va au
+suivi sans sa commande : une restauration ne se relance que depuis cette confirmation. Le refus
+d'une commande se dit au-dessus de la liste (`Reactivations`) ; l'écran dit que le faux back ne
+garde rien (`MockupNotice`). La restauration depuis un fichier attend #350 (EP-03).
 
 Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
 #517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du

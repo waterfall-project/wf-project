@@ -41,6 +41,32 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => shown.path,
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, some of its permissions withdrawn for a test: no example grants the
+// modification of the backups without the restoration of the platform, and one would ripple through
+// the accounts, the roles and the journal of the witness.
+const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            permissions: session.permissions.filter(
+              (permission) => !withdrawn.permissions.includes(permission),
+            ),
+          };
+    },
+  };
+});
+// The tracker of the shell, which the command that starts a backup hands its task over to.
+vi.mock("@/components/tasks/task-tracker", () => ({
+  useTrackTask: () => () => undefined,
+  afterReveal: () => () => undefined,
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -114,6 +140,7 @@ function buttons(markup: string): string[] {
 }
 
 beforeEach(() => {
+  withdrawn.permissions = [];
   shown.path = "/admin/users";
   server.clients = [];
   server.answers = {
@@ -538,25 +565,99 @@ describe("the backups", () => {
   });
 
   it("present each backup with its date, its size and its verification [WF-ADM-0150-A]", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
     const page = rendered(await BackupsPage(searched()));
     const backups = rows(page, "Sauvegardes");
-    expect(backups).toHaveLength(9);
+    expect(backups).toHaveLength(10);
     expect(backups.slice(0, 2)).toEqual([
       "Date Taille Vérification Déclenchement Conservation",
       "1,2 gigaoctet Vérifiée Planifiée",
     ]);
     expect(backups[8]).toBe("900 mégaoctets Vérifiée Manuelle Marquée à conserver");
+    // The totals row: how many the server retained, never a count of the page.
+    expect(backups[9]).toBe("8 sauvegardes");
     expect(instants(page)[0]).toBe("2026-06-03T01:00:00Z");
-    expect(text(page)).toContain("8 sauvegardes");
   });
 
-  it("present their schedule and retention, and start neither a backup nor a restoration", async () => {
+  it("offer neither a sort, a search nor a filter the contract does not carry, and ask the list unsorted and unfiltered [WF-IHM-0090-A]", async () => {
+    const page = rendered(await BackupsPage(searched({ sort_by: "taken_at", origins: "manual" })));
+    expect(sortable(page, "Sauvegardes")).toEqual([]);
+    expect(page).not.toContain('type="search"');
+    expect(page).not.toContain("<select");
+    expect(page).not.toContain("aria-pressed");
+    expect(queriesOf("GET /backups")).toEqual([{}]);
+  });
+
+  it("offer a session that may modify the backups to start one and mark each, neither to download nor to restore one without the restoration's permission [WF-ADM-0100-A]", async () => {
+    withdrawn.permissions = ["platform_restore"];
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation",
+    );
+    expect(buttons(page).filter((name) => name === "Sauvegarder maintenant")).toHaveLength(1);
+    expect(buttons(page).filter((name) => name === "Conserver")).toHaveLength(7);
+    expect(buttons(page).filter((name) => name === "Restaurer")).toEqual([]);
+    expect(links(page)).toEqual([]);
+  });
+
+  it("offer a session that may restore the platform alone to download and restore each, neither to start nor to mark one [WF-ADM-0100-A]", async () => {
+    withdrawn.permissions = ["backups.write"];
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation Téléchargement Restauration",
+    );
+    expect(buttons(page).filter((name) => /^(Sauvegarder|Conserver|Ne plus)/.test(name))).toEqual(
+      [],
+    );
+    expect(buttons(page).filter((name) => name === "Restaurer")).toHaveLength(8);
+    expect(links(page)).toHaveLength(8);
+    expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
+  });
+
+  it("say above the list the refusal of a download the route came back with", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(
+      await BackupsPage(
+        searched({
+          refused_backup: "01926f3a-7c00-7000-8000-000000000907",
+          refusal: "403:PERMISSION_MISSING",
+        }),
+      ),
+    );
+    expect(page).toContain('role="alert"');
+    expect(text(page)).toContain("Vous n’avez pas la permission nécessaire. Fermer l’avis");
+    expect(queriesOf("GET /backups")).toEqual([{}]);
+  });
+
+  it("offer a session that may modify the backups and restore the platform to start one, mark, download and restore each, saying the fake back keeps nothing — none deletes one [WF-ADM-0100-A]", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation Téléchargement Restauration",
+    );
+    expect(buttons(page).filter((name) => name === "Sauvegarder maintenant")).toHaveLength(1);
+    expect(buttons(page).filter((name) => name === "Conserver")).toHaveLength(7);
+    expect(buttons(page).filter((name) => name === "Ne plus conserver")).toHaveLength(1);
+    expect(buttons(page).filter((name) => name === "Restaurer")).toHaveLength(8);
+    expect(links(page)).toContain(
+      "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+    );
+    expect(text(page)).not.toMatch(/Supprimer/);
+    expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
+  });
+
+  it("offer no command of the backups to a session that may neither modify them nor restore the platform, nor say the fake back keeps nothing [WF-IHM-0090-A]", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
       "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
     );
-    expect(buttons(page)).toEqual([]);
+    // The choice of the columns alone: a preference of display, which writes nothing of the backups.
+    expect(buttons(page)).toEqual(["Colonnes"]);
     expect(links(page)).toEqual([]);
+    expect(text(page)).not.toContain("Maquette");
   });
 
   it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
@@ -575,11 +676,12 @@ describe("the backups", () => {
     );
   });
 
-  it("say there is none yet, once", async () => {
+  it("say there is none yet, once, and offer to start one all the same", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toMatch(/Sauvegardes Aucune sauvegarde\.$/);
-    expect(page).not.toContain('<table aria-label="Sauvegardes"');
+    expect(text(page)).toMatch(/Sauvegardes Sauvegarder maintenant Aucune sauvegarde\.$/);
+    expect(page).not.toContain('aria-label="Sauvegardes" role="grid"');
+    expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
   });
 
   it("say a page asked beyond the end of the list is no empty list, and lead back to its last page", async () => {
@@ -588,7 +690,7 @@ describe("the backups", () => {
     const page = rendered(await BackupsPage(searched({ offset: "50" })));
     expect(queriesOf("GET /backups")).toEqual([{ offset: "50" }]);
     expect(text(page)).not.toContain("Aucune sauvegarde.");
-    expect(page).not.toContain('<table aria-label="Sauvegardes"');
+    expect(page).not.toContain('role="grid"');
     expect(text(page)).toContain(
       "8 sauvegardes Cette page est au-delà de la fin de la liste. Page précédente",
     );

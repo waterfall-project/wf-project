@@ -135,7 +135,8 @@
       "auditLog": "Audit log",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid",
-      "projects": "List of projects"
+      "projects": "List of projects",
+      "backups": "Backups"
     },
     "columns": {
       "rowNumber": "No.",
@@ -232,7 +233,14 @@
       "auditObject": "Object",
       "objectHistory": "History of the object",
       "project": "Project",
-      "correlation": "Correlation"
+      "correlation": "Correlation",
+      "takenAt": "Date",
+      "size": "Size",
+      "verification": "Verification",
+      "backupOrigin": "Started",
+      "retention": "Retention",
+      "download": "Download",
+      "restore": "Restoration"
     },
     "computed": "Computed",
     "entry": {
@@ -1334,14 +1342,33 @@
     },
     "backups": {
       "title": "Backups",
-      "takenAt": "Date",
-      "size": "Size",
-      "verification": "Verification",
-      "origin": "Started",
-      "retention": "Retention",
       "retained": "Marked to keep",
       "none": "No backup.",
-      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}",
+      "start": "Back up now",
+      "started": "Backup started: follow its progress in the background tasks.",
+      "retain": "Keep",
+      "retainNamed": "Keep the backup of {date}",
+      "release": "Stop keeping",
+      "releaseNamed": "Stop keeping the backup of {date}",
+      "retainedSaid": "The backup of {date} is marked to keep.",
+      "releasedSaid": "The backup of {date} is no longer marked to keep.",
+      "download": "Download",
+      "downloadNamed": "Download the backup of {date}",
+      "restore": "Restore",
+      "restoreNamed": "Restore the platform from the backup of {date}",
+      "downloadRefused": "A backup could not be downloaded.",
+      "downloadRefusedNamed": "The backup of {date} could not be downloaded."
+    },
+    "restore": {
+      "title": "Restore the platform",
+      "warning": "The whole platform will be replaced by the backup of {date}, {verification, select, passed {verified} pending {whose verification is pending} other {whose verification failed}}: everything entered since will be lost, with no way back. Users are signed out while the restoration runs, and it will be recorded in the audit log.",
+      "confirm": "To confirm, type the identifier of the backup",
+      "identifier": "Identifier: <code></code>",
+      "submit": "Restore",
+      "sending": "Sending…",
+      "cancel": "Cancel",
+      "started": "Restoration from the backup of {date} started: follow its progress in the background tasks."
     },
     "schedule": {
       "title": "Schedule",

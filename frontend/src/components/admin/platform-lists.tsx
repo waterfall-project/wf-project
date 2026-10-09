@@ -7,15 +7,13 @@
  * provider, the last backup and the last restoration test, each dated with its outcome and the
  * motive of a failure; the alerts under way, each with its zone, by `Signal`, and what it names —
  * the component unavailable, the storage used and free (WF-OBS-0030). The backups
- * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
- * on schedule, and whether it is marked to be kept; and their schedule and retention
- * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
- * of day has no date to take the offset of a zone with summer time from. Read only: neither a
- * backup nor a restoration is started here — the commands belong to the epic of the operation of
- * the platform.
+ * (WF-ADM-0150): a page of their list on the dense grid, with the commands the session may exercise
+ * — start a backup, mark one to be kept, download one, restore the platform from one (EP-02/L43c,
+ * `backup-commands.tsx`); and their schedule and retention (WF-ADM-0170), read only — its form comes
+ * with EP-02/L43d —, its time said in universal time as the contract gives it, unconverted: a time
+ * of day has no date to take the offset of a zone with summer time from.
  */
 import {
-  Archive,
   Bell,
   CalendarClock,
   CircleCheck,
@@ -28,14 +26,22 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ListPages } from "@/components/grid/list-pages";
+import type { GridPreferences } from "@/components/grid/settings";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
+import { Reactivations } from "@/components/reference/reactivation";
 import { ReferenceSection } from "@/components/reference/section";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import type { ResultRefusal } from "@/components/tasks/result-refusal";
 import { formatBytes } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 import type { ListPage } from "@/navigation/pages";
+
+import { BACKUPS_LIST, BACKUPS_READS } from "./backup-address";
+import { BackupCommands, BackupHead, DownloadRefusal, RestoreOpened } from "./backup-commands";
+import { BackupGrid, type BackupOffers } from "./backup-grid";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
 type ComponentHealth = components["schemas"]["ComponentHealth"];
@@ -265,56 +271,52 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
 }
 
 /**
- * The backups of a page of the list, each dated, sized and verified; or that there is none — only
- * when the list holds none at all: a page asked beyond its end shows no table, and its pages say
- * where it stands (`ListPages`).
+ * The backups of a page of the list, on the dense grid (`BackupGrid`), or that there is none — only
+ * when the list holds none at all: a page asked beyond its end shows no grid, and its pages say
+ * where it stands (`ListPages`). For a session that exercises a command, the head of the list says
+ * what the last one did, and offers to start a backup to who may modify them; the refusals, and that
+ * of a download the browser came back with, are told above the list.
  */
 export function BackupList({
   backups,
   page,
+  preferences,
+  offers,
+  refused,
 }: {
   readonly backups: readonly Backup[];
   readonly page: ListPage;
+  readonly preferences: GridPreferences | undefined;
+  readonly offers: BackupOffers;
+  /** The download refused the browser came back with, if any. */
+  readonly refused: { readonly id: string; readonly refusal: ResultRefusal } | undefined;
 }) {
   const t = useTranslations("admin.backups");
-  const enums = useTranslations("enums.Backup");
-  const locale = useLocale();
   return (
-    <ReferenceSection
-      title={t("title")}
-      icon={DatabaseBackup}
-      empty={page.total === 0 ? t("none") : undefined}
-    >
-      {backups.length === 0 ? null : (
-        <ListTable
-          label={t("title")}
-          columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
+    <BackupCommands backups={backups}>
+      <Reactivations reads={BACKUPS_READS}>
+        <DownloadRefusal refused={refused} />
+        <ReferenceSection
+          title={t("title")}
+          icon={DatabaseBackup}
+          empty={page.total === 0 ? t("none") : undefined}
+          commands={
+            offers.editable || offers.restorable ? (
+              <BackupHead startable={offers.editable} />
+            ) : undefined
+          }
+          fill
         >
-          {backups.map((backup) => (
-            <TableRow key={backup.backup_id}>
-              <TableCell className={CELL}>
-                <LocalTime value={backup.taken_at} />
-              </TableCell>
-              <TableCell className={`${CELL} text-right tabular-nums`}>
-                {formatBytes(backup.size_bytes, locale)}
-              </TableCell>
-              <TableCell className={CELL}>{enums(`verification.${backup.verification}`)}</TableCell>
-              <TableCell className={CELL}>
-                {backup.origin === undefined ? null : enums(`origin.${backup.origin}`)}
-              </TableCell>
-              <TableCell className={CELL}>
-                {backup.is_retained ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Archive aria-hidden="true" className={ICON} />
-                    {t("retained")}
-                  </span>
-                ) : null}
-              </TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
-    </ReferenceSection>
+          {backups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("count", { count: page.total })}</p>
+          ) : (
+            <BackupGrid backups={backups} page={page} preferences={preferences} offers={offers} />
+          )}
+          <ListPages list={BACKUPS_LIST} texts="admin.pages" page={page} shown={backups.length} />
+        </ReferenceSection>
+        {offers.restorable ? <RestoreOpened /> : null}
+      </Reactivations>
+    </BackupCommands>
   );
 }
 
@@ -322,7 +324,7 @@ export function BackupList({
  * The schedule of the backups — off, or how often, on which day, at what time —, their retention,
  * and the copy of each scheduled backup to an external location (WF-ADM-0170): none, or the
  * location the installation declares, the folder in it and the copies kept there, suspended or
- * not. Read only: the form that sets them comes with the commands of the backups (#519).
+ * not. Read only: the form that sets them comes with EP-02/L43d (#519).
  */
 export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSchedule }) {
   const t = useTranslations("admin.schedule");

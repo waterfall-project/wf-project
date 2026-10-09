@@ -21,13 +21,21 @@ export interface LocalTimeProps {
 // The time zone of a workstation does not change under a page: nothing to subscribe to.
 const unchanging = () => () => undefined;
 
-/** Show an instant in the language of the interface and the time zone of the workstation. */
-export function LocalTime({ value }: LocalTimeProps) {
+/**
+ * An instant in the language of the interface and the time zone of the workstation, once the browser
+ * has written it; empty on the server, and while the page hydrates — a name of a command that says
+ * the date of its object (`backup-commands.tsx`).
+ */
+export function useLocalTimestamp(value: LocalTimeProps["value"]): string {
   const locale = useLocale();
-  const text = useSyncExternalStore(
+  return useSyncExternalStore(
     unchanging,
     () => formatTimestamp(value, locale),
     () => "",
   );
-  return <time dateTime={value}>{text}</time>;
+}
+
+/** Show an instant in the language of the interface and the time zone of the workstation. */
+export function LocalTime({ value }: LocalTimeProps) {
+  return <time dateTime={value}>{useLocalTimestamp(value)}</time>;
 }

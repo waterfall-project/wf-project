@@ -102,6 +102,30 @@ Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, comp
 commandes du référentiel (`CommandedList`, `ReferenceForm`, `CellCommand`), refus par champ,
 défauts nommés du guide. Ce qu'EP-14 ajoute s'écrit au cadrage, avant son plan de lots.
 
+## Notes de réalisation
+
+L'écran des sauvegardes (#519), commencé en EP-02/L43c et repris ici (#599), reçoit sa grille et
+ses commandes, la même entorse assumée au cadrage d'US-0250, qui le laissait en lecture : la liste
+passe sur la grille dense, paginée par le serveur, ses colonnes choisies et élargies — le contrat ne
+trie, ne cherche ni ne filtre les sauvegardes, et la grille n'en simule rien (WF-IHM-0090) —, et
+chaque commande suit la permission du catalogue qui la garde (WF-ADM-0100) : à une session qui peut
+modifier les sauvegardes, en déclencher une, une tâche de fond suivie comme les autres
+(`startBackup`), en marquer une à conserver ou ne plus la conserver (`retainBackup`) ; à une session
+qui peut restaurer la plateforme, la télécharger par une route du front qui relaie `downloadBackup`
+en flux, jamais par une action serveur — le téléchargement est gardé par la permission de la
+restauration (décision de l'auteur du 2026-10-09, #588) —, et la restaurer depuis une sauvegarde de
+la liste (`startRestore`), après une confirmation qui énonce la date de la sauvegarde, sa
+vérification et le caractère irréversible de l'opération, et exige la saisie de son identifiant
+(WF-ADM-0160) ; aucune commande ne supprime une sauvegarde. Le refus d'un téléchargement ramène à
+l'écran, qui le dit au-dessus de la liste et y porte le focus ; l'écran dit que le faux back ne
+garde rien (`MockupNotice`). Les exemples de succès de ces écritures entrent au contrat
+(`task_backup_queued`, `backup_retained`, `backup_released`, `task_restore_queued`). Ce que le
+contrat ne porte pas est signalé pour #507 : les filtres et le tri de `listBackups`, le nom et la
+longueur du fichier de `downloadBackup`, les commandes qu'une sauvegarde offre, et ce que refusent
+`startBackup` et `startRestore` pendant qu'une sauvegarde ou une restauration court, comme une date
+confirmée qui n'est pas celle de la sauvegarde. Le formulaire de la planification, de la rétention
+et de la copie externe vient avec la partie suivante, L43d.
+
 ---
 
 ## US-0200 — Accessibilité minimale

@@ -135,7 +135,8 @@
       "auditLog": "Journal d’audit",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager",
-      "projects": "Liste des projets"
+      "projects": "Liste des projets",
+      "backups": "Sauvegardes"
     },
     "columns": {
       "rowNumber": "N°",
@@ -232,7 +233,14 @@
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",
       "project": "Projet",
-      "correlation": "Corrélation"
+      "correlation": "Corrélation",
+      "takenAt": "Date",
+      "size": "Taille",
+      "verification": "Vérification",
+      "backupOrigin": "Déclenchement",
+      "retention": "Conservation",
+      "download": "Téléchargement",
+      "restore": "Restauration"
     },
     "computed": "Calculé",
     "entry": {
@@ -1334,14 +1342,33 @@
     },
     "backups": {
       "title": "Sauvegardes",
-      "takenAt": "Date",
-      "size": "Taille",
-      "verification": "Vérification",
-      "origin": "Déclenchement",
-      "retention": "Conservation",
       "retained": "Marquée à conserver",
       "none": "Aucune sauvegarde.",
-      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}"
+      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}",
+      "start": "Sauvegarder maintenant",
+      "started": "Sauvegarde lancée : son avancement se suit dans les tâches de fond.",
+      "retain": "Conserver",
+      "retainNamed": "Conserver la sauvegarde du {date}",
+      "release": "Ne plus conserver",
+      "releaseNamed": "Ne plus conserver la sauvegarde du {date}",
+      "retainedSaid": "La sauvegarde du {date} est marquée à conserver.",
+      "releasedSaid": "La sauvegarde du {date} n’est plus marquée à conserver.",
+      "download": "Télécharger",
+      "downloadNamed": "Télécharger la sauvegarde du {date}",
+      "restore": "Restaurer",
+      "restoreNamed": "Restaurer la plateforme depuis la sauvegarde du {date}",
+      "downloadRefused": "Le téléchargement d’une sauvegarde n’a pas pu se faire.",
+      "downloadRefusedNamed": "Le téléchargement de la sauvegarde du {date} n’a pas pu se faire."
+    },
+    "restore": {
+      "title": "Restaurer la plateforme",
+      "warning": "La plateforme entière sera remplacée par la sauvegarde du {date}, {verification, select, passed {vérifiée} pending {dont la vérification est en attente} other {dont la vérification a échoué}} : tout ce qui a été saisi depuis sera perdu, sans retour possible. Les utilisateurs sont déconnectés pendant la restauration, qui sera inscrite au journal d’audit.",
+      "confirm": "Pour confirmer, saisissez l’identifiant de la sauvegarde",
+      "identifier": "Identifiant : <code></code>",
+      "submit": "Restaurer",
+      "sending": "Envoi en cours…",
+      "cancel": "Annuler",
+      "started": "Restauration depuis la sauvegarde du {date} lancée : son avancement se suit dans les tâches de fond."
     },
     "schedule": {
       "title": "Planification",

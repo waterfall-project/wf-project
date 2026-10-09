@@ -218,9 +218,10 @@ const REVEALED_AFTER = 1000;
 
 /**
  * Run a change of the address once the page the document streamed is revealed: once the document
- * has loaded, and a while after. What it gives back cancels it.
+ * has loaded, and a while after. What it gives back cancels it — for the refusal of the result of a
+ * task, as for that of the download of a backup (`backup-commands.tsx`).
  */
-function afterReveal(change: () => void): () => void {
+export function afterReveal(change: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const loaded = () => {
     timer = setTimeout(change, REVEALED_AFTER);
@@ -261,7 +262,7 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
     if (refused === undefined) {
       return undefined;
     }
-    const { taskId, refusal } = refused;
+    const { id: taskId, refusal } = refused;
     const told = () => {
       dispatch({ type: "result_refused", refusal });
     };
@@ -277,7 +278,7 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
       store.show(undefined);
     }, told);
     return afterReveal(() => {
-      if (readRefusal(new URLSearchParams(window.location.search))?.taskId === taskId) {
+      if (readRefusal(new URLSearchParams(window.location.search))?.id === taskId) {
         window.history.replaceState(window.history.state, "", withoutRefusal(window.location));
       }
     });
