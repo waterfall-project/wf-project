@@ -1,0 +1,24 @@
+{
+  "summary": "Les essais et mise en service renommés aujourd'hui « Essais, mise en service et réception », leur code SP-ESS gardé : la version suivante de celle lue (WF-PRJ-0050, WF-IHM-0110).",
+  "value": {
+    "subproject_id": "01926f3a-7c00-7000-8000-000000000802",
+    "code": "SP-ESS",
+    "label": "Essais, mise en service et réception",
+    "has_actual_costs": false,
+    "audit": {
+      "created_at": "2026-01-20T10:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

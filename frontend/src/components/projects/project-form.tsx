@@ -23,8 +23,8 @@
  * frozen from the state in progress, as the contract says (`Project.win_probability`, WF-PRJ-0090):
  * the form no longer offers it, and says why. The answer takes the place of what the screen shows as
  * long as it is newer than the project the page read (`lock_version`) — against the fake back, which
- * keeps nothing, for as long as the screen stays (`MockupNotice`, said while the modification is
- * available) —, and the page is read anew. The form writes from the version it opened on, as the
+ * keeps nothing, for as long as the screen stays; the settings say so once, under their header
+ * (`MockupNotice`) —, and the page is read anew. The form writes from the version it opened on, as the
  * lists of the reference data do (`CommandedList`, `opened`): a reading that comes while it is open
  * does not lend its `lock_version` to a draft entered on another, which the optimistic lock refuses.
  *
@@ -53,7 +53,6 @@ import {
   ReferenceForm,
   required,
 } from "@/components/reference/reference-form";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
 import type { ProjectState } from "@/navigation/home";
@@ -285,8 +284,6 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
           <Command offer={offer} label={command("update")} icon={icon} />
         )}
       </div>
-      {/* Said to whoever may write, and to no other. */}
-      {offer?.is_available === true ? <MockupNotice /> : null}
       <SettingsFacts project={shown} />
       {editing === undefined ? null : (
         <UpdateForm

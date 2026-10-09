@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The form that creates or modifies an object of the reference data, in a dialog over its list
- * (EP-02/L43) — or a project, its identity and its facts (EP-02/L44a) —: the fields of its kind, each
- * by the pointer of the contract it writes (`code`, `capacity/monthly_hours`), a text, a number, a
- * date of planning or a choice — or a value the object lists no command to change, shown fixed,
- * read-only, and sent as it is (EP-02/L42g). A field may say a note under it, which describes it: why
- * it is fixed, or why its choices are fewer.
+ * (EP-02/L43) — or a project, its identity and its facts (EP-02/L44a), or a sub-project of a project
+ * (EP-02/L44b) —: the fields of its kind, each by the pointer of the contract it writes (`code`,
+ * `capacity/monthly_hours`), a text, a number, a date of planning or a choice — or a value the object
+ * lists no command to change, shown fixed, read-only, and sent as it is (EP-02/L42g). A field may say a
+ * note under it, which describes it: why it is fixed, or why its choices are fewer.
  *
  * The form is checked here before anything is asked: a field required left empty, a number that is
  * not one in the language of the reader (`parseDecimal`), a date that is none (`isPlanningDate`), is
@@ -90,14 +90,17 @@ export type Draft = Readonly<Record<string, string>>;
 
 /**
  * What a form writes, and how: an object of the reference data, unless it names another of the
- * contract — a project.
+ * contract — a project, or a sub-project.
  */
 export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
   ListForm,
   "target" | "onClose" | "onClosed"
 > {
-  /** What the form writes: a kind of object of the reference data, or a project (`takenByAnother`). */
-  readonly kind: ListForm["kind"] | "project";
+  /**
+   * What the form writes: a kind of object of the reference data, a project or a sub-project — what
+   * names the holder of a value already taken when the list does not (`takenByAnother`).
+   */
+  readonly kind: ListForm["kind"] | "project" | "subproject";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
@@ -270,7 +273,7 @@ function FieldControl({
   );
 }
 
-/** Render the dialog that creates or modifies an object of the reference data, or a project. */
+/** Render the dialog that creates or modifies an object of the reference data, a project or a sub-project. */
 export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,

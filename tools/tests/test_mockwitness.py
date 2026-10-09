@@ -305,6 +305,7 @@ _KEYS = {
     "calendar_id": ("calendriers",),
     "access_role_id": ("rôles d'habilitation",),
     "access_role_ids": ("rôles d'habilitation",),
+    "resource_role_ids": ("rôles de ressources",),
     "risk_id": ("risques", "risques du portefeuille"),
     "subproject_id": ("sous-projets",),
     "order_item_id": ("postes, lots et livrables du lotissement",),

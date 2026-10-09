@@ -151,6 +151,36 @@ sous quel statut et quel pointeur `WIN_PROBABILITY_FROZEN` la refuse ; le procha
 en cours ou terminal n'est pas décrit ; le refus d'un code de projet déjà porté nomme le projet par
 son seul identifiant, que l'écran ne connaît pas ; les bornes des deux taux ne sont pas dites.
 
+EP-02/L44, sa partie L44b (#584), donne aux sous-projets et aux contributeurs du projet leurs
+commandes, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#513) — une entorse assumée au critère qui laissait ces formulaires à EP-04. Comme le
+projet liste sa commande `update` — le paramétrage du projet, réservé à ses chefs de projet
+(WF-PRJ-0060), indisponible sur un projet terminal —, la liste des sous-projets offre « Nouveau
+sous-projet » et, sur chaque ligne, la modification et la suppression : un formulaire validé côté
+front, le code et le libellé exigés (`createSubproject`, `updateSubproject`), un code qu'un autre
+sous-projet porte (409 `ALREADY_EXISTS`) dit au champ ; la suppression confirmée dans la page
+(`deleteSubproject`), indisponible, sa raison dite, pour un sous-projet auquel des coûts réels sont
+imputés (WF-PRJ-0050). Comme le projet liste `manage_contributors`, la liste des contributeurs se
+modifie entière dans un dialogue (`setContributors`) : la qualité de chacun, chef de projet ou
+contributeur, son retrait, et l'inscription des comptes que le serveur propose d'après les rôles du
+devis (`listContributorSuggestions`, WF-PRJ-0070), chacun confirmé, rien n'étant écrit avant
+l'enregistrement ; une liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un
+refus par champ dit à la ligne du compte qu'il désigne, en le nommant. L'écriture part d'une lecture
+entière, avec son compteur : la page relit la liste entière quand la grille la lit filtrée. Un
+succès remplace la ligne ou la liste affichée tant qu'il est plus récent, la page relue ; le refus
+d'une suppression se dit au-dessus de la liste, la version périmée avec l'offre de relire ; l'écran
+dit que le faux back ne garde rien (`MockupNotice`). Les exemples de succès de ces écritures et des
+propositions entrent au contrat, et le 409 d'unicité du code d'un sous-projet y est décrit dans les
+termes d'EP-02/L42g ; Sacha Lefèvre, le compte proposé, est rattaché à l'atelier de câblage. Écarts
+au contrat relevés par L44b, pour #507 : un sous-projet ne liste pas ses commandes, si bien que la
+suppression d'un sous-projet qu'une révision marquée cite (WF-DAT-0080) n'est pas dite d'avance, et
+que son refus (409) n'a ni code nommé ni exemple ; aucune commande du projet ne nomme les sous-projets,
+que le front garde par `update` ; le refus par 422 d'un compte inconnu ou désactivé dans
+`setContributors` n'a ni pointeur ni code nommés ; aucune opération ne liste à un chef de projet les
+comptes qu'il peut inscrire sans `users.read`, si bien que l'écran n'inscrit que des propositions ;
+une proposition ne nomme ni son nœud ni ses rôles, et `listContributorSuggestions` dit s'appuyer sur
+le planning là où WF-PRJ-0070 nomme les lignes de devis.
+
 ---
 
 ## US-0200 — Accessibilité minimale

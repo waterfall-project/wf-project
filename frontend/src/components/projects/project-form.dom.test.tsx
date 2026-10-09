@@ -185,10 +185,6 @@ describe("the modification of a project", () => {
     // aucune transition : offerte au projet en cours, et laissée vide, elle part nulle.
     const client = serve();
     const form = await openModification();
-    // Under the modal dialog, the rest of the screen is hidden from a reader of the screen.
-    expect(screen.getByRole("note", { hidden: true })).toHaveTextContent(
-      "le service simulé répond",
-    );
     expect(within(form).getByLabelText("Commande reçue le")).not.toHaveAttribute("aria-required");
     await userEvent.clear(within(form).getByLabelText("Commande reçue le"));
     await userEvent.type(

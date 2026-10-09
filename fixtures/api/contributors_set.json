@@ -1,0 +1,38 @@
+{
+  "summary": "La liste enregistrée aujourd'hui par Camille Martin : Inès Roux passée cheffe de projet, Sacha Lefèvre inscrit participant sur la proposition de l'atelier de câblage, les autres gardés ; rendue entière, les chefs de projet d'abord, avec sa cinquième version (WF-PRJ-0060, WF-PRJ-0070, WF-IHM-0110).",
+  "value": {
+    "items": [
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin",
+        "kind": "project_manager",
+        "is_active": true
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000306",
+        "display_name": "Inès Roux",
+        "kind": "project_manager",
+        "is_active": true
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000304",
+        "display_name": "Sacha Lefèvre",
+        "kind": "contributor",
+        "is_active": true
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "display_name": "Alix Moreau",
+        "kind": "contributor",
+        "is_active": false
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000305",
+        "display_name": "Lucas Petit",
+        "kind": "contributor",
+        "is_active": true
+      }
+    ],
+    "lock_version": 5
+  }
+}

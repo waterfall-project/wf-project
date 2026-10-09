@@ -212,9 +212,10 @@ retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-
 et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
 sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
-(`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, et
-la modification du projet, sur ses paramètres (EP-02/L44a, plus bas) ; leurs listes restent en
-lecture. Les tables de données des paramètres sont trois grilles denses (#301,
+(`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
+modification du projet, sur ses paramètres (EP-02/L44a, plus bas), et, sur ses paramètres encore, les
+commandes de ses sous-projets et de ses contributeurs (EP-02/L44b, plus bas). Les tables de données des
+paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
 `subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
 sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
@@ -231,7 +232,26 @@ qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualit
 par un choix (`ChoiceFilter`), `true` ou `false`, aucun retenant toutes les lignes (`readBoolean`) ;
 chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-02/L42e). Les
 volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
-L'historique des états, une liste de lecture, reste une table simple.
+L'historique des états, une liste de lecture, reste une table simple. Les sous-projets offrent leurs
+commandes comme le projet liste `update` (`subproject-commands.tsx`) — absente, rien ; indisponible,
+« Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible, la création en tête
+de liste et, sur chaque ligne, la modification et la suppression : le formulaire du référentiel
+(`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`, `fields[]`)
+dit au champ ; la suppression confirmée dans la page, présentée indisponible, sa raison dite, pour un
+sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050), son refus par le serveur dit au-dessus
+de la liste (`Reactivations`). Les contributeurs, comme le projet liste `manage_contributors`
+(`contributor-commands.tsx`), se modifient en une liste entière dans un dialogue (`setContributors`) :
+la qualité de chacun, son retrait, et l'inscription, une à une, des propositions du serveur
+(`listContributorSuggestions`, WF-PRJ-0070), rien n'étant écrit avant l'enregistrement ; une liste
+sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
+(`/contributors/<n>/…`) dit à la ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
+lecture entière, avec son compteur : quand la grille lit la liste filtrée, la page la relit entière
+pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
+ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
+compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
+l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Les pièces communes du
+référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
+les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
 
 Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'auteur du 2026-10-08,
 #513, #524 ; `project-form.tsx`), par le formulaire du référentiel (`ReferenceForm`, qui écrit aussi

@@ -6,7 +6,10 @@
  * side of the browser — a configuration reads the rows by functions, which never cross from a
  * server component to a client one. The page hands each data only: the rows of the answer, what the
  * address asked, and the settings the session read; the tree of the work breakdown, the project
- * its folds are kept for. Read only: no cell is entered.
+ * its folds are kept for. No cell is entered: the sub-projects, offered to a session the project
+ * lists `update` to, each have their modification and their deletion in columns of their own
+ * (`subproject-commands.tsx`), and a row answered or deleted shows as the server answered it, as do
+ * the contributors once their list is written (`contributor-commands.tsx`).
  *
  * The totals row says how many the list holds — the order items of the work breakdown, the rows of
  * the answer for the others, the search and the filters applying to it (WF-IHM-0130) —, never a
@@ -21,6 +24,8 @@ import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
+import { useContributorRows } from "./contributor-commands";
+
 import {
   BREAKDOWN_GRID,
   type BreakdownRow,
@@ -31,6 +36,7 @@ import {
   type Subproject,
   type SubprojectSort,
 } from "./settings-grids";
+import { DeleteSubproject, ModifySubproject, useSubprojectRows } from "./subproject-commands";
 
 /**
  * What a grid of the settings of a project shows, by its kind: its rows, its query, its settings.
@@ -50,8 +56,77 @@ export type SettingsGridProps =
       /** How many order items the work breakdown holds. */
       readonly items: number;
     } & GridProps<BreakdownRow, never>)
-  | ({ readonly kind: "subprojects" } & GridProps<Subproject, SubprojectSort>)
+  | ({
+      readonly kind: "subprojects";
+      /** Whether each row offers its modification and its deletion. */
+      readonly editable?: boolean;
+    } & GridProps<Subproject, SubprojectSort>)
   | ({ readonly kind: "contributors" } & GridProps<Contributor, ContributorSort>);
+
+/** The grid of the sub-projects, with the columns of the commands of its rows. */
+const EDITABLE_SUBPROJECT_GRID: typeof SUBPROJECT_GRID = {
+  ...SUBPROJECT_GRID,
+  columns: [
+    ...SUBPROJECT_GRID.columns,
+    {
+      key: "modify",
+      label: "modify",
+      format: "text",
+      width: 110,
+      value: () => null,
+      render: (row) => <ModifySubproject row={row} />,
+    },
+    {
+      key: "delete",
+      label: "delete",
+      format: "text",
+      width: 120,
+      value: () => null,
+      render: (row) => <DeleteSubproject row={row} />,
+    },
+  ],
+};
+
+/** Render the grid of the sub-projects, each row as the server last answered it. */
+function SubprojectGrid({
+  rows,
+  editable = false,
+  query,
+  preferences,
+}: Omit<Extract<SettingsGridProps, { kind: "subprojects" }>, "kind">) {
+  const t = useTranslations("projectLists");
+  const shown = useSubprojectRows(rows);
+  return (
+    <DenseGrid
+      config={editable ? EDITABLE_SUBPROJECT_GRID : SUBPROJECT_GRID}
+      rows={shown}
+      totals={null}
+      totalsCaption={() => t("subprojects.count", { count: shown.length })}
+      query={query}
+      preferences={preferences}
+    />
+  );
+}
+
+/** Render the grid of the contributors, as the server last answered their list. */
+function ContributorGrid({
+  rows,
+  query,
+  preferences,
+}: Omit<Extract<SettingsGridProps, { kind: "contributors" }>, "kind">) {
+  const t = useTranslations("projectLists");
+  const shown = useContributorRows(rows);
+  return (
+    <DenseGrid
+      config={CONTRIBUTOR_GRID}
+      rows={shown}
+      totals={null}
+      totalsCaption={() => t("contributors.count", { count: shown.length })}
+      query={query}
+      preferences={preferences}
+    />
+  );
+}
 
 /** Render a grid of the settings of a project, by its kind. */
 export function SettingsGrid(props: SettingsGridProps) {
@@ -70,26 +145,8 @@ export function SettingsGrid(props: SettingsGridProps) {
         />
       );
     case "subprojects":
-      return (
-        <DenseGrid
-          config={SUBPROJECT_GRID}
-          rows={props.rows}
-          totals={null}
-          totalsCaption={() => t("subprojects.count", { count: props.rows.length })}
-          query={props.query}
-          preferences={props.preferences}
-        />
-      );
+      return <SubprojectGrid {...props} />;
     case "contributors":
-      return (
-        <DenseGrid
-          config={CONTRIBUTOR_GRID}
-          rows={props.rows}
-          totals={null}
-          totalsCaption={() => t("contributors.count", { count: props.rows.length })}
-          query={props.query}
-          preferences={props.preferences}
-        />
-      );
+      return <ContributorGrid {...props} />;
   }
 }
