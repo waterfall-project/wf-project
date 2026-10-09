@@ -206,6 +206,9 @@ export interface Examples {
   "GET /users": {
     200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
   };
+  "PATCH /backups/{backup_id}": {
+    200: "backup_released" | "backup_retained";
+  };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
   };
@@ -229,6 +232,9 @@ export interface Examples {
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "POST /backups": {
+    202: "task_backup_queued";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
@@ -271,6 +277,9 @@ export interface Examples {
   };
   "POST /reference/resource-roles": {
     201: "resource_role_created";
+  };
+  "POST /restores": {
+    202: "task_restore_queued";
   };
   "POST /session": {
     201: "session";

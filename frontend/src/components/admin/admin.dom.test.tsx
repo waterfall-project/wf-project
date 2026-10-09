@@ -160,7 +160,13 @@ describe("the state of the platform and its backups", () => {
         <StorageFacts storage={failed.storage} />
         <OperationList status={failed} />
         <BackupScheduleFacts schedule={suspended} />
-        <BackupList backups={backups.items} page={backups.meta} />
+        <BackupList
+          backups={backups.items}
+          page={backups.meta}
+          preferences={undefined}
+          offers={{ editable: false, restorable: false }}
+          refused={undefined}
+        />
       </>,
     );
     const alerts = screen.getByRole("table", { name: "Alertes en cours" });

@@ -39,6 +39,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_backup_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -78,6 +80,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/Backup }
+            examples:
+              retained: { $ref: ../../../fixtures/api/backup_retained.json }
+              released: { $ref: ../../../fixtures/api/backup_released.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -87,7 +92,10 @@
     operationId: downloadBackup
     tags: [platform]
     summary: Copier une sauvegarde hors de la plateforme
-    description: La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+    description: >-
+      La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+      Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une
+      sauvegarde porte toute la base, comptes et projets compris.
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
@@ -258,6 +266,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_restore_queued.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

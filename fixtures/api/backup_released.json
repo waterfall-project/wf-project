@@ -1,0 +1,12 @@
+{
+  "summary": "La sauvegarde manuelle du 30 janvier, qui n'est plus marquée à conserver : la rotation la supprimera à son tour (WF-ADM-0170).",
+  "value": {
+    "backup_id": "01926f3a-7c00-7000-8000-000000000900",
+    "taken_at": "2026-01-30T17:45:00Z",
+    "size_bytes": 943718400,
+    "verification": "passed",
+    "is_retained": false,
+    "scope": "database",
+    "origin": "manual"
+  }
+}

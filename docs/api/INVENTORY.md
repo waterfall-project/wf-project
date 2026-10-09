@@ -77,7 +77,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0150, WF-ARC-0090 |
 | GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0150 |
 | PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0170 |
-| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0150 |
+| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150 |
 | GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0170 |
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |

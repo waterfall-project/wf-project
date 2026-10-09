@@ -654,7 +654,7 @@ export interface paths {
         };
         /**
          * Copier une sauvegarde hors de la plateforme
-         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150). Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une sauvegarde porte toute la base, comptes et projets compris.
          */
         get: operations["downloadBackup"];
         put?: never;

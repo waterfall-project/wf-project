@@ -49,7 +49,7 @@ test("reaches every screen of the reference data and of the administration with 
   }
 });
 
-test("reads the accounts, the matrix of the permissions, the state of the platform and the backups, and starts nothing (US-0250)", async ({
+test("reads the accounts, the matrix of the permissions, the state of the platform and the backups (US-0250)", async ({
   page,
 }) => {
   await page.goto("/admin/users");
@@ -99,14 +99,66 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
 
   await page.goto("/admin/backups");
-  await expect(page.getByRole("table", { name: "Sauvegardes" }).getByRole("row")).toHaveCount(9);
+  // The header, the eight backups, the totals: how many the server retained.
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  await expect(backups.getByRole("row")).toHaveCount(10);
+  await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
   await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
   // Each scheduled backup copied to the location the installation declares, read only (#488).
   await expect(
     page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
   ).toBeVisible();
-  // Neither a backup nor a restoration is started from here.
-  await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
+});
+
+test("starts a backup, marks one to be kept, downloads one and restores the platform from one, confirmed by its identifier typed [WF-ADM-0160-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups");
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  const lastNight = backups.getByRole("row").nth(1);
+  // A command names its backup by its date once the browser has written it: the page is hydrated.
+  const keep = lastNight.getByRole("button", { name: /^Conserver la sauvegarde du \d/ });
+  await expect(keep).toBeVisible();
+  await expect(page.getByRole("note")).toHaveText(/^Maquette/);
+  const told = page.getByRole("main").getByRole("status").filter({ hasText: /\S/ });
+  const tasks = page.getByRole("region", { name: "Tâches de fond" });
+
+  // A backup started now goes to the tracker of the shell, as any background task.
+  await page.getByRole("button", { name: "Sauvegarder maintenant" }).click();
+  await expect(told).toHaveText(/^Sauvegarde lancée/);
+  await expect(tasks).toBeVisible();
+
+  // Marked to be kept, the backup is shown as the server answered it: the fake back keeps nothing.
+  await keep.click();
+  await expect(told).toHaveText(/^La sauvegarde du .+ est marquée à conserver\.$/);
+  await expect(
+    lastNight.getByRole("button", { name: /^Ne plus conserver la sauvegarde du / }),
+  ).toBeVisible();
+  await expect(lastNight).toContainText("Marquée à conserver");
+
+  // Downloaded as an attachment, by the route of the front that hands it on as a stream.
+  const downloaded = page.waitForEvent("download");
+  await lastNight.getByRole("link", { name: /^Télécharger la sauvegarde du / }).click();
+  expect((await downloaded).suggestedFilename()).toBe(
+    "backup-01926f3a-7c00-7000-8000-000000000907",
+  );
+
+  // Restored only once its identifier is typed, the dialog naming its date and what is lost.
+  const kept = backups.getByRole("row").nth(8);
+  await kept
+    .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
+  await expect(dialog).toContainText(/sauvegarde du .*2026.*sans retour possible/);
+  const restore = dialog.getByRole("button", { name: "Restaurer" });
+  await expect(restore).toBeDisabled();
+  await dialog
+    .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
+    .fill("01926f3a-7c00-7000-8000-000000000900");
+  await restore.click();
+  await expect(dialog).toBeHidden();
+  await expect(told).toHaveText(/^Restauration depuis la sauvegarde du .+ lancée/);
+  await expect(tasks.getByRole("progressbar", { name: /^Restauration «/ })).toBeVisible();
 });
 
 test("sorts, searches and filters the accounts by the server, under the names of the contract, back to their first page [WF-IHM-0060-A]", async ({
