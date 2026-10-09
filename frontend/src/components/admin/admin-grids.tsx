@@ -5,7 +5,7 @@
  * and the access roles (FBS-1.2), each alone on its screen, under the names of the contract in the
  * address, each with the key of its settings in the account (WF-ADM-0040). Both are flat tables
  * whose every column the server sorts both ways (WF-IHM-0060), and which it searches — the roles on
- * their label; the contract does not say what the search of the accounts reads (#536).
+ * their label, the accounts on their last name, first name, address and display name.
  *
  * - The accounts: each with its origin, its access roles and the node it is attached to — named
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
@@ -17,8 +17,9 @@
  *   WF-ADM-0090); for a session that may modify the roles, the commands to modify and to delete
  *   each, which EP-03 wires (`RoleCommand`) — the deletion unavailable while an account holds it.
  *
- * The contract filters the accounts by their origin, their node and their state alone, and the
- * roles by none of their columns: the other filters are #536.
+ * The server filters each on its columns (WF-IHM-0130, EP-02/L42f): the accounts by their origin,
+ * their node, their access roles — one at least of those chosen — and their state; the roles by
+ * their kind and between bounds of their holders, deactivated accounts counted.
  *
  * Neither server nor client: the page reads the keys and the columns sorted; the grids, in the
  * browser, the rest — the functions that read a row never cross to the server.
@@ -124,8 +125,9 @@ function userCommandColumns(): GridColumn<User, UserSort, UserPage>[] {
 }
 
 /**
- * The grid of the accounts — its search named after it, the contract not saying it reads labels —
- * and, for a session that may modify the accounts, their commands.
+ * The grid of the accounts — searched by the server on the last name, the first name, the address
+ * and the display name, its search named after it, the accounts having no label — and, for a
+ * session that may modify the accounts, their commands.
  */
 export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage> {
   return {

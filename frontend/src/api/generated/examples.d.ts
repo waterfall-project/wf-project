@@ -9,7 +9,7 @@ export interface Examples {
     200: "node_deleted";
   };
   "GET /access-roles": {
-    200: "access_roles";
+    200: "access_roles" | "access_roles_composed" | "access_roles_unheld";
   };
   "GET /audit-events": {
     200: "audit_events" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
@@ -153,7 +153,7 @@ export interface Examples {
     200: "timelines" | "timelines_empty";
   };
   "GET /projects/{project_id}/work-breakdown": {
-    200: "work_breakdown" | "work_breakdown_default";
+    200: "work_breakdown" | "work_breakdown_default" | "work_breakdown_search" | "work_breakdown_work_packages";
   };
   "GET /projects/{project_id}/workload": {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
@@ -204,7 +204,7 @@ export interface Examples {
     200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_page";
+    200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
   };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";

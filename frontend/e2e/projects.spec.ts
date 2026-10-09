@@ -167,6 +167,27 @@ test("the settings of a project search the sub-projects, filter the contributors
   await expect(tree.getByRole("row")).toHaveCount(3);
   await item.getByRole("button", { name: "Déplier" }).click();
   await expect(tree.getByRole("row")).toHaveCount(5);
+  // Searched on its labels and filtered on its kinds by the server, under the names of its grid.
+  await main
+    .getByRole("searchbox", { name: "Rechercher dans «\u00a0Lotissement\u00a0»" })
+    .fill("Armoires");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(`${PROJECT}/settings?breakdown_search=Armoires`, {
+    timeout: WORKING,
+  });
+  await main
+    .getByRole("group", { name: "Filtrer par nature" })
+    .getByRole("button", { name: "Lot" })
+    .click();
+  await expect(page).toHaveURL(
+    `${PROJECT}/settings?breakdown_search=Armoires&breakdown_kinds=work_package`,
+    { timeout: WORKING },
+  );
+  // The fake back answers its whole reading, with its counter, whatever is asked: nothing says the
+  // tree partial, which only a reading without a counter is.
+  await expect(main.getByText("Les postes et les lots ne montrent que ce que")).toHaveCount(0);
+  // Back to the whole screen, for the filters of the other grids.
+  await openHydrated(page, `${PROJECT}/settings`);
 
   await main
     .getByRole("group", { name: "Filtrer par qualité" })

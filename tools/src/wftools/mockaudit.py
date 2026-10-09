@@ -534,13 +534,15 @@ def facets(events: list[JsonObject]) -> JsonObject:
     }
 
 
-SEARCHED = "Couts-Reels-2026-05"
+SEARCHED = "Coûts-Réels-2026-05"
 """The text of the example that searches the labels of the objects: two files of actual costs,
-written in another case than theirs, which a search does not tell apart."""
+written in another case than theirs and without its accents, which a search does not tell apart."""
 
 
 def searched(events: list[JsonObject], text: str) -> list[JsonObject]:
-    """Return the inscriptions whose object's label holds the text, whatever its case (`search`).
+    """Return the inscriptions whose object's label holds the text (`search`).
+
+    Whatever the case and the accents of either, as every search (`mocktext.holds`).
 
     A backup, which has no label, is retained by no search.
     """
@@ -548,7 +550,7 @@ def searched(events: list[JsonObject], text: str) -> list[JsonObject]:
         event
         for event in events
         if (label := cast("str | None", cast("JsonObject", event["object"])["label"])) is not None
-        and text.casefold() in label.casefold()
+        and mocktext.holds(label, text)
     ]
 
 
@@ -657,7 +659,8 @@ def _readings(events: list[JsonObject], day: str) -> dict[str, JsonObject]:
         ),
         "audit_events_search.json": mocktext.example(
             f"Les inscriptions dont l'objet porte « {SEARCHED} » dans son libellé (search) : "
-            f"l'application des imports de coûts réels de mai, retenus quelle que soit la casse, "
+            f"l'application des imports de coûts réels de mai, retenus quels que soient la casse "
+            f"et les accents, "
             f"et qui ne vivent dans aucune révision (WF-SEC-0030, WF-IHM-0130, WF-INTF-0090, "
             f"WF-CRE-0010).",
             _page(searched(events, SEARCHED)),

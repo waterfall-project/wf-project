@@ -175,6 +175,24 @@ describe("the grids of the settings of a project", () => {
     },
   );
 
+  it("ask the server for the search of the work breakdown on its labels and its kinds, under the names of its grid [WF-IHM-0130-A]", async () => {
+    page.search = "contributor_kinds=contributor";
+    render(settings());
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Rechercher dans «\u00a0Lotissement\u00a0»" }),
+      "Armoires{Enter}",
+    );
+    expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&breakdown_search=Armoires`);
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Filtrer par nature" })).getByRole("button", {
+        name: "Livrable",
+      }),
+    );
+    expect(lastAddress()).toBe(
+      `${PATH}?contributor_kinds=contributor&breakdown_search=Armoires&breakdown_kinds=deliverable`,
+    );
+  });
+
   it("ask the server for the search of the contributors on their names, under the names of their grid", async () => {
     page.search = "subproject_search=SP";
     render(settings());

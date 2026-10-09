@@ -1,10 +1,10 @@
 {
-  "summary": "Les contributeurs dont le compte a été désactivé depuis leur inscription (is_active=false) : Alix Moreau, que la liste garde et signale (WF-ADM-0060, WF-IHM-0130).",
+  "summary": "Les contributeurs dont le compte a été désactivé depuis leur inscription (is_active=false) : Alix Moreau, que la liste garde et signale ; filtrée, la lecture n'a pas de compteur (WF-ADM-0060, WF-IHM-0130).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "items": [
       {"user_id":"01926f3a-7c00-7000-8000-000000000303","display_name":"Alix Moreau","kind":"contributor","is_active":false}
     ],
-    "lock_version": 4
+    "lock_version": null
   }
 }

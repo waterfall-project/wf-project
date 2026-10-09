@@ -140,10 +140,21 @@ test("sorts, searches and filters the accounts by the server, under the names of
     .fill("Mor");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/origins=local%2Cdirectory&search=Mor$/, { timeout: WORKING });
-  // The deactivated accounts hidden, under the name of the contract.
-  await page.getByRole("link", { name: "Masquer les désactivés" }).click();
-  await expect(page).toHaveURL(/search=Mor&include_inactive=false$/, { timeout: WORKING });
-  await expect(page.getByRole("link", { name: "Afficher les désactivés" })).toBeVisible();
+  // A role chosen, under the name of the contract, by its identifier.
+  const roles = page.getByRole("group", { name: "Filtrer par rôle" });
+  await roles.getByRole("button", { name: "Manager" }).click();
+  await expect(page).toHaveURL(/search=Mor&access_role_ids=01926f3a-7c00-7000-8000-000000000702$/, {
+    timeout: WORKING,
+  });
+  await expect(roles.getByRole("button", { name: "Manager" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // The active accounts alone, by the one choice of the state, under the name of the contract.
+  const state = page.getByRole("combobox", { name: "État du compte" });
+  await state.selectOption({ label: "Comptes actifs" });
+  await expect(state).toHaveValue("true");
+  await expect(page).toHaveURL(/access_role_ids=[\w-]+&is_active=true$/, { timeout: WORKING });
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
@@ -208,4 +219,32 @@ test("offers the commands of the access roles, each available with EP-03, and so
   await expect(
     page.getByRole("table", { name: "Permissions par fonction" }).getByRole("columnheader"),
   ).toHaveCount(9);
+});
+
+test("filters the access roles by their kind and between bounds of their holders, under the names of the contract [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/access-roles");
+  const roles = page.getByRole("grid", { name: "Rôles d’habilitation" });
+  // Nothing witnesses the hydration: the sort is pressed again until React answers it.
+  await sortUntilAddress(
+    roles.getByRole("columnheader", { name: "Libellé" }),
+    roles,
+    "/admin/access-roles?sort_by=label&sort_order=asc",
+  );
+  const kind = page.getByRole("combobox", { name: "Nature" });
+  await kind.selectOption({ label: "Rôles composés" });
+  await expect(kind).toHaveValue("false");
+  await expect(page).toHaveURL(
+    "/admin/access-roles?sort_by=label&sort_order=asc&is_predefined=false",
+    {
+      timeout: WORKING,
+    },
+  );
+  const bounds = page.getByRole("form", { name: "Bornes des rôles d’habilitation" });
+  await bounds.getByRole("textbox", { name: "Comptes porteurs, max." }).fill("0");
+  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  await expect(page).toHaveURL(/is_predefined=false&holder_count_max=0$/, { timeout: WORKING });
+  // The fake back answers its example whatever is asked: what the screen asks is what this proves.
+  await expect(roles.getByRole("row").last()).toHaveText("7 rôles");
 });

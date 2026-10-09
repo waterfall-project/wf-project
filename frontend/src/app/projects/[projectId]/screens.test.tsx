@@ -201,8 +201,75 @@ describe("the settings of a project", () => {
     expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
     expect(region).toContain('aria-level="3"');
     expect(sortable(region ?? "")).toEqual([]);
-    // The operation has no search: the grid offers none.
-    expect(region).not.toContain('type="search"');
+    // Searched by the server on its labels, filtered on its kinds; read whole, nothing says it
+    // partial.
+    expect(region).toContain('type="search"');
+    expect(text(region ?? "")).toContain("Every kind Order item Work package Deliverable");
+    expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
+  });
+
+  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, and says the order items and work packages kept partial", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": "work_breakdown_work_packages",
+    };
+    const page = html(
+      await SettingsPage(
+        at({
+          breakdown_search: "Armoires",
+          breakdown_kinds: "deliverable,unknown,work_package",
+          // The names of the contract alone belong to no grid of this screen.
+          kinds: "order_item",
+        }),
+      ),
+    );
+    expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toEqual([
+      { search: "Armoires", kinds: "work_package,deliverable" },
+    ]);
+    // The order item kept for its work package holds it alone: the list says so.
+    expect(rows(page, "Work breakdown").slice(1)).toEqual([
+      "Fourniture et montage des armoires Order item",
+      "Armoires Work package",
+      "1 order item",
+    ]);
+    expect(text(page)).toContain(
+      "The order items and work packages show only what the search and the filter retain.",
+    );
+  });
+
+  it("names in the note of a work breakdown read partial only what narrows it: the search, or the filter by kind", () => {
+    const searched = example("work_breakdown_search") as WorkBreakdown;
+    expect(
+      text(
+        html(
+          <WorkBreakdownList
+            breakdown={searched}
+            project={PROJECT}
+            shown={{ query: { sort: undefined, search: "Montage" }, preferences: undefined }}
+          />,
+        ),
+      ),
+    ).toContain("The order items and work packages show only what the search retains.");
+    const packages = example("work_breakdown_work_packages") as WorkBreakdown;
+    expect(
+      text(
+        html(<WorkBreakdownList breakdown={packages} project={PROJECT} kinds={["work_package"]} />),
+      ),
+    ).toContain("The order items and work packages show only what the filter by kind retains.");
+  });
+
+  it("keeps the grid of a work breakdown a search narrows to nothing, never saying the project has no order item", () => {
+    // Read filtered, the server gives the reading no counter: it is partial.
+    const filtered = example("work_breakdown_search") as WorkBreakdown;
+    const none = html(
+      <WorkBreakdownList
+        breakdown={{ ...filtered, order_items: [] }}
+        project={PROJECT}
+        shown={{ query: { sort: undefined, search: "zzz" }, preferences: undefined }}
+      />,
+    );
+    expect(rows(none, "Work breakdown")).toContain("No row matches the request.");
+    expect(text(none)).not.toContain("This project has no order item.");
   });
 
   it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable", async () => {
@@ -357,8 +424,9 @@ describe("the settings of a project", () => {
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([]);
-    // The forms are the searches of the sub-projects and of the contributors.
+    // The forms are the searches of the work breakdown, the sub-projects and the contributors.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
+      expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
     ]);

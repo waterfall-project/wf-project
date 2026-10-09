@@ -2975,8 +2975,9 @@ qualité. `sort_by` vaut `display_name`, comparé en points de code, `kind`, dan
 `ContributorKind`, les chefs de projet d'abord, et `is_active`, les actifs d'abord. Sans tri, les
 chefs de projet d'abord, puis le nom de famille et le prénom du compte, l'ordre des comptes
 (`listUsers`) : celui que `contributors`, écrit à la main, suivait sans que le contrat le dise. Le
-compteur reste celui de toute la liste, quels que soient le tri et les filtres : `setContributors`
-écrit la liste entière (WF-IHM-0110). Exemples `contributors_by_name`, `contributors_search` et
+compteur restait celui de toute la liste, quels que soient le tri et les filtres : `setContributors`
+écrit la liste entière (WF-IHM-0110) — revu par EP-02/L42f, une lecture filtrée n'ayant plus de
+compteur. Exemples `contributors_by_name`, `contributors_search` et
 `contributors_inactive`.
 
 **La courbe de coûts cumulés et l'évolution des indices se restreignent au sous-projet** (`scope`,
@@ -3037,6 +3038,165 @@ main-d'œuvre, 464), `cost_type_updated` (les débours renommés « Débours et 
 la réponse de son écriture : aucune lecture n'en tient compte. Les refus que ces écritures
 opposeraient ne sont pas encore dits par le contrat (« Interface contract issue » relevées par
 EP-02/L43a, #562) : aucun exemple ne les fige.
+
+## Les filtres des comptes, des rôles d'habilitation et du lotissement (EP-02/L42f)
+
+Le cinquième constat de #536, détaché en #560, et son complément sur les périodes du portefeuille,
+rangés dans EP-02/L42 (#507). Les décisions sont de l'agent de livraison du lot, chacune avec sa
+raison ; aucune n'est une décision de l'auteur. Les noms suivent la convention du contrat plutôt que
+ceux que l'issue proposait : un filtre porte le nom de sa colonne — `has_actual_costs`,
+`is_active`, `is_critical` —, une borne celui de la colonne qu'elle borne (`<colonne>_min`, #545),
+et un filtre à plusieurs valeurs est au pluriel.
+
+**Les comptes se filtrent par leurs rôles d'habilitation** (`access_role_ids`, #560 ;
+WF-IHM-0130, WF-ADM-0050). Une liste d'identifiants, séparés par des virgules comme toute liste
+de la requête, au pluriel comme `origins` et le champ `User.access_role_ids` qu'elle filtre ;
+`access_role_id`, proposé par l'issue, aurait nommé au singulier un filtre à plusieurs valeurs. Un
+compte est retenu dès qu'il porte l'un au moins des rôles nommés — la colonne présente plusieurs
+rôles par compte, et l'écran choisit les rôles qu'il veut voir, comme les origines. Un compte sans
+rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun
+compte, sans refus, comme `org_node_id` un nœud inconnu : les valeurs viennent de
+`listAccessRoles`. Écarté : une valeur « aucun rôle », à la manière d'`unassigned` des
+sous-projets, qu'aucune exigence ne demande. Exemple `users_by_access_role` : les porteurs du chef
+de projet ou du manager, Alix Moreau, désactivée, comprise.
+
+**La recherche des comptes porte sur le nom, le prénom, l'adresse et le nom affiché** (#560). Ce
+sont les trois textes que WF-ADM-0050 donne à un compte, et le nom affiché — le prénom, une espace,
+puis le nom —, que la liste des contributeurs cherche déjà (EP-02/L42e) : « Camille Martin » trouve
+le compte, qu'aucune colonne ne porte entier. Le texte se compare comme toute recherche, sans égard
+à la casse ni aux accents (paragraphe suivant). Le paramètre est propre à l'opération, comme celui
+des contributeurs, le paramètre partagé disant « le libellé », qu'un compte n'a pas. Exemple
+`users_search` : « ines roux » trouve Inès Roux par son nom affiché, sans son accent ni sa casse.
+
+**Une recherche ignore la casse et les accents** (décision de l'auteur du 2026-10-09). Le premier
+passage du lot comparait les textes cherchés dans leurs points de code, accents compris, sans égard
+à la casse seule, et chaque opération le disait ou le taisait à sa façon. La règle est désormais une
+convention du contrat, écrite une fois au tableau de `docs/api/README.md` : un texte est retenu dès
+qu'il contient le texte cherché, l'un et l'autre translittérés comme par `unaccent` de PostgreSQL
+avec sa table livrée, puis mis en minuscules (paragraphe suivant) — « etudes », « ETUDES » et
+« Études » trouvent « Études ».
+Elle vaut pour `search` partout — le paramètre partagé et ceux des comptes, des sous-projets, des
+contributeurs, des révisions et du lotissement, qui y renvoient — et pour un filtre qui retient un
+texte contenant le texte donné (`code` de `listOrgNodes`, « comparé comme la recherche »). Elle
+remplace ce que le journal disait de sa recherche, sans égard à la casse seule (EP-02/L42d). Un tri,
+lui, compare toujours les textes dans l'ordre des points de code, accents et casse compris : ranger
+n'est pas trouver, et le README le dit sur la même ligne. Le faux back l'applique par une seule
+fonction (`mocktext.folded`), que toutes ses recherches emploient — structure, journal, projets,
+comptes, contributeurs, lotissement ; `audit_events_search` cherche désormais « Coûts-Réels-2026-05 »
+et retient les imports « couts-reels-2026-05… », que seule cette comparaison trouve, et
+`test_mocktext.py` éprouve la règle, chaque recherche ayant son cas accentué.
+
+**Une recherche translittère comme `unaccent`, puis met en minuscules** (décision de l'auteur du
+2026-10-09, revue 3 du lot). La revue 2 avait remplacé le repli de la casse (`casefold`) par la
+décomposition NFD, le retrait des marques combinantes et `lower()`, au motif que
+`lower(unaccent(…))` de PostgreSQL laisserait « ß » intact. C'était faux : la table que PostgreSQL
+livre avec `unaccent` translittère aussi les ligatures et les lettres barrées — « ß » en « ss »,
+« ẞ » en « SS », « œ » en « oe », « æ » en « ae », « ø » en « o », « ł » en « l », « đ » en « d »
+—, et la règle de la revue 2 divergeait du service : « main-d'oeuvre » ne trouvait pas
+« Main-d'œuvre », une nature de l'univers témoin. Une recherche translittère donc comme `unaccent`
+avec sa table livrée, puis met en minuscules : « oeuvre » trouve « Main-d'œuvre », « strasse »
+trouve « Straße », « soren » trouve « Søren », et la casse et les accents restent ignorés. EP-03
+réalisera la recherche par `lower(unaccent(…))` avec cette table. La table translittère aussi
+quelques signes — le tiret « — » s'y lit « - », le guillemet « « » « << », « ¼ » « 1/4 » — ; une
+recherche les lit de même.
+Le faux back ne dépend pas du fichier du système : la table est versionnée dans
+`tools/src/wftools/unaccent.rules`, copie de celle de PostgreSQL 16 avec sa provenance et sa licence
+(PostgreSQL, `LICENSES/PostgreSQL.txt`) en tête, et `mocktext.folded` l'applique, la plus longue
+source d'abord comme `unaccent`, puis `lower()`. La décomposition NFD est abandonnée : un caractère
+que la table ne nomme pas reste lui-même, comme `unaccent` le laisse (« й », « Ǣ »), et elle
+différait de la table sur 675 des textes des exemples — tirets, guillemets, « œ ». Le faux back a
+été comparé à un PostgreSQL 16 : sa table au `unaccent` livré sur chaque point de code Unicode,
+`folded` à `lower(unaccent(…))` sur chaque texte des exemples, sans aucune différence. Aucun exemple engendré ne change, et
+aucun ne cherche les natures de coût : `test_mocktext.py` éprouve la règle, la nature
+« Main-d'œuvre » du témoin comprise.
+
+**Les rôles d'habilitation se filtrent par nature et par nombre de porteurs** (#560 ;
+WF-IHM-0130). `is_predefined`, le nom de la colonne et du champ, plutôt que `predefined` : vrai,
+les trois rôles livrés (WF-ADM-0010) ; faux, les rôles composés ensuite (WF-ADM-0090) ; absent, les
+deux. `holder_count_min` et `holder_count_max`, plutôt que `holders_min` et `holders_max` : la
+colonne se nomme `holder_count` dans `sort_by` et dans `AccessRole`, et la convention nomme la
+borne d'après la colonne. Deux entiers positifs ou nuls, inclus ; une borne mal formée est refusée
+par `NUMBER_INVALID`, une borne supérieure inférieure à l'inférieure par `VALUE_OUT_OF_RANGE` sur
+`/query/holder_count_max`, `params.minimum` la borne inférieure donnée, un entier comme la colonne
+(`access_roles_bounds_inverted`, écrit à la main). Le nombre de porteurs compte les comptes
+désactivés, ce que le témoin faisait déjà (Alix Moreau, chef de projet) et que la description dit
+désormais. Exemples `access_roles_composed` et `access_roles_unheld` — `holder_count_max=0`, les
+rôles que personne ne porte, ceux qu'on peut supprimer (WF-ADM-0090).
+
+**Le lotissement se cherche sur ses libellés et se filtre par nature** (`search`, `kinds`, #560 ;
+WF-IHM-0130, WF-IHM-0060). L'issue demandait une recherche sur le libellé et le code : **aucun
+code**, à l'écart de la demande — WF-PRJ-0020 ne donne à un poste, un lot ou un livrable qu'un
+libellé, et en ajouter un modifierait la spécification. Le filtre retenu est celui de la seconde
+colonne de l'écran, la nature — poste, lot, livrable (`WorkBreakdownKind`) —, au pluriel comme les
+filtres de la colonne de nature d'une liste, la qualité des contributeurs (`kinds` de
+`listContributors`) et la nature des types de coût (`kinds` de `listCostTypes`) ; celui de
+`listNodes` n'est pas un filtre — il choisit ce que la grille rend, sans toucher aux totaux — et
+n'est pas le modèle de celui-ci. WF-IHM-0130 veut chaque colonne filtrée, et la grille
+du lotissement n'en a que deux, le libellé et la nature. Écartés : un filtre sur le rattachement à
+une tâche (WF-PLA-0130), que `WorkBreakdown` ne porte pas et que la grille ne montre pas ; un filtre
+des lots sans livrable, qui n'est la valeur d'aucune colonne. Dans un arbre, un filtre retient les
+éléments qui le satisfont, les filtres se combinant, et rend les postes et les lots qui contiennent
+un élément retenu, pour que l'arbre reste lisible (WF-IHM-0060), **sans les autres éléments qu'ils
+contiennent** : la règle de la recherche dans la grille de planning, qui « ne laisse voir que les
+tâches correspondantes et leurs parents » (Vérif de WF-PLA-0080). Exemples engendrés du témoin : `work_breakdown_search` (« Montage » : le poste, sans
+son lot) et `work_breakdown_work_packages` (`kinds=work_package` : le lot, sans son livrable, sous
+son poste).
+
+**Une lecture filtrée n'a pas de compteur** (revue du lot ; WF-IHM-0110). `setWorkBreakdown` et
+`setContributors` écrivent le lotissement et la liste des contributeurs entiers : une lecture
+filtrée, renvoyée telle quelle avec le compteur du tout, supprimerait sans un mot ce qu'elle omet,
+et le 412 ne l'arrêterait pas, le compteur étant à jour. Décision de l'agent de livraison, l'option
+(a) de la revue : la lecture a son schéma, `WorkBreakdownReading`, distinct de l'écriture
+`WorkBreakdown`, et son compteur est nul dès que `search` ou `kinds` est présent, même si le filtre
+retient tout ; celui de `ContributorList` est nul dès que `search`, `kinds` ou `is_active` l'est —
+un tri seul n'omet rien, et garde le compteur. L'écriture exige un compteur entier : un renvoi tel
+quel est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/lock_version` par
+`VALUE_REQUIRED`. Un écran qui filtre relit la liste entière avant d'écrire. Écartés : garder le
+compteur et l'avertir dans la description, la décision du premier passage, qu'un client ne lit pas ;
+refuser un filtre sur une liste qui s'écrit, contraire à WF-IHM-0130. `contributors_search`,
+`contributors_inactive`, `work_breakdown_search` et `work_breakdown_work_packages` sont sans
+compteur ; `contributors`, `contributors_by_name`, `work_breakdown` et `work_breakdown_default` le
+gardent, ce que `test_mocklists.py` tient de chaque exemple que le contrat cite. Une écriture,
+elle, rend toujours le tout avec son compteur suivant, jamais nul : la réponse 200 de
+`setContributors`, dont le schéma `ContributorList` admet désormais un compteur nul, le dit (revue
+2 du lot) ; celle de `setWorkBreakdown` rend `WorkBreakdown`, dont le compteur n'est jamais nul.
+
+**Les comptes se filtrent par leur état** (`is_active`, revue du lot ; WF-IHM-0130, WF-ADM-0060).
+`include_inactive` ne faisait qu'ajouter les désactivés aux actifs : la colonne de l'état ne se
+filtrait pas sur les seuls désactivés. `is_active`, vrai ou faux, prime sur `include_inactive`,
+comme celui du référentiel (`IsActive`) ; le paramètre est propre à l'opération, celui du
+référentiel parlant de la permission que ses désactivés exigent, que les comptes n'ont pas. Exemple
+`users_inactive` : Alix Moreau, seule.
+
+**Les vues du portefeuille déclarent le refus d'une période** (complément de #560, relevé par
+EP-02/L42e ; WF-IHM-0130, WF-PTF-0010). `getPortfolioProjects`, `getPortfolioValue`,
+`getPortfolioPerformance` et `getPortfolioRisks` prennent `from` et `to` sans déclarer de 422. Elles
+déclarent la règle de toute période du contrat : une fin qui précède le début, 422
+`VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le
+début donné, une date de planning comme `from` ; un début ou une fin mal formés, `DATE_INVALID`.
+Une réponse partagée, `PortfolioPeriodRefused`, porte la description et l'exemple
+`portfolio_period_inverted`, écrit à la main, pour que les quatre vues ne divergent pas ; `to`, qui
+n'avait pas de description, dit sa fin incluse et son refus. **Une borne seule se complète par celle
+de la période par défaut** (revue du lot), les douze mois qui finissent à la date de calcul (« La
+période des statistiques, par défaut », US-0240/L5) : sans `to`, la fin est la date de calcul ;
+sans `from`, le début est la date de calcul moins douze mois, puis le lendemain — un 29 février
+reculant au 28 février, le 29 février 2028 donne le 1er mars 2027 (revue 2 du lot : « un an plus
+tôt » taisait ce cas). La période complétée suit la même règle, et le refus désigne la borne
+envoyée, celle que l'utilisateur corrige, `params` nommant la borne complétée : un début postérieur à la date de calcul, `/query/from` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` la fin complétée ; une fin antérieure au début par défaut,
+`/query/to`, `params.minimum` le début complété. `maximum` rejoint les paramètres de l'enveloppe
+(`Problem.params`), le pendant de `minimum`. Exemple `portfolio_open_period_inverted` : un début au
+1er septembre 2026, sans fin, le 3 juin 2026. `test_mockuniverse.py` tient l'exemple
+à la règle (`test_every_inverted_period_is_refused_by_one_rule`), les deux exemples du portefeuille
+compris, et chaque opération qui prend `to` — en propre ou par un paramètre partagé — à la
+déclaration de son refus, avec un exemple de période inversée.
+
+Engendrés par `wftools.mocklists`, des comptes et des rôles écrits à la main et du lotissement du
+témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_role`, `users_search`,
+`users_inactive`, `access_roles_composed`, `access_roles_unheld`, `work_breakdown_search`,
+`work_breakdown_work_packages` ; `test_mocklists.py` éprouve la recherche, les filtres et les bornes
+sur des lignes de synthèse, et chaque exemple contre ce qu'il lit. Le client est régénéré ; le front
+les adoptera.
 
 ## Collage et annulation
 

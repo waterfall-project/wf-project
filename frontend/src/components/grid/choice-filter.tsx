@@ -41,6 +41,7 @@ export function ChoiceFilter({
   chosen,
   unknown,
   page,
+  lifts = [],
 }: {
   /** The identifier of its list, when another control gives the focus back to it. */
   readonly id?: string | undefined;
@@ -57,6 +58,11 @@ export function ChoiceFilter({
   readonly unknown?: string | undefined;
   /** The parameter of the page of a list the server pages, which a choice takes back to its first. */
   readonly page?: string | undefined;
+  /**
+   * Parameters of the address a choice lifts besides the page: those of before the filter, which it
+   * replaces — `include_inactive=false`, which the state of the accounts now says.
+   */
+  readonly lifts?: readonly string[] | undefined;
 }) {
   const own = useId();
   const select = id ?? own;
@@ -81,7 +87,12 @@ export function ChoiceFilter({
             const value = event.target.value;
             startTransition(() => {
               show(value);
-              request((query) => filterHref(pathname, query, name, value, page));
+              request((query) =>
+                filterHref(pathname, query, name, value, [
+                  ...(page === undefined ? [] : [page]),
+                  ...lifts,
+                ]),
+              );
             });
           }}
         >

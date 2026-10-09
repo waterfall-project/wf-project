@@ -95,7 +95,8 @@ by = "make fixtures"
 # the views of the portfolio over time that sum it with the other projects
 # (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), the
 # readings of the lists of the reference written by hand (wftools.mockreference), and those of the
-# projects, the subprojects and the contributors (wftools.mocklists).
+# projects, the subprojects, the contributors, the accounts, the access roles and the work
+# breakdown (wftools.mocklists).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -204,6 +205,13 @@ paths = [
     "fixtures/api/contributors_by_name.json",
     "fixtures/api/contributors_search.json",
     "fixtures/api/contributors_inactive.json",
+    "fixtures/api/users_by_access_role.json",
+    "fixtures/api/users_search.json",
+    "fixtures/api/users_inactive.json",
+    "fixtures/api/access_roles_composed.json",
+    "fixtures/api/access_roles_unheld.json",
+    "fixtures/api/work_breakdown_search.json",
+    "fixtures/api/work_breakdown_work_packages.json",
 ]
 by = "make mock-data"
 

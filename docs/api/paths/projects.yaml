@@ -256,18 +256,45 @@
     tags: [projects]
     summary: Lotissement
     description: >-
-      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020).
+      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020). Une
+      grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre
+      sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature
+      — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu
+      s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu
+      sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments
+      qu'ils contiennent. Une lecture filtrée rend un compteur nul : `setWorkBreakdown` écrit
+      le lotissement entier, et un renvoi tel quel, qui supprimerait ce qu'elle omet, est
+      refusé par 422 (`WorkBreakdownReading`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: >-
+          Recherche sur le libellé des postes, des lots et des livrables — le seul texte que
+          chacun porte (WF-PRJ-0020) —, comparé comme toute recherche du contrat (README,
+          « Une recherche… » ; WF-IHM-0130). Un élément dont
+          le libellé contient le texte est retenu, non ce qu'il contient.
+        schema: { type: string, minLength: 1, maxLength: 200 }
+      - name: kinds
+        in: query
+        description: >-
+          Restreint aux éléments de ces natures, la colonne de la nature filtrée (WF-IHM-0130) :
+          `kinds=deliverable`, les livrables, sous leurs lots et leurs postes.
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownKind }
+        explode: false
     responses:
       '200':
-        description: Lotissement du projet.
+        description: Lotissement du projet, ou ce que les filtres en retiennent.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownReading }
             examples:
               witness: { $ref: ../../../fixtures/api/work_breakdown.json }
               default: { $ref: ../../../fixtures/api/work_breakdown_default.json }
+              search: { $ref: ../../../fixtures/api/work_breakdown_search.json }
+              work_packages: { $ref: ../../../fixtures/api/work_breakdown_work_packages.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
@@ -299,6 +326,8 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
+          Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) :
+          `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
           Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son
           nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0130) : `VALIDATION_FAILED`, `fields`
           sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
@@ -323,7 +352,9 @@
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: search
         in: query
-        description: Recherche sur le code et le libellé (WF-IHM-0130).
+        description: >-
+          Recherche sur le code et le libellé, comparés comme toute recherche du contrat
+          (README, « Une recherche… » ; WF-IHM-0130).
         schema: { type: string, minLength: 1, maxLength: 200 }
       - name: has_actual_costs
         in: query
@@ -444,14 +475,17 @@
       filtre par `kinds`, l'état du compte par `is_active` — un compte désactivé depuis
       l'inscription reste listé et signalé (WF-ADM-0060). Sans pagination : le §4.6.2
       compte cinquante contributeurs par projet. Le compteur est celui de toute la liste,
-      quels que soient le tri et les filtres.
+      quel que soit le tri ; une lecture filtrée le rend nul, pour qu'elle ne soit pas
+      renvoyée à `setContributors`, qui écrit la liste entière et retirerait ce qu'elle omet
+      (`ContributorList.lock_version`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: search
         in: query
         description: >-
           Recherche sur le nom affiché du compte (`display_name`), la seule colonne de texte de
-          la liste (WF-IHM-0130).
+          la liste, comparé comme toute recherche du contrat (README, « Une recherche… » ;
+          WF-IHM-0130).
         schema: { type: string, minLength: 1, maxLength: 200 }
       - name: kinds
         in: query
@@ -501,7 +535,9 @@
       projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
       garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
       inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste
-      lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant.
+      lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ;
+      un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant
+      `/lock_version` par `VALUE_REQUIRED`.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -511,7 +547,10 @@
           schema: { $ref: ../components/schemas/projects.yaml#/ContributorsWrite }
     responses:
       '200':
-        description: Liste enregistrée, avec le compteur suivant.
+        description: >-
+          Liste enregistrée. Une écriture rend toujours la liste entière avec son compteur
+          suivant, jamais nul : `ContributorList` n'admet un compteur nul que pour une lecture
+          filtrée (WF-IHM-0110).
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }

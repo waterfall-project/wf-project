@@ -55,6 +55,26 @@ UnprocessableEntity:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
 
+PortfolioPeriodRefused:
+  description: >-
+    Une période du portefeuille refusée, selon la règle de toute période du contrat
+    (WF-IHM-0130) : une fin qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant
+    `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin
+    mal formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne seule se complète
+    par celle de la période par défaut — la fin, la date de calcul ; le début, la date de calcul
+    moins douze mois (le 28 février pour un 29 février), puis le lendemain — et la période
+    complétée suit la même règle : le refus désigne la borne envoyée, `params` nommant la borne
+    complétée — un début postérieur à la date de calcul, `/query/from` par
+    `VALUE_OUT_OF_RANGE`, `params.maximum` la fin complétée ; une fin antérieure au début par
+    défaut, `/query/to`, `params.minimum` le début complété. Aucune vue vide ne tient lieu de
+    refus.
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+      examples:
+        period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
+        open_period_inverted: { $ref: ../../../fixtures/api/portfolio_open_period_inverted.json }
+
 ServiceUnavailable:
   description: >-
     Un composant indisponible empêche l'opération ; `params.component` le nomme et

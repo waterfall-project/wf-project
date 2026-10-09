@@ -3,17 +3,17 @@
 /**
  * The lists of the settings of a project (FBS-4.2, US-0210), each a dense grid under its title
  * (#301), in the order the server gave it: its work breakdown, each order item with its work
- * packages and their deliverables, a tree that folds (WF-PRJ-0020); its sub-projects, each by the
- * code the ERP knows it by, and whether actual costs are charged to it (WF-PRJ-0050), searched,
- * sorted and filtered on their actual costs by the server; its contributors, the project manager
- * told from the others, and whether their account is still active (WF-PRJ-0060), searched, sorted
- * and filtered on their capacity and on the state of their account by the server. Each filter is a
- * choice that only changes the address, under the name of the contract after the prefix of its grid
- * (`ValuesFilter`, `ChoiceFilter`). Each list is a section under its title —
- * named by `aria-label`, never by an identifier of `useId`, which a server component may share with
- * a client one of the shell (#251) —; a list says it is empty only when nothing narrows it: a
- * search or a filter that retains nothing keeps its grid, to be changed. Nothing is offered to
- * create or modify: those forms belong to the epic of their domain.
+ * packages and their deliverables, a tree that folds (WF-PRJ-0020), searched and filtered on its
+ * kinds by the server; its sub-projects, each by the code the ERP knows it by, and whether actual
+ * costs are charged to it (WF-PRJ-0050), searched, sorted and filtered on their actual costs by the
+ * server; its contributors, the project manager told from the others, and whether their account is
+ * still active (WF-PRJ-0060), searched, sorted and filtered on their capacity and on the state of
+ * their account by the server. Each filter is a choice that only changes the address, under the
+ * name of the contract after the prefix of its grid (`ValuesFilter`, `ChoiceFilter`). Each list is
+ * a section under its title — named by `aria-label`, never by an identifier of `useId`, which a
+ * server component may share with a client one of the shell (#251) —; a list says it is empty only
+ * when nothing narrows it: a search or a filter that retains nothing keeps its grid, to be changed.
+ * Nothing is offered to create or modify: those forms belong to the epic of their domain.
  */
 import { FolderTree, ListTree, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -26,6 +26,9 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import { ListSection } from "./project-tables";
 import { SettingsGrid } from "./settings-grid";
 import {
+  BREAKDOWN_KIND_FILTER,
+  type BreakdownKind,
+  BREAKDOWN_KINDS,
   breakdownRows,
   type Contributor,
   CONTRIBUTOR_ACTIVE,
@@ -57,23 +60,61 @@ function chosenFlag(flag: boolean | undefined): string | undefined {
 }
 
 /**
+ * The note of a work breakdown read partial, naming what narrows it as the address sets it: the
+ * search, the filter by kind, or both.
+ */
+function partialNote(
+  search: string | undefined,
+  kinds: readonly BreakdownKind[],
+): "partial" | "partialSearch" | "partialKinds" {
+  if (search !== undefined && kinds.length === 0) {
+    return "partialSearch";
+  }
+  return search === undefined && kinds.length > 0 ? "partialKinds" : "partial";
+}
+
+/**
  * The work breakdown of a project, as its order was entered (WF-PRJ-0020): a tree of its order
- * items, each with its work packages under it, and their deliverables under them.
+ * items, each with its work packages under it, and their deliverables under them; searched on its
+ * labels and filtered on its kinds by the server. Read partial — without a counter, as the server
+ * reads it filtered —, the order items and the work packages that hold an element retained show
+ * without the rest they hold, which the list says; and a partial reading that retains nothing keeps
+ * its grid, to be changed.
  */
 export function WorkBreakdownList({
   breakdown,
   project,
+  kinds = [],
   shown = UNASKED,
 }: {
   readonly breakdown: WorkBreakdown;
   /** The project whose work breakdown it is. */
   readonly project: string;
+  /** The kinds the address restricts the work breakdown to; none, every one. */
+  readonly kinds?: readonly BreakdownKind[];
   readonly shown?: Shown<never>;
 }) {
   const t = useTranslations("projectLists.workBreakdown");
+  const named = useTranslations("enums.WorkBreakdownKind");
   const items = breakdown.order_items.length;
+  // The server says the reading partial — filtered — by giving it no counter.
+  const partial = breakdown.lock_version === null;
   return (
-    <ListSection title={t("title")} icon={ListTree} empty={items === 0 ? t("none") : undefined}>
+    <ListSection
+      title={t("title")}
+      icon={ListTree}
+      empty={items === 0 && !partial ? t("none") : undefined}
+    >
+      <ValuesFilter
+        name={BREAKDOWN_KIND_FILTER}
+        label={t("kindFilter")}
+        every={t("everyKind")}
+        values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+        chosen={kinds}
+      />
+      {partial ? (
+        <p className="text-sm text-muted-foreground">{t(partialNote(shown.query.search, kinds))}</p>
+      ) : null}
       <SettingsGrid
         kind="workBreakdown"
         rows={breakdownRows(breakdown)}

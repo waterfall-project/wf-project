@@ -364,6 +364,69 @@ describe("the value of the portfolio", () => {
 });
 
 describe("the perimeter of a view of the portfolio", () => {
+  it("says at its field the start the server refused for following the end it completed, the end named, which takes the focus", () => {
+    page.search = "from=2026-09-01";
+    render(
+      inLanguage(
+        <PerimeterBar
+          perimeter={readPerimeter(new URLSearchParams(page.search))}
+          retained={[]}
+          refused={{ from: { code: "VALUE_OUT_OF_RANGE", maximum: "2026-06-03" } }}
+        />,
+      ),
+    );
+    const start = screen.getByDisplayValue("2026-09-01");
+    expect(start).toHaveAttribute("aria-invalid", "true");
+    expect(start).toHaveFocus();
+    // No end in the address: the server completed it with the date of calculation, which is said.
+    expect(start).toHaveAccessibleDescription(
+      "Le début de la période ne peut suivre sa fin par défaut, la date de calcul, 3 juin 2026.",
+    );
+  });
+
+  it("says at its field the end the server refused for preceding the start it completed, the start named its default", () => {
+    page.search = "to=2025-01-01";
+    render(
+      inLanguage(
+        <PerimeterBar
+          perimeter={readPerimeter(new URLSearchParams(page.search))}
+          retained={[]}
+          refused={{ to: { code: "VALUE_OUT_OF_RANGE", minimum: "2024-06-04" } }}
+        />,
+      ),
+    );
+    const end = screen.getByDisplayValue("2025-01-01");
+    expect(end).toHaveAttribute("aria-invalid", "true");
+    expect(end).toHaveFocus();
+    // No start in the address: the server completed it with its default, which is said.
+    expect(end).toHaveAccessibleDescription(
+      "La fin de la période ne peut précéder son début par défaut, 4 juin 2024.",
+    );
+  });
+
+  it("says at its field the end of a period the server refused, the start named, which takes the focus", () => {
+    page.search = "from=2026-03-31&to=2026-01-01";
+    render(
+      inLanguage(
+        <PerimeterBar
+          perimeter={readPerimeter(new URLSearchParams(page.search))}
+          retained={[]}
+          refused={{ to: { code: "VALUE_OUT_OF_RANGE", minimum: "2026-03-31" } }}
+        />,
+      ),
+    );
+    const period = screen.getByRole("form", { name: "Période et date de calcul" });
+    const ends = within(period).getAllByDisplayValue("2026-01-01");
+    expect(ends).toHaveLength(1);
+    const [end] = ends;
+    expect(end).toHaveAttribute("aria-invalid", "true");
+    expect(end).toHaveFocus();
+    expect(end).toHaveAccessibleDescription(
+      "La fin de la période ne peut précéder son début, 31 mars 2026.",
+    );
+    expect(within(period).getByDisplayValue("2026-03-31")).not.toHaveAttribute("aria-invalid");
+  });
+
   it("shows the states the server retained when the address asks none, and adds one to them", async () => {
     const { container } = render(perimeterBar("", { period: true, node: true }));
     await expectAccessible(container);

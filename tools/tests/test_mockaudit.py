@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockaudit, mockcosts, mockdata, mockhistory, mockwitness
+from wftools import mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
 from wftools.mockids import hex_identifier, universe
 from wftools.mocktext import PAGE
 from wftools.mockwitness import INSTALLED, TODAY, fixture
@@ -462,14 +462,15 @@ def test_a_correlation_retains_the_inscriptions_of_one_request(journal: dict[str
     assert others == retained
 
 
-def test_a_search_holds_the_text_whatever_its_case_and_retains_no_object_without_label() -> None:
+def test_a_search_holds_the_text_whatever_its_case_and_accents_and_retains_no_label_less() -> None:
     events = [
         _inscription(1, "A", label="COUTS-reels-2026-05.xlsx"),
         _inscription(2, "A", label="couts-reels-2026-04.xlsx"),
         _inscription(3, "A", label=None),
-        _inscription(4, "A", label="Réception couts-Reels-2026-05"),
+        _inscription(4, "A", label="Réception coûts-Réels-2026-05"),
     ]
-    found = mockaudit.searched(cast("list[Any]", events), "Couts-Reels-2026-05")
+    # Without its accents in 1, with them in 4: a search tells neither apart.
+    found = mockaudit.searched(cast("list[Any]", events), "COUTS-reels-2026-05")
     assert [cast("Node", each)["audit_event_id"] for each in found] == [
         universe(1),
         universe(4),
@@ -477,15 +478,19 @@ def test_a_search_holds_the_text_whatever_its_case_and_retains_no_object_without
     assert mockaudit.searched(cast("list[Any]", events), "") == [events[0], events[1], events[3]]
 
 
-def test_the_search_example_retains_the_labels_that_hold_the_text_in_any_case(
+def test_the_search_example_retains_the_labels_that_hold_the_text_in_any_case_or_accents(
     journal: dict[str, Node],
 ) -> None:
     def holds(event: Node) -> bool:
         label = event["object"]["label"]
-        return label is not None and mockaudit.SEARCHED.casefold() in label.casefold()
+        return label is not None and mocktext.holds(label, mockaudit.SEARCHED)
 
     retained = _events(journal["audit_events_search"])
     assert mockaudit.SEARCHED not in "".join(event["object"]["label"] for event in retained)
+    # Neither case alone tells them apart: the text has accents its labels have not.
+    assert all(
+        mockaudit.SEARCHED.lower() not in event["object"]["label"].lower() for event in retained
+    )
     assert retained == [event for event in _events(journal["audit_events"]) if holds(event)]
     assert [event["object"]["label"] for event in retained] == [
         "couts-reels-2026-05.xlsx",

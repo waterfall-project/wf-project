@@ -9,7 +9,10 @@
  * - The work breakdown is a tree, as its order was entered (WF-PRJ-0020): each order item, its work
  *   packages under it, their deliverables under them. It sorts by no column (`sorts: false`) — the
  *   order is the one entered, as `getWorkBreakdown` gives it —, folds and unfolds as the grids of
- *   the tasks do (`GridTree.parent`, `fold.tsx`), and is not searched: the operation has no search.
+ *   the tasks do (`GridTree.parent`, `fold.tsx`), and is searched by the server on its labels and
+ *   filtered on its kinds (`search`, `kinds`, EP-02/L42f): the order items and the work packages
+ *   that hold an element retained come with it, without the rest they hold — a reading that is
+ *   never the whole work breakdown, and never to be written back (`setWorkBreakdown`).
  * - The sub-projects, each by the code the ERP knows it by, and whether actual costs are charged to
  *   it (WF-PRJ-0050): searched by the server on their code and their label, sorted by it on each
  *   column (`code`, `label`, `has_actual_costs`), filtered by it on their actual costs
@@ -21,7 +24,8 @@
  *
  * Each flat table is so filtered on each of its columns (WF-IHM-0130, `listSubprojects`,
  * `listContributors`), its filters under the names of the contract after the prefix of its grid
- * (`subproject_has_actual_costs`, `contributor_kinds`, `contributor_is_active`). The volumes of
+ * (`subproject_has_actual_costs`, `contributor_kinds`, `contributor_is_active`), as the work
+ * breakdown on its kinds (`breakdown_kinds`). The volumes of
  * §4.6.2 — ten sub-projects, fifty contributors a project — hold in one page, which the contract
  * does not page.
  *
@@ -44,8 +48,12 @@ export type Subproject = components["schemas"]["Subproject"];
 /** A contributor of a project, as the contract gives it. */
 export type Contributor = components["schemas"]["Contributor"];
 
-/** The work breakdown of a project, as the contract gives it. */
-export type WorkBreakdown = components["schemas"]["WorkBreakdown"];
+/**
+ * The work breakdown of a project, as `getWorkBreakdown` reads it: whole, with the counter
+ * `setWorkBreakdown` asks; or what its filters retain, without a counter (`lock_version` null) — a
+ * reading partial, never to be written back.
+ */
+export type WorkBreakdown = components["schemas"]["WorkBreakdownReading"];
 
 /** The capacity of a contributor, as the contract names it. */
 export type ContributorKind = components["schemas"]["ContributorKind"];
@@ -60,8 +68,24 @@ export type ContributorSort = NonNullable<
   NonNullable<operations["listContributors"]["parameters"]["query"]>["sort_by"]
 >;
 
-/** What a row of the work breakdown is: an order item, a work package, a deliverable. */
-export type BreakdownKind = "orderItem" | "workPackage" | "deliverable";
+/** What a row of the work breakdown is, as the contract names it: item, package, deliverable. */
+export type BreakdownKind = components["schemas"]["WorkBreakdownKind"];
+
+/**
+ * Every kind of the contract, in the order of its enumeration: one the contract adds fails the type
+ * check until it is here.
+ */
+const EVERY_BREAKDOWN_KIND: Readonly<Record<BreakdownKind, number>> = {
+  order_item: 0,
+  work_package: 1,
+  deliverable: 2,
+};
+
+/** The kinds of the elements of a work breakdown, in the order of the contract. */
+export const BREAKDOWN_KINDS = Object.keys(EVERY_BREAKDOWN_KIND) as readonly BreakdownKind[];
+
+/** The kinds the work breakdown is restricted to, in the address: `kinds` of the contract. */
+export const BREAKDOWN_KIND_FILTER = "breakdown_kinds";
 
 /** A row of the tree of the work breakdown, with the identity of the row it is under. */
 export interface BreakdownRow {
@@ -113,7 +137,7 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
       id: item.order_item_id,
       parent: null,
       level: 1,
-      kind: "orderItem",
+      kind: "order_item",
       label: item.label,
     },
     ...item.work_packages.flatMap((workPackage): BreakdownRow[] => [
@@ -121,7 +145,7 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
         id: workPackage.work_package_id,
         parent: item.order_item_id,
         level: 2,
-        kind: "workPackage",
+        kind: "work_package",
         label: workPackage.label,
       },
       ...workPackage.deliverables.map((deliverable): BreakdownRow => ({
@@ -137,22 +161,22 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
 
 /** What a row of the work breakdown is, in words. */
 function BreakdownKindCell({ row }: { readonly row: BreakdownRow }) {
-  const t = useTranslations("projectLists.workBreakdown");
+  const t = useTranslations("enums.WorkBreakdownKind");
   return t(row.kind);
 }
 
-/** The grid of the work breakdown: a tree in the order entered, which folds. */
+/** The grid of the work breakdown: a tree in the order entered, which folds; searched by the server. */
 export const BREAKDOWN_GRID: GridConfig<BreakdownRow, never, null> = {
   key: BREAKDOWN_GRID_KEY,
   name: "workBreakdown",
   address: BREAKDOWN_ADDRESS,
   sorts: false,
-  searched: false,
+  searched: true,
   rowKey: (row) => row.id,
   tree: {
     level: (row) => row.level,
     nature: () => null,
-    emphasis: (row) => (row.kind === "orderItem" ? "strong" : undefined),
+    emphasis: (row) => (row.kind === "order_item" ? "strong" : undefined),
     parent: (row) => row.parent,
   },
   columns: [

@@ -10,6 +10,7 @@ ne couvre aucune exigence »).
 """
 
 import json
+import re
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -19,6 +20,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import (
+    REPOSITORY,
     mockcore,
     mockcosts,
     mockcurves,
@@ -608,25 +610,81 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
 def test_every_inverted_period_is_refused_by_one_rule() -> None:
     # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
     # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
+    # A bound of the portfolio sent alone is completed by the default period, and the refusal
+    # names the bound sent, `params` the bound completed (#560).
     found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
-    assert [path.name.removesuffix("_period_inverted.json") for path in found] == [
-        "actual_costs",
-        "audit_events",
-        "projects",
-    ]
+    expected = {
+        "actual_costs": ("/query/to", "minimum", date),
+        "audit_events": ("/query/to", "minimum", datetime),
+        "portfolio": ("/query/to", "minimum", date),
+        "portfolio_open": ("/query/from", "maximum", date),
+        "projects": ("/query/to", "minimum", datetime),
+    }
+    assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
     for path in found:
+        pointer, bound, kind = expected[path.name.removesuffix("_period_inverted.json")]
         value = json.loads(path.read_text(encoding="utf-8"))["value"]
         assert (value["code"], value["status"]) == ("VALIDATION_FAILED", 422), path.name
         [field] = value["fields"]
         assert {key: field[key] for key in ("pointer", "code")} == {
-            "pointer": "/query/to",
+            "pointer": pointer,
             "code": "VALUE_OUT_OF_RANGE",
         }, path.name
-        assert list(field["params"]) == ["minimum"], path.name
-        # The start in the type of `from`: a date of planning for the actual costs, an instant
-        # for the journal and the home.
-        minimum = field["params"]["minimum"]
-        if path.name.startswith("actual_costs"):
-            assert date.fromisoformat(minimum).isoformat() == minimum
+        assert list(field["params"]) == [bound], path.name
+        # The other bound in the type of the period: a date of planning for the actual costs and
+        # the portfolio, an instant for the journal and the home.
+        given = field["params"][bound]
+        if kind is date:
+            assert date.fromisoformat(given).isoformat() == given, path.name
         else:
-            assert datetime.fromisoformat(minimum).tzinfo == UTC, path.name
+            assert datetime.fromisoformat(given).tzinfo == UTC, path.name
+    # The end the server completes is the date of calculation, today in the universe.
+    opened = json.loads(
+        (mockwitness.FIXTURES / "portfolio_open_period_inverted.json").read_text(encoding="utf-8")
+    )
+    assert opened["value"]["fields"][0]["params"]["maximum"] == TODAY.date().isoformat()
+
+
+_CONTRACT = REPOSITORY / "docs/api"
+_PERIOD_REFUSED = "responses.yaml#/PortfolioPeriodRefused"
+"""The refusal the views of the portfolio share, which carries their example (#560)."""
+
+
+def _operations() -> dict[str, str]:
+    """Return the text of each operation of the contract, by its identifier."""
+    found: dict[str, str] = {}
+    for path in sorted((_CONTRACT / "paths").glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        parts = re.split(r"^    operationId: (\w+)$", text, flags=re.MULTILINE)
+        found.update(zip(parts[1::2], parts[2::2], strict=True))
+    return found
+
+
+def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_example() -> None:
+    # Each operation that takes `to` declares the 422 of the rule, with an inverted period as
+    # its example — its own, or that of the views of the portfolio, which share one (#560).
+    shared = (_CONTRACT / "components/responses.yaml").read_text(encoding="utf-8")
+    refusal = shared.split("PortfolioPeriodRefused:", 1)[1].split("\n\n", 1)[0]
+    assert "fixtures/api/portfolio_period_inverted.json" in refusal
+    assert "fixtures/api/portfolio_open_period_inverted.json" in refusal
+    assert "/query/to" in refusal
+    assert "params.minimum" in refusal
+    taking = {
+        name: text
+        for name, text in _operations().items()
+        if "- name: to\n" in text or re.search(r"parameters\.yaml#/\w*To\b", text)
+    }
+    assert sorted(taking) == [
+        "getPortfolioPerformance",
+        "getPortfolioProjects",
+        "getPortfolioRisks",
+        "getPortfolioValue",
+        "listActualCosts",
+        "listAuditEvents",
+        "listProjects",
+    ]
+    for name, text in taking.items():
+        refused = text.split("\n      '422':", 1)
+        assert len(refused) == 2, name
+        declared = refused[1].split("\n      '", 1)[0]
+        assert _PERIOD_REFUSED in declared or "_period_inverted.json" in declared, name

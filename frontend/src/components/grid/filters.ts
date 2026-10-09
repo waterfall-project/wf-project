@@ -90,16 +90,17 @@ export function valuesHref<Value extends string>(
 }
 
 /**
- * A figure of the contract a bound takes: an exact decimal, an amount of two decimals at most, or a
- * depth of a tree, a whole number from 1.
+ * A figure of the contract a bound takes: an exact decimal, an amount of two decimals at most, a
+ * depth of a tree, a whole number from 1, or a count, a whole number from 0 — the holders of a role.
  */
-export type FigureKind = "decimal" | "money" | "level";
+export type FigureKind = "decimal" | "money" | "level" | "count";
 
-/** The patterns of the contract a bound of each kind matches (`Decimal`, `Money`, a depth). */
+/** The pattern of the contract of each kind of bound: `Decimal`, `Money`, a depth, a count. */
 export const FIGURES: Readonly<Record<FigureKind, RegExp>> = {
   decimal: /^-?\d+(\.\d+)?$/,
   money: /^-?\d+(\.\d{1,2})?$/,
   level: /^[1-9]\d{0,2}$/,
+  count: /^(0|[1-9]\d{0,8})$/,
 };
 
 /** The two bounds of a column the address carries; none, no bound on that side. */
@@ -183,8 +184,8 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 /**
  * Why the API refused one parameter of the bounds of a list (#545): a bound that is no number of
  * its type (`NUMBER_INVALID`); an upper bound below the lower one, which it names
- * (`VALUE_OUT_OF_RANGE`, `params.minimum`); the choice a bound goes with, missing
- * (`VALUE_REQUIRED`, the year of the rate).
+ * (`VALUE_OUT_OF_RANGE`, `params.minimum`, written as the contract writes a decimal, or a number
+ * for a count); the choice a bound goes with, missing (`VALUE_REQUIRED`, the year of the rate).
  */
 export type BoundRefusal =
   | { readonly code: "NUMBER_INVALID" | "VALUE_REQUIRED" }
@@ -205,7 +206,8 @@ export function refusedBounds(fields: readonly FieldProblem[]): RefusedBounds {
     if (name === undefined) {
       continue;
     }
-    const minimum = params?.minimum;
+    // The lower bound named as the contract types its column: a decimal written, a count a number.
+    const minimum = typeof params?.minimum === "number" ? String(params.minimum) : params?.minimum;
     if (code === "VALUE_OUT_OF_RANGE" && typeof minimum === "string") {
       refused.set(name, { code, minimum });
     } else if (code === "NUMBER_INVALID" || code === "VALUE_REQUIRED") {

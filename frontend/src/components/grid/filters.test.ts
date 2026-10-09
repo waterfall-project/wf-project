@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import { example, type Problem } from "@/test/fixtures";
+
 import {
   boundNames,
   boundsHref,
@@ -79,6 +81,15 @@ describe("the bounds of a column of figures in the address", () => {
     });
   });
 
+  it("read a count from nought, the holders of a role, and no figure that is none", () => {
+    const counts = new URLSearchParams("holder_count_min=0&holder_count_max=1.5");
+    expect(readBounds(counts, "holder_count", "count")).toEqual({ min: "0", max: undefined });
+    expect(readBounds(new URLSearchParams("a_min=-1&a_max=007"), "a", "count")).toEqual({
+      min: undefined,
+      max: undefined,
+    });
+  });
+
   it("write the bounds of several columns, a side empty lifted, back to the first page, the rest kept", () => {
     const query = new URLSearchParams("sort_by=label&offset=50&a_max=9");
     const href = boundsHref(
@@ -136,6 +147,11 @@ describe("the bounds of a column of figures in the address", () => {
       ["monthly_hours_max", { code: "VALUE_OUT_OF_RANGE", minimum: "1000" }],
       ["rate_year", { code: "VALUE_REQUIRED" }],
       ["monday_min", { code: "NUMBER_INVALID" }],
+    ]);
+    // A count named by a number, as the contract types the holders of a role.
+    const inverted = example("access_roles_bounds_inverted") as Problem;
+    expect([...refusedBounds(inverted.fields ?? [])]).toEqual([
+      ["holder_count_max", { code: "VALUE_OUT_OF_RANGE", minimum: "2" }],
     ]);
     // By the two sides of a column of the contract.
     expect(refusedSides(refused, "monday")).toEqual({ min: { code: "NUMBER_INVALID" } });

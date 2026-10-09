@@ -8,12 +8,12 @@
  * the list is a page of the projects the server retained, sorted, searched and paged as the
  * address asks (`sort_by`, `sort_order`, `search`, `offset`), and filtered on the zones of their
  * indices it names (`zones`, #313). Every figure as the API gives it: the
- * front computes, sorts, filters and pages nothing. A read the API refuses, or cannot answer, is
- * thrown for the pages of the shell to say.
+ * front computes, sorts, filters and pages nothing. A period the API refuses — an end before the
+ * start — is said at its field, the view unread (`RefusedView`); any other read the API refuses, or
+ * cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 
-import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { readPage } from "@/components/costs/address";
 import { ListPages } from "@/components/grid/list-pages";
@@ -39,6 +39,7 @@ import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 import { readNodes } from "../nodes";
+import { readView, RefusedView } from "../refused";
 
 /** Title the tab with the function. */
 export function generateMetadata(): Promise<Metadata> {
@@ -47,7 +48,7 @@ export function generateMetadata(): Promise<Metadata> {
 
 /** The value of the portfolio on the perimeter asked. */
 function readValue(perimeter: Perimeter) {
-  return readOrFail("getPortfolioValue", () =>
+  return readView("getPortfolioValue", () =>
     serverClient().GET("/portfolio/value", { params: { query: perimeterQuery(perimeter) } }),
   );
 }
@@ -69,7 +70,7 @@ export default async function PortfolioProjectsPage({
     readGridQuery(search, PROJECT_SORT_COLUMNS, kept?.sort),
   );
   const [projects, value, nodes, preferences] = await Promise.all([
-    readOrFail("getPortfolioProjects", () =>
+    readView("getPortfolioProjects", () =>
       serverClient().GET("/portfolio/projects", {
         params: {
           query: portfolioProjectsQuery({ perimeter, zones, offset, query }),
@@ -80,26 +81,40 @@ export default async function PortfolioProjectsPage({
     readNodes(),
     settings,
   ]);
+  // Both read on the same period: refused by either, the view is not read.
+  if (projects.kind === "refused" || value.kind === "refused") {
+    const refused = projects.kind === "refused" ? projects.refused : undefined;
+    return (
+      <PendingAddress>
+        <RefusedView
+          fn="portfolio_projects"
+          perimeter={perimeter}
+          refused={refused ?? (value.kind === "refused" ? value.refused : undefined)}
+          nodes={nodes}
+        />
+      </PendingAddress>
+    );
+  }
   return (
     // The perimeter, the grid and the pages compose the changes they make to the address.
     <PendingAddress>
       <Screen density="dense" fill>
-        <PortfolioHeader fn="portfolio_projects" scope={projects.scope} />
-        <PerimeterBar perimeter={perimeter} retained={projects.scope.states} nodes={nodes} />
-        <PortfolioValueView value={value} />
+        <PortfolioHeader fn="portfolio_projects" scope={projects.data.scope} />
+        <PerimeterBar perimeter={perimeter} retained={projects.data.scope.states} nodes={nodes} />
+        <PortfolioValueView value={value.data} />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
           <ZoneFilter zones={zones} />
           <ProjectsGrid
-            projects={projects.items}
-            page={projects.meta}
+            projects={projects.data.items}
+            page={projects.data.meta}
             query={query}
             preferences={preferences}
           />
           <ListPages
             list={PROJECTS_LIST}
             texts="portfolio.pages"
-            page={projects.meta}
-            shown={projects.items.length}
+            page={projects.data.meta}
+            shown={projects.data.items.length}
           />
         </div>
       </Screen>

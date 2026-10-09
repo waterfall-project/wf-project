@@ -1198,7 +1198,13 @@ les coûts réels et sur l'état du compte ; l'écran des indicateurs lit l'évo
 les coûts cumulés pour le sous-projet du bandeau, dit un sous-projet inconnu comme un refus et une
 courbe sans point comme n'ayant rien à tracer, et seul le suivi des jalons dit porter sur le
 projet entier ; les coûts réels et le journal nomment au champ de la fin le début d'une période
-inversée.
+inversée. Le lotissement, qui ne se cherchait ni ne se filtrait, se cherche sur ses libellés et se
+filtre par nature (`search`, `kinds` de `getWorkBreakdown`) depuis EP-02/L42f (#560), les postes et
+les lots qui contiennent un élément retenu rendus pour que l'arbre reste lisible ; le front les
+adopte dans le même lot : la grille du lotissement se cherche (`breakdown_search`) et se filtre par
+nature (`breakdown_kinds`), et dit, lue filtrée — sans compteur, `lock_version` nul —, que ses
+postes et ses lots ne montrent que ce qui est retenu ; une lecture filtrée n'est jamais celle qu'on
+renverrait à `setWorkBreakdown`.
 
 ## US-0220 — Écrans du planning et du devis
 
@@ -1414,7 +1420,17 @@ refus ni la disponibilité de ces commandes (#540) — « Désactiver » et « A
 dernier administrateur indisponible avec sa condition, `last_administrator`, l'attribution de ses
 rôles disponible, le serveur refusant par `LAST_ADMINISTRATOR` des rôles qui lui retireraient ces
 permissions. Les filtres par colonne que le contrat ne porte pas — les rôles des comptes, la nature
-et les porteurs des rôles — et ce que lit la recherche des comptes sont #536.
+et les porteurs des rôles — et ce que lit la recherche des comptes sont #536. Portés au contrat par
+EP-02/L42f (#560) : `listUsers` filtre les comptes par leurs rôles (`access_role_ids`, l'un au moins
+des rôles nommés) et dit chercher sur le nom, le prénom, l'adresse et le nom affiché ;
+`listAccessRoles` filtre la nature (`is_predefined`) et borne le nombre de porteurs
+(`holder_count_min`, `holder_count_max`, inclus) ; le front les adopte dans le même lot : la
+grille des comptes se filtre par rôle — un choix parmi les rôles que la session lit, tous choisis
+filtrant encore, un compte sans rôle n'étant retenu par aucun — et par état (`is_active`), et dit
+chercher sur les noms et l'adresse, sans égard à la casse ni aux accents ; celle des rôles se filtre par nature et entre deux bornes du nombre de porteurs, une
+borne refusée dite à son champ, la liste non lue ; et les vues du portefeuille disent au champ de
+la fin le début d'une période inversée (`PortfolioPeriodRefused`) — au champ du début la fin
+complétée d'une borne seule —, la vue non lue.
 US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
 compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
 d'habilitation et la matrice des permissions — une ligne par permission dans l'ordre de

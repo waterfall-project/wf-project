@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
+from wftools import mocktext
 from wftools.mockcalendar import (
     FINISH_TO_START,
     HOURS_PER_DAY,
@@ -719,10 +720,12 @@ def whole(rows: list[Row]) -> JsonObject:
 def search(rows: list[Row], text: str) -> JsonObject:
     """Return the reading of a search: the nodes whose label holds the text, and their ancestors.
 
+    Whatever the case and the accents of either, as every search (`mocktext.holds`).
+
     An ancestor rendered for the readability of the tree alone is not counted in the totals.
     """
     by_number = {row.number: row for row in rows}
-    found = {row.number for row in rows if text.casefold() in row.label.casefold()}
+    found = {row.number for row in rows if mocktext.holds(row.label, text)}
     ancestors: set[int] = set()
     for number in found:
         parent = by_number[number].parent

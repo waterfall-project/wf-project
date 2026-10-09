@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import SystemStatusPage, { generateMetadata as statusMetadata } from "../system/page";
 import AccessRolesPage, { generateMetadata as rolesMetadata } from "./access-roles/page";
@@ -198,9 +204,50 @@ describe("the accounts", () => {
   it("stand without a node to choose when the tree of the organisation is not found", async () => {
     server.answers = { ...server.answers, "GET /reference/org-nodes": NOT_FOUND };
     const page = text(rendered(await UsersPage(searched())));
-    expect(page).toContain(
-      "Nœud d’organisation Tous les nœuds Masquer les désactivés Colonnes Nom",
+    expect(page).toContain("Nœud d’organisation Tous les nœuds Tous les rôles Administrateur");
+    expect(page).toContain("Comptes actifs Comptes désactivés Colonnes Nom");
+  });
+
+  it("ask the server for the access roles the address names among those it gives, an identifier of none not asked [WF-IHM-0130-A]", async () => {
+    const manager = "01926f3a-7c00-7000-8000-000000000702";
+    const chief = "01926f3a-7c00-7000-8000-000000000703";
+    server.answers = { ...server.answers, "GET /users": "users_by_access_role" };
+    const page = text(
+      rendered(
+        await UsersPage(
+          searched({
+            access_role_ids: `${manager},01926f3a-7c00-7000-8000-000000000799,${chief},a.b`,
+          }),
+        ),
+      ),
     );
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true", access_role_ids: `${chief},${manager}` },
+    ]);
+    expect(page).toContain("2 comptes");
+  });
+
+  it("ask the server for the state the address names, the deactivated accounts alone said as the server reads them [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, "GET /users": "users_inactive" };
+    const page = text(rendered(await UsersPage(searched({ is_active: "false" }))));
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", is_active: "false" }]);
+    expect(page).toContain("Moreau Alix alix.moreau@example.com");
+    expect(page).toContain("1 compte");
+    server.clients = [];
+    await UsersPage(searched({ is_active: "maybe" }));
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
+  });
+
+  it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
+    server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
+    const page = text(
+      rendered(
+        await UsersPage(searched({ access_role_ids: "01926f3a-7c00-7000-8000-000000000702" })),
+      ),
+    );
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
+    expect(page).not.toContain("Tous les rôles");
+    expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
   it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, offer to create a local account, and to modify, deactivate or reactivate each and attribute its roles", async () => {
@@ -225,12 +272,16 @@ describe("the accounts", () => {
     ).toEqual([]);
   });
 
-  it("ask the deactivated accounts too, unless the address hides them under the name of the contract", async () => {
+  it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {
     const page = rendered(await UsersPage(searched({ include_inactive: "false", offset: "2" })));
-    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "false", offset: "2" }]);
-    expect(page).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>.*?Afficher les désactivés<\/a>/);
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true", offset: "2", is_active: "true" },
+    ]);
+    expect(page).toMatch(/<option value="true" selected="">Comptes actifs<\/option>/);
+    expect(page).not.toContain("les désactivés</a>");
+    server.clients = [];
     await UsersPage(searched({ include_inactive: "maybe" }));
-    expect(queriesOf("GET /users").at(-1)).toEqual({ include_inactive: "true" });
+    expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
   it("ask the page the address names, and lead back to the one before it", async () => {
@@ -246,12 +297,8 @@ describe("the accounts", () => {
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
       "7 comptes",
     ]);
-    // The switch of the deactivated accounts, then the pages before and after.
-    expect(links(page)).toEqual([
-      "/admin/users?include_inactive=false",
-      "/admin/users",
-      "/admin/users?offset=4",
-    ]);
+    // The pages before and after: the state of the accounts is a choice, no link.
+    expect(links(page)).toEqual(["/admin/users", "/admin/users?offset=4"]);
   });
 
   it("are not found when the API refuses or does not find the list", async () => {
@@ -297,6 +344,50 @@ describe("the access roles", () => {
       { search: "Chef", sort_by: "holder_count", sort_order: "desc" },
       {},
     ]);
+  });
+
+  it("ask the server for the kind and the bounds of the holders the address names, and every role for the matrix [WF-IHM-0130-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /access-roles": ["access_roles_unheld", "access_roles"],
+    };
+    const page = rendered(
+      await AccessRolesPage(searched({ is_predefined: "true", holder_count_max: "0" })),
+    );
+    expect(queriesOf("GET /access-roles")).toEqual([
+      { is_predefined: "true", holder_count_max: "0" },
+      {},
+    ]);
+    expect(rows(page, "Rôles d’habilitation").slice(1)).toEqual([
+      "Administrateur Prédéfini 0 Modifier Supprimer",
+      "1 rôle",
+    ]);
+    // The matrix holds every role, whatever the grid asks.
+    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
+  });
+
+  it("ask no bound that is no count, nor a kind that is none", async () => {
+    await AccessRolesPage(
+      searched({ is_predefined: "yes", holder_count_min: "-1", holder_count_max: "1.5" }),
+    );
+    expect(queriesOf("GET /access-roles")).toEqual([{}]);
+  });
+
+  it("say at its field the bound the API refuses, the grid unread, the matrix of every role kept", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /access-roles": [
+        { problem: example("access_roles_bounds_inverted") as Problem & { status: 422 } },
+        "access_roles",
+      ],
+    };
+    const page = rendered(
+      await AccessRolesPage(searched({ holder_count_min: "2", holder_count_max: "1" })),
+    );
+    expect(page).not.toContain('aria-label="Rôles d’habilitation" role="grid"');
+    expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
+    expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 2.");
+    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
   });
 
   it("offer to a session that may modify the roles the commands to create one, and to modify and delete each", async () => {

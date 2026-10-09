@@ -216,7 +216,11 @@ est la seule commande qu'ils exercent (`ExitCommand`), confirmée dans la page a
 serveur ne la demande. Les tables de données des paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
 `subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
-sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie ; les
+sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
+par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
+EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses postes et
+ses lots ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
+à `setWorkBreakdown` ; les
 sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
 lui sur chaque colonne (`subproject_sort_by`) et filtrés sur leurs coûts réels
 (`subproject_has_actual_costs`) ; les contributeurs, cherchés par le serveur sur le nom du compte
@@ -674,13 +678,22 @@ Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/sy
 comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
 serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
 filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
-dans l'ordre de l'arbre, `OrgNodeFilter`) et par état — les désactivés listés, à moins que
-l'adresse ne dise `include_inactive=false`, qu'écrit le lien « Masquer les désactivés »
-(`AccountStateSwitch`) — et paginés par le serveur, sous les noms du contrat — un tri, une
-recherche ou un filtre ramenant à la première page —, la ligne des totaux disant combien le serveur
-en retient (`meta.total`), l'écran remplissant la fenêtre ; la recherche est nommée d'après la
-grille, le contrat ne disant pas ce qu'elle lit (#536). Les rôles d'habilitation sont sur la grille
-dense eux aussi (#515), triés sur chaque colonne et cherchés par le serveur, sans pagination — le
+dans l'ordre de l'arbre, `OrgNodeFilter`), par rôle d'habilitation (`access_role_ids`, les rôles
+que `listAccessRoles` rend, aucun à une session qui ne les lit pas ; tous choisis filtrent encore,
+un compte sans rôle n'étant retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un
+seul choix (`is_active`) — tous, les actifs seuls, les désactivés seuls —, qui dit ce que la grille
+montre : la page demande toujours les désactivés aussi (`include_inactive=true`, le contrat les
+masquant par défaut), une adresse d'avant qui les masquait (`include_inactive=false`) se lit
+« Comptes actifs » (`readAccountState`), et tout choix lève ce paramètre ancien (`lifts` de
+`ChoiceFilter`) — et paginés par le serveur, sous les noms du contrat — un tri, une recherche ou un
+filtre ramenant à la première page —, la ligne des totaux disant combien le serveur
+en retient (`meta.total`), l'écran remplissant la fenêtre ; la recherche porte sur le nom, le
+prénom, l'adresse et le nom affiché, sans égard à la casse ni aux accents, comme toute recherche du
+contrat. Les rôles d'habilitation sont sur la grille dense eux aussi
+(#515), triés sur chaque colonne, cherchés et filtrés par le serveur — leur nature
+(`is_predefined`, `ChoiceFilter`), leurs porteurs entre deux bornes incluses (`holder_count_min`,
+`holder_count_max`, `RangeFilter` de forme `count`, un entier depuis zéro ; une borne refusée dite
+à son champ, la liste non lue) —, sans pagination — le
 §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
 des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
 permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
@@ -814,7 +827,15 @@ d'un projet) —, de ce périmètre ce que l'opération prend (`perimeterQuery`,
 pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus
 (`scope.states`) : le front ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a
 retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
-chiffres, et le nœud retenu, nommé par le serveur (`scope.org_node_label`). La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
+chiffres, et le nœud retenu, nommé par le serveur (`scope.org_node_label`). Une période que le
+serveur refuse — une fin qui précède le début, `PortfolioPeriodRefused`, EP-02/L42f — est dite au
+champ de la fin, le début nommé, comme les coûts réels la disent (`usePeriodProblem`) — une borne
+seule se complétant par la période par défaut, un début postérieur à la fin complétée est dit au
+champ du début, la fin nommée (`params.maximum`) — ; la vue n'est
+pas lue, son titre reste sans périmètre retenu et une phrase tient sa place (`RefusedView` de
+`frontend/src/app/portfolio/refused.tsx`) ; ses états sont pressés comme l'adresse les nomme, et,
+sans état nommé, le filtre des états n'est pas offert, rien ne disant ce que le serveur retiendrait.
+La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
 cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
 (`meta.total`), sous la valeur du portefeuille. Les six autres vues (FBS-2.2 à FBS-2.7) montrent ce
 que le serveur calcule : le plan de charge agrégé et les décaissements prennent en outre l'horizon
@@ -1049,9 +1070,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
   la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
   (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les lectures des listes
-  écrites à la main — les projets de l'accueil, les sous-projets et les contributeurs du témoin —,
-  triées, cherchées et filtrées comme leurs écrans les demandent (`wftools.mocklists`, tenu par
-  `tools/tests/test_mocklists.py`).
+  écrites à la main — les projets de l'accueil, les sous-projets et les contributeurs du témoin, les
+  comptes et les rôles d'habilitation — et du lotissement du témoin, triées, cherchées et filtrées
+  comme leurs écrans les demandent (`wftools.mocklists`, tenu par `tools/tests/test_mocklists.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

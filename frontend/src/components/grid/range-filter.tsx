@@ -139,7 +139,10 @@ function readText(text: string, kind: FigureKind, locale: Locale): Read {
     return { figure: undefined };
   }
   const figure = parseDecimal(trimmed, locale);
-  if (figure === undefined || (kind === "level" && !FIGURES.level.test(figure))) {
+  if (
+    figure === undefined ||
+    ((kind === "level" || kind === "count") && !FIGURES[kind].test(figure))
+  ) {
     return { fault: "number" };
   }
   return kind === "money" && !FIGURES.money.test(figure) ? { fault: "money" } : { figure };
