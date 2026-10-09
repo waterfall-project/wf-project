@@ -158,13 +158,18 @@ describe("the grid of the hourly rates", () => {
     expect(totals?.textContent).toBe("150 catégories, taux horaires en EUR");
   });
 
-  it("breaks no rule of accessibility, a window of the hundred and fifty categories rendered", async () => {
+  it("breaks no rule of accessibility, a window of its rows rendered", async () => {
     serve();
     // A window of two rows — some fourteen rendered, with the overscan of the grid —: the rules of
     // axe hold for each row alike, and a screenful took as long to check as to render — past its
-    // time under load (#315).
+    // time under load (#315). Of twenty categories, not of the hundred and fifty: the grid
+    // prepares every row, drawn or not, and the first check of axe in a file takes three times as
+    // long as the next — together, past the time of the test under load again (EP-02/L46).
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_HEIGHT);
-    const { container } = render(rates("fr", true, grid));
+    const { container } = render(rates("fr", true, { ...grid, rows: grid.rows.slice(0, 20) }));
+    // A window indeed: rows beyond it are not drawn.
+    expect(screen.getByRole("grid")).toHaveAttribute("aria-rowcount", "22");
+    expect(within(screen.getByRole("grid")).getAllByRole("row").length).toBeLessThan(22);
     await expectAccessible(container);
   });
 

@@ -1603,7 +1603,7 @@ heure locale du poste ; ces repères sont tenus dans le générateur des exemple
 (`test_the_marks_the_review_journey_reads`, `tools/tests/test_mocktoday.py`). Trois écrans la citent en outre dans leurs tests
 — le cycle de vie du projet (`frontend/src/app/projects/[projectId]/screens.test.tsx`), la
 comparaison des révisions (`…/revisions/page.test.tsx`) et la relecture des totaux d'une grille
-cherchée (`frontend/src/components/grid/entry.dom.test.tsx`) — ; sur les autres écrans, elle se
+cherchée (`frontend/src/components/grid/write-totals.dom.test.tsx`) — ; sur les autres écrans, elle se
 tient aussi par la revue. La première est tenue par la garde réseau
 (`frontend/src/api/network-guard.test.ts`), la deuxième par la spécification et la revue.
 

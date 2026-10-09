@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { ROW_REM } from "@/components/grid/dense-grid";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
@@ -156,58 +157,87 @@ describe("the grid of the journal", () => {
     expect(grid().querySelector("thead th")?.className).toContain("bg-muted");
   });
 
-  it("asks the server for the dates both ways, never lifting the sort, back to the first page [WF-IHM-0060-A]", async () => {
-    page.search = "offset=50";
-    const { rerender } = render(journal());
-    const header = () => within(grid()).getByRole("columnheader", { name: /^Date/ });
-    expect(header()).toHaveAttribute("aria-sort", "descending");
-    await userEvent.click(within(header()).getByRole("button"));
-    const ascending = "/admin/audit-log?sort_by=occurred_at&sort_order=asc";
-    expect(lastAddress()).toBe(ascending);
-    page.search = ascending.split("?")[1] ?? "";
-    rerender(journal({ query: { sort: { ...NEWEST_FIRST, order: "asc" }, search: undefined } }));
-    expect(header()).toHaveAttribute("aria-sort", "ascending");
-    await userEvent.click(within(header()).getByRole("button"));
-    expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
-  });
+  // Each sort is a test of its own, one render and one press, under a window of two rows — some
+  // fourteen rendered with the margin of the grid, the press rendering them anew: the six columns
+  // and both ways in a single test, under a screenful, went past its time under load (EP-02/L46).
+  describe("its sorts", () => {
+    beforeEach(() => {
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_REM * 16);
+    });
 
-  it("asks the server for each column the contract sorts both ways, never lifting the sort, back to the first page [WF-IHM-0060-A]", async () => {
-    page.search = "actions=backup&offset=50";
-    const { rerender } = render(journal());
-    const header = (name: string) => within(grid()).getByRole("columnheader", { name });
-    for (const [name, column] of [
+    it.each([
+      ["descending", "ascending", "offset=50", "sort_by=occurred_at&sort_order=asc"],
+      [
+        "ascending",
+        "descending",
+        "sort_by=occurred_at&sort_order=asc&offset=50",
+        "sort_by=occurred_at&sort_order=desc",
+      ],
+    ] as const)(
+      "asks the server for the dates both ways, never lifting the sort, back to the first page: %s, then %s [WF-IHM-0060-A]",
+      async (shown, _asked, search, address) => {
+        page.search = search;
+        const order = shown === "ascending" ? "asc" : "desc";
+        render(journal({ query: { sort: { ...NEWEST_FIRST, order }, search: undefined } }));
+        const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
+        expect(header).toHaveAttribute("aria-sort", shown);
+        await userEvent.click(within(header).getByRole("button"));
+        expect(lastAddress()).toBe(`/admin/audit-log?${address}`);
+      },
+    );
+
+    it.each([
       ["Auteur", "actor"],
       ["Action", "action"],
       ["Nature de l’objet", "object_kind"],
       ["Objet", "object_label"],
       ["Projet", "project"],
       ["Corrélation", "correlation_id"],
-    ] as const) {
-      await userEvent.click(within(header(name)).getByRole("button"));
-      expect(lastAddress()).toBe(
-        `/admin/audit-log?actions=backup&sort_by=${column}&sort_order=asc`,
-      );
-    }
-    page.search = "sort_by=actor&sort_order=asc";
-    rerender(journal({ query: { sort: { column: "actor", order: "asc" }, search: undefined } }));
-    expect(header("Auteur")).toHaveAttribute("aria-sort", "ascending");
-    await userEvent.click(within(header("Auteur")).getByRole("button"));
-    expect(lastAddress()).toBe("/admin/audit-log?sort_by=actor&sort_order=desc");
-    page.search = "sort_by=actor&sort_order=desc";
-    rerender(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
-    await userEvent.click(within(header("Auteur")).getByRole("button"));
-    expect(lastAddress()).toBe("/admin/audit-log?sort_by=actor&sort_order=asc");
-    // The date, from another sort, asks the most recent first, as the server gives them unasked.
-    await userEvent.click(within(header("Date")).getByRole("button"));
-    expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
+    ] as const)(
+      "asks the server for the column %s ascending first, its filters kept, back to the first page [WF-IHM-0060-A]",
+      async (name, column) => {
+        page.search = "actions=backup&offset=50";
+        render(journal());
+        await userEvent.click(
+          within(within(grid()).getByRole("columnheader", { name })).getByRole("button"),
+        );
+        expect(lastAddress()).toBe(
+          `/admin/audit-log?actions=backup&sort_by=${column}&sort_order=asc`,
+        );
+      },
+    );
+
+    it.each([
+      ["asc", "ascending", "desc"],
+      ["desc", "descending", "asc"],
+    ] as const)(
+      "asks the server for a column the other way, its sort %s [WF-IHM-0060-A]",
+      async (order, shown, asked) => {
+        page.search = `sort_by=actor&sort_order=${order}`;
+        render(journal({ query: { sort: { column: "actor", order }, search: undefined } }));
+        const header = within(grid()).getByRole("columnheader", { name: "Auteur" });
+        expect(header).toHaveAttribute("aria-sort", shown);
+        await userEvent.click(within(header).getByRole("button"));
+        expect(lastAddress()).toBe(`/admin/audit-log?sort_by=actor&sort_order=${asked}`);
+      },
+    );
+
+    it("asks the most recent first for the dates from another sort, as the server gives them unasked [WF-IHM-0060-A]", async () => {
+      page.search = "sort_by=actor&sort_order=desc";
+      render(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
+      const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
+      await userEvent.click(within(header).getByRole("button"));
+      expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
+    });
   });
 
   it("is searched by the server on the label of the object, back to the first page, its filters kept", async () => {
     page.search = "actions=import_apply&offset=50";
     render(journal());
     const search = screen.getByRole("searchbox", { name: "Rechercher un libellé" });
-    await userEvent.type(search, "couts-reels{Enter}");
-    expect(lastAddress()).toBe("/admin/audit-log?actions=import_apply&search=couts-reels");
+    // A short search: each character typed renders the screen anew (EP-02/L46).
+    await userEvent.type(search, "reels{Enter}");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=import_apply&search=reels");
   });
 
   it("names a backup, which has no label, by its nature, never by its identifier", () => {
@@ -371,6 +401,12 @@ describe("the grid of the journal", () => {
 });
 
 describe("the filters of the journal", () => {
+  // None reads the rows: a window of two rows, some fourteen rendered, which each gesture renders
+  // anew, rather than a screenful (EP-02/L46).
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_REM * 16);
+  });
+
   describe("by period, in the local time of the workstation", () => {
     const original = process.env.TZ;
 

@@ -345,3 +345,19 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     copie des réponses sur la relecture ; seuls les rappels changent celles qu'ils écrivent.
     `cell-writes.dom.test.tsx`, `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx`
     relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche.
+23. **Test du front qui fait le travail de plusieurs.** Sous happy-dom et le React de développement,
+    chaque touche, chaque clic sur une grille la rend à nouveau entière — près d'une centaine de
+    millisecondes de calcul —, le premier contrôle d'axe d'un fichier coûte trois fois les suivants,
+    et chercher une ligne par son nom accessible calcule le nom de toutes, chacun fait du texte de
+    toutes leurs cellules. Un test qui enchaîne vingt touches, qui éprouve six colonnes dans une
+    boucle, qui trouve une ligne par son nom ou ajoute un contrôle d'axe au bout d'un parcours passe
+    seul en une seconde, et dépasse ses cinq secondes quand plusieurs lots tournent sur la machine :
+    les fichiers de #589 en perdaient vingt-cinq sur cent dix-huit par passage, en moyenne, à côté de
+    deux autres suites et d'autres lots (EP-02/L46). Un paramètre est un test (`it.each`) ; un geste,
+    ou une courte suite de gestes, aussi, depuis la cellule où il commence ; une ligne se trouve par
+    son en-tête (`rowheader`, puis `closest("tr")`) ; le contrôle d'axe est un test à lui, sur une
+    fenêtre de lignes plutôt que sur un écran entier ; un test qui ne lit pas toutes les lignes rend
+    la grille sous une fenêtre de quelques-unes ; un texte saisi est court. Un test ne relève son délai
+    que pour un parcours que son Vérif demande d'un seul tenant, la raison écrite au-dessus
+    (`entry.dom.test.tsx`, la ligne de devis entière). Aucun outil ne le tient : la revue le cherche,
+    et la durée de chaque test que rapporte Vitest le montre.

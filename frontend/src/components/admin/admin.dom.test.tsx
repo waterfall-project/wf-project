@@ -54,10 +54,17 @@ function rendered(children: ReactNode, locale: Locale = "fr") {
 }
 
 describe("the matrix of the permissions", () => {
-  it("is a table whose rows a reader finds by their permission, under their function, and whose cells say whether each role holds it", async () => {
-    const { container } = rendered(<PermissionMatrix permissions={permissions} roles={roles} />);
+  it("is a table whose rows a reader finds by their permission, under their function, and whose cells say whether each role holds it", () => {
+    rendered(<PermissionMatrix permissions={permissions} roles={roles} />);
     const matrix = screen.getByRole("table", { name: "Permissions par fonction" });
-    const restore = within(matrix).getByRole("row", { name: /^Restaurer la plateforme/ });
+    // The row is found by its header, the permission: the name of a row is that of all its cells,
+    // and computing it for the sixty rows took a second under load (EP-02/L46).
+    const restore = within(matrix)
+      .getByRole("rowheader", { name: "Restaurer la plateforme" })
+      .closest("tr");
+    if (restore === null) {
+      throw new Error("the permission heads no row");
+    }
     expect(
       within(restore)
         .getAllByRole("cell")
@@ -81,6 +88,17 @@ describe("the matrix of the permissions", () => {
     // structuring actions.
     expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(27);
     expect(matrix.textContent).not.toContain("FBS-");
+  });
+
+  it("breaks no rule of accessibility, each kind of group of rows rendered", async () => {
+    // A function of one permission, one of two, and the actions outside any function: every
+    // shape of row and of group the matrix draws. The rules of axe hold for each row alike, and
+    // the sixty rows took longer to check than the test may last under load (EP-02/L46).
+    const shapes = permissions.filter((permission) =>
+      [null, "FBS-1.2", "FBS-1.5"].includes(permission.fbs_code ?? null),
+    );
+    const { container } = rendered(<PermissionMatrix permissions={shapes} roles={roles} />);
+    expect(container.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(4);
     await expectAccessible(container);
   });
 

@@ -181,16 +181,40 @@ describe("the keyboard of a grid", () => {
     expect(cell(1, "hours")).toHaveFocus();
     expect(cell(1, "hours")).toHaveAttribute("tabindex", "0");
     expect(cell(0, "label")).toHaveAttribute("tabindex", "-1");
-    await userEvent.keyboard("{End}");
-    expect(cell(1, "inflated_amount")).toHaveFocus();
-    await userEvent.keyboard("{Home}");
-    expect(cell(1, "row_number")).toHaveFocus();
-    await userEvent.keyboard("{Control>}{End}{/Control}");
-    expect(cell(MILESTONE, "inflated_amount")).toHaveFocus();
-    await userEvent.keyboard("{Control>}{Home}{/Control}{PageDown}");
-    expect(cell(MILESTONE, "row_number")).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}{PageUp}{ArrowLeft}");
-    expect(cell(0, "row_number")).toHaveFocus();
+  });
+
+  // Each move from the cell it starts on, a test of its own: every key renders the grid anew, and
+  // the whole tour in one test went past its time under load (EP-02/L46).
+  it.each([
+    ["End", [1, "hours"], "{End}", [1, "inflated_amount"]],
+    ["Home", [1, "inflated_amount"], "{Home}", [1, "row_number"]],
+    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [MILESTONE, "inflated_amount"]],
+    [
+      "Ctrl+Home, then Page Down",
+      [MILESTONE, "inflated_amount"],
+      "{Control>}{Home}{/Control}{PageDown}",
+      [MILESTONE, "row_number"],
+    ],
+    [
+      "the arrow down on the last row, Page Up and the arrow left on the first column",
+      [MILESTONE, "row_number"],
+      "{ArrowDown}{PageUp}{ArrowLeft}",
+      [0, "row_number"],
+    ],
+  ] as const)(
+    "moves the active cell by %s",
+    async (_name, [row, column], keys, [toRow, toColumn]) => {
+      serve();
+      renderGrid();
+      cell(row, column).focus();
+      await userEvent.keyboard(keys);
+      expect(cell(toRow, toColumn)).toHaveFocus();
+    },
+  );
+
+  it("makes the cell clicked the active one, which Tab and Shift+Tab leave the grid from", async () => {
+    serve();
+    renderGrid();
     // The cell clicked is the active one: the one stop of the tabulation.
     await userEvent.click(cell(DISBURSEMENT, "quantity"));
     expect(cell(DISBURSEMENT, "quantity")).toHaveAttribute("tabindex", "0");
@@ -207,7 +231,7 @@ describe("the keyboard of a grid", () => {
     );
   });
 
-  it("reaches the header by the up arrow, sorts a column by Enter or Space, widens it by Shift and the arrows, one stop of the tabulation all along [WF-IHM-0100-A]", async () => {
+  it("reaches the header by the up arrow, one stop of the tabulation, which Up, Page Up, Home and End keep to [WF-IHM-0100-A]", async () => {
     serve();
     renderGrid();
     cell(0, "label").focus();
@@ -220,6 +244,12 @@ describe("the keyboard of a grid", () => {
     expect(header("N°")).toHaveFocus();
     await userEvent.keyboard("{End}");
     expect(header(/inflation/)).toHaveFocus();
+  });
+
+  it("sorts a column from the header by Enter or Space [WF-IHM-0100-A]", async () => {
+    serve();
+    renderGrid();
+    header(/inflation/).focus();
     await userEvent.keyboard("{Enter}");
     expect(router.push).toHaveBeenLastCalledWith(
       "/projects/p/revisions/r/estimate?sort_by=inflated_amount&sort_order=asc",
@@ -230,9 +260,14 @@ describe("the keyboard of a grid", () => {
       "/projects/p/revisions/r/estimate?sort_by=base_amount&sort_order=asc",
       { scroll: false },
     );
-    // Shift and the arrows widen the column of the header, as its handle does.
+  });
+
+  it("widens a column from its header by Shift and the arrows, as its handle does, and goes back down to the rows in the same column [WF-IHM-0100-A]", async () => {
+    serve();
+    renderGrid();
     const handle = within(header(/année de réf/)).getByRole("separator");
     expect(handle).toHaveAttribute("aria-valuenow", "128");
+    header(/année de réf/).focus();
     await userEvent.keyboard("{Shift>}{ArrowRight}{ArrowRight}{ArrowLeft}{/Shift}");
     expect(handle).toHaveAttribute("aria-valuenow", "144");
     expect(header(/année de réf/)).toHaveFocus();
@@ -264,7 +299,7 @@ describe("the keyboard of a grid", () => {
     expect(stops()).toEqual([header("Libellé")]);
   });
 
-  it("stops on the computed cells without entering them, and refuses a try", async () => {
+  it("stops on the computed cells without entering them", async () => {
     serve();
     renderGrid();
     cell(PROVISION, "resource_role").focus();
@@ -277,16 +312,36 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("{ArrowRight}{ArrowRight}");
     expect(cell(PROVISION, "unit_disbursement")).toHaveFocus();
     expect(screen.queryByRole("textbox")).toBeNull();
-    // A character typed on it is refused, naming what it depends on; Escape gives the focus back.
+  });
+
+  it("refuses a character typed on a computed cell, naming what it depends on, and Escape gives the focus back", async () => {
+    serve();
+    renderGrid();
+    cell(PROVISION, "unit_disbursement").focus();
     await userEvent.keyboard("5");
     expect(refusal()).toHaveTextContent(/Débours unit\. ne se saisit pas/);
     expect(screen.queryByRole("textbox")).toBeNull();
-    await expectAccessible(document.body);
     await userEvent.keyboard("{Escape}");
     expect(refusal()).toBeNull();
     expect(cell(PROVISION, "unit_disbursement")).toHaveFocus();
     expect(cell(PROVISION, "unit_disbursement")).toHaveAttribute("aria-expanded", "false");
-    // F2 on another computed cell refuses it too.
+  });
+
+  it("breaks no rule of accessibility, a refusal open", async () => {
+    serve();
+    // The rows down to the provision: the rules of axe hold for each row alike, and the first
+    // check of a file takes several times as long as the next ones (EP-02/L46).
+    renderGrid({ ...estimate, items: estimate.items.slice(0, PROVISION + 1) });
+    cell(PROVISION, "unit_disbursement").focus();
+    await userEvent.keyboard("5");
+    expect(refusal()).not.toBeNull();
+    await expectAccessible(document.body);
+  });
+
+  it("refuses F2 on a computed cell too", async () => {
+    serve();
+    renderGrid();
+    cell(PROVISION, "unit_disbursement").focus();
     await userEvent.keyboard("{End}{ArrowLeft}{F2}");
     expect(refusal()).toHaveTextContent(/Montant \(année de réf\.\) ne se saisit pas/);
   });
@@ -317,6 +372,8 @@ describe("the keyboard of a grid", () => {
 
   it("closes a refusal on a click elsewhere, without scrolling back to its cell, the cell clicked active", async () => {
     serve();
+    // A window of ten rows, not a screenful: every gesture renders the rows anew (EP-02/L46).
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(10 * ROW_HEIGHT);
     renderGrid(thousandRows());
     // Scrolled down by fourteen rows: the refusal opens on a row in view, below the first.
     scrollTo(14);
@@ -384,6 +441,12 @@ describe("the keyboard of a grid", () => {
 });
 
 describe("the keyboard of a grid of a thousand rows", () => {
+  // A window of four rows, some thirty rendered with the margin of the grid: every key renders
+  // them anew, and a screenful made the tests go past their time under load (EP-02/L46).
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(4 * ROW_HEIGHT);
+  });
+
   it("keeps the active cell rendered, and the focus in it, however far the grid scrolls", async () => {
     serve();
     renderGrid(thousandRows());
