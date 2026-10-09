@@ -66,7 +66,8 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 - le fonctionnement de l'annulation : ses commandes se voient et se placent ici, elles
   n'agissent qu'en EP-06 ;
 - l'authentification réelle — EP-03 : la maquette part d'une session que le mock accorde ;
-- les imports et exports réels — EP-09 pour les coûts réels, EP-12 pour les autres flux :
+- les imports et exports réels — EP-06 pour MS Project, EP-07 pour le devis, EP-09 pour le
+  reste à engager et les coûts réels :
   l'écran d'import en deux temps est maquetté, le traitement ne l'est pas ;
 - le diagramme de Gantt et l'arborescence de tâches sont rendus en lecture seule, ce qui est
   définitif et non un provisoire de maquette.
@@ -90,7 +91,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0240 |
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
 | `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
-| `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
+| `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-07 | US-0190 |
 | `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-04 | US-0110, US-0190 |
 | `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0190 |
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
@@ -105,7 +106,7 @@ WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-IHM-0130 (des totaux que l
 restreint, calculés par un serveur réel — EP-11), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03 ; deux utilisateurs
 sur un même projet — EP-04), WF-INTF-0180 (le
-format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
+format des fichiers d'échange — EP-07), WF-CMP-0010 (la version majeure précédente et le
 Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
 ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07). WF-IHM-0130 touche aussi
 les grilles et le Gantt d'US-0110, US-0220 et US-0230, qui filtrent par le serveur, et dont
@@ -1111,7 +1112,7 @@ seul champ de langue.
 - écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
   par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
-  l'exporte. » attendent les échanges de fichiers — EP-12 ; ici, seul l'affichage.
+  l'exporte. » attendent l'échange du devis — EP-07 ; ici, seul l'affichage.
 
 ## US-0200 — Accessibilité minimale
 
@@ -1467,7 +1468,7 @@ valeurs depuis L41h, et le filtre sur un texte rejoint les composants de la gril
 ## US-0260 — Écran d'import en deux temps
 
 - **statut** : fini
-- **exigences** : aucune en propre — EP-09 et EP-12
+- **exigences** : aucune en propre — EP-06, EP-07 et EP-09
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports`, `requestExport`, `getBackgroundTaskResult`
 - **issue** : #90

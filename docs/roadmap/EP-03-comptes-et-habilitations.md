@@ -52,7 +52,7 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
 - les journaux structurés du service et du worker, dès leur premier enregistrement :
   l'identifiant de corrélation engendré à l'entrée et transmis aux tâches, l'auteur, la
   gravité, et aucun mot de passe, jeton ni secret — faute de quoi tout le code d'EP-04 à
-  EP-12 s'écrirait sans eux et serait à reprendre ;
+  EP-11 s'écrirait sans eux et serait à reprendre ;
 - l'amorçage d'une installation neuve : catalogue, rôles prédéfinis, compte administrateur
   et son lien de fixation, langue par défaut ;
 - la comparaison, par la chaîne, des réponses de l'API au schéma déclaré, et les parcours de
@@ -105,7 +105,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-04 | US-0390 |
 | `WF-ADM-0120-A` | Dernier administrateur | entière | US-0380 |
 | `WF-ARC-0060-A` | Contrat OpenAPI | fin — amorcée en EP-01 | US-0340 |
-| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-12 | US-0410 |
+| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-06 | US-0410 |
 | `WF-ARC-0030-A` | Authentification déléguée | entière | US-0350 |
 | `WF-ARC-0090-A` | Traitements longs confiés au worker | début — close en EP-13 | US-0370 |
 | `WF-DAT-0060-A` | Identifiants | début — close en EP-04 | US-0330 |
@@ -128,7 +128,8 @@ fusion, dernière action gardée) ; WF-ADM-0020 en EP-05 (la première action d'
 que l'administrateur) ; WF-ADM-0040 en EP-04 (« le même projet ») ; WF-IHM-0060 en EP-07 (le
 tri de la grille de devis, qu'EP-02 attribuait à tort à EP-03) ; WF-IHM-0130 entre ici pour les
 tables des comptes et des rôles, et reste close en EP-11. WF-ARC-0110, un temps déplacée en
-EP-13 faute de lecture du journal d'audit, revient se clore en EP-12 : la revue de la
+EP-13 faute de lecture du journal d'audit, revient se clore avec le premier import, en EP-06
+(EP-12 abandonné) : la revue de la
 ventilation du 2026-10-09 donne à EP-03 la consultation du journal, qu'EP-02 a ajoutée au
 contrat (`listAuditEvents`, FBS-1.5). Les tableaux des EPIC concernés le disent.
 
@@ -603,7 +604,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme. » et « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : le chiffrement des
   échanges et la publication des images relèvent d'EP-13.
 - `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. »
-- écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-09 et EP-12 ; ici,
+- écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-06 ; ici,
   une tâche de lecture des comptes échouée se suit de la requête qui l'a lancée à son échec
   par un seul identifiant, que l'enveloppe d'erreur (`Problem.correlation_id`) contient.
 - `WF-OBS-0020-A` — « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. »
@@ -810,7 +811,7 @@ qu'elle se soit connectée.
   l'installation, et le worker la prend comme celle qu'un administrateur demande (PBS-5.3).
 
 **Notes de réalisation.** Le worker et la file servent ensuite le marquage (EP-04), les
-imports (EP-09, EP-12) et la sauvegarde (EP-13) : le genre d'une tâche est déjà une
+imports (EP-06, EP-07, EP-09) et la sauvegarde planifiée (EP-13) : le genre d'une tâche est déjà une
 énumération du contrat (`BackgroundTaskRef.kind`).
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
@@ -965,7 +966,7 @@ relit.
   et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
   l'exigence.
 - `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
-- écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-09 et EP-12.
+- écart : `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. » : l'import arrive en EP-06, qui clôt l'exigence.
 - `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. » : constaté sur la consultation du journal ; l'inscription est
   conservée sous forme de code et de données, sans phrase.
 - `WF-ARC-0110-A` — « Un courriel de réinitialisation part du fournisseur d'identité, dans la langue du compte. »

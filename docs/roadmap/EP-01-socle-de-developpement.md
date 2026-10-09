@@ -56,7 +56,7 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 - les écrans — EP-02 ; seul le parcours témoin du harnais touche le front ;
 - le jeu de données de référence de WF-QUA-0040, qui demande le modèle : il naît en EP-04 et
   grossit avec chaque EPIC ;
-- les sept flux de bout en bout de WF-QUA-0050 — EP-12 ;
+- les sept flux de bout en bout de WF-QUA-0050 — EP-06, EP-07 et EP-09, qui les portent ;
 - la livraison continue — la construction et la publication des images, le chart Helm, tout
   déploiement — et les tests de charge de WF-QUA-0060 — EP-13 : la chaîne d'EP-01 intègre
   et contrôle, elle ne publie rien ;
@@ -712,7 +712,7 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 - propre à l'US : l'échec du parcours fait échouer la chaîne ; le parcours s'exécute au
   palier complet de l'US-0310, au moment de fusionner, et non à chaque poussée.
 - écart : « Chacun des sept flux et chacun des trois parcours fait l'objet d'un test de bout
-  en bout qui aboutit. » attend EP-12, où les sept flux existent ;
+  en bout qui aboutit. » attend EP-09, où les sept flux existent ;
 - écart : « L'ensemble s'exécute sur une plateforme déployée à partir des images publiées de
   la version. » et « L'échec de l'un empêche la publication. » attendent EP-13, qui publie
   les images et la version. Ici, l'échec du parcours témoin fait échouer la chaîne, ce qui en

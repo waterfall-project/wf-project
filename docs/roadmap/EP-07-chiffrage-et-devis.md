@@ -14,7 +14,9 @@ issue:
 Les lignes de devis portées par les tâches, leur montant calculé des taux horaires et de
 l'année de consommation, l'inflation du projet, les indicateurs de devis, la grille de devis, le
 plan de charge calculé sur le devis, la mise à jour des taux à la création d'une révision, la
-comparaison de deux révisions et la proposition des contributeurs.
+comparaison de deux révisions et la proposition des contributeurs ; l'import et l'export du devis
+au format Excel de l'annexe B (FLX-03, FLX-04), dont l'aller-retour se valide ici (revue de la
+ventilation, 2026-10-09 : EP-12 abandonné).
 
 Avec des tâches et des lignes, une référence complète peut être désignée : le passage à En cours
 (WF-CYC-0030) devient constatable, et avec lui les exigences du référentiel qui ne se vérifient
@@ -33,6 +35,8 @@ modification sans effet rétroactif.
 - la proposition des contributeurs d'après les rôles employés ;
 - le passage à En cours et l'exigence du code projet ;
 - la valeur planifiée, calculée sur la révision de référence ;
+- l'import et l'export du devis (FLX-03, FLX-04), leur format versionné et indépendant de la
+  langue, leur idempotence, sur la mécanique d'import d'EP-06 ;
 - les écrans du devis de la maquette, branchés sur le service.
 
 ## Ce qui n'en fait pas partie
@@ -40,7 +44,7 @@ modification sans effet rétroactif.
 - la réestimation et le reste à engager, et le plan de charge calculé sur lui — EP-09 ;
 - les provisions des risques, qui entrent au devis sans entrer au budget de référence — EP-08 ;
 - la valeur planifiée recalculée sur la référence produite par un avenant — EP-08 ;
-- l'import et l'export du devis — EP-12.
+- l'import et l'export du reste à engager et des coûts réels — EP-09.
 
 ## Exigences réalisées
 
@@ -73,6 +77,13 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0090-A` | Intégrité déclarée en base | fin — amorcée en EP-03 | — |
 | `WF-DAT-0100-A` | Types des grandeurs | fin — amorcée en EP-03 | — |
 | `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02, EP-03 | — |
+| `WF-INTF-0070-A` | Formats d’échange Excel | début — close en EP-09 | — |
+| `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | fin — amorcée en EP-06 | — |
+| `WF-INTF-0090-A` | Imports et révisions marquées | fin — amorcée en EP-06 | — |
+| `WF-INTF-0100-A` | Import du devis (FLX-03) | entière | — |
+| `WF-INTF-0110-A` | Export du devis (FLX-04) | entière | — |
+| `WF-INTF-0180-A` | Formats indépendants de la langue | fin — amorcée en EP-02 | — |
+| `WF-DAT-0110-A` | Idempotence garantie par la base | début — close en EP-09 | — |
 
 ## Opérations du contrat
 
@@ -86,11 +97,12 @@ Servies ici pour la première fois (8) :
 - `revisions` : `getRateUpdateProposal`, `applyRateUpdate`, `compareRevisions`, `updateEstimateLine` ;
 - `analysis` : `getEstimateIndicators`, `getMissingRates`, `getProjectWorkload`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (18) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (24) :
 
 - `reference` : `getReferenceSettings`, `updateReferenceSettings`, `updateOrgNode`, `updateResourceRole`, `setResourceRoleActivation`, `updateCalendar`, `setCostTypeActivation`, `updateCostCategory`, `setCostCategoryActivation`, `setHourlyRate` ;
 - `projects` : `getProject`, `updateProject`, `getProjectNextState` ;
-- `revisions` : `createRevision`, `getRevision`, `designateReferenceRevision`, `listNodes`, `getComputedValueDependencies` — les montants et ce dont ils dépendent.
+- `revisions` : `createRevision`, `getRevision`, `designateReferenceRevision`, `listNodes`, `getComputedValueDependencies` — les montants et ce dont ils dépendent ;
+- `exchanges` : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`, `requestExport` — le devis.
 
 ## Préalables
 
