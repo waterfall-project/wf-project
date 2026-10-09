@@ -277,6 +277,25 @@ describe("the grid of the hourly rates", () => {
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
   });
 
+  it("says with a rate the server refuses by its field the smallest amount it admits", async () => {
+    serve({
+      [RATE]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/amount", code: "VALUE_OUT_OF_RANGE", params: { minimum: "0.01" } }],
+        },
+      },
+    });
+    render(rates());
+    cell(MECHANICAL, 2016).focus();
+    await userEvent.keyboard("0{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /^Les données saisies ne sont pas valides\. Valeur minimale\s: 0,01\./,
+    );
+    expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
+  });
+
   it("says a correction sent with a version another one has made stale, the cell kept as it was", async () => {
     const stale = example("hourly_rate_stale") as Problem & { status: 412 };
     const client = serve({ [RATE]: { problem: stale } });

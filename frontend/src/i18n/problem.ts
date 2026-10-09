@@ -11,6 +11,10 @@
  * state of named by the sentence; a state without its enumeration, or of an enumeration the
  * catalogue does not know, adds nothing. A
  * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
+ * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
+ * of the envelope: the smallest value a field admits (`minimum`) is said with the refusal, and a
+ * form says the refusal of each field at the field, by the same sentence (`problemMessage` of the
+ * field's code and parameters). The
  * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
  * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
  */
@@ -19,11 +23,16 @@ import { createTranslator } from "next-intl";
 import type { components } from "@/api/generated/schema";
 
 import type { Catalogue } from "./catalogues";
-import { formatLocale } from "./format";
+import { formatDecimal, formatLocale } from "./format";
 import type { Locale } from "./locale";
 
-/** What the sentence is made of: the code of the envelope, and its parameters. */
-export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "params">;
+/**
+ * What the sentence is made of: the code of the envelope, its parameters, and those of its refusals
+ * by field — a refusal by field is itself a code and its parameters.
+ */
+export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "params"> & {
+  readonly fields?: readonly Pick<components["schemas"]["FieldProblem"], "params">[] | undefined;
+};
 
 /** The language to write in, and its catalogue. */
 export interface ProblemLanguage {
@@ -90,7 +99,15 @@ const DETAILS: readonly Reader[] = [
   },
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
-  ({ minimum }) => (typeof minimum === "number" ? ["minimum", { minimum }] : undefined),
+  ({ minimum }, _label, locale) => {
+    if (typeof minimum === "number") {
+      return ["minimum", { minimum }];
+    }
+    // A decimal or an amount of the contract, written in the language of the reader.
+    return typeof minimum === "string" && DECIMAL.test(minimum)
+      ? ["minimum", { minimum: formatDecimal(minimum, locale) }]
+      : undefined;
+  },
   ({ component }, label) => {
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
@@ -104,6 +121,9 @@ const DETAILS: readonly Reader[] = [
       ? ["expected_version", { version: expected_version }]
       : undefined,
 ];
+
+/** A decimal of the contract — `Decimal`, `Money` —, which a minimum may be written in. */
+const DECIMAL = /^-?\d+(\.\d+)?$/;
 
 /** Whether a value is a node of the catalogue that holds others. */
 function isList(node: unknown): node is Readonly<Record<string, unknown>> {
@@ -135,8 +155,12 @@ export function problemMessage(
 ): string {
   const t = createTranslator({ locale, messages });
   const label = labelIn(messages);
-  const params = problem.params ?? {};
-  const details = DETAILS.map((detail) => detail(params, label, locale))
+  const every = [
+    problem.params ?? {},
+    ...(problem.fields ?? []).map((field) => field.params ?? {}),
+  ];
+  const details = every
+    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale)))
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => t(`problemDetails.${key}`, values));
   return [t(`errors.${problem.code}`), ...details].join(" ");

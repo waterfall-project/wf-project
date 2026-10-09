@@ -16,7 +16,9 @@
  * without which the contract refuses `include_inactive` (WF-REF-0150, 403); each nature and each
  * category carries the command that reactivates it, as the server lists it. The categories are
  * filtered by a nature chosen among every one the session reads, read whole as a list of choices is
- * (#303). Bounds of the rate the API refuses (422) leave the grid unread, the bound said at its
+ * (#303). A session that may modify the cost settings creates and modifies the natures and the
+ * categories, and deactivates them as each lists it (EP-02/L43a); the screen then says that the fake
+ * back keeps none of what is written (`MockupNotice`). Bounds of the rate the API refuses (422) leave the grid unread, the bound said at its
  * field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
@@ -79,6 +81,7 @@ import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid"
 import { InactiveSwitch } from "@/components/reference/reference-filters";
 import { BoundsRefused } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
@@ -229,26 +232,33 @@ async function readCosts(queries: CostQueries) {
 
 /**
  * The title of the screen, the currency every amount of it is expressed in, and the switch of the
- * deactivated objects for who may read them.
+ * deactivated objects for who may read them; under it, for who may write, that the fake back keeps
+ * nothing of what is written.
  */
 function CostsHeader({
   currency,
   inactive,
+  writes,
 }: {
   readonly currency: string;
   readonly inactive: boolean | undefined;
+  /** Whether the session may modify the cost settings, and its commands write. */
+  readonly writes: boolean;
 }) {
   const t = useTranslations();
   return (
-    <PageHeader
-      title={t("functions.costSettings")}
-      icon={FUNCTION_ICONS.cost_settings}
-      density={FUNCTION_DENSITY.cost_settings}
-      subtitle={t("reference.currency", { currency })}
-      actions={
-        inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
-      }
-    />
+    <>
+      <PageHeader
+        title={t("functions.costSettings")}
+        icon={FUNCTION_ICONS.cost_settings}
+        density={FUNCTION_DENSITY.cost_settings}
+        subtitle={t("reference.currency", { currency })}
+        actions={
+          inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
+        }
+      />
+      {writes ? <MockupNotice /> : null}
+    </>
   );
 }
 
@@ -294,6 +304,7 @@ export default async function CostSettingsPage({
         <CostsHeader
           currency={settings.currency_code}
           inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
+          writes={editable}
         />
         <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
           <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
@@ -322,6 +333,7 @@ export default async function CostSettingsPage({
               preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
               state={queries.typeState}
               readsInactive={readsInactive}
+              editable={editable}
               kinds={queries.kinds}
             />
             <CostCategoryList
@@ -331,10 +343,12 @@ export default async function CostSettingsPage({
               preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
               state={queries.categoryState}
               readsInactive={readsInactive}
+              editable={editable}
               natures={natures.map((nature) => ({
                 id: nature.cost_type_id,
                 code: nature.code,
                 label: nature.label,
+                active: nature.is_active,
               }))}
               nature={queries.nature}
             />

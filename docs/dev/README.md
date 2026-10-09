@@ -613,17 +613,61 @@ partie, et le front n'en déduit rien : disponible, par la commande d'activation
 indisponible — un nœud sous un parent désactivé, un rôle sous un nœud désactivé (WF-REF-0080) —,
 présentée `aria-disabled`, décrite par ses conditions, et un appui les dit dans la région de la
 liste sans rien demander, comme la suppression d'un rôle porté (#515) ; absente, rien. Un objet ne
-porte que la commande qui change son état : `deactivate`, sur un objet actif, n'est offerte par
-aucun écran encore. Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
+porte que la commande qui change son état : `deactivate`, sur un objet actif, n'est offerte que par
+les natures et les catégories de coût (EP-02/L43a, ci-dessous). Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
 d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre de relire — se dit
 au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
-ce qu'on ferme l'avis — un succès après lui ne l'efface pas, et le focus revient à la cellule active
+ce qu'on ferme son avis — un refus arrivé pendant qu'un autre est dit s'ajoute à lui, sans le
+remplacer, sauf celui de la même commande sur le même objet, qui prend sa place ; un succès après lui
+ne l'efface pas, et le focus revient à la cellule active
 de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
 les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
 une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
 (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
 `include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
 tiendra en EP-05.
+
+Les paramètres de coûts offrent les commandes d'écriture des natures et des catégories (EP-02/L43a,
+décision de l'auteur du 2026-10-08, #512 ; `cost-commands.tsx`, `cost-form.tsx`), pour projeter la
+mise en page et éprouver le contrat de chaque écriture. À une session qui porte `cost_settings.write`
+(`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
+titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
+ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
+`CostStateCell`), indisponible avec ses conditions comme la réactivation ; aucune commande ne
+supprime (WF-REF-0010, WF-DAT-0080). Une autre session n'en voit aucune. La création et la
+modification ouvrent un dialogue (`CostForm`, `ui/dialog.tsx`) : le code, le libellé et le type
+d'une nature, choisi parmi les trois du contrat — sa modification dit que le type ne change plus dès
+qu'une catégorie rattachée est employée, règle du contrat (`CostTypeKind`) — ; le code, le libellé,
+la nature — parmi les actives, et celle de la catégorie modifiée, marquée désactivée — et le code
+comptable d'une catégorie, vide envoyé `null`. Le
+formulaire refuse à son champ ce qui manque, avant toute demande, et le champ prend le focus ; le
+serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
+désigne, par la phrase de son code et de ses paramètres — `problemMessage` d'un `FieldProblem`, le
+premier champ refusé prenant le focus —, tout autre refus sous le formulaire (`OutcomeNotice`), qui
+reste ouvert, la version périmée (412) avec l'offre de relire la page ; un refus par champ que le
+formulaire ne montre pas y reste seul, sans répéter ce qui est dit aux champs. Le bouton d'envoi dit
+l'écriture en cours ; fermé pendant l'attente, le dialogue ne fait rien taire : le succès se dit dans
+la région de la liste, le refus au-dessus d'elle, sur la lecture d'où il est parti. Fermé, il rend le
+focus à la cellule de la ligne — la grille est un seul arrêt — ou à la commande de création.
+`problemMessage` lit aussi les
+paramètres des refus par champ d'une enveloppe : le minimum d'un taux refusé se dit avec le refus de
+la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). Toute écriture répondue
+relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
+les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
+nature désactivée serait une commande que le serveur refuserait (WF-REF-0010). Comme toute relecture
+— un tri, une recherche —, elle abandonne dans la grille des taux une saisie en cours : la réponse
+d'un taux parti avant elle et répondu après, succès ou refus, ne s'applique plus, la cellule montrant
+la valeur relue (`cell-writes.ts`) ; c'est accepté, comme pour un tri. Une modification ou
+une activation répondue remplace sa ligne par ce que le serveur rend, tant que la réponse est plus
+récente que la ligne lue (`lock_version`, `useAnswered`) — face au faux back, qui ne garde rien, elle
+survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue la range où le
+serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
+désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
+(`useListReport`). Le faux back ne gardant rien, l'écran le dit
+sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle que le serveur l'a rendue
+tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
+par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
+service de son EPIC). La saisie d'un taux reste celle de la grille.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les

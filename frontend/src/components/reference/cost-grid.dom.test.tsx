@@ -85,6 +85,7 @@ describe("the grid of the natures of cost", () => {
         page={types.meta}
         query={query}
         preferences={undefined}
+        editable={false}
       />,
     );
 
@@ -120,6 +121,7 @@ describe("the grid of the natures of cost", () => {
           page={types.meta}
           query={NO_QUERY}
           preferences={undefined}
+          editable={false}
         />,
       ),
     );
@@ -142,6 +144,7 @@ describe("the grid of the categories of cost", () => {
         page={categories.meta}
         query={query}
         preferences={undefined}
+        editable={false}
       />,
     );
 
@@ -177,6 +180,7 @@ describe("the grid of the categories of cost", () => {
           page={categories.meta}
           query={NO_QUERY}
           preferences={undefined}
+          editable={false}
         />,
       ),
     );

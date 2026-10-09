@@ -865,6 +865,9 @@
     "signIn": "Se connecter",
     "dismiss": "Fermer l’avis"
   },
+  "mockup": {
+    "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
+  },
   "tasks": {
     "label": "Tâches de fond",
     "named": "{kind} « {subject} »",
@@ -1062,7 +1065,10 @@
       "inactive": "Désactivé",
       "reactivate": "Réactiver « {name} »",
       "reactivateShort": "Réactiver",
-      "unavailable": "La réactivation de « {name} » est indisponible. {unmet}"
+      "unavailable": "La réactivation de « {name} » est indisponible. {unmet}",
+      "deactivate": "Désactiver « {name} »",
+      "deactivateShort": "Désactiver",
+      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",
@@ -1081,6 +1087,26 @@
       "beyond": "La page demandée est au-delà de la fin de la liste."
     },
     "codedChoice": "{code} · {label}",
+    "modify": "Modifier",
+    "modifyNamed": "Modifier « {name} »",
+    "costForm": {
+      "createCostType": "Nouvelle nature de coût",
+      "createCostCategory": "Nouvelle catégorie de coût",
+      "modify": "Modifier « {name} »",
+      "costTypeHint": "Le code, unique, le libellé et le type sont requis.",
+      "costTypeModifyHint": "Le code, unique, le libellé et le type sont requis. Le type ne change plus dès qu’une catégorie rattachée est employée.",
+      "costCategoryHint": "Le code, unique, le libellé et la nature sont requis ; le code comptable, unique lui aussi, peut rester vide.",
+      "choose": "Choisir…",
+      "deactivatedChoice": "{choice} (désactivée)",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "sending": "Envoi…",
+      "cancel": "Annuler",
+      "created": "« {name} » créée.",
+      "saved": "« {name} » enregistrée.",
+      "deactivated": "« {name} » désactivée.",
+      "reactivated": "« {name} » réactivée."
+    },
     "rates": {
       "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
       "addYear": {
@@ -1102,14 +1128,16 @@
       "none": "Aucune nature de coût.",
       "kindFilter": "Types de nature",
       "everyKind": "Tous les types",
-      "count": "{count, plural, one {# nature} other {# natures}}"
+      "count": "{count, plural, one {# nature} other {# natures}}",
+      "create": "Nouvelle nature"
     },
     "costCategories": {
       "title": "Catégories de coût",
       "none": "Aucune catégorie de coût.",
       "costTypeFilter": "Nature",
       "everyCostType": "Toutes les natures",
-      "count": "{count, plural, one {# catégorie} other {# catégories}}"
+      "count": "{count, plural, one {# catégorie} other {# catégories}}",
+      "create": "Nouvelle catégorie"
     },
     "orgNodes": {
       "title": "Arbre d’organisation",

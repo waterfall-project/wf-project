@@ -114,6 +114,17 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
   n'éprouve que ce que l'écran demande. Reste à EP-05 la part du service : ne rendre les
   désactivés qu'avec `include_inactive`, refuser celui-ci sans la permission (403), et appliquer
   la réactivation, que le parcours éprouvera contre le service réel.
+- #512 — les commandes d'écriture du référentiel dans la maquette, sur décision de l'auteur du
+  2026-10-08 (EP-02/L43), une entorse assumée au cadrage qui laissait les formulaires à cet EPIC.
+  EP-02/L43a fait les paramètres de coûts : créer et modifier une nature ou une catégorie dans un
+  formulaire validé côté front, désactiver et réactiver comme l'objet le liste, saisir un taux dans
+  la grille ; un succès remplace la ligne par ce que le serveur rend, un refus se dit au champ ou
+  sous le formulaire, et l'écran dit que le faux back ne garde rien (`MockupNotice`). Restent à
+  EP-05 : le back de ces écritures ; la conformité de leurs réponses au contrat, refus compris — code
+  déjà pris, code comptable déjà pris, type d'une nature dont une catégorie est employée, nature
+  absente, inconnue ou désactivée, version périmée —, que les « Interface contract issue » relevées
+  par L43a précisent d'abord ; les parcours contre le service, une création qui apparaît dans la
+  liste relue ; et le retrait de l'avis de la maquette, l'écran branché sur le service.
 
 ## Préalables
 

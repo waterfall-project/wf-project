@@ -215,6 +215,12 @@ export interface Examples {
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
   };
+  "PATCH /reference/cost-categories/{cost_category_id}": {
+    200: "cost_category_updated";
+  };
+  "PATCH /reference/cost-types/{cost_type_id}": {
+    200: "cost_type_updated";
+  };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
@@ -242,6 +248,12 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_unknown_category";
   };
+  "POST /reference/cost-categories": {
+    201: "cost_category_created";
+  };
+  "POST /reference/cost-types": {
+    201: "cost_type_created";
+  };
   "POST /session": {
     201: "session";
   };
@@ -254,8 +266,14 @@ export interface Examples {
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
   };
+  "PUT /reference/cost-categories/{cost_category_id}/activation": {
+    200: "cost_category_deactivated";
+  };
   "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
     200: "hourly_rate_added_year" | "hourly_rate_corrected" | "hourly_rate_entered";
+  };
+  "PUT /reference/cost-types/{cost_type_id}/activation": {
+    200: "cost_type_deactivated";
   };
   "PUT /reference/org-nodes/{org_node_id}/activation": {
     200: "org_node_reactivated";
