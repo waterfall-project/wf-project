@@ -210,7 +210,8 @@ l'EPIC ne les recopie pas.
 ## Suivi sur GitHub
 
 Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
-lots `[EP-nn/Ln]` leur titre, y compris ceux qu'EP-14 reprend d'EP-02.
+lots `[EP-nn/Ln]` leur titre. Les lots qu'EP-14 reprend d'EP-02 sont renommés `[EP-14/Ln]`, en
+gardant leur numéro, et rattachés à son issue (#599).
 
 L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
 sous-issues suit le découpage :

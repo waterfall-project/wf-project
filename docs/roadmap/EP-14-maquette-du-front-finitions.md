@@ -4,7 +4,7 @@ titre: Les écrans de la maquette achevés, commandes branchées et constats du 
 statut: à planifier
 depend_de: EP-02
 famille: front
-issue: à ouvrir
+issue: 599
 ---
 
 # EP-14 — Maquette du front : finitions
@@ -79,19 +79,20 @@ EP-02 fusionné dans `main` ; la branche `epic/EP-14` tirée de `main` après ce
 
 ## Constats reçus
 
-Repris d'EP-02 à la coupure du 2026-10-09, à rattacher à l'issue de cet EPIC à son ouverture :
+Repris d'EP-02 à la coupure du 2026-10-09, renommés `[EP-14/Ln]` en gardant leur numéro de lot,
+et rattachés à #599 :
 
-- #512 [EP-02/L43] — les commandes du référentiel et des sauvegardes, dont #519 ;
-- #513 [EP-02/L44] — les commandes des paramètres du projet : #583, #584, #585, et #524 ;
-- #528 [EP-02/L45] — l'univers témoin à l'échelle, et #287 ;
-- #507 [EP-02/L42] — ses parties de contrat ouvertes : #574, #575, #579, #586, #588, #590, #592 ;
+- #512 [EP-14/L43] — les commandes du référentiel et des sauvegardes, dont #519 ;
+- #513 [EP-14/L44] — les commandes des paramètres du projet : #583, #584, #585, et #524 ;
+- #528 [EP-14/L45] — l'univers témoin à l'échelle, et #287 ;
+- #507 [EP-14/L42] — ses parties de contrat ouvertes : #574, #575, #579, #586, #588, #590, #592 ;
 - #84 [US-0200] et #126 ; #92 [US-0290] et #127 ;
 - #500 — relectures lentes sous charge, à trancher ;
 - #591 — le critère d'US-0210 à réécrire en écart quand les commandes du projet entrent.
 
 Trois lots étaient commencés à la coupure, sur leur branche, et repartent d'`epic/EP-14` :
-EP-02/L43c (l'écran des sauvegardes, revue 1 faite), EP-02/L44a (créer un projet, revue 1 faite)
-et EP-02/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46, sans issue :
+EP-14/L43c (l'écran des sauvegardes, revue 1 faite), EP-14/L44a (créer un projet, revue 1 faite)
+et EP-14/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46, sans issue :
 `DenseGrid` ne mémorise ni ses lignes ni ses cellules, si bien que chaque déplacement de la cellule
 active les rend toutes ; aucun défaut n'est démontré en production.
 
