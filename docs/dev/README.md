@@ -1761,7 +1761,9 @@ ses paramètres, jamais une phrase.
   `***` dans tout le texte rendu d'un enregistrement — message, trace, `repr` —, y compris ceux
   des bibliothèques. La limite : un secret que les réglages ne connaissent pas (un jeton de
   session, un mot de passe reçu dans une requête) n'est ni retiré sous un autre nom ni masqué
-  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception.
+  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception. Un
+  secret d'un seul caractère masque aussi tout autre texte qui le contient : les réglages n'en
+  portent pas.
 
 ## Clés de traduction
 

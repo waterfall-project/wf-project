@@ -20,6 +20,9 @@ DB_CREDENTIAL = "db-pass-4f8a1c"
 REDIS_CREDENTIAL = "redis-pass-9d2e7b"
 BEARER_JWT = "eyJhbGciOiJSUzI1NiJ9.test-access-token-3b6f"
 SESSION_COOKIE = "wf_session=cookie-value-5c0d"
+# A password a driver decodes from its URL: the logs must hide the decoded text, not only the URL.
+ENCODED_CREDENTIAL = "p%40ss%2Fw%3Ard%231%5Cx"
+DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",
@@ -29,6 +32,7 @@ SECRETS = [
     REDIS_CREDENTIAL,
     BEARER_JWT,
     SESSION_COOKIE,
+    DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
 

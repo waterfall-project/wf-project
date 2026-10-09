@@ -8,7 +8,7 @@ shows no value.
 """
 
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, unquote_plus, urlsplit
 
 from pydantic import Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +18,23 @@ ENV_PREFIX = "WATERFALL_"
 
 class SettingsError(Exception):
     """The environment does not give the settings the service needs."""
+
+
+def _url_secrets(value: str) -> list[str]:
+    """Give what a URL carries as a secret: its password as written and as a driver decodes it.
+
+    A URL that ``urlsplit`` refuses is still secret whole; what follows its last ``@`` is not
+    the credentials, so the part before it is kept apart as well.
+    """
+    try:
+        password = urlsplit(value).password
+    except ValueError:
+        before, at, _ = value.rpartition("@")
+        userinfo = before.rpartition("://")[2]
+        password = userinfo.partition(":")[2] if at else None
+    if not password:
+        return []
+    return [password, unquote(password), unquote_plus(password)]
 
 
 class Settings(BaseSettings):
@@ -38,8 +55,8 @@ class Settings(BaseSettings):
         """
         values = (getattr(self, name) for name in type(self).model_fields)
         held = [value.get_secret_value() for value in values if isinstance(value, SecretStr)]
-        passwords = [urlsplit(value).password for value in held]
-        return tuple(value for value in [*held, *passwords] if value)
+        extra = [part for value in held for part in _url_secrets(value)]
+        return tuple(dict.fromkeys(value for value in [*held, *extra] if value))
 
 
 def load_settings() -> Settings:

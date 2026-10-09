@@ -66,15 +66,19 @@ SHARED: list[Processor] = [
 MASK = "***"
 
 
+def _spellings(secret: str) -> list[str]:
+    quoted = repr(secret)[1:-1]
+    return [secret, json.dumps(secret)[1:-1], quoted, json.dumps(quoted)[1:-1]]
+
+
 def mask_values(secrets: Iterable[str]) -> Callable[[Any, str, Any], Any]:
     """Build the last step of the rendering: it hides each secret value in the text written.
 
-    A value is hidden as it is and as JSON writes it, the longest first so that a secret
-    which contains another one is hidden whole.
+    A value is hidden as it is, as ``repr`` writes it and as JSON writes both, the longest
+    first so that a secret which contains another one is hidden whole. A backslash is doubled
+    by ``repr`` and doubled again by JSON: neither spelling covers the other.
     """
-    spellings = {
-        text for secret in secrets if secret for text in (secret, json.dumps(secret)[1:-1])
-    }
+    spellings = {text for secret in secrets if secret for text in _spellings(secret)}
     ordered = sorted(spellings, key=len, reverse=True)
 
     def mask(_logger: WrappedLogger, _method: str, rendered: Any) -> Any:

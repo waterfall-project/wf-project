@@ -2,13 +2,18 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The logs are structured, say who did what, and keep the secrets out (WF-OBS-0020)."""
 
+import io
 import json
 import logging
 
 import pytest
+import structlog
+from pydantic import SecretStr
 from support import (
     BEARER_JWT,
     DB_CREDENTIAL,
+    DECODED_CREDENTIAL,
+    ENCODED_CREDENTIAL,
     PLATFORM_SECRETS,
     REDIS_CREDENTIAL,
     SESSION_COOKIE,
@@ -16,7 +21,13 @@ from support import (
     found_in,
 )
 
-from waterfall.platform.logs import drop_secrets, get_logger, logging_context, mask_values
+from waterfall.platform.logs import (
+    configure_logging,
+    drop_secrets,
+    get_logger,
+    logging_context,
+    mask_values,
+)
 from waterfall.platform.settings import Settings
 
 
@@ -117,3 +128,41 @@ def test_the_settings_give_each_secret_they_hold_and_the_password_of_a_url(
     assert set(platform_settings.secret_values()) == {DB_CREDENTIAL, REDIS_CREDENTIAL} | set(
         PLATFORM_SECRETS.values()
     )
+
+
+def fail_with(message: str) -> None:
+    raise RuntimeError(message)
+
+
+def settings_with_encoded_password() -> Settings:
+    return Settings(
+        database_url=SecretStr(f"postgresql://u:{ENCODED_CREDENTIAL}@db:5432/x"),
+        redis_url=SecretStr(PLATFORM_SECRETS["WATERFALL_REDIS_URL"]),
+    )
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_the_decoded_password_of_a_url_is_hidden_as_a_driver_quotes_it() -> None:
+    stream = io.StringIO()
+    configure_logging("DEBUG", stream, settings_with_encoded_password().secret_values())
+    logger = get_logger("test")
+    logging.getLogger("library").warning("auth failed for %s", DECODED_CREDENTIAL)
+    logger.info("detail", shown=repr({"password": DECODED_CREDENTIAL}))
+    logging.getLogger("library").warning("state %r", {"password": DECODED_CREDENTIAL})
+    logger.info("dict", value={"k": repr({"password": DECODED_CREDENTIAL})})
+    try:
+        fail_with(repr(RuntimeError(DECODED_CREDENTIAL)))
+    except RuntimeError:
+        logger.exception("failed")
+    structlog.reset_defaults()
+    assert found_in(stream.getvalue()) == []
+    assert ENCODED_CREDENTIAL not in stream.getvalue()
+    assert "***" in stream.getvalue()
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_backslash_is_hidden_after_repr_and_after_json() -> None:
+    mask = mask_values([DECODED_CREDENTIAL])
+    shown = repr({"password": DECODED_CREDENTIAL})
+    for text in (shown, json.dumps(shown), json.dumps({"p": DECODED_CREDENTIAL})):
+        assert "x" not in mask(None, "info", text).replace("password", "")

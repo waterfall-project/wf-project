@@ -6,9 +6,10 @@ import subprocess
 import sys
 
 import pytest
-from support import DB_CREDENTIAL, PLATFORM_SECRETS
+from pydantic import SecretStr
+from support import DB_CREDENTIAL, DECODED_CREDENTIAL, ENCODED_CREDENTIAL, PLATFORM_SECRETS
 
-from waterfall.platform.settings import SettingsError, load_settings
+from waterfall.platform.settings import Settings, SettingsError, load_settings
 
 
 def start_api(environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
@@ -73,3 +74,21 @@ def test_an_invalid_setting_is_named_without_its_value(monkeypatch: pytest.Monke
         load_settings()
     assert "WATERFALL_PORT" in str(raised.value)
     assert "not-a-port" not in str(raised.value)
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_the_secrets_of_a_url_that_urlsplit_refuses_are_still_given() -> None:
+    settings = Settings(
+        database_url=SecretStr("postgresql://u:pa[ss@db/x"),
+        redis_url=SecretStr(PLATFORM_SECRETS["WATERFALL_REDIS_URL"]),
+    )
+    assert {"postgresql://u:pa[ss@db/x", "pa[ss"} <= set(settings.secret_values())
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_the_decoded_password_of_a_url_is_a_secret() -> None:
+    settings = Settings(
+        database_url=SecretStr(f"postgresql://u:{ENCODED_CREDENTIAL}@db/x"),
+        redis_url=SecretStr(PLATFORM_SECRETS["WATERFALL_REDIS_URL"]),
+    )
+    assert {ENCODED_CREDENTIAL, DECODED_CREDENTIAL} <= set(settings.secret_values())
