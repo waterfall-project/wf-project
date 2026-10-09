@@ -38,6 +38,8 @@ services:
       context: ../../frontend
     environment:
       WATERFALL_API_ADDRESS: http://mock:4010
+      # The fake back grants the session: the front sends it a fixed token (src/api/server.ts).
+      WATERFALL_AUTH: mock
       # The hosts besides localhost the browser may open the front at (#481): this
       # workstation's address on its network, set by the caller or in deploy/compose/.env.
       WATERFALL_DEV_ORIGINS: ${WATERFALL_DEV_ORIGINS:-127.0.0.1}

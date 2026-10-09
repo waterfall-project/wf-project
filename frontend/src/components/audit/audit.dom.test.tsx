@@ -48,7 +48,7 @@ const CURRENT = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-00000000
 
 /** The permissions of a session the contract gives as its example. */
 function permissionsOf(name: string): readonly components["schemas"]["PermissionCode"][] {
-  return (example(name) as components["schemas"]["Session"]).permissions;
+  return (example(name) as components["schemas"]["UserSelf"]).permissions;
 }
 const second = example("audit_events_page") as Journal;
 const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
@@ -79,7 +79,7 @@ function journal({
   shown = witness,
   query = NEWEST,
   openable = [PROJECT],
-  session = "session",
+  session = "me",
   filters = filtersOf(page.search),
   named = NAMED,
   users = AUTHORS,
@@ -323,7 +323,7 @@ describe("the grid of the journal", () => {
     // An estimator reads neither the risks nor the planning, of which the exchanges are a leaf,
     // but reads the revisions and the estimate: the risk and the import lead to the revision,
     // which leads to the estimate; the amendment, to the screen of the revisions.
-    const { rerender } = render(journal({ shown: applied, session: "session_estimator" }));
+    const { rerender } = render(journal({ shown: applied, session: "me_estimator" }));
     expect(
       within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
     ).toHaveAttribute("href", CURRENT);
@@ -337,7 +337,7 @@ describe("the grid of the journal", () => {
       `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
     );
     // An auditor reads no function of a revision: none of its objects is a link.
-    rerender(journal({ shown: applied, session: "session_auditor" }));
+    rerender(journal({ shown: applied, session: "me_auditor" }));
     for (const name of [
       "Retard de livraison des armoires",
       "devis-poste-de-commande.xlsx",

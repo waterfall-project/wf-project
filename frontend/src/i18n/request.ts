@@ -5,7 +5,7 @@
  * (WF-INTF-0160), and the configuration next-intl takes from it — the plugin of
  * `next.config.ts` finds this module by its path.
  *
- * The sources are read lazily: the account of the session first (`getCurrentSession`, read
+ * The sources are read lazily: the account of the session first (`getMe`, read
  * once for the request, see `@/session/request`), whose preference prevails when it names a
  * language; the browser next (`Accept-Language`); the installation last
  * (`getInstallation`, readable without a session), only when neither decided. A change of
@@ -53,7 +53,7 @@ async function languageOf(account: Account | undefined): Promise<RequestLanguage
 
 /** The language of the request: read once per request, however many components ask. */
 export const requestLanguage = cache(async (): Promise<RequestLanguage> =>
-  languageOf((await requestSession())?.user),
+  languageOf(await requestSession()),
 );
 
 /** The configuration of next-intl for the request: its language, its texts, and its zone. */

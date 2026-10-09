@@ -97,7 +97,7 @@ export default async function AccessRolesPage({
     searchParams.then((asked) => pageSearch(asked)),
     requestSession(),
   ]);
-  const preferences = session?.user.display_preferences?.grids?.[ACCESS_ROLE_GRID_KEY] ?? undefined;
+  const preferences = session?.display_preferences?.grids?.[ACCESS_ROLE_GRID_KEY] ?? undefined;
   const query = readGridQuery(search, ACCESS_ROLE_SORTS, preferences?.sort);
   const predefined = readBoolean(search, PREDEFINED);
   const holders = readBounds(search, HOLDER_COUNT, "count");

@@ -31,7 +31,7 @@ const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
 /** The permissions of a session of the contract. */
 function permissions(name: string) {
-  return (example(name) as components["schemas"]["Session"]).permissions;
+  return (example(name) as components["schemas"]["UserSelf"]).permissions;
 }
 
 /** Show an address, as a navigation of the browser would. */
@@ -41,7 +41,7 @@ function visit(pathname: string, search = "") {
 }
 
 /** Render the navigation, in French, for a session and the cookie of the request. */
-function navigation(session = "session", remembered?: string) {
+function navigation(session = "me", remembered?: string) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <SidebarProvider>
@@ -175,7 +175,7 @@ describe("the navigation", () => {
   });
 
   it("offers no function whose read permission the session lacks", async () => {
-    render(navigation("session_without_administration"));
+    render(navigation("me_without_administration"));
     expect(await openBlocks()).toEqual(["Portefeuille", "Paramètres applicatifs"]);
     expect(screen.queryByRole("link", { name: "Surveillance de l’état du système" })).toBeNull();
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe("the navigation", () => {
 
   it("leads back to the project context the cookie of the request kept [WF-IHM-0010-A]", () => {
     visit("/system");
-    render(navigation("session", `${IN_PROJECT}/risks${CONTEXT}`));
+    render(navigation("me", `${IN_PROJECT}/risks${CONTEXT}`));
     expect(href("Retour au projet")).toBe(`${IN_PROJECT}/risks${CONTEXT}`);
     expect(screen.getByRole("link", { name: "Projets" })).not.toHaveAttribute("aria-current");
   });

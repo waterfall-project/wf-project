@@ -63,7 +63,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { PROJECT_STATES } from "@/navigation/home";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
-import { requestSession, type Session } from "@/session/request";
+import { type Account, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
@@ -222,14 +222,14 @@ function Inscriptions({
  * What the session reads of the journal: its permissions, and the settings it keeps for the grid;
  * not found to a session that may not consult the journal (WF-ADM-0110).
  */
-function consultation(session: Session | undefined) {
+function consultation(session: Account | undefined) {
   const permissions = session?.permissions ?? [];
   if (!permissions.includes("audit_log.read")) {
     notFound();
   }
   return {
     permissions,
-    preferences: session?.user.display_preferences?.grids?.[AUDIT_GRID_KEY] ?? undefined,
+    preferences: session?.display_preferences?.grids?.[AUDIT_GRID_KEY] ?? undefined,
   };
 }
 

@@ -195,7 +195,7 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   grid: GridReading<N, T, L>,
 ): Promise<GridScreen<NodeRow<N, T, L>>> {
   const settings = requestSession().then(
-    (session) => session?.user.display_preferences?.grids?.[grid.key] ?? undefined,
+    (session) => session?.display_preferences?.grids?.[grid.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, grid.sortable, kept?.sort));
   const [structure, reading, preferences, query] = await Promise.all([

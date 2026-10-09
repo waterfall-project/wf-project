@@ -36,7 +36,7 @@ vi.mock("next/headers", () => ({
 vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
-const { user } = example("session") as components["schemas"]["Session"];
+const user = example("me") as components["schemas"]["UserSelf"];
 
 /**
  * Render the shell as the root layout does: the language of the request, then the page. The
@@ -100,7 +100,7 @@ beforeEach(() => {
 
 describe("the language in the menu of the account", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {
-    await open({ "GET /session": "session" });
+    await open({ "GET /me": "me" });
     const values = await languages();
     expect(values.map((value) => value.textContent)).toEqual([
       "Langue du navigateur",
@@ -120,7 +120,7 @@ describe("the language in the menu of the account", () => {
     // The back keeps the choice, and the next read of the session returns it; the fake back
     // keeps nothing, so the second answer of GET /session stands in for what it would keep.
     const client = await open({
-      "GET /session": ["session", "session_english"],
+      "GET /me": ["me", "me_english"],
       [PREFERENCES]: "preferences",
     });
 
@@ -137,16 +137,12 @@ describe("the language in the menu of the account", () => {
     expect(screen.getByRole("menuitemradio", { name: "Browser language" })).toBeInTheDocument();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
     // Two reads of the session and one write: no session was opened anew.
-    expect(client.calls.map((call) => call.route)).toEqual([
-      "GET /session",
-      PREFERENCES,
-      "GET /session",
-    ]);
+    expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
   });
 
   it("sends nothing while the keyboard moves through the languages, and gives the focus back once one is chosen", async () => {
     const client = await open({
-      "GET /session": ["session", "session_english"],
+      "GET /me": ["me", "me_english"],
       [PREFERENCES]: "preferences",
     });
     avatar().focus();
@@ -174,7 +170,7 @@ describe("the language in the menu of the account", () => {
   it("leads to the sign-in page, which comes back to the screen, when the session is gone", async () => {
     const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
     const refresh = vi.fn();
-    const client = await open({ "GET /session": "session", [PREFERENCES]: expired });
+    const client = await open({ "GET /me": "me", [PREFERENCES]: expired });
     server.refresh = refresh;
 
     await choose("Français");
@@ -196,7 +192,7 @@ describe("the language in the menu of the account", () => {
   });
 
   it("says the API is out of reach rather than leave the page blank", async () => {
-    await open({ "GET /session": "session" });
+    await open({ "GET /me": "me" });
     server.client = createApiClient({
       address: "http://unreachable.invalid",
       fetch: () => Promise.reject(new TypeError("fetch failed")),
@@ -212,7 +208,7 @@ describe("the language in the menu of the account", () => {
   it("shows the preference a new render reads, not the one it was first given", async () => {
     // The account changed elsewhere — another tab, another workstation — and the page is
     // rendered again.
-    const client = fakeClient({ "GET /session": ["session", "session_english"] });
+    const client = fakeClient({ "GET /me": ["me", "me_english"] });
     server.client = client;
     const view = render(await layout());
 

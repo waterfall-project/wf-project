@@ -84,7 +84,7 @@ function options(page: string, name: string): (string | undefined)[] {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",

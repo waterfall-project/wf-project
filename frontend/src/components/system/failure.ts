@@ -7,7 +7,8 @@
  * In production, Next forwards to an error boundary no more of an error thrown on the server
  * than its `digest` — its message and its class stay on the server. An error that sets its
  * own `digest` keeps it: the API out of reach carries `UNREACHABLE_DIGEST`, a refusal for
- * want of a session `SESSION_REQUIRED_DIGEST`, which the boundary tells apart; an unexpected
+ * want of a session `SESSION_REQUIRED_DIGEST`, one for a deactivated account
+ * `ACCOUNT_DEACTIVATED_DIGEST`, which the boundary tells apart; an unexpected
  * answer of the API carries the correlation identifier of the request (WF-OBS-0020), which
  * the API wrote in its logs, behind `CORRELATION_PREFIX`; any other error — an answer without
  * the envelope or without its identifier among them — the digest Next computes, which Next
@@ -26,6 +27,9 @@ export const UNREACHABLE_DIGEST = "WATERFALL_API_UNREACHABLE";
 /** The digest of an error that says the API refused the read for want of a session (401). */
 export const SESSION_REQUIRED_DIGEST = "WATERFALL_SESSION_REQUIRED";
 
+/** The digest of an error that says the API refused the read, the account being deactivated. */
+export const ACCOUNT_DEACTIVATED_DIGEST = "WATERFALL_ACCOUNT_DEACTIVATED";
+
 /** What comes before the correlation identifier of the API in a digest. */
 export const CORRELATION_PREFIX = "WATERFALL_CORRELATION;";
 
@@ -39,10 +43,10 @@ export type BoundaryError = Error & { readonly digest?: string | undefined };
 
 /**
  * What the screen of failure says: the API out of reach, no session — the way to sign in —,
- * or a defect, with its reference when the error carries one.
+ * the account deactivated, or a defect, with its reference when the error carries one.
  */
 export type Failure =
-  | { readonly kind: "unreachable" | "signed_out" }
+  | { readonly kind: "unreachable" | "signed_out" | "deactivated" }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
 /**
@@ -63,6 +67,9 @@ export function failureOf(error: BoundaryError): Failure {
   }
   if (error.digest === SESSION_REQUIRED_DIGEST) {
     return { kind: "signed_out" };
+  }
+  if (error.digest === ACCOUNT_DEACTIVATED_DIGEST) {
+    return { kind: "deactivated" };
   }
   return { kind: "unexpected", reference: referenceOf(error.digest) };
 }

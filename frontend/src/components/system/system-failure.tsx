@@ -25,6 +25,7 @@ import { type BoundaryError, type Failure, failureOf } from "./failure";
 const TEXTS = {
   unreachable: "unreachable",
   signed_out: "signedOut",
+  deactivated: "deactivated",
   unexpected: "unexpected",
 } as const satisfies Record<Failure["kind"], string>;
 

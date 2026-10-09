@@ -28,8 +28,9 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SCREEN = `/projects/${PROJECT}/revisions`;
-const SIGN_OUT = "DELETE /session";
-const { user, permissions } = example("session") as components["schemas"]["Session"];
+const SIGN_OUT = "DELETE /me/sessions";
+const account = example("me") as components["schemas"]["UserSelf"];
+const { permissions } = account;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -60,7 +61,7 @@ function shell() {
   return render(
     <Shell
       locale="fr"
-      account={user}
+      account={account}
       preference="default"
       theme="default"
       permissions={permissions}

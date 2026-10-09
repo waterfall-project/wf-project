@@ -34,7 +34,6 @@ import {
   Hourglass,
   ImageIcon,
   Kanban,
-  KeyRound,
   Network,
   type LucideIcon,
   Receipt,
@@ -140,6 +139,5 @@ export const FUNCTION_DENSITY: Readonly<Record<FunctionPermission, Density>> = {
 /** The icon of each page of the account. */
 export const ACCOUNT_ICONS: Readonly<Record<AccountPage, LucideIcon>> = {
   account: User,
-  password: KeyRound,
   avatar: ImageIcon,
 };

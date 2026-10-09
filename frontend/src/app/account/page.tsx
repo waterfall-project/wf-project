@@ -3,7 +3,7 @@
 /**
  * The screen of the account (US-0320): what the account is — its name, its address, where it
  * comes from —, its display preferences, the language and the mode, which the menu of the
- * account offers too (WF-ADM-0040, WF-INTF-0160), and the ways to its password and its avatar.
+ * account offers too (WF-ADM-0040, WF-INTF-0160), and the way to its avatar.
  */
 import type { Metadata } from "next";
 import Link from "next/link";

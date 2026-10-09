@@ -99,7 +99,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
     props.searchParams.then((asked) => pageSearch(asked)),
     requestSession(),
   ]);
-  const grids = session?.user.display_preferences?.grids ?? undefined;
+  const grids = session?.display_preferences?.grids ?? undefined;
   const breakdownQuery = readGridQuery<never>(search, [], undefined, BREAKDOWN_ADDRESS);
   const breakdownKinds = readValues(search, BREAKDOWN_KIND_FILTER, BREAKDOWN_KINDS);
   const subprojectQuery = readGridQuery(

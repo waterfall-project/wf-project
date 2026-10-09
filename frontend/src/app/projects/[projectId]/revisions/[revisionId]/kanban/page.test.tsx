@@ -66,7 +66,7 @@ function callsTo(route: string) {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     [REVISION_READ]: "revision",
     [STARTABLE]: "startable_tasks",

@@ -5,9 +5,9 @@
  * being hydrated, `true` from then on — and at once for a component mounted by a navigation in
  * the browser.
  *
- * A form whose sending is handled by React — a password sent to a server action — keeps its
+ * A form whose sending is handled by React — a value sent to a server action — keeps its
  * button disabled until then: before the hydration, the browser would send the form itself, by
- * GET, the password in the address (#499).
+ * GET, the value in the address (#499).
  */
 import { useSyncExternalStore } from "react";
 

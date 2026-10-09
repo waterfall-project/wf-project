@@ -83,7 +83,7 @@ const LAST =
 function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: FakeTiming = {}) {
   server.client = fakeClient(
     {
-      "GET /session": "session",
+      "GET /me": "me",
       "GET /installation": "installation",
       "GET /tasks": "tasks_none",
       ...answers,
@@ -134,7 +134,7 @@ describe("RootLayout", () => {
   });
 
   it("forces the mode the account chose on the whole document", async () => {
-    request("fr", { "GET /session": "session_dark" });
+    request("fr", { "GET /me": "me_dark" });
     const html = await page();
     expect(html).toMatch(/^<html lang="fr" data-theme="dark"/);
     expect(html).toContain('<source srcSet="/waterfall_logo-dark.svg" media="all"/>');
@@ -169,7 +169,7 @@ describe("RootLayout", () => {
   });
 
   it("offers neither the menu of the account nor functions without a session: the browser decides", async () => {
-    request("en", { "GET /session": UNAUTHORIZED });
+    request("en", { "GET /me": UNAUTHORIZED });
     const html = await page();
     expect(html).toMatch(/^<html lang="en" class="font-geist-sans">/);
     expect(html).not.toContain("Account of");
@@ -206,7 +206,7 @@ describe("RootLayout", () => {
     const routes = server.client?.calls.map((call) => call.route);
     // The browser asks for no language offered: the installation decides. The tasks of the
     // user that still run are asked once the session is known to be open, for the tracker.
-    expect(routes).toEqual(["GET /session", "GET /installation", "GET /tasks"]);
+    expect(routes).toEqual(["GET /me", "GET /installation", "GET /tasks"]);
     const tasks = server.client?.calls.find((call) => call.route === "GET /tasks");
     expect(tasks?.query.get("status")).toBe("queued,running");
   });
@@ -239,7 +239,7 @@ describe("RootLayout", () => {
   });
 
   it("asks no task without a session, and hands the tracker none when the API refuses the list", async () => {
-    request("fr", { "GET /session": UNAUTHORIZED, "GET /tasks": "tasks_running" });
+    request("fr", { "GET /me": UNAUTHORIZED, "GET /tasks": "tasks_running" });
     expect(await page()).toContain("<p>page</p>");
     expect(server.running).toBeUndefined();
     expect(server.client?.calls.map((call) => call.route)).not.toContain("GET /tasks");
@@ -255,7 +255,7 @@ describe("RootLayout", () => {
     await page();
     await generateMetadata();
     const routes = server.client?.calls.map((call) => call.route);
-    expect(routes).toEqual(["GET /session", "GET /installation", "GET /tasks"]);
+    expect(routes).toEqual(["GET /me", "GET /installation", "GET /tasks"]);
   });
 
   it("titles the document with the product, from the catalogue", async () => {

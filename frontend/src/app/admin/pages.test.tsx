@@ -117,7 +117,7 @@ beforeEach(() => {
   shown.path = "/admin/users";
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /users": "users",
     "GET /reference/org-nodes": "org_nodes",
     "GET /access-roles": "access_roles",
@@ -135,7 +135,7 @@ describe("the accounts", () => {
 
   it("present each account with its origin, its roles and its node as the server names them, deactivated ones listed, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
     // A session that may not modify the accounts: no column of commands.
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
       "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État",
@@ -263,7 +263,7 @@ describe("the accounts", () => {
   });
 
   it("offer no command of the accounts to a session that may not modify them", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(
       buttons(page).filter((name) =>
@@ -288,7 +288,7 @@ describe("the accounts", () => {
     server.answers = {
       ...server.answers,
       "GET /users": "users_page",
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
     };
     const page = rendered(await UsersPage(searched({ offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
@@ -315,7 +315,7 @@ describe("the access roles", () => {
   });
 
   it("present each role, predefined or composed, with how many accounts hold it, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await AccessRolesPage(searched()));
     expect(rows(page, "Rôles d’habilitation")).toEqual([
       "Libellé Nature Comptes porteurs",
@@ -433,7 +433,7 @@ describe("the access roles", () => {
   });
 
   it("offer to create no permission, nor any command of the roles to a session that may not modify them [WF-ADM-0100-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await AccessRolesPage(searched()));
     expect(buttons(page).filter((name) => /Créer|Modifier|Supprimer/.test(name))).toEqual([]);
     expect(links(page)).toEqual([]);

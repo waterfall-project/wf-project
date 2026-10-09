@@ -31,7 +31,8 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const { user, permissions } = example("session") as components["schemas"]["Session"];
+const account = example("me") as components["schemas"]["UserSelf"];
+const { permissions } = account;
 const project = example("project") as components["schemas"]["Project"];
 
 /** A page in the shell, in French, for the account and the session of the contract. */
@@ -39,7 +40,7 @@ function inShell(props: Partial<ShellProps> = {}, page = <main />) {
   return (
     <Shell
       locale="fr"
-      account={user}
+      account={account}
       preference="default"
       theme="default"
       permissions={permissions}
@@ -206,10 +207,10 @@ describe("the shell", () => {
     expect(menu).toHaveTextContent("camille.martin@example.com");
     expect(within(menu).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
-    const pages = ["Mon compte", "Changer le mot de passe", "Changer l’avatar"].map((name) =>
+    const pages = ["Mon compte", "Changer l’avatar"].map((name) =>
       within(menu).getByRole("menuitem", { name }).getAttribute("href"),
     );
-    expect(pages).toEqual(["/account", "/account/password", "/account/avatar"]);
+    expect(pages).toEqual(["/account", "/account/avatar"]);
     expect(within(menu).getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
       "aria-disabled",
     );
@@ -292,8 +293,7 @@ describe("the shell", () => {
     // Without « consulter tous les projets », the list lifted is the list filtered: no link
     // promises it, and the choice leads home.
     visit("/portfolio/projects");
-    const estimator = (example("session_estimator") as components["schemas"]["Session"])
-      .permissions;
+    const estimator = (example("me_estimator") as components["schemas"]["UserSelf"]).permissions;
     shell({ permissions: estimator });
     await userEvent.click(screen.getByRole("button", { name: "Aucun projet ouvert" }));
     const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
@@ -306,8 +306,7 @@ describe("the shell", () => {
   it("names the planning without a link in the breadcrumb of a costing engineer on the imports and exports, and with one for a session that reads it (#521)", () => {
     const exchanges = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
     visit(exchanges);
-    const estimator = (example("session_estimator") as components["schemas"]["Session"])
-      .permissions;
+    const estimator = (example("me_estimator") as components["schemas"]["UserSelf"]).permissions;
     const { unmount } = shell({ permissions: estimator });
     const crumbs = () => bar().getByRole("navigation", { name: "Fil d’Ariane" });
     expect(within(crumbs()).getByText("Planification").closest("a")).toBeNull();
@@ -455,26 +454,6 @@ describe("the shell", () => {
     expect(bar().getByRole("searchbox", { name: "Rechercher" })).toHaveAccessibleDescription(
       "La recherche est à venir\u00a0: elle arrive avec les écrans qui listent les fonctions et les projets.",
     );
-  });
-
-  it.each(["/login", "/login/reset"])(
-    "leaves the way in bare, without side bar, bar nor tasks, whatever the session: %s",
-    (pathname) => {
-      visit(pathname);
-      shell({}, <main>Connexion</main>);
-      expect(screen.queryByRole("banner")).toBeNull();
-      expect(screen.queryByRole("navigation", { name: "Fonctions" })).toBeNull();
-      expect(screen.queryByRole("region", { name: "Tâches de fond" })).toBeNull();
-      expect(screen.getByRole("main")).toHaveTextContent("Connexion");
-    },
-  );
-
-  it("frames every other address, one under /login that leads nowhere included", () => {
-    visit("/login/nobody");
-    shell();
-    expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Tâches de fond" })).toBeInTheDocument();
   });
 
   it("sets the side bar in a landmark named for it", () => {

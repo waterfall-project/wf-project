@@ -98,7 +98,7 @@ beforeEach(() => {
   grids.projects = [];
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /portfolio/projects": "volume/portfolio_projects",
     "GET /portfolio/value": "volume/portfolio_value",
     "GET /reference/org-nodes": "org_nodes",

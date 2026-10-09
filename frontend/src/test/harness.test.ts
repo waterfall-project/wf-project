@@ -20,6 +20,7 @@ const DEVELOPMENT_SPEC = /- \.\.\/\.\.\/(\S+):\/contract\//.exec(COMPOSE)?.[1];
 
 const VARIABLES = [
   "WATERFALL_API_ADDRESS",
+  "WATERFALL_AUTH",
   "E2E_API_PORT",
   "E2E_FRONT_PORT",
   "E2E_PRODUCTION_PORT",
@@ -118,6 +119,15 @@ describe("the end-to-end harness", () => {
     expect(servers).toHaveLength(2);
     for (const server of servers) {
       expect(server.env).toEqual({ WATERFALL_API_ADDRESS: "http://api.example:8080" });
+    }
+  });
+
+  it("has the front send the token of the fake back, and say it is the harness that builds it for production", async () => {
+    const servers = serversOf(await harness());
+    const fronts = servers.filter((server) => server.env !== undefined);
+    expect(fronts).toHaveLength(2);
+    for (const front of fronts) {
+      expect(front.env).toMatchObject({ WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" });
     }
   });
 

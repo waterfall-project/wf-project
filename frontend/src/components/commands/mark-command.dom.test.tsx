@@ -110,7 +110,7 @@ describe("the marking of a revision", () => {
       [TASK]: ["task_running", "task_succeeded"],
       [PREFERENCES]: "preferences",
     });
-    const { user } = example("session") as components["schemas"]["Session"];
+    const user = example("me") as components["schemas"]["UserSelf"];
     open("revision", <AccountMenu account={user} language="default" theme="default" />);
 
     await mark("V2");

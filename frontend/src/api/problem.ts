@@ -11,7 +11,8 @@
  * - `conflict` (409), the state of an object forbids the operation: the screen explains it,
  *   naming the object in conflict when the envelope carries it — or one of its refusals by field,
  *   the object that holds a value already taken — and the screen knows it;
- * - `signed_out` (401), no session: the screen leads to the sign-in page, which comes back to
+ * - `signed_out` (401), no session — not the deactivated account, a `refused` whose code the screen
+ *   says (`ACCOUNT_DEACTIVATED`), since signing in again would loop —: the screen leads to the sign-in page, which comes back to
  *   the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
  *   502, 503 or 504 without the envelope — a result of its own, never a `Problem` the API did
@@ -22,19 +23,23 @@
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
  * instead: what is not its data is thrown — not found, the API out of reach, no session, an
- * unexpected answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`). A read it
+ * unexpected answer, the deactivated account —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`). A read it
  * can do without goes through `readUnlessRefused`, which gives nothing on the refusals it expects.
  *
  * A client component imports only the types of this module; the decoding runs on the server.
  */
 import { notFound, unstable_rethrow } from "next/navigation";
 
-import { correlationDigest, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
+import {
+  ACCOUNT_DEACTIVATED_DIGEST,
+  correlationDigest,
+  SESSION_REQUIRED_DIGEST,
+} from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
 
 import { Unreachable } from "./client";
-import { kindOf, type ProblemKind } from "./problem-kind";
+import { isDeactivation, kindOf, type ProblemKind } from "./problem-kind";
 import type { components } from "./generated/schema";
 
 export { kindOf, type ProblemKind } from "./problem-kind";
@@ -159,10 +164,29 @@ export class SignedOut extends Error {
 }
 
 /**
+ * The API refused a read of a screen because the account is deactivated (401
+ * `ACCOUNT_DEACTIVATED`): the screen of failure says so, and does not lead to the sign-in page,
+ * which would loop.
+ */
+export class AccountDeactivated extends Error {
+  readonly digest = ACCOUNT_DEACTIVATED_DIGEST;
+
+  /** The refusal of an operation, by its `operationId`. */
+  constructor(readonly operation: string) {
+    super(`${operation} answered 401, the account being deactivated`);
+    this.name = "AccountDeactivated";
+  }
+}
+
+/**
  * What a read throws on an answer that is neither a success, nor "not found", nor the API
- * out of reach: `SignedOut` on 401, `UnexpectedAnswer` otherwise.
+ * out of reach: `SignedOut` on 401, `AccountDeactivated` on the 401 that names the deactivated
+ * account, `UnexpectedAnswer` otherwise.
  */
 export function refusalOf(operation: string, status: number, body: unknown): Error {
+  if (isDeactivation(status, isProblem(body) ? body.code : undefined)) {
+    return new AccountDeactivated(operation);
+  }
   return status === 401 ? new SignedOut(operation) : new UnexpectedAnswer(operation, status, body);
 }
 
@@ -265,7 +289,11 @@ function decodeAnswer<T>(answer: Answer<T>): Outcome<T> {
     return { kind: "unreachable" };
   }
   const problem = envelope(answer.error, status);
-  return { kind: kindOf(status), problem, conflictingObjectId: conflictingOf(problem) };
+  return {
+    kind: kindOf(status, problem.code),
+    problem,
+    conflictingObjectId: conflictingOf(problem),
+  };
 }
 
 /**

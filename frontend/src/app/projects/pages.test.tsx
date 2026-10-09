@@ -151,7 +151,7 @@ type CitedRead = {
 
 /** The examples the reads of a revision answer, by the end of their path, the others aside. */
 const EXAMPLE_BY_END = {
-  "/session": ["GET /session", "session"],
+  "/session": ["GET /me", "me"],
   "/structures": ["GET /projects/{project_id}/revisions/{revision_id}/structures", "structures"],
   "/nodes": [
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
@@ -240,7 +240,7 @@ beforeEach(() => {
   server.undeclared = undefined;
   server.timing = {};
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
     "GET /projects/{project_id}": "project",
@@ -365,14 +365,14 @@ describe("the witness path", () => {
     const held = new Promise<void>((resolve) => {
       answer = resolve;
     });
-    server.timing = { hold: (route) => (route === "GET /session" ? held : undefined) };
+    server.timing = { hold: (route) => (route === "GET /me" ? held : undefined) };
     const routes = () => server.clients.flatMap((client) => client.calls).map((call) => call.route);
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
     await vi.waitFor(() => {
       expect(routes()).toEqual(
         expect.arrayContaining([
-          "GET /session",
+          "GET /me",
           "GET /projects/{project_id}/revisions/{revision_id}/structures",
           "GET /projects/{project_id}",
           "GET /projects/{project_id}/revisions/{revision_id}",
@@ -386,14 +386,14 @@ describe("the witness path", () => {
   });
 
   it("asks no sort when the address lifted it, whatever the account keeps", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "" }) });
     expect(Object.keys(nodesQuery())).toEqual([]);
   });
 
   it("hands the grid the settings of the account the session read", async () => {
-    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
+    const { html } = await estimateWith({ "GET /me": "me_grid_settings" });
     // The quantity hidden, the label widened.
     expect(html).not.toContain(">Qty<");
     expect(html).toContain('<col style="width:400px"/>');
@@ -466,7 +466,7 @@ describe("the witness path", () => {
   it("keeps no sort by a column the grid no longer presents, and sorts by the address otherwise", async () => {
     // The account keeps the sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the plan order, as for any column the grid does not sort.
-    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
+    const { html } = await estimateWith({ "GET /me": "me_grid_settings" });
     expect(Object.keys(nodesQuery())).toEqual([]);
     expect(html).not.toContain("aria-sort");
 
@@ -494,11 +494,11 @@ describe("the witness path", () => {
     });
     // The session alone is read, to know what it may read; nothing of the revision yet.
     const routes = server.clients.flatMap((client) => client.calls).map((call) => call.route);
-    expect(new Set(routes)).toEqual(new Set(["GET /session"]));
+    expect(new Set(routes)).toEqual(new Set(["GET /me"]));
   });
 
   it("leads an estimator who may not read the planning from a revision to its estimate", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: expect.stringContaining(
@@ -508,7 +508,7 @@ describe("the witness path", () => {
   });
 
   it("leads from a revision to its planning without a session, whose page leads to the sign-in", async () => {
-    server.answers = { ...server.answers, "GET /session": UNAUTHORIZED };
+    server.answers = { ...server.answers, "GET /me": UNAUTHORIZED };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: expect.stringContaining(
@@ -580,7 +580,7 @@ describe("the witness path", () => {
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {
     server.answers = {
-      "GET /session": "session",
+      "GET /me": "me",
       "GET /projects/{project_id}": NOT_FOUND,
       "GET /projects/{project_id}/revisions": NOT_FOUND,
     };
@@ -751,7 +751,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     );
     expect(links(html)).toContain("/reference/costs");
 
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const estimator = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
@@ -896,7 +896,7 @@ describe("the empty states of the shell", () => {
   it("does not offer the way to the revisions to a session that may not read them", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": UNAUTHORIZED,
+      "GET /me": UNAUTHORIZED,
       "GET /projects/{project_id}": "project_pricing",
       "GET /projects/{project_id}/revisions": "revisions_empty",
     };

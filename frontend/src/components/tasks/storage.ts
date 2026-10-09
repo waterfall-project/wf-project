@@ -31,7 +31,7 @@ const KINDS: Readonly<Record<TaskKind, true>> = {
   export: true,
   backup: true,
   restore: true,
-  directory_sync: true,
+  identity_sync: true,
 };
 
 /** What is kept of a task. */
