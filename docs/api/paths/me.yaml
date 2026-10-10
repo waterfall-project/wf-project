@@ -12,7 +12,8 @@
       malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant
       sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à
       sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est
-      refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
+      refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060) ; un compte que Waterfall n'admet pas,
+      par 401 `ACCOUNT_NOT_ADMITTED`.
     responses:
       '200':
         description: Compte courant.
@@ -33,6 +34,7 @@
               manager: { $ref: ../../../fixtures/api/me_manager.json }
               auditor: { $ref: ../../../fixtures/api/me_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/sessions:
   delete:
@@ -77,6 +79,7 @@
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/avatar:
   put:
@@ -101,6 +104,7 @@
         description: Avatar enregistré.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteMyAvatar
     tags: [me]
@@ -111,3 +115,4 @@
       '204':
         description: Avatar retiré ; le compte s'affiche avec une image par défaut (WF-ADM-0080).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

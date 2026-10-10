@@ -17,6 +17,7 @@ class ErrorCode(StrEnum):
     SESSION_REQUIRED = "SESSION_REQUIRED"
     SESSION_EXPIRED = "SESSION_EXPIRED"
     ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
+    ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
     PERMISSION_MISSING = "PERMISSION_MISSING"
     NOT_CONTRIBUTOR = "NOT_CONTRIBUTOR"
     NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
@@ -590,7 +591,7 @@ class User(UserAccount):
 class UserCreate(BaseModel):
     last_name: Annotated[str, Field(max_length=100, min_length=1)]
     first_name: Annotated[str, Field(max_length=100, min_length=1)]
-    email: str
+    email: Annotated[str, Field(max_length=254)]
     org_node_id: Uuid | None = None
     access_role_ids: list[Uuid] | None = None
 
@@ -598,7 +599,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     last_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
     first_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
-    email: str | None = None
+    email: Annotated[str | None, Field(max_length=254)] = None
     org_node_id: Uuid | None = None
     lock_version: LockVersion
 
