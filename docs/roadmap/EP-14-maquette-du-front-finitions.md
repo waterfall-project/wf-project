@@ -678,6 +678,38 @@ plafond de mille lignes d'un fichier. Les tests des refus propres au contrat de 
 les heures hors bornes, l'effectif négatif, la désignation refusée ou indisponible — ne citent aucune
 exigence : les Vérif de WF-REF-0070 à 0120 n'en disent rien (revue 1).
 
+EP-14/L52 (#723), lot technique ajouté le 2026-10-10, solde les constats mineurs que les relectures
+des lots du front ont renvoyés. Pour #661, #673 et #678, la commande qui ouvre un formulaire écrit
+depuis la version où il s'est ouvert — les paramètres des risques et des indicateurs, l'identité du
+projet, la planification des sauvegardes — est inactive (`aria-disabled`, `aria-busy`, décrite par
+« Enregistrement en cours… ») tant qu'une écriture d'un dialogue fermé est en route, le formulaire
+disant l'écriture partie puis répondue, quelle que soit la réponse (`onWriting` de `ReferenceForm`) :
+rouvert, il s'ouvre sur la version que la réponse apporte (décision de l'agent de livraison ; écartée,
+la reprise de la réponse par un dialogue rouvert au brouillon intact). Le compteur d'ouvertures de
+ces trois écrans reste, en garde-fou que le blocage laisse sans usage. Pour #672, les dialogues des
+sous-projets et des contributeurs ne ferment que l'ouverture d'où leur demande est partie, comme
+#660 ; leur problème de version, rouverts pendant une écriture, reste ouvert en #734. Le défaut n° 24
+des règles TypeScript nomme les deux cas. Pour #673, le test du projet clos sert `subprojects_completed` et affirme les
+commandes des lignes, qui remplace aussi la variante de `subproject-commands.dom.test.tsx` ; le repli
+sans libellé du code pris suit le résumé de l'exemple, et WF-PRJ-0050-A est éprouvé ligne par
+ligne : « SP-CMD », chargé et cité, ses deux conditions, et « SP-REC », chargé seulement, tel que
+`subproject_created` le donne. Pour #678, un champ exigé selon le brouillon le
+dit (`required` d'un `FormField`, une fonction du brouillon, qui donne `aria-required`) : la fréquence
+et l'heure d'une planification activée, le jour d'une hebdomadaire, le dossier et le nombre de copies
+d'une copie ; les règles entre champs se jugent dans le même envoi que les champs, sur ceux qui sont
+passés, tout refus se disant en une fois (relecture 1, option (a)) ; un nombre entier garde son signe,
+ses bornes étant au serveur, « -30 » copies se disant sous le minimum plutôt que « pas un nombre
+entier », le minimum des copies n'étant jugé que pour une rétention dans ses bornes, de 1 à 365 (relecture 2) ; le lendemain et le passage de minuit d'un fuseau
+à demi-heure ont leur test, et le dernier test d'emplacement demandé affirme l'emplacement. Le
+compteur `settled` de ce dernier fichier reste un `vi.mock` : le loger dans `fakeClient` ne marquerait
+l'appel répondu qu'avant que le client lise la réponse, et le test attendrait moins qu'il ne lui faut
+(#678, point 6, gain jugé faible par l'issue). Pour #699 et #717, la branche du montant de
+`formatShare`, le pont de L51, est retirée — depuis L42o, une part non nulle n'est jamais donnée
+nulle, et une part nulle reste « 0 % » —, la plus petite part se tire de `SHARE_PLACES`, les trois
+indicateurs qui la montrent sont éprouvés un par un, et les tests qui disaient nulle la part du poste
+sont réécrits. Pour #714, point 2, `OutcomeNotice` nomme le porteur d'un code pris par le libellé que
+le refus donne quand l'écran ne le montre pas ; le point 1 attend #684.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

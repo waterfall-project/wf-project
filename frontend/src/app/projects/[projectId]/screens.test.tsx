@@ -464,16 +464,31 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Modify the contributors");
   });
 
-  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable", async () => {
-    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable, those of its sub-projects' rows too", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_completed",
+      "GET /projects/{project_id}/subprojects": "subprojects_completed",
+    };
     const page = html(await SettingsPage(at()));
     expect(text(page)).not.toContain("Mock-up:");
-    const unavailable = [
-      ...page.matchAll(/<button[^>]*aria-disabled="true"[^>]*>(.*?)<\/button>/g),
-    ];
-    expect(unavailable.map((match) => text(match[1] ?? ""))).toEqual(
+    const every = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)];
+    const named = (unavailable: boolean) =>
+      every
+        .filter(
+          ([, attributes = ""]) => attributes.includes('aria-disabled="true"') === unavailable,
+        )
+        .map(([, , content = ""]) => text(content));
+    expect(named(true)).toEqual(
       expect.arrayContaining(["Edit the project", "New subproject", "Modify the contributors"]),
     );
+    // Nothing is offered that writes, the commands of the sub-projects' rows neither.
+    expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
+    for (const code of ["SP-CMD", "SP-ESS"]) {
+      for (const command of ["Modify", "Delete"]) {
+        expect(page).toContain(`aria-label="${command} “${code}”" aria-disabled="true"`);
+      }
+    }
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
   });
 

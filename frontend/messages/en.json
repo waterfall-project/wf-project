@@ -1162,6 +1162,7 @@
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
+      "writing": "Saving in progress…",
       "cancel": "Cancel",
       "created": "“{name}” {kind, select, other {created}}.",
       "saved": "“{name}” {kind, select, other {saved}}.",

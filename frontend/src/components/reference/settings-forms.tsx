@@ -19,21 +19,23 @@
  * newer than them (`lock_version`) — against the fake back, which keeps nothing, for as long as the
  * screen stays; the page says so under its header (`MockupNotice`) —, and the page is read anew. A
  * form writes from the version it opened on: a reading that comes while it is open does not lend its
- * version to a draft entered on another.
+ * version to a draft entered on another; and the command that opens it waits while a write of a
+ * dialog closed is under way, for the form to open on the version its answer brings (#661).
  */
 "use client";
 
 import { Pencil } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ComponentType, type ReactNode, useRef, useState } from "react";
+import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
 import { updateReferenceSettings } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
-import { type Draft, type FormField, ReferenceForm } from "./reference-form";
+import { type Draft, type FormField, ReferenceForm, WritingNote } from "./reference-form";
 import {
   IndexThresholdTable,
   LEVELS,
@@ -90,9 +92,15 @@ function refusal(name: string, code: FieldProblem["code"]): readonly [string, Fi
   return [name, { pointer: `/${name}`, code }];
 }
 
+/** Whether a value is strictly above another; unjudged — undefined — when either is refused. */
+function above(value: string | undefined, other: string | undefined): boolean | undefined {
+  return value === undefined || other === undefined ? undefined : compareDecimals(value, other) > 0;
+}
+
 /**
  * The bounds of the matrix that break their order, as the server would refuse them (WF-REF-0160):
- * on each axis, every bound not strictly above the one before it, at its own rank.
+ * on each axis, every bound not strictly above the one before it, at its own rank — a bound refused,
+ * or the one before it, left unjudged.
  */
 function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const axes: readonly Axis[] = ["probability_bounds", "severity_bounds"];
@@ -101,10 +109,7 @@ function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
       BOUNDS.slice(1)
         .filter(
           ([rank]) =>
-            compareDecimals(
-              values[boundField(axis, rank)] ?? "0",
-              values[boundField(axis, rank - 1)] ?? "0",
-            ) <= 0,
+            above(values[boundField(axis, rank)], values[boundField(axis, rank - 1)]) === false,
         )
         .map(([rank]) => refusal(boundField(axis, rank), "BOUNDS_NOT_ORDERED")),
     ),
@@ -113,13 +118,12 @@ function unorderedBounds(values: Draft): ReadonlyMap<string, FieldProblem> {
 
 /**
  * The thresholds as the server would refuse them: each alert threshold not strictly below the watch
- * threshold of its index (WF-REF-0170).
+ * threshold of its index (WF-REF-0170) — either refused, left unjudged.
  */
 function brokenThresholds(values: Draft): ReadonlyMap<string, FieldProblem> {
   const field = (name: string) => `index_thresholds/${name}`;
   const alerts = INDICES.filter(
-    ([, watch, alert]) =>
-      compareDecimals(values[field(alert)] ?? "0", values[field(watch)] ?? "0") >= 0,
+    ([, watch, alert]) => above(values[field(watch)], values[field(alert)]) === false,
   ).map(([, , alert]) => refusal(field(alert), "THRESHOLD_NOT_BELOW_WATCH"));
   return new Map(alerts);
 }
@@ -129,6 +133,7 @@ interface SettingsFormProps {
   /** The settings the form opened on, whose version it writes from. */
   readonly settings: ReferenceSettings;
   readonly onDone: (answer: ReferenceSettings) => void;
+  readonly onWriting: (writing: boolean) => void;
   readonly onClose: () => void;
   readonly onClosed: () => void;
 }
@@ -285,7 +290,8 @@ interface Said {
 /**
  * The settings of a screen with the command that modifies them and its form: the answer of the
  * server shown while it is newer than the settings read, what the last write did said beside the
- * command, a refusal answered once the dialog is gone told above the settings (`Reactivations`).
+ * command, a refusal answered once the dialog is gone told above the settings (`Reactivations`). The
+ * command waits, inactive and saying why, while a write is under way (#661).
  */
 function SettingsWriter({
   settings,
@@ -302,11 +308,15 @@ function SettingsWriter({
 }) {
   const [answered, setAnswered] = useState<ReferenceSettings>();
   // The version the form opened on, which it writes from, and the how-many-th opening it is: none
-  // while it is closed. An answer closes only the opening it was sent from, never one opened since.
+  // while it is closed. An answer closes only the opening it was sent from — a guard: the command
+  // waiting for the write, no other opening can come before the answer.
   const [editing, setEditing] = useState<{ settings: ReferenceSettings; opening: number }>();
   const openings = useRef(0);
+  // Whether a write is under way: the command waits for its answer, which brings the version.
+  const [writing, setWriting] = useState(false);
   const [said, setSaid] = useState<Said>();
   const trigger = useRef<HTMLButtonElement>(null);
+  const why = useId();
   const shown =
     answered !== undefined && answered.lock_version > settings.lock_version ? answered : settings;
   return (
@@ -317,7 +327,14 @@ function SettingsWriter({
           type="button"
           variant="outline"
           size="sm"
+          aria-disabled={writing ? true : undefined}
+          aria-busy={writing}
+          aria-describedby={writing ? why : undefined}
+          className={UNAVAILABLE}
           onClick={() => {
+            if (writing) {
+              return;
+            }
             openings.current += 1;
             setEditing({ settings: shown, opening: openings.current });
           }}
@@ -325,6 +342,7 @@ function SettingsWriter({
           <Pencil aria-hidden="true" />
           {command}
         </Button>
+        <WritingNote id={why} writing={writing} />
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
           {said === undefined ? null : <span key={said.count}>{said.text}</span>}
         </p>
@@ -339,8 +357,11 @@ function SettingsWriter({
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
             setSaid((before) => ({ text: saved, count: (before?.count ?? 0) + 1 }));
+            // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
+            // opening can come before the answer.
             setEditing((current) => (current?.opening === editing.opening ? undefined : current));
           }}
+          onWriting={setWriting}
           onClose={() => {
             setEditing(undefined);
           }}

@@ -4,9 +4,10 @@
  * What the screen says of the outcome of a server action, as the decoder of `src/api/problem.ts`
  * classed it: nothing on success; a refusal in a sentence of the catalogue, from its code and
  * parameters (WF-ARC-0110); for a stale object (412), an offer to reload it; for a conflict
- * (409), the object in conflict, named when the screen knows it; without a session (401), the
- * way to the sign-in page, which comes back here; and, the API out of reach, that it is — the
- * screen stays, it never goes blank.
+ * (409), the object in conflict, named when the screen knows it — or by the label the refusal gives
+ * it (`conflicting_object_label`, EP-14/L42i), a project or a sub-project the screen does not show
+ * (#714) —; without a session (401), the way to the sign-in page, which comes back here; and, the
+ * API out of reach, that it is — the screen stays, it never goes blank.
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once. A
  * screen where the work goes on after a refusal — the cells of a grid entered one after the
@@ -22,6 +23,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
@@ -32,6 +34,8 @@ import { loginHref } from "@/navigation/login";
  * which the envelope gives by its identifier only.
  */
 export type ObjectNames = Readonly<Record<string, string>>;
+
+type Problem = components["schemas"]["Problem"];
 
 /** The outcome to tell of, and what the screen knows to tell it with. */
 export interface OutcomeNoticeProps {
@@ -47,6 +51,17 @@ export interface OutcomeNoticeProps {
    * back, which the notice took away with its button — never left to fall to the page.
    */
   readonly onDismissed?: (() => void) | undefined;
+}
+
+/**
+ * The label a refusal gives the object it is about (`conflicting_object_label`), from the part of
+ * the envelope that names it — itself, or a refusal by field —; none when it gives none.
+ */
+function labelOf({ params, fields }: Problem, id: string): string | undefined {
+  const label = [params, ...(fields ?? []).map((field) => field.params)].find(
+    (each) => each?.conflicting_object_id === id,
+  )?.conflicting_object_label;
+  return typeof label === "string" && label !== "" ? label : undefined;
 }
 
 const ALERT = "space-y-1 text-sm text-destructive";
@@ -135,7 +150,10 @@ export function OutcomeNotice({
     );
   }
   const { kind, problem, conflictingObjectId } = outcome;
-  const name = conflictingObjectId === null ? undefined : names[conflictingObjectId];
+  const name =
+    conflictingObjectId === null
+      ? undefined
+      : (names[conflictingObjectId] ?? labelOf(problem, conflictingObjectId));
   // The unexpected error shows its reference, as the screen of failure does (WF-OBS-0020): the
   // correlation identifier of the API, or the reference of a server action that threw (`rejected`).
   const reference = problem.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined;

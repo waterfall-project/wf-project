@@ -33,10 +33,20 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 // The tests of a location, counted once each has its answer: what a test waits for before it says
 // that an answer fell.
 const settled = vi.hoisted(() => ({ tests: 0 }));
+// A write of the schedule whose server action rejects once `until` settles — the API out of reach,
+// as `fetch` rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
 vi.mock("@/api/actions/backups", async (original) => {
   const actual = await original<typeof import("@/api/actions/backups")>();
   return {
     ...actual,
+    setBackupSchedule: async (...asked: Parameters<typeof actual.setBackupSchedule>) => {
+      if (failing.until === undefined) {
+        return actual.setBackupSchedule(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
     testExternalBackupLocation: async (
       ...asked: Parameters<typeof actual.testExternalBackupLocation>
     ) => {
@@ -152,6 +162,7 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
   settled.tests = 0;
+  failing.until = undefined;
 });
 
 describe("the schedule of the backups", () => {
@@ -209,6 +220,25 @@ describe("the schedule of the backups", () => {
   });
 
   it.each([
+    ["Saturday at 20:00", "6", "20:00", "dimanche 01:30"],
+    ["Sunday at 18:45", "7", "18:45", "lundi 00:15"],
+  ] as const)(
+    "names for a weekly schedule the local day after its universal day east of Greenwich, half an hour off: %s",
+    async (_time, day, time, local) => {
+      // Kolkata is five hours and a half ahead of universal time, all year long.
+      process.env.TZ = "Asia/Kolkata";
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-06-03T14:05:00Z"));
+      serve();
+      const form = await openForm(weekly, []);
+      await userEvent.selectOptions(within(form).getByLabelText("Jour"), day);
+      const at = within(form).getByLabelText("Heure (UTC)");
+      fireEvent.change(at, { target: { value: time } });
+      expect(at).toHaveAccessibleDescription(spaced(`Soit ${local} à l’heure de ce poste.`));
+    },
+  );
+
+  it.each([
     ["suspended", disabled],
     ["on", witness],
   ] as const)(
@@ -228,23 +258,32 @@ describe("the schedule of the backups", () => {
     },
   );
 
-  it("requires the frequency and the time of a schedule on alone: a suspended one is sent without them", async () => {
+  it("requires the frequency and the time of a schedule on alone, and says so: a suspended one is sent without them", async () => {
     const client = serve();
     const form = await openForm();
+    const frequency = within(form).getByLabelText("Fréquence");
     const time = within(form).getByLabelText("Heure (UTC)");
+    expect(frequency).toHaveAttribute("aria-required", "true");
+    expect(time).toHaveAttribute("aria-required", "true");
+    await userEvent.selectOptions(frequency, "");
     fireEvent.change(time, { target: { value: "" } });
     await save(form);
-    expect(time).toHaveFocus();
-    expect(time).toHaveAccessibleDescription(spaced("Une valeur est requise."));
+    expect(frequency).toHaveFocus();
+    for (const field of [frequency, time]) {
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAccessibleDescription(/Une valeur est requise\.$/);
+    }
     expect(client.calls).toEqual([]);
     await userEvent.selectOptions(within(form).getByLabelText("État"), "Suspendue");
+    expect(frequency).not.toHaveAttribute("aria-required");
+    expect(time).not.toHaveAttribute("aria-required");
     await save(form);
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
+    expect(client.calls[0]?.body).not.toHaveProperty("frequency");
     expect(client.calls[0]?.body).toEqual({
       is_enabled: false,
-      frequency: "daily",
       weekday: null,
       retained_count: 7,
       external_copy: witness.external_copy,
@@ -281,9 +320,11 @@ describe("the schedule of the backups", () => {
   it("refuses before asking anything a weekly schedule without its day, the day taking the focus", async () => {
     const client = serve();
     const form = await openForm();
-    await userEvent.selectOptions(within(form).getByLabelText("Fréquence"), "Hebdomadaire");
-    await save(form);
     const day = within(form).getByLabelText("Jour");
+    expect(day).not.toHaveAttribute("aria-required");
+    await userEvent.selectOptions(within(form).getByLabelText("Fréquence"), "Hebdomadaire");
+    expect(day).toHaveAttribute("aria-required", "true");
+    await save(form);
     expect(day).toHaveFocus();
     expect(day).toHaveAttribute("aria-invalid", "true");
     expect(day).toHaveAccessibleDescription(
@@ -309,15 +350,95 @@ describe("the schedule of the backups", () => {
     expect(client.calls).toEqual([]);
   });
 
+  it("requires the folder and the count of a copy once a location is chosen, and says so; « no copy » withdraws it", async () => {
+    const client = serve();
+    const form = await openForm();
+    const path = within(form).getByRole("textbox", { name: "Dossier dans l’emplacement" });
+    const copies = within(form).getByRole("textbox", { name: "Copies gardées" });
+    await userEvent.clear(path);
+    await userEvent.clear(copies);
+    for (const field of [path, copies]) {
+      expect(field).toHaveAttribute("aria-required", "true");
+    }
+    await save(form);
+    expect(path).toHaveFocus();
+    for (const field of [path, copies]) {
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAccessibleDescription(/Une valeur est requise\.$/);
+    }
+    expect(client.calls).toEqual([]);
+    await userEvent.selectOptions(
+      within(form).getByLabelText("Copie externe vers"),
+      "Aucune copie",
+    );
+    for (const field of [path, copies]) {
+      expect(field).not.toHaveAttribute("aria-required");
+    }
+    await save(form);
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    expect(client.calls[0]?.body).not.toHaveProperty("external_copy");
+  });
+
+  it("says in one sending a field left empty and a rule a field breaks: a location undeclared and no folder", async () => {
+    // The witness schedule copies to « secours-lyon », which the installation here no longer declares.
+    const client = serve();
+    const form = await openForm(witness, locations.slice(0, 1));
+    const path = within(form).getByRole("textbox", { name: "Dossier dans l’emplacement" });
+    await userEvent.clear(path);
+    await save(form);
+    // The field's own refusal and the rule's, both said at once, the first in the form focused.
+    const location = within(form).getByLabelText("Copie externe vers");
+    expect(location).toHaveFocus();
+    expect(location).toHaveAccessibleDescription(
+      spaced("Emplacement externe inconnu de l’installation."),
+    );
+    expect(path).toHaveAccessibleDescription(/Une valeur est requise\.$/);
+    expect(client.calls).toEqual([]);
+  });
+
+  it.each([
+    ["-3", "2"],
+    ["0", "2"],
+    ["366", "30"],
+  ])(
+    "leaves to the server the count of copies of a retention out of its bounds, %s, which it refuses by its own: %s copies sent",
+    async (retention, count) => {
+      const client = serve();
+      const form = await openForm();
+      await retype(form, "Sauvegardes conservées", retention);
+      const copies = await retype(form, "Copies gardées", count);
+      await save(form);
+      await vi.waitFor(() => {
+        expect(client.calls).toHaveLength(1);
+      });
+      expect(copies).not.toHaveAttribute("aria-invalid");
+      expect(client.calls[0]?.body).toMatchObject({
+        retained_count: Number(retention),
+        external_copy: { retained_count: Number(count) },
+      });
+    },
+  );
+
   it("refuses before asking anything a count that is no whole number, saying what it takes; its bounds are the server's", async () => {
     const client = serve();
     const form = await openForm();
     const retained = await retype(form, "Sauvegardes conservées", "7,5");
-    const copies = await retype(form, "Copies gardées", "-30");
+    const copies = await retype(form, "Copies gardées", "3,5");
     await save(form);
     expect(retained).toHaveAccessibleDescription(spaced("Un nombre entier de sauvegardes."));
     expect(copies).toHaveAccessibleDescription(
       spaced("Au moins autant que les sauvegardes conservées. Un nombre entier de copies."),
+    );
+    // A whole number below zero is one: what it lacks is its bound, the least the copies keep.
+    await retype(form, "Sauvegardes conservées", "7");
+    await retype(form, "Copies gardées", "-30");
+    await save(form);
+    expect(copies).toHaveAccessibleDescription(
+      spaced(
+        "Au moins autant que les sauvegardes conservées. La valeur sort des limites admises. Valeur minimale : 7.",
+      ),
     );
     expect(client.calls).toEqual([]);
   });
@@ -411,7 +532,7 @@ describe("the schedule of the backups", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("closes only the opening it was sent from: an answer that arrives once the form is opened anew leaves it open, and says what it did", async () => {
+  it("keeps its command inactive while a write of the dialog closed is under way, shows its answer, then opens on the version it brings (#661, #678)", async () => {
     const { timing, release } = held();
     const client = serve({}, timing);
     const form = await openForm();
@@ -420,12 +541,32 @@ describe("the schedule of the backups", () => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
-    await userEvent.click(screen.getByRole("button", { name: "Modifier la planification" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // The focus back on the command, which says why it waits.
+    const command = screen.getByRole("button", { name: "Modifier la planification" });
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    await userEvent.click(command);
+    expect(screen.queryByRole("dialog")).toBeNull();
     release();
     await vi.waitFor(() => {
       expect(said()).toHaveTextContent("Planification enregistrée.");
     });
-    expect(screen.getByRole("dialog", { name: "Modifier la planification" })).toBeVisible();
+    expect(command).not.toHaveAccessibleDescription();
+    expect(screen.getByLabelText("Planification")).toHaveTextContent(
+      "Rétention14 sauvegardes conservées",
+    );
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    await save(screen.getByRole("dialog", { name: "Modifier la planification" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    expect(client.calls[1]?.body).toMatchObject({ retained_count: 14, lock_version: 3 });
   });
 
   it("tells above the schedule a refusal answered once the dialog is gone", async () => {
@@ -440,11 +581,37 @@ describe("the schedule of the backups", () => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    const command = screen.getByRole("button", { name: "Modifier la planification" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
     release();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+    // Refused, the write no longer holds the command.
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(screen.getByRole("dialog", { name: "Modifier la planification" })).toBeVisible();
+  });
+
+  it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so above the schedule", async () => {
+    const settles: (() => void)[] = [];
+    failing.until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    serve();
+    const form = await openForm();
+    await save(form);
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    const command = screen.getByRole("button", { name: "Modifier la planification" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    for (const settle of settles) {
+      settle();
+    }
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(screen.getByRole("dialog", { name: "Modifier la planification" })).toBeVisible();
   });
 
   it("keeps the answer through a reading anew of the version it answered, and gives way to a reading as recent (défaut n° 22)", async () => {
@@ -575,8 +742,17 @@ describe("the test of an external location", () => {
 
   it("says the answer of the last test asked alone: one answered after it is left to fall (défaut n° 1)", async () => {
     const releases: (() => void)[] = [];
-    serve(
-      { [TEST]: ["external_backup_location_tested", "external_backup_location_test_failed"] },
+    const client = serve(
+      {
+        [TEST]: [
+          {
+            problem: example("external_backup_location_test_path_invalid") as Problem & {
+              status: 422;
+            },
+          },
+          "external_backup_location_tested",
+        ],
+      },
       {
         hold: (_route, index) =>
           index === 0
@@ -592,17 +768,25 @@ describe("the test of an external location", () => {
     const test = within(form).getByRole("button", { name: "Tester l’emplacement" });
     await userEvent.click(test);
     await userEvent.click(test);
-    // The second test, answered first: the fake back serves its second example.
+    // The second test, answered first.
     await vi.waitFor(() => {
-      expect(within(form).getByRole("status")).toHaveTextContent(/^« nas-siege »/);
+      expect(within(form).getByRole("status")).toHaveTextContent(/^« secours-lyon » éprouvé/);
     });
     for (const release of releases) {
       release();
     }
-    // Both answered, the test is no longer under way: the first answer has arrived, and fell.
+    // Both answered, the test is no longer under way: the first answer, a refusal, fell.
     await vi.waitFor(() => {
       expect(test).toHaveTextContent("Tester l’emplacement");
     });
-    expect(within(form).getByRole("status")).toHaveTextContent(/^« nas-siege »/);
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(within(form).getByRole("status")).toHaveTextContent(/^« secours-lyon » éprouvé/);
+    // Both asked of the location chosen, in the folder typed.
+    expect(client.calls.map(({ path, body }) => ({ path, body }))).toEqual(
+      Array.from({ length: 2 }, () => ({
+        path: "/external-backup-locations/secours-lyon/test",
+        body: { path: "waterfall/sauvegardes" },
+      })),
+    );
   });
 });

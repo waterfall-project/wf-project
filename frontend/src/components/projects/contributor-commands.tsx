@@ -29,6 +29,7 @@
  * The dialog starts from the reading it was opened on — its rows and its counter —, captured at the
  * opening, as `Opened.row` of the sub-projects: a reading newer that arrives while it is open changes
  * neither what it shows nor the counter it sends, which the server then refuses (412, WF-IHM-0110).
+ * An answer closes only the dialog it was sent from, never one opened since (#660, #672).
  */
 "use client";
 
@@ -101,6 +102,8 @@ interface Opened {
   readonly from: readonly Contributor[];
   readonly counter: number;
   readonly trigger: HTMLElement;
+  /** The how-many-th opening it is: what an answer closes, never a later one. */
+  readonly opening: number;
 }
 
 /** What the commands of the list hold: what it was read from, what the server answered. */
@@ -114,7 +117,9 @@ interface Commands {
   readonly answer: (list: ContributorReading) => void;
   readonly say: (text: string) => void;
   readonly refuse: (refusal: Outcome<unknown> | undefined) => void;
-  readonly open: (opened: Opened | undefined) => void;
+  readonly open: (opened: Omit<Opened, "opening">) => void;
+  /** Close the dialog; given an opening, only if it is still the one open. */
+  readonly close: (opening?: number) => void;
 }
 
 /** The commands of the list of the contributors; none outside it. */
@@ -164,7 +169,9 @@ export function ContributorCommands({
   const [answered, setAnswered] = useState<ContributorReading>();
   const [said, setSaid] = useState<Commands["said"]>();
   const [refusal, refuse] = useState<Outcome<unknown>>();
-  const [opened, open] = useState<Opened>();
+  const [opened, setOpened] = useState<Opened>();
+  // How many times the dialog was opened: what tells an opening from the next.
+  const openings = useRef(0);
   const commands = useMemo<Commands | undefined>(
     () =>
       editing && {
@@ -180,7 +187,15 @@ export function ContributorCommands({
           setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
         },
         refuse,
-        open,
+        open: (next) => {
+          openings.current += 1;
+          setOpened({ ...next, opening: openings.current });
+        },
+        close: (opening) => {
+          setOpened((current) =>
+            opening === undefined || current?.opening === opening ? undefined : current,
+          );
+        },
       },
     [editing, answered, said, refusal, opened],
   );
@@ -276,7 +291,12 @@ export function ContributorHead() {
         dismissible
       />
       {commands.opened === undefined ? null : (
-        <ContributorEditor commands={commands} opened={commands.opened} suggestions={suggestions} />
+        <ContributorEditor
+          key={commands.opened.opening}
+          commands={commands}
+          opened={commands.opened}
+          suggestions={suggestions}
+        />
       )}
     </div>
   );
@@ -312,7 +332,7 @@ function ContributorEditor({
   const proposed = proposedBesides(suggestions, draft);
   const close = () => {
     open.current = false;
-    commands.open(undefined);
+    commands.close();
   };
 
   const submit = () => {
@@ -340,7 +360,9 @@ function ContributorEditor({
       if (answer.kind === "done") {
         commands.answer(answer.data);
         commands.say(t("saved"));
-        close();
+        // Closed if it is still the opening the answer was sent from, never a later one.
+        open.current = false;
+        commands.close(opened.opening);
       } else if (!open.current) {
         commands.refuse(answer);
       } else {

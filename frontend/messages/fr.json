@@ -1162,6 +1162,7 @@
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
+      "writing": "Enregistrement en cours…",
       "cancel": "Annuler",
       "created": "« {name} » {kind, select, cost_type {créée} cost_category {créée} other {créé}}.",
       "saved": "« {name} » {kind, select, cost_type {enregistrée} cost_category {enregistrée} other {enregistré}}.",
