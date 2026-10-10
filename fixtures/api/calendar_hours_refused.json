@@ -1,0 +1,24 @@
+{
+  "summary": "Un calendrier saisi — à sa création comme à sa modification — avec 25 heures le lundi et -7 le samedi : refusé jour par jour, chaque jour désigné avec la borne franchie, un jour n'ayant que vingt-quatre heures et aucun moins de zéro ; rien n'est écrit (WF-REF-0110).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/weekly_hours/monday",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": "24"
+        }
+      },
+      {
+        "pointer": "/weekly_hours/saturday",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "0"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001087"
+  }
+}

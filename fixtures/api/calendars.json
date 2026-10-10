@@ -1,5 +1,5 @@
 {
-  "summary": "Les calendriers de l'installation, chacun avec la commande qui le désactive : la semaine standard de cinq jours de huit heures, par défaut, celle de l'ingénieur électricien et du technicien de mise en service, que la désactivation ne peut atteindre tant qu'un autre n'a pas été désigné par défaut, et la semaine de quatre jours de dix heures du monteur câbleur (WF-REF-0110, WF-REF-0120, WF-IHM-0090).",
+  "summary": "Les calendriers de l'installation, chacun avec la commande qui le désactive : la semaine standard de cinq jours de huit heures, par défaut, celle de l'ingénieur électricien et du technicien de mise en service, que la désactivation ne peut atteindre tant qu'un autre n'a pas été désigné par défaut, et la semaine de quatre jours de dix heures du monteur câbleur, qui porte aussi sa désignation par défaut, disponible (WF-REF-0110, WF-REF-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -19,6 +19,11 @@
         "available_commands": [
           {
             "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_default",
             "is_available": true,
             "missing_conditions": []
           }

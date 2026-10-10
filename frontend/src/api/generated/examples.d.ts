@@ -243,7 +243,7 @@ export interface Examples {
     200: "cost_type_updated";
   };
   "PATCH /reference/org-nodes/{org_node_id}": {
-    200: "org_node_updated";
+    200: "org_node_renamed_under_inactive" | "org_node_updated";
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";

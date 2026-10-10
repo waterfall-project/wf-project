@@ -796,7 +796,7 @@ describe("the calendars", () => {
       {
         route: DEFAULT,
         path: "/reference/calendars/01926f3a-7c00-7000-8000-000000000482/default",
-        body: undefined,
+        body: { lock_version: 1 },
       },
     ]);
     expect(announced()).toContain("« Semaine de quatre jours » désigné calendrier par défaut.");

@@ -1,0 +1,21 @@
+{
+  "summary": "Le technicien de mise en service passé à la semaine de trente-neuf heures, désactivée, et à un effectif de -1 : refusé, le calendrier désactivé n'étant plus proposé à la saisie et l'effectif sous le plus petit admis ; rien n'est écrit (WF-REF-0090, WF-REF-0100).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/calendar_id",
+        "code": "INACTIVE_REFERENCE_OBJECT"
+      },
+      {
+        "pointer": "/capacity/headcount",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "0"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001084"
+  }
+}

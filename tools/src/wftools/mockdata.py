@@ -211,31 +211,26 @@ def categories() -> list[JsonValue]:
         )
         for n in range(others - len(non_labor))
     )
-    # Each category names its nature as the natures of the universe do (`cost_types.json`).
-    natures = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")["items"]}
+    # Each category names its nature, and its kind, as the natures of the universe do.
+    natures = {nature["cost_type_id"]: nature for nature in fixture("cost_types")["items"]}
     return [
-        *_categories(labor, "MO", "641", (LABOR, natures[LABOR])),
-        *_categories(non_labor, "ACH", "604", (NON_LABOR, natures[NON_LABOR])),
-        *_categories(
-            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])],
-            "PRV",
-            "681",
-            (PROVISION, natures[PROVISION]),
-        ),
+        *_categories(labor, "MO", "641", natures[LABOR]),
+        *_categories(non_labor, "ACH", "604", natures[NON_LABOR]),
+        *_categories([(PROVISIONS, CATEGORY_LABELS[PROVISIONS])], "PRV", "681", natures[PROVISION]),
     ]
 
 
 def _categories(
-    entries: Iterable[tuple[str, str]], code: str, account: str, nature: tuple[str, str]
+    entries: Iterable[tuple[str, str]], code: str, account: str, nature: JsonObject
 ) -> list[JsonValue]:
-    cost_type, cost_type_label = nature
     return [
         {
             "cost_category_id": category,
             "code": f"{code}-{rank:03d}",
             "label": label,
-            "cost_type_id": cost_type,
-            "cost_type_label": cost_type_label,
+            "cost_type_id": nature["cost_type_id"],
+            "cost_type_label": nature["label"],
+            "cost_type_kind": nature["kind"],
             "accounting_code": f"{account}{rank:03d}",
             "is_active": True,
             "audit": _AUDIT,

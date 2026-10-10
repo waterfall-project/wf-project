@@ -194,9 +194,9 @@
     description: >-
       Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son
       code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est
-      refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`,
-      `fields[].params.conflicting_object_id` le nœud qui le porte. Créé actif, il ne prend pas place sous un parent
-      désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
+      refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`. Créé actif, il ne prend
+      place que sous un parent actif ou à la racine : aucun objet actif ne subsiste dans un
+      service fermé (WF-REF-0070, WF-REF-0080).
     tags: [reference]
     requestBody:
       required: true
@@ -217,14 +217,20 @@
         description: >-
           Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`,
           `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le nœud qui le porte ; rien n'est écrit.
+          le nœud qui le porte et `conflicting_object_label` son libellé — l'arbre lu sans les
+          désactivés, ou filtré, peut ne pas le montrer ; rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/org_node_code_taken.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé,
-          `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080).
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides,
+          `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, par
+          `VALUE_TOO_LONG` ; un parent que le référentiel n'a pas, `/parent_id` par
+          `UNKNOWN_ORG_NODE`, ou désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0070,
+          WF-REF-0080). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -238,11 +244,13 @@
     description: >-
       La modification vaut pour la suite et ne retouche aucune révision marquée
       (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409,
-      `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le
-      nœud qui le porte. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud
-      actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un
-      service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas
-      actif.
+      `ALREADY_EXISTS`, `fields` désignant `/code`. Un nœud se déplace dans l'arbre
+      (`parent_id`, §3.4.4.2.1), sous un autre nœud actif ou à la racine, ses descendants et ses
+      rôles avec lui (WF-REF-0070) : ni sous un nœud désactivé, qu'il soit lui-même actif ou non
+      — aucun objet actif ne subsiste dans un service fermé (WF-REF-0080) —, ni sous lui-même ou
+      l'un de ses descendants, l'arbre restant un arbre. Le parent est exigé à la modification,
+      nul pour une racine. Seul le déplacement est contraint, jugé sur le parent envoyé : un nœud
+      désactivé qui garde son parent désactivé se modifie.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/OrgNodeId
@@ -259,6 +267,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
             examples:
               moved: { $ref: ../../../fixtures/api/org_node_updated.json }
+              renamed_under_inactive: { $ref: ../../../fixtures/api/org_node_renamed_under_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -266,21 +275,38 @@
         description: >-
           Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`,
           `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le nœud qui le porte ; rien n'est écrit.
+          le nœud qui le porte et `conflicting_object_label` son libellé, comme à la création ;
+          rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/org_node_code_taken.json }
+      '412':
+        description: >-
+          La version envoyée n'est plus celle du nœud : il a été modifié depuis sa lecture, et
+          rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version`
+          la version courante.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/org_node_update_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé
-          sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant
-          écrit (WF-REF-0080).
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
+          `/label` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ;
+          `/parent_id` absent, par `VALUE_REQUIRED` — `null` désigne la racine —, inconnu, par
+          `UNKNOWN_ORG_NODE`, le nœud lui-même ou l'un de ses
+          descendants, par `ORG_NODE_CYCLE`, et, quand la modification change le parent, un nœud
+          désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0070, WF-REF-0080) — un seul motif,
+          dans cet ordre. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               parent_inactive: { $ref: ../../../fixtures/api/org_node_move_refused.json }
+              cycle: { $ref: ../../../fixtures/api/org_node_move_cycle_refused.json }
 
 /reference/org-nodes/{org_node_id}/activation:
   put:
@@ -493,13 +519,23 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé,
-          `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080).
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un libellé vide, `/label` par
+          `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par `VALUE_TOO_LONG` ; un
+          rattachement absent ou nul, `/org_node_id`, `/cost_category_id` ou `/calendar_id` par
+          `VALUE_REQUIRED` — les trois sont obligatoires (WF-REF-0090) — ; un rattachement que le
+          référentiel n'a pas, par `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` ou
+          `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, `/cost_category_id` par
+          `LABOUR_CATEGORY_REQUIRED` ; un rattachement désactivé, par `INACTIVE_REFERENCE_OBJECT`
+          (WF-REF-0080, WF-REF-0090) ; une capacité négative, `/capacity/monthly_hours` ou
+          `/capacity/headcount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0`. Un
+          champ ne porte qu'un motif : une catégorie désactivée et hors main-d'œuvre est dite hors
+          main-d'œuvre, ce que sa réactivation ne lèverait pas. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
+              attachments: { $ref: ../../../fixtures/api/resource_role_attachments_refused.json }
 
 /reference/resource-roles/{resource_role_id}:
   patch:
@@ -508,7 +544,8 @@
     description: >-
       Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du
       rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation
-      le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080).
+      le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se
+      modifient vers des objets actifs, la catégorie de main-d'œuvre (WF-REF-0090).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/ResourceRoleId
@@ -528,16 +565,37 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422':
+      '412':
         description: >-
-          Le calendrier donné au rôle laisserait une tâche d'une révision en cours sans aucune
-          heure travaillée dans la semaine, ne recoupant jamais celui d'un autre rôle de ses
-          lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
-          `params.tasks` nommant les rôles et les tâches en cause (WF-PLA-0010).
+          La version envoyée n'est plus celle du rôle : il a été modifié depuis sa lecture, et
+          rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version`
+          la version courante.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/resource_role_update_stale.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label`
+          vide ou trop long ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
+          `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une
+          catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED`, gardée comme changée — un
+          rôle dont la catégorie a quitté la main-d'œuvre ne se modifie pas sans en changer
+          (WF-REF-0090), en attendant que le contrat l'empêche (#684, point 2) ; une capacité
+          négative, par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification
+          change la catégorie ou le calendrier du rôle, un objet désactivé, par
+          `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés
+          depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une
+          révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais
+          celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause
+          (WF-PLA-0010). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/resource_role_update_refused.json }
 
 /reference/resource-roles/{resource_role_id}/activation:
   put:
@@ -653,9 +711,10 @@
       (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour
       se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les
       calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le
-      tri par `is_default` met en tête. Chaque calendrier porte la commande qui
-      change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la désactivation
-      du calendrier par défaut est indisponible (WF-REF-0120).
+      tri par `is_default` met en tête. Chaque calendrier porte ses commandes, disponibles ou
+      non (`available_commands`, WF-IHM-0090) : celle qui change son état, la désactivation du
+      calendrier par défaut indisponible, et, sauf pour le calendrier par défaut, sa
+      désignation, indisponible pour un calendrier désactivé (WF-REF-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -804,7 +863,9 @@
     operationId: createCalendar
     summary: Créer un calendrier
     description: >-
-      Jours ouvrés, heures par jour et jours chômés (WF-REF-0110).
+      Un libellé, unique parmi les calendriers, actifs ou désactivés, et les heures de chaque
+      jour de la semaine, de 0 à 24 (WF-REF-0110) : un libellé déjà porté est refusé par 409,
+      `ALREADY_EXISTS`.
     tags: [reference]
     requestBody:
       required: true
@@ -821,14 +882,37 @@
               created: { $ref: ../../../fixtures/api/calendar_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '409':
+        description: >-
+          Un libellé déjà porté par un autre calendrier, actif ou désactivé (WF-REF-0110) :
+          `ALREADY_EXISTS`, `fields` désignant `/label` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` le calendrier qui le porte ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_taken: { $ref: ../../../fixtures/api/calendar_label_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un libellé vide, `/label` par
+          `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par `VALUE_TOO_LONG` ; les
+          heures d'un jour hors de 0 à 24, `/weekly_hours/<jour>` par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `0` ou `maximum` à `24`, la seule borne franchie
+          (WF-REF-0110). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
 
 /reference/calendars/{calendar_id}:
   patch:
     operationId: updateCalendar
     summary: Modifier un calendrier
     description: >-
-      Sans effet rétroactif sur les révisions marquées (WF-REF-0110, WF-REF-0130).
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0110, WF-REF-0130). Le libellé
+      reste unique parmi les calendriers : un libellé déjà porté par un autre est refusé par
+      409, `ALREADY_EXISTS`.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CalendarId
@@ -848,19 +932,43 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422':
+      '409':
         description: >-
-          Les heures données au calendrier laisseraient une tâche d'une révision en cours sans
-          aucune heure travaillée dans la semaine : les calendriers des rôles de ses lignes de
-          main-d'œuvre ne se recoupant plus aucun jour, ou, pour le calendrier par défaut, une
-          tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout :
-          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les
-          rôles et les tâches en cause — `resource_role_ids` vide pour les tâches sans ligne de
-          main-d'œuvre (WF-PLA-0010).
+          Un libellé déjà porté par un autre calendrier, actif ou désactivé (WF-REF-0110), comme à
+          la création : `ALREADY_EXISTS`, `fields` désignant `/label` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` le calendrier qui le porte ; rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_taken: { $ref: ../../../fixtures/api/calendar_label_taken.json }
+      '412':
+        description: >-
+          La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa lecture,
+          et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` la version courante.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/calendar_update_stale.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label`
+          vide ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la
+          seule borne franchie (WF-REF-0110). Ou bien les heures données au calendrier
+          laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la
+          semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus
+          aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui
+          n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause —
+          `resource_role_ids` vide pour les tâches sans ligne de main-d'œuvre (WF-PLA-0010). Rien
+          n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
 
 /reference/calendars/{calendar_id}/default:
   put:
@@ -869,13 +977,30 @@
     summary: Désigner le calendrier par défaut
     description: >-
       Un et un seul calendrier actif est par défaut ; la désignation la retire au
-      précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier
+      précédent (WF-REF-0120), dont la version avance. Un calendrier désactivé ne se désigne
+      pas, ce que sa commande `set_default` dit d'avance (`available_commands`) ; désigner celui
+      qui l'est déjà, que sa commande ne liste pas, répond 200 sans rien changer — la version
+      contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée. Les tâches sans ligne de main-d'œuvre relèvent du calendrier
       par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas
-      l'être tant qu'une telle tâche existe dans une révision en cours. L'écriture change la
-      disponibilité de la désactivation des deux calendriers, que la réponse ne porte que pour
-      l'un (`calendar_not_default`) : le client relit la liste.
+      l'être tant qu'une telle tâche existe dans une révision en cours. Relève de la permission
+      de modification des paramètres de ressources (WF-ADM-0100). L'écriture change la
+      disponibilité des commandes des deux calendriers — la désactivation et la désignation —,
+      que la réponse ne porte que pour l'un : le client relit la liste.
     parameters:
       - $ref: ../components/parameters.yaml#/CalendarId
+    requestBody:
+      required: true
+      description: >-
+        Le compteur lu du calendrier désigné, seul : celui du précédent, que la désignation
+        change aussi, n'est pas envoyé, comme une désactivation en cascade n'envoie pas ceux
+        qu'elle désactive.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [lock_version]
+            properties:
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '200':
         description: Calendrier désigné par défaut.
@@ -887,7 +1012,26 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La désignation d'un calendrier désactivé, refusée, rien n'étant écrit (WF-REF-0120) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_active`, la condition
+          que sa commande `set_default` dit manquante ; le calendrier se réactive d'abord.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive: { $ref: ../../../fixtures/api/calendar_default_refused.json }
+      '412':
+        description: >-
+          La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa
+          lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` la version courante.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/calendar_default_stale.json }
       '422':
         description: >-
           Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de
@@ -1186,7 +1330,9 @@
       filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`)
       porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et
       sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se
-      filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte ses
+      filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie dit le type de sa
+      nature (`cost_type_kind`), par lequel un formulaire ne propose à un rôle que des catégories
+      de main-d'œuvre (WF-REF-0090). Chaque catégorie porte ses
       commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son
       rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des
       taux (WF-REF-0030, WF-REF-0050).

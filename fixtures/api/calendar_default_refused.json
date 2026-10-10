@@ -1,0 +1,11 @@
+{
+  "summary": "La semaine de trente-neuf heures, désactivée, désignée calendrier par défaut : refusée, sa commande set_default disant calendar_active manquante ; elle se réactive d'abord, la semaine standard reste par défaut, et rien n'est écrit (WF-REF-0120).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "calendar_active"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001089"
+  }
+}

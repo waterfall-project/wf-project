@@ -1617,12 +1617,15 @@
     "DATE_INVALID": "Ce n’est pas une date valide.",
     "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
     "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
+    "UNKNOWN_ORG_NODE": "Nœud d’organisation inconnu.",
+    "UNKNOWN_CALENDAR": "Calendrier inconnu.",
     "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
     "UNKNOWN_USER": "Compte inconnu.",
     "USER_INACTIVE": "Ce compte est désactivé.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
@@ -1990,6 +1993,7 @@
       "org_node_parent_active": "nœud parent actif",
       "org_node_active": "nœud d’organisation actif",
       "calendar_not_default": "calendrier autre que celui par défaut",
+      "calendar_active": "calendrier actif",
       "cost_type_unused": "aucune catégorie de la nature employée",
       "cost_category_unused": "catégorie employée par aucune ligne",
       "cost_category_unrated": "catégorie sans taux horaire",
@@ -2301,6 +2305,11 @@
       "review": "Réexaminer le risque",
       "declare_occurrence": "Déclarer le risque survenu",
       "delete": "Supprimer le risque"
+    },
+    "CalendarCommand": {
+      "deactivate": "Désactiver le calendrier",
+      "reactivate": "Réactiver le calendrier",
+      "set_default": "Désigner le calendrier par défaut"
     },
     "ReferenceCommand": {
       "deactivate": "Désactiver",

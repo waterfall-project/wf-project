@@ -1,5 +1,5 @@
 {
-  "summary": "La semaine de trente-cinq heures créée aujourd'hui par Camille Martin : sept heures du lundi au vendredi, rien le week-end — sept valeurs d'heures et aucune autre donnée ; créée active et non par défaut, elle porte la commande qui la désactive (WF-REF-0110, WF-REF-0120).",
+  "summary": "La semaine de trente-cinq heures créée aujourd'hui par Camille Martin : sept heures du lundi au vendredi, rien le week-end — sept valeurs d'heures et aucune autre donnée ; créée active et non par défaut, elle porte la commande qui la désactive et sa désignation par défaut, disponible (WF-REF-0110, WF-REF-0120).",
   "value": {
     "calendar_id": "01926f3a-7c00-7000-8000-000000000484",
     "label": "Semaine de trente-cinq heures",
@@ -17,6 +17,11 @@
     "available_commands": [
       {
         "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "set_default",
         "is_available": true,
         "missing_conditions": []
       }
