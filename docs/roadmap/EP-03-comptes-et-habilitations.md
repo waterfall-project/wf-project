@@ -325,7 +325,10 @@ rafraîchit un jeton qui expire dans moins de trente secondes, sous un verrou Re
 session, pour que deux requêtes concurrentes ne présentent jamais le même jeton de
 rafraîchissement. Les écrans de mot de passe d'US-0320 (`/login/reset`, le formulaire de
 connexion, le changement de mot de passe) disparaissent ; l'écran de mon compte mène, pour
-un compte local, à la page du compte de Keycloak.
+un compte local, à la page du compte de Keycloak. Une navigation attend qu'une écriture en
+cours ait abouti : refusée, l'écriture est dite sur place et la navigation n'a pas lieu, et la
+personne décide ; c'est vrai de tout refus, et de la session perdue, qui mène ensuite à la
+connexion (#688, « ne perd rien en silence »).
 
 **Déconnexion et révocation.** WF-SEC-0020 veut que la déconnexion, la désactivation et le
 retrait de tous les rôles prennent effet « à la requête suivante, sur tous ses postes ». Les
@@ -339,6 +342,10 @@ un compte désactivé est refusé même si la notification se perd. La déconnex
 heure dans le compte (`sessions_closed_at`) : l'API refuse par 401 `SESSION_EXPIRED` un jeton
 émis avant elle (`iat`), y compris celui d'une application voisine, sans attendre son
 expiration et sans appel de plus, puisqu'elle lit déjà le compte à chaque requête (#668).
+Si la session du front est perdue alors que celle de Keycloak vit encore, « Se déconnecter »
+obtient d'abord un jeton par une connexion silencieuse (`prompt=none`), puis appelle
+`closeMySessions` : la déconnexion ferme ainsi tous les postes, comme le veut WF-SEC-0020
+(#689). Sans session de Keycloak non plus, il n'y a plus de poste à fermer.
 
 **L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
 cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
@@ -446,6 +453,13 @@ garde le compte actif et le signale.
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
+- Deux rôles de base (#701) : l'API et le worker se connectent par un rôle de service, qui
+  n'a sur le journal d'audit que `INSERT` et `SELECT` ; le propriétaire des tables, seul à
+  pouvoir créer, migrer et recréer, sert aux migrations, à l'amorçage, à la sauvegarde et à la
+  restauration, jamais à une requête. Le propriétaire pourrait se rendre les droits ou couper
+  le déclencheur du journal : c'est pourquoi le service ne l'est pas. Toute écriture au journal
+  porte une corrélation, y compris celles de `waterfall-api install` et des tâches du worker.
+  Sur un PostgreSQL externe, le rôle de service est créé d'avance par l'exploitant (EP-13).
 
 ### Journaux et corrélation
 
@@ -496,12 +510,24 @@ action, projet, objet, corrélation et une recherche sur le libellé que l'inscr
 `listAuditFacets` rend les auteurs et les projets que le journal nomme. L'inscription garde le
 libellé de son objet et le nom de son auteur au moment de l'action, pour se lire sans joindre
 les tables des autres modules. Les index suivent les tris et les filtres du contrat.
+`AuditEvent` rend aussi les paramètres de l'action — un objet propre à chaque action, de codes
+et d'identifiants, sans phrase —, pour que le journal dise qui a donné quel droit (#706) :
+US-0410/L2 modifie le contrat avant de les servir.
+
+**L'anonymisation dans le journal** (WF-SEC-0030 révisée, #702). Le déclencheur refuse toute
+modification d'une inscription, à une exception : l'anonymisation d'un compte remplace par le
+libellé neutre le libellé qui désigne ce compte dans les inscriptions, comme auteur ou comme
+objet, et rien d'autre ; le nombre, les dates et les actions des inscriptions ne changent pas.
+L'anonymisation s'inscrit elle-même (`user_anonymize`, une action et une opération que le lot
+qui la réalise ajoute au contrat), et la lecture des comptes ne la défait pas (WF-ADM-0070).
 
 ### Amorçage
 
 `waterfall-api install`, une commande du même paquet, sous un verrou consultatif :
 
-1. applique les migrations (`alembic upgrade head`) — le catalogue avec elles ;
+1. applique les migrations (`alembic upgrade head`) — le catalogue avec elles —, sous le
+   rôle propriétaire, qui crée aussi le rôle de service (#701) ; la commande pose sa propre
+   corrélation, que ses inscriptions au journal portent ;
 2. si la ligne `installation` existe, s'arrête sans rien faire d'autre (WF-EXP-0020) ;
 3. crée la ligne `installation` avec la langue par défaut (`WATERFALL_DEFAULT_LANGUAGE`) et
    les bornes ; les trois rôles prédéfinis, avec les permissions de l'exemple `access_roles`
@@ -535,7 +561,8 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
 - **l'amorçage** : `docker compose run --rm api waterfall-api install`, qui écrit le lien du
   premier administrateur ;
 - **la notice** : `deploy/compose/README.md` — installer, amorcer, mettre à jour (tirer une
-  étiquette, relancer, les migrations s'appliquent au démarrage de l'API), sauvegarder,
+  étiquette, relancer : un service de migration, sous le rôle propriétaire, s'applique avant
+  le démarrage de l'API, qui ne tient que le rôle de service, #701), sauvegarder,
   arrêter ;
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
   publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
@@ -556,8 +583,8 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 ### Sauvegarde et restauration
 
 - **La sauvegarde** est une tâche du worker (`backup`) : `pg_dump` de chaque base, au format
-  personnalisé, chacune dans un instantané cohérent ; la table du journal d'audit est exclue
-  de la base de Waterfall ; une archive des deux vidages et d'un manifeste — date, version de
+  personnalisé, chacune dans un instantané cohérent, sous le rôle propriétaire (#701) ; le
+  journal d'audit est sauvegardé avec la base de Waterfall (WF-SEC-0030, #705) ; une archive des deux vidages et d'un manifeste — date, version de
   l'application, révision du schéma, empreintes — est écrite dans le compartiment
   `backups` du stockage objet, puis vérifiée (relecture de l'archive et des empreintes,
   `pg_restore --list` de chaque vidage) avant de passer `passed`.
@@ -569,9 +596,12 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 - **La restauration** est une tâche du worker (`restore`), demandée avec la date de la
   sauvegarde confirmée : elle refuse une archive d'une version plus récente que
   l'installation ; met la plateforme en maintenance — l'API répond 503
-  `COMPONENT_UNAVAILABLE`, et toutes les sessions sont fermées ; recrée les deux bases depuis
-  les vidages, sauf la table du journal d'audit ; applique les migrations postérieures à la
-  sauvegarde ; vide les caches de Keycloak par son API d'administration et Redis ; inscrit la
+  `COMPONENT_UNAVAILABLE`, et toutes les sessions sont fermées ; relit les inscriptions du
+  journal postérieures à la date de la sauvegarde ; recrée les deux bases depuis les vidages,
+  journal compris, sous le rôle propriétaire ; réinscrit les inscriptions relues (WF-ADM-0160,
+  #705) — sur une autre installation, ce sont celles de l'installation cible, qui gardent ainsi
+  la trace de ce qui s'y est fait depuis la date de la sauvegarde ; applique les migrations
+  postérieures à la sauvegarde ; vide les caches de Keycloak par son API d'administration et Redis ; inscrit la
   restauration au journal ; lève la maintenance. Une restauration interrompue reprend depuis le
   début et ne lève la maintenance qu'une fois finie (WF-ARC-0090).
 - **Reproduire une installation** est une restauration entière : la seconde installation
@@ -691,7 +721,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une plateforme de démonstration dès EP-03 : images publiées par la chaîne, Compose de production, frontal Caddy (auteur, 2026-10-09) | attendre EP-13 : aucune démonstration sur une installation réelle avant la fin ; construire les images sur le serveur : ce ne seraient pas les mêmes images partout (WF-ARC-0050) |
 | Sauvegarde et restauration dès EP-03, la plateforme entière (auteur, 2026-10-09) | un échange du seul référentiel : contraire à WF-ADM-0160 (aucune restauration partielle) et à WF-INTF-0150 (aucun import du référentiel) |
 | Garage pour le stockage objet, le code limité aux opérations S3 standard (auteur, 2026-10-09) | MinIO : archivé, sans binaires ni correctifs ; SeaweedFS : plusieurs composants, lourd pour une démonstration ; RustFS : trop jeune |
-| Le journal d'audit hors des vidages, laissé en place par la restauration | le restaurer avec le reste : WF-ADM-0160 révisée le garde, et la restauration doit s'y inscrire |
+| Le journal d'audit sauvegardé avec la base ; à la restauration, ses inscriptions postérieures à la sauvegarde relues avant et réinscrites après (WF-SEC-0030, WF-ADM-0160 révisées ; auteur, 2026-10-10, #705) | le laisser hors des vidages et en place : contraire à la spécification révisée, et sur une autre installation le journal de la source serait perdu |
 | Le dépôt d'une sauvegarde par morceaux (#350) | une action serveur : sa taille de corps est bornée ; une adresse signée du stockage objet : le navigateur parlerait au stockage, hors des flux du §4.3.2 ; un gestionnaire de route qui relaie l'API : écarté par EP-02 (WF-ARC-0020) |
 | L'extension envoie le courriel d'invitation avec son propre lien ; l'API n'appelle jamais `execute-actions-email` (auteur, 2026-10-10, #651) | restreindre la promesse du contrat aux seuls liens obtenus de l'extension : une invitation de Keycloak resterait valide après un lien remis en main propre |
 | La règle `local-account-only` de l'extension refuse un mot de passe à un compte relayé ou fédéré (auteur, 2026-10-10, #650) | accepter le risque, la désactivation dans Waterfall restant le contrôle : Waterfall ne voit pas le départ d'une personne de son fournisseur externe |
@@ -699,6 +729,11 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une personne de l'annuaire à l'adresse déjà portée est rattachée au compte ; venue d'un fournisseur externe, refusée (auteur, 2026-10-10, #664) | toujours refuser : chaque branchement d'un annuaire demanderait de régler les comptes à la main ; toujours rattacher : prise de compte par un fournisseur externe peu rigoureux |
 | Aucun appel au fournisseur d'identité dans une transaction (auteur, 2026-10-10, #669) | une transaction par requête sans exception : une connexion prise pendant un appel lent à Keycloak épuise le pool |
 | `admin-cli` sans connexion directe par mot de passe (auteur, 2026-10-10, #644) | la laisser, l'audience `waterfall-api` protégeant l'API : un second chemin d'authentification que la conception ne prévoit pas |
+| Un rôle de service distinct du propriétaire des tables ; migrations, amorçage, sauvegarde et restauration par le propriétaire (auteur, 2026-10-10, #701) | retirer les droits au propriétaire : il peut se les rendre, ou couper le déclencheur du journal |
+| L'anonymisation réécrit le libellé du compte dans le journal, seule modification que le déclencheur permet (WF-SEC-0030 révisée ; auteur, 2026-10-10, #702) | masquer le nom à la lecture : le nom resterait en base, contre la Vérif « aucune inscription ne porte plus son nom » |
+| `AuditEvent` rend les paramètres de l'action, codes et identifiants (auteur, 2026-10-10, #706) | ne pas les rendre : le journal ne dirait pas quel droit a été donné, l'« afin de » d'US-0410 |
+| Une déconnexion sans session du front passe par une connexion silencieuse avant `closeMySessions` (auteur, 2026-10-10, #689) | ne fermer que le poste : contraire à WF-SEC-0020, « sur tous ses postes » |
+| Une navigation attend l'écriture en cours, et un refus est dit sur place avant de partir (auteur, 2026-10-10, #688) | un avis qui survit à la navigation et à la connexion : plus fragile, et la personne ne choisit plus |
 
 ### Issues à ouvrir avec la conception
 
