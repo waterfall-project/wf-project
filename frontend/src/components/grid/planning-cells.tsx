@@ -20,7 +20,7 @@ import { Circle, CircleCheck, Contrast, Flame, type LucideIcon, PenLine, Zap } f
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { formatDecimal, formatPercent } from "@/i18n/format";
+import { formatDecimal, formatShare } from "@/i18n/format";
 
 import type { PlanningNode } from "./planning";
 
@@ -140,13 +140,14 @@ export function FloatCell({ node }: { readonly node: PlanningNode }) {
  */
 export function PhysicalProgressCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations();
+  const bounds = useTranslations("share");
   const locale = useLocale();
   const progress = node.task?.physical_progress;
   if (progress === undefined || progress === null) {
     return null;
   }
   if (progress.is_computable && progress.value !== undefined && progress.value !== null) {
-    return formatPercent(progress.value, locale);
+    return formatShare(progress.value, locale, bounds);
   }
   // Not computable, said as such, and why when the API says it — seen and read with the cell,
   // once: no `title`, which a screen reader would read again as its description (#334).

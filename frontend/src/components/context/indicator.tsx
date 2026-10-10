@@ -12,7 +12,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
 import type { Catalogue } from "@/i18n/catalogues";
-import { formatDecimal, formatPercent } from "@/i18n/format";
+import { formatDecimal, formatShare } from "@/i18n/format";
 
 /** A value that may not be computable (WF-IND-0010). */
 export type Computable = components["schemas"]["Computable"];
@@ -44,14 +44,14 @@ type IndicatorName = keyof Catalogue["indicator"]["names"];
 export type IndicatorLabel = `indicator.names.${IndicatorName}`;
 
 /**
- * How each indicator shows its value: a progress or a consumption is a ratio, shown as a
- * percentage; an index or a projection, as the decimal the API gave. Every name of the
+ * How each indicator shows its value: a progress or a consumption is a share, a percentage to
+ * the hundredth; an index or a projection, as the decimal the API gave. Every name of the
  * catalogue is classified: one added there fails the type check until it is here.
  */
-const FORMATS: Readonly<Record<IndicatorLabel, typeof formatDecimal>> = {
-  "indicator.names.financialProgress": formatPercent,
-  "indicator.names.budgetConsumption": formatPercent,
-  "indicator.names.physicalProgress": formatPercent,
+const FORMATS: Readonly<Record<IndicatorLabel, typeof formatShare>> = {
+  "indicator.names.financialProgress": formatShare,
+  "indicator.names.budgetConsumption": formatShare,
+  "indicator.names.physicalProgress": formatShare,
   "indicator.names.costIndex": formatDecimal,
   "indicator.names.scheduleIndex": formatDecimal,
   "indicator.names.projectionAtObservedRate": formatDecimal,
@@ -78,6 +78,7 @@ export function ComputedIndicator({
   date = "own",
 }: ComputedIndicatorProps) {
   const t = useTranslations();
+  const bounds = useTranslations("share");
   const locale = useLocale();
   // A value the API calls computable yet leaves out is not made up either: it is said missing.
   const computed = value.is_computable ? (value.value ?? null) : null;
@@ -86,7 +87,9 @@ export function ComputedIndicator({
     <dl className="space-y-0.5">
       <dt className="text-sm text-muted-foreground">{t(indicator)}</dt>
       <dd className="text-lg font-semibold tabular-nums">
-        {computed === null ? t("indicator.notComputable") : FORMATS[indicator](computed, locale)}
+        {computed === null
+          ? t("indicator.notComputable")
+          : FORMATS[indicator](computed, locale, bounds)}
       </dd>
       {reason === null ? null : (
         <dd className="text-sm text-muted-foreground">

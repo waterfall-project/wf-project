@@ -714,6 +714,10 @@
     "notComputable": "Not computable",
     "computedAt": "Computed on <time></time>"
   },
+  "share": {
+    "below": "<{share}",
+    "above": ">{share}"
+  },
   "chart": {
     "values": "Values of the chart",
     "exportPng": "Export as PNG",

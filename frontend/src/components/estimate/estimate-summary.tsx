@@ -26,7 +26,7 @@ import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
 import { CalculationDate } from "@/components/context/indicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatMoney, formatPercent } from "@/i18n/format";
+import { formatMoney, formatShare } from "@/i18n/format";
 import { functionOf } from "@/navigation/functions";
 
 /** The indicators of an estimate, as the API computes them. */
@@ -156,6 +156,7 @@ function Breakdown({
   readonly items: readonly AmountByKey[];
 }) {
   const t = useTranslations();
+  const bounds = useTranslations("share");
   const locale = useLocale();
   if (items.length === 0) {
     return null;
@@ -180,7 +181,14 @@ function Breakdown({
                   {share?.is_computable === true &&
                   share.value !== null &&
                   share.value !== undefined
-                    ? t("estimateSummary.shareOf", { share: formatPercent(share.value, locale) })
+                    ? t("estimateSummary.shareOf", {
+                        share: formatShare(
+                          share.value,
+                          locale,
+                          bounds,
+                          item.amount.value ?? undefined,
+                        ),
+                      })
                     : null}
                 </span>
               </li>

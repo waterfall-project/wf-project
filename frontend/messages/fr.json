@@ -714,6 +714,10 @@
     "notComputable": "Non calculable",
     "computedAt": "Calculé le <time></time>"
   },
+  "share": {
+    "below": "< {share}",
+    "above": "> {share}"
+  },
   "chart": {
     "values": "Valeurs du graphique",
     "exportPng": "Exporter en PNG",

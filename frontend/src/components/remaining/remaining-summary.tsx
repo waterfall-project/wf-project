@@ -23,7 +23,7 @@ import { ComputedTotal } from "@/components/computed-amount";
 import { CalculationDate } from "@/components/context/indicator";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
-import { formatMoney, formatPercent } from "@/i18n/format";
+import { formatMoney, formatShare } from "@/i18n/format";
 import { UNASSIGNED } from "@/navigation/context";
 
 /** The indicators of the remaining to commit, as the API computes them. */
@@ -40,6 +40,7 @@ function useKeyName() {
 /** The figures of the indicators: the total, the deviations, the breakdowns. */
 function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
   const t = useTranslations("remainingSummary");
+  const bounds = useTranslations("share");
   const locale = useLocale();
   const name = useKeyName();
   const reference = indicators.delta_to_reference;
@@ -65,7 +66,7 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
                   : t("amountShare", {
                       name: name(item),
                       amount: money(item.amount),
-                      share: formatPercent(item.share, locale),
+                      share: formatShare(item.share, locale, bounds, item.amount),
                     })}
               </li>
             ))}

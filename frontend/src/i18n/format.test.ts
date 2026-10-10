@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { createTranslator } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
+import { CATALOGUES } from "./catalogues";
 import {
   compareDecimals,
   editableDecimal,
@@ -16,12 +18,14 @@ import {
   formatPercent,
   formatMonth,
   formatPlanningDate,
+  formatShare,
   formatTimestamp,
   localTimeOfDay,
   parseDecimal,
   percentRatio,
   ratioPercent,
 } from "./format";
+import type { Locale } from "./locale";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
 // which the projection of the document does not tell apart from a typographic one.
@@ -202,6 +206,66 @@ describe("a percentage", () => {
 
   it("refuses what is not a decimal of the contract", () => {
     expect(() => formatPercent("25%", "fr")).toThrow(RangeError);
+  });
+});
+
+type Schemas = components["schemas"];
+
+describe("a share", () => {
+  /** A share in a language, its bounds said by the catalogue of the language. */
+  const share = (value: string, locale: Locale, amount?: string) =>
+    formatShare(
+      value,
+      locale,
+      createTranslator({ locale, messages: CATALOGUES[locale], namespace: "share" }),
+      amount,
+    );
+
+  it.each([
+    ["0", `0${NO_BREAK}%`],
+    ["-0.00", `0${NO_BREAK}%`],
+    ["0.0000", `0${NO_BREAK}%`],
+    ["0.0000499999", `<${NO_BREAK}0,01${NO_BREAK}%`],
+    ["0.00005", `0,01${NO_BREAK}%`],
+    ["-0.0000499999", `>${NO_BREAK}-0,01${NO_BREAK}%`],
+    ["-0.00005", `-0,01${NO_BREAK}%`],
+    ["-0.0123", `-1,23${NO_BREAK}%`],
+    // Near the whole, the ordinary rounding: only the side of zero is said (#626).
+    ["0.9999499999", `99,99${NO_BREAK}%`],
+    ["0.99995", `100,00${NO_BREAK}%`],
+    ["1", `100${NO_BREAK}%`],
+    ["1.0000499999", `100,00${NO_BREAK}%`],
+  ])("shows %s, rounded to the hundredth, never nil when it is not", (value, shown) => {
+    expect(share(value, "fr")).toBe(shown);
+  });
+
+  it("shows the share the API gives to its fourth place as formatPercent does, and rounds a longer one", () => {
+    expect(share("0.0076", "fr")).toBe(formatPercent("0.0076", "fr"));
+    expect(share("0.337", "en")).toBe("33.7%");
+    expect(share("0.1300", "en")).toBe("13.00%");
+    expect(share("0.1000000000000000055511151231257827", "en")).toBe("10.00%");
+  });
+
+  it("says the bound in the words and the format of each language", () => {
+    expect(share("0.00003", "en")).toBe("<0.01%");
+    expect(share("-0.00003", "en")).toBe(">-0.01%");
+  });
+
+  it("says a share the server gives nil while its amount is not one too small to show, on the side of the amount", () => {
+    // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64.
+    const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
+    const item = indicators.by_order_item?.[0];
+    expect(item?.share?.value).toBe("0");
+    expect(share(item?.share?.value ?? "", "fr", item?.amount.value ?? "")).toBe(
+      `<${NO_BREAK}0,01${NO_BREAK}%`,
+    );
+    expect(share("0", "en", "-12.00")).toBe(">-0.01%");
+    expect(share("0", "en", "0.00")).toBe("0%");
+    expect(share("0.0076", "en", "502434.56")).toBe("0.76%");
+  });
+
+  it("refuses what is not a decimal of the contract", () => {
+    expect(() => share("25%", "fr")).toThrow(RangeError);
   });
 });
 

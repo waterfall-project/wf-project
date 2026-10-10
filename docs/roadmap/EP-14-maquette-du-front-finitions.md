@@ -586,6 +586,31 @@ tenir le plafond. Trois règles de la
 même révision sortent du périmètre de #575 et attendent une décision (#684) : le code unique d'un
 rôle, sa catégorie gardée dans la main-d'œuvre, le projet que nomme le refus d'un calendrier.
 
+EP-14/L51 (#648), lot technique, applique la décision de l'auteur du 2026-10-10 (#626) : une part
+non nulle n'est jamais lue « 0 % ». Une seule fonction, `formatShare` (`src/i18n/format.ts`), montre
+une part que le serveur calcule au centième de pourcentage, arrondie comme `Intl` arrondit, sans
+flottant ; une part que l'arrondi dirait nulle sans l'être se dit du côté de zéro où elle tombe —
+« < 0,01 % », « > -0,01 % » —, par le catalogue (`share`, l'espace insécable du français comme devant
+le signe pour cent, aucune en anglais) ; une part nulle se lit « 0 % », quel que soit le nombre de ses
+zéros. Près de 100 %, l'arrondi ordinaire reste (revue 1), l'auteur n'ayant tranché que le côté de
+zéro (#626). Les décimales montrées
+restent celles de `formatPercent`, jusqu'à la deuxième : une part à quatre décimales se montre comme
+avant. Une part que le serveur donne nulle à côté d'un montant qui ne l'est pas est de même trop
+petite pour se montrer : un pont provisoire, le faux back arrondissant les parts à leur quatrième
+décimale sans que le contrat en dise la précision (#694), à retirer ou à officialiser quand il aura
+tranché. Le résumé du devis la dit « < 0,01 % » pour le poste de l'offre v1.0
+(`estimate_indicators_breakdown`, 2 019,56 sur 65 427 832,64), seul exemple du contrat dont une part
+montrée s'arrondit à zéro, le poste d'`estimate_indicators` valant 0,76 % depuis L45b ; la part de
+gravité « moins de 0,01 % » du registre des risques n'est que dans le résumé de l'exemple, aucun
+écran ne la montre. Passent par `formatShare` les parts du résumé du devis et du reste à engager par
+nature (leur montant donné), de la structure des coûts du portefeuille, le taux de transformation et
+les taux de charge du portefeuille, les avancements et la consommation du budget des indicateurs, et
+l'avancement physique du planning, chaque appel éprouvé sur une variante déclarée quand aucun exemple
+ne porte le cas ; restent à `formatPercent`, chaque chiffre gardé, les rapports saisis ou réglés, que
+rien n'arrondit — taux d'inflation, probabilités de gain et de risque, bornes de la matrice, seuils
+des indicateurs et du portefeuille. Le reste à engager par sous-projet ne montre aucune part. Aucun
+texte de pourcentage des parcours de bout en bout ne change.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire
