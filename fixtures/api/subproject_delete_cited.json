@@ -1,0 +1,11 @@
+{
+  "summary": "La suppression du poste de commande, cité par les lignes de devis de la révision de référence marquée le 1er février 2026, refusée : il ne se supprime pas, la courbe de la valeur acquise en dépendant — la première des deux conditions qui manquent à sa commande delete, la facture des écrans lui étant aussi imputée ; rien n'est écrit (§4.4.1, WF-PRJ-0050, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "subproject_not_cited"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001068"
+  }
+}

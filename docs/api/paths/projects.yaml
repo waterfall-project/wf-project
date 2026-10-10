@@ -553,30 +553,39 @@
     tags: [projects]
     summary: Supprimer un sous-projet
     description: >-
-      Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit
+      Refusée dès qu'une révision marquée le cite (§4.4.1, décision de l'auteur du 2026-10-10,
+      #634) ou qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit
       d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet
-      (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite est conservé et marqué supprimé :
-      la révision l'affiche toujours, la saisie ne le propose plus (WF-DAT-0080) ; un sous-projet
-      qu'aucune ne cite est retiré. L'un et l'autre répondent 204.
+      (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite ne se supprime pas : les
+      sous-projets déterminent la courbe de la valeur acquise, et sa suppression y aurait des
+      effets que rien ne maîtrise ; la décision contredit le Vérif de WF-DAT-0080, dont la
+      correction est en attente. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun
+      coût réel ne charge est retiré de la base.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/SubprojectId
     responses:
       '204':
-        description: Sous-projet supprimé, retiré ou marqué supprimé (WF-DAT-0080).
+        description: Sous-projet supprimé, retiré de la base (WF-DAT-0080).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
           La commande `delete` est indisponible : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la condition qui lui manque —
-          `subproject_without_actual_costs` pour un sous-projet auquel des coûts réels sont imputés
-          (WF-PRJ-0050), `project_not_terminal` sur un projet clos (WF-CYC-0100). Rien n'est écrit.
+          `params.missing_condition` nommant la condition qui lui manque — `subproject_not_cited`
+          pour un sous-projet qu'une révision marquée cite (§4.4.1, décision de l'auteur du
+          2026-10-10, #634), `subproject_without_actual_costs` pour un sous-projet auquel des coûts
+          réels sont imputés (WF-PRJ-0050), `project_not_terminal` sur un projet clos
+          (WF-CYC-0100). Une seule est nommée, la première qui manque dans l'ordre où la commande
+          `delete` les liste : `subproject_not_cited`, puis `subproject_without_actual_costs` — la
+          citation ne se lève jamais, une révision marquée étant immuable (WF-DAT-0020) —, puis
+          `project_not_terminal`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
 
 /projects/{project_id}/contributors:

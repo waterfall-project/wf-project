@@ -2354,8 +2354,9 @@ dans une famille d'identifiants qui lui est propre (`lignes de coût réel engen
 sous-projet « Essais et mise en service » porte donc des coûts réels, et ne se supprime plus
 (`subprojects`, WF-PRJ-0050) — `subprojects_with_actual_costs`, la lecture filtrée, coïncide depuis
 avec la liste entière, et seul son paramètre la distingue ; `subproject_updated`, le sous-projet
-renommé, le garde chargé, sans quoi la ligne relue redeviendrait supprimable dans la maquette — ; la
-consultation des coûts compte 27 lignes, le journal 22 lignes créées par l'import de mai.
+renommé, le garde chargé, sans quoi la ligne relue serait redevenue supprimable dans la maquette —
+ce que, depuis EP-14/L42l, sa citation par la référence marquée empêche aussi — ; la consultation
+des coûts compte 27 lignes, le journal 22 lignes créées par l'import de mai.
 
 **Ce que les exemples valent.** Le budget de référence passe de 120 534,56 à 65 430 697,64 — les
 budgétés de la grille moins les 250 de la provision — ; la valeur planifiée de 101 223,69 à
@@ -3912,23 +3913,21 @@ condition s'ajoute au catalogue, nommée comme ce qui doit tenir : `subproject_w
 manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) — les
 deux du témoin, le Poste de commande par la facture des écrans, les essais et la mise en service par
 celles des tâches tirées depuis EP-14/L45a. Aucun exemple ne montre donc la suppression disponible,
-le témoin chargeant tous ses sous-projets : `test_mockproject.py` éprouve l'autre côté de la règle
-sur une variante construite dans le test (`has_actual_costs` faux, `delete` disponible), plutôt que
-par un exemple de plus. Elle est la seule : qu'une révision marquée cite
-un sous-projet ne fonde aucun refus. Le Vérif de WF-DAT-0080 dit que la suppression d'un sous-projet
-référencé par une révision marquée *le marque supprimé* — la révision l'affiche toujours, la saisie
-ne le propose plus — : elle aboutit, en suppression logique, et `deleteSubproject` répond 204, comme
-L42k le prévoit pour `deleteTimeline`. Le cadrage d'EP-14 et #592 portaient une
-`subproject_not_cited`, que la première rédaction du lot avait écrite ; la relecture l'a corrigée
-contre le Vérif. Si un écran veut avertir avant la suppression que la révision marquée gardera le
-sous-projet, c'est une information de lecture, pas une condition : elle n'entre pas ici, et revient à
-EP-04, qui écrit le back des projets. La modification reste disponible, coûts imputés ou non : rien ne
-l'interdit. Écartés : déduire la suppression de `has_actual_costs` dans le front, ce que L44b faisait
-faute de mieux ; un booléen de plus pour la permission, que la commande dit ; `HAS_ACTUAL_COSTS`,
-retiré du catalogue des codes : aucune réponse ne le déclarait, et le refus d'une commande qu'un état
-rend indisponible est `STATE_FORBIDS_OPERATION` (EP-02/L42a). Le 409 de `deleteSubproject` le dit,
-`params.missing_condition` nommant la condition (`subproject_delete_refused`), ou
-`project_not_terminal` sur un projet clos.
+le témoin chargeant tous ses sous-projets : `test_mockproject.py` fixe sur une variante construite
+dans le test (`has_actual_costs` faux, `delete` disponible) la règle qu'il applique aux exemples,
+plutôt que par un exemple de plus. Le lot en avait fait la seule, et retiré la `subproject_not_cited`
+que le cadrage d'EP-14 et #592 portaient, en suivant le Vérif de WF-DAT-0080, qui dit que la
+suppression d'un sous-projet référencé par une révision marquée *le marque supprimé* ; l'auteur a
+tranché le contraire le 2026-10-10 (#634) : un sous-projet qu'une révision marquée cite ne se
+supprime pas, et la condition revient, première des deux (EP-14/L42l, plus bas). La modification
+reste disponible, coûts imputés ou non : rien ne l'interdit. Écartés : déduire la suppression de
+`has_actual_costs` dans le front, ce que L44b faisait faute de mieux ; un booléen de plus pour la
+permission, que la commande dit ; `HAS_ACTUAL_COSTS`, retiré du catalogue des codes : aucune réponse
+ne le déclarait, et le refus d'une commande qu'un état rend indisponible est
+`STATE_FORBIDS_OPERATION` (EP-02/L42a). Le 409 de `deleteSubproject` le dit,
+`params.missing_condition` nommant la première condition qui manque
+(`subproject_delete_refused`) — `project_not_terminal` en dernier sur un projet clos (EP-14/L42l,
+plus bas).
 
 **`update` couvre le paramétrage du projet, sous-projets compris** (#592, point 3 ; FBS-4.2.3,
 WF-PRJ-0050, WF-PRJ-0060) : la description de `ProjectCommand` le dit — les attributs
@@ -3986,17 +3985,18 @@ projets, dira s'il en faut une.
 **Exemples.** Écrits à la main, aux corrélations 1060 à 1067 : `project_code_taken`,
 `project_reference_incomplete`, `project_creation_refused`, `project_win_probability_frozen` (la
 probabilité du témoin, en cours, ramenée à 0,8), `project_rates_out_of_range` (l'offre, en
-chiffrage), `subproject_delete_refused` (le Poste de commande), `contributors_without_manager_refused`
-(Camille Martin passée contributrice) et `contributors_accounts_refused` (Alix Moreau, désactivée,
-passée chef de projet à la deuxième ligne, et un compte inconnu à la cinquième, hors des quatre
-lignes de la liste du témoin). Chaque lecture d'un
-projet qui liste `update` liste `update_win_probability` à sa suite ; chaque lecture ou écriture d'un
-sous-projet porte ses commandes ; `contributor_suggestions` nomme l'atelier de câblage et le monteur
-câbleur ; les listes engendrées par `wftools.mocklists` en dérivent sans retouche de l'outil.
+chiffrage), `subproject_delete_refused` (le Poste de commande ; la réception sur site depuis
+EP-14/L42l), `contributors_without_manager_refused` (Camille Martin passée contributrice) et
+`contributors_accounts_refused` (Alix Moreau, désactivée, passée chef de projet à la deuxième ligne,
+et un compte inconnu à la cinquième, hors des quatre lignes de la liste du témoin). Chaque lecture
+d'un projet qui liste `update` liste `update_win_probability` à sa suite ; chaque lecture ou
+écriture d'un sous-projet porte ses commandes ; `contributor_suggestions` nomme l'atelier de câblage
+et le monteur câbleur ; les listes engendrées par `wftools.mocklists` en dérivent sans retouche de
+l'outil.
 `tools/tests/test_mockproject.py` tient chacun contre l'univers et contre le contrat : la commande qui
 suit `update` et son état, les taux dans leurs bornes, le prochain état de chaque projet, les
-commandes de chaque sous-projet d'après ses seuls coûts — et qu'aucune `CommandCondition` ne tient à
-la citation par une révision marquée —, le libellé du porteur d'un code pris, les lignes désignées
+commandes de chaque sous-projet d'après ses coûts — et, depuis EP-14/L42l, d'après sa citation par
+une révision marquée —, le libellé du porteur d'un code pris, les lignes désignées
 d'une liste refusée, ce que chaque proposition nomme, et le 409 de tout refus qui nomme une
 condition. Le client est régénéré ; le front reçoit l'icône de la commande, ses catalogues
 (`enums.ProjectCommand.update_win_probability`, `enums.CommandCondition.project_before_in_progress` et
@@ -4004,6 +4004,70 @@ condition. Le client est régénéré ; le front reçoit l'icône de la commande
 `errors.UNKNOWN_USER` et `USER_INACTIVE`, `HAS_ACTUAL_COSTS` et `WIN_PROBABILITY_FROZEN` retirés) et
 le test de la suppression refusée adapté au 409 nommé ; les écrans de L44a et L44b adoptent le reste
 dans un lot propre.
+
+## La suppression d'un sous-projet cité par une révision marquée (EP-14/L42l)
+
+**Un sous-projet qu'une révision marquée cite ne se supprime pas** (#647 ; décision de l'auteur du
+2026-10-10 sur #634 ; §4.4.1, WF-PRJ-0050, WF-IHM-0090). Les sous-projets déterminent la courbe de la
+valeur acquise : supprimer un sous-projet qu'une révision marquée cite y aurait des effets de bord
+difficilement maîtrisables. La prose du §4.4.1 le disait déjà — un sous-projet référencé par une
+révision marquée « ne l'est pas davantage », supprimable — ; le corps et le Vérif de WF-DAT-0080
+disent le contraire : « Celle d'un sous-projet référencé par une révision marquée le marque
+supprimé ». C'est ce Vérif que L42i avait suivi en retirant la condition. **Le contrat suit la
+décision, contre le Vérif**, dont la correction est proposée à l'auteur dans `docs/spec/TODO.md`, § 2
+(#634, PR #649) : aucun agent ne modifie la spécification, et la contradiction demeure jusqu'à ce
+qu'il l'écrive. Le refus d'un risque cité (`risk_not_cited`) est le précédent : même cause, même
+forme.
+
+`subproject_not_cited` rejoint le catalogue, nommée comme ce qui doit tenir, avant
+`subproject_without_actual_costs` : elle manque à la commande `delete` d'un sous-projet que cite une
+ligne d'une révision marquée. Quand les deux manquent, la commande les liste toutes deux,
+`subproject_not_cited` d'abord, et le 409 de `deleteSubproject` (`STATE_FORBIDS_OPERATION`, sans
+`fields`) nomme celle-là : la citation ne se lève jamais — une révision marquée est immuable
+(WF-DAT-0020) —, quand des coûts imputés laisseraient croire qu'en les retirant la suppression
+aboutirait ; c'est la raison que `deleteRisk` donne pour nommer `risk_not_occurred` avant
+`risk_not_cited`. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun coût ne charge est
+retiré de la base, 204 ; aucun sous-projet n'est plus « marqué supprimé ». La description de
+`deleteSubproject` le dit, avec la décision et le Vérif qu'elle contredit.
+
+**Sur un projet clos, `project_not_terminal` vient en dernier** (revue de L42l ; WF-CYC-0100). La
+commande `delete` d'un sous-projet cité et chargé d'un projet clos manque alors de trois conditions,
+listées `subproject_not_cited`, `subproject_without_actual_costs`, `project_not_terminal`, et le 409
+nomme la première qui manque. C'est l'ordre dans lequel le projet liste déjà les siennes : la
+condition propre à la commande d'abord, celle du projet ensuite — `update_win_probability` d'un
+projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`,
+`create_revision` de `no_current_revision` puis de `project_not_terminal` (`project_completed`) ;
+`update`, qui n'a pas de condition propre, ne nomme que `project_not_terminal`. Écarté :
+`project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
+l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
+`test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
+exemples, et la confronte à `project_completed`.
+
+Écartés : garder la suppression logique de L42i jusqu'à ce que l'auteur corrige le Vérif — le contrat
+aurait promis ce que l'auteur a refusé, et l'écran de L44e l'aurait appris ; nommer
+`subproject_without_actual_costs` d'abord, qui aurait gardé tel quel l'exemple de refus de L42i, mais
+renvoyé vers des coûts dont le retrait ne suffit pas, et laissé `subproject_not_cited` sans aucun
+sous-projet du témoin pour la montrer ; une information de lecture de plus (« cité par une révision
+marquée »), que la commande dit déjà.
+
+**Les deux sous-projets du témoin sont cités**, non le seul Poste de commande : depuis EP-14/L45a, la
+référence marquée le 1er février porte toute la structure, et les lots « Ligne d'essais » citent les
+essais et la mise en service comme le cœur et les lots « Poste de commande » citent le Poste de
+commande ; l'offre v1.0, marquée le 15 décembre 2025, précède leur déclaration et n'en cite aucun.
+Leurs lectures (`subprojects`, et `subprojects_by_label` et `subprojects_with_actual_costs`, qu'en
+dérive `make mock-data`) et le renommage (`subproject_updated`) portent les deux conditions ; le
+sous-projet créé aujourd'hui (`subproject_created`), qu'aucune révision marquée ne cite, la seule de
+ses coûts. Exemples : `subproject_delete_cited` (corrélation 1068), la suppression du Poste de
+commande refusée par `subproject_not_cited` ; `subproject_delete_refused`, que L42i écrivait pour le
+Poste de commande, refuse désormais celle de la réception sur site, aussitôt chargée de la facture
+FA-2026-0295, par `subproject_without_actual_costs` — l'un et l'autre réels, sans contrefactuel. Les
+exemples écrits à la main le restent (`subprojects`, `subproject_updated`, `subproject_created`, les
+deux refus) ; les listes dérivées sont engendrées. `tools/tests/test_mockproject.py` applique aux
+exemples la règle qu'il fixe : les conditions de chaque sous-projet viennent de sa citation par une
+révision marquée, lue dans la référence sur toute la structure, puis de ses coûts ; et le test
+transversal des refus tient le nouveau 409 sans `fields`. Les catalogues reçoivent
+`enums.CommandCondition.subproject_not_cited` ; le client est régénéré, et l'adoption par l'écran
+des sous-projets revient à L44e.
 
 ## Collage et annulation
 

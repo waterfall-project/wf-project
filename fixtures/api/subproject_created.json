@@ -1,5 +1,5 @@
 {
-  "summary": "Le sous-projet de la réception sur site, créé aujourd'hui sous le code SP-REC que l'ERP lui a donné : la facture FA-2026-0295, « Réception du client sur site », importée sous ce code et imputée jusque-là au seul projet, lui est imputée aussitôt (WF-CRE-0020) — exclue du périmètre suivi, elle n'en reste pas moins sa ligne —, et il ne se supprime déjà plus (WF-PRJ-0050, WF-IHM-0090).",
+  "summary": "Le sous-projet de la réception sur site, créé aujourd'hui sous le code SP-REC que l'ERP lui a donné : la facture FA-2026-0295, « Réception du client sur site », importée sous ce code et imputée jusque-là au seul projet, lui est imputée aussitôt (WF-CRE-0020) — exclue du périmètre suivi, elle n'en reste pas moins sa ligne —, et il ne se supprime déjà plus, bien qu'aucune révision marquée ne le cite (WF-PRJ-0050, WF-IHM-0090).",
   "value": {
     "subproject_id": "01926f3a-7c00-7000-8000-000000000803",
     "code": "SP-REC",

@@ -1,5 +1,5 @@
 {
-  "summary": "La suppression du poste de commande : refusée, la facture des écrans lui étant imputée — la condition qui manque à sa commande delete ; rien n'est écrit (WF-PRJ-0050, WF-IHM-0090).",
+  "summary": "La suppression de la réception sur site, aussitôt créée : refusée, la facture FA-2026-0295 lui étant imputée dès sa création (WF-CRE-0020) — la seule condition qui manque à sa commande delete, aucune révision marquée ne le citant ; rien n'est écrit (WF-PRJ-0050, WF-IHM-0090).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
