@@ -60,6 +60,8 @@ describe("the back-channel logout", () => {
 
   const refusals: [string, { claims?: Record<string, unknown>; foreign?: boolean }][] = [
     ["signed by another key", { foreign: true }],
+    ["of another issuer", { claims: { iss: "https://keycloak.test/auth/realms/external" } }],
+    ["expired", { claims: { exp: Math.floor(Date.now() / 1000) - 60 } }],
     ["for another client", { claims: { aud: "waterfall-api" } }],
     ["without its event", { claims: { events: {} } }],
     ["with a nonce", { claims: { nonce: "n" } }],

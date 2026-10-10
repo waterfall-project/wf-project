@@ -53,6 +53,8 @@ export interface TestRealm {
   ): Promise<string>;
   /** The refresh grants the realm answered, by the refresh token presented. */
   readonly refreshes: string[];
+  /** The codes the realm was asked to exchange. */
+  readonly codes: string[];
   /** Every token the realm gave, for a test to look for in what the browser receives. */
   readonly issued: string[];
 }
@@ -76,14 +78,17 @@ export async function testRealm(): Promise<TestRealm> {
   const refreshTokens = new Map<string, Grant>();
   const ended = new Set<string>();
   const refreshes: string[] = [];
+  const presentedCodes: string[] = [];
   const issued: string[] = [];
 
-  const sign = (claims: Record<string, unknown>, key = privateKey) =>
-    new SignJWT({ iss: TEST_SETTINGS.realmAddress, aud: FRONT_CLIENT, ...claims })
+  // Issued now, good for five minutes, by the realm, for the front: unless the claims say otherwise.
+  const sign = (claims: Record<string, unknown>, key = privateKey) => {
+    const now = Math.floor(Date.now() / 1000);
+    const issued = { iss: TEST_SETTINGS.realmAddress, aud: FRONT_CLIENT, iat: now, exp: now + 300 };
+    return new SignJWT({ ...issued, ...claims })
       .setProtectedHeader({ alg: "RS256", kid: "realm" })
-      .setIssuedAt()
-      .setExpirationTime("5m")
       .sign(key);
+  };
 
   const tokens = async (grant: Grant, nonce?: string) => {
     const refreshToken = randomUUID();
@@ -113,6 +118,7 @@ export async function testRealm(): Promise<TestRealm> {
         ? refusal("invalid_grant")
         : tokens(grant);
     }
+    presentedCodes.push(form.get("code") ?? "");
     const code = codes.get(form.get("code") ?? "");
     codes.delete(form.get("code") ?? "");
     const verifier = form.get("code_verifier") ?? "";
@@ -124,6 +130,7 @@ export async function testRealm(): Promise<TestRealm> {
 
   return {
     refreshes,
+    codes: presentedCodes,
     issued,
     send: async (url, init) =>
       url === TOKEN_ENDPOINT && init.method === "POST"

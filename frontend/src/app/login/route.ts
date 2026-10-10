@@ -6,10 +6,11 @@
  * for no password, the identity provider does (WF-ADM-0140).
  *
  * It starts the authorization code flow of the realm (US-0350): a state, a nonce and a PKCE
- * verifier, kept in Redis with the screen aimed at for fifteen minutes at most, and the browser
- * sent to the sign-in page of Keycloak. The screen is kept on the server, bound to the state of
- * the request, and only a path of this front is kept — another site leads home (`returnTarget`);
- * the return, `/auth/callback`, leads there.
+ * verifier, kept in Redis with the screen aimed at for fifteen minutes at most, the browser given
+ * a cookie bound to the state — only it may open the session of the return (`signInCookie`) —,
+ * and sent to the sign-in page of Keycloak. The screen is kept on the server, bound to the state
+ * of the request, and only a path of this front is kept — another site leads home
+ * (`returnTarget`); the return, `/auth/callback`, leads there.
  *
  * On the fake back (`WATERFALL_AUTH=mock`), which grants the session the whole mock-up starts
  * from, there is nothing to sign in to: the route leads straight to the screen `next` names.
@@ -18,6 +19,7 @@ import { isMockAuthentication } from "@/api/server";
 import { NEXT_PARAMETER, returnTarget } from "@/navigation/login";
 import { identityProvider, signInChecks } from "@/session/provider";
 import { rememberSignIn } from "@/session/store";
+import { signInCookie } from "@/session/tokens";
 
 /** Start the sign-in, which comes back to the screen aimed at. */
 export async function GET(request: Request): Promise<Response> {
@@ -31,6 +33,10 @@ export async function GET(request: Request): Promise<Response> {
   const address = identityProvider().signInAddress(state, nonce, challenge);
   return new Response(null, {
     status: 307,
-    headers: { Location: address.toString(), "Cache-Control": "no-store" },
+    headers: {
+      Location: address.toString(),
+      "Set-Cookie": signInCookie(state),
+      "Cache-Control": "no-store",
+    },
   });
 }

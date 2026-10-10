@@ -177,24 +177,36 @@ rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou a
 (WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
 `wf_session` porte seul (`HttpOnly`, `Secure`, `SameSite=Lax`, sans échéance). `/login?next=…`
 tire un `state`, un nonce et un vérificateur PKCE (S256), les garde dans Redis avec l'écran visé
-— déjà passé par `returnTarget` — quinze minutes au plus, et envoie le navigateur à la page de
-connexion de Keycloak ; `/auth/callback` reprend la demande par son `state`, une seule fois,
-échange le code, vérifie le nonce du jeton d'identité, ouvre la session — ses jetons dans Redis
-pour la durée que Keycloak donne à sa session, `refresh_expires_in` — et mène à l'écran visé,
-son adresse entière ; un `state` inconnu, déjà employé ou trop vieux recommence la connexion.
+— déjà passé par `returnTarget` — quinze minutes au plus, donne au navigateur un témoin lié à ce
+`state` (`wf_sign_in_<state>`, limité à `/auth/callback`, quinze minutes), et l'envoie à la page
+de connexion de Keycloak. `/auth/callback` exige ce témoin — un retour porté à un autre
+navigateur n'y ouvre aucune session et recommence la connexion, sans toucher à la demande (RFC
+9700, §4.7) —, reprend la demande par son `state`, une seule fois, échange le code, vérifie le
+nonce du jeton d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycloak
+donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un
+`state` inconnu, déjà employé ou trop vieux recommence la connexion ; une connexion que le
+royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
+session, jamais à `/login`, que la session de Keycloak bouclerait.
 `serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
 chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
-de trente secondes, sous un verrou Redis par session, pour que deux requêtes ne présentent jamais
-le même jeton de rafraîchissement ; un rafraîchissement refusé ferme la session. Sans session
-vivante, la requête part sans jeton, et l'API la refuse (401) : une lecture mène à la connexion,
-une écriture n'est pas appliquée et l'écran le dit. La déconnexion (`signOut`) ferme les sessions
+de trente secondes, sous un verrou Redis par session qui vit deux fois le délai d'une requête au
+royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne présentent jamais le même
+jeton de rafraîchissement. Un rafraîchissement refusé, ou sans réponse dans ce délai, ferme la
+session : son jeton n'est jamais présenté deux fois ; Keycloak injoignable ne la ferme pas, et le
+jeton d'accès sert tant qu'il vit. Quand la session que nomme le témoin ne vit plus, la requête
+ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de
+panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
+d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
+(`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
+une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme les sessions
 du compte par `closeMySessions`, puis efface celles que le front garde de ce compte et le témoin,
 sans attendre Keycloak ; Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
 désactivation, retrait des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du
 front et non une opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume
 et efface les sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts`
 (`openid-client`, `jose`) et `src/session/store.ts` (`@redis/client`) atteignent Keycloak et
-Redis : ESLint refuse ces bibliothèques ailleurs (`src/api/network-guard.test.ts`).
+Redis, chacun les siennes seulement : ESLint refuse ces bibliothèques ailleurs, et chacun des deux
+modules celles de l'autre (`src/api/network-guard.test.ts`).
 
 Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
 navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;
@@ -215,8 +227,9 @@ toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe pass
 le `code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le
 reste. L'écran de panne (`error.tsx` dans la coquille, `global-error.tsx` quand le layout
 racine échoue) ne reçoit en production que le `digest` de l'erreur levée côté serveur :
-`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SignedOut` (un 401)
-`SESSION_REQUIRED_DIGEST`, qui mène à la connexion (`loginHref`), `UnexpectedAnswer`
+`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SessionLost`
+`SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut` (un 401)
+`SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
 l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour
 qu'aucune valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche
 en référence sans le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la
@@ -1642,8 +1655,11 @@ les clés expirent d'elles-mêmes.
 
 Keycloak, lui, n'est pas dans les tests du front : `frontend/src/test/identity-provider.ts` répond
 au serveur de Next comme le royaume `waterfall` — code à usage unique pour son vérificateur, jeton
-de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui —, et
-`make test-keycloak` prouve, contre le vrai royaume, ce que ce double reprend.
+de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui.
+`make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
+refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
+reste — le jeton de déconnexion que Keycloak poste au front, `refresh_expires_in` — revient aux
+parcours contre le service d'US-0350/L5.
 
 ### Un parcours de bout en bout
 

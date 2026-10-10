@@ -54,6 +54,13 @@ const REFRESH = "wf:refresh:";
 const RELEASE =
   'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) end return 0';
 
+// Deletes the sessions of an account and its index at once: a session filed meanwhile is either
+// closed with the others, or filed after them, never left out of an index already deleted.
+const FORGET_ACCOUNT = `
+local ids = redis.call("smembers", KEYS[1])
+for _, id in ipairs(ids) do redis.call("del", ARGV[1] .. id) end
+return redis.call("del", KEYS[1])`;
+
 /** How many times a lost connection is tried again, a tenth of a second apart, before it fails. */
 const RECONNECTIONS = 5;
 
@@ -165,10 +172,12 @@ export async function forgetSession(id: string): Promise<void> {
 
 /** Close every session of an account: on all its workstations (WF-SEC-0020). */
 export async function forgetAccount(subject: string): Promise<void> {
-  const client = await redis();
-  const account = `${ACCOUNT}${subject}`;
-  const ids = await client.sMembers(account);
-  await client.del([account, ...ids.map((id) => `${SESSION}${id}`)]);
+  await (
+    await redis()
+  ).eval(FORGET_ACCOUNT, {
+    keys: [`${ACCOUNT}${subject}`],
+    arguments: [SESSION],
+  });
 }
 
 /** Take the lock of the refresh of a session for a while, in milliseconds, unless another holds it. */

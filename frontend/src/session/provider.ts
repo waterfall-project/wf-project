@@ -37,9 +37,20 @@ export type SignedIn = Tokens & { readonly subject: string };
 export interface IdentityProvider {
   /** The address of the sign-in, for a request of its state, its nonce and its PKCE challenge. */
   signInAddress(state: string, nonce: string, challenge: string): URL;
-  /** Exchange the code of a return, after checking its state, its nonce and its verifier. */
-  exchange(query: string, state: string, nonce: string, verifier: string): Promise<SignedIn>;
-  /** Refresh a session, or nothing when the realm refuses its refresh token. */
+  /**
+   * Exchange the code of a return, after checking its state, its nonce and its verifier; nothing
+   * when the realm refused the sign-in — an error in the return, a code it refuses, a wrong nonce.
+   */
+  exchange(
+    query: string,
+    state: string,
+    nonce: string,
+    verifier: string,
+  ): Promise<SignedIn | undefined>;
+  /**
+   * Refresh a session, or nothing when the realm refuses its refresh token — or does not answer
+   * within `REFRESH_TIMEOUT`: the token may have been used, and is never presented again.
+   */
   refresh(refreshToken: string): Promise<Tokens | undefined>;
   /** The subject a logout token of the back channel names, or nothing when it is not valid. */
   loggedOut(logoutToken: string): Promise<string | undefined>;
@@ -48,8 +59,20 @@ export interface IdentityProvider {
 /** How the server of Next sends a request to the realm: the platform's fetch, unless told otherwise. */
 export type Send = (
   url: string,
-  init: { readonly method: string; readonly headers: HeadersInit; readonly body?: unknown },
+  init: {
+    readonly method: string;
+    readonly headers: HeadersInit;
+    readonly body?: unknown;
+    /** Aborts the request once its time is up. */
+    readonly signal?: AbortSignal | null | undefined;
+  },
 ) => Promise<Response>;
+
+/**
+ * How long a request to the realm may take, in milliseconds: well within the lock of a refresh
+ * (`src/session/tokens.ts`), so that a refresh ends before another request may take the lock.
+ */
+export const REFRESH_TIMEOUT = 5_000;
 
 // The event a logout token of the back channel carries (OpenID Connect Back-Channel Logout 1.0).
 const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
@@ -88,8 +111,34 @@ function tokensOf(answer: oidc.TokenEndpointResponse, now: number): Tokens {
   };
 }
 
-/** Speak to the realm the settings name, sending requests by `send`. */
-export function createIdentityProvider(settings: SessionSettings, send?: Send): IdentityProvider {
+/** Whether an error is the realm refusing a sign-in: what the browser brought back, or its code. */
+function isRefusedSignIn(error: unknown): boolean {
+  return (
+    error instanceof oidc.AuthorizationResponseError ||
+    error instanceof oidc.ResponseBodyError ||
+    // The ID token does not carry the nonce of the request.
+    (error instanceof oidc.ClientError && error.code === "OAUTH_JWT_CLAIM_COMPARISON_FAILED")
+  );
+}
+
+/** Whether an error is the realm refusing a refresh token, or not answering in time. */
+function isRefusedRefresh(error: unknown): boolean {
+  return (
+    // `invalid_grant`: the session of Keycloak is over, or the token was already used.
+    (error instanceof oidc.ResponseBodyError && error.error === "invalid_grant") ||
+    (error instanceof oidc.ClientError && error.code === "OAUTH_TIMEOUT")
+  );
+}
+
+/**
+ * Speak to the realm the settings name, sending requests by `send`, each given `timeout`
+ * milliseconds at most.
+ */
+export function createIdentityProvider(
+  settings: SessionSettings,
+  send?: Send,
+  timeout = REFRESH_TIMEOUT,
+): IdentityProvider {
   const { realmAddress, realmBackchannel, callback } = settings;
   const endpoints = `${realmBackchannel}/protocol/openid-connect`;
   const config = new oidc.Configuration(
@@ -102,6 +151,7 @@ export function createIdentityProvider(settings: SessionSettings, send?: Send): 
     FRONT_CLIENT,
     settings.clientSecret,
   );
+  config.timeout = timeout / 1000;
   const keys = createRemoteJWKSet(
     new URL(`${endpoints}/certs`),
     send === undefined ? {} : { [keysFetch]: send },
@@ -123,11 +173,19 @@ export function createIdentityProvider(settings: SessionSettings, send?: Send): 
     async exchange(query, state, nonce, verifier) {
       // The return as the browser made it: the address of the front, whatever proxy is between.
       const returned = new URL(`${callback}${query}`);
-      const answer = await oidc.authorizationCodeGrant(config, returned, {
-        pkceCodeVerifier: verifier,
-        expectedState: state,
-        expectedNonce: nonce,
-      });
+      let answer: Awaited<ReturnType<typeof oidc.authorizationCodeGrant>>;
+      try {
+        answer = await oidc.authorizationCodeGrant(config, returned, {
+          pkceCodeVerifier: verifier,
+          expectedState: state,
+          expectedNonce: nonce,
+        });
+      } catch (error) {
+        if (isRefusedSignIn(error)) {
+          return undefined;
+        }
+        throw error;
+      }
       const subject = answer.claims()?.sub;
       if (subject === undefined) {
         throw new Error("the realm gave no ID token");
@@ -139,8 +197,7 @@ export function createIdentityProvider(settings: SessionSettings, send?: Send): 
       try {
         return tokensOf(await oidc.refreshTokenGrant(config, refreshToken), Date.now());
       } catch (error) {
-        // `invalid_grant`: the session of Keycloak is over, or the token was already used.
-        if (error instanceof oidc.ResponseBodyError && error.error === "invalid_grant") {
+        if (isRefusedRefresh(error)) {
           return undefined;
         }
         throw error;

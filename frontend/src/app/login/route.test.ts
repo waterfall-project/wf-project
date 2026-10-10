@@ -61,7 +61,7 @@ describe("the sign-in route on the identity provider", () => {
     vi.stubEnv("WATERFALL_AUTH", undefined);
   });
 
-  it("sends the browser to the sign-in page of the realm, by the code flow with PKCE, the screen aimed at kept on the server under the state for fifteen minutes at most [WF-SEC-0020-A]", async () => {
+  it("sends the browser to the sign-in page of the realm, by the code flow with PKCE, the screen aimed at kept on the server under the state for fifteen minutes at most, the browser bound to the state", async () => {
     const screen = "/projects/p1/revisions/r1/estimate?subproject_id=s1&as_of=2026-06-03";
     const response = await login(`?next=${encodeURIComponent(screen)}`);
     expect(response.status).toBe(307);
@@ -84,9 +84,12 @@ describe("the sign-in route on the identity provider", () => {
     expect(signIn.value).toMatchObject({ target: screen, nonce: query.get("nonce") });
     expect(signIn.ttl).toBeGreaterThan(0);
     expect(signIn.ttl).toBeLessThanOrEqual(15 * 60);
+    expect(response.headers.getSetCookie()).toEqual([
+      `wf_sign_in_${query.get("state") ?? ""}=1; Path=/auth/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=900`,
+    ]);
   });
 
-  it("keeps the home page in place of another site [WF-SEC-0020-A]", async () => {
+  it("keeps the home page in place of another site", async () => {
     const response = await login(`?next=${encodeURIComponent("https://elsewhere.example/a?b=c")}`);
     const state = new URL(response.headers.get("Location") ?? "").searchParams.get("state");
     expect((await kept(state ?? "")).value).toMatchObject({ target: "/" });

@@ -11,9 +11,10 @@
  * - `conflict` (409), the state of an object forbids the operation: the screen explains it,
  *   naming the object in conflict when the envelope carries it — or one of its refusals by field,
  *   the object that holds a value already taken — and the screen knows it;
- * - `signed_out` (401), no session — not the deactivated account, a `refused` whose code the screen
- *   says (`ACCOUNT_DEACTIVATED`), since signing in again would loop —: the screen leads to the sign-in page, which comes back to
- *   the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
+ * - `signed_out` (401), no session — or none the front holds, and the request did not leave —,
+ *   not the deactivated account, a `refused` whose code the screen says (`ACCOUNT_DEACTIVATED`),
+ *   since signing in again would loop —: the screen leads to the sign-in page, which comes back
+ *   to the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
  *   502, 503 or 504 without the envelope — a result of its own, never a `Problem` the API did
  *   not send, and never a blank screen.
@@ -33,6 +34,7 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   correlationDigest,
+  SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
 } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -308,9 +310,33 @@ function conflictingOf({ params, fields }: Problem): string | null {
   return typeof named === "string" ? named : null;
 }
 
-/** Call the API and decode its answer, `unreachable` when it does not answer at all. */
+/** Whether an error is the session of the request lost: the request did not leave. */
+function isSessionLost(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    error.digest === SESSION_LOST_DIGEST
+  );
+}
+
+/**
+ * Call the API and decode its answer, `unreachable` when it does not answer at all. Without a
+ * session that lives, the request does not leave, and the outcome is `signed_out`, as if the API
+ * had refused it: the action is not applied, and its screen says so before it leads to the
+ * sign-in page — never the screen of failure, which would lead there at once.
+ */
 export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T>> {
-  const answer = await reach(call);
+  let answer: Answer<T> | undefined;
+  try {
+    answer = await reach(call);
+  } catch (error) {
+    if (isSessionLost(error)) {
+      const problem: Problem = { code: "SESSION_REQUIRED", status: 401 };
+      return { kind: "signed_out", problem, conflictingObjectId: null };
+    }
+    throw error;
+  }
   return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
 }
 

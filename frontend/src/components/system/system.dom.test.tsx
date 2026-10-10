@@ -13,6 +13,8 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
+import { loadDocument } from "@/navigation/document";
+
 import { useBrowserLocale } from "./browser-locale";
 import { NoProjects, NoRevisions, ReferenceIncomplete } from "./empty-states";
 import {
@@ -20,6 +22,7 @@ import {
   correlationDigest,
   failureOf,
   ACCOUNT_DEACTIVATED_DIGEST,
+  SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "./failure";
@@ -35,6 +38,9 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/portfolio/projects",
   useSearchParams: () => new URLSearchParams("as_of=2026-05-31"),
 }));
+
+// A whole document loaded: the sign-in page, which the test only records.
+vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
 
 /** Render in a language, as the shell hands its texts to a screen. */
 function inLanguage(children: ReactNode, locale: Locale = "fr") {
@@ -54,6 +60,7 @@ function forwarded(digest: string): BoundaryError {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(loadDocument).mockClear();
 });
 
 describe("the screen of failure", () => {
@@ -91,7 +98,15 @@ describe("the screen of failure", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Référence : 2894650101");
   });
 
-  it("leads a read refused for want of a session to the sign-in page, which comes back to the screen", async () => {
+  it("leads a read the front held no session for to the sign-in page at once, without a click [WF-SEC-0020-A]", () => {
+    inLanguage(<SystemFailure error={forwarded(SESSION_LOST_DIGEST)} retry={vi.fn()} />);
+    const signIn = `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}`;
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith(signIn);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Session requise");
+    expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute("href", signIn);
+  });
+
+  it("offers a read the API refused for want of a session the sign-in page, and goes nowhere by itself", async () => {
     const { container } = inLanguage(
       <SystemFailure error={forwarded(SESSION_REQUIRED_DIGEST)} retry={vi.fn()} />,
     );
@@ -100,6 +115,7 @@ describe("the screen of failure", () => {
       "href",
       `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}`,
     );
+    expect(loadDocument).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
     await expectAccessible(container);
   });
