@@ -264,6 +264,19 @@ def test_closing_the_sessions_while_keycloak_does_not_answer_is_a_component_unav
     assert response.json()["params"] == {"component": "identity_provider"}
 
 
+def test_reading_the_caller_while_keycloak_does_not_answer_is_a_component_unavailable(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The keys of the realm not yet read, the first request cannot be told from one without a
+    # session: Keycloak is the component that fails, as the contract declares it (#666).
+    account(database)
+    token = realm.token(SUBJECT, KEY)
+    realm.stop()
+    response = api.get(ME, headers=bearer(token))
+    assert refusal(response) == (503, "COMPONENT_UNAVAILABLE")
+    assert response.json()["params"] == {"component": "identity_provider"}
+
+
 def test_a_key_unknown_to_the_realm_is_not_read_again_more_than_once_in_a_while(
     realm_settings: ServiceSettings, realm: TestRealm
 ) -> None:

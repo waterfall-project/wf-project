@@ -182,3 +182,32 @@ def test_the_models_generated_from_the_contract_wake_its_family_when_only_the_ba
 def test_what_the_tests_of_keycloak_run_on_wakes_their_family(changed: str) -> None:
     touched = {family.name for family in paths.read().touched([changed])}
     assert "keycloak" in touched
+
+
+@pytest.mark.parametrize("woken", ["back", "keycloak", "service"])
+def test_a_change_of_the_contract_alone_wakes_the_tests_that_hold_the_service_to_it(
+    woken: str,
+) -> None:
+    touched = {family.name for family in paths.read().touched(["docs/api/paths/me.yaml"])}
+    assert woken in touched
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "frontend/src/session/provider.ts",
+        "backend/src/waterfall/api/me.py",
+        "deploy/compose/compose.service.yaml",
+        "deploy/compose/Caddyfile.service",
+        "deploy/keycloak/realm/waterfall.yaml",
+    ],
+)
+def test_what_the_paths_against_the_service_traverse_wakes_their_family(changed: str) -> None:
+    touched = {family.name for family in paths.read().touched([changed])}
+    assert "service" in touched
+
+
+def test_a_path_against_the_service_is_a_test_of_its_own_family() -> None:
+    declaration = paths.read()
+    assert declaration.test_family("frontend/e2e/service/sign-in.spec.ts") == "end-to-end-service"
+    assert declaration.test_family("frontend/e2e/grid.spec.ts") == "end-to-end"

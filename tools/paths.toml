@@ -45,7 +45,9 @@ paths = [
 target = "check-contract"
 
 [families.back]
-paths = ["backend/**"]
+# The tests of the back hold every answer of the service to the contract (ContractClient): a
+# change of the contract alone — a status, a header — is confronted with the service (#671).
+paths = ["backend/**", "docs/api/**"]
 target = "check-back"
 
 [families.roadmap]
@@ -65,11 +67,13 @@ target = "check-roadmap"
 # of or started with (US-0350): the extension, the themes, the realm, the files of the platform,
 # the tests that try it, with what they run on — their fixtures and helpers, the settings of Pytest
 # and of their measure, the locked dependencies of the back —, and the whole code of the back: they
-# serve the API, whose authentication, accounts and migrations only they try against Keycloak.
-# A platform started at each change of the back is the price of it.
+# serve the API, whose authentication, accounts and migrations only they try against Keycloak, and
+# hold its answers to the contract, which wakes them too (#671). A platform started at each change
+# of the back is the price of it.
 paths = [
     "deploy/keycloak/**",
     "deploy/compose/compose.service.yaml",
+    "deploy/compose/Caddyfile.service",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "backend/tests/test_keycloak_*.py",
@@ -79,8 +83,24 @@ paths = [
     "backend/pyproject.toml",
     "backend/coverage-keycloak.toml",
     "backend/uv.lock",
+    "docs/api/**",
 ]
 target = "check-keycloak"
+
+[families.service]
+# The paths against the real service (US-0340), in the full tier only: the front, the back, the
+# contract Prism holds the answers to, and the platform they all run on.
+paths = [
+    "frontend/**",
+    "backend/**",
+    "docs/api/**",
+    "deploy/compose/compose.service.yaml",
+    "deploy/compose/Caddyfile.service",
+    "deploy/compose/keycloak-database.sql",
+    "deploy/compose/service-database-role.sql",
+    "deploy/keycloak/**",
+]
+target = "check-service"
 
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
@@ -252,8 +272,10 @@ by = "make mock-data"
 [tests]
 # One family per key, in the order the coverage report lists them. A path belongs to the
 # first family that matches it: the end-to-end paths live under frontend/, so they come
-# before the front's. The fixtures are the data every family reads; a script among them is
-# a tool. Nothing under docs/*/tools/ is a test.
+# before the front's, and those played against the real service under frontend/e2e/, so they come
+# first: they traverse the back, and prove what it closes (US-0340). The fixtures are the data
+# every family reads; a script among them is a tool. Nothing under docs/*/tools/ is a test.
+end-to-end-service = ["frontend/e2e/service/**"]
 end-to-end = ["frontend/e2e/**"]
 front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx"]
 back = ["backend/tests/**"]

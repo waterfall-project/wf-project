@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The end-to-end paths against the real service (US-0340), in the full tier only: the service
+# platform started — the API, Keycloak behind its front end in HTTPS, its realm applied —, Prism
+# as a proxy between the front and the API, which fails a path on an answer outside the contract,
+# and the Playwright project `service` (make e2e-service). On the runner itself, not in the image
+# of Playwright: the paths reach the platform on the ports Docker publishes on the runner, which a
+# job container does not see; the browser is installed with its system packages.
+name: service
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  paths:
+    runs-on: ubuntu-24.04
+    # The images of the platform, Keycloak's built with its extension, then the paths: about as
+    # long as keycloak.yml with the browser and the front on top.
+    timeout-minutes: 25
+    env:
+      # The platform lives for the job and is reachable from the runner alone: development values,
+      # visible, named as such, as the secrets of a workstation would be (keycloak.yml).
+      WATERFALL_POSTGRES_PASSWORD: chainonlypostgres
+      WATERFALL_SERVICE_DATABASE_PASSWORD: chainonlyservice
+      WATERFALL_REDIS_PASSWORD: chain-only-redis
+      WATERFALL_KEYCLOAK_DATABASE_PASSWORD: chain-only-keycloak-database
+      WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin
+      WATERFALL_FRONT_CLIENT_SECRET: chain-only-front-client
+      WATERFALL_SERVICE_CLIENT_SECRET: chain-only-service-client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
+      - run: corepack enable pnpm
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      # Prism serves the variant of the contract the repository tools derive, in Python.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - run: make e2e-browsers
+        env:
+          PLAYWRIGHT_INSTALL: --with-deps
+      - run: make check-service
+        env:
+          TIER: full
+      # What the platform said, when a path failed or the platform did not start.
+      - if: failure()
+        run: make service-logs SERVICES="api keycloak keycloak-front-end contract-proxy"

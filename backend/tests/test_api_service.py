@@ -1,11 +1,18 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The service answers as the contract says, and exposes nothing the contract does not."""
+"""The service answers as the contract says, and exposes nothing the contract does not.
+
+Every answer a test of the API reads passes through ``ContractClient``, which holds it to the
+schema the contract declares for its operation and status: an answer that departs from it fails
+the test, and the chain with it (WF-ARC-0060). The paths played against the service hold the
+answers they traverse to the same contract, by Prism as a proxy (``make e2e-service``).
+"""
 
 from typing import TYPE_CHECKING, cast
 
 import pytest
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
@@ -34,6 +41,7 @@ def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClie
     assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.requirement("WF-ARC-0060-A")
 def test_every_route_of_the_application_is_an_operation_of_the_contract(
     contract: OpenAPI, services: Services
 ) -> None:
@@ -56,7 +64,10 @@ def test_every_route_of_the_application_is_an_operation_of_the_contract(
         assert declared[operation_id] == served
 
 
-@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json", "/api/v1/openapi.json"])
+@pytest.mark.requirement("WF-ARC-0060-A")
+@pytest.mark.parametrize(
+    "path", ["/docs", "/redoc", "/openapi.json", "/api/v1/openapi.json", "/api/v1/unknown"]
+)
 def test_no_page_of_documentation_and_no_openapi_document_is_served(
     path: str, client: ContractClient
 ) -> None:
@@ -108,15 +119,37 @@ def test_what_a_request_carries_is_not_written_to_the_logs(logs: Logs, services:
     assert found_in(logs.text) == []
 
 
-def test_a_response_that_the_contract_does_not_describe_is_rejected(contract: OpenAPI) -> None:
+@pytest.mark.requirement("WF-ARC-0060-A")
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [(200, {"status": 3}), (200, {}), (418, {"status": "ok"})],
+    ids=["a value outside its schema", "a field missing", "a status not declared"],
+)
+def test_a_response_that_the_contract_does_not_describe_is_rejected(
+    contract: OpenAPI, status: int, body: dict[str, object]
+) -> None:
     app = FastAPI()
 
     @app.get("/api/v1/health")
-    def health() -> dict[str, int]:
-        return {"status": 3}
+    def health() -> JSONResponse:
+        return JSONResponse(body, status_code=status)
 
     with pytest.raises(OpenAPIError):
         ContractClient(TestClient(app), contract).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+def test_an_answer_to_an_operation_the_contract_does_not_declare_is_rejected(
+    contract: OpenAPI,
+) -> None:
+    app = FastAPI()
+
+    @app.get("/api/v1/version")
+    def version() -> dict[str, str]:
+        return {"version": "1"}
+
+    with pytest.raises(OpenAPIError):
+        ContractClient(TestClient(app), contract).get("/api/v1/version")
 
 
 def test_a_path_with_a_query_string_is_validated_as_the_application_serves_it(

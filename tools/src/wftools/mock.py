@@ -14,6 +14,10 @@ Two differences, and only these, so that the fake back answers what the contract
   the mock-up starts from, and authentication is the real service's (EP-03).
 
 No response is written here: responses are the examples of the contract.
+
+The same variant serves Prism as a proxy in front of the real service (``make e2e-service``),
+which holds every answer to the contract: there the service authenticates, and its refusal
+passes as it answers it, where Prism, asking for a token, would answer one of its own.
 """
 
 import json

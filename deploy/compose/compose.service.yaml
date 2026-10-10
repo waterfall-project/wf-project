@@ -3,9 +3,10 @@
 
 # The service platform: PostgreSQL, Redis, the migrations, the API and the worker, for the
 # developers and for the tests that run against the real service (EP-03); Keycloak, with its realm
-# applied by keycloak-config-cli, and what lets the Definition of done be seen on a workstation —
-# a directory of test, OpenLDAP, and Mailpit, which receives the mails (US-0350). Started by
-# `make service-up`.
+# applied by keycloak-config-cli, behind its front end in HTTPS, Caddy (#680), and what lets the
+# Definition of done be seen on a workstation — a directory of test, OpenLDAP, and Mailpit, which
+# receives the mails (US-0350). Started by `make service-up`; `make e2e-service` adds Prism, as a
+# proxy that holds every answer of the API to the contract (US-0340).
 #
 # The secrets come from the environment of the caller, and the platform refuses to start without
 # them: nothing here has a default password. The password of PostgreSQL is written in a URL, so
@@ -25,6 +26,10 @@ x-back: &back
   build:
     context: ../../backend
   environment: *back-environment
+
+# Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
+# every token, whoever asks for it; by default, the port the front end is published on.
+x-keycloak-address: &keycloak-address ${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
 
 # One image, two commands: Keycloak, and the application of the realm (deploy/keycloak/Dockerfile).
 x-keycloak: &keycloak
@@ -63,6 +68,9 @@ services:
     environment:
       # `redis-cli` reads its password here, so the health check does not carry it in its text.
       REDISCLI_AUTH: ${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}
+    # On the workstation only: a front started there keeps its sessions here (#681).
+    ports:
+      - "127.0.0.1:${WATERFALL_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 2s
@@ -105,8 +113,9 @@ services:
     environment:
       <<: *back-environment
       # The issuer of the tokens is the address the browser reaches Keycloak at; the API reaches
-      # it on the back channel, for its keys and its administration API, as its service account.
-      WATERFALL_KEYCLOAK_ADDRESS: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
+      # it on the back channel, for its keys and its administration API, as its service account,
+      # inside the network of the platform: its encryption is EP-13's (WF-SEC-0010).
+      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
     depends_on:
@@ -161,23 +170,47 @@ services:
       # The administrator of the master realm, with which keycloak-config-cli applies the realm.
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?export WATERFALL_KEYCLOAK_ADMIN_PASSWORD}
-      # Where the browser reaches Keycloak: the issuer of every token, whoever asks for it; by
-      # default, the port it is published on. The services of the platform reach it at
-      # keycloak:8080, on the back channel.
-      KC_HOSTNAME: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
+      # Where the browser reaches Keycloak: the issuer of every token, whoever asks for it. The
+      # services of the platform reach it at keycloak:8080, on the back channel; the front end
+      # says on which address and in which scheme it was asked.
+      KC_HOSTNAME: *keycloak-address
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+    # Keycloak tells a front started on the workstation of a closed session on the back channel
+    # (#681): the address of the host, which the front listens on (WATERFALL_FRONT_BACKCHANNEL).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       keycloak-database:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:${WATERFALL_KEYCLOAK_PORT:-8080}:8080"
     healthcheck:
       # The image has neither curl nor wget: bash asks the management interface itself.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
       interval: 5s
       timeout: 3s
       retries: 60
+
+  # Keycloak in HTTPS, by Caddy's own authority (Caddyfile.service): the only door to Keycloak from
+  # the workstation, as the front end of the demonstration is.
+  keycloak-front-end:
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.service", "--adapter", "caddyfile"]
+    volumes:
+      - ./Caddyfile.service:/etc/caddy/Caddyfile.service:ro
+      # The authority and its root: kept, so that what trusts the root keeps trusting it.
+      - keycloak-front-end-data:/data
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WATERFALL_KEYCLOAK_PORT:-8443}:443"
+    healthcheck:
+      # Ready once both of its addresses answer for Keycloak, under a certificate of its root.
+      test: ["CMD-SHELL", "for host in localhost 127.0.0.1; do curl -fsS -o /dev/null --cacert /data/caddy/pki/authorities/local/root.crt https://$$host/auth/realms/master || exit 1; done"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   # Applies the realm of Waterfall and what the development platform adds to it, then stops:
   # `make service-up` runs it once Keycloak answers.
@@ -190,8 +223,11 @@ services:
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?export WATERFALL_KEYCLOAK_ADMIN_PASSWORD}
       WATERFALL_REALM_FILES: file:/opt/keycloak/realm/*.yaml,file:/opt/keycloak/realm/development/*.yaml
-      WATERFALL_KEYCLOAK_ADDRESS: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
+      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       WATERFALL_FRONT_ADDRESS: ${WATERFALL_FRONT_ADDRESS:-http://localhost:3000}
+      # Where Keycloak reaches that front, on the back channel (#681): from its container, the
+      # front started on the workstation is on the host.
+      WATERFALL_FRONT_BACKCHANNEL: ${WATERFALL_FRONT_BACKCHANNEL:-http://host.docker.internal:3000}
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?export WATERFALL_FRONT_CLIENT_SECRET}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
     volumes:
@@ -229,7 +265,48 @@ services:
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
 
+  # Prism as a proxy between the front and the API (US-0340): an answer the contract does not
+  # describe, or a request to an operation it does not declare, is an error the path fails on
+  # (`--errors`), and is not passed on. It reads the variant of the fake back (make mock-spec),
+  # which asks for no token: the service authenticates, and its refusal passes as it answers it,
+  # held to the contract, where Prism would answer one of its own. At the version the Makefile
+  # pins, in the node image of the development platform; started by `make e2e-service` alone.
+  contract-proxy:
+    profiles: [e2e]
+    image: node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+    command:
+      - npx
+      - --yes
+      - "@stoplight/prism-cli@${PRISM_VERSION:?run make e2e-service}"
+      - proxy
+      - /contract/waterfall.proxy.json
+      - http://api:8000
+      - --errors
+      - --host
+      - 0.0.0.0
+      - --port
+      - "4010"
+    volumes:
+      - ../../docs/api/waterfall.proxy.json:/contract/waterfall.proxy.json:ro
+      # npx keeps Prism in the npm cache, in a named volume: downloaded once, not at every start.
+      - contract-proxy-npm:/home/node
+    user: "1000:1000"
+    environment:
+      npm_config_cache: /home/node/.npm
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WATERFALL_PROXY_PORT:-4210}:4010"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4010/api/v1/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 90
+
 volumes:
   postgres-data:
   openldap-data:
   openldap-config:
+  keycloak-front-end-data:
+  contract-proxy-npm:

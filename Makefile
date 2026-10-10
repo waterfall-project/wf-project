@@ -16,10 +16,20 @@ BUNDLE  := $(API)/waterfall.bundle.yaml
 # docs/api/waterfall.mock.json and publishes 4010 (deploy/compose/compose.dev.yaml).
 MOCK_SPEC := $(API)/waterfall.mock.json
 MOCK_PORT := 4010
+# The variant Prism serves as a proxy in front of the real service (make e2e-service): the fake
+# back's, in a file of its own, which a running fake back does not read.
+PROXY_SPEC := $(API)/waterfall.proxy.json
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
-COMPOSE_SERVICE := docker compose -f deploy/compose/compose.service.yaml
+# Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too.
+COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+# The root of the authority of Keycloak's front end on the service platform (#680), copied out of
+# Caddy at each start: what the front (NODE_EXTRA_CA_CERTS) and the tests of the platform
+# (SSL_CERT_FILE) trust. Ignored by git.
+KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
+# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it.
+KEYCLOAK_ADDRESS = $${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
 # The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
 KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
@@ -40,7 +50,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-logs service-down migrate \
-	build-keycloak test-keycloak check-keycloak \
+	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
 	lint-shell check \
@@ -149,16 +159,23 @@ lint-shell: ## Lint the shell scripts
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
 
-# Keycloak answers before its realm is applied: the application runs once it does, and stops.
-service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, Keycloak and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api keycloak openldap mailpit
+# Keycloak answers before its realm is applied: the application runs once it does, and stops. The
+# root of the authority of its front end is copied out first: a new volume makes a new one.
+service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api keycloak keycloak-front-end openldap mailpit
+	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+
+keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
+	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))
+	@$(COMPOSE_SERVICE) cp keycloak-front-end:/data/caddy/pki/authorities/local/root.crt $(KEYCLOAK_AUTHORITY)
+	@echo "  -> $(KEYCLOAK_AUTHORITY)"
 
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
-service-down: ## Stop the service platform; WATERFALL_RESET_DATA=yes also drops its databases and its directory
-	@$(COMPOSE_SERVICE) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+service-down: ## Stop the service platform, the proxy of e2e-service included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
+	@$(COMPOSE_SERVICE) --profile e2e down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -169,22 +186,25 @@ lint-compose: ## Validate the Compose files
 	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
-		$(COMPOSE_SERVICE) config --quiet
+		$(COMPOSE_SERVICE) --profile e2e config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
-# service platform, its realm applied: at the address the browser knows it by, and at another one,
-# its published port, as a service reaches it. Those that serve the API in their process create
-# their database on the PostgreSQL of the platform, unless WATERFALL_TEST_DATABASE_URL names
-# another server. They measure the administration API of Keycloak, which the measure of the back
-# leaves out, to the thresholds of the back (coverage-keycloak.toml).
+# service platform, its realm applied, through its front end in HTTPS, whose authority alone they
+# trust: at the address the browser knows it by, and at another one, 127.0.0.1, as a service
+# reaches it. Those that serve the API in their process create their database on the PostgreSQL
+# of the platform, unless WATERFALL_TEST_DATABASE_URL names another server. They measure the
+# administration API of Keycloak, which the measure of the back leaves out, to the thresholds of
+# the back (coverage-keycloak.toml).
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included, measuring its administration client (needs the secrets of service-up)
-	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak openldap
+	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
+	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
-	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth} \
-		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=http://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth \
+	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
+		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=https://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth \
+		SSL_CERT_FILE=$(KEYCLOAK_AUTHORITY) \
 		WATERFALL_TEST_FRONT_ADDRESS=$${WATERFALL_FRONT_ADDRESS:-http://localhost:3000} \
 		WATERFALL_TEST_DATABASE_URL=$${WATERFALL_TEST_DATABASE_URL:-postgresql://waterfall:$${WATERFALL_POSTGRES_PASSWORD}@127.0.0.1:$${WATERFALL_POSTGRES_PORT:-5432}/postgres} \
 		uv run --frozen pytest -m keycloak --cov --cov-config=coverage-keycloak.toml --cov-report=json:coverage-keycloak.json
@@ -298,6 +318,8 @@ check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
 check-keycloak: build-keycloak test-keycloak ## The image of Keycloak builds, its realm applies and its extension answers (US-0350)
 
+check-service: $(call full-only,e2e-service) ## The paths against the real service, in the full tier only (US-0340)
+
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
 
@@ -313,6 +335,30 @@ e2e: install-front ## End-to-end paths, against the fake back that Playwright st
 e2e-measure: export E2E_PART = measure
 e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM) exec playwright test
+
+# The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
+# the platform started — its realm applied with the address of the front of the harness, and the
+# address Keycloak reaches it at from its container (#681) —, and Prism between the front and the
+# API (`--errors`): an answer outside its schema, or an operation outside the contract, fails the
+# path (WF-ARC-0060). The front is the harness's, on the workstation, with the real authentication:
+# it trusts the authority of Keycloak's front end and keeps its sessions in the Redis of the
+# platform. The platform stays up afterwards: make service-down stops it.
+E2E_FRONT_PORT ?= 3100
+WATERFALL_PROXY_PORT ?= 4210
+e2e-service: export WATERFALL_FRONT_ADDRESS ?= http://127.0.0.1:$(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_FRONT_BACKCHANNEL ?= http://host.docker.internal:$(E2E_FRONT_PORT)
+e2e-service: export E2E_FRONT_PORT := $(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
+e2e-service: export E2E_PART = service
+e2e-service: install-front ## End-to-end paths of the project `service` against the real service, through Prism as a proxy (needs the secrets of service-up and a browser, make e2e-browsers)
+	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
+	@$(PNPM) exec env WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) \
+		playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
@@ -332,5 +378,5 @@ check-tools: ## Report which prerequisites are missing
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate
-	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC) $(FRONT)/.e2e
+	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC) $(PROXY_SPEC) $(FRONT)/.e2e
 	@echo "  cleaned"

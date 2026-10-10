@@ -118,6 +118,7 @@ def test_typescript_citations_come_from_titles() -> None:
         ("frontend/src/components/grid/grid.test.ts", "front"),
         ("frontend/src/components/grid/grid.dom.test.tsx", "front"),
         ("frontend/e2e/projects.spec.ts", "end-to-end"),
+        ("frontend/e2e/service/sign-in.spec.ts", "end-to-end-service"),
         ("backend/tests/examples/test_portfolio.py", "back"),
         ("tools/tests/test_coverage.py", "tools"),
         ("fixtures/api/volume/build.py", "tools"),
@@ -143,6 +144,7 @@ def test_citations_of_a_tree_carry_the_family_of_each_file(tmp_path: Path) -> No
         "backend/tests/test_a.py": f'import pytest\n\n{MARK}("WF-QUA-0010-A")\ndef test_a(): ...\n',
         "frontend/src/g.test.ts": TS,
         "frontend/e2e/g.spec.ts": 'test("walks [WF-QUA-0010-A]", () => {});\n',
+        "frontend/e2e/service/s.spec.ts": 'test("signs in [WF-ARC-0030-A]", () => {});\n',
         "tools/tests/test_t.py": f'import pytest\n\n{MARK}("WF-QUA-0030-A")\ndef test_t(): ...\n',
         "frontend/src/g.ts": 'it("not a test file [WF-QUA-0020-A]", () => {});\n',
     }
@@ -151,6 +153,7 @@ def test_citations_of_a_tree_carry_the_family_of_each_file(tmp_path: Path) -> No
         (tmp_path / path).write_text(source, encoding="utf-8")
     found = coverage.citations(DECLARATION, tmp_path)
     assert sorted((c.requirement, c.family) for c in found) == [
+        ("WF-ARC-0030-A", "end-to-end-service"),
         ("WF-QUA-0010-A", "back"),
         ("WF-QUA-0010-A", "end-to-end"),
         ("WF-QUA-0030-A", "tools"),
@@ -207,6 +210,15 @@ def test_a_citation_by_the_back_proves_what_the_front_alone_could_not() -> None:
     result = coverage.report(requirements, found, DECLARATION)
     assert result.front_only == []
     assert result.families("WF-RIS-0040-A") == ["front", "back"]
+
+
+def test_a_path_played_against_the_service_proves_what_the_back_closes() -> None:
+    requirements = document(("WF-ARC-0030-A", "F0"))
+    path = Citation("WF-ARC-0030-A", "frontend/e2e/service/s.spec.ts:3", "end-to-end-service")
+    result = coverage.report(requirements, [front("WF-ARC-0030-A"), path], DECLARATION)
+    assert result.front_only == []
+    assert result.missing == []
+    assert result.families("WF-ARC-0030-A") == ["end-to-end-service", "front"]
 
 
 def epic(identifier: str, family: str) -> roadmap.Epic:

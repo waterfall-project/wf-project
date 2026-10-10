@@ -5,7 +5,8 @@
 These tests run against the Keycloak of the service platform, its realm applied
 (``make test-keycloak``), not with the other tests of the back, which deselect them:
 ``WATERFALL_TEST_KEYCLOAK_ADDRESS`` is where the browser reaches it,
-``WATERFALL_TEST_KEYCLOAK_BACKCHANNEL`` another address, where a service reaches it,
+``WATERFALL_TEST_KEYCLOAK_BACKCHANNEL`` another address, where a service reaches it — both in
+HTTPS, through its front end, whose authority ``SSL_CERT_FILE`` names (#680) —,
 ``WATERFALL_SERVICE_CLIENT_SECRET`` the secret its realm was applied with, and
 ``WATERFALL_KEYCLOAK_ADMIN_PASSWORD`` the administrator that applied it. Without them they
 fail and say so. They try the platform and cite no requirement: what the requirements ask of
