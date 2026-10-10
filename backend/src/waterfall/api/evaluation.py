@@ -4,8 +4,9 @@
 
 The caller is read once per request — its account, then its effective permissions — and every
 operation the contract guards declares the permissions it asks for, by a dependency of its route
-that runs before anything else of it: a refusal never depends on what the request carries, and
-nothing the front presented or hid lets a caller past it.
+that runs before the validation of its parameters and body, after the reading of the body: a body
+that cannot be read is refused first (400); past it, a refusal never depends on what the request
+carries, and nothing the front presented or hid lets a caller past it.
 """
 
 from typing import Annotated

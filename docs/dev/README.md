@@ -54,9 +54,10 @@ SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'an
 imports : elle relève des règles SQL d'EP-03 et de la revue.
 
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
-`dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant tout le reste
-de la route, la permission de consulter d'abord — sans elle, l'objet n'existe pas pour l'appelant,
-404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
+`dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la
+validation des paramètres et du corps, après sa lecture : un corps illisible est refusé d'abord
+(400). La permission de consulter vient la première — sans elle, l'objet n'existe pas pour
+l'appelant, 404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
 nommant (WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
 `waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
 EP-04). *Contrôle* : `backend/tests/test_access_evaluation.py` liste les permissions de chaque

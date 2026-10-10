@@ -11,10 +11,11 @@ other permission that is missing is named by the refusal (403). The quality of c
 second term of the evaluation, arrives with EP-04.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.roles import NOT_FOUND
@@ -45,13 +46,26 @@ def effective_permissions(session: Session, user_id: UUID) -> tuple[str, ...]:
 
     An account without any role has none (WF-ADM-0180).
     """
+    held = select(UserAccessRole.access_role_id).where(UserAccessRole.user_account_id == user_id)
+    return _granted(session, AccessRole.id.in_(held))
+
+
+def granted_permissions(session: Session, role_ids: Collection[UUID]) -> tuple[str, ...]:
+    """Give the permissions these roles grant, deleted roles apart, in catalogue order.
+
+    For a reader that has already read the roles an account holds, and describes both from the
+    same reading.
+    """
+    return _granted(session, AccessRole.id.in_(role_ids))
+
+
+def _granted(session: Session, roles: ColumnElement[bool]) -> tuple[str, ...]:
     return tuple(
         session.scalars(
             select(Permission.code)
             .join(AccessRolePermission, AccessRolePermission.permission_id == Permission.id)
             .join(AccessRole, AccessRole.id == AccessRolePermission.access_role_id)
-            .join(UserAccessRole, UserAccessRole.access_role_id == AccessRole.id)
-            .where(UserAccessRole.user_account_id == user_id, AccessRole.deleted_at.is_(None))
+            .where(roles, AccessRole.deleted_at.is_(None))
             .group_by(Permission.code, Permission.position)
             .order_by(Permission.position)
         )

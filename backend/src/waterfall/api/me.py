@@ -7,8 +7,7 @@ from fastapi import APIRouter, Response
 from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import UserSelf
-from waterfall.api.evaluation import Acting
-from waterfall.core.access_roles.interface import Actor, HeldRole, roles_held
+from waterfall.core.access_roles.interface import HeldRole, granted_permissions, roles_held
 from waterfall.core.users.interface import Account
 from waterfall.platform.logs import get_logger
 
@@ -17,12 +16,12 @@ router = APIRouter(tags=["me"])
 logger = get_logger(__name__)
 
 
-def user_self(account: Account, roles: list[HeldRole], actor: Actor) -> UserSelf:
-    """Describe the account to the person who holds it, with its roles and its permissions.
+def user_self(account: Account, roles: list[HeldRole], permissions: tuple[str, ...]) -> UserSelf:
+    """Describe the account to the person who holds it, with its roles and their permissions.
 
-    The permissions are those the request is evaluated against, so that the front presents
-    nothing the API would refuse (WF-ADM-0110). The attachment to the organisation arrives with
-    EP-05.
+    The permissions are the effective ones, those a request is evaluated against, so that the
+    front presents nothing the API would refuse (WF-ADM-0110). The attachment to the organisation
+    arrives with EP-05.
     """
     return UserSelf.model_validate(
         {
@@ -45,18 +44,21 @@ def user_self(account: Account, roles: list[HeldRole], actor: Actor) -> UserSelf
             },
             "lock_version": account.lock_version,
             "display_preferences": account.display_preferences,
-            "permissions": list(actor.permissions),
+            "permissions": list(permissions),
         }
     )
 
 
 @router.get("/me", operation_id="getMe", response_model_exclude_unset=True)
-def get_me(account: Caller, actor: Acting, session: Transaction) -> UserSelf:
+def get_me(account: Caller, session: Transaction) -> UserSelf:
     """Give the account of the caller; a preference never chosen is absent, not null.
 
-    Any account the API knows reads its own: the operation asks for no permission.
+    Any account the API knows reads its own: the operation asks for no permission. The roles are
+    read once, and the permissions are those of the roles read, so that both say the same.
     """
-    return user_self(account, roles_held(session, account.user_id), actor)
+    roles = roles_held(session, account.user_id)
+    permissions = granted_permissions(session, [held.access_role_id for held in roles])
+    return user_self(account, roles, permissions)
 
 
 @router.delete("/me/sessions", operation_id="closeMySessions", status_code=204)

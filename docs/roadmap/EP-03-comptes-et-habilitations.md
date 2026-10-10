@@ -1082,7 +1082,7 @@ dire dans la spécification.
 
 ## US-0390 — Évaluation d'une action et permissions effectives
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-ADM-0110-A`
 - **opérations** : `getMe`
 - **issue** : #432

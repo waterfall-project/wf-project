@@ -554,7 +554,9 @@ def test_a_label_that_holds_a_nul_is_refused_at_its_field(
     assert (labels(api, headers), journal(database)) == (["Chiffreur"], [])
 
 
+# The predefined « Administrateur » alone gives the caller what it does here.
 @pytest.mark.requirement("WF-ADM-0010-A")
+@pytest.mark.parametrize("caller_permissions", [()])
 def test_a_predefined_role_is_renamed_changed_and_deleted_when_no_account_holds_it(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
@@ -752,18 +754,26 @@ def test_a_change_that_takes_the_administration_from_the_last_administrator_is_r
     )
 
 
+# As above, ``Direction`` alone makes the caller an administrator; without a second one, the
+# same change is refused.
+@pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
+@pytest.mark.parametrize("second", [True, False])
 def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
-    api: ContractClient, database: Database, headers: dict[str, str]
+    api: ContractClient, database: Database, headers: dict[str, str], second: bool
 ) -> None:
     direction = role(database, "Direction", permissions=ADMINISTRATION, holders=(CALLER,))
-    role(database, "Administration", permissions=ADMINISTRATION, holders=(holder(database),))
+    if second:
+        role(database, "Administration", permissions=ADMINISTRATION, holders=(holder(database),))
     sent: dict[str, object] = {
         "label": "Direction",
         "permissions": ["users.write"],
         "lock_version": 0,
     }
     response = api.patch(f"{ROLES}/{direction}", headers=headers, json=sent)
-    assert (response.status_code, response.json()["permissions"]) == (200, ["users.write"])
+    if second:
+        assert (response.status_code, response.json()["permissions"]) == (200, ["users.write"])
+    else:
+        assert problem(response) == (409, "LAST_ADMINISTRATOR", [])
 
 
 @pytest.mark.parametrize(

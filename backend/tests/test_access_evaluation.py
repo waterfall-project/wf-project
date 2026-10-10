@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import role
+from access_rows import ADMINISTRATION, role
 from fastapi.routing import APIRoute
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
@@ -25,6 +25,7 @@ from waterfall.api.evaluation import Requires
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
     Actor,
+    granted_permissions,
     require,
 )
 from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
@@ -131,6 +132,37 @@ def test_the_effective_permissions_change_at_the_next_request_once_a_role_is_cha
 
 
 @pytest.mark.requirement("WF-ADM-0110-A")
+def test_a_permission_withdrawn_from_a_role_is_refused_at_the_next_request(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # « … elle change immédiatement lorsqu'un de ses rôles est modifié. » : and so does the
+    # decision — the same token, the next request, no sign-in between. A second administrator
+    # keeps the change clear of the guard of the last one.
+    first = person(role(database, "Administration", permissions=(CONSULT, *ADMINISTRATION)))
+    held = role(database, "Habilitations", permissions=(CONSULT, *ADMINISTRATION))
+    headers = person(held)
+    withdrawn: dict[str, object] = {
+        "label": "Habilitations",
+        "permissions": [CONSULT, "users.write"],
+        "lock_version": 0,
+    }
+    assert api.patch(f"{ROLES}/{held}", headers=first, json=withdrawn).status_code == 200
+    response = api.patch(f"{ROLES}/{held}", headers=headers, json={**CHANGED, "lock_version": 1})
+    assert refusal(response) == (403, PERMISSION_MISSING, {"missing_permission": CHANGE})
+
+
+@pytest.mark.parametrize("headed", [False, True])
+def test_a_body_that_cannot_be_read_is_refused_before_the_caller_is_evaluated(
+    api: ContractClient, database: Database, person: Person, headed: bool
+) -> None:
+    # The body is read before the dependencies run: unreadable, it is refused first (400), to an
+    # unknown caller as to one without the permission.
+    headers = person(role(database, "Consultation des rôles", permissions=(CONSULT,)))
+    sent = {"content-type": "application/json", **(headers if headed else {})}
+    response = api.post(ROLES, headers=sent, content="{nope")
+    assert refusal(response)[:2] == (400, "MALFORMED_REQUEST")
+
+
 @pytest.mark.parametrize(
     "asked_for",
     [
@@ -248,6 +280,13 @@ def asked(route: APIRoute) -> tuple[str, ...]:
     )
 
 
+def refused_without(permission: str) -> str:
+    """Give the status the evaluation refuses an actor without ``permission`` by."""
+    with pytest.raises((NotFoundError, ForbiddenError)) as refused:
+        require(Actor(uuid4(), ()), permission)
+    return str(refused.value.status)
+
+
 def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_without(
     contract: OpenAPI, services: Services
 ) -> None:
@@ -268,10 +307,26 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         method, path = declared[name]
         relative = path.removeprefix((contract.spec / "servers" / 0 / "url").read_value())
         responses = set((contract.spec / "paths" / relative / method.lower() / "responses").keys())
-        needed = {"404" if code.endswith(".read") else "403" for code in permissions}
+        needed = {refused_without(code) for code in permissions}
         assert needed <= responses, name
         if not permissions:
             assert not {"403", "404"} & responses, name
+
+
+def test_the_permissions_granted_by_given_roles_are_their_union_deleted_ones_apart(
+    database: Database,
+) -> None:
+    estimating = role(database, "Chiffreur", permissions=("estimate.write", "estimate.read"))
+    reading = role(database, "Lecteur", permissions=("estimate.read", "users.read"))
+    deleted = role(database, "Auditeur", permissions=("audit_log.read",), deleted=True)
+    role(database, "Pilote", permissions=("planning.read",))
+    with database.transaction() as session:
+        assert granted_permissions(session, [reading, deleted, estimating]) == (
+            "users.read",
+            "estimate.read",
+            "estimate.write",
+        )
+        assert granted_permissions(session, []) == ()
 
 
 def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None:

@@ -18,6 +18,7 @@ from waterfall.core.access_roles.evaluation import (
     Actor,
     actor_of,
     effective_permissions,
+    granted_permissions,
     require,
 )
 from waterfall.core.access_roles.predefined import PredefinedRole, predefined_roles
@@ -58,6 +59,7 @@ __all__ = [
     "create_role",
     "delete_role",
     "effective_permissions",
+    "granted_permissions",
     "guard_last_administrator",
     "list_permissions",
     "list_roles",
