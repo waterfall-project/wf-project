@@ -1327,10 +1327,13 @@ une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
 hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT`.
 Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
 dans le volume du frontal, est copiée à chaque démarrage dans
-`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, les tests de
-`make test-keycloak` par `SSL_CERT_FILE`, un navigateur en l'important, ou en acceptant
-l'avertissement. L'API, dans le réseau de la plateforme, joint
-Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
+`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, qui l'ajoute
+aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
+leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
+`SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
+les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner où
+Python n'est pas encore en cache, uv ne se fierait plus à GitHub pour le télécharger (#737).
+L'API, dans le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
 Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
 (#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
 fermeture des sessions à ce front par le canal de retour, à l'adresse

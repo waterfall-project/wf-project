@@ -25,8 +25,8 @@ COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too.
 COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
 # The root of the authority of Keycloak's front end on the service platform (#680), copied out of
-# Caddy at each start: what the front (NODE_EXTRA_CA_CERTS) and the tests of the platform
-# (SSL_CERT_FILE) trust. Ignored by git.
+# Caddy at each start: what the front (NODE_EXTRA_CA_CERTS, added to the authorities it trusts)
+# and the tests of the platform (SSL_CERT_FILE, the only one they trust) trust. Ignored by git.
 KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
 # Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it.
 KEYCLOAK_ADDRESS = $${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
@@ -197,17 +197,20 @@ build-keycloak: ## Build the image of Keycloak: the extension compiled and teste
 # reaches it. Those that serve the API in their process create their database on the PostgreSQL
 # of the platform, unless WATERFALL_TEST_DATABASE_URL names another server. They measure the
 # administration API of Keycloak, which the measure of the back leaves out, to the thresholds of
-# the back (coverage-keycloak.toml).
+# the back (coverage-keycloak.toml). Their environment is synchronised first, outside of
+# SSL_CERT_FILE: uv reads it too, and would trust no other authority to download Python or the
+# packages (#737).
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included, measuring its administration client (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+	@cd $(BACK) && uv sync --frozen
 	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
 		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=https://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth \
 		SSL_CERT_FILE=$(KEYCLOAK_AUTHORITY) \
 		WATERFALL_TEST_FRONT_ADDRESS=$${WATERFALL_FRONT_ADDRESS:-http://localhost:3000} \
 		WATERFALL_TEST_DATABASE_URL=$${WATERFALL_TEST_DATABASE_URL:-postgresql://waterfall:$${WATERFALL_POSTGRES_PASSWORD}@127.0.0.1:$${WATERFALL_POSTGRES_PORT:-5432}/postgres} \
-		uv run --frozen pytest -m keycloak --cov --cov-config=coverage-keycloak.toml --cov-report=json:coverage-keycloak.json
+		uv run --frozen --no-sync pytest -m keycloak --cov --cov-config=coverage-keycloak.toml --cov-report=json:coverage-keycloak.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage-keycloak.json
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
