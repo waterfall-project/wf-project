@@ -66,7 +66,7 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
                   : t("amountShare", {
                       name: name(item),
                       amount: money(item.amount),
-                      share: formatShare(item.share, locale, bounds, item.amount),
+                      share: formatShare(item.share, locale, bounds),
                     })}
               </li>
             ))}

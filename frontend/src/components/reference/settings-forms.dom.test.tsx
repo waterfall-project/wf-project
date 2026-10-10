@@ -30,6 +30,25 @@ const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A write whose server action rejects once `until` settles — the API out of reach, as `fetch`
+// rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
+vi.mock("@/api/actions/reference", async (original) => {
+  const actual = await original<typeof import("@/api/actions/reference")>();
+  return {
+    ...actual,
+    updateReferenceSettings: async (
+      ...asked: Parameters<typeof actual.updateReferenceSettings>
+    ) => {
+      if (failing.until === undefined) {
+        return actual.updateReferenceSettings(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
+  };
+});
+
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -106,6 +125,7 @@ const COST = "Indice de coût";
 const SCHEDULE = "Indice de délai";
 
 afterEach(() => {
+  failing.until = undefined;
   refresh.mockClear();
   router.refresh.mockClear();
 });
@@ -212,7 +232,7 @@ describe("the form of the risk matrix", () => {
     await expectAccessible(form);
   });
 
-  it("closes only the opening it was sent from: an answer that arrives once the form is opened anew leaves it open, and says what it did", async () => {
+  it("keeps its command inactive while a write of the dialog closed is under way, shows its answer, then opens on the version it brings (#661)", async () => {
     const settles: (() => void)[] = [];
     const until = new Promise<void>((settle) => {
       settles.push(settle);
@@ -224,14 +244,38 @@ describe("the form of the risk matrix", () => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
-    await userEvent.click(screen.getByRole("button", { name: "Modifier la matrice de risques" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // Opened anew now, the form would write from the version its own answer is about to replace.
+    const command = screen.getByRole("button", { name: "Modifier la matrice de risques" });
+    // The focus back on the command, which says why it waits.
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    await userEvent.click(command);
+    expect(screen.queryByRole("dialog")).toBeNull();
     for (const settle of settles) {
       settle();
     }
     await vi.waitFor(() => {
       expect(said()).toHaveTextContent("Matrice de risques enregistrée.");
     });
-    expect(screen.getByRole("dialog", { name: "Modifier la matrice de risques" })).toBeVisible();
+    const bounds = screen.getByRole("table", { name: "Bornes de la matrice de risques" });
+    expect(
+      within(bounds).getByRole("rowheader", { name: "Probabilité" }).closest("tr"),
+    ).toHaveTextContent("Probabilité10 %25 %50 %");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    await save(screen.getByRole("dialog", { name: "Modifier la matrice de risques" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    expect(client.calls[1]?.body).toMatchObject({
+      risk_matrix: { probability_bounds: ["0.1", "0.25", "0.5"] },
+      lock_version: 2,
+    });
   });
 });
 
@@ -326,6 +370,55 @@ describe("the form of the thresholds and the delay", () => {
     await save(form);
     await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("tells above the settings a refusal answered once the dialog is gone, and frees its command", async () => {
+    const settles: (() => void)[] = [];
+    const until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    serve(
+      {
+        [UPDATE]: {
+          problem: example("reference_settings_thresholds_refused") as Problem & { status: 422 },
+        },
+      },
+      { hold: () => until },
+    );
+    const form = await openIndicators();
+    await save(form);
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    const command = screen.getByRole("button", { name: "Modifier les seuils et le délai" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    for (const settle of settles) {
+      settle();
+    }
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(screen.getByRole("dialog", { name: "Modifier les seuils et le délai" })).toBeVisible();
+  });
+
+  it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so", async () => {
+    const settles: (() => void)[] = [];
+    failing.until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    serve({ [UPDATE]: "reference_settings_thresholds_updated" });
+    const form = await openIndicators();
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    const command = screen.getByRole("button", { name: "Modifier les seuils et le délai" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    for (const settle of settles) {
+      settle();
+    }
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(screen.getByRole("dialog", { name: "Modifier les seuils et le délai" })).toBeVisible();
   });
 
   it("keeps the answer through a reading anew of the version it answered, and gives way to a newer reading, which the form writes from (défaut n° 22)", async () => {

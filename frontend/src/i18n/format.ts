@@ -180,8 +180,8 @@ export function formatPercent(value: Decimal, locale: Locale): string {
 /** The places of a percentage a share is shown to: hundredths, the fourth place of the ratio. */
 const SHARE_PLACES = 2;
 
-/** The smallest share shown, a hundredth of a percent, by which a smaller one is said. */
-const SMALLEST_SHARE = "0.0001";
+/** The smallest share shown, a hundredth of a percent, by which a smaller one is said: `0.0001`. */
+const SMALLEST_SHARE = shiftPoint("1", -(SHARE_PLACES + 2));
 
 /** The side of zero a share lies on, when rounding would show it as nil: below or above its bound. */
 export type ShareSide = "below" | "above";
@@ -207,19 +207,11 @@ function shareUnits(value: DecimalString): bigint {
  * place shows as before. A share that the rounding would show as nil while it is not says so by the
  * catalogue (#626): `0.00003` is « < 0,01 % », `-0.00003` « > -0,01 % »; a nil share is « 0 % »,
  * however many zeros it is written with. Near the whole, the ordinary rounding is kept, the author
- * having decided the side of zero only (#626).
- *
- * Given the amount the share is of, a share given nil while its amount is not is one too small to
- * show, on the side of its amount's sign: the fake back rounds a share to its fourth place, which the
- * contract does not say (#694). A bridge until the contract settles it, then removed or made official.
+ * having decided the side of zero only (#626). A share the contract gives nil is nil: one that is
+ * not is never given nil, but to its first significant digit (EP-14/L42o, #694).
  * No float: the rounding moves the point of the decimal string and compares its digits.
  */
-export function formatShare(
-  value: Decimal,
-  locale: Locale,
-  words: ShareWords,
-  amount?: Money,
-): string {
+export function formatShare(value: Decimal, locale: Locale, words: ShareWords): string {
   const exact = decimal(value);
   const percent = (ratio: Decimal, places: number) =>
     numberFormat(locale, {
@@ -231,8 +223,7 @@ export function formatShare(
   if (shareUnits(exact) !== 0n) {
     return percent(exact, Math.min(SHARE_PLACES, Math.max(0, fractionDigits(exact) - 2)));
   }
-  const side =
-    compareDecimals(exact, "0") || (amount === undefined ? 0 : compareDecimals(amount, "0"));
+  const side = compareDecimals(exact, "0");
   if (side === 0) {
     return percent("0", 0);
   }

@@ -11,7 +11,13 @@ import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+} from "@/test/fixtures";
 
 import type { ContributorReading, Suggestion } from "./contributor-commands";
 import { ContributorList } from "./settings-lists";
@@ -40,8 +46,8 @@ const WHOLE = example("contributors") as ContributorReading;
 const SUGGESTIONS = example("contributor_suggestions") as Suggestion[];
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = {}): FakeClient {
-  const client = fakeClient({ [SET]: "contributors_set", ...answers });
+function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient({ [SET]: "contributors_set", ...answers }, timing);
   server.client = client;
   return client;
 }
@@ -325,6 +331,30 @@ describe("the modification of the contributors of a project", () => {
     expect(names()).toHaveLength(5);
     // Opened again, the dialog starts from the reading newer.
     expect(within(await modify()).getAllByRole("combobox")).toHaveLength(5);
+  });
+
+  it("closes on an answer only the dialog it was sent from: a late one shows, and leaves the dialog opened since open, its entry kept (#672)", async () => {
+    const settles: (() => void)[] = [];
+    const until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    const client = serve({}, { hold: () => until });
+    render(list());
+    const first = await modify();
+    await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
+    const kind = within(await modify()).getByRole("combobox", { name: "Qualité de Inès Roux" });
+    await userEvent.selectOptions(kind, "Chef de projet");
+    for (const settle of settles) {
+      settle();
+    }
+    // Said behind the dialog opened since, which hides the rest of the screen from its readers.
+    expect(await screen.findByText("Liste des contributeurs enregistrée.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Modifier les contributeurs" })).toBeVisible();
+    expect(kind).toHaveValue("project_manager");
   });
 
   it("presents the command unavailable with the conditions it lacks, and opens nothing", async () => {

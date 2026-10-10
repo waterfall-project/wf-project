@@ -28,6 +28,23 @@ const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A write whose server action rejects once `until` settles — the API out of reach, as `fetch`
+// rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
+vi.mock("@/api/actions/projects", async (original) => {
+  const actual = await original<typeof import("@/api/actions/projects")>();
+  return {
+    ...actual,
+    updateProject: async (...asked: Parameters<typeof actual.updateProject>) => {
+      if (failing.until === undefined) {
+        return actual.updateProject(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
+  };
+});
+
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -86,6 +103,7 @@ async function openModification(project: Project = witness): Promise<HTMLElement
 }
 
 afterEach(() => {
+  failing.until = undefined;
   refresh.mockClear();
   router.push.mockClear();
   router.refresh.mockClear();
@@ -393,7 +411,8 @@ describe("the modification of a project", () => {
 
   it("tells a code another project bears, the holder named generically when the refusal gives no label, the form open to correct it", async () => {
     // The refusal of the contract (`project_code_taken`) without the label of the project that bears
-    // the code: a fallback held for robustness, should a server leave it out.
+    // the code: a fallback held for robustness, should a server leave it out. The code of the
+    // witness given to the project in pricing, which the refusal names.
     const taken = example("project_code_taken") as Problem;
     serve({
       [UPDATE]: {
@@ -407,10 +426,10 @@ describe("the modification of a project", () => {
         },
       },
     });
-    const form = await openModification();
+    const form = await openModification(pricing);
     const code = within(form).getByRole("textbox", { name: "Code projet" });
     await userEvent.clear(code);
-    await userEvent.type(code, "PRJ-002");
+    await userEvent.type(code, "PRJ-001");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     // Said at its field (EP-02/L42g), which takes the focus — the holder named generically, neither
     // the screen nor the refusal naming it —; nothing is shown as written, and the code typed stays
@@ -422,13 +441,13 @@ describe("the modification of a project", () => {
     expect(code).toHaveAccessibleDescription(
       "Cet élément existe déjà. Déjà porté par un autre projet.",
     );
-    expect(code).toHaveValue("PRJ-002");
+    expect(code).toHaveValue("PRJ-001");
     // Said at its field, the refusal is not told again under the form.
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("closes on an answer only the opening of the form it was sent from: a late answer shows, and leaves the dialog opened anew open (#660)", async () => {
+  it("keeps its command inactive while a modification of the dialog closed is under way, shows its answer, then opens on the version it brings (#661, #673)", async () => {
     const settles: (() => void)[] = [];
     const until = new Promise<void>((settle) => {
       settles.push(settle);
@@ -436,28 +455,97 @@ describe("the modification of a project", () => {
     const client = serve({}, { hold: () => until });
     render(inFrench(<ProjectIdentity project={witness} />));
     const name = `Modifier «\u00a0${witness.label}\u00a0»`;
-    await userEvent.click(screen.getByRole("button", { name: "Modifier le projet" }));
+    const command = screen.getByRole("button", { name: "Modifier le projet" });
+    await userEvent.click(command);
     await userEvent.click(within(dialog(name)).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    // Closed while the modification is held, then opened anew.
     await userEvent.click(within(dialog(name)).getByRole("button", { name: "Annuler" }));
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Modifier le projet" }));
-    expect(dialog(name)).toBeInTheDocument();
+    // Opened anew now, the form would write from the version 7, which its own answer replaces: the
+    // command, which has the focus back, waits and says why.
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    await userEvent.click(command);
+    expect(screen.queryByRole("dialog")).toBeNull();
     for (const settle of settles) {
       settle();
     }
-    // The answer is shown, and the dialog opened anew stays.
     await vi.waitFor(() => {
       expect(screen.getByLabelText("Paramètres du projet")).toHaveTextContent(
         "Remplacement des automates et de la supervision du poste de commande.",
       );
     });
-    expect(dialog(name)).toBeInTheDocument();
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    await userEvent.click(within(dialog(name)).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    expect(client.calls[1]?.body).toMatchObject({ lock_version: 8 });
+  });
+
+  it("tells above the facts a code taken answered once the dialog is gone, naming its holder by the label the refusal gives it, and frees its command (#714)", async () => {
+    const settles: (() => void)[] = [];
+    const until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    serve(
+      { [UPDATE]: { problem: { ...(example("project_code_taken") as Problem), status: 409 } } },
+      { hold: () => until },
+    );
+    render(inFrench(<ProjectIdentity project={pricing} />));
+    const name = `Modifier «\u00a0${pricing.label}\u00a0»`;
+    const command = screen.getByRole("button", { name: "Modifier le projet" });
+    await userEvent.click(command);
+    const code = within(dialog(name)).getByRole("textbox", { name: "Code projet" });
+    await userEvent.clear(code);
+    await userEvent.type(code, "PRJ-001");
+    await userEvent.click(within(dialog(name)).getByRole("button", { name: "Enregistrer" }));
+    await userEvent.click(within(dialog(name)).getByRole("button", { name: "Annuler" }));
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    for (const settle of settles) {
+      settle();
+    }
+    // The screen shows no other project: the refusal names the holder by its label.
+    const alert = await screen.findByRole("alert");
+    // The sentence of the catalogue, its no-break spaces read as plain ones, as the text is.
+    expect(alert).toHaveTextContent(
+      CATALOGUES.fr.outcome.conflictingObject
+        .replace("{name}", "Modernisation du poste de commande")
+        .replace(/\s+/g, " "),
+    );
+    // Refused, the write no longer holds the command.
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(dialog(name)).toBeVisible();
+  });
+
+  it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so", async () => {
+    const settles: (() => void)[] = [];
+    failing.until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    serve();
+    const form = await openModification();
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    const command = screen.getByRole("button", { name: "Modifier le projet" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    for (const settle of settles) {
+      settle();
+    }
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command);
+    expect(
+      screen.getByRole("dialog", { name: `Modifier «\u00a0${witness.label}\u00a0»` }),
+    ).toBeVisible();
   });
 
   it("says the version stale under the form, and offers to read the page anew", async () => {

@@ -31,14 +31,14 @@ function text(view: ReactNode): string {
 const TINY = "<0.01%";
 
 describe("the shares of the portfolio, never « 0 % » when they are not nil (#626)", () => {
-  it("says a share of the cost structure given nil while its amount is not below the smallest shown", () => {
+  it("says a share of the cost structure too small to show below the smallest shown", () => {
     // A variant of `volume/portfolio_cost_structure`: the share of the provision in the budget,
-    // 0.1, changed to 0 — its amount kept.
+    // 0.1, changed to 0.00003.
     const structure = example(
       "volume/portfolio_cost_structure",
     ) as Schemas["PortfolioCostStructure"];
     const budget = structure.budget_by_cost_type.map((part) =>
-      part.label === "Provision" ? { ...part, share: "0" } : part,
+      part.label === "Provision" ? { ...part, share: "0.00003" } : part,
     );
     const said = text(
       <CostStructureView structure={{ ...structure, budget_by_cost_type: budget }} />,

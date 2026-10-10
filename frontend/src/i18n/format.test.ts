@@ -213,12 +213,11 @@ type Schemas = components["schemas"];
 
 describe("a share", () => {
   /** A share in a language, its bounds said by the catalogue of the language. */
-  const share = (value: string, locale: Locale, amount?: string) =>
+  const share = (value: string, locale: Locale) =>
     formatShare(
       value,
       locale,
       createTranslator({ locale, messages: CATALOGUES[locale], namespace: "share" }),
-      amount,
     );
 
   it.each([
@@ -251,18 +250,13 @@ describe("a share", () => {
     expect(share("-0.00003", "en")).toBe(">-0.01%");
   });
 
-  it("says a share the server gives nil while its amount is not one too small to show, on the side of the amount", () => {
+  it("says below the smallest shown the share of the contract that rounds to nil while it is not", () => {
     // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64, which the
-    // contract no longer gives nil but to its first significant digit (EP-14/L42o, #694).
+    // contract gives to its first significant digit, never nil (EP-14/L42o, #694).
     const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
     const item = indicators.by_order_item?.[0];
     expect(item?.share?.value).toBe("0.00003");
-    expect(share(item?.share?.value ?? "", "fr", item?.amount.value ?? "")).toBe(
-      `<${NO_BREAK}0,01${NO_BREAK}%`,
-    );
-    expect(share("0", "en", "-12.00")).toBe(">-0.01%");
-    expect(share("0", "en", "0.00")).toBe("0%");
-    expect(share("0.0076", "en", "502434.56")).toBe("0.76%");
+    expect(share(item?.share?.value ?? "", "fr")).toBe(`<${NO_BREAK}0,01${NO_BREAK}%`);
   });
 
   it("refuses what is not a decimal of the contract", () => {

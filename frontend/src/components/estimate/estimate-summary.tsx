@@ -182,12 +182,7 @@ function Breakdown({
                   share.value !== null &&
                   share.value !== undefined
                     ? t("estimateSummary.shareOf", {
-                        share: formatShare(
-                          share.value,
-                          locale,
-                          bounds,
-                          item.amount.value ?? undefined,
-                        ),
+                        share: formatShare(share.value, locale, bounds),
                       })
                     : null}
                 </span>

@@ -177,9 +177,7 @@ function Breakdown({
               <ComputedAmount amount={part.amount} />
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {part.share === undefined
-                ? null
-                : formatShare(part.share, locale, bounds, part.amount)}
+              {part.share === undefined ? null : formatShare(part.share, locale, bounds)}
             </TableCell>
           </TableRow>
         ))}

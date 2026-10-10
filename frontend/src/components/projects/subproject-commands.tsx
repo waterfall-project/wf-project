@@ -25,7 +25,8 @@
  * takes the place of any row —, a deletion answered takes its row away, for as long as the screen
  * stays — against the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the
  * page read anew lists the sub-project where the server retains it. What a write did is said in the
- * region of the list; a refusal of a deletion is told above the list (`Reactivations`).
+ * region of the list; a refusal of a deletion is told above the list (`Reactivations`). An answer
+ * closes only the form or the confirmation it was sent from, never one opened since (#660, #672).
  *
  * The commands of the reference data (`CommandedList`) are bound to its kinds of object: this list has
  * its own, on the same pieces — the form, the command of a cell, the region of the refusals.
@@ -41,6 +42,7 @@ import {
   useContext,
   useId,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -76,6 +78,8 @@ interface Opened {
   readonly trigger: HTMLElement;
   /** Whether it is the deletion of the row, confirmed first, rather than its form. */
   readonly deleting: boolean;
+  /** The how-many-th opening it is: what an answer closes, never a later one. */
+  readonly opening: number;
 }
 
 /** What the commands of the list hold: the project, what is open, the answers of the server. */
@@ -88,7 +92,9 @@ interface Commands {
   readonly answer: (row: Subproject) => void;
   readonly remove: (id: string) => void;
   readonly say: (text: string) => void;
-  readonly open: (opened: Opened | undefined) => void;
+  readonly open: (opened: Omit<Opened, "opening">) => void;
+  /** Close what is open; given an opening, only if it is still the one open. */
+  readonly close: (opening?: number) => void;
 }
 
 /** The commands of the list of the sub-projects; none outside it. */
@@ -125,6 +131,8 @@ export function SubprojectCommands({
   readonly children: ReactNode;
 }) {
   const [opened, setOpened] = useState<Opened>();
+  // How many times a form or a confirmation was opened: what tells an opening from the next.
+  const openings = useRef(0);
   const [said, setSaid] = useState<Commands["said"]>();
   const [answers, setAnswers] = useState<ReadonlyMap<string, Subproject>>(() => new Map());
   const [deleted, setDeleted] = useState<ReadonlySet<string>>(() => new Set());
@@ -152,7 +160,15 @@ export function SubprojectCommands({
             say: (text) => {
               setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
             },
-            open: setOpened,
+            open: (next) => {
+              openings.current += 1;
+              setOpened({ ...next, opening: openings.current });
+            },
+            close: (opening) => {
+              setOpened((current) =>
+                opening === undefined || current?.opening === opening ? undefined : current,
+              );
+            },
           },
     [project, opened, said, answers, deleted],
   );
@@ -320,10 +336,13 @@ export function DeleteSubproject({ row }: { readonly row: Subproject }) {
 /** The confirmation of the deletion of a sub-project, which asks the API once confirmed. */
 function DeleteConfirmation({
   row,
+  opening,
   commands,
   closed,
 }: {
   readonly row: Subproject;
+  /** The opening of the confirmation, which its answer closes alone. */
+  readonly opening: number;
   readonly commands: Commands;
   /** Give the focus back where the confirmation was opened from, once it has closed. */
   readonly closed: () => void;
@@ -351,7 +370,7 @@ function DeleteConfirmation({
           target: `delete subproject ${row.subproject_id}`,
         });
       }
-      commands.open(undefined);
+      commands.close(opening);
     });
   };
   return (
@@ -373,7 +392,7 @@ function DeleteConfirmation({
           type="button"
           variant="outline"
           onClick={() => {
-            commands.open(undefined);
+            commands.close();
           }}
         >
           {form("cancel")}
@@ -401,9 +420,9 @@ export function SubprojectDialog() {
   if (commands === undefined || opened === undefined) {
     return null;
   }
-  const { row, trigger } = opened;
+  const { row, trigger, opening } = opened;
   const close = () => {
-    commands.open(undefined);
+    commands.close();
   };
   const closed = () => {
     focusBack(trigger, list?.refocus);
@@ -411,6 +430,7 @@ export function SubprojectDialog() {
   if (opened.deleting && row !== undefined) {
     return (
       <Dialog
+        key={opening}
         open
         onOpenChange={(opened) => {
           if (!opened) {
@@ -418,12 +438,13 @@ export function SubprojectDialog() {
           }
         }}
       >
-        <DeleteConfirmation row={row} commands={commands} closed={closed} />
+        <DeleteConfirmation row={row} opening={opening} commands={commands} closed={closed} />
       </Dialog>
     );
   }
   return (
     <ReferenceForm<Subproject>
+      key={opening}
       kind="subproject"
       title={row === undefined ? t("createTitle") : t("modifyNamed", { code: row.code })}
       hint={t("formHint")}
@@ -456,7 +477,7 @@ export function SubprojectDialog() {
         commands.say(
           form(row === undefined ? "created" : "saved", { name: answer.code, kind: "subproject" }),
         );
-        close();
+        commands.close(opening);
       }}
       onClose={close}
       onClosed={closed}

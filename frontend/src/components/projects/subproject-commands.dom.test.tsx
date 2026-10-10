@@ -11,7 +11,13 @@ import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+} from "@/test/fixtures";
 
 import type { Subproject } from "./settings-grids";
 import { SubprojectList } from "./settings-lists";
@@ -57,15 +63,34 @@ const DELETABLE: Subproject[] = [
 ];
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = {}): FakeClient {
-  const client = fakeClient({
-    [CREATE]: { example: "subproject_created", status: 201 },
-    [UPDATE]: "subproject_updated",
-    [DELETE]: { status: 204 },
-    ...answers,
-  });
+function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(
+    {
+      [CREATE]: { example: "subproject_created", status: 201 },
+      [UPDATE]: "subproject_updated",
+      [DELETE]: { status: 204 },
+      ...answers,
+    },
+    timing,
+  );
   server.client = client;
   return client;
+}
+
+/** Hold every call of the fake back until the function given back is called. */
+function held(): { readonly timing: FakeTiming; readonly release: () => void } {
+  const settles: (() => void)[] = [];
+  const until = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return {
+    timing: { hold: () => until },
+    release: () => {
+      for (const settle of settles) {
+        settle();
+      }
+    },
+  };
 }
 
 /** The list of the sub-projects, in French, as the project lists `update` — or does not. */
@@ -162,6 +187,32 @@ describe("the creation and the modification of a sub-project", () => {
       "Essais, mise en service et réception",
     );
     expect(announced()).toContain("« SP-ESS » enregistré.");
+  });
+
+  it("closes on an answer only the form it was sent from: a late one shows, and leaves the form opened since open, its entry kept (#672)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list());
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    const first = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
+    await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-CMD »" }));
+    const label = within(screen.getByRole("dialog", { name: "Modifier « SP-CMD »" })).getByRole(
+      "textbox",
+      { name: "Libellé" },
+    );
+    await userEvent.type(label, " principal");
+    release();
+    // Said and shown behind the form opened since, which hides the rest of the screen from its
+    // readers — a text found with its no-break spaces read as plain ones.
+    expect(await screen.findByText("« SP-ESS » enregistré.")).toBeInTheDocument();
+    expect(screen.getByText("Essais, mise en service et réception")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Modifier « SP-CMD »" })).toBeVisible();
+    expect(label).toHaveValue("Poste de commande principal");
   });
 
   it("tells the modification of a sub-project answered for another one as a failure of the service, the form kept open", async () => {
@@ -261,22 +312,58 @@ describe("the deletion of a sub-project", () => {
     expect(announced()).toContain("« SP-REC » supprimé.");
   });
 
-  it("presents unavailable the deletion of a sub-project charged with actual costs and cited by a marked revision, as the row lists it, and asks nothing [WF-PRJ-0050-A]", async () => {
-    const client = serve();
-    render(list());
-    // La suppression d'un sous-projet portant des coûts réels est refusée : the row lists `delete`
-    // unavailable, `subproject_not_cited` and `subproject_without_actual_costs` lacking (EP-14/L42l).
-    const unmet =
-      "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût " +
-      "réel imputé au sous-projet.";
-    const charged = within(grid()).getByRole("button", { name: "Supprimer « SP-CMD »" });
-    expect(charged).toHaveAttribute("aria-disabled", "true");
-    expect(charged).toHaveAccessibleDescription(unmet);
-    await userEvent.click(charged);
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(announced()).toContain(`Supprimer «\u00a0SP-CMD\u00a0»\u00a0: indisponible. ${unmet}`);
-    expect(client.calls).toEqual([]);
+  it("closes on an answer only the confirmation it was sent from: a late deletion takes its row away, and leaves the form opened since open (#672)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    const confirmation = screen.getByRole("dialog", {
+      name: "Supprimer le sous-projet « SP-REC » ?",
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Annuler" }));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    release();
+    // Said behind the form opened since, which hides the rest of the screen from its readers — a
+    // text found with its no-break spaces read as plain ones.
+    expect(await screen.findByText("« SP-REC » supprimé.")).toBeInTheDocument();
+    expect(screen.queryByText("SP-REC")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Modifier « SP-ESS »" })).toBeVisible();
   });
+
+  it.each([
+    // Charged and cited by the reference revision (EP-14/L45a, L42l).
+    [
+      "SP-CMD",
+      "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût réel " +
+        "imputé au sous-projet.",
+    ],
+    // Created charged with an invoice, cited by no marked revision (`subproject_created`).
+    ["SP-REC", "Condition non remplie : aucun coût réel imputé au sous-projet."],
+  ])(
+    "presents unavailable the deletion of %s, charged with actual costs, naming each condition its row lists, and asks nothing [WF-PRJ-0050-A]",
+    async (code, unmet) => {
+      // La suppression d'un sous-projet portant des coûts réels est refusée : the row lists
+      // `delete` unavailable, `subproject_without_actual_costs` lacking — and
+      // `subproject_not_cited` for the one a marked revision cites.
+      const client = serve();
+      render(list(AVAILABLE, [...SUBPROJECTS, CREATED]));
+      const charged = within(grid()).getByRole("button", {
+        name: `Supprimer «\u00a0${code}\u00a0»`,
+      });
+      expect(charged).toHaveAttribute("aria-disabled", "true");
+      expect(charged).toHaveAccessibleDescription(unmet);
+      await userEvent.click(charged);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(announced()).toContain(
+        `Supprimer «\u00a0${code}\u00a0»\u00a0: indisponible. ${unmet}`,
+      );
+      expect(client.calls).toEqual([]);
+    },
+  );
 
   it("tells above the list a deletion the server refuses, naming the first condition it misses", async () => {
     // Listed available on the reading, refused by the server, a marked revision citing the
@@ -317,16 +404,9 @@ describe("the commands a sub-project lists", () => {
 
 describe("the commands a project lists", () => {
   it("presents on a terminal project the creation and the commands of each row unavailable, naming the conditions, and asks nothing", async () => {
-    // A counterfactual variant of the example, as the server lists the sub-projects of a terminal
-    // project: each command unavailable, `project_not_terminal` last (EP-14/L42l), the rest kept.
-    const rows: Subproject[] = SUBPROJECTS.map((row) => ({
-      ...row,
-      available_commands: row.available_commands.map((each) => ({
-        ...each,
-        is_available: false,
-        missing_conditions: [...each.missing_conditions, "project_not_terminal" as const],
-      })),
-    }));
+    // The sub-projects of the witness terminated: each command unavailable, `project_not_terminal`
+    // last (EP-14/L42o).
+    const rows = example("subprojects_completed") as Subproject[];
     const client = serve();
     render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }, rows));
     const create = screen.getByRole("button", { name: "Nouveau sous-projet" });

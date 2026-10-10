@@ -18,25 +18,33 @@
  *
  * The answer takes the place of what the screen shows as long as it is newer than the schedule read
  * (`lock_version`) — against the fake back, which keeps nothing, for as long as the screen stays
- * (`MockupNotice`) —, and the page is read anew. A refusal by field is said at its field — a location
- * the installation does not declare, a path that is not relative, too few copies —, any other under
- * the form, the version stale (412) with the offer to read the page anew; a refusal answered once the
- * dialog is gone is told above the facts (`Reactivations`).
+ * (`MockupNotice`) —, and the page is read anew; the command that opens the form waits while a
+ * write of a dialog closed is under way, for the form to open on the version its answer brings
+ * (#661). A refusal by field is said at its field — a location the installation does not declare, a
+ * path that is not relative, too few copies —, any other under the form, the version stale (412)
+ * with the offer to read the page anew; a refusal answered once the dialog is gone is told above
+ * the facts (`Reactivations`).
  */
 "use client";
 
 import { CalendarClock, FlaskConical, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import { setBackupSchedule, testExternalBackupLocation } from "@/api/actions/backups";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { useLocalTimestamp } from "@/components/local-time";
 import { Reactivations } from "@/components/reference/reactivation";
-import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
+import {
+  type Draft,
+  type FormField,
+  ReferenceForm,
+  WritingNote,
+} from "@/components/reference/reference-form";
 import { ReferenceSection } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import { localTimeOfDay } from "@/i18n/format";
@@ -181,33 +189,37 @@ function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
   };
 }
 
-/** A field left empty that a rule requires. */
-function requiredAt(field: string): FieldProblem {
-  return { pointer: `/${field}`, code: "VALUE_REQUIRED" };
+/** Whether the schedule is on, which names its frequency and its time — a suspended one may not. */
+function scheduled(draft: Draft): boolean {
+  return draft[ENABLED] === "true";
 }
 
 /**
- * The rules that bind the fields of the schedule, once each is checked, said at the field that
- * breaks each as the server would point at it: a schedule on names its frequency and its time — a
- * suspended one may leave them —, a weekly one its day; a copy, once a location is chosen, goes to a
- * location the installation declares (`locations`), names its folder and keeps as many copies at
- * least as the platform keeps backups (WF-EXP-0050), the least named. The bounds of a count are the
- * server's to judge.
+ * The bounds of the retention of the backups, as the contract writes them
+ * (`BackupSchedule.retained_count`, 1 to 365): out of them, the server refuses it, and gives the
+ * least of the copies as 1 (`BackupExternalCopy.retained_count`).
+ */
+const RETENTION = { minimum: 1, maximum: 365 } as const;
+
+/** Whether a location is chosen, the copy then naming its folder and how many copies it keeps. */
+function copied(draft: Draft): boolean {
+  return (draft[LOCATION] ?? "") !== "";
+}
+
+/**
+ * The rules that bind the fields of the copy, once each is checked — its folder and its count given
+ * once a location is chosen (`copied`) —, said at the field that breaks each as the server would
+ * point at it: a copy goes to a location the installation declares (`locations`) and keeps as many
+ * copies at least as the platform keeps backups (WF-EXP-0050), the least named — judged only on a
+ * retention within its own bounds (`RETENTION`), and a count given: a retention out of them, the
+ * server names the least of the copies by those bounds, not by the retention; the rest is the
+ * server's to judge, as the bounds of a count are.
  */
 function scheduleRules(
   values: Draft,
   locations: readonly ExternalBackupLocation[],
 ): ReadonlyMap<string, FieldProblem> {
   const refused = new Map<string, FieldProblem>();
-  if (values[ENABLED] === "true" && values[FREQUENCY] === "") {
-    refused.set(FREQUENCY, requiredAt(FREQUENCY));
-  }
-  if (values[ENABLED] === "true" && values[AT] === "") {
-    refused.set(AT, requiredAt(AT));
-  }
-  if (values[FREQUENCY] === "weekly" && values[WEEKDAY] === "") {
-    refused.set(WEEKDAY, requiredAt(WEEKDAY));
-  }
   const location = values[LOCATION] ?? "";
   if (location === "") {
     return refused;
@@ -219,14 +231,10 @@ function scheduleRules(
       params: { location },
     });
   }
-  if (values[PATH] === "") {
-    refused.set(PATH, requiredAt(PATH));
-  }
-  const copies = values[COPIES] ?? "";
   const retained = Number(values[RETAINED]);
-  if (copies === "") {
-    refused.set(COPIES, requiredAt(COPIES));
-  } else if (Number(copies) < retained) {
+  const copies = values[COPIES];
+  const bounded = retained >= RETENTION.minimum && retained <= RETENTION.maximum;
+  if (copies !== undefined && bounded && Number(copies) < retained) {
     refused.set(COPIES, {
       pointer: `/${COPIES}`,
       code: "VALUE_OUT_OF_RANGE",
@@ -368,12 +376,14 @@ function ScheduleForm({
   opened: { schedule, at },
   locations,
   onDone,
+  onWriting,
   onClose,
   onClosed,
 }: {
   readonly opened: Opened;
   readonly locations: readonly ExternalBackupLocation[];
   readonly onDone: (answer: BackupSchedule) => void;
+  readonly onWriting: (writing: boolean) => void;
   readonly onClose: () => void;
   readonly onClosed: () => void;
 }) {
@@ -418,12 +428,15 @@ function ScheduleForm({
       name: FREQUENCY,
       label: t("frequency"),
       control: "choice",
+      required: scheduled,
       choices: FREQUENCIES.map((frequency) => [frequency, frequencies(frequency)] as const),
     },
     {
       name: WEEKDAY,
       label: t("weekday"),
       control: "choice",
+      // The day of a weekly schedule alone.
+      required: (draft) => draft[FREQUENCY] === "weekly",
       none: t("form.noWeekday"),
       choices: WEEKDAYS.map((day, index) => [String(index + 1), t(`weekdays.${day}`)] as const),
       note: t("form.weekdayNote"),
@@ -432,6 +445,7 @@ function ScheduleForm({
       name: AT,
       label: t("form.at"),
       control: "time",
+      required: scheduled,
       note: localTime,
       invalid: t("form.atInvalid"),
     },
@@ -465,6 +479,7 @@ function ScheduleForm({
         name: PATH,
         label: t("form.path"),
         control: "text",
+        required: copied,
         maxLength: PATH_LENGTH,
         note: t("form.pathNote"),
       },
@@ -472,6 +487,7 @@ function ScheduleForm({
         name: COPIES,
         label: t("form.copies"),
         control: "whole",
+        required: copied,
         note: t("form.copiesNote"),
         invalid: t("form.copiesInvalid"),
       },
@@ -507,6 +523,7 @@ function ScheduleForm({
       target="set backup_schedule"
       answering={(answer) => answer}
       onDone={onDone}
+      onWriting={onWriting}
       onClose={onClose}
       onClosed={onClosed}
     />
@@ -522,7 +539,8 @@ interface Said {
 /**
  * The schedule of the backups under its title, and, to a session that may modify the backups — the
  * page hands over the locations the installation declares to it alone —, the command that opens its
- * form; the answer of the server shown while it is newer than the schedule read.
+ * form; the answer of the server shown while it is newer than the schedule read. The command waits,
+ * inactive and saying why, while a write is under way (#661).
  */
 export function BackupScheduleSection({
   schedule,
@@ -535,11 +553,15 @@ export function BackupScheduleSection({
   const t = useTranslations("admin.schedule");
   const [answered, setAnswered] = useState<BackupSchedule>();
   // The version the form opened on, which it writes from, and the how-many-th opening it is: none
-  // while it is closed. An answer closes only the opening it was sent from, never one opened since.
+  // while it is closed. An answer closes only the opening it was sent from — a guard: the command
+  // waiting for the write, no other opening can come before the answer.
   const [opened, setOpened] = useState<Opened>();
   const openings = useRef(0);
+  // Whether a write is under way: the command waits for its answer, which brings the version.
+  const [writing, setWriting] = useState(false);
   const [said, setSaid] = useState<Said>();
   const trigger = useRef<HTMLButtonElement>(null);
+  const why = useId();
   const shown =
     answered !== undefined && answered.lock_version > schedule.lock_version ? answered : schedule;
   const commands =
@@ -553,7 +575,14 @@ export function BackupScheduleSection({
           type="button"
           variant="outline"
           size="sm"
+          aria-disabled={writing ? true : undefined}
+          aria-busy={writing}
+          aria-describedby={writing ? why : undefined}
+          className={UNAVAILABLE}
           onClick={() => {
+            if (writing) {
+              return;
+            }
             openings.current += 1;
             setOpened({ schedule: shown, at: new Date(), opening: openings.current });
           }}
@@ -561,6 +590,7 @@ export function BackupScheduleSection({
           <Pencil aria-hidden="true" />
           {t("form.modify")}
         </Button>
+        <WritingNote id={why} writing={writing} />
       </div>
     );
   return (
@@ -578,8 +608,11 @@ export function BackupScheduleSection({
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
             setSaid((before) => ({ text: t("form.saved"), count: (before?.count ?? 0) + 1 }));
+            // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
+            // opening can come before the answer.
             setOpened((current) => (current?.opening === opened.opening ? undefined : current));
           }}
+          onWriting={setWriting}
           onClose={() => {
             setOpened(undefined);
           }}

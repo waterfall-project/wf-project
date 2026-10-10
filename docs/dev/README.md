@@ -258,7 +258,12 @@ lecture entière, avec son compteur : quand la grille lit la liste filtrée, la 
 pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
 ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
 compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
-l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Les pièces communes du
+l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le
+formulaire, la confirmation ou le dialogue d'où elle est partie, jamais un autre ouvert depuis
+(compteur d'ouvertures, `key`, #672). Une modification d'un sous-projet ou de la liste des
+contributeurs rouverte pendant qu'une écriture du dialogue fermé est en route part encore de la
+version d'avant, que sa réponse remplace, et le serveur la refuse (412) : la décision de #661 ne leur
+est pas encore appliquée (#734). Les pièces communes du
 référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
 les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
 
@@ -286,7 +291,14 @@ ses conditions dites sous elle, et n'est pas envoyée ; une date ou un texte lai
 nuls, une date à moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant
 tout appel. Une réponse ne ferme que l'ouverture du formulaire d'où elle est partie : arrivée après
 que le dialogue a été fermé puis rouvert, elle s'affiche et laisse le nouveau dialogue ouvert
-(#660). La réponse prend la place des faits lus tant qu'elle est plus récente que le projet lu
+(#660) ; et tant qu'une modification envoyée d'un dialogue fermé est en route, « Modifier le projet »
+est inactive (`aria-disabled`, `aria-busy`, décrite par « Enregistrement en cours… », `WritingNote` ;
+`onWriting` du formulaire) : rouvert, le formulaire écrirait depuis la version que sa propre réponse
+remplace, et le serveur le refuserait (412) — il s'ouvre sur la version qu'elle apporte (#661, #673).
+Elle se libère à la réponse, quelle qu'elle soit — un succès, un refus, une action serveur rejetée,
+l'API injoignable — ; une action serveur qui ne répond jamais la laisse inactive jusqu'au
+rechargement de la page. Le compteur d'ouvertures reste, en garde-fou : la commande attendant
+l'écriture, aucune autre ouverture ne vient avant la réponse. La réponse prend la place des faits lus tant qu'elle est plus récente que le projet lu
 (`lock_version`) — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la
 modification est disponible) —, la page relue ; la section est remontée quand l'écran montre un
 autre projet. Un refus par champ se dit au champ, tout autre sous le formulaire — la probabilité
@@ -848,8 +860,8 @@ Les paramètres des risques et des indicateurs se modifient chacun dans un formu
 `indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
 la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
 seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
-semaines entières (`control: "whole"`, un nombre entier jugé au champ avec les autres, dit par le
-texte propre au champ, `invalid`). Chaque écran suit sa seule permission : une session qui porte
+semaines entières (`control: "whole"`, un nombre entier, signe compris, ses bornes au serveur, jugé
+au champ avec les autres, dit par le texte propre au champ, `invalid`). Chaque écran suit sa seule permission : une session qui porte
 l'une sans l'autre lit l'autre écran sans commande ni avis. Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran et la
 version lue (`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde une
 autre permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03, n'y
@@ -857,15 +869,18 @@ sont offertes. Le formulaire du référentiel range côte à côte, sous une lé
 ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une fenêtre
 étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un indice,
 chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`), que les
-groupes répètent ; et il juge, une fois chaque champ vérifié, les règles qui
-lient des champs entre eux (`rules`), avant toute demande : chaque borne qui n'est pas strictement
+groupes répètent ; et il juge, dans le même envoi que les champs, sur ceux qui sont passés, les règles
+qui lient des champs entre eux (`rules`), avant toute demande — un champ refusé n'a pas de valeur,
+qu'une règle laisse sans jugement, et son propre refus l'emporte ; tout ce qui est refusé se dit en une
+fois (EP-14/L52) — : chaque borne qui n'est pas strictement
 au-dessus de la précédente, à son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas
 sous son seuil de vigilance (`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait,
 les décimaux comparés sans flottant (`compareDecimals`). Le refus du serveur se dit de même : par
 champ au champ, la permission manquante (403) et la version périmée (412, les deux écrans partageant
 le compteur) sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus
 récente qu'eux, la page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle
-est partie, jamais un dialogue rouvert depuis ; face au faux back, qui répond par le
+est partie, jamais un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse
+d'une écriture d'un dialogue fermé (#661) ; face au faux back, qui répond par le
 premier exemple de l'opération — les seuils écrits —, la matrice montrée reste celle d'avant.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
@@ -993,14 +1008,18 @@ champ `time` : une heure à moitié saisie, que son champ rend vide, `validity.b
 avant tout appel par la phrase propre à son champ, `invalid`, jamais envoyée comme « aucune heure ») —
 exigées d'une planification activée seulement, le contrat ne les exigeant pas d'une
 suspendue —, le jour — exigé d'une planification hebdomadaire, nul d'une quotidienne —, le nombre de
-sauvegardes conservées, un nombre entier dont le serveur juge les bornes ; puis la copie externe, offerte quand l'installation déclare un emplacement
+sauvegardes conservées, un nombre entier dont le serveur juge les bornes, signe compris ; un champ
+exigé selon le brouillon le dit (`required` d'un `FormField`, une fonction du brouillon, qui donne
+aussi `aria-required`, #678) ; puis la copie externe, offerte quand l'installation déclare un emplacement
 ou que la planification en règle une : l'emplacement, choisi parmi ceux que la page lit pour cette
 seule session (`listExternalBackupLocations`) par son nom et sa nature, sa description sous le champ,
 jamais un secret ni une adresse — un emplacement réglé que l'installation ne déclare plus reste offert
 par son nom, refusé au champ avant l'envoi (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`) plutôt que retiré en
 silence —, « Aucune copie » la retirant ; le dossier
 relatif ; le nombre de copies, au moins celui des sauvegardes conservées (WF-EXP-0050), vérifié avant
-l'envoi et dit au champ avec ce minimum, comme le serveur le dirait ; la copie active ou suspendue.
+l'envoi et dit au champ avec ce minimum, comme le serveur le dirait — pour une rétention dans ses
+bornes, de 1 à 365 (`RETENTION`), le reste revenant au serveur, qui donne alors le minimum des
+copies à 1 — ; la copie active ou suspendue.
 Les règles entre champs passent par `rules` du formulaire, une note qui suit la saisie par une
 fonction du brouillon (`note`), et ce qui suit les champs sans en être un par `after` : « Tester
 l'emplacement » (`testExternalBackupLocation`), offert pour un emplacement que l'installation
@@ -1011,7 +1030,8 @@ le bouton par la phrase de son propre code ; seule la réponse du dernier test d
 que le dossier saisi est celui qu'il a éprouvé, et un autre emplacement choisi fait tomber le test en
 route. La réponse d'un enregistrement remplace la planification affichée tant que son `lock_version`
 est plus récent que la lecture, la page relue, et ne ferme que le dialogue ouvert d'où elle est partie
-(compteur d'ouvertures, comme les paramètres du référentiel) ; un refus par champ (422 : emplacement inconnu, chemin
+(compteur d'ouvertures, comme les paramètres du référentiel), la commande attendant, inactive, la
+réponse d'une écriture d'un dialogue fermé (#661, #678) ; un refus par champ (422 : emplacement inconnu, chemin
 invalide, rétention trop courte) se dit au champ, tout autre sous le formulaire, la version périmée
 (412) avec l'offre de relire.
 
@@ -1687,9 +1707,9 @@ qu'il éprouve : la variante se passe en prop au composant, jamais servie comme 
 le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-REC », le
 sous-projet créé, qu'aucune révision marquée ne cite, déchargé de ses coûts réels, sa suppression
 listée disponible comme le serveur la listerait alors, pour la suppression d'un sous-projet, les deux
-du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne, ou
-toutes indisponibles sur un projet clos, `project_not_terminal` en dernier (EP-14/L44e,
-`subproject-commands.dom.test.tsx`) ; et l'écart à la revue précédente absent du reste à engager
+du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne
+(EP-14/L44e, `subproject-commands.dom.test.tsx`) — celles d'un projet clos, toutes indisponibles,
+ont leur exemple depuis L42o (`subprojects_completed`), qui remplace la variante (EP-14/L52) — ; et l'écart à la revue précédente absent du reste à engager
 (`remaining-summary.test.tsx`).
 
 ### Un test qui cite son exigence
@@ -1900,7 +1920,9 @@ ses paramètres, jamais une phrase.
   `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
   (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
   `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
-  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names` ; sur 401, le
+  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names`, ou à défaut par le
+  libellé que le refus lui donne (`conflicting_object_label`) — un projet, un sous-projet que
+  l'écran ne montre pas, dont le code pris revient le dialogue fermé (#714) ; sur 401, le
   lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
   inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
   dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`
@@ -1978,9 +2000,10 @@ langue se choisit.
   serveur calcule — la part d'une nature ou d'un poste, un avancement, un taux de charge — au
   centième de pourcentage (`formatShare`) : une part non nulle que l'arrondi dirait nulle se dit
   « < 0,01 % », ou « > -0,01 % », par le catalogue (`share`) ; une part nulle, quel que soit le
-  nombre de ses zéros, se lit « 0 % » ; près de 100 %, l'arrondi ordinaire. Une part donnée nulle
-  dont le montant ne l'est pas se dit de même : un pont, tant que le contrat ne dit pas la
-  précision d'une part (#694) (EP-14/L51). En français, `Intl` sépare les milliers par une fine
+  nombre de ses zéros, se lit « 0 % » ; près de 100 %, l'arrondi ordinaire (EP-14/L51). Une part
+  que le contrat donne nulle l'est : une part non nulle n'est jamais donnée nulle, mais à son
+  premier chiffre significatif (EP-14/L42o, #694), et le pont de L51, qui jugeait une part nulle
+  par son montant, est retiré (EP-14/L52). En français, `Intl` sépare les milliers par une fine
   insécable (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
   britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
   nombres restant « 1,234.56 ».

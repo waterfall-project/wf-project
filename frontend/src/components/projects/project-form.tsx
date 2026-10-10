@@ -27,7 +27,9 @@
  * keeps nothing, for as long as the screen stays; the settings say so once, under their header
  * (`MockupNotice`) —, and the page is read anew. The form writes from the version it opened on, as the
  * lists of the reference data do (`CommandedList`, `opened`): a reading that comes while it is open
- * does not lend its `lock_version` to a draft entered on another, which the optimistic lock refuses.
+ * does not lend its `lock_version` to a draft entered on another, which the optimistic lock
+ * refuses; and the command waits while a write of a dialog closed is under way, for the form to
+ * open on the version its answer brings (#661, #673).
  *
  * A refusal by field is said at its field — a code another project bears (409), named by the label
  * the refusal gives it, the screen not showing the other projects; a rate out of its bounds (422),
@@ -55,6 +57,7 @@ import {
   type FormField,
   ReferenceForm,
   required,
+  WritingNote,
 } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio, ratioPercent } from "@/i18n/format";
@@ -216,11 +219,13 @@ function draftOf(project: Project, locale: ReturnType<typeof useLocale>): Draft 
 function UpdateForm({
   project,
   onDone,
+  onWriting,
   onClose,
   onClosed,
 }: {
   readonly project: Project;
   readonly onDone: (answer: Project) => void;
+  readonly onWriting: (writing: boolean) => void;
   readonly onClose: () => void;
   readonly onClosed: () => void;
 }) {
@@ -270,6 +275,7 @@ function UpdateForm({
           : inPercent(answer)
       }
       onDone={onDone}
+      onWriting={onWriting}
       onClose={onClose}
       onClosed={onClosed}
     />
@@ -291,8 +297,9 @@ interface Said {
 /**
  * The identity and the facts of a project on its settings, the command that modifies them as the
  * project lists it, and its form; the answer of the server shown while it is newer than the project
- * read. An answer closes only the opening of the form it was sent from: one that comes once the
- * dialog was closed and opened anew is shown, and leaves the new dialog open (#660).
+ * read. The command waits, inactive and saying why, for the answer of a write under way, which
+ * brings the version (#661); an answer closes only the opening of the form it was sent from (#660),
+ * a guard the waiting command leaves without use.
  */
 export function ProjectIdentity({ project }: { readonly project: Project }) {
   const t = useTranslations("projectForm");
@@ -302,8 +309,11 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
   const [editing, setEditing] = useState<Editing>();
   // How many times the form was opened: what tells an opening from the next.
   const openings = useRef(0);
+  // Whether a write is under way: the command waits for its answer, which brings the version.
+  const [writing, setWriting] = useState(false);
   const [said, setSaid] = useState<Said>();
   const trigger = useRef<HTMLButtonElement>(null);
+  const why = useId();
   // An answer is for this project alone — the page keys the section by it, and an answer for
   // another is a failure of the service (`ANOTHER_OBJECT`) —, shown while newer than the reading.
   const shown =
@@ -322,7 +332,14 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
             type="button"
             variant="outline"
             size="sm"
+            aria-disabled={writing ? true : undefined}
+            aria-busy={writing}
+            aria-describedby={writing ? why : undefined}
+            className={UNAVAILABLE}
             onClick={() => {
+              if (writing) {
+                return;
+              }
               openings.current += 1;
               setEditing({ project: shown, opening: openings.current });
             }}
@@ -333,6 +350,7 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
         ) : (
           <Command offer={offer} label={command("update")} icon={icon} />
         )}
+        <WritingNote id={why} writing={writing} />
       </div>
       <SettingsFacts project={shown} />
       {editing === undefined ? null : (
@@ -344,10 +362,13 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
             setSaid((before) => ({ text: t("saved"), count: (before?.count ?? 0) + 1 }));
-            // Closed if it is still the opening the answer was sent from, never a later one.
+            // Closed if it is still the opening the answer was sent from, never a later one: a guard
+            // of the waiting command (`onWriting`), which serves in no normal use — no other opening
+            // can come before the answer.
             const { opening } = editing;
             setEditing((current) => (current?.opening === opening ? undefined : current));
           }}
+          onWriting={setWriting}
           onClose={() => {
             setEditing(undefined);
           }}
