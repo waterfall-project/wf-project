@@ -4,8 +4,10 @@
 
 These tests run against the Keycloak of the service platform, its realm applied
 (``make test-keycloak``), not with the other tests of the back, which deselect them:
-``WATERFALL_TEST_KEYCLOAK_ADDRESS`` is where they reach it, and
-``WATERFALL_SERVICE_CLIENT_SECRET`` the secret its realm was applied with. Without them they
+``WATERFALL_TEST_KEYCLOAK_ADDRESS`` is where the browser reaches it,
+``WATERFALL_TEST_KEYCLOAK_BACKCHANNEL`` another address, where a service reaches it,
+``WATERFALL_SERVICE_CLIENT_SECRET`` the secret its realm was applied with, and
+``WATERFALL_KEYCLOAK_ADMIN_PASSWORD`` the administrator that applied it. Without them they
 fail and say so. They try the platform and cite no requirement: what the requirements ask of
 Keycloak — the lockout, a link used or expired, the sign-in of each kind of account through
 the front — is proved by the tests of the lot that closes those criteria (US-0350/L5).
@@ -30,7 +32,9 @@ import pytest
 pytestmark = pytest.mark.keycloak
 
 ADDRESS_VARIABLE = "WATERFALL_TEST_KEYCLOAK_ADDRESS"
+BACKCHANNEL_VARIABLE = "WATERFALL_TEST_KEYCLOAK_BACKCHANNEL"
 SERVICE_CREDENTIAL_VARIABLE = "WATERFALL_SERVICE_CLIENT_SECRET"
+ADMIN_CREDENTIAL_VARIABLE = "WATERFALL_KEYCLOAK_ADMIN_PASSWORD"
 REALM = "waterfall"
 # The person of the directory of test (deploy/keycloak/development/directory.ldif).
 DIRECTORY_EMAIL = "dominique.annuaire@waterfall.test"
@@ -39,6 +43,8 @@ DIRECTORY_EMAIL = "dominique.annuaire@waterfall.test"
 EXTERNAL_PROVIDER = "external"
 # A password the policy of the realm accepts: long enough, neither an address nor a name.
 PASSWORD = secrets.token_urlsafe(24)
+# The page of a replaced link, in the login theme of Waterfall, in French by default.
+REPLACED = "Ce lien a été remplacé par un plus récent"
 
 
 def required(variable: str) -> str:
@@ -54,6 +60,17 @@ def keycloak() -> Iterator[httpx2.Client]:
     """Reach the realm of Waterfall at the address the browser knows Keycloak by."""
     address = required(ADDRESS_VARIABLE).rstrip("/")
     with httpx2.Client(base_url=f"{address}/realms/{REALM}", timeout=30) as client:
+        yield client
+
+
+@pytest.fixture(scope="module")
+def backchannel(keycloak: httpx2.Client) -> Iterator[httpx2.Client]:
+    """Reach the realm at another address than the browser's, as a service of the platform does."""
+    address = required(BACKCHANNEL_VARIABLE).rstrip("/")
+    base_url = f"{address}/realms/{REALM}"
+    if base_url == str(keycloak.base_url).rstrip("/"):
+        pytest.fail(f"{BACKCHANNEL_VARIABLE} must differ from {ADDRESS_VARIABLE}")
+    with httpx2.Client(base_url=base_url, timeout=30) as client:
         yield client
 
 
@@ -77,6 +94,29 @@ def admin(keycloak: httpx2.Client, service_token: str) -> Iterator[httpx2.Client
     """Reach the administration API of the realm as the service account."""
     base = str(keycloak.base_url).replace("/realms/", "/admin/realms/")
     headers = {"Authorization": f"Bearer {service_token}"}
+    with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
+        yield client
+
+
+@pytest.fixture(scope="module")
+def realm_admin(keycloak: httpx2.Client) -> Iterator[httpx2.Client]:
+    """Reach the administration API of the realm as the administrator who applies it.
+
+    The service account may not read the settings of the realm nor its clients.
+    """
+    address = required(ADDRESS_VARIABLE).rstrip("/")
+    response = keycloak.post(
+        f"{address}/realms/master/protocol/openid-connect/token",
+        data={
+            "grant_type": "password",
+            "client_id": "admin-cli",
+            "username": "admin",
+            "password": required(ADMIN_CREDENTIAL_VARIABLE),
+        },
+    )
+    assert response.status_code == 200, response.text
+    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    base = f"{address}/admin/realms/{REALM}"
     with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
         yield client
 
@@ -109,10 +149,10 @@ def local_account(admin: httpx2.Client) -> Iterator[Account]:
     admin.delete(f"/users/{user_id}")
 
 
-def link_of(keycloak: httpx2.Client, user_id: str, token: str | None) -> httpx2.Response:
-    """Ask the extension for the password setup link of an account."""
+def link_of(backchannel: httpx2.Client, user_id: str, token: str | None) -> httpx2.Response:
+    """Ask the extension for the password setup link of an account, as the service does."""
     headers = {} if token is None else {"Authorization": f"Bearer {token}"}
-    return keycloak.post(f"/password-setup-link/users/{user_id}", headers=headers)
+    return backchannel.post(f"/password-setup-link/users/{user_id}", headers=headers)
 
 
 def set_password(admin: httpx2.Client, user_id: str, password: str) -> None:
@@ -192,65 +232,121 @@ def test_the_realm_lends_tokens_of_five_minutes_to_the_service_account(
     assert read["azp"] == "waterfall-service"
 
 
+def test_the_lockout_is_ten_failures_fifteen_minutes_and_does_not_outlive_its_lock(
+    realm_admin: httpx2.Client,
+) -> None:
+    realm = realm_admin.get("").json()
+    lockout = {
+        key: realm[key]
+        for key in (
+            "bruteForceProtected",
+            "permanentLockout",
+            "failureFactor",
+            "bruteForceStrategy",
+            "waitIncrementSeconds",
+            "maxFailureWaitSeconds",
+            "maxDeltaTimeSeconds",
+            "quickLoginCheckMilliSeconds",
+        )
+    }
+    assert lockout == {
+        "bruteForceProtected": True,
+        "permanentLockout": False,
+        "failureFactor": 10,
+        "bruteForceStrategy": "MULTIPLE",
+        "waitIncrementSeconds": 900,
+        "maxFailureWaitSeconds": 900,
+        # Under the fifteen minutes of a lock: the first failure after it starts a new count.
+        "maxDeltaTimeSeconds": 899,
+        "quickLoginCheckMilliSeconds": 0,
+    }
+
+
+def test_the_front_cannot_obtain_an_offline_token(realm_admin: httpx2.Client) -> None:
+    found = realm_admin.get("/clients", params={"clientId": "waterfall-front"}).json()
+    assert [client["clientId"] for client in found] == ["waterfall-front"]
+    front = found[0]
+    assert front["fullScopeAllowed"] is False
+    assert front["optionalClientScopes"] == []
+    assert sorted(front["defaultClientScopes"]) == [
+        "acr",
+        "basic",
+        "email",
+        "profile",
+        "roles",
+        "web-origins",
+    ]
+
+
 def test_the_password_policy_holds_the_rule_of_the_extension(
     admin: httpx2.Client, local_account: Account
 ) -> None:
-    def refusal(password: str) -> str:
+    def refusal(password: str) -> dict[str, str]:
         response = admin.put(
             f"/users/{local_account.id}/reset-password",
             json={"type": "password", "value": password, "temporary": False},
         )
         assert response.status_code == 400, response.text
-        return cast("str", response.json()["error"])
+        return cast("dict[str, str]", response.json())
 
-    assert refusal("montgolfier-DURAND") == "invalidPasswordNotLastNameMessage"
-    assert refusal("eleven-char") == "invalidPasswordMinLengthMessage"
+    last_name = refusal("montgolfier-DURAND")
+    assert last_name["error"] == "invalidPasswordNotLastNameMessage"
+    # The words of the administration theme of Waterfall, not the bare key.
+    assert last_name["error_description"] == "Invalid password: must not be the last name."
+    assert refusal("eleven-char")["error"] == "invalidPasswordMinLengthMessage"
 
 
 def test_a_caller_without_a_token_of_the_realm_gets_no_link(
-    keycloak: httpx2.Client, local_account: Account
+    backchannel: httpx2.Client, local_account: Account
 ) -> None:
     for token in (None, "not-a-token"):
-        response = link_of(keycloak, local_account.id, token)
+        response = link_of(backchannel, local_account.id, token)
         assert (response.status_code, response.json()) == (401, {"error": "not_authenticated"})
 
 
 def test_a_token_without_the_role_of_the_extension_gets_no_link(
-    keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
+    keycloak: httpx2.Client,
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    local_account: Account,
 ) -> None:
     set_password(admin, local_account.id, PASSWORD)
     signed_in = password_grant(keycloak, local_account, PASSWORD)
     assert signed_in.status_code == 200, signed_in.text
-    response = link_of(keycloak, local_account.id, signed_in.json()["access_token"])
+    response = link_of(backchannel, local_account.id, signed_in.json()["access_token"])
     assert (response.status_code, response.json()) == (403, {"error": "not_allowed"})
 
 
 def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
-    keycloak: httpx2.Client, service_token: str, local_account: Account
+    keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     before = time.time()
-    first = link_of(keycloak, local_account.id, service_token)
+    first = link_of(backchannel, local_account.id, service_token)
     assert first.status_code == 200, first.text
     link = first.json()
+    # Asked for at the address of the service, the link carries the address of the browser.
     realm = str(keycloak.base_url).rstrip("/")
     assert link["url"].startswith(f"{realm}/login-actions/action-token?key=")
     expires_at = datetime.fromisoformat(link["expires_at"])
     assert expires_at.tzinfo == UTC
     assert before + 3600 - 5 <= expires_at.timestamp() <= time.time() + 3600 + 5
-    second = link_of(keycloak, local_account.id, service_token)
+    second = link_of(backchannel, local_account.id, service_token)
     assert second.status_code == 200, second.text
     assert second.json()["url"] != link["url"]
-    # The page of Keycloak refuses the first link, and asks to confirm the second.
-    assert Browser().get(link["url"]).status_code == 400
+    # The page of Keycloak refuses the first link, saying it was replaced, and asks to confirm
+    # the second.
+    replaced = Browser().get(link["url"])
+    assert replaced.status_code == 400
+    assert REPLACED in html.unescape(replaced.text)
     page = Browser().get(second.json()["url"])
     assert page.status_code == 200
     assert confirmation_target(page).startswith(f"{realm}/login-actions/action-token?key=")
 
 
 def test_a_link_sets_the_password_once(
-    keycloak: httpx2.Client, service_token: str, local_account: Account
+    keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
-    made = link_of(keycloak, local_account.id, service_token)
+    made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     url = made.json()["url"]
     browser = Browser()
@@ -265,12 +361,29 @@ def test_a_link_sets_the_password_once(
     assert Browser().get(url).status_code == 400
 
 
+def test_a_link_is_spent_once_confirmed_and_its_form_stays_open(
+    keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    # Spent in the base of Keycloak, not in its memory alone: neither a restart nor a password
+    # set another way makes the link valid again.
+    made = link_of(backchannel, local_account.id, service_token)
+    assert made.status_code == 200, made.text
+    url = made.json()["url"]
+    browser = Browser()
+    form = browser.get(confirmation_target(browser.get(url)))
+    assert 'name="password-new"' in form.text
+    assert Browser().get(url).status_code == 400
+    done = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
+    assert done.status_code == 200, done.text
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
+
+
 def test_a_link_outlives_an_update_of_its_account(
-    keycloak: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
+    backchannel: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     # The nonce of the link is an attribute the user profile of the realm does not declare: an
     # update through the administration API, which the service makes, must leave it in place.
-    made = link_of(keycloak, local_account.id, service_token)
+    made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     account = admin.get(f"/users/{local_account.id}").json()
     updated = admin.put(f"/users/{local_account.id}", json={**account, "firstName": "Jeanne-Marie"})
@@ -279,24 +392,30 @@ def test_a_link_outlives_an_update_of_its_account(
 
 
 def test_an_account_the_realm_does_not_hold_has_no_link(
-    keycloak: httpx2.Client, service_token: str
+    backchannel: httpx2.Client, service_token: str
 ) -> None:
-    response = link_of(keycloak, str(uuid4()), service_token)
+    response = link_of(backchannel, str(uuid4()), service_token)
     assert (response.status_code, response.json()) == (404, {"error": "unknown_user"})
 
 
+def test_a_service_account_has_no_link(backchannel: httpx2.Client, service_token: str) -> None:
+    # The account the token of the service account names: it holds the role of the extension.
+    response = link_of(backchannel, claims(service_token)["sub"], service_token)
+    assert (response.status_code, response.json()) == (409, {"error": "not_local"})
+
+
 def test_an_account_of_the_directory_has_no_link(
-    keycloak: httpx2.Client, admin: httpx2.Client, service_token: str
+    backchannel: httpx2.Client, admin: httpx2.Client, service_token: str
 ) -> None:
     # Searching the realm reads the person from the federated directory.
     found = admin.get("/users", params={"email": DIRECTORY_EMAIL, "exact": "true"}).json()
     assert [user["email"] for user in found] == [DIRECTORY_EMAIL]
-    response = link_of(keycloak, found[0]["id"], service_token)
+    response = link_of(backchannel, found[0]["id"], service_token)
     assert (response.status_code, response.json()) == (409, {"error": "not_local"})
 
 
 def test_an_account_relayed_by_an_external_provider_has_no_link(
-    keycloak: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
+    backchannel: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     # The link a first sign-in through the provider of the development platform leaves.
     relayed = admin.post(
@@ -308,5 +427,5 @@ def test_an_account_relayed_by_an_external_provider_has_no_link(
         },
     )
     assert relayed.status_code == 204, relayed.text
-    response = link_of(keycloak, local_account.id, service_token)
+    response = link_of(backchannel, local_account.id, service_token)
     assert (response.status_code, response.json()) == (409, {"error": "not_local"})

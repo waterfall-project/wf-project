@@ -30,6 +30,8 @@ supportedLocales: [fr, en]
 defaultLocale: fr
 loginTheme: waterfall
 emailTheme: waterfall
+# The administration API answers a refused password in the words of this theme, console or not.
+adminTheme: waterfall
 
 # WF-ADM-0140: twelve characters at least, neither the address nor the last name — the address is
 # the username, hence notUsername as well as notEmail; `not-last-name` is the rule of the
@@ -41,8 +43,19 @@ bruteForceProtected: true
 permanentLockout: false
 maxTemporaryLockouts: 0
 failureFactor: 10
+# MULTIPLE, Keycloak's default, written down: a lock of waitIncrementSeconds per failureFactor
+# failures counted, capped at fifteen minutes.
+bruteForceStrategy: MULTIPLE
 waitIncrementSeconds: 900
 maxFailureWaitSeconds: 900
+# The end of a lock does not reset the count of failures, and a failure made while locked does not
+# add to it: the first failure after a lock would make eleven and lock the account again — one try
+# a quarter would keep it locked, against the motive of WF-ADM-0140. A count resets when a failure
+# comes more than maxDeltaTimeSeconds after the one before it (twelve hours by default): the ten
+# failures are those that follow one another within fifteen minutes. A lock ends 899 to 900
+# seconds after the tenth failure, Keycloak rounding to the second: at 899, the first failure
+# after a lock always starts a new count.
+maxDeltaTimeSeconds: 899
 # The count of failures only, without the quick-succession lock, which would lock the account
 # before its tenth failure.
 quickLoginCheckMilliSeconds: 0
@@ -90,6 +103,12 @@ clients:
     redirectUris:
       - $(env:WATERFALL_FRONT_ADDRESS)/auth/callback
     webOrigins: []
+    # No offline token, which would outlive the twelve hours and the sign-out of WF-SEC-0020: the
+    # scope offline_access is not offered, and fullScopeAllowed keeps its role out of the tokens.
+    # A client that declares its scopes gets none of the realm's: the default ones are those of
+    # the realm, written down.
+    defaultClientScopes: [web-origins, acr, profile, roles, basic, email]
+    optionalClientScopes: []
     attributes:
       pkce.code.challenge.method: S256
       post.logout.redirect.uris: $(env:WATERFALL_FRONT_ADDRESS)/*

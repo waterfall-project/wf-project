@@ -29,8 +29,8 @@ import org.keycloak.urls.UrlType;
  * account that holds the realm role {@link #ROLE} — the service account of Waterfall. It answers
  * the link and when it stops being valid: {@code {"url": …, "expires_at": …}}, the shape of the
  * contract's {@code PasswordSetupLink}. The link is valid for the lifespan of the action tokens
- * an administrator makes, one hour in the realm of Waterfall, and once; making it invalidates the
- * link made before it for the same account.
+ * an administrator makes, one hour in the realm of Waterfall, and once: it is spent as soon as it is
+ * confirmed. Making it invalidates the link made before it for the same account.
  */
 public final class PasswordSetupLinkResource {
 
@@ -88,9 +88,13 @@ public final class PasswordSetupLinkResource {
     return Instant.ofEpochSecond(expiration).toString();
   }
 
-  /** A local account is neither read from a directory nor relayed by an external provider. */
+  /**
+   * A local account is a person's: neither read from a directory, nor relayed by an external
+   * provider, nor the service account of a client.
+   */
   private boolean isLocal(RealmModel realm, UserModel user) {
     return user.getFederationLink() == null
+        && user.getServiceAccountClientLink() == null
         && session.users().getFederatedIdentitiesStream(realm, user).findAny().isEmpty();
   }
 

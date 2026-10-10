@@ -17,7 +17,8 @@ RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-o
 COPY extension/src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet package
 
-# keycloak-config-cli, built for this version of Keycloak; only its jar is taken.
+# keycloak-config-cli, in the build nearest to this version of Keycloak it publishes (26.5.5);
+# only its jar is taken.
 FROM adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274 AS realm-applier
 
 FROM keycloak/keycloak:26.5.7@sha256:45ae20191531eb608ddb0b775d012b40d3e4f942697f3214694887dd7c108d13

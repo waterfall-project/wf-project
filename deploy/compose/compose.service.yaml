@@ -127,9 +127,10 @@ services:
       # The administrator of the master realm, with which keycloak-config-cli applies the realm.
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?export WATERFALL_KEYCLOAK_ADMIN_PASSWORD}
-      # Where the browser reaches Keycloak: the issuer of every token, whoever asks for it. The
-      # services of the platform reach it at keycloak:8080, on the back channel.
-      KC_HOSTNAME: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:8080/auth}
+      # Where the browser reaches Keycloak: the issuer of every token, whoever asks for it; by
+      # default, the port it is published on. The services of the platform reach it at
+      # keycloak:8080, on the back channel.
+      KC_HOSTNAME: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
     depends_on:
@@ -155,7 +156,7 @@ services:
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?export WATERFALL_KEYCLOAK_ADMIN_PASSWORD}
       WATERFALL_REALM_FILES: file:/opt/keycloak/realm/*.yaml,file:/opt/keycloak/realm/development/*.yaml
-      WATERFALL_KEYCLOAK_ADDRESS: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:8080/auth}
+      WATERFALL_KEYCLOAK_ADDRESS: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
       WATERFALL_FRONT_ADDRESS: ${WATERFALL_FRONT_ADDRESS:-http://localhost:3000}
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?export WATERFALL_FRONT_CLIENT_SECRET}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
@@ -170,7 +171,9 @@ services:
 
   # The directory of test that Keycloak federates (WF-ADM-0180), seeded with one person at its
   # first start. Its password is a development value, as are those of deploy/keycloak/development.
-  # The image starts as root to prepare its files, then runs slapd as its own user, openldap.
+  # The image starts as root to prepare its files, then runs slapd as its own user, openldap. Its
+  # data outlive it, as the bases do: seeded again, it would give its person another entryUUID,
+  # and Keycloak, which keeps the first, another account.
   openldap:
     image: osixia/openldap:1.5.0@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
     # Copies its assets before writing to them: the seed is mounted read-only.
@@ -182,6 +185,8 @@ services:
       LDAP_TLS: "false"
     volumes:
       - ../keycloak/development/directory.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-directory.ldif:ro
+      - openldap-data:/var/lib/ldap
+      - openldap-config:/etc/ldap/slapd.d
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
@@ -192,3 +197,5 @@ services:
 
 volumes:
   postgres-data:
+  openldap-data:
+  openldap-config:

@@ -1244,7 +1244,7 @@ commande.
 | `make check-all` | toutes les familles de contrôles |
 | `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak` |
 | `make changes BASE=…` | les familles qu'une modification touche |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases et son annuaire |
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
@@ -1258,16 +1258,20 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
 | `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
-| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall` |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
 | `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
 | `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
 
 Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
-exemple. Keycloak répond sur `http://localhost:8080/auth` (`WATERFALL_KEYCLOAK_ADDRESS`, port
-`WATERFALL_KEYCLOAK_PORT`), sa console d'administration sous `/auth/admin` ; Mailpit montre les
-courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire OpenLDAP
-de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes et
-leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
+exemple. Keycloak répond sur `http://localhost:8080/auth`, sa console d'administration sous
+`/auth/admin` ; son adresse, `WATERFALL_KEYCLOAK_ADDRESS`, suit son port,
+`WATERFALL_KEYCLOAK_PORT` (`http://localhost:<port>/auth`), sauf à la poser elle-même. Mailpit
+montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
+OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
+et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
+L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
+personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
+supprime avec elles.
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -1555,7 +1559,7 @@ couvre aucune exigence — un outil, un détail de réalisation — n'en cite au
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
 bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
-outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
+keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
 d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
 citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
 une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir

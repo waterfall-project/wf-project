@@ -10,7 +10,8 @@ import org.keycloak.authentication.actiontoken.DefaultActionToken;
  * The action token behind a password setup link: it sets the password of one account, once.
  *
  * <p>Its verification nonce is also written on the account ({@link #NONCE_ATTRIBUTE}) when the
- * link is made; a later link writes its own, and the earlier one stops being valid.
+ * link is made; a later link writes its own, and the earlier one stops being valid. Confirming the
+ * link removes the nonce: the link is spent from then on.
  */
 public final class PasswordSetupToken extends DefaultActionToken {
 

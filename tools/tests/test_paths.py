@@ -161,3 +161,17 @@ def test_the_models_generated_from_the_contract_wake_its_family_when_only_the_ba
 ) -> None:
     touched = {family.name for family in paths.read().touched([changed])}
     assert {"contract", "back"} <= touched
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "backend/tests/test_keycloak_platform.py",
+        "backend/tests/conftest.py",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+    ],
+)
+def test_what_the_tests_of_keycloak_run_on_wakes_their_family(changed: str) -> None:
+    touched = {family.name for family in paths.read().touched([changed])}
+    assert "keycloak" in touched

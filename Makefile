@@ -157,7 +157,7 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
-service-down: ## Stop the service platform; WATERFALL_RESET_DATA=yes also drops its database
+service-down: ## Stop the service platform; WATERFALL_RESET_DATA=yes also drops its databases and its directory
 	@$(COMPOSE_SERVICE) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
@@ -175,11 +175,13 @@ build-keycloak: ## Build the image of Keycloak: the extension compiled and teste
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
 
 # The tests of tests/test_keycloak_platform.py, which the other tests of the back deselect, against
-# the Keycloak of the service platform: the address the browser knows it by, its realm applied.
+# the Keycloak of the service platform, its realm applied: at the address the browser knows it by,
+# and at another one, its published port, as a service reaches it.
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and check that the realm and the extension answer (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak openldap
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
-	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:8080/auth} \
+	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth} \
+		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=http://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth \
 		uv run --frozen pytest -m keycloak
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------

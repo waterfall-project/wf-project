@@ -39,7 +39,8 @@ s'écrit dans `deploy/keycloak/realm/waterfall.yaml`, jamais dans le code.
 
 Les dépendances sont celles de Keycloak, en portée `provided` : rien d'autre n'entre dans le
 jar. `keycloak.version` du `pom.xml` est la version de l'image du Dockerfile ; elles montent
-ensemble, keycloak-config-cli avec elles. Les interfaces que l'extension implémente sont
+ensemble, keycloak-config-cli avec elles, dans la construction la plus proche qu'il publie (26.5.5
+pour Keycloak 26.5.7). Les interfaces que l'extension implémente sont
 internes à Keycloak (il le dit au démarrage, `KC-SERVICES0047`) : une montée de version se fait
 avec `make check-keycloak`, qui éprouve l'extension sur la plateforme.
 
@@ -83,11 +84,17 @@ dans sa réponse.
   `backend/tests/test_keycloak_platform.py` : aucune doublure de Keycloak, pas plus qu'une
   doublure de PostgreSQL pour le back.
 - Un refus a son test, comme le cas nominal ; un test affirme un résultat.
+- Un test JUnit ne cite aucune exigence : `make requirements` ne lit pas le Java. Une exigence
+  s'éprouve contre la plateforme, en Python, par un test qui la cite.
 
 *Pourquoi* : une doublure de Keycloak accepte ce que Keycloak refuse. *Contrôle* :
 `make check-keycloak` ; la valeur d'une assertion, la revue.
 
 ## Défauts déjà rencontrés
 
-Aucun encore. Un défaut trouvé en revue et qui peut revenir s'ajoute ici, comme dans
-`python.md`.
+Un défaut trouvé en revue et qui peut revenir s'ajoute ici, comme dans `python.md`.
+
+1. **Une marque d'usage unique qui ne vit qu'en mémoire.** Keycloak marque un jeton d'action
+   employé dans Infinispan seul : un redémarrage l'efface, et un lien employé redevient valable
+   jusqu'à son heure. Ce qui rend un lien inemployable s'écrit en base — l'attribut du compte
+   retiré dès la confirmation.

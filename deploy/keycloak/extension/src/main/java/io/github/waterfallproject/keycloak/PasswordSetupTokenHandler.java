@@ -27,13 +27,18 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 /**
  * Opens a password setup link: the page of Keycloak that sets the password of the account.
  *
- * <p>It follows the handler of Keycloak's own "execute actions" links, with two differences: the
- * one action is to set the password, and the link must be the last one made for the account.
+ * <p>It follows the handler of Keycloak's own "execute actions" links, with three differences: the
+ * one action is to set the password, the link must be the last one made for the account, and it is
+ * spent as soon as it is confirmed — its nonce leaves the account, in the database, so that neither
+ * a restart of Keycloak nor a password set another way makes it valid again.
  */
 public final class PasswordSetupTokenHandler
     extends AbstractActionTokenHandler<PasswordSetupToken> {
 
   private static final String UPDATE_PASSWORD = UserModel.RequiredAction.UPDATE_PASSWORD.name();
+
+  /** The message of a link a later one replaced, in the login theme of Waterfall. */
+  private static final String REPLACED_MESSAGE = "waterfallPasswordLinkReplacedMessage";
 
   /** Declares the handler of the tokens of type {@link PasswordSetupToken#TOKEN_TYPE}. */
   public PasswordSetupTokenHandler() {
@@ -52,15 +57,24 @@ public final class PasswordSetupTokenHandler
   public Predicate<? super PasswordSetupToken>[] getVerifiers(
       ActionTokenContext<PasswordSetupToken> context) {
     Predicate<DefaultActionToken> sameEmail = verifyEmail(context);
+    // A spent link is refused as Keycloak refuses a used one; a replaced link says so.
+    Predicate<PasswordSetupToken> notSpent =
+        TokenUtils.checkThat(
+            token -> hasLink(context.getAuthenticationSession().getAuthenticatedUser()),
+            Errors.EXPIRED_CODE,
+            Messages.EXPIRED_ACTION);
     Predicate<PasswordSetupToken> lastLink =
         TokenUtils.checkThat(
             token -> isLastLink(token, context.getAuthenticationSession().getAuthenticatedUser()),
             Errors.EXPIRED_CODE,
-            Messages.EXPIRED_ACTION);
-    return new Check[] {sameEmail::test, lastLink::test};
+            REPLACED_MESSAGE);
+    return new Check[] {sameEmail::test, notSpent::test, lastLink::test};
   }
 
-  /** A link sets one password: Keycloak refuses it once the password is set. */
+  /**
+   * A link sets one password. Keycloak's own mark of a used token lives in memory only: what keeps
+   * the link spent is its nonce, removed from the account on confirmation ({@link #handleToken}).
+   */
   @Override
   public boolean canUseTokenRepeatedly(
       PasswordSetupToken token, ActionTokenContext<PasswordSetupToken> context) {
@@ -76,15 +90,23 @@ public final class PasswordSetupTokenHandler
       // that merely fetched the link does not spend it.
       return confirmation(token, context, authSession);
     }
+    UserModel user = authSession.getAuthenticatedUser();
+    // Confirmed, the link is spent: the form it opens stays open, the link no longer opens one.
+    user.removeAttribute(PasswordSetupToken.NONCE_ATTRIBUTE);
     authSession.addRequiredAction(UPDATE_PASSWORD);
     // The link reached the address it was made for: the address is proved.
-    authSession.getAuthenticatedUser().setEmailVerified(true);
+    user.setEmailVerified(true);
     KeycloakSession session = context.getSession();
     String next =
         AuthenticationManager.nextRequiredAction(
             session, authSession, context.getRequest(), context.getEvent());
     return AuthenticationManager.redirectToRequiredActions(
         session, context.getRealm(), authSession, context.getUriInfo(), next);
+  }
+
+  /** Tells whether the account has a link not yet spent. */
+  static boolean hasLink(UserModel user) {
+    return user.getFirstAttribute(PasswordSetupToken.NONCE_ATTRIBUTE) != null;
   }
 
   /** Tells whether the token is the last link made for the account, the only valid one. */
