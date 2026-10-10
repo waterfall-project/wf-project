@@ -177,21 +177,23 @@ conception :
 - les filtres qui manquent pour que chaque colonne des tables des comptes et des rôles se
   filtre (WF-IHM-0130) : par rôle et par état sur `listUsers`, dont la recherche porte sur le
   nom, le prénom et l'adresse, et non sur un libellé qu'un compte n'a pas ; par nature et par
-  la présence de porteurs sur `listAccessRoles`, avec le nombre de rôles retenus ; et, sur
-  les deux, un ordre de départage qui rend les pages stables.
+  la présence de porteurs sur `listAccessRoles`, dont le nombre de rôles retenus se lit de la
+  liste, qui n'est pas paginée ; et, sur les deux, un ordre de départage qui rend les pages
+  stables.
 
-Servies ici pour la première fois, après cette modification (33) :
+Servies ici pour la première fois, après cette modification (36) :
 
 - `system` : `getLiveness`, `getInstallation`, `getBackgroundTask`, `listBackgroundTasks` ;
 - `me` : `getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` ;
 - `users` : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
-  `setUserAccessRoles`, `createPasswordSetupLink`, `getUserAvatar`, `startDirectorySync`,
-  `getLatestDirectorySync` ;
+  `setUserAccessRoles`, `createPasswordSetupLink`, `getUserAvatar`, `startIdentitySync`,
+  `getLatestIdentitySync` ;
 - `access` : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
   `updateAccessRole`, `deleteAccessRole` ;
 - `audit` : `listAuditEvents`, `listAuditFacets` ;
 - `platform` : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore` ;
-- `exchanges` : `uploadFile`, pour le dépôt d'une sauvegarde venue d'ailleurs.
+- `exchanges` : `uploadFile`, `openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`,
+  pour le dépôt d'une sauvegarde venue d'ailleurs.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (0) :
 
@@ -568,9 +570,13 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    signalements portent un `ErrorCode` ; le 409 « aucun annuaire activé » disparaît ;
    `PlatformComponent` remplace `directory` par `identity_provider`.
 7. **Tables** : sur `listUsers`, les filtres par rôles (`access_role_ids`) et par état
-   (`states`), une recherche décrite sur le nom, le prénom et l'adresse ; sur
-   `listAccessRoles`, les filtres par nature (`is_predefined`) et par porteurs
-   (`has_holders`) ; sur les deux, le départage par identifiant, qui rend les pages stables.
+   (`is_active`, `include_inactive`), une recherche décrite sur le nom, le prénom et
+   l'adresse ; sur `listAccessRoles`, les filtres par nature (`is_predefined`) et par nombre
+   de porteurs (`holder_count_min`, `holder_count_max`), le nombre de rôles retenus se lisant
+   de la liste, qui n'est pas paginée ; sur les deux, le départage par identifiant, qui rend
+   les pages stables. Les filtres d'état et de porteurs sont ceux qu'EP-02/L42f a livrés et
+   que le front emploie déjà, gardés plutôt qu'un second jeu de noms pour les mêmes colonnes
+   (`docs/api/DECISIONS.md`, US-0350/L1, décision 7 ; #605).
 8. **Rôles** : `deleteAccessRole` dit la suppression logique ; un rôle supprimé est un 404.
 9. **Sauvegarde** : `Backup`, `startBackup` et `startRestore` disent que la sauvegarde couvre
    les deux bases, Waterfall et le fournisseur d'identité (WF-ADM-0150), et que la restauration
@@ -894,7 +900,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 - **statut** : à faire
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
-- **opérations** : `startDirectorySync`, `getLatestDirectorySync`, `getBackgroundTask`,
+- **opérations** : `startIdentitySync`, `getLatestIdentitySync`, `getBackgroundTask`,
   `listBackgroundTasks`
 - **issue** : #434
 
