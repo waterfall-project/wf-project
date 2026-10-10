@@ -1306,7 +1306,8 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 
 | Variable | Ce qu'elle protège |
 |---|---|
-| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
+| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
+| `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
 | `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
@@ -1626,11 +1627,15 @@ attend un procès-verbal, dont la forme n'est pas encore définie : le relevé l
 
 Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
 (`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
-rôle qui peut créer des bases (`postgresql://rôle@hôte:5432/postgres`) : à chaque session de
-tests, la fixture `database_url` (`backend/tests/conftest.py`) y crée une base de nom unique,
-y applique les migrations, et la supprime à la fin. La fixture `database` rend une base dont les
-lignes — de toutes les tables que la `Base` déclare — sont supprimées après chaque test,
-`session` une session que le test défait.
+rôle qui peut créer des bases et des rôles, un superutilisateur
+(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, la fixture `database_url`
+(`backend/tests/conftest.py`) y crée une base de nom unique, y applique les migrations, et la
+supprime à la fin, avec le rôle du service que les migrations lui ont créé. La fixture
+`database` rend cette base telle que le service la voit — par un rôle de connexion membre du
+rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
+supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
+propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
+qui coupe les déclencheurs ; `session` rend une session que le test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
@@ -2160,7 +2165,9 @@ contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section 
    contraintes se déclarent **sans nom**, sauf la partie `<nom>` d'une contrainte de vérification
    et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
    ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
-   `ruff format` (dans `backend/`) le mettent aux règles du dépôt.
+   `ruff format` (dans `backend/`) le mettent aux règles du dépôt. Une table nouvelle accorde ses
+   droits au rôle du service dans la même migration (sql.md, « Le rôle du service ») : sans eux,
+   l'API ne la lit pas, et les tests du service non plus.
 4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare une base migrée
    à une base créée par les tables du code (contraintes, index, colonnes et défauts, lus dans le
    catalogue de PostgreSQL) échoue tant que les deux ne disent pas la même chose, et

@@ -17,6 +17,7 @@ from support import (
     ContractClient,
     Logs,
     found_in,
+    operations,
 )
 
 from waterfall.api.app import create_app
@@ -25,19 +26,6 @@ from waterfall.platform.correlation import FORM
 
 if TYPE_CHECKING:
     from starlette.routing import BaseRoute
-
-HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
-
-
-def operations(contract: OpenAPI) -> dict[str, tuple[str, str]]:
-    """List the operations of the contract: identifier to method and full path."""
-    prefix = (contract.spec / "servers" / 0 / "url").read_value()
-    found: dict[str, tuple[str, str]] = {}
-    for path, item in (contract.spec / "paths").items():
-        for method, operation in item.items():
-            if method in HTTP_METHODS:
-                found[(operation / "operationId").read_value()] = (method.upper(), prefix + path)
-    return found
 
 
 def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClient) -> None:

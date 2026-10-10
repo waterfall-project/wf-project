@@ -27,7 +27,8 @@ ANONYMOUS = "anonymous"
 SECRET_NAMES = ("password", "token", "secret", "authorization", "cookie")
 
 
-def _is_secret(name: str) -> bool:
+def names_a_secret(name: str) -> bool:
+    """Say whether a field name evokes a secret: such a field is kept out of the logs and audit."""
     lowered = name.lower()
     return any(word in lowered for word in SECRET_NAMES)
 
@@ -36,7 +37,9 @@ def _without_secrets(value: object) -> object:
     if isinstance(value, dict):
         mapping = cast("dict[object, object]", value)
         return {
-            key: _without_secrets(item) for key, item in mapping.items() if not _is_secret(str(key))
+            key: _without_secrets(item)
+            for key, item in mapping.items()
+            if not names_a_secret(str(key))
         }
     if isinstance(value, list | tuple):
         return [_without_secrets(item) for item in cast("list[object]", value)]

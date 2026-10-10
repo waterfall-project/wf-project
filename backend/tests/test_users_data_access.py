@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from openapi_core import OpenAPI
-from sqlalchemy import text
+from sqlalchemy import Engine, text
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 from support import PLATFORM_SECRETS
@@ -288,10 +288,13 @@ def test_the_module_of_the_accounts_has_no_command_that_deletes_one() -> None:
 
 @pytest.mark.requirement("WF-DAT-0080-A")
 def test_an_account_that_other_rows_refer_to_cannot_be_removed_from_the_database(
-    session: Session,
+    database: Database, owner: Engine
 ) -> None:
-    author = born(session, "author@example.org")
-    born(session, "written@example.org", author.id)
-    session.flush()
-    with pytest.raises(IntegrityError, match="fk_user_account_created_by_user_account"):
-        session.execute(text("DELETE FROM user_account WHERE id = :id"), {"id": author.id})
+    with database.transaction() as session:
+        author = born(session, "author@example.org").id
+        born(session, "written@example.org", author)
+    with (
+        pytest.raises(IntegrityError, match="fk_user_account_created_by_user_account"),
+        owner.begin() as connection,
+    ):
+        connection.execute(text("DELETE FROM user_account WHERE id = :id"), {"id": author})

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from httpx2 import Response
 from openapi_core import OpenAPI
 from openapi_core.testing import MockRequest, MockResponse
+from sqlalchemy import URL
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 
@@ -43,6 +44,29 @@ SECRETS = [
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+def service_role(database: URL) -> str:
+    """Name the role the API and the worker connect as, which the migrations create (0002).
+
+    It is named after the database the address designates: two databases of one server share
+    no role of the service.
+    """
+    return f"{database.database}_service"
+
+
+HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+
+
+def operations(contract: OpenAPI) -> dict[str, tuple[str, str]]:
+    """List the operations of the contract: identifier to method and full path."""
+    prefix = (contract.spec / "servers" / 0 / "url").read_value()
+    found: dict[str, tuple[str, str]] = {}
+    for path, item in (contract.spec / "paths").items():
+        for method, operation in item.items():
+            if method in HTTP_METHODS:
+                found[(operation / "operationId").read_value()] = (method.upper(), prefix + path)
+    return found
 
 
 def found_in(text: str) -> list[str]:

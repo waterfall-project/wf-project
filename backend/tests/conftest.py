@@ -13,9 +13,16 @@ import pytest
 import structlog
 from fastapi.testclient import TestClient
 from openapi_core import Config, OpenAPI
-from sqlalchemy import delete, text
+from sqlalchemy import Engine, delete, text
 from sqlalchemy.orm import Session
-from support import CONTRACT, PLATFORM_ADDRESSES, PLATFORM_SECRETS, ContractClient, Logs
+from support import (
+    CONTRACT,
+    PLATFORM_ADDRESSES,
+    PLATFORM_SECRETS,
+    ContractClient,
+    Logs,
+    service_role,
+)
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -92,15 +99,15 @@ TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
 def database_url() -> Iterator[str]:
     """Create, for this run, a database of the PostgreSQL server the tests are given, migrated.
 
-    ``WATERFALL_TEST_DATABASE_URL`` designates a server and a role that may create databases.
-    Without it the tests that need a database fail and say so: PostgreSQL is the database of the
-    platform, and no other stands in for it.
+    ``WATERFALL_TEST_DATABASE_URL`` designates a server and a superuser, who may create databases
+    and roles. Without it the tests that need a database fail and say so: PostgreSQL is the
+    database of the platform, and no other stands in for it.
     """
     address = os.environ.get(TEST_DATABASE_VARIABLE)
     if not address:
         pytest.fail(
             f"{TEST_DATABASE_VARIABLE} is not set: give it the URL of a PostgreSQL server "
-            "whose role may create databases (the guide, 'Tests', says how)",
+            "whose role is a superuser (the guide, 'Tests', says how)",
             pytrace=False,
         )
     name = f"waterfall_test_{uuid4().hex}"
@@ -114,18 +121,65 @@ def database_url() -> Iterator[str]:
     yield url
     with server.connect() as connection:
         connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{service_role(engine_url(url))}"'))
+    server.dispose()
+
+
+@pytest.fixture(scope="session")
+def service_database_url(database_url: str) -> Iterator[str]:
+    """Give the address of the test database as the service reaches it, by a role of the service.
+
+    A role made for this run, that may sign in, member of the role of the service of the test
+    database and holding nothing else: what the tables do not grant the service, the tests cannot
+    do either.
+    """
+    name, password = f"waterfall_test_{uuid4().hex}", uuid4().hex
+    service = service_role(engine_url(database_url))
+    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(
+            text(f'CREATE ROLE "{name}" LOGIN PASSWORD \'{password}\' IN ROLE "{service}"')
+        )
+    url = engine_url(database_url).set(username=name, password=password)
+    yield url.render_as_string(hide_password=False)
+    with server.connect() as connection:
+        connection.execute(
+            text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = :name"),
+            {"name": name},
+        )
+        connection.execute(text(f'DROP ROLE "{name}"'))
     server.dispose()
 
 
 @pytest.fixture
-def database(database_url: str) -> Iterator[Database]:
-    """Give the migrated database, emptied of the rows of every table the code declares."""
-    db = Database(create_database_engine(database_url))
+def database(database_url: str, service_database_url: str) -> Iterator[Database]:
+    """Give the migrated database as the service sees it, emptied afterwards of every row.
+
+    The rows of every table the code declares are deleted by the owner, the journal of audit
+    included: its triggers, which refuse any deletion, are off for that transaction alone — what
+    only a superuser may do, and the service never.
+    """
+    db = Database(create_database_engine(service_database_url))
     yield db
-    with db.engine.begin() as connection:
+    db.dispose()
+    owner = create_database_engine(database_url)
+    with owner.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
         for table in reversed(Base.metadata.sorted_tables):
             connection.execute(delete(table))
-    db.dispose()
+    owner.dispose()
+
+
+@pytest.fixture
+def owner(database_url: str) -> Iterator[Engine]:
+    """Give an engine of the owner of the tables, on the database the service sees.
+
+    What the service may not do — delete an account, change the journal — a test does around it,
+    through the owner.
+    """
+    engine = create_database_engine(database_url)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
