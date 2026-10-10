@@ -1038,7 +1038,8 @@
     summary: Aperçu d'un collage depuis un tableur
     description: >-
       Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien
-      n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne
+      n'est écrit à cette étape (WF-IHM-0050). Confirmé, le collage écrira les lignes acceptées
+      et non les lignes refusées (`applyPaste`). Le bloc remplit, à partir de la colonne
       visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre
       des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule
       non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
@@ -1082,10 +1083,12 @@
     tags: [revisions]
     summary: Appliquer un collage
     description: >-
-      Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée
-      (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et
-      rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux
-      (`NodesWritten`, WF-IHM-0110).
+      Les lignes valides du plan sont écrites en une seule opération, et les lignes refusées ne le
+      sont pas ; un collage abandonné laisse la grille inchangée (WF-IHM-0050 ; EP-14/L42q). Porte
+      le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec
+      les nœuds écrits, leurs ancêtres et les totaux, et les refus de l'aperçu, ligne par ligne,
+      que la confirmation n'a pas écrits (`PasteApplied`, WF-IHM-0110) : un succès partiel se lit
+      à ce que `rejected` n'est pas vide.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1097,12 +1100,15 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PasteApply }
     responses:
       '200':
-        description: Collage appliqué ; le compteur de la structure a avancé.
+        description: >-
+          Collage appliqué, entier ou en partie ; le compteur de la structure a avancé dès qu'une
+          ligne est écrite.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            schema: { $ref: ../components/schemas/revisions.yaml#/PasteApplied }
             examples:
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
+              partial: { $ref: ../../../fixtures/api/paste_applied_partial.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -556,14 +556,18 @@
     tags: [projects]
     summary: Supprimer un sous-projet
     description: >-
-      Refusée dès qu'une révision marquée le cite (§4.4.1, décision de l'auteur du 2026-10-10,
-      #634) ou qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit
-      d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet
+      Refusée dès qu'une révision marquée le cite (§4.4.1, WF-DAT-0080), qu'un coût réel lui est
+      imputé (WF-PRJ-0050), ou tant que des lignes de devis de la révision en cours le portent
+      (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273), ce que sa commande `delete` dit d'avance
+      (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet
       (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite ne se supprime pas : les
       sous-projets déterminent la courbe de la valeur acquise, et sa suppression y aurait des
-      effets que rien ne maîtrise ; la décision contredit le Vérif de WF-DAT-0080, dont la
-      correction est en attente. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun
-      coût réel ne charge est retiré de la base. Sa suppression passe à nul la désignation de tout
+      effets que rien ne maîtrise. Un sous-projet que portent des lignes de devis de la révision en
+      cours ne se supprime qu'une fois ces lignes passées hors sous-projet ou à un autre : ses codes
+      viennent de l'ERP et définissent la granularité des coûts réels ; une ligne de provision se
+      passe par son risque (`updateRisk`, `provision_subproject_id`). Un sous-projet qu'aucune
+      révision marquée ne cite, qu'aucun coût réel ne charge et qu'aucune ligne de la révision en
+      cours ne porte est retiré de la base. Sa suppression passe à nul la désignation de tout
       risque qui n'est pas identifié et le désignait pour sa provision
       (`Risk.provision_subproject_id`) : redevenu identifié, ce risque porte sa provision hors
       sous-projet (WF-RIS-0010 ; EP-14/L42p ; tranché par l'auteur le 2026-10-10, décision de
@@ -582,19 +586,30 @@
         description: >-
           La commande `delete` est indisponible : `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` nommant la condition qui lui manque — `subproject_not_cited`
-          pour un sous-projet qu'une révision marquée cite (§4.4.1, décision de l'auteur du
-          2026-10-10, #634), `subproject_without_actual_costs` pour un sous-projet auquel des coûts
-          réels sont imputés (WF-PRJ-0050), `project_not_terminal` sur un projet clos
-          (WF-CYC-0100). Une seule est nommée, la première qui manque dans l'ordre où la commande
-          `delete` les liste : `subproject_not_cited`, puis `subproject_without_actual_costs` — la
-          citation ne se lève jamais, une révision marquée étant immuable (WF-DAT-0020) —, puis
-          `project_not_terminal`. Rien n'est écrit.
+          pour un sous-projet qu'une révision marquée cite (§4.4.1, WF-DAT-0080),
+          `subproject_without_actual_costs` pour un sous-projet auquel des coûts réels sont imputés
+          (WF-PRJ-0050), `subproject_without_estimate_lines` pour un sous-projet que portent des
+          lignes de devis de la révision en cours (WF-DAT-0080, WF-PRJ-0050),
+          `project_not_terminal` sur un projet clos (WF-CYC-0100). Une seule est nommée, la
+          première qui manque dans l'ordre où la commande `delete` les liste :
+          `subproject_not_cited`, puis `subproject_without_actual_costs` — la citation ne se lève
+          jamais, une révision marquée étant immuable (WF-DAT-0020) —, puis
+          `subproject_without_estimate_lines`, que lève le passage de ces lignes hors sous-projet
+          ou à un autre, puis `project_not_terminal`. Nommant
+          `subproject_without_estimate_lines`, le refus nomme aussi ces lignes (Vérif de
+          WF-DAT-0080) : `params.estimate_lines`, toutes, chacune par sa structure, son nœud, son
+          numéro de ligne dans sa structure entière et son libellé (`structure_id`, `node_id`,
+          `row_number`, `label`), la structure principale d'abord, puis les autres dans l'ordre de
+          `listCostStructures`, chacune dans l'ordre du plan. La liste n'a pas de borne : un
+          sous-projet en porte au plus les lignes d'une révision, quelques milliers au §4.6.2, et
+          l'utilisateur doit pouvoir toutes les déplacer. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
+              estimated: { $ref: ../../../fixtures/api/subproject_delete_estimated.json }
 
 /projects/{project_id}/contributors:
   get:

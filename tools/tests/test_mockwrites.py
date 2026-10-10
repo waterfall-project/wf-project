@@ -28,7 +28,7 @@ from wftools.mockwitness import CABLE_FITTER, CORE
 type Node = dict[str, Any]
 
 STUDIES, REVIEW, ACCEPTANCE, DESIGN_FILE = 521, 524, 525, 526
-VOLUME_WRITES = {"estimate_line_entered.json", "paste_applied.json"}
+VOLUME_WRITES = {"estimate_line_entered.json", "paste_applied.json", "paste_applied_partial.json"}
 CONTROL_STATION, WIRING, LABOUR, BLOCKS, MILESTONE = 551, 552, 553, 554, 556
 INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
     561,
@@ -385,6 +385,90 @@ def test_a_block_applied_writes_its_rows_and_their_amounts_climb_to_the_totals(
         assert node["task"]["budgeted_amount"] == old["budgeted_amount"]
     assert money(applied["totals"]["base_amount"]) == money(answer["totals"]["base_amount"]) + delta
     assert applied["totals"]["budgeted_amount"] == answer["totals"]["budgeted_amount"]
+
+
+def test_a_block_partly_refused_writes_its_valid_rows_and_says_the_refused_one_again() -> None:
+    # WF-IHM-0050, as US-0130 now reads it: a block whose cell bears an unknown category signals
+    # that row; confirmed, it writes the other rows and not that one. The answer is a partial
+    # success: the rows written, as any write of the grid, and the refusal of the plan, by row.
+    applied = write("paste_applied")
+    partial = cast("dict[str, Any]", _json(mockwrites.paste_applied(mockwrites.UNKNOWN_CATEGORY)))
+    plan = cast(
+        "dict[str, Any]", _json(mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(992)))
+    )
+    assert applied["rejected"] == []
+    assert partial["rejected"] == plan["rejected"]
+    assert len(partial["nodes"]) == plan["accepted"] == 2
+    assert [node["row_number"] for node in partial["nodes"]] == [28, 30]
+    assert [node["estimate_line"]["label"] for node in partial["nodes"]] == [
+        mockwrites.UNKNOWN_CATEGORY[0][0],
+        mockwrites.UNKNOWN_CATEGORY[2][0],
+    ]
+    # The refused row is not written: the structure read again after the paste bears its line as
+    # the label entered left it, the whole block changing it.
+    [skipped] = [node for node in applied["nodes"] if node["row_number"] == 29]
+    assert skipped["node_id"] not in {node["node_id"] for node in partial["nodes"]}
+    entered = mockwrites.amended(
+        mockstructure.described(),
+        line=mockwrites.on_line(mockwrites.LINE, label=mockwrites.ENTERED),
+    )
+    roots, targets, rejected = mockwrites.pasted(mockwrites.UNKNOWN_CATEGORY)
+    assert rejected == partial["rejected"]
+    after = by_id(_json(mockcore.whole(mockcore.current(roots)))["items"])
+    was = by_id(_json(mockcore.whole(mockcore.current(entered)))["items"])
+    assert after[skipped["node_id"]]["estimate_line"] == was[skipped["node_id"]]["estimate_line"]
+    assert after[skipped["node_id"]]["estimate_line"] != skipped["estimate_line"]
+    assert [mockwitness.node_id(number) for number in targets] == [
+        node["node_id"] for node in partial["nodes"]
+    ]
+    # The rows written are those the whole block writes on them, the totals those of their sum.
+    written = {node["node_id"]: node for node in applied["nodes"]}
+    for node in partial["nodes"]:
+        assert node["estimate_line"] == written[node["node_id"]]["estimate_line"]
+    assert partial["structure_lock_version"] == applied["structure_lock_version"]
+    assert partial["totals"] == applied["totals"]
+
+
+def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_so() -> None:
+    examples = mockwrites.writes()
+    said = cast("str", examples["paste_applied_partial.json"]["summary"])
+    assert "succès partiel" in said
+    assert "lignes 28 et 30" in said
+    plan = cast("str", examples["paste_plan_unknown_category.json"]["summary"])
+    assert "ne s'applique pas" not in plan
+    assert "écrira les deux autres et non celle-ci" in plan
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths.split("operationId: applyPaste\n", 1)[1].split("operationId:", 1)[0]
+    assert "revisions.yaml#/PasteApplied" in operation
+    assert operation.index("paste_applied.json") < operation.index("paste_applied_partial.json")
+    # The counter of the structure does not cover the reference data: the confirmation judges the
+    # accepted rows again, and a row become invalid joins the refusals (revue 1 of EP-14/L42q).
+    schemas = REPOSITORY / "docs" / "api" / "components" / "schemas" / "revisions.yaml"
+    applied = schemas.read_text(encoding="utf-8").split("\nPasteApplied:\n", 1)[1]
+    said = " ".join(applied.split("\n\n", 1)[0].split())
+    assert "les lignes acceptées du plan sont donc jugées de nouveau" in said
+    assert "Le plan retient le compteur de la structure lu à l'aperçu" in said
+    assert (
+        "refusée par 412 si la structure a changé depuis, quel que soit le compteur envoyé" in said
+    )
+    apply = schemas.read_text(encoding="utf-8").split("\nPasteApply:\n", 1)[1]
+    assert "quel que soit le compteur envoyé" in " ".join(apply.split("\n\n", 1)[0].split())
+    undo = schemas.read_text(encoding="utf-8").split("\nUndoResult:\n", 1)[1]
+    flat_undo = " ".join(undo.split("\n\n", 1)[0].split())
+    assert "`restored_subproject_exists`" in flat_undo
+    assert "la suppression d'une ligne ou d'une tâche et de ses lignes comprise" in flat_undo
+    # The undo and the redo of a write of the grid that would restore a deleted subproject are
+    # refused by the condition, in the same words as EP-14/L42p (revue 3).
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    for operation in ("undoLastChange", "redoLastUndo"):
+        block = paths.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
+        refused = " ".join(
+            block.split("      '409':\n", 1)[1].split("        content:", 1)[0].split()
+        )
+        assert "`restored_subproject_exists`" in refused, operation
+        assert "une écriture de la grille, la suppression d'une ligne" in refused, operation
+    assert "passe dans `rejected` avec son motif" in said
+    assert "aucune entrée d'annulation n'est créée" in said
 
 
 def test_a_block_too_wide_is_refused_by_the_width_of_a_line_in_the_contract() -> None:

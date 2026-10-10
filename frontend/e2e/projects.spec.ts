@@ -320,12 +320,14 @@ test("the settings of a project create and modify a sub-project, present unavail
 
   // La suppression d'un sous-projet portant des coûts réels est refusée : both sub-projects of
   // the witness bear the invoices of the tasks drawn around its core and are cited by the reference
-  // revision (EP-14/L45a), and each lists its deletion unavailable, lacking both conditions
-  // (EP-14/L42l) — presented so, the conditions it lacks given; pressed, nothing is asked.
+  // revision (EP-14/L45a), lines of the current revision bear them, and each lists its deletion
+  // unavailable, lacking the three conditions (EP-14/L42l, EP-14/L42q) — presented so, the
+  // conditions it lacks given; pressed, nothing is asked.
   // Playwright clicks no element marked `aria-disabled`: the press is dispatched.
   const unmet =
-    "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût réel " +
-    "imputé au sous-projet.";
+    "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût réel " +
+    "imputé au sous-projet et aucune ligne de devis de la révision en cours portant le " +
+    "sous-projet.";
   for (const code of ["SP-CMD", "SP-ESS"]) {
     const deletion = subprojects.getByRole("button", { name: new RegExp(`^Supprimer.+${code}`) });
     await expect(deletion).toHaveAttribute("aria-disabled", "true");

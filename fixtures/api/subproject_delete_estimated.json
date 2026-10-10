@@ -1,0 +1,25 @@
+{
+  "summary": "La suppression de la réception sur site, que ne cite aucune révision marquée et que ne charge aucun coût réel, quand les deux lignes du câblage des armoires de la révision en cours, « Raccordement des borniers » et « Borniers », lignes 10 et 11 de la structure principale, lui ont été passées : refusée, la seule condition qui manque à sa commande delete, et ces lignes nommées ; elle aboutira une fois ces lignes passées hors sous-projet ou à un autre ; rien n'est écrit. Une variante contrefactuelle : dans le témoin, la réception sur site porte la facture FA-2026-0295, et ces lignes le poste de commande (WF-DAT-0080, WF-PRJ-0050, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "subproject_without_estimate_lines",
+      "estimate_lines": [
+        {
+          "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+          "node_id": "01926f3a-7c00-7000-8000-000000000553",
+          "row_number": 10,
+          "label": "Raccordement des borniers"
+        },
+        {
+          "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+          "node_id": "01926f3a-7c00-7000-8000-000000000554",
+          "row_number": 11,
+          "label": "Borniers"
+        }
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001101"
+  }
+}

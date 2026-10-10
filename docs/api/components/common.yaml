@@ -158,7 +158,11 @@ Problem:
         laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
         calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
         tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son
-        nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par
+        nœud et son libellé (`project_id`, `node_id`, `label`) ; `estimate_lines` pour la
+        suppression d'un sous-projet que portent des lignes de devis de la révision en cours
+        (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
+        WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
+        libellé (`structure_id`, `node_id`, `row_number`, `label`). Les paramètres d'un motif par
         champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà
         le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
         WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
@@ -242,8 +246,9 @@ ErrorCode:
     # la désactivation de ce compte, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_ADMINISTRATOR
     # Une liste de contributeurs qui ne garderait aucun chef de projet (`setContributors`,
-    # WF-PRJ-0060) ; la suppression d'un sous-projet auquel des coûts réels sont imputés, ou
-    # qu'une révision marquée cite, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
+    # WF-PRJ-0060) ; la suppression d'un sous-projet auquel des coûts réels sont imputés, qu'une
+    # révision marquée cite ou que portent des lignes de devis de la révision en cours, que sa
+    # commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_PROJECT_MANAGER
     - ACCESS_ROLE_IN_USE
     - TASK_ALREADY_STARTED
