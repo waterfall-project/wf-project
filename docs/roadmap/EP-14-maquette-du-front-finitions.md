@@ -261,8 +261,8 @@ version majeure précédente, qui restent à la recette d'EP-13 (écarts d'US-02
 2. En parallèle : US-0200 et US-0290, dont le harnais garde ensuite chaque lot d'écran ; les
    quatre parties du contrat, L42h à L42k ; l'univers témoin, L45a puis L45b, avant que les lots
    d'écran n'assertent d'autres valeurs.
-3. Les écrans, chacun après sa partie de contrat : L43d, L43e et L43f après L42h ; L44c puis L44d
-   après L42k.
+3. Les écrans, chacun après sa partie de contrat : L43d, L43e et L43f après L42h ; L43g après
+   L42j ; L44c puis L44d après L42k.
 4. La clôture : la définition de fini constatée, chaque constat de #507 appliqué dans `docs/api`
    ou écarté dans `DECISIONS.md`.
 
@@ -569,8 +569,9 @@ Les commandes et le type d'une catégorie :
 
 Chaque écriture de l'organisation, des rôles et des calendriers décrit ses refus par champ :
 - une référence inconnue, par `UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR` ou `UNKNOWN_COST_CATEGORY` ;
-- un nœud déplacé sous lui-même ou ses descendants, par `ORG_NODE_CYCLE`, ou sous un nœud désactivé,
-  même désactivé lui-même — WF-REF-0070, révisé le 2026-10-09 ;
+- un nœud créé ou déplacé sous un nœud désactivé — déplacé, même désactivé lui-même —, par
+  `INACTIVE_REFERENCE_OBJECT` ; déplacé sous lui-même ou ses descendants, par `ORG_NODE_CYCLE` —
+  WF-REF-0070, révisé le 2026-10-09 ;
 - la catégorie hors main-d'œuvre d'un rôle (`LABOUR_CATEGORY_REQUIRED`), ou son rattachement
   désactivé, refusé à la modification quand elle le change (WF-REF-0090) ;
 - les heures d'un jour hors de 0 à 24 et une capacité négative, par `VALUE_OUT_OF_RANGE` et la borne
@@ -820,6 +821,33 @@ l'écran des risques étant en lecture, et le contrat n'a pas d'exemple de succ�
 `updateRisk` ni `reviewRisk` : #763, reporté → EP-08, noté dans ses « Constats reçus » ; le refus
 d'une annulation par `restored_subproject_exists`, Annuler et Rétablir n'étant pas branchées (EP-06),
 sa condition déjà nommée par le catalogue.
+
+EP-14/L42r (#759), lot de contrat ajouté le 2026-10-10, fait suivre au contrat les trois règles de
+la révision du 2026-10-09 que L42j avait laissées (#684, que l'auteur a décidé de traiter dans
+EP-14), solde les mineurs de L42j (#691) et le refus de la largeur d'une colonne (#711) :
+- un rôle porte un code unique, désactivés compris (WF-REF-0090), exigé à son image, à sa création
+  et à sa modification ; un code pris est refusé par 409 `ALREADY_EXISTS`, son porteur nommé par
+  son libellé, et la liste des rôles cherche, filtre et trie le code ;
+- une catégorie qui porte des taux, ou à laquelle un rôle est rattaché, ne quitte pas la
+  main-d'œuvre, et le type de sa nature se fige (WF-REF-0030, WF-REF-0040) : trois conditions,
+  `cost_type_unrated`, `cost_type_without_role` et `cost_category_without_role`, le 409 nommant la
+  première qui manque, et les rôles en cause pour les deux dernières ;
+- le refus d'un calendrier qui laisserait une tâche sans heure nomme les rôles, et chaque projet
+  par son libellé et son code seuls (`params.projects`), sans tâche ni identifiant (WF-PLA-0010) —
+  option (a) de #762, tranchée à la relecture 1 ; les saisies d'une révision gardent leurs tâches ;
+- `updateMyPreferences` refuse une colonne de moins de vingt points, et le test des bornes parcourt
+  les corps de toutes les écritures.
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front compile et tient ses
+catalogues, et le formulaire du rôle saisit le code, exigé : le faux back valide les corps d'après
+le contrat et refusait une création sans lui. Le lot du front qui suit montre le code dans la
+grille, le cherche, le filtre et le trie, éprouve le code pris au champ, dit les rôles que nomme le
+refus d'une nature ou d'une catégorie et les projets du refus d'un calendrier, et reprend #714
+point 1.
+
+L42q (#758) puis L53 (#767), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+DECISIONS.md, ces notes, `Problem.params` et les catalogues gardent les apports de chacun, les leurs
+d'abord, et le client, les exemples et l'inventaire sont régénérés après chaque fusion.
 
 ## US-0200 — Accessibilité minimale
 

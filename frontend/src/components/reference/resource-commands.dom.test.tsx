@@ -613,6 +613,7 @@ describe("the resource roles", () => {
     const client = serve();
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DESS-ELEC");
     await userEvent.type(
       within(form).getByRole("textbox", { name: "Libellé" }),
       "Dessinateur électricien",
@@ -666,6 +667,7 @@ describe("the resource roles", () => {
     const client = serve();
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DESS-ELEC");
     await userEvent.type(
       within(form).getByRole("textbox", { name: "Libellé" }),
       "Dessinateur électricien",
@@ -695,6 +697,7 @@ describe("the resource roles", () => {
         route: ROLES,
         path: "/reference/resource-roles",
         body: {
+          code: "DESS-ELEC",
           label: "Dessinateur électricien",
           org_node_id: nodeOf("BE-ELEC").org_node_id,
           cost_category_id: category?.id,
@@ -712,6 +715,7 @@ describe("the resource roles", () => {
     });
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "ROBOT");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Roboticien");
     const node = within(form).getByRole("combobox", { name: "Nœud d’organisation" });
     await userEvent.selectOptions(node, "DT · Direction technique");
@@ -740,6 +744,7 @@ describe("the resource roles", () => {
     });
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "DESS-ELEC");
     await userEvent.type(
       within(form).getByRole("textbox", { name: "Libellé" }),
       "Dessinateur électricien",
@@ -801,7 +806,7 @@ describe("the resource roles", () => {
     // The node is set at the creation: a role is recreated under another rather than moved.
     expect(within(form).queryByRole("combobox", { name: "Nœud d’organisation" })).toBeNull();
     expect(form).toHaveAccessibleDescription(
-      "Le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « Bureau d'études électricité » : il se recrée sous un autre nœud plutôt que de s’y déplacer.",
+      "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « Bureau d'études électricité » : il se recrée sous un autre nœud plutôt que de s’y déplacer.",
     );
     expect(within(form).getByRole("textbox", { name: "Heures par mois" })).toHaveValue("485324,00");
     expect(within(form).getByRole("combobox", { name: "Calendrier" })).toHaveValue(
@@ -819,6 +824,7 @@ describe("the resource roles", () => {
       route: ROLE,
       path: `/reference/resource-roles/${technician?.resource_role_id ?? ""}`,
       body: {
+        code: technician?.code,
         label: "Technicien de mise en service",
         cost_category_id: technician?.cost_category_id,
         calendar_id: technician?.calendar_id,

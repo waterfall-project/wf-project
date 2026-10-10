@@ -165,6 +165,7 @@ ResourceRoleImage:
   type: object
   required:
     - resource_role_id
+    - code
     - label
     - org_node_id
     - org_node_label
@@ -177,11 +178,19 @@ ResourceRoleImage:
     - audit
     - lock_version
   description: >-
-    Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
-    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image
-    seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`).
+    Rôle de ressource, qui porte un code unique et un libellé. Il relève d'un nœud
+    d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une
+    capacité unique (WF-REF-0100). L'image seule, sans commandes : celle qu'une révision marquée
+    fige (`EmployedReference`).
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code du rôle, unique parmi les rôles, désactivés compris, comme celui d'un nœud : un code
+        déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0090).
     label: { type: string, minLength: 1, maxLength: 200 }
     org_node_id: { $ref: ../common.yaml#/Uuid }
     org_node_label:
@@ -219,8 +228,9 @@ RoleCapacity:
 
 ResourceRoleWrite:
   type: object
-  required: [label, org_node_id, cost_category_id, calendar_id, capacity]
+  required: [code, label, org_node_id, cost_category_id, calendar_id, capacity]
   properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     org_node_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
@@ -244,15 +254,16 @@ ResourceRoleWrite:
 
 ResourceRoleUpdate:
   type: object
-  required: [label, cost_category_id, calendar_id, capacity, lock_version]
+  required: [code, label, cost_category_id, calendar_id, capacity, lock_version]
   description: >-
-    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le
-    compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
-    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son
-    calendrier se modifient vers des objets actifs, et une catégorie de main-d'œuvre
-    (WF-REF-0090), refusés comme à la création ; un rôle qui garde les siens, désactivés depuis,
-    se modifie.
+    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud — son code
+    compris, qui reste unique —, et le compteur lu, qu'une création n'a pas. Un rôle ne se
+    déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud
+    (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se modifient vers des objets
+    actifs, et une catégorie de main-d'œuvre (WF-REF-0090), refusés comme à la création ; un rôle
+    qui garde les siens, désactivés depuis, se modifie.
   properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
@@ -375,7 +386,8 @@ CostTypeKind:
     risques — `provision`, qui ne porte que les lignes que Waterfall calcule à partir d'un risque,
     jamais saisies (WF-DEV-0020, WF-RIS-0010) ; une provision saisie et non pondérée, pour aléas
     par exemple, relève d'une nature hors main-d'œuvre (§3.4.4.1.1). Il ne change plus dès qu'une
-    catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance
+    catégorie rattachée est employée, porte un taux horaire ou est rattachée à un rôle de
+    ressource (WF-REF-0030) : la commande `change_kind` de la nature le dit d'avance
     (`CostTypeCommand`).
 
 CostTypeCommand:
@@ -385,11 +397,13 @@ CostTypeCommand:
     Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par
     `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne
     porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un
-    autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused`
-    manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne
-    d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé,
-    se modifie toujours. La désactivation et la réactivation sont toujours disponibles : la
-    dernière nature de type provision pour risques se désactive comme une autre ; ses catégories
+    autre `kind`, toujours listée. La modification du type est indisponible dès qu'une catégorie
+    rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non —,
+    `cost_type_unused` manquante, porte un taux horaire, `cost_type_unrated`, ou est rattachée à
+    un rôle de ressource, actif ou désactivé, `cost_type_without_role` (WF-REF-0030) ; le reste
+    de la nature, son code et son libellé, se modifie toujours. La désactivation et la
+    réactivation sont toujours disponibles : la dernière nature de type provision pour risques se
+    désactive comme une autre ; ses catégories
     restent actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie
     active sous une nature désactivée ne compte pas pour `active_provision_category`, et la
     création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque
@@ -416,8 +430,8 @@ CostTypeCommands:
     plus deux, celle qui change son état et la modification de son type. Une commande absente de
     la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission
     de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est
-    employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son
-    code d'erreur.
+    employée, porte un taux ou sert à un rôle (WF-ARC-0020) : la nature le dit. Un appel envoyé
+    malgré la liste est refusé par son code d'erreur.
   items: { $ref: '#/CostTypeCommandAvailability' }
 
 CostType:
@@ -451,8 +465,9 @@ CostTypeWrite:
 CostTypeUpdate:
   description: >-
     Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind`
-    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que
-    sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien.
+    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, porte un
+    taux horaire ou est rattachée à un rôle de ressource, ce que sa commande `change_kind` dit
+    d'avance (WF-REF-0030) ; le même `kind` ne change rien.
   allOf:
     - $ref: '#/CostTypeWrite'
     - type: object
@@ -484,14 +499,16 @@ CostCategoryCommand:
     dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et,
     `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors
     main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
-    #577). La désactivation et la réactivation sont toujours disponibles : la dernière catégorie
-    active de type provision pour risques se désactive comme une autre, la création d'un projet et
-    la déclaration d'un risque nommant alors ce qui leur manque (WF-REF-0030, WF-CYC-0120,
-    WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Le rattachement à une autre nature du
-    même type n'est pas une commande : rien ne le rend
-    indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la
-    catégorie. Toutes relèvent de la permission de modification des paramètres de coûts
-    (`cost_settings.write`, WF-ADM-0100).
+    #577), et, `cost_category_without_role` manquante, tant qu'un rôle de ressource, actif ou
+    désactivé, lui est rattaché : une catégorie qui porte des taux horaires, ou à laquelle un rôle
+    est rattaché, ne quitte pas la main-d'œuvre (WF-REF-0040, WF-REF-0090). La désactivation et
+    la réactivation sont toujours disponibles : la dernière catégorie active de type provision
+    pour risques se désactive comme une autre, la création d'un projet et la déclaration d'un
+    risque nommant alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p,
+    qui retire la règle de #578). Le rattachement à une autre nature du même type n'est pas une
+    commande : rien ne le rend indisponible, employée ou non, et il se fait par
+    `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de
+    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
 
 CostCategoryCommandAvailability:
   type: object
@@ -514,7 +531,8 @@ CostCategoryCommands:
     commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
     catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit
     la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est
-    employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré
+    employée, ni si elle porte des taux, ni si un rôle lui est rattaché (WF-ARC-0020) : la
+    catégorie le dit. Un appel envoyé malgré
     la liste est refusé par son code d'erreur.
   items: { $ref: '#/CostCategoryCommandAvailability' }
 
@@ -592,9 +610,9 @@ CostCategoryWrite:
         désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même,
         `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature
         — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une
-        nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des
-        taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type,
-        elle est toujours permise.
+        nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des
+        taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ;
+        vers une nature du même type, elle est toujours permise.
     accounting_code: { type: string, minLength: 1, maxLength: 20 }
 
 CostCategoryUpdate:

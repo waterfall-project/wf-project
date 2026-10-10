@@ -1198,8 +1198,8 @@
     },
     "roleForm": {
       "create": "New resource role",
-      "createHint": "The label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
-      "modifyHint": "The label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
+      "modifyHint": "The code, unique, the label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
     },
     "calendarForm": {
       "create": "New calendar",
@@ -2010,8 +2010,11 @@
       "calendar_not_default": "calendar other than the default one",
       "calendar_active": "calendar active",
       "cost_type_unused": "no category of the nature employed",
+      "cost_type_unrated": "no category of the nature bearing an hourly rate",
+      "cost_type_without_role": "no category of the nature attached to a resource role",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
+      "cost_category_without_role": "category attached to no resource role",
       "last_administrator": "another active account holding the administration permissions",
       "backup_verified": "backup verified",
       "no_backup_running": "no backup running",

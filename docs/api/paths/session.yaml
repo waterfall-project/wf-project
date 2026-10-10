@@ -222,6 +222,18 @@
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '422':
+        description: >-
+          Une largeur de colonne plus étroite que la plus petite admise, vingt points
+          (`GridPreferences`) : `VALIDATION_FAILED`, `fields` désignant
+          `/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `20`, la seule borne franchie, comme toute borne d'une
+          écriture (WF-IHM-0060). Rien n'est enregistré.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              column_width_out_of_range: { $ref: ../../../fixtures/api/preferences_column_width_out_of_range.json }
 
 /me/password:
   put:

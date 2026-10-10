@@ -1,0 +1,18 @@
+{
+  "summary": "Une catégorie de main-d'œuvre qu'aucune ligne n'emploie et qui ne porte aucun taux, à laquelle seul l'automaticien, désactivé, est rattaché, passée sous les débours : refusé, une catégorie à laquelle un rôle de ressource est rattaché ne quittant pas la main-d'œuvre, comme sa commande change_cost_type le disait ; le refus nomme l'automaticien par son identifiant, son code et son libellé, que l'écran des paramètres de coûts ne lit pas, à rattacher d'abord à une autre catégorie de main-d'œuvre ; rien n'est écrit. Une variante contrefactuelle : aucune catégorie de main-d'œuvre du témoin n'est sans taux, et l'automaticien y est rattaché à l'ingénierie électrique, employée et qui porte des taux (WF-REF-0040, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "cost_category_without_role",
+      "resource_roles": [
+        {
+          "resource_role_id": "01926f3a-7c00-7000-8000-000000000453",
+          "code": "AUTOM",
+          "label": "Automaticien"
+        }
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001113"
+  }
+}

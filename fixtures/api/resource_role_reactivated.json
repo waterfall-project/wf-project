@@ -2,6 +2,7 @@
   "summary": "L'automaticien réactivé aujourd'hui, à partir de la version lue : actif de nouveau, sa version avancée d'une, rattaché au même nœud, à la même catégorie et à la semaine de trente-neuf heures, qui reste désactivée ; actif, il porte la commande qui le désactive (WF-REF-0150, WF-IHM-0090).",
   "value": {
     "resource_role_id": "01926f3a-7c00-7000-8000-000000000453",
+    "code": "AUTOM",
     "label": "Automaticien",
     "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
     "org_node_label": "Bureau d'études électricité",

@@ -293,21 +293,21 @@ describe("the refusals by field of the server", () => {
 });
 
 describe("the type of a nature, as its commands say it", () => {
-  it("presents fixed the type of a nature whose category is employed, saying the condition it lacks, and sends it as it is [WF-REF-0030-A] [WF-IHM-0090-A]", async () => {
+  it("presents fixed the type of a nature whose category is employed, rated and a role's, saying the conditions it lacks, and sends it as it is [WF-REF-0030-A] [WF-IHM-0090-A]", async () => {
     const client = serve();
     render(natures());
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Main-d'œuvre\u00a0»" }),
     );
     const form = dialog("Modifier «\u00a0Main-d'œuvre\u00a0»");
-    // La modification du type est refusée pour une nature dont une catégorie est employée : the
-    // form offers no other type, and says why.
+    // La modification du type est refusée pour une nature dont une catégorie est employée, porte un
+    // taux ou est rattachée à un rôle de ressource : the form offers no other type, and says why.
     expect(within(form).queryByRole("combobox", { name: "Type" })).toBeNull();
     const type = within(form).getByRole("textbox", { name: "Type" });
     expect(type).toHaveAttribute("readonly");
     expect(type).toHaveValue("Main-d’œuvre");
     expect(type).toHaveAccessibleDescription(
-      "Le type ne se modifie pas. Condition non remplie\u00a0: aucune catégorie de la nature employée.",
+      "Le type ne se modifie pas. Conditions non remplies\u00a0: aucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource.",
     );
     expect(form).toHaveAccessibleDescription(
       "Le code, unique, et le libellé sont requis\u202f; le type de cette nature ne se modifie pas.",
@@ -409,6 +409,33 @@ describe("the nature of a category, as its commands say it", () => {
     expect(held.shown).toEqual(["Choisir…", "DEB · Débours"]);
     expect(held.nature).toHaveAccessibleDescription(
       "Seules les natures du même type sont proposées. Condition non remplie\u00a0: catégorie employée par aucune ligne.",
+    );
+  });
+
+  it("offers a labour category that roles are attached to the natures of its type alone, saying the three conditions it lacks [WF-REF-0040-A] [WF-IHM-0090-A]", async () => {
+    serve();
+    const engineering = volumes.find((category) => category.code === "MO-001");
+    if (engineering === undefined) {
+      throw new Error("the volumes hold the electrical engineering");
+    }
+    render(categoryList([engineering], ACTIVE));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Modifier «\u00a0Ingénierie électrique\u00a0»" }),
+    );
+    const nature = within(dialog("Modifier «\u00a0Ingénierie électrique\u00a0»")).getByRole(
+      "combobox",
+      { name: "Nature" },
+    );
+    // Le rattachement d'une catégorie employée à une nature d'un autre type est refusé, de même que
+    // celui d'une catégorie qui porte un taux, ou à laquelle un rôle de ressource est rattaché, à une
+    // nature hors main-d'œuvre. The roles the refusal names (EP-14/L42r) are the next lot's to say.
+    expect(
+      within(nature)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Choisir…", "MO · Main-d'œuvre"]);
+    expect(nature).toHaveAccessibleDescription(
+      "Seules les natures du même type sont proposées. Conditions non remplies\u00a0: catégorie employée par aucune ligne, catégorie sans taux horaire et catégorie rattachée à aucun rôle de ressource.",
     );
   });
 

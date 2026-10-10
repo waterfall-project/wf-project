@@ -8,11 +8,11 @@
  *   null —: a node, active or not, takes place under an active one alone (WF-REF-0070), the parent
  *   it has kept even deactivated; never under itself nor under one of its descendants, which it
  *   takes along;
- * - a resource role by its name, its node, its category of labour and its calendar — the three
- *   attachments required, among the active objects (WF-REF-0090) — and its single capacity, the hours
- *   a month and the headcount they stand for (WF-REF-0100); its node is set at its creation, a role
- *   being recreated under another rather than moved (§3.4.4.2.1): its modification names it, and
- *   leaves it;
+ * - a resource role by its code, unique (EP-14/L42r), its name, its node, its category of labour and
+ *   its calendar — the three attachments required, among the active objects (WF-REF-0090) — and its
+ *   single capacity, the hours a month and the headcount they stand for (WF-REF-0100); its node is
+ *   set at its creation, a role being recreated under another rather than moved (§3.4.4.2.1): its
+ *   modification names it, and leaves it;
  * - a calendar by its name and its seven values of hours, from Monday, and nothing else
  *   (WF-REF-0110).
  *
@@ -313,6 +313,7 @@ export function ResourceRoleDialog({
     number("capacity/headcount", columns("headcount")),
   ];
   const written = (values: Draft) => ({
+    code: values.code ?? "",
     label: values.label ?? "",
     cost_category_id: values.cost_category_id ?? "",
     calendar_id: values.calendar_id ?? "",
@@ -332,6 +333,8 @@ export function ResourceRoleDialog({
       }
       creating={role === undefined}
       fields={[
+        // The code, unique among the roles, deactivated ones counted (WF-REF-0090, EP-14/L42r).
+        required("code", columns("code"), CODE_LENGTH),
         required("label", columns("label"), LABEL_LENGTH),
         // The node is set at the creation: a role is recreated under another (§3.4.4.2.1).
         ...(role === undefined
@@ -343,6 +346,7 @@ export function ResourceRoleDialog({
         role === undefined
           ? {}
           : {
+              code: role.code,
               label: role.label,
               cost_category_id: role.cost_category_id,
               calendar_id: role.calendar_id,

@@ -10,7 +10,8 @@ module makes their examples, under ``volume/``:
 - ``cost_categories.json``, ``listCostCategories``: the categories read whole, by code, by the
   largest page the contract takes, each with the command that deactivates it and the one that
   moves it under a nature of another kind — unavailable for a category a line of the witness bears,
-  or that bears hourly rates (`CostCategoryCommand`, EP-02/L42g);
+  that bears hourly rates (`CostCategoryCommand`, EP-02/L42g), or that a role is attached to
+  (EP-14/L42r);
   ``cost_categories_page.json``, their second page; ``cost_categories_reader.json``, the same read
   by a session that may not modify the cost settings — no command;
 - ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid read whole, by the largest page;
@@ -64,6 +65,9 @@ CHANGE_COST_TYPE = "change_cost_type"
 UNUSED, UNRATED = "cost_category_unused", "cost_category_unrated"
 """The conditions the move misses: a category a line bears, a category that bears hourly rates."""
 
+WITHOUT_ROLE = "cost_category_without_role"
+"""The condition the move misses for a category a resource role is attached to (WF-REF-0040)."""
+
 _count, _amount, _example = mocktext.count, mocktext.amount, mocktext.example
 
 
@@ -81,18 +85,25 @@ def commands(command: str, missing: Sequence[str] = ()) -> list[JsonValue]:
     ]
 
 
-def category_commands(category: JsonObject, employed: set[str], rated: set[str]) -> list[JsonValue]:
+def category_commands(
+    category: JsonObject, employed: set[str], rated: set[str], attached: set[str]
+) -> list[JsonValue]:
     """Return the commands of a category: the one that changes its state, then its move.
 
     The move under a nature of another kind misses `cost_category_unused` while a line bears the
-    category, and `cost_category_unrated` while it bears hourly rates (WF-REF-0040, WF-REF-0050).
-    Its state always changes: the last active category of provision for risks goes as any other,
-    the rule of #578 withdrawn (WF-REF-0030, WF-CYC-0120, WF-RIS-0010; EP-14/L42p).
+    category, `cost_category_unrated` while it bears hourly rates, and `cost_category_without_role`
+    while a resource role, active or not, is attached to it (WF-REF-0040, WF-REF-0050) — in that
+    order. Its state always changes: the last active category of provision for risks goes as any
+    other, the rule of #578 withdrawn (WF-REF-0030, WF-CYC-0120, WF-RIS-0010; EP-14/L42p).
     """
     identifier = cast("str", category["cost_category_id"])
     missing = [
         condition
-        for condition, held in ((UNUSED, identifier in employed), (UNRATED, identifier in rated))
+        for condition, held in (
+            (UNUSED, identifier in employed),
+            (UNRATED, identifier in rated),
+            (WITHOUT_ROLE, identifier in attached),
+        )
         if held
     ]
     state = commands("deactivate" if category["is_active"] is True else "reactivate")
@@ -109,6 +120,14 @@ def employed() -> set[str]:
         for row in mockcore.core()
         if row.kind == mockcore.ESTIMATE_LINE
     }
+
+
+def attached(roles: Sequence[JsonValue]) -> set[str]:
+    """Return the categories the resource roles given are attached to, deactivated roles counted.
+
+    A deactivated role keeps its category, and reactivates without a look at it (WF-REF-0090).
+    """
+    return {cast("str", role["cost_category_id"]) for role in cast("list[JsonObject]", roles)}
 
 
 def rated(grid: JsonObject) -> set[str]:
@@ -216,8 +235,10 @@ def _said(row: JsonObject, years: Sequence[int], year: int) -> str:
 def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObject]:
     """Return the examples of the categories and of the grid of rates, by file name."""
     lines, bearing = employed(), rated(grid)
+    roles = attached(cast("list[JsonValue]", fixture("resource_roles")["items"]))
     listed: list[JsonValue] = [
-        commanded(entry, category_commands(entry, lines, bearing)) for entry in by_code(categories)
+        commanded(entry, category_commands(entry, lines, bearing, roles))
+        for entry in by_code(categories)
     ]
     years = cast("list[int]", grid["years"])
     rows = cast("list[JsonValue]", grid["rows"])
@@ -237,7 +258,8 @@ def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObj
             f"lues en une page de {_count(MAX_LIMIT)}, comme une liste de choix les lit, chacune "
             f"avec la commande qui la désactive et celle qui la rattache à une nature d'un autre "
             f"type, indisponible pour les {_count(len(lines))} que le devis du projet témoin "
-            f"emploie et pour les {_count(len(bearing))} qui portent des taux horaires ; "
+            f"emploie, pour les {_count(len(bearing))} qui portent des taux horaires et pour les "
+            f"{_count(len(roles))} auxquelles un rôle de ressource est rattaché ; "
             f"chacune se désactive, la dernière de type provision pour risques comme les autres "
             f"(WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-IHM-0090).",
             page(listed, MAX_LIMIT, 0),

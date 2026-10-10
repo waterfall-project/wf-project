@@ -330,6 +330,7 @@ _KEYS = {
     "correlation_id": ("corrélations", "corrélations, suite", "corrélations engendrées"),
     "conflicting_object_id": (
         "nœuds d'organisation",
+        "rôles de ressources",
         "natures de coût",
         "catégories de coût",
         "projets",
