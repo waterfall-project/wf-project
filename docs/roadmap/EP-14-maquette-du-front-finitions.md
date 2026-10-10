@@ -537,6 +537,25 @@ que l'installation ne déclare plus le garde offert, par son nom, refusé au cha
 que de retirer la copie en silence. Une réponse tardive ne ferme que le dialogue d'où elle est partie
 (revue 1, #660). L'état suspendu se dit « Suspendue » et non plus « Désactivée », comme le contrat le nomme.
 
+EP-14/L42m (#663), lot de contrat ajouté le 2026-10-10, ferme deux constats de #507. Pour #628, la
+date qu'énonce la confirmation d'une restauration depuis une sauvegarde déposée est l'instant que
+porte son archive, lu au dépôt et rendu par lui (`FileUpload.backup_taken_at`, nul pour le fichier
+d'un import), auquel `startRestore` compare la date confirmée, refusée comme pour une sauvegarde de
+la liste (`BACKUP_DATE_MISMATCH`) ; une archive sans instant lisible est refusée au dépôt
+(`FILE_FORMAT_UNREADABLE`, sans paramètre) — écartée, la date attendue rendue par le seul refus de
+`startRestore`, que la confirmation n'aurait connue qu'après coup. Pour #659,
+`updateReferenceSettings` refuse un délai hors de 1 à 104 semaines par `VALUE_OUT_OF_RANGE`, la
+borne franchie, et un seuil hors de ]0, 1[ par un motif propre aux seuils,
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre — une décision de l'agent de livraison à la
+relecture : restreindre le seuil à deux décimales pour nommer des bornes admises aurait restreint
+WF-REF-0170 ; et la réponse de la matrice met en alerte la case de la plus faible probabilité et de
+la plus forte gravité, celle que le test du formulaire de L43e change. Le jumeau du refus hors plage
+pour les sauvegardes, relevé par la relecture de L43d, suit : `setBackupSchedule` refuse de même une
+rétention hors de 1 à 365, sur la plateforme ou sur l'emplacement externe. Les choix et les options
+écartées sont dans `docs/api/DECISIONS.md`. Le front reçoit la phrase du nouveau motif et compile sur
+le client régénéré ; les tests que #659 annonce — un délai de zéro refusé au champ, la zone répondue
+vérifiée — et la restauration depuis un fichier, avec la date du dépôt (L43d), viennent ensuite.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

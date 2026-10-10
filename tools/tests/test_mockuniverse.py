@@ -497,6 +497,50 @@ def test_the_copies_outside_the_platform_keep_at_least_its_retention() -> None:
     assert refused["params"]["minimum"] == fixture("backup_schedule")["retained_count"]
 
 
+def _retention_bounds(schema: str) -> tuple[int, int]:
+    text = (REPOSITORY / "docs" / "api" / "components" / "schemas" / "platform.yaml").read_text(
+        encoding="utf-8"
+    )
+    block = text.split(f"\n{schema}:\n", 1)[1].split("\n\n", 1)[0]
+    found = re.search(
+        r"\n    retained_count:\n      type: integer\n      minimum: (\d+)\n"
+        r"      maximum: (\d+)\n",
+        block,
+    )
+    assert found is not None, schema
+    return int(found[1]), int(found[2])
+
+
+def test_a_retention_out_of_its_range_is_refused_with_the_one_bound_it_crosses() -> None:
+    # EP-14/L42m: the twin of #659 for the backups. Each retention the schedule publishes, on the
+    # platform and on the location, is refused out of its bounds by VALUE_OUT_OF_RANGE, the bound
+    # crossed that of the schema; every schedule of the examples keeps within them.
+    platform, copy = _retention_bounds("BackupSchedule"), _retention_bounds("BackupExternalCopy")
+    assert platform == copy == (1, 365)
+    refused = fixture("backup_schedule_retention_out_of_range")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert [(f["pointer"], f["code"], f["params"]) for f in refused["fields"]] == [
+        ("/retained_count", "VALUE_OUT_OF_RANGE", {"minimum": platform[0]}),
+        ("/external_copy/retained_count", "VALUE_OUT_OF_RANGE", {"maximum": copy[1]}),
+    ]
+    for name in (
+        "backup_schedule",
+        "backup_schedule_disabled",
+        "backup_schedule_weekly",
+        "backup_schedule_set",
+    ):
+        schedule = fixture(name)
+        assert platform[0] <= schedule["retained_count"] <= platform[1], name
+        if "external_copy" in schedule:
+            assert copy[0] <= schedule["external_copy"]["retained_count"] <= copy[1], name
+    # Cited under the 422 of the operation, after the refusal the fake back serves first.
+    text = (REPOSITORY / "docs" / "api" / "paths" / "platform.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: setBackupSchedule\n", 1)[1].split("operationId:", 1)[0]
+    cited = re.findall(r"fixtures/api/(\w+)\.json", block.split("'422':", 1)[1])
+    assert cited[0] == "backup_schedule_unknown_location"
+    assert cited[-1] == "backup_schedule_retention_out_of_range"
+
+
 def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
     # The copy of a scheduled backup is made after it; a night without a backup has no copy, and
     # the last one is the day before's.
@@ -511,6 +555,81 @@ def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
             assert copied == status["last_backup"]["at"], name
         else:
             assert copied < status["last_backup"]["at"], name
+
+
+def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_its_instant() -> None:
+    # EP-14/L42m (#628): the deposit reads in the archive the instant it bears, the date the
+    # confirmation of the restore states (WF-ADM-0160). The copy deposited is one the location of
+    # Lyon keeps and the platform no longer does: a scheduled night, older than the list, within
+    # the thirty copies of the schedule; named and sized as the platform writes its backups.
+    deposited = fixture("file_upload_external_backup")
+    taken = _instant(deposited["backup_taken_at"])
+    assert deposited["purpose"] == "external_backup"
+    assert deposited["filename"] == f"waterfall-backup-{taken:%Y%m%dT%H%M%SZ}.tar"
+    assert deposited["size_bytes"] <= fixture("installation")["external_backup_max_bytes"]
+    schedule = fixture("backup_schedule")
+    scheduled = sorted(
+        _instant(each["taken_at"])
+        for each in fixture("backups")["items"]
+        if each["origin"] == "scheduled"
+    )
+    assert taken < scheduled[0]
+    assert TODAY - taken <= timedelta(days=schedule["external_copy"]["retained_count"])
+    assert taken.time() == scheduled[0].time()
+    # The nights of the list grow by one step a day; the copy of an older night is on that line.
+    sizes = [
+        each["size_bytes"]
+        for each in sorted(fixture("backups")["items"], key=lambda each: each["taken_at"])
+        if each["origin"] == "scheduled"
+    ]
+    [daily] = {later - earlier for earlier, later in pairwise(sizes)}
+    assert deposited["size_bytes"] == sizes[0] - daily * (scheduled[0] - taken).days
+    assert _instant(deposited["uploaded_at"]) <= TODAY
+    # The file of an import has no date of backup.
+    assert fixture("file_upload")["backup_taken_at"] is None
+
+
+def _block_of(operation: str, file: str) -> str:
+    text = (REPOSITORY / "docs" / "api" / "paths" / file).read_text(encoding="utf-8")
+    return text.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
+
+
+def test_a_confirmation_that_is_not_the_instant_of_the_deposit_is_refused_at_its_field() -> None:
+    # The refusal of a backup of the list (`restore_date_mismatch`, EP-14/L42h), for a deposit:
+    # the date confirmed is the one of a backup of the list, not the instant the archive bears.
+    refused = fixture("restore_external_date_mismatch")
+    assert set(refused) == {"code", "status", "fields", "correlation_id"}
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [
+        {"pointer": "/acknowledged_backup_taken_at", "code": "BACKUP_DATE_MISMATCH"}
+    ]
+    assert fixture("restore_date_mismatch")["fields"] == refused["fields"]
+    listed = {each["taken_at"] for each in fixture("backups")["items"]}
+    assert fixture("file_upload_external_backup")["backup_taken_at"] not in listed
+    assert "fixtures/api/restore_external_date_mismatch.json" in _block_of(
+        "startRestore", "platform.yaml"
+    )
+
+
+def test_a_restore_on_the_deposit_of_an_import_is_refused_by_its_purpose_alone() -> None:
+    # The date compares only to the deposit of a backup: the deposit of an import has none
+    # (`backup_taken_at` null), and its refusal names the deposit, never the date confirmed.
+    assert fixture("file_upload")["purpose"] == "import"
+    assert fixture("file_upload")["backup_taken_at"] is None
+    refused = fixture("restore_upload_purpose_mismatch")
+    assert refused["fields"] == [
+        {"pointer": "/external_backup_upload_id", "code": "UPLOAD_PURPOSE_MISMATCH"}
+    ]
+
+
+def test_a_deposited_archive_whose_instant_does_not_read_is_refused_without_parameter() -> None:
+    # No kind of exchange names the format of the backups: `expected_format` stays absent.
+    unreadable = fixture("file_upload_backup_unreadable")
+    assert set(unreadable) == {"code", "status", "correlation_id"}
+    assert (unreadable["status"], unreadable["code"]) == (422, "FILE_FORMAT_UNREADABLE")
+    upload = _block_of("uploadFile", "exchanges.yaml")
+    for name in ("file_upload", "file_upload_external_backup", "file_upload_backup_unreadable"):
+        assert f"fixtures/api/{name}.json" in upload, name
 
 
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:

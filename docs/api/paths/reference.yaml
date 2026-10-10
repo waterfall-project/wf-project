@@ -100,13 +100,21 @@
           `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un
           seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice,
           `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par
-          `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170). Rien n'est écrit.
+          `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170) ; un seuil qui n'est pas un décimal (motif
+          de `Decimal`), `/index_thresholds/<seuil>` par `NUMBER_INVALID` ; un décimal hors de
+          ]0, 1[, que le motif d'`IndexThreshold` refuse, `/index_thresholds/<seuil>` par
+          `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre (WF-REF-0170) ; un délai entre
+          deux revues hors de `1` à `104` semaines, `/max_weeks_between_reviews` par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie
+          (WF-REF-0180). La forme d'un seuil se juge avant sa plage, et l'ordre des seuils
+          seulement entre seuils dans ]0, 1[. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               bounds_not_ordered: { $ref: ../../../fixtures/api/reference_settings_bounds_refused.json }
               thresholds_not_below_watch: { $ref: ../../../fixtures/api/reference_settings_thresholds_refused.json }
+              out_of_range: { $ref: ../../../fixtures/api/reference_settings_out_of_range.json }
 
 /reference/org-nodes:
   get:

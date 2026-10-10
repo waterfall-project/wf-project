@@ -1627,6 +1627,7 @@
     "BACKUP_DATE_MISMATCH": "The confirmed date is not that of the backup named.",
     "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
+    "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",

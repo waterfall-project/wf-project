@@ -1,0 +1,21 @@
+{
+  "summary": "Les seuils et le délai écrits aujourd'hui avec la vigilance de l'indice de coût à 1 et zéro semaine entre deux revues : le seuil est refusé, n'étant pas strictement compris entre 0 et 1, et le délai au-dessous du plus petit délai admis, une semaine, désigné avec la borne franchie ; rien n'est écrit (WF-REF-0170, WF-REF-0180).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/index_thresholds/cost_watch",
+        "code": "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE"
+      },
+      {
+        "pointer": "/max_weeks_between_reviews",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001071"
+  }
+}

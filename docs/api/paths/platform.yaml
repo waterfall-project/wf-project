@@ -236,7 +236,10 @@
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
       '200':
-        description: Contenu de la sauvegarde, en pièce jointe nommée, de la longueur qu'elle dit.
+        description: >-
+          Contenu de la sauvegarde, en pièce jointe nommée, de la longueur qu'elle dit.
+          L'archive porte l'instant de sa sauvegarde (`Backup.taken_at`), que le dépôt d'une
+          restauration relit (`uploadFile`, WF-ADM-0160).
         headers:
           Content-Disposition:
             required: true
@@ -330,8 +333,11 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Une copie externe refusée, `VALIDATION_FAILED`, `fields` désignant le champ en
-          défaut : un emplacement que l'installation ne déclare pas
+          Une planification refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en
+          défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur
+          l'emplacement (`/external_copy/retained_count`), `VALUE_OUT_OF_RANGE`,
+          `params.minimum` ou `maximum` la seule borne franchie (WF-ADM-0170) ; et, pour la
+          copie externe, un emplacement que l'installation ne déclare pas
           (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est
           pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une
           rétention moindre que celle de la plateforme (`/external_copy/retained_count`,
@@ -343,6 +349,7 @@
               unknown_location: { $ref: ../../../fixtures/api/backup_schedule_unknown_location.json }
               path_invalid: { $ref: ../../../fixtures/api/backup_schedule_path_invalid.json }
               retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
+              retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
 
 /external-backup-locations:
   get:
@@ -430,7 +437,9 @@
       (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker
       (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit
       d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration
-      en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422.
+      en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422 :
+      celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que
+      le dépôt a lue dans son archive (`FileUpload.backup_taken_at`).
       Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des
       utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en
       déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre
@@ -470,13 +479,17 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant le champ en défaut : une date confirmée qui
-          n'est pas celle de la sauvegarde désignée, `/acknowledged_backup_taken_at` par
-          `BACKUP_DATE_MISMATCH` (WF-ADM-0160) ; un dépôt qui n'a pas été fait pour une
-          restauration — le fichier d'un import (`FileUploadPurpose`) —,
-          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. Rien n'est mis en file.
+          n'est pas celle de la sauvegarde désignée — de la liste (`Backup.taken_at`) ou déposée
+          (`FileUpload.backup_taken_at`) —, `/acknowledged_backup_taken_at` par
+          `BACKUP_DATE_MISMATCH`, sans paramètre (WF-ADM-0160) ; un dépôt qui n'a pas été fait
+          pour une restauration — le fichier d'un import (`FileUploadPurpose`) —,
+          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`, seul : la date ne se
+          compare qu'à un dépôt de sauvegarde, le dépôt d'un import n'en ayant pas
+          (`backup_taken_at` nul). Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_mismatch: { $ref: ../../../fixtures/api/restore_date_mismatch.json }
+              external_date_mismatch: { $ref: ../../../fixtures/api/restore_external_date_mismatch.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }

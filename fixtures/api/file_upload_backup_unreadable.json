@@ -1,0 +1,8 @@
+{
+  "summary": "Un fichier déposé aujourd'hui pour une restauration dont l'archive ne porte pas l'instant d'une sauvegarde de Waterfall : le dépôt est refusé, sans format nommé, aucune nature d'échange n'étant celle des sauvegardes ; rien n'est déposé (WF-ADM-0160).",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001070"
+  }
+}

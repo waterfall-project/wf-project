@@ -139,15 +139,19 @@ Problem:
         `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur
         admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un
         champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
-        plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop
+        plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux
+        revues, au moins `1` semaine, ou la probabilité de gain et le taux d'inflation d'un
+        projet, au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop
         grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
-        portefeuille postérieur à la fin que le serveur a complétée, ou la probabilité de gain et
-        le taux d'inflation d'un projet, de `0` à `1`), `component` (un `PlatformComponent`,
+        portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
+        le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
+        le délai entre deux revues, au plus `104` semaines), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
-        fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
-        WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche
-        sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
+        fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
+        WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas
+        (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui
+        laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
         calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
         tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son
         nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par
@@ -311,6 +315,9 @@ ErrorCode:
     # Un seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice
     # (`IndexThresholds`, WF-REF-0170) ; le pointeur désigne le seuil d'alerte.
     - THRESHOLD_NOT_BELOW_WATCH
+    # Un seuil d'indice qui n'est pas strictement compris entre 0 et 1 (`IndexThreshold`,
+    # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
+    - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
     # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la

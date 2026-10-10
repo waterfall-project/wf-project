@@ -16,7 +16,11 @@
       `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
       que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le
       champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`,
-      `startRestore`).
+      `startRestore`). Le dépôt d'une sauvegarde lit dans son archive l'instant qu'elle porte,
+      celui de la sauvegarde dont elle est la copie, et le rend (`backup_taken_at`) : c'est la
+      date que la confirmation de la restauration énonce et que `startRestore` compare à la
+      date confirmée (WF-ADM-0160) ; une archive dont l'instant ne se lit pas n'est pas une
+      sauvegarde de Waterfall, et le dépôt est refusé.
     requestBody:
       required: true
       content:
@@ -35,8 +39,20 @@
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
             examples:
               estimate: { $ref: ../../../fixtures/api/file_upload.json }
+              external_backup: { $ref: ../../../fixtures/api/file_upload_external_backup.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422':
+        description: >-
+          Une sauvegarde déposée (`external_backup`) dont l'archive ne porte pas d'instant
+          lisible : `FILE_FORMAT_UNREADABLE`, sans paramètre — le format attendu est celui des
+          sauvegardes de l'installation, qu'aucune nature d'échange ne nomme (WF-ADM-0160).
+          Rien n'est déposé. Le fichier d'un import n'est lu qu'à l'analyse (`openImport`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              backup_unreadable: { $ref: ../../../fixtures/api/file_upload_backup_unreadable.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports:
