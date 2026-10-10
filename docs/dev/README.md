@@ -160,8 +160,9 @@ une page : Waterfall n'a ni formulaire de connexion, ni liste de fournisseurs, n
 oublié, le fournisseur d'identité tenant ses écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui
 accorde la session, il mène droit à l'écran visé (`returnTarget(next)`,
 `frontend/src/navigation/login.ts`) — sans lui, ou hors du front, l'accueil — : le layout relit la
-session, et le suivi reprend les tâches qu'une session perdue avait interrompues ; hors de ce mode
-il répond 501 jusqu'à US-0350/L4, qui en fait le départ du flux OIDC. La session est
+session, et le suivi reprend les tâches qu'une session perdue avait interrompues. Hors de ce mode,
+il démarre le flux du code d'autorisation du royaume `waterfall` (US-0350) — voir « La session du
+front » ci-dessous. La session est
 `getMe` (`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses
 permissions. Un 401 `ACCOUNT_DEACTIVATED` n'est pas une session absente : l'écran le dit (la
 panne `failure.deactivated`, le refus d'une action), et ne renvoie pas à la connexion, qui
@@ -171,6 +172,38 @@ illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ou
 menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
 une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que si elle est
 rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au déclencheur.
+
+**La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
+(WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
+`wf_session` porte seul (`HttpOnly`, `Secure`, `SameSite=Lax`, sans échéance). `/login?next=…`
+tire un `state`, un nonce et un vérificateur PKCE (S256), les garde dans Redis avec l'écran visé
+— déjà passé par `returnTarget` — quinze minutes au plus, et envoie le navigateur à la page de
+connexion de Keycloak ; `/auth/callback` reprend la demande par son `state`, une seule fois,
+échange le code, vérifie le nonce du jeton d'identité, ouvre la session — ses jetons dans Redis
+pour la durée que Keycloak donne à sa session, `refresh_expires_in` — et mène à l'écran visé,
+son adresse entière ; un `state` inconnu, déjà employé ou trop vieux recommence la connexion.
+`serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
+chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
+de trente secondes, sous un verrou Redis par session, pour que deux requêtes ne présentent jamais
+le même jeton de rafraîchissement ; un rafraîchissement refusé ferme la session. Sans session
+vivante, la requête part sans jeton, et l'API la refuse (401) : une lecture mène à la connexion,
+une écriture n'est pas appliquée et l'écran le dit. La déconnexion (`signOut`) ferme les sessions
+du compte par `closeMySessions`, puis efface celles que le front garde de ce compte et le témoin,
+sans attendre Keycloak ; Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
+désactivation, retrait des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du
+front et non une opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume
+et efface les sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts`
+(`openid-client`, `jose`) et `src/session/store.ts` (`@redis/client`) atteignent Keycloak et
+Redis : ESLint refuse ces bibliothèques ailleurs (`src/api/network-guard.test.ts`).
+
+Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
+navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;
+`WATERFALL_KEYCLOAK_BACKCHANNEL`, celle par laquelle le serveur de Next l'atteint, la même par
+défaut ; `WATERFALL_FRONT_ADDRESS`, l'adresse du front, sous laquelle est l'adresse de retour ;
+`WATERFALL_FRONT_CLIENT_SECRET`, le secret du client `waterfall-front` ; `WATERFALL_REDIS_URL`,
+le Redis des sessions. Une variable qui manque fait échouer la première connexion, en la nommant ;
+`next build` et le mode `mock` n'en lisent aucune. `openid-client` refuse toute adresse de
+Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise.
 
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
@@ -1533,6 +1566,7 @@ les migrations et les verrous.
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — voir ci-dessous.
 - **Un test contre PostgreSQL** — voir ci-dessous.
+- **Un test contre Redis** — voir ci-dessous.
 
 Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
 retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
@@ -1591,6 +1625,25 @@ lignes — de toutes les tables que la `Base` déclare — sont supprimées apr�
 - Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
   sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
   processus à la fois.
+
+### Un test contre Redis
+
+La session du front se teste contre un vrai Redis, jamais un double : la variable
+`WATERFALL_TEST_REDIS_URL` le désigne (`redis://127.0.0.1:6379/0`), et `withTestRedis()`
+(`frontend/src/test/session.ts`) y pointe le magasin des sessions pour la durée d'un fichier de
+test. Chaque clé est tirée au hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et
+les clés expirent d'elles-mêmes.
+
+- **Dans la chaîne**, `front.yml` démarre Redis en service du travail et pose la variable.
+- **Sur un poste**, un Redis jetable suffit :
+  `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
+- **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
+  silence.
+
+Keycloak, lui, n'est pas dans les tests du front : `frontend/src/test/identity-provider.ts` répond
+au serveur de Next comme le royaume `waterfall` — code à usage unique pour son vérificateur, jeton
+de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui —, et
+`make test-keycloak` prouve, contre le vrai royaume, ce que ce double reprend.
 
 ### Un parcours de bout en bout
 

@@ -5,15 +5,19 @@
  *
  * The address comes from `WATERFALL_API_ADDRESS`: the fake back in development and in the
  * end-to-end tests, the real service from EP-03. The contract guards its operations by a
- * bearer token; `WATERFALL_AUTH=mock` is the mode of the fake back, which grants the session
- * the mock-up starts from: the server of Next sends a fixed token (`MOCK_TOKEN`), which the
- * browser never holds. The mode is refused in a production build, except in the end-to-end
+ * bearer token, which only the server of Next holds — the browser holds none (WF-ARC-0030):
+ * against the service, the access token of the session of the request, found in Redis under its
+ * cookie and refreshed when it expires (`src/session/tokens.ts`); `WATERFALL_AUTH=mock` is the
+ * mode of the fake back, which grants the session the mock-up starts from: a fixed token
+ * (`MOCK_TOKEN`). The mode is refused in a production build, except in the end-to-end
  * harness, which builds the front for production to measure it and says so with
  * `WATERFALL_E2E=1`. Nothing else tells the fake back and the real service apart.
  * Only the server of Next imports it (§4.3.1): ESLint refuses it in a client component, and
  * `server-only` fails the build of one.
  */
 import "server-only";
+
+import { requestBearer } from "@/session/tokens";
 
 import { type ApiClient, createApiClient } from "./client";
 
@@ -38,10 +42,13 @@ export function isMockAuthentication(): boolean {
   return true;
 }
 
-/** Make a client of the API at the configured address. */
+/**
+ * Make a client of the API at the configured address: the one place that carries the token of
+ * the session to the API.
+ */
 export function serverClient(): ApiClient {
   return createApiClient({
     address: process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS,
-    ...(isMockAuthentication() ? { token: MOCK_TOKEN } : {}),
+    bearer: isMockAuthentication() ? () => MOCK_TOKEN : requestBearer,
   });
 }

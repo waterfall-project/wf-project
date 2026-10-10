@@ -15,10 +15,14 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 
 import { Shell } from "./shell";
 
-// The server of Next, as far as signing out needs it: the fake back behind serverClient.
+// The server of Next, as far as signing out needs it: the fake back behind serverClient, which
+// grants its own session (`WATERFALL_AUTH=mock`).
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 
-vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("@/api/server", () => ({
+  serverClient: () => server.client,
+  isMockAuthentication: () => true,
+}));
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),

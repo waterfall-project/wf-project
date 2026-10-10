@@ -64,6 +64,22 @@ const NETWORK_MODULES = [
   "node:http2",
 ];
 
+// What the server of Next reaches besides the API, for the session of the front (US-0350): the
+// identity provider, by openid-client and jose, which fetch its endpoints and its keys, and
+// Redis, where the sessions are kept — with the libraries they are made of, or would be
+// replaced by. Each through one module of src/session/, which wraps it: nowhere else.
+const SESSION_NETWORK =
+  "Reach the identity provider through src/session/provider.ts, Redis through src/session/store.ts.";
+const SESSION_MODULES = [
+  "openid-client",
+  "oauth4webapi",
+  "jose",
+  "@redis/client",
+  "redis",
+  "ioredis",
+];
+const SESSION_MODULE = `^(${SESSION_MODULES.join("|")})(/.*)?$`;
+
 // A pattern written into an esquery selector: its slashes escaped.
 const inSelector = (pattern) => `/${pattern.replaceAll("/", "\\/")}/`;
 const NETWORK_MODULE = `^(${NETWORK_MODULES.join("|")})(/.*)?$`;
@@ -72,10 +88,15 @@ const NETWORK_MODULE = `^(${NETWORK_MODULES.join("|")})(/.*)?$`;
 // the same modules, by a string or by a template without expressions, is refused by
 // no-restricted-syntax. require() is refused everywhere by
 // @typescript-eslint/no-require-imports, of the strict configuration.
+const dynamicImports = (pattern, message) =>
+  [
+    `ImportExpression[source.value=${inSelector(pattern)}]`,
+    `ImportExpression > TemplateLiteral[expressions.length=0][quasis.0.value.raw=${inSelector(pattern)}]`,
+  ].map((selector) => ({ selector, message }));
 const NETWORK_SYNTAX = [
-  `ImportExpression[source.value=${inSelector(NETWORK_MODULE)}]`,
-  `ImportExpression > TemplateLiteral[expressions.length=0][quasis.0.value.raw=${inSelector(NETWORK_MODULE)}]`,
-].map((selector) => ({ selector, message: NETWORK }));
+  ...dynamicImports(NETWORK_MODULE, NETWORK),
+  ...dynamicImports(SESSION_MODULE, SESSION_NETWORK),
+];
 
 // Only the server of Next calls the API (§4.3.1): a file under the "use client" directive
 // imports nothing of src/api/ but its server actions (src/api/actions/), which Next turns
@@ -266,7 +287,12 @@ export default defineConfig([
       ],
       "no-restricted-imports": [
         "error",
-        { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
+        {
+          patterns: [
+            { regex: NETWORK_MODULE, message: NETWORK },
+            { regex: SESSION_MODULE, message: SESSION_NETWORK },
+          ],
+        },
       ],
       "no-restricted-syntax": [
         "error",
@@ -308,6 +334,24 @@ export default defineConfig([
       "no-restricted-properties": "off",
       "no-restricted-imports": "off",
       "no-restricted-syntax": "off",
+    },
+  },
+  {
+    // The two modules that wrap the identity provider and Redis (SESSION_NETWORK): their own
+    // libraries pass, the rest of the guard holds — no fetch, no client of the API by hand.
+    // Their tests, and the realm of the tests, read Redis and sign tokens as the realm does.
+    files: [
+      "src/session/provider.ts",
+      "src/session/store.ts",
+      "src/session/*.test.ts",
+      "src/app/login/route.test.ts",
+      "src/test/identity-provider.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
+      ],
     },
   },
   {

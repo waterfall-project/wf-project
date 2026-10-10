@@ -29,9 +29,16 @@ export interface ApiClientOptions {
   readonly address: string;
   /** The function that sends requests; the platform's by default. */
   readonly fetch?: (request: Request) => Promise<Response>;
-  /** The bearer token every request carries (`Authorization: Bearer …`); none by default. */
-  readonly token?: string;
+  /**
+   * The bearer token a request carries (`Authorization: Bearer …`), asked for at each request —
+   * the session may have been refreshed or closed in the meantime; none when it gives none, or
+   * without it.
+   */
+  readonly bearer?: Bearer;
 }
+
+/** What gives the token of a request: the session of the front, or the fixed token of the mock. */
+export type Bearer = () => string | undefined | Promise<string | undefined>;
 
 /**
  * The API did not answer at all: `fetch` itself rejected, as it does when the network or the
@@ -75,12 +82,19 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = new URL(API_PREFIX, options.address).toString();
   // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
   const send = options.fetch ?? ((request: Request) => fetch(request));
-  return createClient<paths>({
-    baseUrl,
-    fetch: marking(send),
-    querySerializer: QUERY,
-    ...(options.token === undefined
-      ? {}
-      : { headers: { Authorization: `Bearer ${options.token}` } }),
-  });
+  const client = createClient<paths>({ baseUrl, fetch: marking(send), querySerializer: QUERY });
+  const { bearer } = options;
+  if (bearer !== undefined) {
+    // The first middleware: whatever comes after sees the request as it leaves.
+    client.use({
+      async onRequest({ request }) {
+        const token = await bearer();
+        if (token !== undefined) {
+          request.headers.set("Authorization", `Bearer ${token}`);
+        }
+        return request;
+      },
+    });
+  }
+  return client;
 }
