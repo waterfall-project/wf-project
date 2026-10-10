@@ -17,6 +17,7 @@ from sqlalchemy.sql import Executable
 from support import raw_account
 
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 
@@ -184,3 +185,56 @@ def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_a
         connection.execute(row(default_language="en", avatar_max_bytes=8 * 1024 * 1024))
         stored = connection.execute(text("SELECT installed_at FROM installation")).scalar_one()
     assert stored == good["installed_at"]
+
+
+def write_inscription(**overrides: object) -> Executable:
+    """Give the insertion of an inscription of the journal by hand, with the changes asked for."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "occurred_at": datetime(2026, 10, 9, 12, 0, tzinfo=UTC),
+        "action": "access_role_create",
+        "object_kind": "access_role",
+        "object_id": uuid4(),
+        "object_label": "Auditeur",
+        "params": {},
+        "correlation_id": "req-1",
+    }
+    return insert(AuditEntry).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"action": "access_role_rename"}, "ck_audit_entry_action_known"),
+        ({"object_kind": "task"}, "ck_audit_entry_object_kind_known"),
+        ({"actor_user_id": uuid4()}, "ck_audit_entry_actor_named"),
+        ({"actor_display_name": "Claire Martin"}, "ck_audit_entry_actor_named"),
+        ({"project_id": uuid4(), "project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
+        ({"project_code": "PRJ-001", "project_label": "Poste"}, "ck_audit_entry_project_named"),
+        ({"object_revision_label": "Référence"}, "ck_audit_entry_object_revision_named"),
+        ({"params": ["user_id"]}, "ck_audit_entry_params_object"),
+        ({"correlation_id": "two words"}, "ck_audit_entry_correlation_id_form"),
+        ({"correlation_id": "x" * 65}, "ck_audit_entry_correlation_id_form"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_an_inscription_that_breaks_a_check(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    assert refusal(database, write_inscription(**overrides)) == constraint
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_an_inscription_outlives_the_account_and_the_project_it_names(database: Database) -> None:
+    named = {"actor_user_id": uuid4(), "actor_display_name": "Claire Martin", "project_id": uuid4()}
+    statement = write_inscription(**named, project_code="PRJ-001", project_label="Poste")
+    with database.engine.begin() as connection:
+        connection.execute(statement)
+        foreign_keys = connection.execute(
+            text(
+                "SELECT count(*) FROM pg_constraint WHERE conrelid = 'audit_entry'::regclass "
+                "AND contype = 'f'"
+            )
+        ).scalar_one()
+    assert foreign_keys == 0

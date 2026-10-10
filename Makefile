@@ -166,8 +166,8 @@ migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designat
 # The Compose files refuse to start without their secrets: validated with stand-ins that never run.
 lint-compose: ## Validate the Compose files
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) config --quiet
-	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_REDIS_PASSWORD=stand-in \
-		WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
+	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
+		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
 		$(COMPOSE_SERVICE) config --quiet
 

@@ -71,6 +71,7 @@ paths = [
     "deploy/keycloak/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/keycloak-database.sql",
+    "deploy/compose/service-database-role.sql",
     "backend/tests/test_keycloak_*.py",
     "backend/tests/conftest.py",
     "backend/tests/support.py",

@@ -102,7 +102,27 @@ désactivé, un rôle marqué supprimé (WF-DAT-0080). Le module qui les possèd
 fonction qui les supprime, et les clés étrangères en refus protègent les lignes référencées.
 Une table d'association qui ne porte que ses deux clés se supprime ligne à ligne.
 
-*Contrôle* : les tests de WF-DAT-0080 ; la revue.
+Le journal d'audit va plus loin : la base refuse toute mise à jour et toute suppression de ses
+inscriptions (WF-SEC-0030). Le rôle du service n'y a que `INSERT` et `SELECT`, et un déclencheur
+refuse la mise à jour, la suppression et la troncature à quiconque, propriétaire compris
+(`0003_audit_entry`). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+une inscription survit à ce qu'elle nomme (WF-DAT-0090).
+
+*Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.
+
+### Le rôle du service
+
+Les migrations passent par le propriétaire des tables ; l'API et le worker se connectent par
+`waterfall_service`, qui ne possède rien et ne tient que ce que chaque table lui accorde. La
+migration qui crée une table lui accorde `SELECT`, `INSERT`, `UPDATE` et `DELETE`, jamais
+`TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT` seulement. La migration `0002` crée le
+rôle, sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de
+passe (`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
+par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
+un droit oublié y échoue comme il échouerait en service.
+
+*Contrôle* : le test de `tests/test_audit_journal.py` qui lit les droits du rôle sur chaque
+table que la `Base` déclare.
 
 ### Migrations : deux temps, et chacune compatible avec le code voisin
 

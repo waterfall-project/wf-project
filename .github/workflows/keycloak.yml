@@ -21,6 +21,7 @@ jobs:
       # The platform lives for the job and is reachable from the runner alone: development values,
       # visible, named as such, as the secrets of a workstation would be.
       WATERFALL_POSTGRES_PASSWORD: chainonlypostgres
+      WATERFALL_SERVICE_DATABASE_PASSWORD: chainonlyservice
       WATERFALL_REDIS_PASSWORD: chain-only-redis
       WATERFALL_KEYCLOAK_DATABASE_PASSWORD: chain-only-keycloak-database
       WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin

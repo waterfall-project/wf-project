@@ -14,11 +14,16 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import Connection
+from support import SERVICE_ROLE
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
+from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, create_database_engine, engine_url
 from waterfall.platform.installation import Installation
+
+# The last revision of the chain, which a migrated database says it has applied.
+HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 @contextmanager
@@ -86,7 +91,7 @@ def test_a_migration_that_is_applied_is_not_replayed(empty_engine: Engine) -> No
         connection.execute(text("INSERT INTO installation VALUES (1, 'fr', 1000, 1000, now())"))
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
-        assert applied(connection) == ["0001"]
+        assert applied(connection) == [HEAD]
         assert connection.execute(text("SELECT count(*) FROM installation")).scalar_one() == 1
 
 
@@ -101,7 +106,7 @@ def test_four_instances_that_start_together_apply_each_migration_once(
         for instance, (_, errors) in zip(instances, results, strict=True)
     ] == [(0, "")] * 4
     with empty_engine.connect() as connection:
-        assert applied(connection) == ["0001"]
+        assert applied(connection) == [HEAD]
 
 
 def test_the_command_that_applies_the_migrations_names_the_secret_it_lacks() -> None:
@@ -131,7 +136,7 @@ def test_the_command_applies_the_migrations_to_the_database_of_the_settings(
     _, errors = result.communicate(timeout=60)
     assert (result.returncode, errors) == (0, "")
     with empty_engine.connect() as connection:
-        assert applied(connection) == ["0001"]
+        assert applied(connection) == [HEAD]
 
 
 def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: Engine) -> None:
@@ -144,9 +149,13 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
             .all()
         )
         assert tables == ["alembic_version"]
+        functions = connection.execute(
+            text("SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace")
+        ).scalar_one()
+        assert functions == 0
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
-        assert applied(connection) == ["0001"]
+        assert applied(connection) == [HEAD]
 
 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
@@ -162,7 +171,8 @@ def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
             "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
         ),
         "columns": (
-            "SELECT table_name, column_name, data_type, is_nullable, column_default "
+            "SELECT table_name, column_name, data_type, collation_name, is_nullable, "
+            "column_default "
             "FROM information_schema.columns "
             "WHERE table_schema = 'public' AND table_name <> 'alembic_version'"
         ),
@@ -183,7 +193,11 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
     the defaults of the server it leaves to the catalogue, which is read on both databases.
     """
     declared = {table.name for table in Base.metadata.sorted_tables}
-    assert declared == {Installation.__tablename__, UserAccount.__tablename__}
+    assert declared == {
+        Installation.__tablename__,
+        UserAccount.__tablename__,
+        AuditEntry.__tablename__,
+    }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
         differences = compare_metadata(
@@ -197,3 +211,20 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
     from_the_migrations = describe_schema(empty_engine)
     assert all(from_the_migrations.values())
     assert from_the_migrations == from_the_code
+
+
+def test_the_descent_of_the_journal_and_of_the_role_takes_back_what_they_granted(
+    empty_engine: Engine,
+) -> None:
+    upgrade(empty_engine)
+    downgrade(empty_engine, "0001")
+    with empty_engine.connect() as connection:
+        granted = connection.execute(
+            text("SELECT count(*) FROM information_schema.role_table_grants WHERE grantee = :role"),
+            {"role": SERVICE_ROLE},
+        ).scalar_one()
+        journal = connection.execute(text("SELECT to_regclass('audit_entry')")).scalar_one()
+        assert (granted, journal) == (0, None)
+    upgrade(empty_engine)
+    with empty_engine.connect() as connection:
+        assert applied(connection) == [HEAD]

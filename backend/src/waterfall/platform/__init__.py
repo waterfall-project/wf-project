@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What is not a function of the business: settings and secrets, logs, correlation, errors.
 
-It sits under the core: the core, the API and the worker import it, and it imports none of
-them. A module here knows no table of the core.
+The database and its sessions, the installation and the writing of the journal of audit are
+here too. It sits under the core: the core, the API and the worker import it, and it imports
+none of them. A module here knows no table of the core.
 """

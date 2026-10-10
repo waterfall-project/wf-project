@@ -13,8 +13,10 @@
 # `docker inspect`, as for any service: what these files avoid is a secret in a command line.
 name: waterfall-service
 
+# The API and the worker connect as the role of the service, which holds only what the tables grant
+# it (migration 0002); the migrations, as waterfall, the owner of the tables.
 x-back-environment: &back-environment
-  WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
+  WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?export WATERFALL_SERVICE_DATABASE_PASSWORD}@postgres:5432/waterfall
   WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}@redis:6379/0
   WATERFALL_HOST: 0.0.0.0
 
@@ -69,11 +71,33 @@ services:
   # Applies the migrations, then stops: the API starts on the schema it expects (WF-DAT-0140).
   migrate:
     <<: *back
+    environment:
+      <<: *back-environment
+      WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
     command: ["waterfall-migrate"]
     restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+
+  # Lets the role of the service, which the migrations create, sign in with its password, at
+  # each start of the platform, then stops: the API and the worker connect as it.
+  service-database-role:
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
+    environment:
+      PGHOST: postgres
+      PGUSER: waterfall
+      PGDATABASE: waterfall
+      PGPASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
+      SERVICE_DATABASE_PASSWORD: ${WATERFALL_SERVICE_DATABASE_PASSWORD:?export WATERFALL_SERVICE_DATABASE_PASSWORD}
+    volumes:
+      - ./service-database-role.sql:/service-database-role.sql:ro
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   api:
     <<: *back
@@ -85,7 +109,7 @@ services:
       WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
     depends_on:
-      migrate:
+      service-database-role:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -103,7 +127,7 @@ services:
     command: ["waterfall-worker"]
     restart: "no"
     depends_on:
-      migrate:
+      service-database-role:
         condition: service_completed_successfully
       redis:
         condition: service_healthy

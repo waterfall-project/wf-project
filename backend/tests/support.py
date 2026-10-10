@@ -17,6 +17,9 @@ from openapi_core.testing import MockRequest, MockResponse
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 
+# The role the API and the worker connect as, which the migrations create (0002).
+SERVICE_ROLE = "waterfall_service"
+
 # The secrets of the test platform: the values a search of the logs looks for (WF-OBS-0020).
 DB_CREDENTIAL = "db-pass-4f8a1c"
 REDIS_CREDENTIAL = "redis-pass-9d2e7b"
@@ -43,6 +46,20 @@ SECRETS = [
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+
+
+def operations(contract: OpenAPI) -> dict[str, tuple[str, str]]:
+    """List the operations of the contract: identifier to method and full path."""
+    prefix = (contract.spec / "servers" / 0 / "url").read_value()
+    found: dict[str, tuple[str, str]] = {}
+    for path, item in (contract.spec / "paths").items():
+        for method, operation in item.items():
+            if method in HTTP_METHODS:
+                found[(operation / "operationId").read_value()] = (method.upper(), prefix + path)
+    return found
 
 
 def found_in(text: str) -> list[str]:
