@@ -882,8 +882,7 @@ reprendre un chiffrage préparé ailleurs sans le ressaisir et sans risquer d'ab
 - `WF-IHM-0050-A` — « Un bloc de trois lignes et quatre colonnes collé depuis un tableur
   produit un compte rendu avant écriture, puis les trois lignes attendues après
   confirmation. »
-- `WF-IHM-0050-A` — « Un bloc dont une cellule porte une catégorie inconnue signale cette
-  ligne et, en cas d'abandon, ne modifie aucune ligne. »
+- `WF-IHM-0050-A` — « Un bloc dont une cellule porte une catégorie inconnue signale cette ligne ; confirmé, il écrit les autres lignes et non celle-ci ; abandonné, il ne modifie aucune ligne. »
 - `WF-IHM-0050-A` — « Un collage plus large que la grille est refusé en le disant. »
 
 **Notes de réalisation.** Le contrat sépare déjà les deux temps, `previewPaste` puis

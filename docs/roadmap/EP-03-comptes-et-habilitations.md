@@ -259,7 +259,10 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ;
+  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
+  (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
+  client de test pour les jetons dont ses tests ont besoin ;
 - la politique de mot de passe de WF-ADM-0140 : douze caractères au moins, ni l'adresse
   (`notEmail`, `notUsername`, l'adresse servant d'identifiant), ni le nom (règle de
   l'extension) ; le verrouillage temporaire : dix échecs, quinze minutes, jamais permanent ;
@@ -275,19 +278,36 @@ les fournisseurs externes, que l'administrateur raccorde dans la console (WF-ADM
 sont ni écrasés ni supprimés. La plateforme de développement ajoute, par un second fichier
 qui ne sert qu'à elle, un annuaire OpenLDAP de test, un second royaume `external` qui joue le
 fournisseur externe, et Mailpit pour recevoir les courriels : c'est ce qui rend la Définition
-de fini constatable. La base de Keycloak est une base distincte sur le même serveur
+de fini constatable. Elle sert Keycloak en HTTPS, comme la démonstration (TFX-07, TFX-08) : un
+frontal Caddy, avec son autorité locale (`tls internal`), devant Keycloak, que le navigateur
+et le serveur Next joignent tous deux par lui, canal arrière compris ; le front fait confiance
+à cette autorité par `NODE_EXTRA_CA_CERTS`, et `openid-client` n'admet aucune adresse en HTTP
+(#680). La base de Keycloak est une base distincte sur le même serveur
 PostgreSQL (#215, PBS-3.1).
 
-**L'extension Keycloak** (décision du cadrage, 2026-10-07). Un fournisseur Java,
-`deploy/keycloak/extension/`, construit par un Dockerfile multi-étapes dans l'image Keycloak :
-aucune JVM n'est demandée au poste. Deux pièces :
+**L'extension Keycloak** (décision du cadrage, 2026-10-07 ; complétée le 2026-10-10). Un
+fournisseur Java, `deploy/keycloak/extension/`, construit par un Dockerfile multi-étapes dans
+l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
 
 - `password-setup-link` : un point d'entrée du royaume, réservé au rôle
   `waterfall-password-link` du compte de service, qui rend pour un compte un lien d'action
   « fixer le mot de passe », valable une heure et à usage unique, vers la page de Keycloak ;
   il fait tourner un nonce porté par le compte, de sorte qu'un lien précédent cesse de
-  valoir ;
-- `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte ».
+  valoir. Le même point d'entrée envoie, sur demande, le courriel d'invitation avec le lien
+  qu'il forge et le modèle du thème : l'API n'appelle jamais `execute-actions-email` de
+  Keycloak, dont les liens échapperaient au nonce (#651). La promesse « un lien précédent
+  cesse de valoir » vise les liens de fixation ; « mot de passe oublié », que la personne
+  déclenche elle-même, reste le parcours de Keycloak ;
+- le lien d'installation (#652) : un second rôle, `waterfall-installation-link`, que seul
+  l'amorçage porte, fait rendre au même point d'entrée un lien qui vaut jusqu'à son emploi
+  (WF-ADM-0140), à usage unique et soumis au même nonce ; le compte de service ordinaire ne
+  produit que des liens d'une heure ;
+- `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte » ;
+- `local-account-only` (#650) : la règle de politique qui refuse tout mot de passe à un compte
+  qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
+  « mot de passe oublié », console, lien —, avec sa phrase dans le thème, en français et en
+  anglais. Sans elle, une personne venue d'un fournisseur externe se donnerait un mot de passe
+  local et garderait l'accès après son départ du fournisseur.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
 les tests d'intégration du service contre le Keycloak de la plateforme, et la chaîne
@@ -315,7 +335,10 @@ retour (`/auth/backchannel-logout`, une route du front, pas une opération de l'
 front efface les sessions Redis de ce compte. La déconnexion demandée par l'utilisateur est
 une opération du contrat (`closeMySessions`, ci-dessous) : le front ne parle pas à l'API
 d'administration de Keycloak. Indépendamment, l'API lit l'état du compte à chaque requête :
-un compte désactivé est refusé même si la notification se perd.
+un compte désactivé est refusé même si la notification se perd. La déconnexion note aussi son
+heure dans le compte (`sessions_closed_at`) : l'API refuse par 401 `SESSION_EXPIRED` un jeton
+émis avant elle (`iat`), y compris celui d'une application voisine, sans attendre son
+expiration et sans appel de plus, puisqu'elle lit déjà le compte à chaque requête (#668).
 
 **L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
 cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
@@ -324,7 +347,14 @@ cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audi
 encore — un compte de l'annuaire avant la première lecture, ou une personne venue d'un
 fournisseur externe —, que l'API crée sans rôle après avoir lu son origine dans l'API
 d'administration de Keycloak (lien de fédération ou identité relayée) (WF-ADM-0180,
-WF-ADM-0070). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED`.
+WF-ADM-0070). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` ; un compte que
+Waterfall n'admet pas — compte local du royaume que Waterfall n'a pas créé, sans nom, prénom
+ou adresse — par 401 `ACCOUNT_NOT_ADMITTED` (#664). Une personne dont l'adresse est déjà
+portée par un compte de Waterfall est rattachée à ce compte si elle vient de l'annuaire, qui
+reconnaît la personne par son adresse (motif de WF-ADM-0050), et le rattachement s'inscrit au
+journal d'audit ; venue d'un fournisseur externe, elle est refusée par
+`ACCOUNT_NOT_ADMITTED` : un fournisseur peu rigoureux sur les adresses ouvrirait le compte
+d'un autre.
 
 ### Tables et migrations
 
@@ -338,7 +368,7 @@ rien d'autre que leurs deux clés.
 | Table | Contenu | Contraintes |
 |---|---|---|
 | `installation` | une seule ligne : langue par défaut, borne de l'avatar, borne d'une sauvegarde déposée, date d'installation | une seule ligne (clé constante vérifiée) ; langue dans `fr`, `en` ; borne de l'avatar ≤ 8 Mio |
-| `user_account` | identité (`last_name`, `first_name`, `email`), `idp_subject`, `origin`, `state`, `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
+| `user_account` | identité (`last_name`, `first_name`, `email`), `idp_subject`, `origin`, `state`, `sessions_closed_at` (nul tant que le compte ne s'est pas déconnecté), `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
 | `permission` | `code`, `kind`, `fbs_code` | `code` unique ; `kind` dans les quatre natures ; écrite par migration seulement |
 | `access_role` | `label`, `is_predefined`, `deleted_at`, audit, `lock_version` | — |
 | `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
@@ -408,7 +438,12 @@ garde le compte actif et le signale.
   inattendue (500 `INTERNAL_ERROR`, avec sa corrélation). La section « Ajouter un code côté
   service » du guide le décrit.
 - SQLAlchemy 2, sessions synchrones, psycopg 3 ; une transaction par requête ; la réponse se
-  construit avant la validation de la transaction (défaut connu n° 3).
+  construit avant la validation de la transaction (défaut connu n° 3). Seule exception :
+  aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
+  L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
+  Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
+  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
 
@@ -473,7 +508,9 @@ les tables des autres modules. Les index suivent les tris et les filtres du cont
    du contrat et leurs libellés dans cette langue ; le compte administrateur local dans
    Keycloak et dans Waterfall, avec le rôle administrateur, l'adresse venant de
    `WATERFALL_ADMIN_EMAIL` ;
-4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension.
+4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension sous le rôle
+   `waterfall-installation-link` : il vaut jusqu'à son emploi (WF-ADM-0140, WF-EXP-0020) ;
+   une nouvelle commande en produit un autre, qui remplace le précédent.
 
 Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
 calendrier et la nature de provision.
@@ -593,7 +630,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
   contrat — aucune route hors contrat (WF-ARC-0060).
 - **Dans les parcours** : `make e2e-service` démarre la plateforme de service
   (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
-  Keycloak et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
+  Keycloak, son frontal TLS et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
   (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
   parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
   `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
@@ -637,6 +674,8 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une extension Keycloak maison pour le lien de fixation et la règle du nom (cadrage, 2026-10-07) | une extension tierce : licence et maintenance à vérifier, ni l'invalidation du lien précédent ni la règle du nom ; le courriel seul : impossible sans messagerie (WF-CMP-0030) |
 | Waterfall fait foi pour l'état du compte : la désactivation ne désactive pas le compte dans Keycloak, elle ferme ses sessions et l'API le refuse | désactiver aussi dans Keycloak : couperait les applications voisines qui partagent le fournisseur (motif de WF-ARC-0030), et un annuaire en lecture seule le refuse |
 | La déconnexion ferme toutes les sessions du compte, sur tous ses postes (lecture de WF-SEC-0020, « sur tous ses postes ») | fermer la seule session du navigateur : ne tient pas la phrase pour la déconnexion |
+| Un jeton émis avant la dernière déconnexion du compte est refusé, par l'heure que `closeMySessions` note dans le compte (auteur, 2026-10-10, #668) | amender le 401 « session fermée » du contrat : les applications voisines garderaient cinq minutes un jeton valide ; vérifier la session (`sid`) à chaque appel : un aller-retour vers Keycloak, ou l'API dépendrait du Redis du front |
+| La plateforme de développement sert Keycloak en HTTPS par un frontal Caddy à autorité locale (auteur, 2026-10-10, #680) | permettre le HTTP à `openid-client` (`allowInsecureRequests`) sur le poste : option dépréciée, une exemption au jeu de règles, et une plateforme qui s'écarte des flux en HTTPS du §4.3.2 que la démonstration suit |
 | Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` | 403 : chaque opération devrait le déclarer, quand le 401 l'est déjà partout (`rule/session-operation-declares-401`) ; le front distingue le code et ne renvoie pas à la connexion, qui bouclerait |
 | La suppression d'un rôle est logique (cadrage, 2026-10-07) | la suppression physique : contraire à WF-DAT-0080 |
 | La tâche en base, la file dans un flux Redis, un module à nous | arq : asynchrone, état dans Redis, qui ne doit rien garder de durable ; Celery, Dramatiq : un second état à tenir d'accord avec la base ; une file en base (`SKIP LOCKED`) : PBS-3.2 met la file dans Redis |
@@ -654,6 +693,12 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Garage pour le stockage objet, le code limité aux opérations S3 standard (auteur, 2026-10-09) | MinIO : archivé, sans binaires ni correctifs ; SeaweedFS : plusieurs composants, lourd pour une démonstration ; RustFS : trop jeune |
 | Le journal d'audit hors des vidages, laissé en place par la restauration | le restaurer avec le reste : WF-ADM-0160 révisée le garde, et la restauration doit s'y inscrire |
 | Le dépôt d'une sauvegarde par morceaux (#350) | une action serveur : sa taille de corps est bornée ; une adresse signée du stockage objet : le navigateur parlerait au stockage, hors des flux du §4.3.2 ; un gestionnaire de route qui relaie l'API : écarté par EP-02 (WF-ARC-0020) |
+| L'extension envoie le courriel d'invitation avec son propre lien ; l'API n'appelle jamais `execute-actions-email` (auteur, 2026-10-10, #651) | restreindre la promesse du contrat aux seuls liens obtenus de l'extension : une invitation de Keycloak resterait valide après un lien remis en main propre |
+| La règle `local-account-only` de l'extension refuse un mot de passe à un compte relayé ou fédéré (auteur, 2026-10-10, #650) | accepter le risque, la désactivation dans Waterfall restant le contrôle : Waterfall ne voit pas le départ d'une personne de son fournisseur externe |
+| Le lien d'installation vaut jusqu'à son emploi, sous un second rôle que seul l'amorçage porte (auteur, 2026-10-10, #652) | un paramètre de durée du même point d'entrée : le compte de service ordinaire pourrait produire des liens longs |
+| Une personne de l'annuaire à l'adresse déjà portée est rattachée au compte ; venue d'un fournisseur externe, refusée (auteur, 2026-10-10, #664) | toujours refuser : chaque branchement d'un annuaire demanderait de régler les comptes à la main ; toujours rattacher : prise de compte par un fournisseur externe peu rigoureux |
+| Aucun appel au fournisseur d'identité dans une transaction (auteur, 2026-10-10, #669) | une transaction par requête sans exception : une connexion prise pendant un appel lent à Keycloak épuise le pool |
+| `admin-cli` sans connexion directe par mot de passe (auteur, 2026-10-10, #644) | la laisser, l'audience `waterfall-api` protégeant l'API : un second chemin d'authentification que la conception ne prévoit pas |
 
 ### Issues à ouvrir avec la conception
 
@@ -690,7 +735,9 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - `WF-DAT-0070-A` — « Une ligne mise à jour par un traitement automatique porte la plateforme comme auteur. » : constaté sur un compte mis à jour par la lecture des
   comptes du fournisseur (US-0370).
 - écart : `WF-DAT-0080-A` — « La suppression d’un sous-projet non référencé le retire de la base. » : le sous-projet arrive en EP-04.
-- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée est refusée, et le sous-projet reste proposé à la saisie. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un lot référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet que portent des lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces lignes passées hors sous-projet ou à un autre sous-projet. » : EP-04.
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
   d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
 - écart : `WF-DAT-0090-A` — « L’insertion d’une ligne de devis référençant une catégorie inexistante est rejetée par la base. » : le devis arrive en EP-07, qui clôt
@@ -708,7 +755,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. » et « Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour. » : le planning arrive en
   EP-06 ; l'affichage est déjà celui d'EP-02.
 - propre à l'US : les horodatages d'audit sont conservés en temps universel (WF-DAT-0100).
-- écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans interruption de service ni perte de données. » : la mise à jour sans interruption relève du
+- écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s’exécute sur le schéma migré. » : la mise à jour sans interruption relève du
   déploiement — EP-13.
 - `WF-DAT-0140-A` — « Une migration déjà appliquée ne se rejoue pas. »
 - écart : `WF-DAT-0140-A` — « Après une suite de migrations, les montants et les indicateurs conservés d’une révision marquée antérieure sont inchangés. » : la révision marquée arrive en EP-04 ; EP-13 le
@@ -789,7 +836,8 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-ADM-0180-A` — « Sur une installation sans annuaire ni fournisseur externe, un compte local se connecte. »
 - `WF-ADM-0180-A` — « Après fédération d’un annuaire, un compte de l’annuaire se connecte avec ses identifiants d’annuaire et un compte local avec son mot de passe. »
 - `WF-ADM-0180-A` — « Avec un fournisseur externe, la première connexion d’une personne inconnue crée son compte, sans rôle, et elle n’a aucun droit tant qu’un rôle ne lui est pas donné. »
-- `WF-ADM-0180-A` — « Après retrait de l’annuaire, les comptes qui en venaient existent toujours et ne peuvent plus se connecter tant qu’aucun fournisseur ne les reconnaît. »
+- `WF-ADM-0180-A` — « Après retrait de l’annuaire et synchronisation, les comptes qui en venaient existent toujours, désactivés, et leurs actes restent attribués. »
+- `WF-ADM-0180-A` — « Réactivés après une nouvelle fédération qui les reconnaît, ils se connectent. »
 - `WF-ADM-0180-A` — « Aucun écran de Waterfall ne paramètre un annuaire. »
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
@@ -838,14 +886,14 @@ cessent d'être attribuables.
 **Critères d'acceptation.**
 
 - `WF-ADM-0050-A` — « La création d’un compte sans nom, sans prénom ou sans adresse est refusée, de même que celle d’un compte dont l’adresse est déjà portée par un autre. »
-- `WF-ADM-0050-A` — « Le nom, le prénom et l’adresse d’un compte de l’annuaire ou d’un fournisseur externe ne sont pas modifiables dans Waterfall. »
+- `WF-ADM-0050-A` — « Le nom, le prénom et l’adresse d’un compte de l’annuaire ou d’un fournisseur externe ne sont pas modifiables dans Waterfall, hors leur anonymisation (WF-ADM-0060). »
 - `WF-ADM-0060-A` — « Aucun écran ne propose de supprimer un compte. »
 - `WF-ADM-0060-A` — « La connexion d’un compte désactivé est refusée. »
 - écart : `WF-ADM-0060-A` — « Une révision marquée par un compte depuis désactivé affiche toujours son auteur. » : la révision marquée arrive en EP-04, qui clôt
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
   d'audit des comptes et des rôles qu'il a écrits.
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
-- `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
+- `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran — journal d’audit compris — ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
   des colonnes d'audit et le refus de réactivation ; la révision marquée arrive en EP-04, qui
   clôt l'exigence.
 - propre à l'US : la table des comptes liste les comptes de l'installation, actifs et
@@ -911,11 +959,12 @@ qu'elle se soit connectée.
 
 **Critères d'acceptation.**
 
-- `WF-ADM-0070-A` — « Après synchronisation, chaque personne de l’annuaire retenue a un compte actif dans Waterfall, sans rôle si elle n’en avait pas, avant toute connexion. »
+- `WF-ADM-0070-A` — « Après lecture, chaque personne de l’annuaire retenue a un compte actif dans Waterfall, sans rôle si elle n’en avait pas, avant toute connexion. »
 - écart : `WF-ADM-0070-A` — « Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. » : le compte est désactivé ici ; ses actes —
   révisions marquées, contributeurs inscrits — arrivent en EP-04, qui clôt l'exigence.
 - `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. »
 - `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité. »
+- `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. »
 - `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
   tâche planifiée de lecture, quotidienne par défaut.
 - écart : `WF-ARC-0090-A` — « Le marquage d’une révision de dix mille objets n’immobilise aucune requête au-delà de la création de la tâche, et l’utilisateur en voit l’aboutissement. » : le marquage arrive en EP-04 ; ici, la lecture
@@ -948,7 +997,8 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 **Critères d'acceptation.**
 
 - `WF-ADM-0010-A` — « Sur une installation neuve, les trois rôles existent et leurs permissions couvrent les usages des exigences citées. »
-- `WF-ADM-0010-A` — « Un administrateur en renomme un, en modifie les permissions et le supprime, sans erreur. »
+- `WF-ADM-0010-A` — « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte. »
+- `WF-ADM-0010-A` — « La suppression du rôle « administrateur » qu’il porte est refusée (WF-ADM-0090, WF-ADM-0120). »
 - écart : `WF-ADM-0020-A` — « Un rôle d’habilitation composé sur mesure permet à un utilisateur de cumuler des permissions relevant de deux acteurs différents. » : ici, les permissions effectives d'un
   utilisateur portent celles des deux acteurs ; l'exercice des deux attend la première action
   d'un autre acteur que l'administrateur — EP-05, qui clôt l'exigence.
@@ -1084,6 +1134,7 @@ relit.
   d'une révision arrive en EP-04.
 - `WF-SEC-0030-A` — « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription. »
 - `WF-SEC-0030-A` — « Une mise à jour ou une suppression exécutée directement en base sur une inscription du journal est rejetée par la base. »
+- `WF-SEC-0030-A` — « Après anonymisation d’un compte, aucune inscription ne porte plus son nom ; leur nombre, leurs dates et leurs actions sont inchangés. »
 - écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal est ici ; les projets
   et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
   l'exigence.
@@ -1121,13 +1172,13 @@ traîne dans une procédure, et que la relancer soit sans danger.
 
 **Critères d'acceptation.**
 
-- `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le lien produit, se connecte, et dispose des trois rôles prédéfinis et du catalogue des permissions. »
+- `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le lien produit, se connecte, porte le rôle « administrateur », et trouve les trois rôles prédéfinis et le catalogue des permissions. »
 - écart : `WF-EXP-0020-A` — « La création d’un projet est refusée et nomme les prérequis manquants, jusqu’à ce qu’une catégorie de coût de main-d’œuvre et un rôle de ressource aient été saisis. » : le référentiel arrive en EP-05 et la création
   d'un projet en EP-04, qui clôt l'exigence.
 - `WF-EXP-0020-A` — « Une seconde exécution de l’installation ne crée ni compte, ni calendrier, ni nature supplémentaire ; elle produit un nouveau lien, qui remplace le précédent, tant que l’administrateur n’a pas fixé son mot de passe, et aucun lien ensuite. » : pour le compte et le lien ; le
   calendrier et la nature arrivent en EP-05, qui les ajoute à l'amorçage.
 - `WF-EXP-0020-A` — « Le lien produit à l’installation est accepté plus d’une heure après sa production. »
-- écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8 et le délai six semaines. » : les bornes, les seuils et le délai
+- écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end. » : les bornes, les seuils et le délai
   arrivent en EP-05, qui les ajoute à l'amorçage.
 - propre à l'US : l'amorçage applique les migrations, crée le catalogue des permissions, les
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et

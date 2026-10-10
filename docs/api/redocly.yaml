@@ -57,3 +57,17 @@ rules:
     assertions:
       required: ['401']
     message: 'Une opération gardée par le jeton `bearer` déclare `401`.'
+  # Une opération gardée peut attendre le fournisseur d'identité — les clés du royaume, l'admission
+  # d'un compte — et rendre 503 `COMPONENT_UNAVAILABLE` : elle le déclare (#666).
+  rule/protected-operation-declares-503:
+    subject:
+      type: Responses
+    where:
+      - subject:
+          type: Operation
+          property: security
+        assertions:
+          defined: false
+    assertions:
+      required: ['503']
+    message: 'Une opération gardée par le jeton `bearer` déclare `503`.'

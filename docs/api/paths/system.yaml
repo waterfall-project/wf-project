@@ -102,6 +102,7 @@
               copy_failed: { $ref: ../../../fixtures/api/system_status_copy_failed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks:
   get:
@@ -149,6 +150,7 @@
               none: { $ref: ../../../fixtures/api/tasks_none.json }
               running: { $ref: ../../../fixtures/api/tasks_running.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}:
   get:
@@ -177,6 +179,7 @@
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}/result:
   get:
@@ -218,3 +221,4 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

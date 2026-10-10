@@ -18,6 +18,7 @@
               witness: { $ref: ../../../fixtures/api/reference_readiness.json }
               incomplete: { $ref: ../../../fixtures/api/reference_readiness_incomplete.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/settings:
   get:
@@ -37,6 +38,7 @@
               witness: { $ref: ../../../fixtures/api/reference_settings.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateReferenceSettings
     tags: [reference]
@@ -60,6 +62,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes:
   get:
@@ -133,6 +136,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createOrgNode
     summary: Créer un nœud d'organisation
@@ -175,6 +179,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               parent_inactive: { $ref: ../../../fixtures/api/org_node_creation_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes/{org_node_id}:
   patch:
@@ -226,6 +231,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               parent_inactive: { $ref: ../../../fixtures/api/org_node_move_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes/{org_node_id}/activation:
   put:
@@ -298,6 +304,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/org_node_activation_stale.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles:
   get:
@@ -412,6 +419,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/resource_roles_bounds_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createResourceRole
     summary: Créer un rôle de ressource
@@ -445,6 +453,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles/{resource_role_id}:
   patch:
@@ -483,6 +492,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles/{resource_role_id}/activation:
   put:
@@ -541,6 +551,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/resource_role_activation_stale.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/duration-units:
   get:
@@ -562,6 +573,7 @@
             examples:
               defaults: { $ref: ../../../fixtures/api/duration_units.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setDurationUnits
     tags: [reference]
@@ -586,6 +598,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars:
   get:
@@ -745,6 +758,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/calendars_bounds_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCalendar
     summary: Créer un calendrier
@@ -767,6 +781,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}:
   patch:
@@ -806,6 +821,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}/default:
   put:
@@ -842,6 +858,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}/activation:
   put:
@@ -896,6 +913,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/calendar_activation_stale.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types:
   get:
@@ -952,6 +970,7 @@
               with_inactive: { $ref: ../../../fixtures/api/cost_types_with_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostType
     summary: Créer une nature de coût
@@ -997,6 +1016,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_type_creation_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types/{cost_type_id}:
   patch:
@@ -1056,6 +1076,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_type_update_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types/{cost_type_id}/activation:
   put:
@@ -1115,6 +1136,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories:
   get:
@@ -1176,6 +1198,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostCategory
     summary: Créer une catégorie de coût
@@ -1229,6 +1252,7 @@
             examples:
               refused: { $ref: ../../../fixtures/api/cost_category_creation_refused.json }
               without_type: { $ref: ../../../fixtures/api/cost_category_without_type_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}:
   patch:
@@ -1297,6 +1321,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_category_update_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/activation:
   put:
@@ -1357,6 +1382,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/hourly-rates:
   get:
@@ -1446,6 +1472,7 @@
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/hourly_rate_grid_bounds_inverted.json }
               rate_year_missing: { $ref: ../../../fixtures/api/hourly_rate_grid_rate_year_missing.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/hourly-rates:
   get:
@@ -1467,6 +1494,7 @@
               volume: { $ref: ../../../fixtures/api/volume/hourly_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/hourly-rates/{year}:
   put:
@@ -1536,3 +1564,4 @@
             examples:
               amount_out_of_range: { $ref: ../../../fixtures/api/hourly_rate_amount_refused.json }
               not_labour: { $ref: ../../../fixtures/api/hourly_rate_non_labour_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
