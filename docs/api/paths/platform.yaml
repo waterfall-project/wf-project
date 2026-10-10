@@ -26,6 +26,7 @@
               beyond: { $ref: ../../../fixtures/api/backups_beyond.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: startBackup
     tags: [platform]
@@ -62,6 +63,7 @@
             schema: { $ref: ../components/schemas/platform.yaml#/Backup }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: retainBackup
     tags: [platform]
@@ -83,6 +85,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}/content:
   get:
@@ -101,6 +104,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backup-schedule:
   get:
@@ -123,6 +127,7 @@
               disabled: { $ref: ../../../fixtures/api/backup_schedule_disabled.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setBackupSchedule
     tags: [platform]
@@ -164,6 +169,7 @@
               unknown_location: { $ref: ../../../fixtures/api/backup_schedule_unknown_location.json }
               path_invalid: { $ref: ../../../fixtures/api/backup_schedule_path_invalid.json }
               retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations:
   get:
@@ -190,6 +196,7 @@
               none: { $ref: ../../../fixtures/api/external_backup_locations_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations/{location_name}/test:
   post:
@@ -239,6 +246,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               path_invalid: { $ref: ../../../fixtures/api/external_backup_location_test_path_invalid.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /restores:
   post:
@@ -285,3 +293,4 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

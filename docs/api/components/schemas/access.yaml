@@ -166,7 +166,7 @@ UserCreate:
   properties:
     last_name: { type: string, minLength: 1, maxLength: 100 }
     first_name: { type: string, minLength: 1, maxLength: 100 }
-    email: { type: string, format: email }
+    email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     access_role_ids:
@@ -183,7 +183,7 @@ UserUpdate:
   properties:
     last_name: { type: string, minLength: 1, maxLength: 100 }
     first_name: { type: string, minLength: 1, maxLength: 100 }
-    email: { type: string, format: email }
+    email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     lock_version: { $ref: ../common.yaml#/LockVersion }

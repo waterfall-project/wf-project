@@ -9,8 +9,10 @@ BadRequest:
 Unauthorized:
   description: >-
     Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`,
-    WF-SEC-0020) ; ou compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), que le front
-    distingue pour ne pas renvoyer à une connexion qui bouclerait.
+    WF-SEC-0020) ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que
+    Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall
+    n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le
+    front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait.
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
@@ -85,7 +87,9 @@ PortfolioPeriodRefused:
 ServiceUnavailable:
   description: >-
     Un composant indisponible empêche l'opération ; `params.component` le nomme et
-    l'opération n'est jamais présentée comme réussie (WF-EXP-0040).
+    l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Toute opération gardée le
+    déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur
+    d'identité (`identity_provider`).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }

@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Mon compte et mes préférences
-         * @description Le compte connecté, ses rôles, ses préférences d'affichage et ses permissions effectives (WF-ADM-0050, WF-ADM-0040, WF-ADM-0110). Les permissions sont évaluées à chaque requête, à partir des rôles que le compte porte en base : l'API ne tire du jeton que l'identité (WF-ARC-0030, WF-SEC-0020). Le front les lit pour savoir quoi présenter, sans qu'elles ne remplacent le refus que l'API oppose à un appel qu'il aurait envoyé malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060).
+         * @description Le compte connecté, ses rôles, ses préférences d'affichage et ses permissions effectives (WF-ADM-0050, WF-ADM-0040, WF-ADM-0110). Les permissions sont évaluées à chaque requête, à partir des rôles que le compte porte en base : l'API ne tire du jeton que l'identité (WF-ARC-0030, WF-SEC-0020). Le front les lit pour savoir quoi présenter, sans qu'elles ne remplacent le refus que l'API oppose à un appel qu'il aurait envoyé malgré tout (WF-IHM-0090). Un compte inconnu de Waterfall — un compte de l'annuaire avant sa première lecture, ou une personne venue d'un fournisseur externe — est créé sans rôle à sa première requête, et n'a alors aucune permission (WF-ADM-0180). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` (WF-ADM-0060) ; un compte que Waterfall n'admet pas, par 401 `ACCOUNT_NOT_ADMITTED`.
          */
         get: operations["getMe"];
         put?: never;
@@ -2613,7 +2613,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "ACCOUNT_DEACTIVATED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -4784,7 +4784,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Un composant indisponible empêche l'opération ; `params.component` le nomme et l'opération n'est jamais présentée comme réussie (WF-EXP-0040). */
+        /** @description Un composant indisponible empêche l'opération ; `params.component` le nomme et l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Toute opération gardée le déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur d'identité (`identity_provider`). */
         ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -4802,7 +4802,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`, WF-SEC-0020) ; ou compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), que le front distingue pour ne pas renvoyer à une connexion qui bouclerait. */
+        /** @description Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`, WF-SEC-0020) ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -5027,6 +5027,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getInstallation: {
@@ -5079,6 +5080,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBackgroundTask: {
@@ -5103,6 +5105,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBackgroundTaskResult: {
@@ -5132,6 +5135,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getMe: {
@@ -5153,6 +5157,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateMyPreferences: {
@@ -5179,6 +5184,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     closeMySessions: {
@@ -5224,6 +5230,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteMyAvatar: {
@@ -5243,6 +5250,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listUsers: {
@@ -5287,6 +5295,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createUser: {
@@ -5332,6 +5341,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getUser: {
@@ -5356,6 +5366,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateUser: {
@@ -5404,6 +5415,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setUserActivation: {
@@ -5445,6 +5457,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setUserAccessRoles: {
@@ -5493,6 +5506,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getUserAvatar: {
@@ -5518,6 +5532,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     startIdentitySync: {
@@ -5563,6 +5578,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listPermissions: {
@@ -5584,6 +5600,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listAccessRoles: {
@@ -5628,6 +5645,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createAccessRole: {
@@ -5656,6 +5674,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getAccessRole: {
@@ -5680,6 +5699,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteAccessRole: {
@@ -5712,6 +5732,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateAccessRole: {
@@ -5751,6 +5772,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listBackups: {
@@ -5779,6 +5801,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     startBackup: {
@@ -5826,6 +5849,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     retainBackup: {
@@ -5855,6 +5879,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     downloadBackup: {
@@ -5880,6 +5905,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBackupSchedule: {
@@ -5902,6 +5928,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setBackupSchedule: {
@@ -5939,6 +5966,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listExternalBackupLocations: {
@@ -5961,6 +5989,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     testExternalBackupLocation: {
@@ -6009,6 +6038,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     startRestore: {
@@ -6046,6 +6076,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listAuditEvents: {
@@ -6107,6 +6138,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listAuditFacets: {
@@ -6129,6 +6161,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getReferenceReadiness: {
@@ -6150,6 +6183,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getReferenceSettings: {
@@ -6172,6 +6206,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateReferenceSettings: {
@@ -6200,6 +6235,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listOrgNodes: {
@@ -6246,6 +6282,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createOrgNode: {
@@ -6290,6 +6327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateOrgNode: {
@@ -6338,6 +6376,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setOrgNodeActivation: {
@@ -6391,6 +6430,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listResourceRoles: {
@@ -6453,6 +6493,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createResourceRole: {
@@ -6488,6 +6529,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateResourceRole: {
@@ -6527,6 +6569,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setResourceRoleActivation: {
@@ -6577,6 +6620,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getDurationUnits: {
@@ -6598,6 +6642,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setDurationUnits: {
@@ -6626,6 +6671,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listCalendars: {
@@ -6701,6 +6747,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createCalendar: {
@@ -6728,6 +6775,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateCalendar: {
@@ -6767,6 +6815,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setDefaultCalendar: {
@@ -6802,6 +6851,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setCalendarActivation: {
@@ -6852,6 +6902,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listCostTypes: {
@@ -6892,6 +6943,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createCostType: {
@@ -6936,6 +6988,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateCostType: {
@@ -6984,6 +7037,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setCostTypeActivation: {
@@ -7034,6 +7088,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listCostCategories: {
@@ -7075,6 +7130,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createCostCategory: {
@@ -7119,6 +7175,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateCostCategory: {
@@ -7167,6 +7224,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setCostCategoryActivation: {
@@ -7217,6 +7275,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getHourlyRateGrid: {
@@ -7268,6 +7327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listHourlyRates: {
@@ -7292,6 +7352,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setHourlyRate: {
@@ -7349,6 +7410,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listProjects: {
@@ -7400,6 +7462,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createProject: {
@@ -7436,6 +7499,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProject: {
@@ -7460,6 +7524,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateProject: {
@@ -7500,6 +7565,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listProjectStateTransitions: {
@@ -7524,6 +7590,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProjectNextState: {
@@ -7548,6 +7615,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     exitProject: {
@@ -7587,6 +7655,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getWorkBreakdown: {
@@ -7616,6 +7685,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setWorkBreakdown: {
@@ -7655,6 +7725,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listSubprojects: {
@@ -7688,6 +7759,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createSubproject: {
@@ -7725,6 +7797,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteSubproject: {
@@ -7758,6 +7831,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateSubproject: {
@@ -7798,6 +7872,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listContributors: {
@@ -7833,6 +7908,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setContributors: {
@@ -7873,6 +7949,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listContributorSuggestions: {
@@ -7897,6 +7974,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listTimelines: {
@@ -7921,6 +7999,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createTimeline: {
@@ -7952,6 +8031,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteTimeline: {
@@ -7976,6 +8056,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listRevisions: {
@@ -8010,6 +8091,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createRevision: {
@@ -8048,6 +8130,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getRevision: {
@@ -8073,6 +8156,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     abandonRevision: {
@@ -8098,6 +8182,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     markRevision: {
@@ -8138,6 +8223,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     designateReferenceRevision: {
@@ -8176,6 +8262,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getRateUpdateProposal: {
@@ -8201,6 +8288,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     applyRateUpdate: {
@@ -8235,6 +8323,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     compareRevisions: {
@@ -8262,6 +8351,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listCostStructures: {
@@ -8287,6 +8377,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createCostStructure: {
@@ -8318,6 +8409,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     mergeCostStructure: {
@@ -8350,6 +8442,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listNodes: {
@@ -8413,6 +8506,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createNode: {
@@ -8454,6 +8548,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteNode: {
@@ -8484,6 +8579,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getComputedValueDependencies: {
@@ -8523,6 +8619,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateTaskFacet: {
@@ -8566,6 +8663,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateEstimateLine: {
@@ -8609,6 +8707,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setPredecessors: {
@@ -8651,6 +8750,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setTaskProgress: {
@@ -8685,6 +8785,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setLineRemaining: {
@@ -8728,6 +8829,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setNodeTracking: {
@@ -8763,6 +8865,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     moveNodes: {
@@ -8805,6 +8908,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     previewPaste: {
@@ -8846,6 +8950,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     applyPaste: {
@@ -8879,6 +8984,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     undoLastChange: {
@@ -8914,6 +9020,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     redoLastUndo: {
@@ -8941,6 +9048,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     generatePlanningSkeleton: {
@@ -8976,6 +9084,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getEstimateIndicators: {
@@ -9013,6 +9122,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getMissingRates: {
@@ -9039,6 +9149,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProjectWorkload: {
@@ -9088,6 +9199,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getRemainingIndicators: {
@@ -9114,6 +9226,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listStartableTasks: {
@@ -9142,6 +9255,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProjectIndicators: {
@@ -9191,6 +9305,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getMilestoneTracking: {
@@ -9215,6 +9330,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getCostCurve: {
@@ -9266,6 +9382,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getEarnedValueCurves: {
@@ -9315,6 +9432,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getIndexHistory: {
@@ -9351,6 +9469,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listRisks: {
@@ -9390,6 +9509,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createRisk: {
@@ -9420,6 +9540,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getRisk: {
@@ -9448,6 +9569,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteRisk: {
@@ -9481,6 +9603,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateRisk: {
@@ -9513,6 +9636,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listRiskReviews: {
@@ -9541,6 +9665,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     reviewRisk: {
@@ -9581,6 +9706,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     declareRiskOccurrence: {
@@ -9612,6 +9738,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProjectRiskMatrix: {
@@ -9639,6 +9766,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProjectRiskCoverage: {
@@ -9666,6 +9794,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listActualCosts: {
@@ -9716,6 +9845,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     setActualCostTrackedScope: {
@@ -9746,6 +9876,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listCostImports: {
@@ -9776,6 +9907,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     uploadFile: {
@@ -9943,6 +10075,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     openImport: {
@@ -9990,6 +10123,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getImport: {
@@ -10015,6 +10149,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     abandonImport: {
@@ -10039,6 +10174,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     applyImport: {
@@ -10078,6 +10214,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     requestExport: {
@@ -10125,6 +10262,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioProjects: {
@@ -10173,6 +10311,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioValue: {
@@ -10207,6 +10346,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioWorkload: {
@@ -10239,6 +10379,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioPerformance: {
@@ -10273,6 +10414,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioCostStructure: {
@@ -10302,6 +10444,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioRisks: {
@@ -10334,6 +10477,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioCostCurve: {
@@ -10364,6 +10508,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioPilotHealth: {
@@ -10391,6 +10536,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
 }

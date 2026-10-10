@@ -3626,6 +3626,34 @@ adresse signée du stockage objet, où le navigateur parlerait au stockage, hors
 §4.3.2 ; un gestionnaire de route qui relaie l'API, écarté par EP-02 (WF-ARC-0020). Écarté
 aussi : une opération d'abandon, l'expiration (24 heures, comme un fichier d'import) suffit.
 
+## Les comptes non admis, les adresses et le 503 des opérations gardées (EP-03, #664, #665, #666)
+
+Décisions de l'auteur du 2026-10-10, sur trois constats de la revue d'US-0350/L3.
+
+**Un compte que Waterfall n'admet pas est refusé par 401 `ACCOUNT_NOT_ADMITTED`** (#664). Un
+compte local du fournisseur que Waterfall n'a pas créé (WF-ADM-0070), sans nom, sans prénom ou
+sans adresse, ou dont l'adresse est déjà portée par un autre (WF-ADM-0050), n'est pas un compte
+désactivé : `ACCOUNT_DEACTIVATED` le lui dirait à tort. Le front le traite comme lui, un refus
+sans renvoi à la connexion, qui bouclerait. Écarté : `SESSION_REQUIRED`, qui ferait boucler ;
+un 403, que chaque opération devrait déclarer. Une personne de l'annuaire dont l'adresse est
+déjà portée par un compte de Waterfall est rattachée à ce compte, l'annuaire étant ce qui
+reconnaît la personne par son adresse (motif de WF-ADM-0050) ; venue d'un fournisseur externe,
+elle est refusée : un fournisseur peu rigoureux sur les adresses ouvrirait le compte d'un autre.
+
+**Une adresse est reçue telle qu'elle est écrite** (#665). La règle est au tableau du README :
+une forme simple, casse gardée, comparée sans égard à la casse, domaines à usage spécial et sans
+point admis. Waterfall n'envoie aucun courriel lui-même, le fournisseur d'identité le fait : il
+n'a pas à être plus strict que l'annuaire qu'il lit, et un annuaire d'entreprise en `.local`
+donnerait des comptes qu'il ne saurait pas créer. Écarté : la validation d'email-validator
+(`EmailStr`), qui refuse ces domaines et récrit la casse.
+
+**Toute opération gardée déclare 503** (#666). La lecture des clés du royaume, à la première
+requête ou après une rotation, et l'admission d'un compte inconnu attendent le fournisseur
+d'identité ; s'il ne répond pas, l'opération rend 503 `COMPONENT_UNAVAILABLE`
+(`params.component` à `identity_provider`). La règle `rule/protected-operation-declares-503` le
+vérifie, comme celle du 401. Écarté : la règle écrite au seul README, qu'une réponse validée
+contre le contrat contredirait.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

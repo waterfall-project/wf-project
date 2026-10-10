@@ -43,6 +43,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/estimate-indicators/missing-rates:
   get:
@@ -71,6 +72,7 @@
               missing: { $ref: ../../../fixtures/api/missing_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/workload:
   get:
@@ -132,6 +134,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_refused: { $ref: ../../../fixtures/api/workload_revision_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators:
   get:
@@ -158,6 +161,7 @@
               over_budget: { $ref: ../../../fixtures/api/remaining_indicators_over_budget.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators/startable-tasks:
   get:
@@ -199,6 +203,7 @@
               milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators:
   get:
@@ -250,6 +255,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/milestone-tracking:
   get:
@@ -274,6 +280,7 @@
               none: { $ref: ../../../fixtures/api/milestone_tracking_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/cost-curve:
   get:
@@ -347,6 +354,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/earned-value-curves:
   get:
@@ -396,6 +404,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/index-history:
   get:
@@ -436,3 +445,4 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

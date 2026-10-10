@@ -43,6 +43,7 @@
               marked: { $ref: ../../../fixtures/api/revisions_marked.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createRevision
     tags: [revisions]
@@ -75,6 +76,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}:
   get:
@@ -102,6 +104,7 @@
               importing: { $ref: ../../../fixtures/api/revision_importing.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: abandonRevision
     tags: [revisions]
@@ -120,6 +123,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/mark:
   post:
@@ -162,6 +166,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/reference-revision:
   put:
@@ -196,6 +201,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/rate-update:
   get:
@@ -220,6 +226,7 @@
               reference_created: { $ref: ../../../fixtures/api/rate_update.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: applyRateUpdate
     tags: [revisions]
@@ -251,6 +258,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/comparison:
   get:
@@ -283,6 +291,7 @@
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures:
   get:
@@ -308,6 +317,7 @@
               amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostStructure
     tags: [revisions]
@@ -333,6 +343,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
   post:
@@ -370,6 +381,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:
   get:
@@ -573,6 +585,7 @@
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createNode
     tags: [revisions]
@@ -620,6 +633,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
   delete:
@@ -655,6 +669,7 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies:
   get:
@@ -704,6 +719,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               entered: { $ref: ../../../fixtures/api/dependencies_entered.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
   patch:
@@ -760,6 +776,7 @@
             examples:
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_order_item.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
   patch:
@@ -815,6 +832,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
   put:
@@ -856,6 +874,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress:
   put:
@@ -888,6 +907,7 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining:
   put:
@@ -936,6 +956,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               completion_date_required: { $ref: ../../../fixtures/api/remaining_completion_date_required.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking:
   put:
@@ -971,6 +992,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move:
   post:
@@ -1020,6 +1042,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
   post:
@@ -1065,6 +1088,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               too_wide: { $ref: ../../../fixtures/api/paste_too_wide.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste:
   post:
@@ -1098,6 +1122,7 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/undo:
   post:
@@ -1133,6 +1158,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/redo:
   post:
@@ -1154,6 +1180,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/skeleton:
   post:
@@ -1188,3 +1215,4 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

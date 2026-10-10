@@ -205,11 +205,13 @@ ErrorCode:
     # 400 — requête mal formée ou confirmation absente.
     - MALFORMED_REQUEST
     - CONFIRMATION_REQUIRED
-    # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé, que le front distingue de
-    # l'absence de jeton pour ne pas renvoyer à une connexion qui bouclerait (WF-ADM-0060).
+    # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé (WF-ADM-0060), ou que
+    # Waterfall n'admet pas, que le front distingue de l'absence de jeton pour ne pas renvoyer à
+    # une connexion qui bouclerait.
     - SESSION_REQUIRED
     - SESSION_EXPIRED
     - ACCOUNT_DEACTIVATED
+    - ACCOUNT_NOT_ADMITTED
     # 403 — permission présente, condition manquante : `params.missing_permission`
     # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
     # structurante ou le paramétrage du projet exigent la qualité de chef de projet
