@@ -113,11 +113,14 @@ une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 ### Le rôle du service
 
 Les migrations passent par le propriétaire des tables ; l'API et le worker se connectent par
-`waterfall_service`, qui ne possède rien et ne tient que ce que chaque table lui accorde. La
-migration qui crée une table lui accorde `SELECT`, `INSERT`, `UPDATE` et `DELETE`, jamais
-`TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT` seulement. La migration `0002` crée le
-rôle, sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de
-passe (`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
+le rôle du service, qui ne possède rien et ne tient que ce que chaque table lui accorde. La
+migration qui crée une table lui accorde ce dont le service a besoin, au plus `SELECT`,
+`INSERT`, `UPDATE` et `DELETE`, jamais `TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT`
+seulement. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
+base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
+d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
+sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
+(`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 

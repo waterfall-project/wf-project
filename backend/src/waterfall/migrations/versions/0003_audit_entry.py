@@ -77,6 +77,15 @@ END
 $$
 """
 
+# The role of the service of this database (migration ``0002``) reads and inscribes, nothing more.
+GRANT = """
+DO $$
+BEGIN
+    EXECUTE format('GRANT SELECT, INSERT ON audit_entry TO %I', current_database() || '_service');
+END
+$$
+"""
+
 
 def _in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({', '.join(repr(value) for value in values)})"
@@ -113,6 +122,9 @@ def upgrade() -> None:
             name="project_named",
         ),
         sa.CheckConstraint(
+            "object_label IS NOT NULL OR object_kind = 'backup'", name="object_labeled"
+        ),
+        sa.CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
             name="object_revision_named",
         ),
@@ -130,7 +142,7 @@ def upgrade() -> None:
         "CREATE TRIGGER audit_entry_refuse_truncate BEFORE TRUNCATE ON audit_entry "
         "FOR EACH STATEMENT EXECUTE FUNCTION audit_entry_refuse_change()"
     )
-    op.execute("GRANT SELECT, INSERT ON audit_entry TO waterfall_service")
+    op.execute(GRANT)
 
 
 def downgrade() -> None:

@@ -100,6 +100,9 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
+            "object_label IS NOT NULL OR object_kind = 'backup'", name="object_labeled"
+        ),
+        CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
             name="object_revision_named",
         ),
@@ -107,8 +110,14 @@ class AuditEntry(Base):
         CheckConstraint("correlation_id ~ '^[A-Za-z0-9._-]{1,64}$'", name="correlation_id_form"),
     )
 
-    # Every column the consultation sorts or filters on is indexed (listAuditEvents): at one
-    # instant, the order of inscription is that of the identifiers, drawn in time order.
+    # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
+    # action, nature and object, project, correlation — and its sorts on the date and on the
+    # texts, which share their collation: the name of the author, the label, the code of the
+    # project, the correlation. Left to US-0410/L2: the sorts on the action and on the nature,
+    # in the order of the enumerations of the contract, which an index on the text does not
+    # serve and an index on the expression of that order will; and the search on the label,
+    # which no index serves yet. At one instant, the order of inscription is that of the
+    # identifiers, drawn in time order.
     id: Mapped[UUID] = mapped_column(primary_key=True)
     occurred_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
     # The account that acted, and its name at that moment; both null for the platform.
@@ -117,7 +126,7 @@ class AuditEntry(Base):
     action: Mapped[str] = mapped_column(Text, index=True)
     object_kind: Mapped[str] = mapped_column(Text, index=True)
     object_id: Mapped[UUID] = mapped_column(index=True)
-    # Null for an object that has no label: a backup, whose date is that of the inscription.
+    # Null only for an object that has no label: a backup, whose date is that of the inscription.
     object_label: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS), index=True)
     # The revision the object lives in, for an object of a revision (EP-04).
     object_revision_id: Mapped[UUID | None]

@@ -19,9 +19,9 @@ from support import (
     CONTRACT,
     PLATFORM_ADDRESSES,
     PLATFORM_SECRETS,
-    SERVICE_ROLE,
     ContractClient,
     Logs,
+    service_role,
 )
 
 from waterfall.api.app import create_app
@@ -121,6 +121,7 @@ def database_url() -> Iterator[str]:
     yield url
     with server.connect() as connection:
         connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{service_role(engine_url(url))}"'))
     server.dispose()
 
 
@@ -128,14 +129,16 @@ def database_url() -> Iterator[str]:
 def service_database_url(database_url: str) -> Iterator[str]:
     """Give the address of the test database as the service reaches it, by a role of the service.
 
-    A role made for this run, that may sign in, member of ``waterfall_service`` and holding
-    nothing else: what the tables do not grant the service, the tests cannot do either.
+    A role made for this run, that may sign in, member of the role of the service of the test
+    database and holding nothing else: what the tables do not grant the service, the tests cannot
+    do either.
     """
     name, password = f"waterfall_test_{uuid4().hex}", uuid4().hex
+    service = service_role(engine_url(database_url))
     server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
     with server.connect() as connection:
         connection.execute(
-            text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{password}' IN ROLE {SERVICE_ROLE}")
+            text(f'CREATE ROLE "{name}" LOGIN PASSWORD \'{password}\' IN ROLE "{service}"')
         )
     url = engine_url(database_url).set(username=name, password=password)
     yield url.render_as_string(hide_password=False)

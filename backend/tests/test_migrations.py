@@ -14,7 +14,8 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import Connection
-from support import SERVICE_ROLE
+from sqlalchemy.exc import DBAPIError
+from support import service_role
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
@@ -27,10 +28,10 @@ HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 @contextmanager
-def scratch_database(database_url: str) -> Generator[Engine]:
-    """Give an engine on a database of its own, without a table, dropped afterwards."""
+def scratch_database(database_url: str, prefix: str = "waterfall_migration") -> Generator[Engine]:
+    """Give an engine on a database of its own, without a table, dropped with its role after."""
     server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
-    name = f"waterfall_migration_{uuid4().hex}"
+    name = f"{prefix}_{uuid4().hex}"
     with server.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{name}"'))
     engine = create_database_engine(
@@ -42,6 +43,7 @@ def scratch_database(database_url: str) -> Generator[Engine]:
         engine.dispose()
         with server.connect() as connection:
             connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+            connection.execute(text(f'DROP ROLE IF EXISTS "{service_role(engine.url)}"'))
         server.dispose()
 
 
@@ -221,10 +223,46 @@ def test_the_descent_of_the_journal_and_of_the_role_takes_back_what_they_granted
     with empty_engine.connect() as connection:
         granted = connection.execute(
             text("SELECT count(*) FROM information_schema.role_table_grants WHERE grantee = :role"),
-            {"role": SERVICE_ROLE},
+            {"role": service_role(empty_engine.url)},
         ).scalar_one()
         journal = connection.execute(text("SELECT to_regclass('audit_entry')")).scalar_one()
         assert (granted, journal) == (0, None)
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
+
+
+def privileges(engine: Engine, role: str) -> set[tuple[str, str]]:
+    """List the tables of the database of the engine and what the role may do on each."""
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT relname, privilege FROM pg_class CROSS JOIN unnest(ARRAY['SELECT', "
+                "'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) AS privilege WHERE relkind = 'r' "
+                "AND relnamespace = 'public'::regnamespace "
+                "AND has_table_privilege(:role, pg_class.oid, privilege)"
+            ),
+            {"role": role},
+        )
+        return {(table, privilege) for table, privilege in rows}
+
+
+def test_two_databases_of_one_server_share_no_role_of_the_service(database_url: str) -> None:
+    with scratch_database(database_url) as first, scratch_database(database_url) as second:
+        upgrade(first)
+        upgrade(second)
+        own, other = service_role(first.url), service_role(second.url)
+        assert own != other
+        assert ("audit_entry", "INSERT") in privileges(first, own)
+        assert ("audit_entry", "INSERT") in privileges(second, other)
+        assert (privileges(first, other), privileges(second, own)) == (set(), set())
+
+
+def test_a_database_whose_role_of_the_service_would_be_cut_short_is_refused(
+    database_url: str,
+) -> None:
+    with (
+        scratch_database(database_url, prefix="w" * 23) as long_named,
+        pytest.raises(DBAPIError, match="longer than an identifier"),
+    ):
+        upgrade(long_named)

@@ -14,11 +14,9 @@ from fastapi.testclient import TestClient
 from httpx2 import Response
 from openapi_core import OpenAPI
 from openapi_core.testing import MockRequest, MockResponse
+from sqlalchemy import URL
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
-
-# The role the API and the worker connect as, which the migrations create (0002).
-SERVICE_ROLE = "waterfall_service"
 
 # The secrets of the test platform: the values a search of the logs looks for (WF-OBS-0020).
 DB_CREDENTIAL = "db-pass-4f8a1c"
@@ -46,6 +44,15 @@ SECRETS = [
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+def service_role(database: URL) -> str:
+    """Name the role the API and the worker connect as, which the migrations create (0002).
+
+    It is named after the database the address designates: two databases of one server share
+    no role of the service.
+    """
+    return f"{database.database}_service"
 
 
 HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}

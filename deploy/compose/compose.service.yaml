@@ -14,7 +14,8 @@
 name: waterfall-service
 
 # The API and the worker connect as the role of the service, which holds only what the tables grant
-# it (migration 0002); the migrations, as waterfall, the owner of the tables.
+# it and is named after the database, waterfall_service (migration 0002); the migrations, as
+# waterfall, the owner of the tables.
 x-back-environment: &back-environment
   WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?export WATERFALL_SERVICE_DATABASE_PASSWORD}@postgres:5432/waterfall
   WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}@redis:6379/0

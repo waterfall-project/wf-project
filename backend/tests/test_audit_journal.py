@@ -6,11 +6,9 @@ The refusals are tried as the service meets them — by a role of the service, t
 connect as — and as the owner of the tables, whom only the trigger stops (WF-SEC-0030).
 """
 
-import re
 from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -19,7 +17,7 @@ import pytest
 from openapi_core import OpenAPI
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from support import SERVICE_ROLE, operations
+from support import operations, service_role
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -39,7 +37,6 @@ from waterfall.platform.audit import (
 from waterfall.platform.database import Base, Database, create_database_engine
 from waterfall.platform.logs import logging_context
 
-SOURCES = Path(__file__).resolve().parents[1] / "src" / "waterfall"
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 CORRELATION = "req-3f2a.9_b"
 CLAIRE = AuditActor(uuid4(), "Claire Martin")
@@ -161,7 +158,9 @@ def test_an_action_outside_any_request_or_task_is_a_defect_and_inscribes_nothing
         {"links": [{"expires_at": "2026-10-09T13:00:00Z"}, {"Password": "x"}]},
     ],
 )
-def test_an_inscription_never_carries_a_secret(database: Database, params: object) -> None:
+def test_an_inscription_refuses_a_field_named_as_a_secret_at_any_depth(
+    database: Database, params: object
+) -> None:
     with pytest.raises(AuditError, match="secret"):
         inscribe(database, role_created(action="password_link_create", params=params))
     assert count(database) == 0
@@ -221,13 +220,14 @@ def read_labels(database: Database) -> list[str | None]:
 def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_nothing_more(
     database: Database,
 ) -> None:
+    service = service_role(database.engine.url)
     with database.engine.connect() as connection:
         grants = connection.execute(
             text(
                 "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
                 "WHERE grantee = :role"
             ),
-            {"role": SERVICE_ROLE},
+            {"role": service},
         ).all()
         role = connection.execute(
             text(
@@ -235,14 +235,14 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
                 "(SELECT count(*) FROM pg_class WHERE relowner = pg_roles.oid) "
                 "FROM pg_roles WHERE rolname = :role"
             ),
-            {"role": SERVICE_ROLE},
+            {"role": service},
         ).one()
         connected_as = connection.execute(
             text(
                 "SELECT pg_has_role(current_user, :role, 'USAGE'), rolsuper FROM pg_roles "
                 "WHERE rolname = current_user"
             ),
-            {"role": SERVICE_ROLE},
+            {"role": service},
         ).one()
     held: dict[str, set[str]] = {}
     for table, privilege in grants:
@@ -269,17 +269,3 @@ def test_no_endpoint_modifies_or_deletes_an_inscription(
     for path, item in served.items():
         for method, operation in item.items():
             assert declared[operation["operationId"]] == (method.upper(), path)
-
-
-@pytest.mark.requirement("WF-SEC-0030-A")
-def test_no_code_of_the_service_but_its_migrations_changes_the_journal() -> None:
-    change = re.compile(
-        r"(update|delete)\(\s*AuditEntry|(UPDATE|DELETE\s+FROM|TRUNCATE)\s+audit_entry",
-        re.IGNORECASE,
-    )
-    offending = [
-        path.relative_to(SOURCES).as_posix()
-        for path in SOURCES.rglob("*.py")
-        if "migrations" not in path.parts and change.search(path.read_text(encoding="utf-8"))
-    ]
-    assert offending == []

@@ -212,6 +212,7 @@ def write_inscription(**overrides: object) -> Executable:
         ({"actor_display_name": "Claire Martin"}, "ck_audit_entry_actor_named"),
         ({"project_id": uuid4(), "project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
         ({"project_code": "PRJ-001", "project_label": "Poste"}, "ck_audit_entry_project_named"),
+        ({"object_label": None}, "ck_audit_entry_object_labeled"),
         ({"object_revision_label": "Référence"}, "ck_audit_entry_object_revision_named"),
         ({"params": ["user_id"]}, "ck_audit_entry_params_object"),
         ({"correlation_id": "two words"}, "ck_audit_entry_correlation_id_form"),
