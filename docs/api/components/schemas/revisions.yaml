@@ -329,7 +329,8 @@ Node:
         Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa
         commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en
         mode automatique, les dates, la durée et l'avancement d'une récapitulative, les
-        grandeurs d'une ligne de provision. Le front les présente
+        grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne
+        (WF-RIS-0010). Le front les présente
         comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit
         rien du mode ni de la nature du nœud.
       items: { $ref: '#/ComputedField' }
@@ -340,7 +341,9 @@ Node:
         Champs de la facette que ce nœud-ci accepte en écriture, symétrique de
         `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne
         hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
-        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ;
+        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni
+        son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
+        (`RiskCommand.update_provision`, WF-RIS-0010) ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ
         calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si
@@ -378,6 +381,7 @@ ComputedField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+    - estimate_line.subproject_id
 
 EditableField:
   type: string
@@ -474,6 +478,7 @@ ComputedValueField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+    - estimate_line.subproject_id
     - estimate_line.base_amount
     - estimate_line.budgeted_amount
     - estimate_line.reestimated_amount
@@ -493,7 +498,7 @@ ComputedDependency:
     (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
     sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne
     hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
-    grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
+    grandeurs, le sous-projet et le montant d'une ligne de provision (WF-RIS-0010) ;
     `reference_revision`, le montant budgété, fixé par la révision de référence
     (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
     reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du
@@ -1242,6 +1247,11 @@ EstimateLineUpdate:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de
+        provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
+        422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
+        (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:

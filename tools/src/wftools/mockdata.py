@@ -214,15 +214,23 @@ def categories() -> list[JsonValue]:
     # Each category names its nature, and its kind, as the natures of the universe do.
     natures = {nature["cost_type_id"]: nature for nature in fixture("cost_types")["items"]}
     return [
-        *_categories(labor, "MO", "641", natures[LABOR]),
-        *_categories(non_labor, "ACH", "604", natures[NON_LABOR]),
-        *_categories([(PROVISIONS, CATEGORY_LABELS[PROVISIONS])], "PRV", "681", natures[PROVISION]),
+        *categories_of(labor, "MO", "641", natures[LABOR]),
+        *categories_of(non_labor, "ACH", "604", natures[NON_LABOR]),
+        *categories_of(
+            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])], "PRV", "681", natures[PROVISION]
+        ),
     ]
 
 
-def _categories(
+def categories_of(
     entries: Iterable[tuple[str, str]], code: str, account: str, nature: JsonObject
 ) -> list[JsonValue]:
+    """Return the categories of a nature, each with its nature resolved at the reading.
+
+    Its label, its kind, and whether it is active (`cost_type_is_active`): a form keeps the active
+    categories of an active nature of provision for risks, until C-291 deactivates them with their
+    nature (#728).
+    """
     return [
         {
             "cost_category_id": category,
@@ -231,6 +239,7 @@ def _categories(
             "cost_type_id": nature["cost_type_id"],
             "cost_type_label": nature["label"],
             "cost_type_kind": nature["kind"],
+            "cost_type_is_active": nature["is_active"],
             "accounting_code": f"{account}{rank:03d}",
             "is_active": True,
             "audit": _AUDIT,

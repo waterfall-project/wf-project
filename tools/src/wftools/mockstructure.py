@@ -409,12 +409,19 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
     another takes its unit disbursement and its payment delay; a provision computes its
     quantity and its unit disbursement from its risk, and takes neither, nor its category
-    (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered.
+    (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered. Its subproject is the
+    one its risk designates, computed too: the line does not rewrite the designation of the risk,
+    which changes only while it is identified (`update_provision`, EP-14/L42p).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
-        editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
-        return Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
+        editable.append("estimate_line.payment_delay_days")
+        computed: list[JsonValue] = [
+            "estimate_line.quantity",
+            "estimate_line.unit_disbursement",
+            "estimate_line.subproject_id",
+        ]
+        return Fields(computed, editable)
     editable.append("estimate_line.cost_category_id")
     if is_labour:
         editable.extend(

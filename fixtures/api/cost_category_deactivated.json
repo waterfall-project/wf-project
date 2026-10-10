@@ -7,6 +7,7 @@
     "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
     "cost_type_label": "Débours",
     "cost_type_kind": "non_labor",
+    "cost_type_is_active": true,
     "accounting_code": "604002",
     "is_active": false,
     "available_commands": [

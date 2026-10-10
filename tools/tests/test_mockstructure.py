@@ -415,14 +415,13 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         False,
     )
     assert (task(7)["start"]["date"], task(7)["finish"]["date"]) == ("2026-04-09", "2026-04-15")
-    # Row 10, the labour of the core; row 12, its provision, whose quantity and unit
-    # disbursement the server computes.
+    # Row 10, the labour of the core; row 12, its provision, whose quantity, unit disbursement and
+    # subproject — the one its risk designates (EP-14/L42p) — the server computes.
     assert (line(10)["label"], line(10)["hours"]) == ("Raccordement des borniers", "12.5")
     assert line(12)["is_computed"] is True
     assert row(12)["editable_fields"] == [
         "estimate_line.label",
         "estimate_line.payment_delay_days",
-        "estimate_line.subproject_id",
     ]
     # Row 13, a summary of the second level, folds over rows 14 to 17, before the milestone of row
     # 18; row 14, a task of the third level with its dates, over its line, row 15, before its

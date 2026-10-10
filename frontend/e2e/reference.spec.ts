@@ -357,19 +357,18 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("presents fixed the type of a nature whose category is employed, and the deactivation of the last nature of provision unavailable, each with its condition [WF-IHM-0090-A]", async ({
+test("presents fixed the type of a nature whose category is employed, with its condition, and the deactivation of the nature of provision for risks available [WF-IHM-0090-A]", async ({
   page,
 }) => {
   await page.goto("/reference/costs");
   const natures = page.getByRole("grid", { name: "Natures de coût" });
-  // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+  // The rule of #578 withdrawn (EP-14/L42p), the last nature of provision deactivates as any other.
   const deactivation = natures.getByRole("button", { name: "Désactiver « Provision »" });
-  await expect(deactivation).toHaveAttribute("aria-disabled", "true");
-  await expect(deactivation).toHaveAccessibleDescription(
-    /^Condition non remplie\s:\sune autre nature provision active portant une catégorie active\.$/,
-  );
+  await expect(deactivation).not.toHaveAttribute("aria-disabled", "true");
 
-  // The modification of the labour opened from its row, pressed again until React opens it.
+  // The type of the labour, whose categories the estimate employs, is fixed with its condition:
+  // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+  // Its modification is opened from its row, pressed again until React opens it.
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
   await expect(async () => {
     if (!(await form.isVisible())) {

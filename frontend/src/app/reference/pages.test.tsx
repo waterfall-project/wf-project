@@ -280,12 +280,12 @@ describe("the settings of the costs", () => {
   it("present the natures of cost by their type, and each category by its nature and its accounting code, on dense grids sorted by each of their columns [WF-IHM-0060-A]", async () => {
     const page = await costsAt();
     // The session may modify the cost settings: each row offers its modification, and the
-    // deactivation each object lists — that of the last nature of provision unavailable (#578).
+    // deactivation each object lists — the last nature of provision too since EP-14/L42p.
     expect(rows(page, "Natures de coût")).toEqual([
       "Code Libellé Type État Modifier",
       "DEB Débours Hors main-d’œuvre Actif Désactiver Modifier",
       "MO Main-d'œuvre Main-d’œuvre Actif Désactiver Modifier",
-      "PRV Provision Provision Actif Désactiver Condition non remplie : une autre nature provision active portant une catégorie active. Modifier",
+      "PRV Provision Provision pour risques Actif Désactiver Modifier",
       "3 natures",
     ]);
     expect(sortable(page, "Natures de coût")).toEqual(["Code", "Libellé", "Type", "État"]);

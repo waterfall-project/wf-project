@@ -1630,6 +1630,7 @@
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
+    "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
@@ -1935,13 +1936,14 @@
       "missing": {
         "default_calendar_with_hours": "a default calendar with working hours",
         "active_cost_category": "an active cost category",
+        "active_provision_category": "an active category of provision for risks",
         "active_resource_role": "an active resource role"
       }
     },
     "CostTypeKind": {
       "labor": "Labour",
       "non_labor": "Non-labour",
-      "provision": "Provision"
+      "provision": "Provision for risks"
     },
     "StateEnumeration": {
       "ProjectState": "State of the project"
@@ -1989,9 +1991,11 @@
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
+      "restored_subproject_exists": "subproject the undo would restore still existing",
       "risk_not_cited": "risk cited by no marked revision",
       "risk_not_occurred": "risk not occurred",
       "risk_identified": "risk identified",
+      "active_provision_category": "an active category of provision for risks",
       "org_node_parent_active": "parent node active",
       "org_node_active": "organisation node active",
       "calendar_not_default": "calendar other than the default one",
@@ -1999,8 +2003,6 @@
       "cost_type_unused": "no category of the nature employed",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
-      "cost_type_not_last_provision": "another active provision nature holding an active category",
-      "cost_category_not_last_provision": "another active category under an active provision nature",
       "last_administrator": "another active account holding the administration permissions",
       "backup_verified": "backup verified",
       "no_backup_running": "no backup running",
@@ -2149,7 +2151,8 @@
       "estimate_line": {
         "quantity": "Quantity",
         "hours": "Hours",
-        "unit_disbursement": "Unit disbursement"
+        "unit_disbursement": "Unit disbursement",
+        "subproject_id": "Subproject"
       }
     },
     "EditableField": {
@@ -2222,6 +2225,7 @@
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "subproject_id": "Subproject of the line",
         "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
@@ -2304,6 +2308,7 @@
     },
     "RiskCommand": {
       "update": "Edit the risk",
+      "update_provision": "Change the category or the subproject of the provision",
       "review": "Review the risk",
       "declare_occurrence": "Declare the risk occurred",
       "delete": "Delete the risk"

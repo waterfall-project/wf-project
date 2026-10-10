@@ -83,7 +83,7 @@ IDENTIFIERS = (
     Family("corrélations", 960, 989),
     Family("collages", 990, 999),
     Family("chronologies", 1000, 1009),
-    Family("corrélations, suite", 1010, 1099),
+    Family("corrélations, suite", 1010, 1199),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),

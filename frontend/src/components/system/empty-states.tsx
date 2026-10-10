@@ -82,6 +82,7 @@ type Prerequisite = components["schemas"]["ReferenceReadiness"]["missing"][numbe
 const PROVIDED_BY: Readonly<Record<Prerequisite, PlatformFunction>> = {
   default_calendar_with_hours: "resource_settings",
   active_cost_category: "cost_settings",
+  active_provision_category: "cost_settings",
   active_resource_role: "resource_settings",
 };
 

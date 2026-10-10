@@ -1,0 +1,18 @@
+{
+  "summary": "Un risque déclaré en désignant pour sa provision l'ingénierie électrique, une catégorie de main-d'œuvre, et un sous-projet que le projet n'a pas : refusé, chaque champ nommé — la catégorie par PROVISION_CATEGORY_REQUIRED, le sous-projet par UNKNOWN_SUBPROJECT ; rien n'est écrit (WF-RIS-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/provision_cost_category_id",
+        "code": "PROVISION_CATEGORY_REQUIRED"
+      },
+      {
+        "pointer": "/provision_subproject_id",
+        "code": "UNKNOWN_SUBPROJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001102"
+  }
+}

@@ -99,7 +99,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120 |
+| GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120, WF-RIS-0010 |
 | GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
@@ -120,11 +120,11 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/reference/cost-types` | Natures de coût | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
 | PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030, WF-REF-0130 |
-| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |
+| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-CYC-0120, WF-REF-0010, WF-REF-0020, WF-REF-0030, WF-RIS-0010 |
 | GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0090, WF-REF-0150 |
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0130 |
-| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |
+| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-CYC-0120, WF-REF-0010, WF-REF-0020, WF-REF-0030, WF-RIS-0010 |
 | GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |
@@ -147,7 +147,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-CRE-0020, WF-PRJ-0050, WF-PRJ-0060 |
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
-| DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Supprimer un sous-projet | WF-DAT-0080, WF-IHM-0090, WF-PRJ-0050, WF-PRJ-0060 |
+| DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Supprimer un sous-projet | WF-DAT-0070, WF-DAT-0080, WF-IHM-0090, WF-IHM-0110, WF-PRJ-0050, WF-PRJ-0060, WF-RIS-0010 |
 | GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-ADM-0060, WF-IHM-0060, WF-IHM-0110, WF-IHM-0130, WF-PRJ-0060 |
 | PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0060, WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Contributeurs proposés | WF-ADM-0060, WF-PRJ-0070 |

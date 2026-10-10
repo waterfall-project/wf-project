@@ -1,5 +1,5 @@
 {
-  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250 000,00, total de son devis propre, et sa provision de 500 000,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Il se modifie, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
+  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250 000,00, total de son devis propre, et sa provision de 500 000,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Sa ligne de provision porte la catégorie qu'il a désignée, « Provisions pour risques », hors sous-projet, aucun n'étant désigné (WF-RIS-0010). Il se modifie, change la catégorie ou le sous-projet de sa provision, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "risk_id": "01926f3a-7c00-7000-8000-000000000751",
@@ -12,6 +12,11 @@
     "state": "identified",
     "structure_id": "01926f3a-7c00-7000-8000-000000000204",
     "provision_node_id": "01926f3a-7c00-7000-8000-000000000555",
+    "provision_cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+    "provision_cost_category_label": "Provisions pour risques",
+    "provision_cost_category_is_active": true,
+    "provision_subproject_id": null,
+    "provision_subproject_label": null,
     "matrix_cell": {"probability_level":3,"severity_level":2,"zone":"watch"},
     "last_review_on": "2026-03-02",
     "computed_fields": [
@@ -20,6 +25,7 @@
     ],
     "available_commands": [
       {"command":"update","is_available":true,"missing_conditions":[]},
+      {"command":"update_provision","is_available":true,"missing_conditions":[]},
       {"command":"review","is_available":true,"missing_conditions":[]},
       {"command":"declare_occurrence","is_available":true,"missing_conditions":[]},
       {"command":"delete","is_available":false,"missing_conditions":["risk_not_cited"]}

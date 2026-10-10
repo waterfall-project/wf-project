@@ -304,9 +304,13 @@ ErrorCode:
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
     - UPLOAD_PURPOSE_MISMATCH
-    # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
-    # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
+    # Une catégorie de type provision pour risques donnée à une ligne saisie : seule la
+    # déclaration d'un risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
+    # Une catégorie d'une nature d'un autre type que provision pour risques désignée pour la
+    # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRisk`,
+    # `reviewRisk`, WF-RIS-0010).
+    - PROVISION_CATEGORY_REQUIRED
     # Une réestimation qui termine la tâche sans la date de terminaison que la validation
     # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED

@@ -73,6 +73,12 @@ TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
         [],
         {"missing_prerequisites": ["active_cost_category", "active_resource_role"]},
     ),
+    "project_reference_without_provision": (
+        409,
+        "REFERENCE_INCOMPLETE",
+        [],
+        {"missing_prerequisites": ["active_provision_category"]},
+    ),
     "project_creation_refused": (
         422,
         "VALIDATION_FAILED",
@@ -108,6 +114,7 @@ parameters."""
 SAID = {
     "project_code_taken": ["PRJ-001", "rénovation du poste de livraison"],
     "project_reference_incomplete": ["aucune catégorie de coût active", "aucun rôle de ressources"],
+    "project_reference_without_provision": ["PRV-001", "variante contrefactuelle"],
     "project_creation_refused": ["sans libellé", "cinquante-et-un caractères"],
     "project_win_probability_frozen": ["ramenée à 0,8", "figée"],
     "project_rates_out_of_range": ["à 40", "à -0,01"],
@@ -576,12 +583,24 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
         assert "fields" not in refused, name
 
 
-def test_the_prerequisites_refused_are_those_the_readiness_names() -> None:
-    refused = fixture("project_reference_incomplete")
+def test_the_prerequisites_refused_are_those_the_readiness_names_in_its_order() -> None:
     text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
     readiness = enumeration(text, "ReferenceReadiness", "missing")
-    assert set(refused["params"]["missing_prerequisites"]) <= set(readiness)
-    assert "default_calendar_with_hours" in readiness
+    # The four prerequisites of WF-CYC-0120, in its order: the category of provision for risks
+    # among them since EP-14/L42p (#579).
+    assert readiness == [
+        "default_calendar_with_hours",
+        "active_cost_category",
+        "active_provision_category",
+        "active_resource_role",
+    ]
+    for name in ("project_reference_incomplete", "project_reference_without_provision"):
+        missing = fixture(name)["params"]["missing_prerequisites"]
+        assert missing == [each for each in readiness if each in missing], name
+    for name in ("reference_readiness_incomplete", "reference_readiness_without_provision"):
+        read = fixture(name)
+        assert read["is_complete"] is False
+        assert read["missing"] == [each for each in readiness if each in read["missing"]], name
 
 
 def test_an_enumeration_is_read_in_line_or_one_a_line() -> None:

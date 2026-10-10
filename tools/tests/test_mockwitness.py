@@ -308,6 +308,8 @@ _KEYS = {
     "resource_role_ids": ("rôles de ressources",),
     "risk_id": ("risques", "risques du portefeuille"),
     "subproject_id": ("sous-projets",),
+    "provision_cost_category_id": ("catégories de coût",),
+    "provision_subproject_id": ("sous-projets",),
     "order_item_id": ("postes, lots et livrables du lotissement",),
     "attached_node_id": _STRUCTURE,
     "order_item_node_id": _STRUCTURE,

@@ -123,7 +123,8 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     assert (blocks["unit_disbursement"], blocks["base_amount"]) == ("1234.56", "1234.56")
     # Neither amount is entered; a labour line enters its role and its hours, not a
     # disbursement; another its disbursement, not hours; a provision none of them, nor its
-    # nature: its quantity and its disbursement come from its risk.
+    # nature: its quantity and its disbursement come from its risk, and its subproject is the one
+    # its risk designates (EP-14/L42p, revue 1).
     for node in estimate.values():
         assert not any("amount" in name for name in node["editable_fields"]), node["node_id"]
     assert "estimate_line.hours" in estimate[LABOUR]["editable_fields"]
@@ -132,11 +133,11 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     assert estimate[PROVISION]["editable_fields"] == [
         "estimate_line.label",
         "estimate_line.payment_delay_days",
-        "estimate_line.subproject_id",
     ]
     assert estimate[PROVISION]["computed_fields"] == [
         "estimate_line.quantity",
         "estimate_line.unit_disbursement",
+        "estimate_line.subproject_id",
     ]
     assert (provision["is_computed"], provision["base_amount"]) == (True, "500000.00")
     # The provision of 751 today, 1,250,000 at 40 %, budgeted at the 250,000 the reference 101

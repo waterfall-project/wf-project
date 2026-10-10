@@ -45,7 +45,7 @@ const types = example("cost_types") as { items: CostType[]; meta: ListPage };
 const volumes = (example("volume/cost_categories") as { items: CostCategory[] }).items;
 /** The first categories of the volumes: the subcontracting first, under the disbursements. */
 const first = volumes.slice(0, 3);
-/** The last category of the natures of provision, as the volumes give it. */
+/** The one category of provision for risks, as the volumes give it. */
 const provision = volumes.find((category) => category.code === "PRV-001");
 /** A category the server created today under the disbursements, attached to no line nor rate. */
 const created = example("cost_category_created") as CostCategory;
@@ -328,14 +328,14 @@ describe("the type of a nature, as its commands say it", () => {
     await expectAccessible(form);
   });
 
-  it("presents fixed the type of the last nature of provision, naming both conditions it lacks [WF-IHM-0090-A]", async () => {
+  it("presents fixed the type of the nature of provision for risks, naming the condition it lacks [WF-IHM-0090-A]", async () => {
     serve();
     render(natures());
     await userEvent.click(screen.getByRole("button", { name: "Modifier «\u00a0Provision\u00a0»" }));
     expect(
       within(dialog("Modifier «\u00a0Provision\u00a0»")).getByRole("textbox", { name: "Type" }),
     ).toHaveAccessibleDescription(
-      "Le type ne se modifie pas. Conditions non remplies\u00a0: aucune catégorie de la nature employée et une autre nature provision active portant une catégorie active.",
+      "Le type ne se modifie pas. Condition non remplie\u00a0: aucune catégorie de la nature employée.",
     );
   });
 
@@ -412,7 +412,7 @@ describe("the nature of a category, as its commands say it", () => {
     );
   });
 
-  it("offers the last category of provision the natures of provision alone, saying both conditions it lacks", async () => {
+  it("offers the category of provision for risks the natures of its type alone, saying the condition it lacks", async () => {
     serve();
     if (provision === undefined) {
       throw new Error("the volumes hold the provisions for risks");
@@ -431,7 +431,7 @@ describe("the nature of a category, as its commands say it", () => {
         .map((option) => option.textContent),
     ).toEqual(["Choisir…", "PRV · Provision"]);
     expect(nature).toHaveAccessibleDescription(
-      "Seules les natures du même type sont proposées. Conditions non remplies\u00a0: catégorie employée par aucune ligne et une autre catégorie active sous une nature provision active.",
+      "Seules les natures du même type sont proposées. Condition non remplie\u00a0: catégorie employée par aucune ligne.",
     );
   });
 

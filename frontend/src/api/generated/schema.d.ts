@@ -798,7 +798,7 @@ export interface paths {
         };
         /**
          * Référentiel minimal exigé pour créer un projet
-         * @description Nomme chaque prérequis manquant (WF-CYC-0120).
+         * @description Nomme chaque prérequis manquant (WF-CYC-0120), dont la catégorie de coût active de type provision pour risques, sans laquelle aucun risque ne peut être déclaré (WF-RIS-0010 ; EP-14/L42p, #579).
          */
         get: operations["getReferenceReadiness"];
         put?: never;
@@ -1108,7 +1108,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une nature de coût
-         * @description Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté par une autre nature est refusé par 409, `ALREADY_EXISTS`. Un type changé vers ou depuis la provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement des catégories provision —, que la réponse ne porte pas : le client relit les listes.
+         * @description Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté par une autre nature est refusé par 409, `ALREADY_EXISTS`.
          */
         patch: operations["updateCostType"];
         trace?: never;
@@ -1123,7 +1123,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une nature de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible. La désactivation l'est aussi, sauf pour la dernière nature provision active à porter une catégorie active : il en reste toujours une, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que la commande `deactivate` de la nature dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le changement de type des autres natures provision, la désactivation et le rattachement de leurs catégories —, que la réponse ne porte pas : le client relit les listes.
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La désactivation et la réactivation sont toujours disponibles, celle de la dernière nature de type provision pour risques comprise. Ses catégories restent actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie active sous une nature désactivée ne compte pas pour `active_provision_category` : la création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
          */
         put: operations["setCostTypeActivation"];
         post?: never;
@@ -1148,7 +1148,7 @@ export interface paths {
         put?: never;
         /**
          * Créer une catégorie de coût
-         * @description La catégorie se rattache à une nature de coût, active, et porte un code comptable unique (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit lequel des deux champs la porte. Créée sous une nature provision, elle change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision, la dernière ne l'étant plus —, que la réponse ne porte pas : le client relit les listes.
+         * @description La catégorie se rattache à une nature de coût, active, et porte un code comptable unique (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit lequel des deux champs la porte.
          */
         post: operations["createCostCategory"];
         delete?: never;
@@ -1172,7 +1172,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier une catégorie de coût
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130). Le code et le code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même type, le rattachement est toujours permis. Un changement de nature change la disponibilité des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature, et, vers ou depuis une nature provision, la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130). Le code et le code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même type, le rattachement est toujours permis. Un changement de nature change la disponibilité des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature —, que la réponse ne porte pas : le client relit les listes.
          */
         patch: operations["updateCostCategory"];
         trace?: never;
@@ -1187,7 +1187,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une catégorie de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La désactivation l'est aussi, sauf pour la seule catégorie active des natures provision actives : il en reste toujours une, que portent les lignes de provision des risques (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que sa commande `deactivate` dit d'avance (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100). L'écriture d'une catégorie d'une nature provision change la disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres catégories provision, la désactivation et le changement de type des natures provision —, que la réponse ne porte pas : le client relit les listes.
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La désactivation l'est aussi, celle de la dernière catégorie active de type provision pour risques comprise : la création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
          */
         put: operations["setCostCategoryActivation"];
         post?: never;
@@ -1272,7 +1272,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un projet
-         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
+         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120) — parmi eux, depuis EP-14/L42p, une catégorie de coût active de type provision pour risques (#579). Le créateur est inscrit chef de projet (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
          */
         post: operations["createProject"];
         delete?: never;
@@ -1425,7 +1425,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un sous-projet
-         * @description Refusée dès qu'une révision marquée le cite (§4.4.1, décision de l'auteur du 2026-10-10, #634) ou qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite ne se supprime pas : les sous-projets déterminent la courbe de la valeur acquise, et sa suppression y aurait des effets que rien ne maîtrise ; la décision contredit le Vérif de WF-DAT-0080, dont la correction est en attente. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun coût réel ne charge est retiré de la base.
+         * @description Refusée dès qu'une révision marquée le cite (§4.4.1, décision de l'auteur du 2026-10-10, #634) ou qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite ne se supprime pas : les sous-projets déterminent la courbe de la valeur acquise, et sa suppression y aurait des effets que rien ne maîtrise ; la décision contredit le Vérif de WF-DAT-0080, dont la correction est en attente. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun coût réel ne charge est retiré de la base. Sa suppression passe à nul la désignation de tout risque qui n'est pas identifié et le désignait pour sa provision (`Risk.provision_subproject_id`) : redevenu identifié, ce risque porte sa provision hors sous-projet (WF-RIS-0010 ; EP-14/L42p ; tranché par l'auteur le 2026-10-10, décision de l'auteur, #732). Chaque risque touché voit son `lock_version` avancer et son audit nommer l'auteur de la suppression (`updated_by`, `updated_at`, WF-DAT-0070, WF-IHM-0110).
          */
         delete: operations["deleteSubproject"];
         options?: never;
@@ -2224,7 +2224,7 @@ export interface paths {
         put?: never;
         /**
          * Déclarer un risque
-         * @description La création ouvre la structure de coûts propre du risque et sa ligne de provision dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks` (`RevisionCommand`).
+         * @description La création ouvre la structure de coûts propre du risque et sa ligne de provision dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks` (`RevisionCommand`). La ligne de provision porte la catégorie que le risque désigne parmi les catégories actives de type provision pour risques, retenue sans être demandée quand il n'en existe qu'une, et appartient au sous-projet qu'il désigne, facultativement (WF-RIS-0010 ; EP-14/L42p, #579, C-299) : le formulaire lit les catégories actives (`listCostCategories`, `cost_type_kind`) et les sous-projets du projet (`listSubprojects`) pour en proposer le choix.
          */
         post: operations["createRisk"];
         delete?: never;
@@ -2249,14 +2249,14 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un risque
-         * @description Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression d'un risque cité par une révision marquée est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est le réexamen (`reviewRisk`) qui l'écarte. Un risque survenu ne se supprime pas non plus : aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à `risk_not_occurred`. `missing_condition` n'en nomme qu'une : quand les deux manquent, `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et s'annule (WF-RIS-0020, WF-IHM-0110) ; la commande `delete` du risque dit d'avance s'il se supprime.
+         * @description Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression d'un risque cité par une révision marquée est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est le réexamen (`reviewRisk`) qui l'écarte. Un risque survenu ne se supprime pas non plus : aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à `risk_not_occurred`. `missing_condition` n'en nomme qu'une : quand les deux manquent, `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et s'annule (WF-RIS-0020, WF-IHM-0110) — une annulation refusée par 409, `params.missing_condition` à `restored_subproject_exists`, quand elle rendrait à sa provision un sous-projet supprimé depuis (décision de l'auteur, #732) ; la commande `delete` du risque dit d'avance s'il se supprime.
          */
         delete: operations["deleteRisk"];
         options?: never;
         head?: never;
         /**
          * Modifier un risque
-         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et annulable (WF-RIS-0020, WF-IHM-0110) ; refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le disait déjà indisponible.
+         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision de l'auteur, #732) ; refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le disait déjà indisponible. La catégorie et le sous-projet de la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la commande `update_provision` dit d'avance ; omis, ils restent ceux du risque.
          */
         patch: operations["updateRisk"];
         trace?: never;
@@ -2276,7 +2276,7 @@ export interface paths {
         put?: never;
         /**
          * Réexaminer un risque
-         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050). Une saisie de la révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son état précédents (WF-RIS-0020, WF-IHM-0110).
+         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050). Un risque écarté qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle est encore active, et sinon avec celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors sous-projet si le sous-projet qu'il désignait a été supprimé (#732). Une saisie de la révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son état précédents, et la catégorie qu'il désignait avant un retour à l'état identifié (WF-RIS-0020, WF-IHM-0110).
          */
         post: operations["reviewRisk"];
         delete?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_ORG_NODE" | "UNKNOWN_CALENDAR" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "ORG_NODE_CYCLE" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_ORG_NODE" | "UNKNOWN_CALENDAR" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "ORG_NODE_CYCLE" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "PROVISION_CATEGORY_REQUIRED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2950,10 +2950,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Deux tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, décision de l'auteur du 2026-10-10, #634) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`).
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour risques — jusqu'à C-291 (#728), quand aucune catégorie active n'est rattachée à une nature active de ce type (WF-RIS-0010 ; EP-14/L42p, #579) : aucune commande ne la liste — la saisie des risques (`edit_risks`) modifie, réexamine et supprime sans elle —, et `createRisk` et `reviewRisk` la nomment dans leur 409 ; le formulaire qui déclare un risque la sait d'avance par les catégories qu'il lit pour en proposer le choix, dont il retient les actives dont la nature est active et de type provision pour risques (`listCostCategories`, `cost_type_is_active`, `cost_type_kind`), et la création d'un projet l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `restored_subproject_exists` manque à toute annulation et à tout rétablissement (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision de l'auteur, #732). `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Deux tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, décision de l'auteur du 2026-10-10, #634) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`).
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "calendar_active" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "restored_subproject_exists" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "active_provision_category" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "calendar_active" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3195,7 +3195,8 @@ export interface components {
         /** @description Référentiel minimal exigé pour créer un projet (WF-CYC-0120). Le refus nomme chaque prérequis manquant. */
         ReferenceReadiness: {
             is_complete: boolean;
-            missing: ("default_calendar_with_hours" | "active_cost_category" | "active_resource_role")[];
+            /** @description Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées (`default_calendar_with_hours`) ; une catégorie de coût active dont la nature relève de la main-d'œuvre (`active_cost_category`) ; une catégorie de coût active dont la nature est de type provision pour risques (`active_provision_category`) — jusqu'à C-291 (#728), une catégorie active sous une nature active de ce type : une catégorie active d'une nature désactivée ne compte pas —, sans laquelle aucun risque ne peut être déclaré (EP-14/L42p, #579) ; un rôle de ressource actif (`active_resource_role`). Vide quand `is_complete` est vrai. */
+            missing: ("default_calendar_with_hours" | "active_cost_category" | "active_provision_category" | "active_resource_role")[];
         };
         /** @description Décimal exact, jamais un flottant (WF-DAT-0100). Le séparateur est le point, indépendamment de la langue de l'interface (WF-INTF-0180). */
         Decimal: string;
@@ -3391,12 +3392,12 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
+         * @description Type d'une nature de coût (WF-REF-0030) : main-d'œuvre, hors main-d'œuvre, provision pour risques — `provision`, qui ne porte que les lignes que Waterfall calcule à partir d'un risque, jamais saisies (WF-DEV-0020, WF-RIS-0010) ; une provision saisie et non pondérée, pour aléas par exemple, relève d'une nature hors main-d'œuvre (§3.4.4.1.1). Il ne change plus dès qu'une catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
          * @enum {string}
          */
         CostTypeKind: "labor" | "non_labor" | "provision";
         /**
-         * @description Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused` manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé, se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa désactivation et la modification de son type indisponibles, `cost_type_not_last_provision` manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @description Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused` manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé, se modifie toujours. La désactivation et la réactivation sont toujours disponibles : la dernière nature de type provision pour risques se désactive comme une autre ; ses catégories restent actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie active sous une nature désactivée ne compte pas pour `active_provision_category`, et la création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
          * @enum {string}
          */
         CostTypeCommand: "deactivate" | "reactivate" | "change_kind";
@@ -3440,6 +3441,8 @@ export interface components {
             cost_type_label: string;
             /** @description Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020). */
             cost_type_kind: components["schemas"]["CostTypeKind"];
+            /** @description Si la nature est active, résolu à la lecture comme son type. Jusqu'à C-291 (#728), une catégorie active ne compte comme catégorie de provision pour risques que sous une nature active de ce type (`active_provision_category`) : le formulaire qui déclare un risque ne retient que les catégories actives dont la nature est active et de type provision pour risques, sans relire les natures (WF-RIS-0010, WF-ARC-0020). */
+            cost_type_is_active: boolean;
             /** @description Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040). */
             accounting_code: string;
             is_active: boolean;
@@ -3447,7 +3450,7 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une catégorie ne porte que celle qui change son état —, et la rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante, dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et, `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09, #577). Il reste toujours une catégorie active rattachée à une nature provision active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision` manquante ; un rattachement à une autre nature provision active la laisse provision, et reste permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+         * @description Commandes portées par une catégorie de coût (WF-IHM-0090) : la désactiver et la réactiver, par `setCostCategoryActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une catégorie ne porte que celle qui change son état —, et la rattacher à une nature d'un autre type, par `updateCostCategory` avec un `cost_type_id` dont le `kind` diffère, toujours listée. Ce rattachement change le type de ses lignes et la sort, ou la fait entrer, dans la main-d'œuvre : il est indisponible, `cost_category_unused` manquante, dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et, `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09, #577). La désactivation et la réactivation sont toujours disponibles : la dernière catégorie active de type provision pour risques se désactive comme une autre, la création d'un projet et la déclaration d'un risque nommant alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
          * @enum {string}
          */
         CostCategoryCommand: "deactivate" | "reactivate" | "change_cost_type";
@@ -4039,7 +4042,7 @@ export interface components {
             readonly predecessor_row_number: number;
         };
         /** @enum {string} */
-        ComputedField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
+        ComputedField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.subproject_id";
         /**
          * @description Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche, récapitulative ou feuille (WF-PLA-0170).
          * @enum {string}
@@ -4058,9 +4061,9 @@ export interface components {
             task?: components["schemas"]["TaskFacet"] | null;
             estimate_line?: components["schemas"]["EstimateLineFacet"] | null;
             predecessors?: components["schemas"]["Predecessor"][];
-            /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
+            /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
             computed_fields: components["schemas"]["ComputedField"][];
-            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
             editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -4147,9 +4150,9 @@ export interface components {
          * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
          * @enum {string}
          */
-        ComputedValueField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.physical_progress" | "task.total_float" | "task.base_amount" | "task.budgeted_amount" | "task.reestimated_amount" | "task.inflated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.base_amount" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount" | "estimate_line.inflated_amount";
+        ComputedValueField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.physical_progress" | "task.total_float" | "task.base_amount" | "task.budgeted_amount" | "task.reestimated_amount" | "task.inflated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.subproject_id" | "estimate_line.base_amount" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount" | "estimate_line.inflated_amount";
         /**
-         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du montant de la ligne, du taux d'inflation du projet et de son année de consommation (WF-DEV-0040, WF-DEV-0050) ; `own_estimate`, la gravité d'un risque, total de son devis propre, et `severity_and_probability`, sa provision, cette gravité pondérée par sa probabilité (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
+         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les grandeurs, le sous-projet et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du montant de la ligne, du taux d'inflation du projet et de son année de consommation (WF-DEV-0040, WF-DEV-0050) ; `own_estimate`, la gravité d'un risque, total de son devis propre, et `severity_and_probability`, sa provision, cette gravité pondérée par sa probabilité (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
          * @enum {string}
          */
         ComputedDependency: "subordinates" | "lines_and_subordinates" | "scheduling" | "float_dates" | "manual_mode" | "hourly_rate" | "unit_disbursement" | "risk" | "reference_revision" | "remaining_reviews" | "inflation" | "own_estimate" | "severity_and_probability";
@@ -4194,6 +4197,7 @@ export interface components {
             hours?: components["schemas"]["Hours"] | null;
             unit_disbursement?: components["schemas"]["Money"] | null;
             payment_delay_days?: number | null;
+            /** @description Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par 422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même. */
             subproject_id?: components["schemas"]["Uuid"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -4513,10 +4517,10 @@ export interface components {
             dependencies: components["schemas"]["ComputedDependency"][];
         };
         /**
-         * @description Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), le réexaminer — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). Les trois saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles, `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ; indisponible pour un risque qui n'est pas identifié, `risk_identified` manquante, et, quand le projet n'a pas de révision en cours, pour qui n'a pas `revisions.write`, `may_create_revision` manquante : elle la créerait (WF-RIS-0060).
+         * @description Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), et parmi ses attributs changer la catégorie ou le sous-projet de sa provision (`updateRisk`, `provision_cost_category_id`, `provision_subproject_id`), le réexaminer — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). `update_provision`, toujours listée avec `update`, dit d'avance que la catégorie et le sous-projet de la provision ne changent que tant que le risque est identifié, `risk_identified` manquante sinon (WF-RIS-0010 ; EP-14/L42p), comme `update_win_probability` le dit de la probabilité de gain d'un projet ; elle ne nomme que `risk_identified`, pour un risque survenu comme pour un risque écarté. Les saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles, `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ; indisponible pour un risque qui n'est pas identifié, `risk_identified` manquante, et, quand le projet n'a pas de révision en cours, pour qui n'a pas `revisions.write`, `may_create_revision` manquante : elle la créerait (WF-RIS-0060).
          * @enum {string}
          */
-        RiskCommand: "update" | "review" | "declare_occurrence" | "delete";
+        RiskCommand: "update" | "update_provision" | "review" | "declare_occurrence" | "delete";
         RiskCommandAvailability: {
             command: components["schemas"]["RiskCommand"];
             is_available: boolean;
@@ -4539,6 +4543,16 @@ export interface components {
             structure_id: components["schemas"]["Uuid"];
             /** @description Ligne de provision portée par la structure principale (WF-RIS-0010). */
             provision_node_id?: components["schemas"]["Uuid"] | null;
+            /** @description La catégorie de type provision pour risques que le risque a désignée pour sa provision — à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu identifié, sa ligne la reprend si elle est encore active, et sinon la catégorie est demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que `provision_cost_category_is_active` dit d'avance. */
+            provision_cost_category_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de cette catégorie, résolu à la lecture, active ou désactivée, que le registre et le formulaire présentent sans lire le référentiel (WF-ARC-0020, WF-REF-0150). */
+            provision_cost_category_label: string;
+            /** @description Calculé à la lecture : vrai quand cette catégorie est active et que sa nature l'est aussi — la définition d'une catégorie active de type provision pour risques jusqu'à C-291 (#728). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans comparer la catégorie aux listes du référentiel. */
+            provision_cost_category_is_active: boolean;
+            /** @description Le sous-projet que le risque a désigné, facultativement, pour sa provision, et auquel appartient sa ligne de provision ; nul, elle compte dans l'ensemble « hors sous-projet » (WF-RIS-0010, WF-RAE-0020, WF-IND-0020). La suppression du sous-projet passe à nul la désignation de tout risque qui n'est pas identifié : redevenu identifié, sa provision compte hors sous-projet — l'auteur l'a tranché le 2026-10-10 (décision de l'auteur, #732). Le risque touché voit alors son `lock_version` avancer et son audit nommer l'auteur de la suppression (WF-DAT-0070, WF-IHM-0110). */
+            provision_subproject_id: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé de ce sous-projet, résolu à la lecture ; nul pour une provision hors sous-projet. */
+            provision_subproject_label: string | null;
             matrix_cell?: components["schemas"]["RiskMatrixCell"];
             last_review_on?: components["schemas"]["PlanningDate"] | null;
             /** @description Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre, pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —, ils se lisent avec le risque, sans appel au refus. */
@@ -4556,13 +4570,18 @@ export interface components {
             dismissed: components["schemas"]["Money"];
             reserve: components["schemas"]["Money"];
         };
+        /** @description Déclaration d'un risque (WF-RIS-0010). La catégorie de sa provision se désigne parmi les catégories actives de type provision pour risques — jusqu'à C-291 (#728), une catégorie active sous une nature active de ce type ; quand il n'en existe qu'une, elle est retenue sans être demandée, et le champ peut être omis. Sans aucune, la déclaration est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`. Le sous-projet de la provision est facultatif. */
         RiskWrite: {
             label: string;
             description?: string | null;
             mitigation_notes?: string | null;
             probability: components["schemas"]["Percent"];
+            /** @description La catégorie que porte la ligne de provision (WF-RIS-0010, WF-REF-0030). Omise à la déclaration, elle est la seule catégorie active de type provision pour risques ; omise quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue, `UNKNOWN_COST_CATEGORY` ; désactivée, ou sous une nature désactivée, `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010) ; d'une nature d'un autre type, `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ; `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`) ; une autre, envoyée pour un risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit d'avance. */
+            provision_cost_category_id?: components["schemas"]["Uuid"];
+            /** @description Le sous-projet auquel appartient la ligne de provision, facultatif ; nul ou omis à la déclaration, elle compte hors sous-projet (WF-RIS-0010, WF-RAE-0020). Un sous-projet que le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. À la modification, omis, il reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé pour un risque qui n'est pas identifié, est refusé comme la catégorie, par `risk_identified`. */
+            provision_subproject_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Modification d'un risque : porte le compteur lu, qu'une création n'a pas. */
+        /** @description Modification d'un risque : porte le compteur lu, qu'une création n'a pas. La catégorie et le sous-projet de la provision, omis, restent ceux du risque ; changés, ils ne le sont que tant que le risque est identifié (WF-RIS-0010, `update_provision`). */
         RiskUpdate: components["schemas"]["RiskWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -4574,11 +4593,13 @@ export interface components {
             state: components["schemas"]["RiskState"];
             actor?: components["schemas"]["ActorRef"];
         };
-        /** @description La confirmation sans modification produit un réexamen daté (WF-RIS-0010). */
+        /** @description La confirmation sans modification produit un réexamen daté (WF-RIS-0010). Un risque écarté qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle est encore active ; sinon la catégorie est demandée, comme à la déclaration (`provision_cost_category_id`), ce que `Risk.provision_cost_category_is_active` dit d'avance. Sans aucune catégorie active de type provision pour risques, ce retour est refusé par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category` (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été supprimé depuis, la désignation passée à nul (décision de l'auteur, #732). Son annulation rend au risque son état précédent et la catégorie qu'il désignait avant ce retour, la catégorie choisie au retour comprise (WF-IHM-0110, WF-RIS-0020). */
         RiskReviewWrite: {
             probability: components["schemas"]["Percent"];
             /** @enum {string} */
             state: "identified" | "dismissed";
+            /** @description La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle qu'il désignait n'est plus active (`Risk.provision_cost_category_is_active` faux) : omise, elle est la seule catégorie active de type provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la catégorie désignée est encore active, ou quand le risque ne redevient pas identifié. */
+            provision_cost_category_id?: components["schemas"]["Uuid"];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, les lignes fusionnées portant un montant budgété nul et leur montant du devis propre en réestimé ; la ligne de provision est retirée. Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif. */
@@ -4682,7 +4703,7 @@ export interface components {
          * @enum {string}
          */
         ExchangeKind: "ms_project_schedule" | "estimate" | "remaining" | "actual_costs";
-        /** @description Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs : une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), une ligne de devis d'une catégorie de nature provision, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. */
+        /** @description Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs : une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), une ligne de devis d'une catégorie de type provision pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. */
         ImportRejection: {
             row: number;
             code: components["schemas"]["ErrorCode"];
@@ -7473,7 +7494,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Un autre type pour une nature dont une catégorie est employée (WF-REF-0030), ou pour la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_kind` dit manquantes, `cost_type_unused` avant `cost_type_not_last_provision`. Un code déjà porté par une autre nature, active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit. */
+            /** @description Un autre type pour une nature dont une catégorie est employée (WF-REF-0030) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_unused`, la condition que la commande `change_kind` dit manquante. Un code déjà porté par une autre nature, active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7524,15 +7545,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La désactivation de la dernière nature provision active à porter une catégorie active (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
             /** @description La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
             412: {
                 headers: {
@@ -7656,7 +7668,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, qui porte des taux (#577), ou seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_cost_type` dit manquantes, dans l'ordre `cost_category_unused`, `cost_category_unrated`, `cost_category_not_last_provision`. Rien n'est écrit. */
+            /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, ou qui porte des taux (#577) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la commande `change_cost_type` dit manquantes, `cost_category_unused` avant `cost_category_unrated`. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7707,15 +7719,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La désactivation de la seule catégorie active des natures provision actives (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_category_not_last_provision`, la condition que sa commande `deactivate` dit manquante ; rien n'est écrit. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
             /** @description La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
             412: {
                 headers: {
@@ -7934,7 +7937,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Référentiel minimal incomplet (WF-CYC-0120) : `REFERENCE_INCOMPLETE`, `params.missing_prerequisites` nommant chaque prérequis manquant, une valeur de `ReferenceReadiness.missing` chacun. Ou un code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ. Rien n'est écrit. */
+            /** @description Référentiel minimal incomplet (WF-CYC-0120) : `REFERENCE_INCOMPLETE`, `params.missing_prerequisites` nommant chaque prérequis manquant, une valeur de `ReferenceReadiness.missing` chacun, dans son ordre. Ou un code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8995,7 +8998,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
-            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010). */
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9150,7 +9153,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ; ou un délai de paiement négatif : `fields` sur `/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100). */
+            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ; ou un délai de paiement négatif : `fields` sur `/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9455,7 +9458,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Une modification postérieure porte sur le même objet, ou l'historique de la session est vide (WF-IHM-0110). */
+            /** @description Une modification postérieure porte sur le même objet, ou l'historique de la session est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé depuis — à la provision d'un risque dont elle défait la création, la modification ou la suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est défait (décision de l'auteur, #732). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -9490,7 +9493,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Une modification postérieure porte sur le même objet, ou rien n'est à rétablir (WF-IHM-0110). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la provision d'un risque dont il rétablit la création, la modification ou la suppression, ou à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli (décision de l'auteur, #732). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     generatePlanningSkeleton: {
@@ -9969,7 +9980,24 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Aucune catégorie de coût active n'est de type provision pour risques — jusqu'à C-291 (#728), aucune catégorie active sous une nature active de ce type : la provision n'a pas de catégorie où se ranger (WF-RIS-0010). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`, que la création d'un projet exige aussi (WF-CYC-0120). Les conditions se jugent dans cet ordre, et le refus nomme la première qui manque : `at_least_one_task` — une structure principale sans tâche (WF-RIS-0010), dont le 409 reste à décrire (#728) —, puis `active_provision_category`. Ce 409 précède le 422 : sans catégorie active, aucune désignation ne serait valable, et les champs ne sont pas jugés. Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/provision_cost_category_id` omise quand plusieurs catégories actives sont de type provision pour risques, `VALUE_REQUIRED`, inconnue, `UNKNOWN_COST_CATEGORY`, désactivée, `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ou sous une nature désactivée —, ou d'une nature d'un autre type, `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas, `UNKNOWN_SUBPROJECT` (WF-RIS-0010). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getRisk: {
@@ -10061,8 +10089,25 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified` pour une autre catégorie ou un autre sous-projet de provision envoyés pour un risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée. Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listRiskReviews: {
@@ -10121,7 +10166,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. */
+            /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. Ou un risque écarté qui redeviendrait identifié alors qu'aucune catégorie de coût active n'est de type provision pour risques (WF-RIS-0010) : `params.missing_condition` à `active_provision_category`. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10131,6 +10176,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, par les motifs de la déclaration (`createRisk`). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     declareRiskOccurrence: {

@@ -189,7 +189,7 @@ export interface Examples {
     200: "org_nodes" | "org_nodes_reader" | "org_nodes_with_inactive";
   };
   "GET /reference/readiness": {
-    200: "reference_readiness" | "reference_readiness_incomplete";
+    200: "reference_readiness" | "reference_readiness_incomplete" | "reference_readiness_without_provision";
   };
   "GET /reference/resource-roles": {
     200: "resource_roles" | "resource_roles_bounded" | "resource_roles_reader";

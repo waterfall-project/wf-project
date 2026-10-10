@@ -141,8 +141,7 @@ async function activation(
  * Read the page anew once an object is written: an object is what others are filtered on and
  * attached to — the natures for the categories, the nodes, the categories and the calendars for the
  * roles —, and the server changes with one write the commands of others — the deactivation of the
- * default calendar, the reactivation of the children of a node, the deactivation and the change of
- * type of the natures and the categories of provision (#578), the change of type of the natures a
+ * default calendar, the reactivation of the children of a node, the change of type of the natures a
  * category leaves or joins (#577) —, which its answer does not carry. A
  * choice that would still offer an object deactivated is a command the server would refuse
  * (WF-REF-0010). The row written shows the answer meanwhile (`useAnswered`).
