@@ -1,0 +1,24 @@
+{
+  "summary": "La création, sous le « Câblage des armoires », d'une ligne de débours placée à la position -1 — la dernière, comptée depuis la fin — et payée trente jours d'avance, un délai de paiement de -30 : refusée, la position et le délai au-dessous de la plus petite valeur admise, 0, chaque champ désigné avec la borne franchie ; rien n'est écrit (WF-DEV-0020, WF-IND-0100).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/position",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 0
+        }
+      },
+      {
+        "pointer": "/estimate_line/payment_delay_days",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 0
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001092"
+  }
+}

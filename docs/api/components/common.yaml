@@ -141,14 +141,16 @@ Problem:
         champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
         plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux
         revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un
-        projet, au moins `0`, ou les heures d'un jour d'un calendrier et la capacité d'un rôle,
-        au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop
+        projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au
+        moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le
+        niveau d'une image d'arborescence, au moins `1`, ou le jour d'une sauvegarde
+        hebdomadaire, au moins `1`), `maximum` (la plus grande valeur admise d'une valeur trop
         grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
         portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
         le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
-        le délai entre deux revues, au plus `104` semaines, ou les heures d'un jour d'un
-        calendrier, au plus `24`), `component` (un `PlatformComponent`,
-        WF-EXP-0040),
+        le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier,
+        au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un
+        `PlatformComponent`, WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
         WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas

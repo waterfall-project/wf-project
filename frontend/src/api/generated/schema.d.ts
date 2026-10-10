@@ -740,7 +740,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurer la plateforme
-         * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422 : celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que le dépôt a lue dans son archive (`FileUpload.backup_taken_at`). Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre — ; le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100).
+         * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422 : celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que le dépôt a lue dans son archive (`FileUpload.backup_taken_at`). Une sauvegarde déposée n'est vérifiée qu'ici, par la restauration même, avant que les utilisateurs soient déconnectés — la vérification qu'une sauvegarde de la liste a passée après sa production (WF-ADM-0150), qui confirme aussi l'instant que le dépôt a lu (`backup_taken_at`) : une archive qui ne la passe pas fait échouer la tâche (`failed`), son `problem` à `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `backup_verified`, comme une sauvegarde de la liste non vérifiée ; aucun utilisateur n'est déconnecté, aucune base remplacée. Le dépôt qu'une restauration acceptée désigne est gardé jusqu'à la fin de sa tâche, même au-delà de son jour (WF-DAT-0120). Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre — ; le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100).
          */
         post: operations["startRestore"];
         delete?: never;
@@ -2416,7 +2416,7 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`). Le dépôt d'une sauvegarde lit dans son archive l'instant qu'elle porte, celui de la sauvegarde dont elle est la copie, et le rend (`backup_taken_at`) : c'est la date que la confirmation de la restauration énonce et que `startRestore` compare à la date confirmée (WF-ADM-0160) ; une archive dont l'instant ne se lit pas n'est pas une sauvegarde de Waterfall, et le dépôt est refusé.
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`). Le dépôt d'une sauvegarde lit dans son archive l'instant qu'elle porte, celui de la sauvegarde dont elle est la copie, et le rend (`backup_taken_at`) : c'est la date que la confirmation de la restauration énonce et que `startRestore` compare à la date confirmée (WF-ADM-0160) ; une archive dont l'instant ne se lit pas n'est pas une sauvegarde de Waterfall, et le dépôt est refusé. Le dépôt ne vérifie pas l'archive au-delà de son instant : la restauration la vérifie, avant de déconnecter quiconque (`startRestore`).
          */
         post: operations["uploadFile"];
         delete?: never;
@@ -2699,7 +2699,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, ou les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, ou les heures d'un jour d'un calendrier, au plus `24`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050) et celui d'un nœud d'organisation (WF-REF-0070). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, ou le jour d'une sauvegarde hebdomadaire, au moins `1`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050) et celui d'un nœud d'organisation (WF-REF-0070). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -3085,7 +3085,7 @@ export interface components {
             frequency?: "daily" | "weekly";
             /** @description Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que soit le fuseau du poste qui la lit. */
             at_time?: string;
-            /** @description Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. */
+            /** @description Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie. */
             weekday?: number | null;
             /** @description Le nombre de sauvegardes planifiées gardées sur la plateforme, de 1 à 365 : hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie. */
             retained_count: number;
@@ -3939,7 +3939,7 @@ export interface components {
             total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
             is_critical?: boolean;
-            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
             physical_progress?: components["schemas"]["Computable"] | null;
             /** @description Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent. */
             base_amount: components["schemas"]["Money"];
@@ -4297,6 +4297,7 @@ export interface components {
             key: string;
             label?: string;
             amount: components["schemas"]["ComputableMoney"];
+            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des postes non (README, « Une part… »). */
             share?: components["schemas"]["Computable"];
         };
         /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont à l'année de référence de la révision — `total`, ses ventilations par nature, par sous-projet et par poste, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure : seul le montant corrigé de l'inflation de la grille (`NodeTotals.inflated_amount`, WF-DEV-0040, WF-DEV-0050) porte l'inflation, et les indicateurs n'en ont pas de second total, la somme des parts ne valant cent que sur une même base (WF-DEV-0060). */
@@ -4354,7 +4355,8 @@ export interface components {
             key: string;
             label?: string;
             amount: components["schemas"]["Money"];
-            share?: components["schemas"]["Percent"];
+            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`). */
+            share?: components["schemas"]["Decimal"];
         };
         /** @description Marge entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
@@ -4414,7 +4416,7 @@ export interface components {
             /** @description Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010). */
             actual_cost: components["schemas"]["Money"];
             remaining: components["schemas"]["Money"];
-            /** @description Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). */
+            /** @description Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la consommation du budget et l'avancement physique (README, « Une part… »). */
             financial_progress?: components["schemas"]["Computable"];
             budget_consumption?: components["schemas"]["Computable"];
             physical_progress?: components["schemas"]["Computable"];
@@ -4664,7 +4666,7 @@ export interface components {
          * @enum {string}
          */
         FileUploadPurpose: "import" | "external_backup";
-        /** @description Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué, abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). */
+        /** @description Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué, abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). Une sauvegarde déposée qu'une restauration acceptée désigne est gardée jusqu'à la fin de sa tâche, même au-delà de `expires_at` (`startRestore`). */
         FileUpload: {
             upload_id: components["schemas"]["Uuid"];
             purpose: components["schemas"]["FileUploadPurpose"];
@@ -4826,6 +4828,7 @@ export interface components {
             pipeline_gross: components["schemas"]["Money"];
             pipeline_weighted: components["schemas"]["Money"];
             delivered: components["schemas"]["Money"];
+            /** @description À quatre décimales (README, « Une part… »). */
             conversion_rate: components["schemas"]["Computable"];
         };
         /** @description Charges sommées par rôle et par mois : sur le reste à engager pour les projets en cours, sur le devis pondéré pour les projets en chiffrage inclus (WF-PTF-0060). */
@@ -4843,6 +4846,7 @@ export interface components {
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
+                    /** @description La charge sur la capacité, à quatre décimales (README, « Une part… »). */
                     load_ratio: components["schemas"]["Computable"];
                     zone?: components["schemas"]["AlertZone"];
                 }[];
@@ -6319,7 +6323,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Une planification refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur l'emplacement (`/external_copy/retained_count`), `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne franchie (WF-ADM-0170) ; et, pour la copie externe, un emplacement que l'installation ne déclare pas (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une rétention moindre que celle de la plateforme (`/external_copy/retained_count`, `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050). */
+            /** @description Une planification refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur l'emplacement (`/external_copy/retained_count`), ou un jour hors de 1 à 7 (`/weekday`), `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne franchie (WF-ADM-0170) ; et, pour la copie externe, un emplacement que l'installation ne déclare pas (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une rétention moindre que celle de la plateforme (`/external_copy/retained_count`, `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6425,6 +6429,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description Une sauvegarde que la liste n'a pas (`backup_id`), ou un dépôt inconnu ou expiré (`external_backup_upload_id`) — un dépôt ne vit qu'un jour (WF-DAT-0120) — : `NOT_FOUND`, sans paramètre ni `fields`, comme pour l'ouverture d'un import (`openImport`) ; le refus ne distingue pas l'objet inconnu de l'objet disparu (WF-ADM-0110). Rien n'est mis en file. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Un état qui interdit la restauration : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition que la commande `restore` de la sauvegarde disait manquante (`BackupCommand`) — `backup_verified`, la sauvegarde désignée n'étant pas vérifiée, en attente ou échouée (WF-ADM-0150) ; `no_backup_running`, une sauvegarde s'exécutant ; `no_restore_running`, une restauration s'exécutant déjà (WF-ADM-0160). Rien n'est mis en file. */
             409: {
                 headers: {
@@ -8982,7 +8995,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
-            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010). */
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9137,7 +9150,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020). */
+            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ; ou un délai de paiement négatif : `fields` sur `/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9333,7 +9346,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche (WF-PLA-0010). */
+            /** @description Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche (WF-PLA-0010). Ou une position négative : `fields` sur `/position`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10556,7 +10569,7 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
-            /** @description Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision, `/revision_id` ; un niveau d'arborescence sous le premier, `/depth`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `1` (WF-PLA-0120). */
             422: {
                 headers: {
                     [name: string]: unknown;

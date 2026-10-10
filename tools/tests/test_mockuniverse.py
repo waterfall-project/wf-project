@@ -293,6 +293,7 @@ def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> No
 CHARGED = (
     "subprojects",
     "subprojects_by_label",
+    "subprojects_completed",
     "subproject_updated",
     "subprojects_with_actual_costs",
     "subproject_created",
@@ -538,7 +539,7 @@ def test_a_retention_out_of_its_range_is_refused_with_the_one_bound_it_crosses()
     block = text.split("operationId: setBackupSchedule\n", 1)[1].split("operationId:", 1)[0]
     cited = re.findall(r"fixtures/api/(\w+)\.json", block.split("'422':", 1)[1])
     assert cited[0] == "backup_schedule_unknown_location"
-    assert cited[-1] == "backup_schedule_retention_out_of_range"
+    assert "backup_schedule_retention_out_of_range" in cited[1:]
 
 
 def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
@@ -630,6 +631,43 @@ def test_a_deposited_archive_whose_instant_does_not_read_is_refused_without_para
     upload = _block_of("uploadFile", "exchanges.yaml")
     for name in ("file_upload", "file_upload_external_backup", "file_upload_backup_unreadable"):
         assert f"fixtures/api/{name}.json" in upload, name
+
+
+def test_a_restore_on_a_deposit_expired_or_unknown_is_not_found_without_parameter() -> None:
+    # EP-14/L42o (#679): a deposit lives a day (WF-DAT-0120); expired, it is no more, refused as an
+    # unknown deposit or backup is, without telling them apart, as `openImport` refuses.
+    missing = fixture("restore_not_found")
+    assert set(missing) == {"code", "status", "correlation_id"}
+    assert (missing["status"], missing["code"]) == (404, "NOT_FOUND")
+    deposit = fixture("file_upload_external_backup")
+    assert _instant(deposit["expires_at"]) - _instant(deposit["uploaded_at"]) == timedelta(days=1)
+    told = _block_of("startRestore", "platform.yaml").split("'404':", 1)[1].split("'409':", 1)[0]
+    assert "fixtures/api/restore_not_found.json" in told
+
+
+def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disconnection() -> None:
+    # The restore verifies the archive deposited before disconnecting anyone (WF-ADM-0150,
+    # WF-ADM-0160): failed, the task names the condition a backup of the list unverified misses —
+    # the archive is recognised, but altered: not a format unreadable (review 1).
+    failed = fixture("task_restore_verification_failed")
+    assert (failed["kind"], failed["status"], failed["progress"]) == ("restore", "failed", 0)
+    unverified = fixture("restore_unverified_refused")
+    assert failed["problem"] == {
+        "code": unverified["code"],
+        "status": unverified["status"],
+        "params": unverified["params"],
+    }
+    assert failed["problem"]["params"] == {"missing_condition": "backup_verified"}
+    assert failed["problem"]["code"] != "FILE_FORMAT_UNREADABLE"
+    deposit = fixture("file_upload_external_backup")
+    assert deposit["uploaded_at"] < failed["submitted_at"] < failed["finished_at"]
+    assert failed["finished_at"] < deposit["expires_at"]
+    tasks = _block_of("getBackgroundTask", "system.yaml")
+    assert "fixtures/api/task_restore_verification_failed.json" in tasks
+    # The verification confirms the instant the deposit read; the deposit lasts the task.
+    told = " ".join(_block_of("startRestore", "platform.yaml").split())
+    assert "confirme aussi l'instant que le dépôt a lu (`backup_taken_at`)" in told
+    assert "gardé jusqu'à la fin de sa tâche" in told
 
 
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:

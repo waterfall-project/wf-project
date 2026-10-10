@@ -335,8 +335,9 @@
         description: >-
           Une planification refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en
           défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur
-          l'emplacement (`/external_copy/retained_count`), `VALUE_OUT_OF_RANGE`,
-          `params.minimum` ou `maximum` la seule borne franchie (WF-ADM-0170) ; et, pour la
+          l'emplacement (`/external_copy/retained_count`), ou un jour hors de 1 à 7
+          (`/weekday`), `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne
+          franchie (WF-ADM-0170) ; et, pour la
           copie externe, un emplacement que l'installation ne déclare pas
           (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est
           pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une
@@ -350,6 +351,7 @@
               path_invalid: { $ref: ../../../fixtures/api/backup_schedule_path_invalid.json }
               retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
+              weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
 
 /external-backup-locations:
   get:
@@ -439,12 +441,20 @@
       d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration
       en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422 :
       celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que
-      le dépôt a lue dans son archive (`FileUpload.backup_taken_at`).
-      Pendant qu'une restauration s'exécute, de sa mise en file à la déconnexion des
-      utilisateurs, toute autre écriture des sauvegardes est refusée de même par 409 — en
-      déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre
-      — ; le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Sous
-      la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100).
+      le dépôt a lue dans son archive (`FileUpload.backup_taken_at`). Une sauvegarde déposée
+      n'est vérifiée qu'ici, par la restauration même, avant que les utilisateurs soient
+      déconnectés — la vérification qu'une sauvegarde de la liste a passée après sa production
+      (WF-ADM-0150), qui confirme aussi l'instant que le dépôt a lu (`backup_taken_at`) : une
+      archive qui ne la passe pas fait échouer la tâche (`failed`), son `problem` à
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `backup_verified`, comme une
+      sauvegarde de la liste non vérifiée ; aucun utilisateur n'est déconnecté, aucune base
+      remplacée. Le dépôt qu'une restauration acceptée désigne est gardé jusqu'à la fin de sa
+      tâche, même au-delà de son jour (WF-DAT-0120). Pendant qu'une restauration s'exécute, de
+      sa mise en file à la déconnexion des utilisateurs, toute autre écriture des sauvegardes
+      est refusée de même par 409 — en déclencher une (`startBackup`), en marquer une
+      (`retainBackup`), en restaurer une autre — ; le téléchargement d'une sauvegarde vérifiée
+      (`downloadBackup`) reste possible. Sous la permission de restaurer la plateforme
+      (`platform_restore`, WF-ADM-0100).
     requestBody:
       required: true
       content:
@@ -461,6 +471,18 @@
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404':
+        description: >-
+          Une sauvegarde que la liste n'a pas (`backup_id`), ou un dépôt inconnu ou expiré
+          (`external_backup_upload_id`) — un dépôt ne vit qu'un jour (WF-DAT-0120) — :
+          `NOT_FOUND`, sans paramètre ni `fields`, comme pour l'ouverture d'un import
+          (`openImport`) ; le refus ne distingue pas l'objet inconnu de l'objet disparu
+          (WF-ADM-0110). Rien n'est mis en file.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              upload_expired: { $ref: ../../../fixtures/api/restore_not_found.json }
       '409':
         description: >-
           Un état qui interdit la restauration : `STATE_FORBIDS_OPERATION`,

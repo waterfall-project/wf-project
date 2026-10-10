@@ -53,6 +53,7 @@ from wftools.mockstructure import (
     labels,
     line_fields,
     money,
+    share,
     task_fields,
 )
 from wftools.mockwitness import (
@@ -92,8 +93,6 @@ PREVIOUS = (
 
 NO_BUDGET = "no_budgeted_amount"
 """Why the physical progress of a summary without any budget cannot be computed (WF-IND-0010)."""
-
-SHARE = Decimal("0.0001")
 
 
 def lineage(number: int) -> str:
@@ -583,7 +582,7 @@ class _Emitter:
                 completed += row.amounts.budgeted
         if budgeted == 0:
             return {"is_computable": False, "value": None, "reason": NO_BUDGET}
-        return computable(decimal((completed / budgeted).quantize(SHARE)))
+        return computable(decimal(share(completed / budgeted)))
 
     @staticmethod
     def _node(number: int, place: Place, kind: str, facet: JsonObject) -> JsonObject:

@@ -453,6 +453,7 @@
               witness: { $ref: ../../../fixtures/api/subprojects.json }
               by_label: { $ref: ../../../fixtures/api/subprojects_by_label.json }
               with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
+              completed: { $ref: ../../../fixtures/api/subprojects_completed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

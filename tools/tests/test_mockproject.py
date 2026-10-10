@@ -61,6 +61,9 @@ SUBPROJECTS = (
     "subproject_updated",
 )
 """The examples that read or write subprojects, each with its commands."""
+CLOSED = "subprojects_completed"
+"""The subprojects of the witness completed (`project_completed`), their commands all unavailable
+(EP-14/L42o, #673)."""
 
 TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
     "project_code_taken": (409, "ALREADY_EXISTS", [("/code", "ALREADY_EXISTS")], {}),
@@ -347,21 +350,28 @@ def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletio
 
 
 def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_closing() -> None:
-    # No example reads the subprojects of a closed project: the order the test applies is fixed
-    # on variants built here, the one a project lists its own commands in (`project_completed`):
-    # the condition proper to the command first, `project_not_terminal` last.
+    # The order a project lists its own commands in (`project_completed`): the condition proper to
+    # the command first, `project_not_terminal` last. The subprojects of the witness completed
+    # follow it (`subprojects_completed`, EP-14/L42o); a variant built here, uncited and
+    # uncharged, misses the closing alone.
+    assert fixture("project_completed")["state"] in TERMINAL
     completed = {
         each["command"]: each for each in fixture("project_completed")["available_commands"]
     }
     assert completed["update"]["missing_conditions"] == [NOT_TERMINAL]
     assert completed[WIN_PROBABILITY]["missing_conditions"] == [BEFORE_IN_PROGRESS, NOT_TERMINAL]
     cited = _cited_by_a_marked_revision()
-    control = fixture("subprojects")[0]
-    assert control["subproject_id"] in cited
-    assert _listed(control, cited, terminal=True) == [
-        ("update", False, [NOT_TERMINAL]),
-        ("delete", False, [NOT_CITED, WITHOUT_COSTS, NOT_TERMINAL]),
-    ]
+    closed = _subprojects(CLOSED)
+    for subproject in closed:
+        assert subproject["subproject_id"] in cited, subproject["code"]
+        assert _commands(subproject) == _listed(subproject, cited, terminal=True)
+        assert _commands(subproject) == [
+            ("update", False, [NOT_TERMINAL]),
+            ("delete", False, [NOT_CITED, WITHOUT_COSTS, NOT_TERMINAL]),
+        ]
+    # The same subprojects as those of the project in progress, their commands apart.
+    unlisted = [{**each, "available_commands": None} for each in closed]
+    assert unlisted == [{**each, "available_commands": None} for each in fixture("subprojects")]
     bare = {**fixture("subproject_created"), "has_actual_costs": False}
     assert _listed(bare, cited, terminal=True) == [
         ("update", False, [NOT_TERMINAL]),
@@ -396,6 +406,15 @@ def test_the_refused_deletion_names_the_first_condition_its_command_misses(
     text = (SCHEMAS / "projects.yaml").read_text(encoding="utf-8")
     assert missing[0] in enumeration(text, "CommandCondition")
     assert enumeration(text, "SubprojectCommand") == ["update", "delete"]
+
+
+def test_the_subprojects_of_the_closed_project_are_an_example_after_the_first() -> None:
+    # Prism serves the first example of the listing: it stays the witness in progress.
+    text = (API / "paths" / "projects.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: listSubprojects\n", 1)[1].split("operationId:", 1)[0]
+    cited = re.findall(r"fixtures/api/(\w+)\.json", block)
+    assert cited[0] == "subprojects"
+    assert CLOSED in cited[1:]
 
 
 def test_both_refusals_of_a_deletion_are_examples_of_the_operation() -> None:

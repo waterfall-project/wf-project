@@ -30,6 +30,7 @@ from wftools.mockstructure import (
     decimal,
     draw,
     money,
+    partition,
 )
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
@@ -242,9 +243,6 @@ def _index(value: Decimal) -> JsonObject:
 PERIOD_FROM = date(2025, 6, 4)
 """The start of the period of the views that read one: the year up to the day of the examples."""
 
-_RATIO = Decimal("0.0001")
-"""The places of a share or a rate the server gives: a ratio of sums, never rounded before."""
-
 _RISK_SUBJECTS = (
     "Retard d'approvisionnement",
     "Reprise des fondations",
@@ -328,10 +326,6 @@ def _scope(rows: list[JsonObject], states: list[JsonValue], *, period: bool) -> 
         "org_node_label": None,
         "project_count": sum(1 for row in rows if row["state"] in states),
     }
-
-
-def _ratio(numerator: Decimal, denominator: Decimal) -> str:
-    return decimal((numerator / denominator).quantize(_RATIO))
 
 
 def portfolio_value(rows: list[JsonObject]) -> JsonObject:
@@ -480,21 +474,22 @@ def _parts(total: Decimal, shares: tuple[Decimal, Decimal]) -> dict[str, Decimal
 
     Each part is named by its nature, never by its place among the natures of the universe.
     """
-    labour, non_labour = ((total * share).quantize(CENT) for share in shares)
+    labour, non_labour = ((total * part).quantize(CENT) for part in shares)
     return {LABOR: labour, NON_LABOR: non_labour, PROVISION: total - labour - non_labour}
 
 
 def _by_key(
     keys: list[tuple[str, str]], amounts: dict[str, Decimal], total: Decimal
 ) -> list[JsonValue]:
+    found = partition([amounts[key] for key, _ in keys], total)
     return [
         {
             "key": key,
             "label": label,
             "amount": money(amounts[key]),
-            "share": _ratio(amounts[key], total),
+            "share": decimal(part),
         }
-        for key, label in keys
+        for (key, label), part in zip(keys, found, strict=True)
     ]
 
 

@@ -1,0 +1,19 @@
+{
+  "summary": "Une variante déclarée : l'archive déposée aujourd'hui à 13 h 50 (file_upload_external_backup), altérée sur l'emplacement de Lyon après sa copie, dont le dépôt a pourtant lu l'instant ; sa restauration, confirmée à 14 h 03, échoue à 14 h 03 min 40 s à la vérification qui l'ouvre, celle d'une sauvegarde après sa production : backup_verified manquante, comme pour une sauvegarde de la liste non vérifiée (restore_unverified_refused). Aucun utilisateur n'a été déconnecté, aucune base remplacée : la plateforme reste ce qu'elle était (WF-ADM-0150, WF-ADM-0160).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000938",
+    "kind": "restore",
+    "status": "failed",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:03:00Z",
+    "finished_at": "2026-06-03T14:03:40Z",
+    "problem": {
+      "code": "STATE_FORBIDS_OPERATION",
+      "status": 409,
+      "params": {
+        "missing_condition": "backup_verified"
+      }
+    },
+    "result_url": null
+  }
+}

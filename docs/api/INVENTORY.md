@@ -82,7 +82,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
 | POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
-| POST | `/restores` | Restaurer la plateforme | WF-ADM-0100, WF-ADM-0160, WF-ARC-0090, WF-DAT-0130, WF-IHM-0090 |
+| POST | `/restores` | Restaurer la plateforme | WF-ADM-0100, WF-ADM-0150, WF-ADM-0160, WF-ARC-0090, WF-DAT-0120, WF-DAT-0130, WF-IHM-0090 |
 
 ## Journal d'audit
 
