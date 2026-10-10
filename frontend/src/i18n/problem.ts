@@ -12,9 +12,9 @@
  * catalogue does not know, adds nothing. A
  * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
- * of the envelope: the smallest value a field admits (`minimum`) is said with the refusal, and a
- * form says the refusal of each field at the field, by the same sentence (`problemMessage` of the
- * field's code and parameters). The
+ * of the envelope: the smallest or the largest value a field admits (`minimum`, `maximum`) is said
+ * with the refusal, and a form says the refusal of each field at the field, by the same sentence
+ * (`problemMessage` of the field's code and parameters). The
  * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
  * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
  */
@@ -99,15 +99,8 @@ const DETAILS: readonly Reader[] = [
   },
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
-  ({ minimum }, _label, locale) => {
-    if (typeof minimum === "number") {
-      return ["minimum", { minimum }];
-    }
-    // A decimal or an amount of the contract, written in the language of the reader.
-    return typeof minimum === "string" && DECIMAL.test(minimum)
-      ? ["minimum", { minimum: formatDecimal(minimum, locale) }]
-      : undefined;
-  },
+  ({ minimum }, _label, locale) => bound("minimum", minimum, locale),
+  ({ maximum }, _label, locale) => bound("maximum", maximum, locale),
   ({ component }, label) => {
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
@@ -122,8 +115,22 @@ const DETAILS: readonly Reader[] = [
       : undefined,
 ];
 
-/** A decimal of the contract — `Decimal`, `Money` —, which a minimum may be written in. */
+/** A decimal of the contract — `Decimal`, `Money` —, which a bound may be written in. */
 const DECIMAL = /^-?\d+(\.\d+)?$/;
+
+/**
+ * The sentence of a bound a value crosses (`minimum`, `maximum`): a number, or a decimal or an amount
+ * of the contract written in the language of the reader; nothing for any other value — a date, which
+ * the filter of a period says by itself.
+ */
+function bound(key: "minimum" | "maximum", value: unknown, locale: Locale): Detail | undefined {
+  if (typeof value === "number") {
+    return [key, { [key]: value }];
+  }
+  return typeof value === "string" && DECIMAL.test(value)
+    ? [key, { [key]: formatDecimal(value, locale) }]
+    : undefined;
+}
 
 /** Whether a value is a node of the catalogue that holds others. */
 function isList(node: unknown): node is Readonly<Record<string, unknown>> {

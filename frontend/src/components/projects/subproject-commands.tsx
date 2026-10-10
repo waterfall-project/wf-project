@@ -4,16 +4,22 @@
  * The commands of the sub-projects of a project (FBS-4.2.3, EP-02/L44b): create one, modify one,
  * delete one (WF-PRJ-0050). They follow the command `update` the project lists — the settings of a
  * project are its project managers' (WF-PRJ-0060), and a terminal project lists it unavailable,
- * `project_not_terminal` lacking —: absent, nothing is offered; unavailable, « New sub-project » is
- * presented `aria-disabled`, described by the conditions it lacks; available, the list offers the
- * creation in its head and each row its modification and its deletion. A sub-project charged with
- * actual costs no longer deletes (WF-PRJ-0050): its deletion is presented unavailable, and a press
- * says why in the region of the list, without asking anything. A deletion is confirmed first.
+ * `project_not_terminal` lacking —: absent, nothing is offered; listed, available or not, the list
+ * offers the creation in its head — unavailable, « New sub-project » presented `aria-disabled`,
+ * described by the conditions it lacks — and each row its modification and its deletion as the row
+ * lists them (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
+ * `aria-disabled`, described by the conditions it lacks — a sub-project a marked revision cites
+ * deletes not, `subproject_not_cited` lacking (§4.4.1), nor one charged with actual costs,
+ * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor any of a terminal project,
+ * `project_not_terminal` lacking —, a press saying them in the region of the list without asking
+ * anything (`UnavailableCellCommand`). A deletion is confirmed first, and a refusal of the server —
+ * the first condition it lacks named (409) — is told above the list.
  *
  * The creation and the modification open the form of the reference data (`ReferenceForm`): the code
  * and the label, required, no longer than the contract takes; a code another sub-project bears (409
- * `ALREADY_EXISTS`) is said at its field, its holder named generically — « another sub-project »
- * (EP-02/L42g) —, the form not knowing the rows the list shows. A modification answered takes the
+ * `ALREADY_EXISTS`) is said at its field, its holder named by the label the refusal gives it
+ * (`conflicting_object_label`), the form not knowing the rows the list shows — generically, « another
+ * sub-project », without it (EP-02/L42g). A modification answered takes the
  * place of its row while it is newer than the row read (`lock_version`) — answered for another
  * sub-project, it is a failure of the service (`ANOTHER_OBJECT`), told under the form, and nothing
  * takes the place of any row —, a deletion answered takes its row away, for as long as the screen
@@ -41,10 +47,10 @@ import {
 
 import { deleteSubproject, writeSubproject } from "@/api/actions/projects";
 import { UnmetConditions } from "@/components/commands/command";
-import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { type CommandOffer, findOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { rejected } from "@/components/commands/rejection";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
-import { CellCommand } from "@/components/reference/cell-command";
+import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
@@ -206,57 +212,108 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
   );
 }
 
-/** The command that opens the modification of a row, named after its code. */
-export function ModifySubproject({ row }: { readonly row: Subproject }) {
+/**
+ * A command of a row the row lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list, after the command
+ * named by the code of the row.
+ */
+function UnavailableCommand({
+  name,
+  offer,
+  children,
+}: {
+  /** The accessible name of the command, which names the sub-project by its code. */
+  readonly name: string;
+  readonly offer: CommandOffer;
+  readonly children: ReactNode;
+}) {
   const t = useTranslations("projectLists.subprojects");
   const commands = useContext(SubprojectContext);
   return (
+    <UnavailableCellCommand
+      name={name}
+      offer={offer}
+      onPress={(unmet) => {
+        commands?.say(t("unavailable", { command: name, unmet }));
+      }}
+    >
+      {children}
+    </UnavailableCellCommand>
+  );
+}
+
+/**
+ * The command that opens the modification of a row, named after its code, as the row lists `update`:
+ * absent, nothing; unavailable, with the conditions it lacks.
+ */
+export function ModifySubproject({ row }: { readonly row: Subproject }) {
+  const t = useTranslations("projectLists.subprojects");
+  const commands = useContext(SubprojectContext);
+  const offer = findOffer(row.available_commands, "update");
+  const name = t("modifyNamed", { code: row.code });
+  const content = (
+    <>
+      <PencilLine aria-hidden="true" />
+      {t("modify")}
+    </>
+  );
+  if (offer === undefined) {
+    return null;
+  }
+  if (!offer.is_available) {
+    return (
+      <UnavailableCommand name={name} offer={offer}>
+        {content}
+      </UnavailableCommand>
+    );
+  }
+  return (
     <CellCommand
-      aria-label={t("modifyNamed", { code: row.code })}
+      aria-label={name}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget, deleting: false });
       }}
     >
-      <PencilLine aria-hidden="true" />
-      {t("modify")}
+      {content}
     </CellCommand>
   );
 }
 
 /**
- * The command that deletes a row, named after its code: unavailable once actual costs are charged to
- * it, described by why, a press saying it in the region of the list; available, it opens its
- * confirmation.
+ * The command that deletes a row, named after its code, as the row lists `delete`: absent, nothing;
+ * unavailable, with the conditions it lacks — a marked revision that cites it (§4.4.1), actual costs
+ * charged to it (WF-PRJ-0050), a terminal project; available, it opens its confirmation.
  */
 export function DeleteSubproject({ row }: { readonly row: Subproject }) {
   const t = useTranslations("projectLists.subprojects");
   const commands = useContext(SubprojectContext);
-  const described = `${useId()}-unmet`;
-  const charged = row.has_actual_costs;
-  return (
+  const offer = findOffer(row.available_commands, "delete");
+  const name = t("deleteNamed", { code: row.code });
+  const content = (
     <>
-      <CellCommand
-        aria-label={t("deleteNamed", { code: row.code })}
-        aria-disabled={charged ? true : undefined}
-        aria-describedby={charged ? described : undefined}
-        className={UNAVAILABLE}
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          if (charged) {
-            commands?.say(t("deleteUnavailable", { code: row.code }));
-          } else {
-            commands?.open({ row, trigger: event.currentTarget, deleting: true });
-          }
-        }}
-      >
-        <Trash2 aria-hidden="true" />
-        {t("delete")}
-      </CellCommand>
-      {charged ? (
-        <span id={described} className="sr-only">
-          {t("deleteCharged")}
-        </span>
-      ) : null}
+      <Trash2 aria-hidden="true" />
+      {t("delete")}
     </>
+  );
+  if (offer === undefined) {
+    return null;
+  }
+  if (!offer.is_available) {
+    return (
+      <UnavailableCommand name={name} offer={offer}>
+        {content}
+      </UnavailableCommand>
+    );
+  }
+  return (
+    <CellCommand
+      aria-label={name}
+      onClick={(event: MouseEvent<HTMLElement>) => {
+        commands?.open({ row, trigger: event.currentTarget, deleting: true });
+      }}
+    >
+      {content}
+    </CellCommand>
   );
 }
 

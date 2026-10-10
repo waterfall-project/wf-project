@@ -19,6 +19,7 @@ import {
   formatTimestamp,
   parseDecimal,
   percentRatio,
+  ratioPercent,
 } from "./format";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
@@ -228,6 +229,14 @@ describe("a percentage entered", () => {
     expect(percentRatio("1.1")).toBe("0.011");
     expect(percentRatio("0.7")).toBe("0.007");
     expect(percentRatio("57")).toBe("0.57");
+  });
+
+  it("says a ratio of the contract as the percentage it stands for, as the contract writes a decimal", () => {
+    // The bounds of the two rates of a project, which the server gives in ratios (EP-14/L42i).
+    expect(ratioPercent("1")).toBe("100");
+    expect(ratioPercent("0")).toBe("0");
+    expect(ratioPercent("0.035")).toBe("3.5");
+    expect(ratioPercent("2026-06-03")).toBeUndefined();
   });
 });
 

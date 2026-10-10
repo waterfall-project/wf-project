@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -29,6 +30,8 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001/settings",
   useSearchParams: () => new URLSearchParams(),
 }));
+
+type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SET = "PUT /projects/{project_id}/contributors";
@@ -147,8 +150,9 @@ describe("the modification of the contributors of a project", () => {
       "Sacha Lefèvre",
     );
     let form = await modify();
+    // Proposed with the node and the role that make the server propose him (EP-14/L42i).
     expect(within(form).getByRole("region", { name: "Contributeurs proposés" })).toHaveTextContent(
-      "Sacha Lefèvre",
+      "Sacha LefèvreAtelier de câblage : rôle Monteur câbleur",
     );
     // Tant que la proposition n'est pas confirmée, la liste est inchangée.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
@@ -218,7 +222,7 @@ describe("the modification of the contributors of a project", () => {
           code: "VALIDATION_FAILED",
           status: 422,
           fields: [
-            { pointer: "/contributors/1/user_id", code: "INACTIVE_REFERENCE_OBJECT" },
+            { pointer: "/contributors/1/user_id", code: "USER_INACTIVE" },
             { pointer: "/lock_version", code: "VALUE_REQUIRED" },
           ],
         },
@@ -231,9 +235,7 @@ describe("the modification of the contributors of a project", () => {
     await vi.waitFor(() => {
       expect(capacity).toHaveAttribute("aria-invalid", "true");
     });
-    expect(capacity).toHaveAccessibleDescription(
-      "Alix Moreau : Cet élément du référentiel est désactivé.",
-    );
+    expect(capacity).toHaveAccessibleDescription("Alix Moreau : Ce compte est désactivé.");
     expect(capacity).toHaveFocus();
     // What points at no row is told under the form, without the row said already.
     const alert = within(form).getByRole("alert");
@@ -241,8 +243,46 @@ describe("the modification of the contributors of a project", () => {
     expect(alert).not.toHaveTextContent("désactivé");
   });
 
+  it("says at its row each account the server refuses, a deactivated one and one the installation does not have, naming them", async () => {
+    // Alix Moreau, deactivated, passed project manager at the second row, and a fifth row the server
+    // does not know — here the account inscribed from the proposal (EP-14/L42i).
+    const client = serve({
+      [SET]: { problem: { ...(example("contributors_accounts_refused") as Problem), status: 422 } },
+    });
+    render(list());
+    const form = await modify();
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Qualité de Alix Moreau" }),
+      "Chef de projet",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Inscrire Sacha Lefèvre" }));
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    const alix = within(form).getByRole("combobox", { name: "Qualité de Alix Moreau" });
+    await vi.waitFor(() => {
+      expect(alix).toHaveFocus();
+    });
+    expect(alix).toHaveAccessibleDescription("Alix Moreau : Ce compte est désactivé.");
+    expect(
+      within(form).getByRole("combobox", { name: "Qualité de Sacha Lefèvre" }),
+    ).toHaveAccessibleDescription("Sacha Lefèvre : Compte inconnu.");
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(written(client)[0]).toMatchObject({
+      contributors: [
+        { user_id: user(301), kind: "project_manager" },
+        { user_id: user(303), kind: "project_manager" },
+        { user_id: user(305), kind: "contributor" },
+        { user_id: user(306), kind: "contributor" },
+        { user_id: user(304), kind: "contributor" },
+      ],
+    });
+  });
+
   it("says under the form what the server refuses as a whole, the form kept", async () => {
-    serve({ [SET]: { problem: { code: "LAST_PROJECT_MANAGER", status: 409 } } });
+    serve({
+      [SET]: {
+        problem: { ...(example("contributors_without_manager_refused") as Problem), status: 409 },
+      },
+    });
     render(list());
     const form = await modify();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));

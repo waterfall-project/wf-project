@@ -234,17 +234,26 @@ chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-
 volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
 L'historique des états, une liste de lecture, reste une table simple. Les sous-projets offrent leurs
 commandes comme le projet liste `update` (`subproject-commands.tsx`) — absente, rien ; indisponible,
-« Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible, la création en tête
-de liste et, sur chaque ligne, la modification et la suppression : le formulaire du référentiel
-(`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`, `fields[]`)
-dit au champ ; la suppression confirmée dans la page, présentée indisponible, sa raison dite, pour un
-sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050), son refus par le serveur dit au-dessus
-de la liste (`Reactivations`). Les contributeurs, comme le projet liste `manage_contributors`
-(`contributor-commands.tsx`), se modifient en une liste entière dans un dialogue (`setContributors`) :
-la qualité de chacun, son retrait, et l'inscription, une à une, des propositions du serveur
-(`listContributorSuggestions`, WF-PRJ-0070), rien n'étant écrit avant l'enregistrement ; une liste
-sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
-(`/contributors/<n>/…`) dit à la ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
+« Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible ou non, sur chaque
+ligne, la modification et la suppression comme la ligne les liste (`Subproject.available_commands`,
+EP-14/L44e) — absente, rien ; indisponible, présentée `aria-disabled`, décrite par ses conditions, et
+un appui les dit dans la région de la liste (`UnavailableCellCommand`) : sur un projet clos, chacune
+nomme `project_not_terminal` (WF-IHM-0090). La création et la modification ouvrent le formulaire du
+référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`,
+`fields[]`) dit au champ, son porteur nommé par le libellé que le refus donne
+(`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
+par le serveur, 409 `STATE_FORBIDS_OPERATION` nommant la première condition qui manque, dit au-dessus
+de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée cite
+(`subproject_not_cited`, §4.4.1) ou auquel des coûts réels sont imputés
+(`subproject_without_actual_costs`, WF-PRJ-0050) ; l'écran n'en déduit rien de `has_actual_costs`. Les
+contributeurs, comme le projet liste `manage_contributors` (`contributor-commands.tsx`), se modifient
+en une liste entière dans un dialogue (`setContributors`) : la qualité de chacun, son retrait, et
+l'inscription, une à une, des propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070),
+chacune avec le nœud et les rôles qui la font proposer (`org_node_label`, `resource_role_labels`),
+inscrite active comme le serveur le dit (`is_active`), rien n'étant écrit avant l'enregistrement ; une
+liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
+(`/contributors/<n>/…`) — un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à la
+ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
 lecture entière, avec son compteur : quand la grille lit la liste filtrée, la page la relit entière
 pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
 ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
@@ -265,29 +274,35 @@ sert sous les traits du témoin, tant que l'accueil est encore montré : une ré
 qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
 dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
 succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
-taire. Les paramètres du projet présentent son identité et ses faits — le
-libellé, le code, la date de réception de la commande, la description, le taux d'inflation et la
-probabilité de gain — et leur modification (`updateProject`) comme le projet liste sa commande
-(`update`) : absente, disponible, ou indisponible avec ses conditions — un projet terminal
-(WF-CYC-0100). Les deux taux se saisissent en pourcentages et partent en rapports du contrat, la
-virgule déplacée sans flottant (`editablePercent`, `percentRatio`) ; la probabilité de gain, figée à
-partir de En cours comme le contrat le dit (`Project.win_probability`, WF-PRJ-0090), n'est plus
-offerte, et le formulaire dit pourquoi ; une date ou un texte laissés vides partent nuls, une date à
-moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant tout appel. La réponse
-prend la place des faits lus tant qu'elle est plus récente que le projet lu (`lock_version`) — face
-au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la modification est
-disponible) —, la page relue ; la section est
-remontée quand l'écran montre un autre projet. Un refus par champ se dit au champ, tout autre sous le
-formulaire, la version périmée avec l'offre de relire ; le code déjà porté par un autre projet (409
-`ALREADY_EXISTS`, `fields[]`) se dit au champ, le projet qui le porte nommé génériquement, l'écran ne
-montrant pas les autres projets (`kind="project"`, EP-02/L42g). Le cycle de
-vie dit le prochain état du projet, son déclencheur et les conditions qui lui restent, une par une
-(`getProjectNextState`, `NextStateFacts`, WF-CYC-0050), qu'aucune commande ne mène à Chiffrage ni à
-En cours (WF-CYC-0020) ; un projet qu'aucun fait ne mène plus loin le dit : en cours, seules ses
-sorties restent ; terminal — un état où mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état
-ne le suit (WF-CYC-0080). Le contrat nomme le
-déclencheur par un code qu'il n'énumère pas : le catalogue rend les deux du cycle de vie, et dit
-« non reconnu » tout autre (« Interface contract issue » relevée par EP-02/L44a).
+taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
+de réception de la commande, la description, le taux d'inflation et la probabilité de gain — et leur
+modification (`updateProject`) comme le projet liste sa commande (`update`) : absente, disponible,
+ou indisponible avec ses conditions — un projet terminal (WF-CYC-0100). Les deux taux se saisissent
+en pourcentages et partent en rapports du contrat, la virgule déplacée sans flottant
+(`editablePercent`, `percentRatio`) ; la probabilité de gain suit sa propre commande
+(`update_win_probability`, EP-14/L44e) : indisponible — à partir de En cours,
+`project_before_in_progress` manquante (WF-PRJ-0090) —, elle est montrée figée (`control: "fixed"`),
+ses conditions dites sous elle, et n'est pas envoyée ; une date ou un texte laissés vides partent
+nuls, une date à moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant
+tout appel. Une réponse ne ferme que l'ouverture du formulaire d'où elle est partie : arrivée après
+que le dialogue a été fermé puis rouvert, elle s'affiche et laisse le nouveau dialogue ouvert
+(#660). La réponse prend la place des faits lus tant qu'elle est plus récente que le projet lu
+(`lock_version`) — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la
+modification est disponible) —, la page relue ; la section est remontée quand l'écran montre un
+autre projet. Un refus par champ se dit au champ, tout autre sous le formulaire — la probabilité
+figée entre-temps (409 `STATE_FORBIDS_OPERATION`, la condition nommée), la version périmée avec
+l'offre de relire ; un taux hors de ses bornes (422 `VALUE_OUT_OF_RANGE`, `params.minimum` ou
+`maximum`, en rapports) se dit au champ, la borne en pourcentage comme le champ la saisit
+(`ratioPercent`) ; le code déjà porté par un autre projet (409 `ALREADY_EXISTS`, `fields[]`) se dit
+au champ, le projet qui le porte nommé par le libellé que le refus donne
+(`conflicting_object_label`), l'écran ne montrant pas les autres projets — génériquement sans lui
+(`kind="project"`, EP-02/L42g). Le cycle de vie dit le prochain état du projet, son déclencheur et
+les conditions qui lui restent, une par une (`getProjectNextState`, `NextStateFacts`, WF-CYC-0050),
+qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le déclencheur est l'un des
+deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
+(`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
+prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
 
 Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
 le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
@@ -1624,9 +1639,12 @@ pour les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécriva
 client. Et un test peut rendre un composant sur une variante contrefactuelle d'une ligne d'exemple
 — une valeur changée, le reste de la ligne gardé —, quand aucun exemple du contrat ne porte le cas
 qu'il éprouve : la variante se passe en prop au composant, jamais servie comme réponse du client, et
-le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-ESS »
-déchargé de ses coûts réels pour la suppression d'un sous-projet, les deux du témoin en portant
-(`subproject-commands.dom.test.tsx`), et l'écart à la revue précédente absent du reste à engager
+le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-REC », le
+sous-projet créé, qu'aucune révision marquée ne cite, déchargé de ses coûts réels, sa suppression
+listée disponible comme le serveur la listerait alors, pour la suppression d'un sous-projet, les deux
+du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne, ou
+toutes indisponibles sur un projet clos, `project_not_terminal` en dernier (EP-14/L44e,
+`subproject-commands.dom.test.tsx`) ; et l'écart à la revue précédente absent du reste à engager
 (`remaining-summary.test.tsx`).
 
 ### Un test qui cite son exigence

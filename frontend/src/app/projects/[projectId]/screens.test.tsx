@@ -305,6 +305,10 @@ describe("the settings of a project", () => {
   });
 
   it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {
+    // Each sub-project of the witness is cited by the reference revision and charged (EP-14/L42l).
+    const undeletable =
+      "Unmet conditions: subproject cited by no marked revision and no actual cost booked against " +
+      "the subproject.";
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/subprojects"]).toBe(
       `/projects/${PROJECT}/subprojects`,
@@ -312,8 +316,8 @@ describe("the settings of a project", () => {
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
     expect(rows(page, "Subprojects")).toEqual([
       "ERP code Label Actual costs Modify Delete",
-      "SP-CMD Poste de commande Charged Modify Delete Actual costs are charged to it.",
-      "SP-ESS Essais et mise en service Charged Modify Delete Actual costs are charged to it.",
+      `SP-CMD Poste de commande Charged Modify Delete ${undeletable}`,
+      `SP-ESS Essais et mise en service Charged Modify Delete ${undeletable}`,
       "2 subprojects",
     ]);
     expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);

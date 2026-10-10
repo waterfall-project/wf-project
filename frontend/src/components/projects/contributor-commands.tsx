@@ -7,20 +7,24 @@
  * absent, nothing is offered; unavailable, the command is presented `aria-disabled`, described by
  * the conditions it lacks; available, it opens the list in a dialog, where a contributor changes
  * capacity or is withdrawn, and where the accounts the server proposes — those of the services whose
- * roles the estimate employs (WF-PRJ-0070) — are inscribed one by one, each confirmed by the project
- * manager: nothing proposed is applied until the list is saved.
+ * roles the lines of the estimate employ (WF-PRJ-0070), each with the node of organisation and the
+ * roles it is proposed for (`org_node_label`, `resource_role_labels`, EP-14/L42i) — are inscribed one
+ * by one, each confirmed by the project manager, as active as the server says the account is
+ * (`is_active`): nothing proposed is applied until the list is saved.
  *
- * The list is written from a reading of it whole, with its counter: a reading filtered has none, and
- * written back it would withdraw what it omits — the page then reads the list whole besides, for the
- * dialog to start from (`whole`). A list left without a project manager is refused before anything is
- * asked (WF-PRJ-0060); a refusal by field of the server (422, `/contributors/<n>/…`) is said at the
- * row of the account it points at, naming it; any other refusal — no project manager left (409), the
- * version stale (412) with the offer to read the page anew — under the form, or, the dialog gone,
- * under the head of the list. The list answered takes the place of the rows of a reading whole while
- * its counter is newer — against the fake back, which keeps nothing, for as long as the screen stays
- * (`MockupNotice`) —, and the page is read anew. Under a grid sorted, the list answered comes in the
- * order of the server, not that of the sort — transitory against the real back, which the page read
- * anew replaces; permanent against the fake back.
+ * The list is written from a reading of it whole, with its counter: a reading filtered has none,
+ * and written back it would withdraw what it omits — the page then reads the list whole besides,
+ * for the dialog to start from (`whole`). A list left without a project manager is refused before
+ * anything is asked (WF-PRJ-0060); a refusal by field of the server (422, `/contributors/<n>/…`) is
+ * said at the row of the account it points at, naming it — an account the installation does not
+ * have (`UNKNOWN_USER`) or deactivated (`USER_INACTIVE`, WF-ADM-0060) —; any other refusal — no
+ * project manager left (409), the version stale (412) with the offer to read the page anew — under
+ * the form, or, the dialog gone, under the head of the list. The list answered takes the place of
+ * the rows of a reading whole while its counter is newer — against the fake back, which keeps
+ * nothing, for as long as the screen stays (`MockupNotice`) —, and the page is read anew. Under a
+ * grid sorted, the list answered comes in the order of the server, not that of the sort —
+ * transitory against the real back, which the page read anew replaces; permanent against the fake
+ * back.
  *
  * The dialog starts from the reading it was opened on — its rows and its counter —, captured at the
  * opening, as `Opened.row` of the sub-projects: a reading newer that arrives while it is open changes
@@ -443,21 +447,32 @@ function ContributorEditor({
             <ul className="space-y-1">
               {proposed.map((one) => (
                 <li key={one.user_id} className="flex items-center justify-between gap-2 text-sm">
-                  {one.display_name}
+                  <span>
+                    {one.display_name}
+                    <span className="block text-xs text-muted-foreground">
+                      {t("proposedFrom", {
+                        node: one.org_node_label,
+                        count: one.resource_role_labels.length,
+                        roles: new Intl.ListFormat(formatLocale(locale), {
+                          type: "conjunction",
+                        }).format(one.resource_role_labels),
+                      })}
+                    </span>
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      // A proposed account is active: a deactivated one is no longer proposed
-                      // (WF-ADM-0060). `ContributorSuggestion` does not say so; #592 (point 6) asks it.
+                      // Inscribed as the server tells the account (EP-14/L42i): active, a
+                      // deactivated one being no longer proposed (WF-ADM-0060).
                       setDraft([
                         ...draft,
                         {
                           user_id: one.user_id,
                           display_name: one.display_name,
                           kind: "contributor",
-                          is_active: true,
+                          is_active: one.is_active,
                         },
                       ]);
                     }}

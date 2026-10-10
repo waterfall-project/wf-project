@@ -239,6 +239,15 @@ export function editablePercent(value: Decimal, locale: Locale): string {
 }
 
 /**
+ * The percentage a ratio of the contract stands for — `0.035` read, `3.5` said —, the point moved,
+ * never through a float (WF-DAT-0100): a bound the server gives in ratios, said where one enters
+ * percentages; `undefined` for a text that is no decimal of the contract.
+ */
+export function ratioPercent(value: string): Decimal | undefined {
+  return isDecimal(value, DECIMAL) ? shiftPoint(value, 2) : undefined;
+}
+
+/**
  * The `Percent` of the contract a percentage entered stands for — `3.5` entered, `0.035` sent —, the
  * point moved, never through a float (WF-DAT-0100).
  */

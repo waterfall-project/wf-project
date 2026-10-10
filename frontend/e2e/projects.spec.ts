@@ -178,9 +178,12 @@ test("creates a project from the home, then modifies the identity of a project o
   const identity = page.getByRole("dialog", {
     name: "Modifier «\u00a0Modernisation du poste de commande\u00a0»",
   });
-  // In progress, the probability of winning is frozen, and the form says so.
-  await expect(identity).toContainText("La probabilité de gain ne se modifie plus");
-  await expect(identity.getByRole("textbox", { name: /Probabilité de gain/ })).toHaveCount(0);
+  // In progress, the probability of winning is frozen, as the project lists its command, and the
+  // form says the condition it lacks.
+  await expect(identity.getByRole("textbox", { name: /Probabilité de gain/ })).toHaveAttribute(
+    "readonly",
+  );
+  await expect(identity).toContainText("projet non encore en cours");
   await identity
     .getByRole("textbox", { name: "Description" })
     .fill("Remplacement des automates et de la supervision du poste de commande.");
@@ -306,7 +309,7 @@ test("the settings of a project sort the sub-projects and the contributors, sear
   });
 });
 
-test("the settings of a project create and modify a sub-project, present unavailable the deletion of those charged with actual costs, and write the contributors, a proposal confirmed [WF-PRJ-0050-A] [WF-PRJ-0070-A]", async ({
+test("the settings of a project create and modify a sub-project, present unavailable the deletion of those charged with actual costs or cited by a marked revision, and write the contributors, a proposal confirmed [WF-PRJ-0050-A] [WF-PRJ-0070-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/settings`);
@@ -316,17 +319,21 @@ test("the settings of a project create and modify a sub-project, present unavail
   const subprojects = section.getByRole("grid", { name: "Sous-projets" });
 
   // La suppression d'un sous-projet portant des coûts réels est refusée : both sub-projects of
-  // the witness bear the invoices of the tasks drawn around its core (EP-14/L45a), and neither
-  // deletion is offered — presented unavailable, its reason given; pressed, nothing is asked.
+  // the witness bear the invoices of the tasks drawn around its core and are cited by the reference
+  // revision (EP-14/L45a), and each lists its deletion unavailable, lacking both conditions
+  // (EP-14/L42l) — presented so, the conditions it lacks given; pressed, nothing is asked.
   // Playwright clicks no element marked `aria-disabled`: the press is dispatched.
+  const unmet =
+    "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût réel " +
+    "imputé au sous-projet.";
   for (const code of ["SP-CMD", "SP-ESS"]) {
     const deletion = subprojects.getByRole("button", { name: new RegExp(`^Supprimer.+${code}`) });
     await expect(deletion).toHaveAttribute("aria-disabled", "true");
-    await expect(deletion).toHaveAccessibleDescription("Des coûts réels lui sont imputés.");
+    await expect(deletion).toHaveAccessibleDescription(unmet);
   }
   await subprojects.getByRole("button", { name: /^Supprimer.+SP-ESS/ }).dispatchEvent("click");
   await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
-    "La suppression de « SP-ESS » est indisponible : des coûts réels lui sont imputés.",
+    `Supprimer « SP-ESS » : indisponible. ${unmet}`,
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(1);

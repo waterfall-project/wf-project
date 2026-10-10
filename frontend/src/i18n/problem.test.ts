@@ -175,6 +175,26 @@ describe("the sentence of a refusal", () => {
     expect(say(field, "fr")).toBe("La valeur sort des limites admises. Valeur minimale\u00A0: 7.");
   });
 
+  it("says the bound each field crosses, the largest as the smallest, written in the language of the reader", () => {
+    // The two rates of a project, ratios from 0 to 1 (EP-14/L42i): the probability of winning
+    // above the largest, the inflation rate under the smallest; a date bound is the period's to say.
+    const problem: ProblemText = {
+      code: "VALIDATION_FAILED",
+      fields: [
+        { params: { maximum: "1" } },
+        { params: { minimum: "0" } },
+        { params: { maximum: "0.75" } },
+        { params: { maximum: "2026-06-03" } },
+      ],
+    };
+    expect(say(problem, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Valeur maximale : 1. Valeur minimale : 0. Valeur maximale : 0,75.",
+    );
+    expect(say({ code: "VALUE_OUT_OF_RANGE", params: { maximum: 100 } }, "en")).toBe(
+      "The value is outside the allowed range. Maximum value: 100.",
+    );
+  });
+
   it("names the unavailable component", () => {
     const problem: ProblemText = {
       code: "COMPONENT_UNAVAILABLE",
