@@ -247,4 +247,6 @@ by = "make mock-data"
 end-to-end = ["frontend/e2e/**"]
 front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx"]
 back = ["backend/tests/**"]
+# The unit tests of the extension of Keycloak, which its build runs (docs/dev/java.md).
+keycloak = ["deploy/keycloak/extension/src/test/**"]
 tools = ["tools/tests/**", "fixtures/**"]
