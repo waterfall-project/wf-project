@@ -257,17 +257,19 @@ export async function updateReferenceObject(
 }
 
 /**
- * Designate a calendar by default (WF-REF-0120): the server withdraws the designation from the one
- * before, and changes the deactivation of both, which its answer carries for one alone — the page is
- * read anew. The contract takes no version for it.
+ * Designate a calendar by default (WF-REF-0120), from the version read: the server withdraws the
+ * designation from the one before, and changes the commands of both, which its answer carries for one
+ * alone — the page is read anew.
  */
 export async function designateDefaultCalendar(
   calendarId: string,
+  lockVersion: number,
 ): Promise<Outcome<Schemas["Calendar"]>> {
   return readAnew(
     await decode(() =>
       serverClient().PUT("/reference/calendars/{calendar_id}/default", {
         params: { path: { calendar_id: calendarId } },
+        body: { lock_version: lockVersion },
       }),
     ),
   );

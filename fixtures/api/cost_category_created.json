@@ -6,6 +6,7 @@
     "label": "Petites fournitures",
     "cost_type_id": "01926f3a-7c00-7000-8000-000000000462",
     "cost_type_label": "Débours",
+    "cost_type_kind": "non_labor",
     "accounting_code": "606001",
     "is_active": true,
     "available_commands": [

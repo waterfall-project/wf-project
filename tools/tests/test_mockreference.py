@@ -273,11 +273,17 @@ def _command(entry: Entry) -> tuple[str, bool, list[str]]:
     """Return the command that changes the state of an object, the first it lists.
 
     A nature lists the change of its kind after it (`CostTypeCommand`), a category its move under
-    a nature of another kind (`CostCategoryCommand`, EP-02/L42g); every other object of the
-    reference lists that command alone.
+    a nature of another kind (`CostCategoryCommand`, EP-02/L42g), a calendar its designation by
+    default (`CalendarCommand`, EP-14/L42j); every other object of the reference lists that command
+    alone.
     """
     available, *others = entry["available_commands"]
-    assert [other["command"] for other in others] in ([], ["change_kind"], ["change_cost_type"])
+    assert [other["command"] for other in others] in (
+        [],
+        ["change_kind"],
+        ["change_cost_type"],
+        ["set_default"],
+    )
     return available["command"], available["is_available"], available["missing_conditions"]
 
 
@@ -327,7 +333,8 @@ def test_the_witness_calendars_are_those_with_the_deactivated_week_left_out() ->
     whole = fixture("calendars_with_inactive")["items"]
     assert [entry for entry in whole if entry["is_active"]] == fixture("calendars")["items"]
     [week] = [entry for entry in whole if not entry["is_active"]]
-    assert (week["calendar_id"], week["available_commands"]) == (universe(483), REACTIVATE)
+    # Its designation by default is listed after, unavailable while it is deactivated (EP-14/L42j).
+    assert (week["calendar_id"], week["available_commands"][:1]) == (universe(483), REACTIVATE)
     hours = sum(Decimal(value) for value in week["weekly_hours"].values())
     assert hours == Decimal(39)
 

@@ -115,13 +115,13 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/reference/calendars` | Calendriers | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0110, WF-REF-0120 |
 | POST | `/reference/calendars` | Créer un calendrier | WF-REF-0110 |
 | PATCH | `/reference/calendars/{calendar_id}` | Modifier un calendrier | WF-REF-0110, WF-REF-0130 |
-| PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-PLA-0010, WF-REF-0120 |
+| PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-ADM-0100, WF-PLA-0010, WF-REF-0120 |
 | PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-ADM-0100, WF-REF-0010, WF-REF-0120 |
 | GET | `/reference/cost-types` | Natures de coût | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
 | PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030, WF-REF-0130 |
 | PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |
-| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0150 |
+| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0090, WF-REF-0150 |
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0030 |

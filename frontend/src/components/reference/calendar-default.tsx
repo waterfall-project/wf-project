@@ -31,7 +31,10 @@ function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
       onClick={() => {
         run(
           async () => {
-            const outcome = await designateDefaultCalendar(calendar.calendar_id);
+            const outcome = await designateDefaultCalendar(
+              calendar.calendar_id,
+              calendar.lock_version,
+            );
             return outcome.kind === "done" ? { kind: "done", data: [outcome.data] } : outcome;
           },
           (rows) => t("form.designated", { name: rows[0]?.label ?? calendar.label }),

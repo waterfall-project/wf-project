@@ -1,0 +1,14 @@
+{
+  "summary": "La direction technique déplacée sous l'atelier de câblage, l'un de ses descendants : refusée, l'arbre aurait une boucle ; elle reste à la racine, et rien n'est écrit (WF-REF-0070).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/parent_id",
+        "code": "ORG_NODE_CYCLE"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001081"
+  }
+}

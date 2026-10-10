@@ -432,6 +432,8 @@ def test_the_category_refused_for_its_rates_alone_is_unemployed_and_of_labour(
         ("cost_category_codes_taken", "volume/cost_categories"),
         ("cost_category_accounting_code_taken", "volume/cost_categories"),
         ("subproject_code_taken", "subprojects"),
+        ("org_node_code_taken", "org_nodes_with_inactive"),
+        ("calendar_label_taken", "calendars_with_inactive"),
     ],
 )
 def test_a_code_taken_names_its_field_and_the_object_that_bears_it(
@@ -449,7 +451,7 @@ def test_a_code_taken_names_its_field_and_the_object_that_bears_it(
     assert len(set(pointers)) == len(pointers)
     for field in refused["fields"]:
         assert field["code"] == "ALREADY_EXISTS", name
-        assert field["pointer"] in {"/code", "/accounting_code"}, name
+        assert field["pointer"] in {"/code", "/accounting_code", "/label"}, name
         assert list(field["params"])[:1] == ["conflicting_object_id"], name
         bearer = objects[field["params"]["conflicting_object_id"]]
         # The summary says the value sent: the one the object named bears in that field.
@@ -630,6 +632,8 @@ def test_every_value_already_taken_names_its_fields_but_the_key_of_a_path(
 UNIQUE = (
     ("reference.yaml", "createOrgNode", "/code"),
     ("reference.yaml", "updateOrgNode", "/code"),
+    ("reference.yaml", "createCalendar", "/label"),
+    ("reference.yaml", "updateCalendar", "/label"),
     ("reference.yaml", "createCostType", "/code"),
     ("reference.yaml", "updateCostType", "/code"),
     ("reference.yaml", "createCostCategory", "/accounting_code"),

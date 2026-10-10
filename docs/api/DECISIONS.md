@@ -2962,8 +2962,9 @@ EP-02/L38) : la valeur d'un champ ne convient pas — elle désigne un objet que
 plus à la saisie —, l'objet écrit n'a pas d'état qui l'interdise, et le motif existe pour cela,
 celui d'une ligne de devis qui emploierait un objet désactivé. Le 409 `STATE_FORBIDS_OPERATION`
 reste à la réactivation, où c'est l'état de l'objet même qui change, et que sa commande dit
-d'avance. Un nœud désactivé se déplace sous un nœud désactivé : il n'y est pas actif, et le motif de
-l'exigence, qu'aucun objet actif ne subsiste dans un service fermé, tient. Exemples
+d'avance. Un nœud désactivé se déplaçait sous un nœud désactivé : il n'y était pas actif, et le motif
+de l'exigence, qu'aucun objet actif ne subsiste dans un service fermé, tenait — exception retirée par
+EP-14/L42j, WF-REF-0070 révisé ne déplaçant un nœud que sous un nœud actif. Exemples
 `org_node_creation_refused`, `org_node_move_refused` (l'atelier de câblage, actif, vers le bureau
 d'études automatismes) et `resource_role_creation_refused`, sous le bureau d'études automatismes,
 désactivé ; `test_mockuniverse.py` les tient.
@@ -4186,6 +4187,110 @@ Le client est régénéré ; le front reçoit la phrase du nouveau motif
 (`errors.THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`) et ne change pas autrement — les tests du formulaire
 des réglages (L43e, livré) qui disent le refus hors plage et la zone répondue, et la restauration
 depuis un fichier (L43d), qui énonce la date du dépôt, viennent ensuite.
+
+## Les refus des écritures des paramètres de ressources (EP-14/L42j)
+
+Les points 1 à 7 de #575, relevés par EP-02/L43b, et son complément de la revue d'EP-02/L42g, les
+références inconnues ; le point 8 est fait par EP-14/L42h. Les décisions sont de l'agent de
+réalisation du lot (#613), chacune avec sa raison. Deux suivent la spécification révisée le
+2026-10-09 (#581), que le contrat ne suivait pas encore : le libellé unique d'un calendrier
+(WF-REF-0110) et le déplacement d'un nœud sous un nœud actif seulement (WF-REF-0070). Trois autres
+règles de cette révision sortent du périmètre et attendent une décision (#684) : le code unique d'un
+rôle (WF-REF-0090), la catégorie d'un rôle gardée dans la main-d'œuvre (WF-REF-0030, WF-REF-0040),
+le projet que nomme le refus d'un calendrier (WF-PLA-0010). Le lot ne touche au front que pour
+compiler ; l'adoption par les écrans de L43b revient à L43g (#685).
+
+**La désignation par défaut est une commande du calendrier** (`CalendarCommand`, point 1 ;
+WF-REF-0120, WF-IHM-0090), sur le modèle de `CostTypeCommand` : `deactivate`, `reactivate`,
+`set_default`, au plus deux — celle qui change l'état, puis la désignation, listée pour tout
+calendrier qui n'est pas celui par défaut, indisponible pour un calendrier désactivé, faute de
+`calendar_active`, nouvelle au catalogue et nommée comme `org_node_active`. Écartés : `set_default`
+dans `ReferenceCommand`, que #575 proposait — les nœuds et les rôles la partagent, à une commande
+(`maxItems: 1`, EP-02/L42a), ce pour quoi L42g a écarté `change_kind` ; la désignation listée,
+indisponible, sur le calendrier par défaut, qui dirait ce qui va de soi, comme la réactivation d'un
+objet actif.
+
+**`setDefaultCalendar` porte la version lue, et ses refus sont nommés** (point 2). Le corps porte le
+`lock_version` du calendrier désigné, seul : la désignation retirée au précédent est un effet que le
+serveur décide, comme une désactivation en cascade n'envoie pas la version de ce qu'elle désactive ;
+sa version avance, et le client relit la liste. 412 `STALE_LOCK_VERSION` (EP-02/L42g) ; 409
+`STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_active`, sans
+`conflicting_object_id` — c'est le calendrier même qui se réactive —, à la place de la réponse
+partagée `Conflict` ; le 422 `TASK_WITHOUT_WORKING_HOURS` reste. Désigner le calendrier qui l'est
+déjà, que sa commande ne liste pas, ne change rien et répond 200, comme un `PUT` répété — la version
+contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée (revue 1) ; écarté : un 409
+pour un effet déjà atteint.
+
+**Une catégorie dit le type de sa nature** (`CostCategoryImage.cost_type_kind`, point 3 ; WF-REF-0090,
+WF-ARC-0020), exigé, résolu à la lecture comme `cost_type_label` : le formulaire d'un rôle ne propose
+que les catégories de main-d'œuvre sans relire les natures. Écarté : un filtre `cost_type_kinds`, que
+#575 proposait aussi — la page lit déjà toutes les catégories pour filtrer les rôles, et le faux back,
+qui ne filtre rien, servirait au formulaire des catégories hors main-d'œuvre. `make mock-data` l'écrit
+dans les catégories engendrées.
+
+**Les refus par champ d'un rôle** (point 4 et complément ; WF-REF-0090, WF-REF-0100).
+`createResourceRole` et `updateResourceRole` décrivent leur 422 `VALIDATION_FAILED` : `/label` vide ou
+trop long, comme une nature (L42g) ; un rattachement absent ou nul, `VALUE_REQUIRED`, les trois étant
+obligatoires ; inconnu, `UNKNOWN_ORG_NODE` ou `UNKNOWN_CALENDAR`, nouveaux au catalogue — chaque objet
+a le sien depuis `UNKNOWN_COST_TYPE` —, ou `UNKNOWN_COST_CATEGORY` ; une catégorie hors main-d'œuvre,
+`LABOUR_CATEGORY_REQUIRED`, le code du taux d'une telle catégorie (L42g), qui devient motif par champ —
+écarté : un second code pour le même fait ; un rattachement désactivé, `INACTIVE_REFERENCE_OBJECT`, les
+rattachements « désignent des objets actifs au moment où ils sont faits » — à la modification, quand
+elle change la catégorie ou le calendrier seulement : un rôle qui garde les siens, désactivés depuis,
+se modifie, comme une catégorie sous sa nature désactivée ; une capacité négative, point 6. Un champ ne
+porte qu'un motif, inconnu, puis hors main-d'œuvre, puis désactivé : réactiver une catégorie hors
+main-d'œuvre ne lèverait rien, et la condition qui ne se lève pas vient d'abord, comme pour
+`deleteSubproject` (L42l). `LABOUR_CATEGORY_REQUIRED` vaut aussi pour une catégorie gardée : un rôle
+dont la catégorie a quitté la main-d'œuvre ne se modifie pas sans en changer, le corps de WF-REF-0090
+ne rattachant un rôle qu'à une catégorie de main-d'œuvre, en attendant que le contrat empêche la
+catégorie d'un rôle de quitter la main-d'œuvre (#684, point 2 ; revue 1). `updateResourceRole` garde
+l'autre enveloppe de son 422, `TASK_WITHOUT_WORKING_HOURS`.
+
+**Un nœud ne se place que sous un nœud actif, ni sous lui-même ni sous ses descendants** (point 5 ;
+WF-REF-0070, WF-REF-0080). `/parent_id` est refusé par `UNKNOWN_ORG_NODE` ; par `ORG_NODE_CYCLE`,
+nouveau, sans paramètre, pour le nœud lui-même ou l'un de ses descendants — écartés : `LINK_CYCLE`,
+dont la phrase parle des liaisons entre tâches, et `VALUE_OUT_OF_RANGE`, sans borne à nommer — ; par
+`INACTIVE_REFERENCE_OBJECT` pour un nœud désactivé, quel que soit l'état du nœud déplacé : WF-REF-0070
+révisé ne déplace un nœud que « sous un autre nœud actif ou à la racine », et son Vérif refuse « le
+déplacement sous un nœud désactivé ». L'exception d'EP-02/L42d, un nœud désactivé déplacé sous un
+nœud désactivé, est retirée. Un seul motif, le premier dans cet ordre : inconnu, puis boucle, puis
+désactivé. Seul le déplacement est contraint (revue 1) : à la modification, `INACTIVE_REFERENCE_OBJECT`
+ne vaut que si elle change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son
+parent désactivé se modifie, comme un rôle qui garde sa catégorie, ou une catégorie sa nature
+désactivée (L42g) — `org_node_renamed_under_inactive`, la cellule robotique renommée sous le bureau
+d'études automatismes. Le parent est donc exigé à la modification (`OrgNodeUpdate`), nul pour une
+racine (revue 2), et son absence refusée par `VALUE_REQUIRED` sur `/parent_id` (revue 3) ; écarté : un parent absent qui garderait le parent lu, une règle de plus à tenir,
+contraire à l'envoi du corps entier.
+
+**Une valeur unique prise nomme son porteur.** Le code d'un nœud, par `conflicting_object_label` en
+plus de son identifiant, comme un projet (L42i) : l'arbre lu sans les désactivés, ou filtré, peut ne
+pas montrer le porteur, que l'utilisateur réactivera plutôt que d'en créer un second (WF-IHM-0090) —
+BE-AUTO, désactivé, dans `org_node_code_taken`. Le libellé d'un calendrier est unique, désactivés
+compris (WF-REF-0110 révisé : « deux calendriers de même libellé sont refusés ») : 409
+`ALREADY_EXISTS` sur `/label`, l'identifiant du porteur seul, son libellé étant la valeur envoyée. La
+table `UNIQUE` de `test_mockcostsettings.py` compte désormais quinze écritures.
+
+**Les heures d'un jour et la capacité sont bornées** (points 6 et 7 ; WF-REF-0110, WF-REF-0100) : de
+`0` à `24` pour une heure d'un jour (`/weekly_hours/<jour>`), `0` au moins pour les heures mensuelles
+et l'effectif (`/capacity/...`), refusés par 422 `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou
+`maximum` la seule borne franchie, comme les taux d'un projet (L42i) : bornes et zéro sont admis, un
+jour chômé, une capacité nulle que rien n'interdit. Écartés : un motif sans signe sur `Hours`, que
+lectures et écritures partagent jusqu'aux durées des tâches, et qui ne nommerait pas la borne ; un
+plafond de la capacité, qu'aucune exigence ne donne. `createCalendar` et `updateCalendar` décrivent
+leur 422, et les quatre modifications leur 412 en place, chacune avec son exemple.
+
+**Exemples**, écrits à la main aux corrélations 1080 à 1090 : `org_node_code_taken`,
+`org_node_move_cycle_refused` (la direction technique sous l'atelier de câblage),
+`org_node_update_stale`, `resource_role_attachments_refused` (un nœud inconnu, la sous-traitance, la
+semaine de trente-neuf heures désactivée), `resource_role_update_refused` (le technicien de mise en
+service passé à cette semaine, un effectif de -1), `resource_role_update_stale`,
+`calendar_label_taken`, `calendar_hours_refused` (25 heures le lundi, -7 le samedi),
+`calendar_update_stale`, `calendar_default_refused`, `calendar_default_stale`. Les calendriers lus et
+écrits portent leur désignation. `tools/tests/test_mockresourcesettings.py` tient chacun contre
+l'univers et contre le contrat ; le test transversal des refus tient le nouveau 409. Le front reçoit
+ses catalogues (`errors.UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR`, `ORG_NODE_CYCLE`,
+`enums.CommandCondition.calendar_active`, `enums.CalendarCommand`) et envoie la version lue à la
+désignation.
 
 ## Collage et annulation
 

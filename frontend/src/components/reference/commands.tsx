@@ -62,10 +62,11 @@ import { ActiveState } from "./section";
 /**
  * The commands an object of the reference data lists: the one that changes its state, and, for a
  * nature or a category of cost, the change of its type (`CostTypeCommand`, `CostCategoryCommand`),
- * which its form reads.
+ * which its form reads; for a calendar, its designation by default (`CalendarCommand`).
  */
 export type ReferenceCommands = readonly ListedCommand<
   | components["schemas"]["ReferenceCommand"]
+  | components["schemas"]["CalendarCommand"]
   | components["schemas"]["CostTypeCommand"]
   | components["schemas"]["CostCategoryCommand"]
 >[];

@@ -15,10 +15,10 @@ ReferenceCommand:
   type: string
   enum: [deactivate, reactivate]
   description: >-
-    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource,
-    calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et
-    `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le
-    désactiver et le réactiver, par
+    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource ; un
+    calendrier les porte sous `CalendarCommand`, qui leur ajoute sa désignation par défaut, une
+    nature et une catégorie de coût sous `CostTypeCommand` et `CostCategoryCommand`, qui leur
+    ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par
     l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`,
     `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le
     supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il
@@ -59,7 +59,7 @@ ReferenceObjectCommands:
   type: object
   required: [available_commands]
   description: >-
-    Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image
+    Ce qu'un rôle de ressource lu aujourd'hui ajoute à son image : ses commandes. Une image
     figée par une révision marquée n'en porte pas (`EmployedReference`).
   properties:
     available_commands: { $ref: '#/ReferenceCommands' }
@@ -79,7 +79,7 @@ OrgNode:
     - lock_version
   description: >-
     Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte
-    aucune habilitation (WF-REF-0070).
+    aucune habilitation (WF-REF-0070). Ses commandes sont celles de `ReferenceCommand`.
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
     code:
@@ -124,20 +124,34 @@ OrgNodeWrite:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
       description: >-
-        Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous
-        un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
-        Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`.
+        Le parent du nœud, absent ou nul à la création pour une racine ; exigé à la modification
+        (`OrgNodeUpdate`), où la racine s'écrit `null` et un parent absent est refusé par
+        `VALUE_REQUIRED`. Un nœud ne se crée ni ne se déplace que sous un
+        nœud actif ou à la racine (WF-REF-0070) : aucun objet actif ne subsiste dans un service
+        fermé (WF-REF-0080). Refusé par 422 sur `/parent_id` : un nœud que le référentiel n'a
+        pas, `UNKNOWN_ORG_NODE` ; le nœud lui-même ou l'un de ses descendants, `ORG_NODE_CYCLE` ;
+        un nœud désactivé, `INACTIVE_REFERENCE_OBJECT` — à la modification, seulement quand elle
+        change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son parent
+        désactivé se modifie. Un seul motif, le premier dans cet ordre : inconnu, puis
+        boucle, puis désactivé.
 
 OrgNodeUpdate:
   description: >-
-    Modification d'un nœud d'organisation : porte le compteur lu,
-    qu'une création n'a pas.
+    Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas, et
+    son parent, exigé — nul pour une racine —, le corps entier étant envoyé : un parent absent ne
+    se lit ni comme la racine ni comme le parent lu : il est refusé, 422 `VALUE_REQUIRED` sur
+    `/parent_id`.
   allOf:
     - $ref: '#/OrgNodeWrite'
     - type: object
-      required: [lock_version]
+      required: [lock_version, parent_id]
       properties:
         lock_version: { $ref: ../common.yaml#/LockVersion }
+        parent_id:
+          anyOf:
+            - $ref: ../common.yaml#/Uuid
+            - type: 'null'
+          description: Le parent envoyé, celui de `OrgNodeWrite`, ici exigé ; `null` pour une racine.
 
 ResourceRole:
   description: >-
@@ -195,7 +209,10 @@ ResourceRoleImage:
 RoleCapacity:
   type: object
   required: [monthly_hours, headcount]
-  description: Capacité unique, sans date de validité (WF-REF-0100).
+  description: >-
+    Capacité unique, sans date de validité (WF-REF-0100) : des heures par mois et un effectif,
+    jamais négatifs. Écrite, une valeur négative est refusée par 422, `VALUE_OUT_OF_RANGE` sur
+    `/capacity/monthly_hours` ou `/capacity/headcount`, `fields[].params.minimum` à `0`.
   properties:
     monthly_hours: { $ref: ../common.yaml#/Hours }
     headcount: { $ref: ../common.yaml#/Decimal }
@@ -211,9 +228,18 @@ ResourceRoleWrite:
         Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à
         l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif,
         ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur
-        `/org_node_id` (WF-REF-0080).
-    cost_category_id: { $ref: ../common.yaml#/Uuid }
-    calendar_id: { $ref: ../common.yaml#/Uuid }
+        `/org_node_id` (WF-REF-0080) ; un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE`.
+    cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Une catégorie dont la nature relève de la main-d'œuvre, active (WF-REF-0090) : refusée
+        par 422 sur `/cost_category_id`, inconnue, `UNKNOWN_COST_CATEGORY`, hors main-d'œuvre,
+        `LABOUR_CATEGORY_REQUIRED`, désactivée, `INACTIVE_REFERENCE_OBJECT`.
+    calendar_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Un calendrier actif (WF-REF-0090) : refusé par 422 sur `/calendar_id`, inconnu,
+        `UNKNOWN_CALENDAR`, désactivé, `INACTIVE_REFERENCE_OBJECT`.
     capacity: { $ref: '#/RoleCapacity' }
 
 ResourceRoleUpdate:
@@ -222,7 +248,10 @@ ResourceRoleUpdate:
   description: >-
     Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le
     compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
-    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080).
+    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son
+    calendrier se modifient vers des objets actifs, et une catégorie de main-d'œuvre
+    (WF-REF-0090), refusés comme à la création ; un rôle qui garde les siens, désactivés depuis,
+    se modifie.
   properties:
     label: { type: string, minLength: 1, maxLength: 200 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -236,19 +265,67 @@ Calendar:
     (`available_commands`, WF-IHM-0090).
   allOf:
     - $ref: '#/CalendarImage'
-    - $ref: '#/ReferenceObjectCommands'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands: { $ref: '#/CalendarCommands' }
+
+CalendarCommand:
+  type: string
+  enum: [deactivate, reactivate, set_default]
+  description: >-
+    Commandes portées par un calendrier (WF-IHM-0090) : le désactiver et le réactiver, par
+    `setCalendarActivation`, comme tout objet du référentiel (`ReferenceCommand`) — un calendrier
+    ne porte que celle qui change son état —, et le désigner par défaut, par
+    `setDefaultCalendar`, listée pour tout calendrier qui ne l'est pas : désigner celui qui l'est
+    déjà ne change rien. La désactivation du calendrier par défaut est indisponible,
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné ; la désignation d'un
+    calendrier désactivé, `calendar_active` manquante, le calendrier par défaut étant actif
+    (WF-REF-0120). La réactivation est toujours disponible. Toutes relèvent de la permission de
+    modification des paramètres de ressources (`resource_settings.write`, WF-ADM-0100).
+
+CalendarCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CalendarCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CalendarCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes du calendrier que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CalendarCommand` : au
+    plus deux, celle qui change son état et, s'il n'est pas le calendrier par défaut, sa
+    désignation par défaut. Une commande absente de la liste n'est pas présentée ; la liste est
+    vide pour qui lit les calendriers sans la permission de modifier les paramètres de
+    ressources. Un appel envoyé malgré la liste est refusé par son code d'erreur, sauf la
+    désignation du calendrier qui l'est déjà, non listée, qui répond 200 sans rien changer — la
+    version contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée.
+  items: { $ref: '#/CalendarCommandAvailability' }
 
 CalendarImage:
   type: object
   required: [calendar_id, label, weekly_hours, is_default, is_active, audit, lock_version]
   description: >-
-    Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
+    Calendrier : un libellé et sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
     temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
     (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige
     (`EmployedReference`).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >-
+        Libellé du calendrier, unique parmi les calendriers, désactivés compris : un libellé
+        déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/label` (WF-REF-0110).
     weekly_hours: { $ref: '#/WeeklyHours' }
     is_default: { type: boolean }
     is_active: { type: boolean }
@@ -258,6 +335,11 @@ CalendarImage:
 WeeklyHours:
   type: object
   required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+  description: >-
+    Les heures travaillées de chaque jour de la semaine, de `0` à `24` (WF-REF-0110). Écrite, une
+    valeur hors de ces bornes est refusée par 422, `VALUE_OUT_OF_RANGE` sur
+    `/weekly_hours/<jour>`, `fields[].params.minimum` à `0` ou `maximum` à `24`, la seule borne
+    franchie.
   properties:
     monday: { $ref: ../common.yaml#/Hours }
     tuesday: { $ref: ../common.yaml#/Hours }
@@ -438,6 +520,7 @@ CostCategoryImage:
     - label
     - cost_type_id
     - cost_type_label
+    - cost_type_kind
     - accounting_code
     - is_active
     - audit
@@ -461,6 +544,12 @@ CostCategoryImage:
       minLength: 1
       maxLength: 200
       description: Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150).
+    cost_type_kind:
+      allOf: [{ $ref: '#/CostTypeKind' }]
+      description: >-
+        Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de
+        main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un
+        formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020).
     accounting_code:
       type: string
       minLength: 1

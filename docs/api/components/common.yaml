@@ -140,12 +140,14 @@ Problem:
         admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un
         champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
         plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux
-        revues, au moins `1` semaine, ou la probabilité de gain et le taux d'inflation d'un
-        projet, au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop
+        revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un
+        projet, au moins `0`, ou les heures d'un jour d'un calendrier et la capacité d'un rôle,
+        au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop
         grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
         portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
         le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
-        le délai entre deux revues, au plus `104` semaines), `component` (un `PlatformComponent`,
+        le délai entre deux revues, au plus `104` semaines, ou les heures d'un jour d'un
+        calendrier, au plus `24`), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
@@ -167,7 +169,8 @@ Problem:
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
         lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un
-        projet (WF-PRJ-0010) et celui d'un sous-projet (WF-PRJ-0050).
+        projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050) et celui d'un nœud
+        d'organisation (WF-REF-0070).
     fields:
       type: array
       description: >-
@@ -261,6 +264,9 @@ ErrorCode:
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED
+    # Une catégorie hors main-d'œuvre là où il en faut une : le taux d'une catégorie
+    # (`setHourlyRate`, WF-REF-0050), et le motif par champ de la catégorie d'un rôle de ressource
+    # (`/cost_category_id`, WF-REF-0090).
     - LABOUR_CATEGORY_REQUIRED
     - HOURLY_RATE_MISSING
     - PROJECT_CODE_REQUIRED
@@ -280,10 +286,18 @@ ErrorCode:
     # Une nature de coût que le référentiel n'a pas, donnée à une catégorie (`/cost_type_id`,
     # WF-REF-0040).
     - UNKNOWN_COST_TYPE
+    # Un nœud d'organisation ou un calendrier que le référentiel n'a pas, donné pour parent d'un
+    # nœud (`/parent_id`) ou pour rattachement d'un rôle (`/org_node_id`, `/calendar_id`,
+    # WF-REF-0070, WF-REF-0090).
+    - UNKNOWN_ORG_NODE
+    - UNKNOWN_CALENDAR
     - UNKNOWN_RESOURCE_ROLE
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
+    # Un nœud d'organisation déplacé sous lui-même ou sous l'un de ses descendants : l'arbre
+    # aurait une boucle (`/parent_id`, `updateOrgNode`, WF-REF-0070).
+    - ORG_NODE_CYCLE
     # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
