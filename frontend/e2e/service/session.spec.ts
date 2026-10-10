@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * Signing in and out against the real service (US-0340): the front of the harness, the realm of
- * Keycloak behind its front end in HTTPS, and the API through Prism as a proxy, which holds every
- * answer the paths traverse to the contract (`contract.ts`).
+ * Keycloak behind its front end in HTTPS, and the API through Prism as a proxy, which holds the
+ * body of every answer the paths traverse to the contract (`contract.ts`) — not yet its status
+ * (#726).
  *
  * Until the bootstrap of an installation (US-0420), the account that signs in is the person of the
  * test directory (`deploy/keycloak/development/directory.ldif`), whom the API admits without a
@@ -18,9 +19,18 @@ import {
   test,
 } from "@playwright/test";
 
+import { compileAnswered } from "../compile";
+import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
 
 heldToTheContract();
+
+// The routes a sign-in, a sign-out and a closing in the realm reach by a redirect or by Keycloak,
+// compiled before the paths wait for them: the return of a sign-in, the screen of the account under
+// the shell, the back channel.
+test.beforeEach(async ({ request }) => {
+  await compileAnswered(request, "/auth/callback", ACCOUNT, "/auth/backchannel-logout");
+});
 
 const EMAIL = "dominique.annuaire@waterfall.test";
 const PASSWORD = "development-only-directory-password";
@@ -58,7 +68,7 @@ async function signIn(page: Page): Promise<void> {
   await expect(page.getByRole("main")).toContainText(EMAIL);
 }
 
-test("signing in through the realm and out again, every answer of the service held to the contract [WF-ARC-0060-A]", async ({
+test("signing in through the realm and out again, the bodies the service answers held to the contract [WF-ARC-0060-A]", async ({
   page,
   context,
 }) => {
@@ -67,7 +77,11 @@ test("signing in through the realm and out again, every answer of the service he
   await signIn(page);
   expect(await holdsSession()).toBe(true);
 
-  await page.getByRole("button", { name: /^Compte de Dominique/ }).click();
+  // The account reached by a redirect, as a whole document: its menu opens once React hydrated it.
+  await openMenu(
+    page.getByRole("button", { name: /^Compte de Dominique/ }),
+    page.getByRole("menu"),
+  );
   await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
 
   // The sessions closed, in the front and in the realm: the account, opened again, asks for a
@@ -98,7 +112,9 @@ test("the browser holds none of the tokens the front obtains [WF-ARC-0030-A]", a
   await signIn(page);
 
   // The front keeps an opaque identifier of its session in a cookie, and nothing else of it.
-  const cookies = await context.cookies(front.origin);
+  // Those of its host, all of them: read for its address, the secure ones would be left out on HTTP.
+  const cookies = (await context.cookies()).filter(({ domain }) => domain === front.hostname);
+  expect(cookies.map(({ name }) => name)).toContain(SESSION_COOKIE);
   expect(cookies.filter(({ value }) => TOKEN.test(value))).toEqual([]);
   const stored = await page.evaluate(() =>
     [window.localStorage, window.sessionStorage].flatMap((storage) =>
@@ -106,7 +122,10 @@ test("the browser holds none of the tokens the front obtains [WF-ARC-0030-A]", a
     ),
   );
   expect(stored.filter((value) => TOKEN.test(value))).toEqual([]);
-  expect((await Promise.all(answers)).filter((text) => TOKEN.test(text))).toEqual([]);
+  const texts = await Promise.all(answers);
+  // Among them, the screen of the account, which the session read.
+  expect(texts.some((text) => text.includes(EMAIL))).toBe(true);
+  expect(texts.filter((text) => TOKEN.test(text))).toEqual([]);
 });
 
 /** A token of the administrator of Keycloak, from the realm `master`. */

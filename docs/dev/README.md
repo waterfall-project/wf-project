@@ -1770,8 +1770,15 @@ retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
 (`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
 l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
 l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
-(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire écrit pendant
-chaque parcours, et le fait échouer sur toute erreur de Prism (WF-ARC-0060). Un statut que
+(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
+toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
+mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
+réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : le fichier
+lit chaque ligne une fois, à partir de son début ; un parcours échoue sur les erreurs écrites
+jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, et celles d'après le dernier
+parcours font échouer le fichier, une fois ses pages fermées et le mandataire tu — rien d'autre
+que le contrôle de santé pendant deux secondes. Un parcours le montre, qui échoue
+(`contract.spec.ts`, `test.fail()`) : une adresse hors du contrat. Un statut que
 l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
