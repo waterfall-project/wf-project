@@ -20,6 +20,8 @@ MOCK_PORT := 4010
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 COMPOSE_SERVICE := docker compose -f deploy/compose/compose.service.yaml
+# The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
+KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules as the others.
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
@@ -37,7 +39,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-down migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-logs service-down migrate \
+	build-keycloak test-keycloak check-keycloak \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
 	lint-shell check \
@@ -146,8 +149,13 @@ lint-shell: ## Lint the shell scripts
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
 
-service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API (needs WATERFALL_POSTGRES_PASSWORD and WATERFALL_REDIS_PASSWORD)
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api
+# Keycloak answers before its realm is applied: the application runs once it does, and stops.
+service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, Keycloak and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api keycloak openldap mailpit
+	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+
+service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
+	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
 service-down: ## Stop the service platform; WATERFALL_RESET_DATA=yes also drops its database
 	@$(COMPOSE_SERVICE) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
@@ -158,7 +166,21 @@ migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designat
 # The Compose files refuse to start without their secrets: validated with stand-ins that never run.
 lint-compose: ## Validate the Compose files
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) config --quiet
-	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_REDIS_PASSWORD=stand-in $(COMPOSE_SERVICE) config --quiet
+	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_REDIS_PASSWORD=stand-in \
+		WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
+		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
+		$(COMPOSE_SERVICE) config --quiet
+
+build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
+	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+
+# The tests of tests/test_keycloak_platform.py, which the other tests of the back deselect, against
+# the Keycloak of the service platform: the address the browser knows it by, its realm applied.
+test-keycloak: ## Start Keycloak on the service platform, apply its realm, and check that the realm and the extension answer (needs the secrets of service-up)
+	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak openldap
+	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:8080/auth} \
+		uv run --frozen pytest -m keycloak
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
@@ -169,7 +191,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-roadmap ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front check-roadmap check-keycloak ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
@@ -263,6 +285,8 @@ coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 %
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
 
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
+
+check-keycloak: build-keycloak test-keycloak ## The image of Keycloak builds, its realm applies and its extension answers (US-0350)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

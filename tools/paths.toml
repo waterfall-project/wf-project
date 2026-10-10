@@ -60,6 +60,18 @@ paths = [
 ]
 target = "check-roadmap"
 
+[families.keycloak]
+# The image of Keycloak, built and tried on the service platform at each change of what it is made
+# of or started with (US-0350): the extension, the themes, the realm, the files of the platform,
+# and the tests that try it.
+paths = [
+    "deploy/keycloak/**",
+    "deploy/compose/compose.service.yaml",
+    "deploy/compose/keycloak-database.sql",
+    "backend/tests/test_keycloak_platform.py",
+]
+target = "check-keycloak"
+
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
 # examples of the contract are what the fake back serves to the end-to-end paths, and what

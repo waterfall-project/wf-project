@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The realm that plays the external identity provider on the development platform (WF-ADM-0180):
+# the realm of Waterfall relays to it (development/waterfall.yaml). Its person is unknown to
+# Waterfall until her first sign-in. Its secrets are development values, visible, named as such.
+realm: external
+enabled: true
+displayName: External provider (development)
+registrationAllowed: false
+loginWithEmailAllowed: true
+
+clients:
+  - clientId: waterfall
+    name: Waterfall (development)
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: development-only-external-client-secret
+    standardFlowEnabled: true
+    directAccessGrantsEnabled: false
+    redirectUris:
+      - $(env:WATERFALL_KEYCLOAK_ADDRESS)/realms/waterfall/broker/external/endpoint
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: $(env:WATERFALL_KEYCLOAK_ADDRESS)/realms/waterfall/*
+
+users:
+  - username: camille.externe
+    email: camille.externe@external.test
+    emailVerified: true
+    firstName: Camille
+    lastName: Externe
+    enabled: true
+    credentials:
+      - type: password
+        value: development-only-external-password
+        temporary: false

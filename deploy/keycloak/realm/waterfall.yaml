@@ -1,0 +1,147 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The realm of Waterfall, applied at each deployment by keycloak-config-cli
+# (/opt/keycloak/bin/apply-realm, #215): idempotent, and limited to what this file declares. The
+# directory federated and the external providers, which an administrator connects in the
+# console (WF-ADM-0180), are kinds of resources this file does not declare: they are neither
+# overwritten nor removed.
+#
+# The secrets of the clients and the address of the front are variables of the environment of
+# keycloak-config-cli, which it substitutes by their name (comments included: none is written
+# here); the image holds none of them (WF-SEC-0010). A missing one stops the application.
+realm: waterfall
+enabled: true
+displayName: Waterfall
+
+# Accounts: no self-registration; the address is the identifier (WF-ADM-0050).
+registrationAllowed: false
+registrationEmailAsUsername: true
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+editUsernameAllowed: false
+# The password of a local account is set and reset by a link sent to its address (WF-ADM-0140).
+resetPasswordAllowed: true
+rememberMe: false
+
+# The pages of Keycloak and its mails speak French and English, French first (WF-ADM-0140).
+internationalizationEnabled: true
+supportedLocales: [fr, en]
+defaultLocale: fr
+loginTheme: waterfall
+emailTheme: waterfall
+
+# WF-ADM-0140: twelve characters at least, neither the address nor the last name — the address is
+# the username, hence notUsername as well as notEmail; `not-last-name` is the rule of the
+# extension. No periodic expiry: no `forceExpiredPasswordChange`.
+passwordPolicy: length(12) and notEmail and notUsername and not-last-name
+
+# WF-ADM-0140: ten consecutive failures lock the account for fifteen minutes, never for good.
+bruteForceProtected: true
+permanentLockout: false
+maxTemporaryLockouts: 0
+failureFactor: 10
+waitIncrementSeconds: 900
+maxFailureWaitSeconds: 900
+# The count of failures only, without the quick-succession lock, which would lock the account
+# before its tenth failure.
+quickLoginCheckMilliSeconds: 0
+minimumQuickLoginWaitSeconds: 0
+
+# WF-SEC-0020: an access token lives five minutes; the session ends after two hours without
+# activity and after twelve hours in any case; a refresh token is used once, its reuse refused.
+accessTokenLifespan: 300
+ssoSessionIdleTimeout: 7200
+ssoSessionMaxLifespan: 43200
+revokeRefreshToken: true
+refreshTokenMaxReuse: 0
+
+# WF-ADM-0140: a link that sets or resets a password is valid for one hour, made by an
+# administrator — the password setup link of the extension — or asked for on the login page.
+actionTokenGeneratedByAdminLifespan: 3600
+actionTokenGeneratedByUserLifespan: 3600
+
+roles:
+  realm:
+    - name: waterfall-password-link
+      description: >-
+        Asks the extension of Waterfall for the password setup link of a local account
+        (password-setup-link). Held by the service account of Waterfall alone.
+
+clients:
+  # The front: the authorization code flow with PKCE, on the server of Next (#215); Keycloak
+  # tells it of a closed session on the back channel (WF-SEC-0020).
+  - clientId: waterfall-front
+    name: Waterfall
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:WATERFALL_FRONT_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    frontchannelLogout: false
+    # The API reads the roles in its base, never in the token (WF-ARC-0030).
+    fullScopeAllowed: false
+    rootUrl: $(env:WATERFALL_FRONT_ADDRESS)
+    baseUrl: $(env:WATERFALL_FRONT_ADDRESS)/
+    redirectUris:
+      - $(env:WATERFALL_FRONT_ADDRESS)/auth/callback
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: $(env:WATERFALL_FRONT_ADDRESS)/*
+      backchannel.logout.url: $(env:WATERFALL_FRONT_ADDRESS)/auth/backchannel-logout
+      backchannel.logout.session.required: "true"
+      backchannel.logout.revoke.offline.tokens: "false"
+    protocolMappers:
+      # The API accepts a token only for its own audience.
+      - name: waterfall-api-audience
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config:
+          included.client.audience: waterfall-api
+          access.token.claim: "true"
+          id.token.claim: "false"
+          introspection.token.claim: "true"
+
+  # The audience of the tokens the API accepts: it has no flow of its own.
+  - clientId: waterfall-api
+    name: Waterfall API
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+
+  # The service account of the API and of the worker: the administration API of the realm for its
+  # accounts, and the password setup link of the extension.
+  - clientId: waterfall-service
+    name: Waterfall service
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:WATERFALL_SERVICE_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+
+users:
+  - username: service-account-waterfall-service
+    enabled: true
+    serviceAccountClientId: waterfall-service
+    realmRoles:
+      - waterfall-password-link
+    clientRoles:
+      realm-management:
+        - manage-users
+        - view-users
+        - query-users

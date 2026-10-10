@@ -49,6 +49,27 @@ def test_a_typescript_suppression_is_a_breach(line: str) -> None:
     assert sources.breaches("frontend/src/a.tsx", f"{line}\n")
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        '@SuppressWarnings("unchecked")',
+        "  @SuppressWarnings" + "({" + '"rawtypes", "unchecked"})',
+        "return x; // NOSON" + "AR",
+        "// NOP" + "MD",
+        "// CHECKSTYLE" + ":OFF",
+    ],
+)
+def test_a_java_suppression_is_a_breach(line: str) -> None:
+    (breach,) = sources.breaches("deploy/keycloak/extension/src/A.java", f"{line}\n")
+    assert breach.reason.startswith("suppression comment")
+
+
+def test_a_java_todo_cites_its_issue() -> None:
+    java = "deploy/keycloak/extension/src/A.java"
+    assert sources.breaches(java, f"// {TODO}(#12): read it from the realm\n") == []
+    assert sources.breaches(java, f"// {TODO}: read it from the realm\n")
+
+
 def test_a_shell_suppression_is_a_breach() -> None:
     assert sources.breaches("deploy/run.sh", "# shellcheck" + " disable=SC2086\n")
 
@@ -79,6 +100,10 @@ def test_generated_and_excepted_paths_are_left_out() -> None:
     checked = sources.sources(declaration)
     assert "tools/src/wftools/sources.py" in checked
     assert "docs/spec/tools/build.py" in checked
+    assert (
+        "deploy/keycloak/extension/src/main/java/io/github/waterfallproject/keycloak/"
+        "PasswordSetupToken.java" in checked
+    )
     assert "tools/uv.lock" not in checked
 
 
