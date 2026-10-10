@@ -44,7 +44,7 @@ jamais la table d'un autre module.
 
 *Pourquoi* : c'est ce qui garde possible l'extraction d'un module en service (WF-ARC-0010).
 *Contrôle* : `make imports-back` pour les imports ; le SQL en texte, la revue — ses règles
-viennent avec EP-03.
+sont dans [sql.md](sql.md).
 
 ### Les grandeurs ont leur type, jamais un `float`
 

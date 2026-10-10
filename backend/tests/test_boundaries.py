@@ -19,6 +19,7 @@ PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 LAYOUT = {
     "api/__init__.py": "",
     "worker/__init__.py": "",
+    "migrations/__init__.py": "",
     "core/__init__.py": "",
     "platform/__init__.py": "",
     "core/accounts/__init__.py": "",
@@ -111,6 +112,11 @@ def test_the_platform_may_not_import_the_core_the_api_or_the_worker(
     result = lint(sample, "platform.__init__", f"import sample.{imported}\n")
     assert result.returncode == 1
     assert f"sample.platform -> sample.{imported}" in result.stdout
+
+
+def test_the_core_may_not_import_the_migrations(sample: Path) -> None:
+    result = lint(sample, "core.projects.tables", "from sample import migrations\n")
+    assert result.returncode == 1
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The service platform: PostgreSQL, Redis, the migrations, the API and the worker, for the
+# developers and for the tests that run against the real service (EP-03). Keycloak, OpenLDAP
+# and Mailpit join it with the story that connects (US-0350). Started by `make service-up`.
+#
+# The secrets come from the environment of the caller, and the platform refuses to start without
+# them: nothing here has a default password. The password of PostgreSQL is written in a URL, so
+# it holds letters and digits only. The environment of a container stays readable by
+# `docker inspect`, as for any service: what these files avoid is a secret in a command line.
+name: waterfall-service
+
+x-back: &back
+  build:
+    context: ../../backend
+  environment:
+    WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
+    WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}@redis:6379/0
+    WATERFALL_HOST: 0.0.0.0
+
+services:
+  postgres:
+    # The version the platform targets, pinned by the digest of its index.
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    environment:
+      POSTGRES_USER: waterfall
+      POSTGRES_DB: waterfall
+      POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # On the workstation only: the tests of the back reach the server there
+    # (WATERFALL_TEST_DATABASE_URL).
+    ports:
+      - "127.0.0.1:${WATERFALL_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username waterfall --dbname waterfall"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
+    # The shell of the container reads the password from the environment (`$$` keeps Compose from
+    # expanding it): the command line `docker inspect` shows names the variable, not its value.
+    # The entrypoint of the image no longer changes user when the command is `sh`, so the service fixes it.
+    user: redis
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
+    environment:
+      # `redis-cli` reads its password here, so the health check does not carry it in its text.
+      REDISCLI_AUTH: ${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Applies the migrations, then stops: the API starts on the schema it expects (WF-DAT-0140).
+  migrate:
+    <<: *back
+    command: ["waterfall-migrate"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WATERFALL_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # The task queue arrives with US-0370: until then the worker starts, states its version and stops.
+  worker:
+    <<: *back
+    command: ["waterfall-worker"]
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

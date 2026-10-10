@@ -7,10 +7,14 @@ version = "0.1.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.18",
     "email-validator>=2.3.0",
     "fastapi>=0.143.0",
+    "psycopg[binary]>=3.3",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.1",
     "structlog>=26.1.0",
+    "uuid-utils>=0.14",
     "uvicorn>=0.54.0",
 ]
 
@@ -19,6 +23,7 @@ dependencies = [
 [project.scripts]
 waterfall-api = "waterfall.api.main:main"
 waterfall-worker = "waterfall.worker.main:main"
+waterfall-migrate = "waterfall.migrations.runner:main"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
@@ -34,6 +39,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-socket>=0.8.1",
+    "pyyaml>=6.0",
     "ruff>=0.16.9",
 ]
 
@@ -46,7 +52,7 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source = ["waterfall"]
+source_dirs = ["src/waterfall"]
 # The models engendered from the contract are written by a tool, not by us (US-0060).
 omit = ["src/waterfall/api/contract/models.py"]
 
@@ -72,9 +78,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API nor the worker, which do not import each other; the platform imports none of them"
+name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them"
 type = "layers"
-layers = ["waterfall.api | waterfall.worker", "waterfall.core", "waterfall.platform"]
+layers = ["waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

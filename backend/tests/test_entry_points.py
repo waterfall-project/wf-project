@@ -21,17 +21,17 @@ def run(script: str) -> str:
     return result.stdout.strip()
 
 
-def test_the_api_and_the_worker_are_the_two_entry_points() -> None:
+def test_the_api_the_worker_and_the_migration_command_are_the_entry_points() -> None:
     scripts = {
         entry.name
         for entry in entry_points(group="console_scripts")
         if entry.value.startswith("waterfall.")
     }
-    assert scripts == {"waterfall-api", "waterfall-worker"}
+    assert scripts == {"waterfall-api", "waterfall-worker", "waterfall-migrate"}
 
 
-@pytest.mark.parametrize("script", ["waterfall-api", "waterfall-worker"])
-def test_each_process_states_the_version_of_the_package(script: str) -> None:
+@pytest.mark.parametrize("script", ["waterfall-api", "waterfall-worker", "waterfall-migrate"])
+def test_each_command_states_the_version_of_the_package(script: str) -> None:
     assert run(script) == f"{script} {waterfall.__version__}"
 
 

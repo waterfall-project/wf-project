@@ -19,6 +19,7 @@ MOCK_PORT := 4010
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
+COMPOSE_SERVICE := docker compose -f deploy/compose/compose.service.yaml
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules as the others.
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
@@ -36,7 +37,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-down migrate \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
 	lint-shell check \
@@ -145,8 +146,19 @@ lint-shell: ## Lint the shell scripts
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
 
+service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API (needs WATERFALL_POSTGRES_PASSWORD and WATERFALL_REDIS_PASSWORD)
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api
+
+service-down: ## Stop the service platform; WATERFALL_RESET_DATA=yes also drops its database
+	@$(COMPOSE_SERVICE) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+
+migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
+	@cd $(BACK) && uv run --frozen waterfall-migrate
+
+# The Compose files refuse to start without their secrets: validated with stand-ins that never run.
 lint-compose: ## Validate the Compose files
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) config --quiet
+	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_REDIS_PASSWORD=stand-in $(COMPOSE_SERVICE) config --quiet
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 

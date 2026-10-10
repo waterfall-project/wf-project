@@ -174,6 +174,7 @@ def test_the_parameters_and_the_fields_of_an_exception_travel_in_the_envelope(
     ]
 
 
+@pytest.mark.requirement("WF-OBS-0020-A")
 def test_the_correlation_identifier_of_the_request_is_in_the_envelope_and_the_header(
     app: FastAPI,
 ) -> None:

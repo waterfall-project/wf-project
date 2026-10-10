@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The back: lint and format, strict types, the boundaries of the core, the tests.
+# The back: lint and format, strict types, the boundaries of the core, the tests. The tests of the
+# data run against a real PostgreSQL, a service of the job (the guide, "Tests").
 name: back
 
 on:
@@ -19,6 +20,20 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    services:
+      postgres:
+        # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
+        image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+        env:
+          # A server that lives for the job and is reachable from the runner alone.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,3 +45,5 @@ jobs:
       - run: make check-back
         env:
           TIER: ${{ inputs.tier }}
+          # A role that may create databases: each run creates its own and drops it.
+          WATERFALL_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
