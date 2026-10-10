@@ -65,6 +65,19 @@ doit rester au 30 juin sur tout poste. *Contrôle* : la règle `DTZ` de Ruff pou
 sans fuseau, les tests de WF-DAT-0060 et WF-DAT-0100 pour les identifiants et les instants ;
 le choix du type d'une grandeur, la revue.
 
+### Trier et chercher un texte
+
+Le contrat trie un texte dans l'ordre des points de code, accents et casse compris, et cherche
+sans égard à la casse ni aux accents (`docs/api/README.md`, « Une recherche… »). Une colonne
+de texte qu'une table trie porte donc la collation `C` (`Text(collation="C")`), que ses index
+partagent. Une recherche compare les deux textes translittérés par `unaccent` — l'extension que
+crée la migration `0004` —, puis mis en minuscules dans une collation qui connaît toutes les
+lettres, `und-x-icu` : la collation `C` ne met en minuscules que les lettres ASCII. Elle cherche le
+texte par `strpos`, et non par `LIKE`, pour qu'un `%` ou un `_` cherché soit une lettre comme une
+autre.
+
+*Contrôle* : les tests de la table qui cherche (`tests/test_access_roles.py`) ; la revue.
+
 ### Contraintes déclarées
 
 Ce que la base peut garantir, elle le garantit, avant toute règle des services (WF-DAT-0090) :
