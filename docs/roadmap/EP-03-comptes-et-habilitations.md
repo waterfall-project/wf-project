@@ -684,7 +684,8 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - `WF-DAT-0070-A` — « Une ligne mise à jour par un traitement automatique porte la plateforme comme auteur. » : constaté sur un compte mis à jour par la lecture des
   comptes du fournisseur (US-0370).
 - écart : `WF-DAT-0080-A` — « La suppression d’un sous-projet non référencé le retire de la base. » : le sous-projet arrive en EP-04.
-- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée est refusée, et le sous-projet reste proposé à la saisie. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un lot référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
   d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
 - écart : `WF-DAT-0090-A` — « L’insertion d’une ligne de devis référençant une catégorie inexistante est rejetée par la base. » : le devis arrive en EP-07, qui clôt
