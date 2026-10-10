@@ -275,7 +275,11 @@ les fournisseurs externes, que l'administrateur raccorde dans la console (WF-ADM
 sont ni écrasés ni supprimés. La plateforme de développement ajoute, par un second fichier
 qui ne sert qu'à elle, un annuaire OpenLDAP de test, un second royaume `external` qui joue le
 fournisseur externe, et Mailpit pour recevoir les courriels : c'est ce qui rend la Définition
-de fini constatable. La base de Keycloak est une base distincte sur le même serveur
+de fini constatable. Elle sert Keycloak en HTTPS, comme la démonstration (TFX-07, TFX-08) : un
+frontal Caddy, avec son autorité locale (`tls internal`), devant Keycloak, que le navigateur
+et le serveur Next joignent tous deux par lui, canal arrière compris ; le front fait confiance
+à cette autorité par `NODE_EXTRA_CA_CERTS`, et `openid-client` n'admet aucune adresse en HTTP
+(#680). La base de Keycloak est une base distincte sur le même serveur
 PostgreSQL (#215, PBS-3.1).
 
 **L'extension Keycloak** (décision du cadrage, 2026-10-07). Un fournisseur Java,
@@ -315,7 +319,10 @@ retour (`/auth/backchannel-logout`, une route du front, pas une opération de l'
 front efface les sessions Redis de ce compte. La déconnexion demandée par l'utilisateur est
 une opération du contrat (`closeMySessions`, ci-dessous) : le front ne parle pas à l'API
 d'administration de Keycloak. Indépendamment, l'API lit l'état du compte à chaque requête :
-un compte désactivé est refusé même si la notification se perd.
+un compte désactivé est refusé même si la notification se perd. La déconnexion note aussi son
+heure dans le compte (`sessions_closed_at`) : l'API refuse par 401 `SESSION_EXPIRED` un jeton
+émis avant elle (`iat`), y compris celui d'une application voisine, sans attendre son
+expiration et sans appel de plus, puisqu'elle lit déjà le compte à chaque requête (#668).
 
 **L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
 cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
@@ -338,7 +345,7 @@ rien d'autre que leurs deux clés.
 | Table | Contenu | Contraintes |
 |---|---|---|
 | `installation` | une seule ligne : langue par défaut, borne de l'avatar, borne d'une sauvegarde déposée, date d'installation | une seule ligne (clé constante vérifiée) ; langue dans `fr`, `en` ; borne de l'avatar ≤ 8 Mio |
-| `user_account` | identité (`last_name`, `first_name`, `email`), `idp_subject`, `origin`, `state`, `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
+| `user_account` | identité (`last_name`, `first_name`, `email`), `idp_subject`, `origin`, `state`, `sessions_closed_at` (nul tant que le compte ne s'est pas déconnecté), `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
 | `permission` | `code`, `kind`, `fbs_code` | `code` unique ; `kind` dans les quatre natures ; écrite par migration seulement |
 | `access_role` | `label`, `is_predefined`, `deleted_at`, audit, `lock_version` | — |
 | `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
@@ -593,7 +600,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
   contrat — aucune route hors contrat (WF-ARC-0060).
 - **Dans les parcours** : `make e2e-service` démarre la plateforme de service
   (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
-  Keycloak et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
+  Keycloak, son frontal TLS et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
   (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
   parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
   `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
@@ -637,6 +644,8 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une extension Keycloak maison pour le lien de fixation et la règle du nom (cadrage, 2026-10-07) | une extension tierce : licence et maintenance à vérifier, ni l'invalidation du lien précédent ni la règle du nom ; le courriel seul : impossible sans messagerie (WF-CMP-0030) |
 | Waterfall fait foi pour l'état du compte : la désactivation ne désactive pas le compte dans Keycloak, elle ferme ses sessions et l'API le refuse | désactiver aussi dans Keycloak : couperait les applications voisines qui partagent le fournisseur (motif de WF-ARC-0030), et un annuaire en lecture seule le refuse |
 | La déconnexion ferme toutes les sessions du compte, sur tous ses postes (lecture de WF-SEC-0020, « sur tous ses postes ») | fermer la seule session du navigateur : ne tient pas la phrase pour la déconnexion |
+| Un jeton émis avant la dernière déconnexion du compte est refusé, par l'heure que `closeMySessions` note dans le compte (auteur, 2026-10-10, #668) | amender le 401 « session fermée » du contrat : les applications voisines garderaient cinq minutes un jeton valide ; vérifier la session (`sid`) à chaque appel : un aller-retour vers Keycloak, ou l'API dépendrait du Redis du front |
+| La plateforme de développement sert Keycloak en HTTPS par un frontal Caddy à autorité locale (auteur, 2026-10-10, #680) | permettre le HTTP à `openid-client` (`allowInsecureRequests`) sur le poste : option dépréciée, une exemption au jeu de règles, et une plateforme qui s'écarte des flux en HTTPS du §4.3.2 que la démonstration suit |
 | Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` | 403 : chaque opération devrait le déclarer, quand le 401 l'est déjà partout (`rule/session-operation-declares-401`) ; le front distingue le code et ne renvoie pas à la connexion, qui bouclerait |
 | La suppression d'un rôle est logique (cadrage, 2026-10-07) | la suppression physique : contraire à WF-DAT-0080 |
 | La tâche en base, la file dans un flux Redis, un module à nous | arq : asynchrone, état dans Redis, qui ne doit rien garder de durable ; Celery, Dramatiq : un second état à tenir d'accord avec la base ; une file en base (`SKIP LOCKED`) : PBS-3.2 met la file dans Redis |
