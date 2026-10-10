@@ -1,10 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The commands of the backups (FBS-1.4, EP-02/L43c), each under the permission of the catalogue that
- * guards it (WF-ADM-0100): start one, mark one to be kept or no longer (`backups.write`); download
- * one, restore the platform from one (`platform_restore`, decision of the author of 2026-10-09,
- * #588). None deletes a backup. The rules are the guide's: « Les écrans de l'administration ».
+ * The commands of the backups (FBS-1.4, EP-02/L43c, EP-14/L42h): start one, under the permission of
+ * the catalogue that guards it (`backups.write`, WF-ADM-0100); and, on each backup, those it lists
+ * (`available_commands`, WF-IHM-0090) — mark it to be kept or no longer, whichever changes its
+ * marking; download it; restore the platform from it —, each absent when the backup does not list
+ * it, available, or unavailable with the conditions it lacks, as the server says them: a backup not
+ * yet verified neither downloads nor restores, nothing restores while a backup runs, and nothing but
+ * a download goes while a restoration runs. The front deduces none of it from the session nor from
+ * the state of the backup. None deletes a backup. The rules are the guide's: « Les écrans de
+ * l'administration ».
+ *
+ * A command the server lists unavailable stays presented, marked `aria-disabled` and described by
+ * the conditions it lacks, as the activations of the reference data are (`UnavailableCellCommand`):
+ * a press does not run it, and says in the region of the list what it lacks. The refusal of a
+ * command the server opposes all the same — a state that forbids it (409), the condition named — is
+ * told above the list as any other (`useListReport`).
  *
  * A backup has no counter: a marking answered shows the backup as the server answered it while each
  * reading anew of the page reads it as the one before did (`BackupCommands`) — against the fake back,
@@ -29,11 +40,11 @@ import {
 } from "react";
 
 import { retainBackup, startBackup } from "@/api/actions/backups";
-import type { components } from "@/api/generated/schema";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { useLocalTimestamp } from "@/components/local-time";
-import { CellCommand } from "@/components/reference/cell-command";
+import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import {
   ANOTHER_OBJECT,
   focusBack,
@@ -47,11 +58,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 import { formatTimestamp } from "@/i18n/format";
 
-import { downloadHref, withoutDownloadRefusal } from "./backup-address";
+import { type Backup, downloadHref, withoutDownloadRefusal } from "./backup-address";
 import { RestoreDialog } from "./restore-dialog";
 
-/** A backup, as the contract gives it. */
-export type Backup = components["schemas"]["Backup"];
+/** A command a backup lists, as the contract names it. */
+type BackupCommand = Backup["available_commands"][number]["command"];
 
 /** The answers to the markings, by backup, and the reading of the page they lie over. */
 interface Held {
@@ -192,16 +203,46 @@ export function BackupHead({ startable }: { readonly startable: boolean }) {
 }
 
 /**
- * Whether a backup is marked to be kept, by a mark and a word, and, for a session that may modify
- * the backups, the command that marks it or no longer, named after its date.
+ * A command of a backup the server lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list, after the command
+ * named by the date of the backup.
  */
-export function RetentionCell({
-  backup,
-  editable,
+function UnavailableCommand({
+  name,
+  offer,
+  children,
 }: {
-  readonly backup: Backup;
-  readonly editable: boolean;
+  /** The accessible name of the command, which names the backup by its date. */
+  readonly name: string;
+  readonly offer: CommandOffer;
+  readonly children: ReactNode;
 }) {
+  const t = useTranslations("admin.backups");
+  const commands = useContext(ListCommands);
+  return (
+    <UnavailableCellCommand
+      name={name}
+      offer={offer}
+      onPress={(unmet) => {
+        commands?.say(t("unavailable", { command: name, unmet }));
+      }}
+    >
+      {children}
+    </UnavailableCellCommand>
+  );
+}
+
+/** The offer a backup lists of a command; none when it does not list it. */
+function offerOf(backup: Backup, command: BackupCommand) {
+  return findOffer(backup.available_commands, command);
+}
+
+/**
+ * Whether a backup is marked to be kept, by a mark and a word, and the command that changes its
+ * marking as the backup lists it — to keep, or no longer —, named after its date: absent, available,
+ * or unavailable with the condition it lacks, while a restoration runs.
+ */
+export function RetentionCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
   const locale = useLocale();
   const commands = useContext(ListCommands);
@@ -209,6 +250,9 @@ export function RetentionCell({
   const date = useLocalTimestamp(backup.taken_at);
   const [pending, startTransition] = useTransition();
   const retained = backup.is_retained;
+  const offer = offerOf(backup, retained ? "release" : "retain");
+  const icon = retained ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />;
+  const name = t(retained ? "releaseNamed" : "retainNamed", { date });
   const retain = () => {
     if (pending) {
       return;
@@ -240,35 +284,50 @@ export function RetentionCell({
           {t("retained")}
         </span>
       ) : null}
-      {editable ? (
-        <CellCommand
-          aria-label={t(retained ? "releaseNamed" : "retainNamed", { date })}
-          aria-busy={pending}
-          onClick={retain}
-        >
-          {retained ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />}
+      {offer === undefined ? null : offer.is_available ? (
+        <CellCommand aria-label={name} aria-busy={pending} onClick={retain}>
+          {icon}
           {t(retained ? "release" : "retain")}
         </CellCommand>
-      ) : null}
+      ) : (
+        <UnavailableCommand name={name} offer={offer}>
+          {icon}
+          {t(retained ? "release" : "retain")}
+        </UnavailableCommand>
+      )}
     </span>
   );
 }
 
 /**
- * The download of a backup: a link to the route that hands it on as a stream, leaving from the
- * screen as it shows, without a refusal it came back with; Enter on its cell follows it.
+ * The download of a backup, as it lists it: a link to the route that hands it on as a stream,
+ * leaving from the screen as it shows, without a refusal it came back with — Enter on its cell
+ * follows it —; unavailable, with the condition it lacks, until the backup is verified.
  */
 export function DownloadCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const date = useLocalTimestamp(backup.taken_at);
+  const offer = offerOf(backup, "download");
+  if (offer === undefined) {
+    return null;
+  }
+  const name = t("downloadNamed", { date });
+  if (!offer.is_available) {
+    return (
+      <UnavailableCommand name={name} offer={offer}>
+        <Download aria-hidden="true" />
+        {t("download")}
+      </UnavailableCommand>
+    );
+  }
   const from = withoutDownloadRefusal({ pathname, search: search === "" ? "" : `?${search}` });
   return (
     <a
       href={downloadHref(backup.backup_id, from)}
       tabIndex={-1}
-      aria-label={t("downloadNamed", { date })}
+      aria-label={name}
       className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-5 px-1.5 text-xs")}
     >
       <Download aria-hidden="true" />
@@ -277,14 +336,31 @@ export function DownloadCell({ backup }: { readonly backup: Backup }) {
   );
 }
 
-/** The command that opens the restoration of the platform from a backup, named after its date. */
+/**
+ * The command that opens the restoration of the platform from a backup, named after its date, as
+ * the backup lists it: unavailable, with the conditions it lacks, until it is verified and while a
+ * backup or a restoration runs.
+ */
 export function RestoreCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
   const commands = useContext(ListCommands);
   const date = useLocalTimestamp(backup.taken_at);
+  const offer = offerOf(backup, "restore");
+  if (offer === undefined) {
+    return null;
+  }
+  const name = t("restoreNamed", { date });
+  if (!offer.is_available) {
+    return (
+      <UnavailableCommand name={name} offer={offer}>
+        <History aria-hidden="true" />
+        {t("restore")}
+      </UnavailableCommand>
+    );
+  }
   return (
     <CellCommand
-      aria-label={t("restoreNamed", { date })}
+      aria-label={name}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ backup, trigger: event.currentTarget });
       }}
@@ -296,8 +372,11 @@ export function RestoreCell({ backup }: { readonly backup: Backup }) {
 }
 
 /**
- * The restoration open, within the list: closed, it gives the focus back to the cell of its command,
- * or to the list when the page read anew no longer holds it (`focusBack`).
+ * The restoration open, within the list, on the backup as the page shows it now — the one read anew
+ * after a date refused (`BACKUP_DATE_MISMATCH`), so that the dialog states and sends the date read,
+ * never again the one captured at the press; the one of the press when the page no longer holds it.
+ * Closed, it gives the focus back to the cell of its command, or to the list when the page read anew
+ * no longer holds it (`focusBack`).
  */
 export function RestoreOpened() {
   const commands = useContext(ListCommands);
@@ -306,9 +385,10 @@ export function RestoreOpened() {
   if (commands === undefined || opened === undefined) {
     return null;
   }
+  const shown = commands.shown.find((backup) => backup.backup_id === opened.backup.backup_id);
   return (
     <RestoreDialog
-      backup={opened.backup}
+      backup={shown ?? opened.backup}
       onStarted={commands.say}
       onClose={() => {
         commands.open(undefined);

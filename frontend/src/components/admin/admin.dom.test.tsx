@@ -13,7 +13,7 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { PermissionMatrix } from "./account-lists";
-import { BACKUPS_LIST } from "./backup-address";
+import { BACKUPS_LIST, NEWEST_FIRST, readBackupFilters } from "./backup-address";
 import {
   AlertList,
   BackupList,
@@ -161,10 +161,11 @@ describe("the state of the platform and its backups", () => {
         <OperationList status={failed} />
         <BackupScheduleFacts schedule={suspended} />
         <BackupList
-          backups={backups.items}
-          page={backups.meta}
+          read={{ kind: "read", items: backups.items, page: backups.meta }}
+          filters={readBackupFilters(new URLSearchParams())}
+          query={{ sort: NEWEST_FIRST, search: undefined }}
           preferences={undefined}
-          offers={{ editable: false, restorable: false }}
+          startable={false}
           refused={undefined}
         />
       </>,
