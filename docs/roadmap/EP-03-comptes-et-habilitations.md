@@ -259,7 +259,10 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ;
+  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
+  (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
+  client de test pour les jetons dont ses tests ont besoin ;
 - la politique de mot de passe de WF-ADM-0140 : douze caractères au moins, ni l'adresse
   (`notEmail`, `notUsername`, l'adresse servant d'identifiant), ni le nom (règle de
   l'extension) ; le verrouillage temporaire : dix échecs, quinze minutes, jamais permanent ;
@@ -278,16 +281,29 @@ fournisseur externe, et Mailpit pour recevoir les courriels : c'est ce qui rend 
 de fini constatable. La base de Keycloak est une base distincte sur le même serveur
 PostgreSQL (#215, PBS-3.1).
 
-**L'extension Keycloak** (décision du cadrage, 2026-10-07). Un fournisseur Java,
-`deploy/keycloak/extension/`, construit par un Dockerfile multi-étapes dans l'image Keycloak :
-aucune JVM n'est demandée au poste. Deux pièces :
+**L'extension Keycloak** (décision du cadrage, 2026-10-07 ; complétée le 2026-10-10). Un
+fournisseur Java, `deploy/keycloak/extension/`, construit par un Dockerfile multi-étapes dans
+l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
 
 - `password-setup-link` : un point d'entrée du royaume, réservé au rôle
   `waterfall-password-link` du compte de service, qui rend pour un compte un lien d'action
   « fixer le mot de passe », valable une heure et à usage unique, vers la page de Keycloak ;
   il fait tourner un nonce porté par le compte, de sorte qu'un lien précédent cesse de
-  valoir ;
-- `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte ».
+  valoir. Le même point d'entrée envoie, sur demande, le courriel d'invitation avec le lien
+  qu'il forge et le modèle du thème : l'API n'appelle jamais `execute-actions-email` de
+  Keycloak, dont les liens échapperaient au nonce (#651). La promesse « un lien précédent
+  cesse de valoir » vise les liens de fixation ; « mot de passe oublié », que la personne
+  déclenche elle-même, reste le parcours de Keycloak ;
+- le lien d'installation (#652) : un second rôle, `waterfall-installation-link`, que seul
+  l'amorçage porte, fait rendre au même point d'entrée un lien qui vaut jusqu'à son emploi
+  (WF-ADM-0140), à usage unique et soumis au même nonce ; le compte de service ordinaire ne
+  produit que des liens d'une heure ;
+- `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte » ;
+- `local-account-only` (#650) : la règle de politique qui refuse tout mot de passe à un compte
+  qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
+  « mot de passe oublié », console, lien —, avec sa phrase dans le thème, en français et en
+  anglais. Sans elle, une personne venue d'un fournisseur externe se donnerait un mot de passe
+  local et garderait l'accès après son départ du fournisseur.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
 les tests d'intégration du service contre le Keycloak de la plateforme, et la chaîne
@@ -324,7 +340,14 @@ cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audi
 encore — un compte de l'annuaire avant la première lecture, ou une personne venue d'un
 fournisseur externe —, que l'API crée sans rôle après avoir lu son origine dans l'API
 d'administration de Keycloak (lien de fédération ou identité relayée) (WF-ADM-0180,
-WF-ADM-0070). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED`.
+WF-ADM-0070). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` ; un compte que
+Waterfall n'admet pas — compte local du royaume que Waterfall n'a pas créé, sans nom, prénom
+ou adresse — par 401 `ACCOUNT_NOT_ADMITTED` (#664). Une personne dont l'adresse est déjà
+portée par un compte de Waterfall est rattachée à ce compte si elle vient de l'annuaire, qui
+reconnaît la personne par son adresse (motif de WF-ADM-0050), et le rattachement s'inscrit au
+journal d'audit ; venue d'un fournisseur externe, elle est refusée par
+`ACCOUNT_NOT_ADMITTED` : un fournisseur peu rigoureux sur les adresses ouvrirait le compte
+d'un autre.
 
 ### Tables et migrations
 
@@ -408,7 +431,12 @@ garde le compte actif et le signale.
   inattendue (500 `INTERNAL_ERROR`, avec sa corrélation). La section « Ajouter un code côté
   service » du guide le décrit.
 - SQLAlchemy 2, sessions synchrones, psycopg 3 ; une transaction par requête ; la réponse se
-  construit avant la validation de la transaction (défaut connu n° 3).
+  construit avant la validation de la transaction (défaut connu n° 3). Seule exception :
+  aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
+  L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
+  Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
+  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
 
@@ -473,7 +501,9 @@ les tables des autres modules. Les index suivent les tris et les filtres du cont
    du contrat et leurs libellés dans cette langue ; le compte administrateur local dans
    Keycloak et dans Waterfall, avec le rôle administrateur, l'adresse venant de
    `WATERFALL_ADMIN_EMAIL` ;
-4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension.
+4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension sous le rôle
+   `waterfall-installation-link` : il vaut jusqu'à son emploi (WF-ADM-0140, WF-EXP-0020) ;
+   une nouvelle commande en produit un autre, qui remplace le précédent.
 
 Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
 calendrier et la nature de provision.
@@ -654,6 +684,12 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Garage pour le stockage objet, le code limité aux opérations S3 standard (auteur, 2026-10-09) | MinIO : archivé, sans binaires ni correctifs ; SeaweedFS : plusieurs composants, lourd pour une démonstration ; RustFS : trop jeune |
 | Le journal d'audit hors des vidages, laissé en place par la restauration | le restaurer avec le reste : WF-ADM-0160 révisée le garde, et la restauration doit s'y inscrire |
 | Le dépôt d'une sauvegarde par morceaux (#350) | une action serveur : sa taille de corps est bornée ; une adresse signée du stockage objet : le navigateur parlerait au stockage, hors des flux du §4.3.2 ; un gestionnaire de route qui relaie l'API : écarté par EP-02 (WF-ARC-0020) |
+| L'extension envoie le courriel d'invitation avec son propre lien ; l'API n'appelle jamais `execute-actions-email` (auteur, 2026-10-10, #651) | restreindre la promesse du contrat aux seuls liens obtenus de l'extension : une invitation de Keycloak resterait valide après un lien remis en main propre |
+| La règle `local-account-only` de l'extension refuse un mot de passe à un compte relayé ou fédéré (auteur, 2026-10-10, #650) | accepter le risque, la désactivation dans Waterfall restant le contrôle : Waterfall ne voit pas le départ d'une personne de son fournisseur externe |
+| Le lien d'installation vaut jusqu'à son emploi, sous un second rôle que seul l'amorçage porte (auteur, 2026-10-10, #652) | un paramètre de durée du même point d'entrée : le compte de service ordinaire pourrait produire des liens longs |
+| Une personne de l'annuaire à l'adresse déjà portée est rattachée au compte ; venue d'un fournisseur externe, refusée (auteur, 2026-10-10, #664) | toujours refuser : chaque branchement d'un annuaire demanderait de régler les comptes à la main ; toujours rattacher : prise de compte par un fournisseur externe peu rigoureux |
+| Aucun appel au fournisseur d'identité dans une transaction (auteur, 2026-10-10, #669) | une transaction par requête sans exception : une connexion prise pendant un appel lent à Keycloak épuise le pool |
+| `admin-cli` sans connexion directe par mot de passe (auteur, 2026-10-10, #644) | la laisser, l'audience `waterfall-api` protégeant l'API : un second chemin d'authentification que la conception ne prévoit pas |
 
 ### Issues à ouvrir avec la conception
 
