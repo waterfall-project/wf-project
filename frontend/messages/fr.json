@@ -1468,6 +1468,7 @@
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
+    "ACCOUNT_NOT_ADMITTED": "Ce compte n’est pas admis dans Waterfall ; contactez un administrateur.",
     "UNKNOWN_ACCESS_ROLE": "Ce rôle d’habilitation n’existe pas.",
     "UNKNOWN_ORG_NODE": "Ce nœud d’organisation n’existe pas.",
     "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
