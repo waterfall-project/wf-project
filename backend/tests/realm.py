@@ -12,6 +12,7 @@ import json
 import threading
 import time
 from collections.abc import Mapping
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -38,6 +39,8 @@ class TestRealm:
         """Serve no key yet, on a port of the loopback chosen by the system."""
         self.keys: dict[str, rsa.RSAPrivateKey] = {}
         self.reads = 0
+        # The status the keys are served with: another one plays a Keycloak that fails.
+        self.status = HTTPStatus.OK
         self._encryption = new_key()
         realm = self
 
@@ -47,16 +50,15 @@ class TestRealm:
                     self.send_error(404)
                     return
                 realm.reads += 1
+                if realm.status != HTTPStatus.OK:
+                    self.send_error(realm.status)
+                    return
                 body = json.dumps({"keys": realm.public_keys()}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
-
-            def do_POST(self) -> None:
-                # The token of the service account, among others: Keycloak's alone.
-                self.send_error(404)
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -71,6 +73,10 @@ class TestRealm:
     def issuer(self) -> str:
         """The issuer of the tokens of the realm."""
         return f"{self.address}/realms/{REALM}"
+
+    def remove_key(self, key_id: str) -> None:
+        """Stop serving a key, as a realm that no longer trusts it."""
+        del self.keys[key_id]
 
     def add_key(self, key_id: str) -> rsa.RSAPrivateKey:
         """Make a key and serve its public part from now on."""

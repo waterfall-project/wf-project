@@ -16,6 +16,7 @@ next-env.d.ts
 docs/api/waterfall.mock.json
 frontend/.e2e/
 backend/coverage.json
+backend/coverage-keycloak.json
 .coverage
 test-results/
 playwright-report/

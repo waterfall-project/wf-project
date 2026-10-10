@@ -12,6 +12,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
 from waterfall.platform.settings import SettingsError, load_service_settings
 
@@ -45,7 +46,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     keycloak = Keycloak(settings)
     try:
         uvicorn.run(
-            create_app(Services(database, keycloak)),
+            create_app(Services(database, keycloak, KeycloakAdmin(keycloak, settings))),
             host=settings.host,
             port=settings.port,
             log_config=None,

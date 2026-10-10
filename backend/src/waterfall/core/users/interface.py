@@ -11,6 +11,7 @@ need them (US-0360).
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -24,9 +25,23 @@ from waterfall.core.users.accounts import (
     find_account_of_subject,
 )
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.keycloak import ProviderAccount
+from waterfall.platform.keycloak_admin import ProviderAccount
 
 NAME_MAX_LENGTH = 100
+
+
+class NotAdmitted(StrEnum):
+    """Why a person the provider knows is not given an account at her first request."""
+
+    # The realm holds no account for the subject of the token, or no longer.
+    UNKNOWN_TO_PROVIDER = "unknown_to_provider"
+    # A local account of the provider, which only Waterfall creates (WF-ADM-0070).
+    LOCAL_ACCOUNT = "local_account"
+    NO_ADDRESS = "no_address"
+    # A name or a first name empty, or longer than a column holds.
+    NAME_NOT_STORABLE = "name_not_storable"
+    # The address is held by another account (WF-ADM-0050).
+    ADDRESS_TAKEN = "address_taken"
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,18 +124,21 @@ def _storable(name: str) -> bool:
 
 def add_account_of_provider(
     session: Session, provider: ProviderAccount, at: datetime
-) -> Account | None:
+) -> Account | NotAdmitted:
     """Create, without any role, the account of a person the provider knows and Waterfall not yet.
 
     It takes the name, the first name and the address the provider transmits, the platform as
-    its author (WF-ADM-0180). ``None`` when the provider does not admit it (``origin_of``), when
-    it lacks a name or an address, or when its address is held by another account.
+    its author (WF-ADM-0180). When the provider does not admit the person (``origin_of``), when
+    she lacks a name or an address, or when her address is held by another account, it creates
+    nothing and says why.
     """
     origin = origin_of(provider)
-    if origin is None or not provider.email:
-        return None
+    if origin is None:
+        return NotAdmitted.LOCAL_ACCOUNT
+    if not provider.email:
+        return NotAdmitted.NO_ADDRESS
     if not (_storable(provider.last_name) and _storable(provider.first_name)):
-        return None
+        return NotAdmitted.NAME_NOT_STORABLE
     new = NewAccount(
         last_name=provider.last_name,
         first_name=provider.first_name,
@@ -129,7 +147,7 @@ def add_account_of_provider(
         origin=origin,
     )
     account = add_account_if_absent(session, new, Stamp(None, at))
-    return None if account is None else _account(session, account)
+    return NotAdmitted.ADDRESS_TAKEN if account is None else _account(session, account)
 
 
 def _author(session: Session, user_id: UUID | None) -> Author | None:

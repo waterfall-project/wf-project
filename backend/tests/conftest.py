@@ -22,6 +22,7 @@ from waterfall.api.authentication import Services
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 
@@ -49,7 +50,7 @@ def services(platform_settings: ServiceSettings) -> Iterator[Services]:
     """Give the services of the API of the test platform, which reach nothing until asked to."""
     database = Database(create_database_engine(platform_settings.database_url.get_secret_value()))
     keycloak = Keycloak(platform_settings)
-    yield Services(database, keycloak)
+    yield Services(database, keycloak, KeycloakAdmin(keycloak, platform_settings))
     keycloak.close()
     database.dispose()
 

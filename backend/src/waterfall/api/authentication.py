@@ -22,12 +22,14 @@ from structlog.contextvars import bind_contextvars
 
 from waterfall.core.users.interface import (
     Account,
+    NotAdmitted,
     add_account_of_provider,
     read_account_of_subject,
 )
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnauthenticatedError
 from waterfall.platform.keycloak import SESSION_REQUIRED, Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
@@ -38,10 +40,11 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Services:
-    """What the routes of a process reach: its database and Keycloak."""
+    """What the routes of a process reach: its database, Keycloak and its administration API."""
 
     database: Database
     keycloak: Keycloak
+    keycloak_admin: KeycloakAdmin
 
 
 def services_of(request: Request) -> Services:
@@ -74,23 +77,30 @@ def bearer_token(request: Request) -> str:
 def identify(request: Request, session: Transaction, services: ServicesOf) -> Account:
     """Give the account of the caller, created if the provider admits it, or refuse it (401)."""
     subject = services.keycloak.subject_of(bearer_token(request))
-    account = read_account_of_subject(session, subject) or admit(
-        session, services.keycloak, subject
-    )
+    account = read_account_of_subject(session, subject)
+    if account is None:
+        account = admit(session, subject, services.keycloak_admin.read_account(subject))
     if not account.is_active:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
     return account
 
 
-def admit(session: Session, keycloak: Keycloak, subject: str) -> Account:
-    """Create the account of a person Waterfall does not know yet, or refuse her (401)."""
-    provider = keycloak.read_account(subject)
-    account = None if provider is None else add_account_of_provider(session, provider, utc_now())
-    if account is None:
-        logger.warning("account.not_admitted", subject=subject)
+def admit(session: Session, subject: str, provider: ProviderAccount | None) -> Account:
+    """Create the account of a person Waterfall does not know yet, or refuse her (401).
+
+    ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none.
+    """
+    admitted = (
+        NotAdmitted.UNKNOWN_TO_PROVIDER
+        if provider is None
+        else add_account_of_provider(session, provider, utc_now())
+    )
+    if isinstance(admitted, NotAdmitted):
+        logger.warning("account.not_admitted", subject=subject, reason=admitted.value)
+        # TODO(#664): a code of its own; an account never created is not a deactivated one.
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
-    logger.info("account.created", user_id=str(account.user_id), origin=account.origin)
-    return account
+    logger.info("account.created", user_id=str(admitted.user_id), origin=admitted.origin)
+    return admitted
 
 
 async def caller(account: Annotated[Account, Depends(identify)]) -> Account:

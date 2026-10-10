@@ -63,6 +63,6 @@ def get_me(account: Caller) -> UserSelf:
 @router.delete("/me/sessions", operation_id="closeMySessions", status_code=204)
 def close_my_sessions(account: Caller, services: ServicesOf) -> Response:
     """Close every session of the caller, on every device: its tokens no longer serve."""
-    services.keycloak.close_sessions(account.subject)
+    services.keycloak_admin.close_sessions(account.subject)
     logger.info("sessions.closed")
     return Response(status_code=204)

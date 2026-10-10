@@ -3,13 +3,15 @@
 """The API knows its caller by the access token alone, and reads the rest in its base.
 
 The tokens are signed by keys the test makes and serves as Keycloak serves its own
-(``realm.py``): the validation tried is that of the service. A person unknown to Waterfall and
-the closing of sessions need Keycloak itself: ``test_keycloak_authentication.py``.
+(``realm.py``): the validation tried is that of the service. Reading in Keycloak a person
+unknown to Waterfall, and closing sessions, need Keycloak itself:
+``test_keycloak_authentication.py``; what is done with the person read is tried here.
 """
 
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from http import HTTPStatus
 from typing import Any
 
 import pytest
@@ -17,18 +19,22 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import TestRealm, new_key
 from sqlalchemy import insert
+from sqlalchemy.orm import Session
 from support import ContractClient, Logs, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
+from waterfall.api.authentication import Services, admit
+from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
-from waterfall.platform.errors import UnauthenticatedError
+from waterfall.platform.errors import UnauthenticatedError, UnavailableError
 from waterfall.platform.keycloak import (
+    KEYS_MAX_AGE_SECONDS,
     KEYS_REREAD_SECONDS,
     IdentityProviderError,
     Keycloak,
 )
+from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
@@ -61,9 +67,11 @@ def keycloak(realm_settings: ServiceSettings) -> Iterator[Keycloak]:
 
 
 @pytest.fixture
-def api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
+def api(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> ContractClient:
     """Give a client of the application on the database of test and the realm of test."""
-    app = create_app(Services(database, keycloak))
+    app = create_app(Services(database, keycloak, KeycloakAdmin(keycloak, realm_settings)))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -98,6 +106,16 @@ def test_the_account_of_the_subject_of_the_token_is_the_caller(
     assert me["display_preferences"] == {"theme": "dark"}
     assert me["audit"]["created_by"] == {"kind": "platform"}
     assert (me["org_node_id"], me["org_node_label"]) == (None, None)
+
+
+@pytest.mark.parametrize("email", ["x@corp.local", "A@Example.ORG"])
+def test_the_address_of_the_caller_is_given_as_it_is_held(
+    email: str, api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # A special-use domain, capitals in the domain: neither refused nor rewritten.
+    account(database, email=email)
+    response = api.get(ME, headers=bearer(realm.token(SUBJECT, KEY)))
+    assert (response.status_code, response.json()["email"]) == (200, email)
 
 
 def test_an_account_without_any_role_has_no_permission(
@@ -278,9 +296,102 @@ def test_keys_the_realm_cannot_sign_with_are_a_defect_of_the_platform(
         empty.stop()
 
 
-def test_an_answer_keycloak_does_not_give_is_a_defect_of_the_platform(
-    keycloak: Keycloak,
+def test_a_key_the_realm_removes_stops_serving_once_the_keys_are_old(
+    realm_settings: ServiceSettings, realm: TestRealm
 ) -> None:
-    # The realm of test answers nothing but its keys: the service account gets no token.
-    with pytest.raises(IdentityProviderError, match="answered 404"):
-        keycloak.close_sessions(SUBJECT)
+    now = [1000.0]
+    keycloak = Keycloak(realm_settings, clock=lambda: now[0])
+    signed = realm.token(SUBJECT, KEY)
+    assert keycloak.subject_of(signed) == SUBJECT
+    # The realm signs with a new key, and no longer trusts the old one: the keys are read again
+    # within the life of an access token.
+    realm.add_key("key-2")
+    realm.remove_key(KEY)
+    now[0] += KEYS_MAX_AGE_SECONDS
+    with pytest.raises(UnauthenticatedError) as refused:
+        keycloak.subject_of(signed)
+    assert refused.value.code == "SESSION_REQUIRED"
+    assert realm.reads == 2
+    keycloak.close()
+
+
+def test_the_keys_already_read_serve_while_keycloak_does_not_answer(
+    realm_settings: ServiceSettings, realm: TestRealm, logs: Logs
+) -> None:
+    now = [1000.0]
+    keycloak = Keycloak(realm_settings, clock=lambda: now[0])
+    signed = realm.token(SUBJECT, KEY)
+    assert keycloak.subject_of(signed) == SUBJECT
+    realm.stop()
+    now[0] += KEYS_MAX_AGE_SECONDS
+    # Not a 503 at every request: the keys of a moment ago, asked for again in a while.
+    for _ in range(3):
+        assert keycloak.subject_of(signed) == SUBJECT
+    assert len(logs.named("identity_provider.unreachable")) == 1
+    assert len(logs.named("identity_provider.keys_kept")) == 1
+    keycloak.close()
+
+
+def test_keys_keycloak_fails_to_serve_are_a_component_unavailable(
+    keycloak: Keycloak, realm: TestRealm
+) -> None:
+    realm.status = HTTPStatus.SERVICE_UNAVAILABLE
+    with pytest.raises(UnavailableError) as refused:
+        keycloak.subject_of(realm.token(SUBJECT, KEY))
+    assert (refused.value.code, refused.value.params) == (
+        "COMPONENT_UNAVAILABLE",
+        {"component": "identity_provider"},
+    )
+
+
+def test_keys_keycloak_does_not_serve_are_a_defect_of_the_platform(
+    keycloak: Keycloak, realm: TestRealm
+) -> None:
+    # The address of the keys answers, but not with them: the realm is not the one configured.
+    realm.status = HTTPStatus.NOT_FOUND
+    with pytest.raises(IdentityProviderError, match="certs answered 404"):
+        keycloak.subject_of(realm.token(SUBJECT, KEY))
+
+
+def provider_account(**overrides: Any) -> ProviderAccount:
+    """Describe the subject as an account the directory holds, with the changes asked for."""
+    fields: dict[str, Any] = {
+        "subject": SUBJECT,
+        "last_name": "Annuaire",
+        "first_name": "Dominique",
+        "email": "dominique.annuaire@waterfall.test",
+        "is_federated": True,
+        "is_relayed": False,
+        **overrides,
+    }
+    return ProviderAccount(**fields)
+
+
+def test_a_person_the_provider_admits_is_given_an_account(session: Session, logs: Logs) -> None:
+    admitted = admit(session, SUBJECT, provider_account())
+    assert (admitted.subject, admitted.origin, admitted.email) == (
+        SUBJECT,
+        "directory",
+        "dominique.annuaire@waterfall.test",
+    )
+    (record,) = logs.named("account.created")
+    assert (record["user_id"], record["origin"]) == (str(admitted.user_id), "directory")
+
+
+@pytest.mark.parametrize(
+    ("provider", "reason"),
+    [
+        (None, NotAdmitted.UNKNOWN_TO_PROVIDER),
+        (provider_account(is_federated=False), NotAdmitted.LOCAL_ACCOUNT),
+        (provider_account(email=""), NotAdmitted.NO_ADDRESS),
+    ],
+    ids=["unknown to the provider", "local account", "no address"],
+)
+def test_a_person_refused_at_her_first_request_is_refused_with_its_cause_in_the_log(
+    provider: ProviderAccount | None, reason: NotAdmitted, session: Session, logs: Logs
+) -> None:
+    with pytest.raises(UnauthenticatedError) as refused:
+        admit(session, SUBJECT, provider)
+    assert refused.value.code == "ACCOUNT_DEACTIVATED"
+    (record,) = logs.named("account.not_admitted")
+    assert (record["subject"], record["reason"]) == (SUBJECT, reason.value)

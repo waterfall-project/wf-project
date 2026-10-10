@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, RootModel
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class ErrorCode(StrEnum):
@@ -366,7 +366,7 @@ class UserAccount(BaseModel):
     last_name: Annotated[str, Field(max_length=100, min_length=1)]
     first_name: Annotated[str, Field(max_length=100, min_length=1)]
     email: Annotated[
-        EmailStr,
+        str,
         Field(
             description="Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050)."
         ),
@@ -590,7 +590,7 @@ class User(UserAccount):
 class UserCreate(BaseModel):
     last_name: Annotated[str, Field(max_length=100, min_length=1)]
     first_name: Annotated[str, Field(max_length=100, min_length=1)]
-    email: EmailStr
+    email: str
     org_node_id: Uuid | None = None
     access_role_ids: list[Uuid] | None = None
 
@@ -598,7 +598,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     last_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
     first_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
-    email: EmailStr | None = None
+    email: str | None = None
     org_node_id: Uuid | None = None
     lock_version: LockVersion
 

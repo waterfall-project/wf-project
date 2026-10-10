@@ -11,6 +11,7 @@ flow with PKCE. The API is served in the process of the tests, on a database of 
 import base64
 import hashlib
 import secrets
+import time
 from collections.abc import Iterator
 from typing import Any, cast
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -19,6 +20,7 @@ import httpx2
 import pytest
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
+from pydantic import SecretStr
 from sqlalchemy import insert
 from support import ContractClient, raw_account
 from test_keycloak_platform import (
@@ -41,7 +43,8 @@ from waterfall.api.authentication import Services
 from waterfall.core.users import interface
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
-from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak import IdentityProviderError, Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.settings import ServiceSettings
 
 pytestmark = pytest.mark.keycloak
@@ -56,6 +59,8 @@ EXTERNAL_USERNAME = "camille.externe"
 EXTERNAL_CREDENTIAL = "development-only-external-password"
 ME = "/api/v1/me"
 SESSIONS = "/api/v1/me/sessions"
+# An identifier the realm gives to no account.
+NOBODY = "00000000-0000-4000-8000-000000000000"
 
 
 class FrontBrowser(Browser):
@@ -184,9 +189,17 @@ def keycloak(settings: ServiceSettings) -> Iterator[Keycloak]:
 
 
 @pytest.fixture
-def api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
+def keycloak_admin(keycloak: Keycloak, settings: ServiceSettings) -> KeycloakAdmin:
+    """Give the client of the administration API of the realm the API reaches."""
+    return KeycloakAdmin(keycloak, settings)
+
+
+@pytest.fixture
+def api(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, keycloak_admin: KeycloakAdmin
+) -> ContractClient:
     """Give a client of the API on the database of the test and the Keycloak of the platform."""
-    app = create_app(Services(database, keycloak))
+    app = create_app(Services(database, keycloak, keycloak_admin))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -211,7 +224,6 @@ def admin(settings: ServiceSettings) -> Iterator[httpx2.Client]:
 @pytest.fixture
 def local_account(admin: httpx2.Client) -> Iterator[Account]:
     """Make a local account of the realm with a password, and remove it after."""
-    # An address the models of the service take: they refuse a special-use domain, `.test`.
     email = f"test-{secrets.token_hex(6)}@example.org"
     response = admin.post(
         "/users",
@@ -272,16 +284,15 @@ def created(database: Database, tokens: dict[str, Any]) -> interface.Account | N
         return interface.read_account_of_subject(session, claims(tokens["access_token"])["sub"])
 
 
-# The persons of the development platform have addresses in `.test`, which the models of the
-# service refuse to give back: their first request is one that answers nothing, and what it
-# created is read in the base.
 def test_a_person_of_the_directory_is_created_without_any_role_at_her_first_request(
     api: ContractClient, database: Database, admin: httpx2.Client
 ) -> None:
     tokens = tokens_of(DIRECTORY_EMAIL, DIRECTORY_CREDENTIAL)
     assert created(database, tokens) is None
-    response = api.delete(SESSIONS, headers=bearer(tokens))
-    assert response.status_code == 204, response.text
+    response = api.get(ME, headers=bearer(tokens))
+    assert response.status_code == 200, response.text
+    # A special-use domain, `.test`: the address is given back as the provider transmits it.
+    assert (response.json()["email"], response.json()["origin"]) == (DIRECTORY_EMAIL, "directory")
     account = created(database, tokens)
     assert account is not None
     # With the names and the address the provider transmits (WF-ADM-0180).
@@ -299,8 +310,9 @@ def test_a_person_relayed_by_an_external_provider_is_created_without_any_role(
     api: ContractClient, database: Database
 ) -> None:
     tokens = tokens_of(EXTERNAL_USERNAME, EXTERNAL_CREDENTIAL, provider=EXTERNAL_PROVIDER)
-    response = api.delete(SESSIONS, headers=bearer(tokens))
-    assert response.status_code == 204, response.text
+    response = api.get(ME, headers=bearer(tokens))
+    assert response.status_code == 200, response.text
+    assert response.json()["email"] == "camille.externe@external.test"
     account = created(database, tokens)
     assert account is not None
     assert (account.email, account.origin, account.created_by) == (
@@ -349,3 +361,35 @@ def test_closing_my_sessions_closes_them_on_every_device(
     for device in (office, home):
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+def test_a_service_account_with_another_secret_is_a_defect_of_the_platform(
+    keycloak: Keycloak, settings: ServiceSettings
+) -> None:
+    wrong = settings.model_copy(update={"service_client_secret": SecretStr("not-the-secret")})
+    with pytest.raises(IdentityProviderError, match="answered 401"):
+        KeycloakAdmin(keycloak, wrong).close_sessions(NOBODY)
+
+
+def test_an_account_the_realm_does_not_hold_is_read_as_none_and_has_no_session(
+    keycloak_admin: KeycloakAdmin,
+) -> None:
+    assert keycloak_admin.read_account(NOBODY) is None
+    keycloak_admin.close_sessions(NOBODY)
+
+
+def test_a_token_of_the_service_account_refused_before_its_time_is_renewed(
+    keycloak_admin: KeycloakAdmin, admin: httpx2.Client
+) -> None:
+    (person,) = admin.get("/users", params={"email": DIRECTORY_EMAIL, "exact": "true"}).json()
+    (service,) = admin.get(
+        "/users", params={"username": "service-account-waterfall-service", "exact": "true"}
+    ).json()
+    assert keycloak_admin.read_account(person["id"]) is not None
+    # Closing the sessions of the service account refuses every token lent to it before the
+    # second they are closed: the one the client keeps, and the one of `admin`, used no more.
+    time.sleep(1.1)
+    assert admin.post(f"/users/{service['id']}/logout").status_code == 204
+    read = keycloak_admin.read_account(person["id"])
+    assert read is not None
+    assert (read.email, read.is_federated) == (DIRECTORY_EMAIL, True)

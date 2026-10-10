@@ -59,19 +59,19 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 branch = true
 source_dirs = ["src/waterfall"]
-# The models engendered from the contract are written by a tool, not by us (US-0060).
-omit = ["src/waterfall/api/contract/models.py"]
+omit = [
+    # The models engendered from the contract are written by a tool, not by us (US-0060).
+    "src/waterfall/api/contract/models.py",
+    # The administration API of Keycloak, which only Keycloak answers: the tests of the service
+    # platform try it, and `make test-keycloak` measures it to the same thresholds
+    # (coverage-keycloak.toml); this measure runs no Keycloak.
+    "src/waterfall/platform/keycloak_admin.py",
+]
 
 [tool.coverage.report]
 # The guard that runs a module as a script is run by the entry points, in their own
 # process, which the measure does not see; what they call is tested in-process.
-exclude_also = [
-    "if __name__ == .__main__.:",
-    # What needs the administration API of Keycloak, and nothing else, is tried against the
-    # Keycloak of the service platform (`make test-keycloak`, the tests marked `keycloak`), which
-    # this measure does not run: no stand-in of Keycloak takes its place (US-0350/L3).
-    "def (admit|read_account|close_sessions|_service_token|_as_service)\\(",
-]
+exclude_also = ["if __name__ == .__main__.:"]
 
 [tool.pyright]
 typeCheckingMode = "strict"

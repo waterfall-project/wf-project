@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The measure of `make test-keycloak`: the administration API of Keycloak, which the measure of
+# the back leaves out by its path (`[tool.coverage.run]` of pyproject.toml), since only the
+# Keycloak of the service platform answers it. Its thresholds are those of the back
+# (`wftools.codecoverage`).
+[tool.coverage.run]
+branch = true
+source_pkgs = ["waterfall.platform.keycloak_admin"]

@@ -1248,7 +1248,7 @@ commande.
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; mêmes secrets que `service-up` |
+| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1298,8 +1298,8 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `make check-front` enchaîne les deux moitiés, `check-front-code` puis `check-front-e2e`.
   `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
   royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
-  réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent et sur
-  ses tests ; en échec, le travail imprime les journaux de Keycloak (`make service-logs`).
+  réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur
+  ses tests et sur tout le code du back, dont ses tests servent l'API ; en échec, le travail imprime les journaux de Keycloak (`make service-logs`).
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -1704,7 +1704,10 @@ La spécification ne demande que la couverture des exigences ; la couverture du 
 règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'erreur jamais
 exécuté, du code mort. Le back et le front doivent chacun couvrir **90 % des lignes et 85 %
 des branches** : les branches comptent, parce qu'un `if` sans son `else` couvre toutes ses
-lignes et la moitié des cas. Le code engendré en est exclu. Aucune ligne ne s'exclut de la
+lignes et la moitié des cas. Le code engendré en est exclu. Le client de l'API d'administration
+de Keycloak (`waterfall.platform.keycloak_admin`), que seul Keycloak sert, est mesuré par
+`make test-keycloak`, aux mêmes seuils (`backend/coverage-keycloak.toml`), et écarté par son chemin
+de la mesure du back, `make coverage-back`, qui mesure tout le reste du back. Aucune ligne ne s'exclut de la
 mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec sa raison
 (`[tool.coverage.report]` de `backend/pyproject.toml`, `coverage` de
 `frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
@@ -1789,7 +1792,10 @@ ses paramètres, jamais une phrase.
 - **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
   les modèles du service que `make generate-server-models` en engendre
   (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
-  dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Le noyau lève ensuite
+  dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Une adresse y est un
+  simple texte (`--type-mappings email=string`) : le service la rend telle qu'il la tient, et les
+  modèles ne valident plus les adresses — ce qu'une adresse reçue doit être se tranche en #665.
+  Le noyau lève ensuite
   l'exception de `waterfall.platform.errors` qui porte le statut du contrat — `NotFoundError`
   404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
   `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
@@ -1858,9 +1864,8 @@ ses paramètres, jamais une phrase.
   du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
   joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test
   signe ses jetons par des clés qu'il engendre et sert comme le royaume sert les siennes
-  (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak s'éprouve contre la
-  plateforme (`make test-keycloak`), et la couverture du code, qui ne la joue pas, l'écarte par
-  le nom de ses fonctions (`[tool.coverage.report]`).
+  (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
+  (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
 
   *Contrôles* : `make test-back` (`tests/test_api_authentication.py`), `make test-keycloak`
   (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne `Caller`, la revue.
