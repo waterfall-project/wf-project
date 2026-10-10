@@ -12,7 +12,7 @@
       {"node_id":"01926f3a-7c00-7000-8000-000000000565","start":{"date":"2026-12-23","hours":"0"},"finish":{"date":"2027-01-05","hours":"8"},"total_float":{"value":"595.5","unit":"d"},"is_critical":false,"finish_overdue":false}
     ],
     "reinflated": [],
-    "totals": {"task_count":1000,"estimate_line_count":5000,"hours":"116270","base_amount":"65605723.89","budgeted_amount":"65604973.89","reestimated_amount":"65605723.89","inflated_amount":"68424191.06"},
+    "totals": {"task_count":1000,"estimate_line_count":5000,"hours":"116270","base_amount":"65605723.89","budgeted_amount":"65430947.64","reestimated_amount":"65605723.89","inflated_amount":"68424191.06"},
     "structure_lock_version": 2
   }
 }

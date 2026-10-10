@@ -627,6 +627,7 @@ def examples() -> dict[str, JsonObject]:
     outside = [each for each in projects if each not in within]
     by_label = ordered(subprojects, SUBPROJECT_KEYS["label"])
     with_costs = charged(subprojects, with_costs=True)
+    uncharged = charged(subprojects, with_costs=False)
     by_name = ordered(people, CONTRIBUTOR_KEYS["display_name"])
     found = [each for each in people if holds(each["display_name"], SEARCHED_NAME)]
     inactive = [each for each in people if each["is_active"] is False]
@@ -661,8 +662,16 @@ def examples() -> dict[str, JsonObject]:
         ),
         "subprojects_with_actual_costs.json": _example(
             f"Les sous-projets auxquels des coûts réels sont imputés (has_actual_costs) : "
-            f"{_labels(with_costs)}, qui ne se supprime plus ; les autres sont écartés "
-            f"(WF-PRJ-0050, WF-IHM-0130).",
+            f"{_labels(with_costs)}, qui ne se suppriment plus"
+            + (
+                " ; les deux du projet, depuis que les tâches tirées des lots « Ligne d'essais » "
+                "ont reçu leurs factures (EP-14/L45a) : la lecture filtrée coïncide avec la liste "
+                "entière, et seul le paramètre les distingue"
+                if not uncharged
+                else f" ; {_labels(uncharged)}, sans coût réel, "
+                + ("est écarté" if len(uncharged) == 1 else "sont écartés")
+            )
+            + " (WF-PRJ-0050, WF-IHM-0130).",
             cast("JsonValue", with_costs),
         ),
         "contributors_by_name.json": _example(

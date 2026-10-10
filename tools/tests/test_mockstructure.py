@@ -15,7 +15,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockids, mockstructure, mockwitness
+from wftools import mockcore, mockdata, mockhistory, mockids, mockstructure, mockwitness
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import PREFIX
 from wftools.mockwitness import GENERATED, N
@@ -163,20 +163,48 @@ def test_a_line_drawn_is_priced_exactly_and_paid_by_its_nature(items: list[Node]
     for node in drawn(lines(items)):
         line = node["estimate_line"]
         assert MONEY.match(line["base_amount"])
-        assert line["base_amount"] == line["budgeted_amount"] == line["reestimated_amount"]
+        assert line["base_amount"] == line["reestimated_amount"]
         if line["hours"] is None:
             expected = Decimal(line["quantity"]) * Decimal(line["unit_disbursement"])
-            # The other lines are paid a month after their work, labour as it is worked.
+            # The other lines are paid a month after their work, labour as it is worked; their
+            # budget is their amount.
             assert line["payment_delay_days"] == mockwitness.PAYMENT_DELAY
+            assert line["budgeted_amount"] == line["base_amount"]
         else:
             assert line["resource_role_id"] is not None
-            rate = mockcore.LABOUR_RATES[line["cost_category_id"]]
+            rate = mockstructure.LABOUR_RATES[line["cost_category_id"]]
             expected = Decimal(line["quantity"]) * Decimal(line["hours"]) * rate
             assert line["payment_delay_days"] == 0
         assert Decimal(line["base_amount"]) == expected
         # Drawn, a line was in the reference as it is: its previous review is itself.
         assert line["previous_quantity"] == line["quantity"]
         assert line["previous_reestimated_amount"] == line["reestimated_amount"]
+
+
+def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_2025(
+    items: list[Node],
+) -> None:
+    # WF-REV-0050, #467: the amendment 1 designated no drawn line, so a labour line keeps in the
+    # reference the budget the offer fixed, its hours at the rate of 2025 of its category, and is
+    # re-estimated at the one rate of 2026 — as the two lines of the core the amendment did not
+    # designate (EP-14/L45a). The offer, read at its marking, gives that very amount.
+    offered = {
+        row.number: row.amounts.base
+        for row in mockhistory.offer_rows()
+        if row.kind == mockcore.ESTIMATE_LINE
+    }
+    labour = [node for node in drawn(lines(items)) if node["estimate_line"]["hours"] is not None]
+    assert len(labour) == 2_766
+    for node in labour:
+        line = node["estimate_line"]
+        rate = mockstructure.hourly_rate(mockstructure.LABOUR_RATES[line["cost_category_id"]], 2025)
+        budgeted = Decimal(line["quantity"]) * Decimal(line["hours"]) * rate
+        assert Decimal(line["budgeted_amount"]) == budgeted, node["node_id"]
+        assert Decimal(line["budgeted_amount"]) < Decimal(line["base_amount"])
+        assert offered[GENERATED + int(node["node_id"].removeprefix(PREFIX + "0001"))] == budgeted
+    assert mockstructure.offer_budget(Decimal(10), mockwitness.ELECTRICAL_ENGINEERING) == Decimal(
+        "785.00"
+    )
 
 
 @pytest.mark.parametrize(
@@ -354,7 +382,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line_count": 5_000,
         "hours": "116270",
         "base_amount": "65605723.89",
-        "budgeted_amount": "65604973.89",
+        "budgeted_amount": "65430947.64",
         "reestimated_amount": "65605723.89",
         "inflated_amount": "68424191.06",
     }
@@ -460,20 +488,6 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (task(311)["label"], task(311)["progress"]) == ("Revue 1.2.11", "started")
     assert [link["predecessor_row_number"] for link in row(311)["predecessors"]] == [291]
     assert (task(6_000)["label"], task(6_000)["is_milestone"]) == ("Fin du lot 9.3", True)
-
-
-def test_a_breakdown_gives_what_rounding_leaves_to_the_largest_part() -> None:
-    parts = mockstructure.breakdown(
-        [("a", Decimal(1)), ("b", Decimal(1)), (None, Decimal(1))],
-        Decimal(3),
-        {"a": "A", "b": "B"},
-    )
-    computable = mockstructure.computable
-    assert parts == [
-        {"key": "a", "label": "A", "amount": computable("1.00"), "share": computable("0.3334")},
-        {"key": "b", "label": "B", "amount": computable("1.00"), "share": computable("0.3333")},
-        {"key": "unassigned", "amount": computable("1.00"), "share": computable("0.3333")},
-    ]
 
 
 def test_a_drawn_value_depends_on_its_key_alone() -> None:

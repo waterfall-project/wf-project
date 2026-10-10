@@ -313,7 +313,7 @@ describe("the settings of a project", () => {
     expect(rows(page, "Subprojects")).toEqual([
       "ERP code Label Actual costs Modify Delete",
       "SP-CMD Poste de commande Charged Modify Delete Actual costs are charged to it.",
-      "SP-ESS Essais et mise en service None Modify Delete",
+      "SP-ESS Essais et mise en service Charged Modify Delete Actual costs are charged to it.",
       "2 subprojects",
     ]);
     expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);
@@ -438,9 +438,10 @@ describe("the settings of a project", () => {
         "Modify the contributors",
       ]),
     );
-    // A sub-project charged with actual costs no longer deletes: its deletion says why.
+    // A sub-project charged with actual costs no longer deletes: its deletion says why. Both are,
+    // the tests and commissioning by the invoices of the drawn tasks of its lots (EP-14/L45a).
     expect(page).toMatch(/aria-label="Delete “SP-CMD”" aria-disabled="true"/);
-    expect(page).not.toMatch(/aria-label="Delete “SP-ESS”" aria-disabled/);
+    expect(page).toMatch(/aria-label="Delete “SP-ESS”" aria-disabled="true"/);
     expect(text(page)).toContain(
       "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
     );

@@ -52,10 +52,13 @@ class Family:
         return self.first <= int(number, 16 if self.hexadecimal else 10) <= self.last
 
 
-NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS, MILESTONES, AUDIT_EVENTS, CORRELATIONS = range(1, 9)
+NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS, MILESTONES, AUDIT_EVENTS, CORRELATIONS, COST_LINES = (
+    range(1, 10)
+)
 """The generated families: the nodes of the structure of a thousand tasks and their lineages; the
 projects, rate categories, risks and milestone lineages of the portfolio (EP-02/L26); the journal of
-audit, its inscriptions and the correlations of their requests (``mockaudit``, EP-02/L42)."""
+audit, its inscriptions and the correlations of their requests (``mockaudit``, EP-02/L42); and the
+lines of actual cost of the tasks drawn about the core (``mockcosts``, EP-14/L45a)."""
 
 _GENERATED = 99_999_999
 
@@ -92,6 +95,7 @@ IDENTIFIERS = (
     Family("jalons du portefeuille", 1, _GENERATED, MILESTONES),
     Family("inscriptions du journal d'audit", 1, _GENERATED, AUDIT_EVENTS),
     Family("corrélations engendrées", 1, _GENERATED, CORRELATIONS),
+    Family("lignes de coût réel engendrées", 1, _GENERATED, COST_LINES),
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 

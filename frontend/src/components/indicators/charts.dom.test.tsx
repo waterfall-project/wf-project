@@ -95,19 +95,19 @@ describe("the evolution of an index", () => {
     ]);
     // No legend, which would overflow onto the plot: each curve is named at its end.
     expect(lastOption()?.legend).toBeUndefined();
-    // The tests and commissioning have no schedule index the API could compute: no point, no
-    // name drawn.
+    // Every scope has a schedule index the API could compute today, the tests and commissioning
+    // by the drawn tasks of its lots: each curve named at its end.
     expect(series.slice(0, -1).map((curve) => curve.endLabel?.show)).toEqual([
       true,
       true,
-      false,
+      true,
       true,
     ]);
     // A point for the reference, marked in progress, and one today: the offer, marked while
     // pricing, kept no index (WF-DAT-0040, #468).
     expect(series[0]?.data).toEqual([
       ["2026-02-01T09:00:00Z", "-"],
-      ["2026-06-03T14:05:00Z", "0.9879"],
+      ["2026-06-03T14:05:00Z", "0.8674"],
     ]);
   });
 
@@ -153,8 +153,8 @@ describe("the evolution of an index", () => {
     const current = within(second);
     expect(current.getByRole("rowheader")).toHaveTextContent("Whole project");
     expect(current.getByText("Current revision")).toBeInTheDocument();
-    expect(current.getByText("0.9879")).toBeInTheDocument();
-    expect(current.getByText("Nominal")).toBeInTheDocument();
+    expect(current.getByText("0.8674")).toBeInTheDocument();
+    expect(current.getByText("Watch")).toBeInTheDocument();
     const marked = within(first);
     expect(marked.getByText("Référence")).toBeInTheDocument();
     expect(
@@ -271,8 +271,8 @@ describe("the tracking of the milestones", () => {
 });
 
 /** Render cumulative curves under a caption of the test. */
-function curves(name: string) {
-  const data = example(name) as CurveSeries;
+function curves(name: string, variant: (data: CurveSeries) => CurveSeries = (data) => data) {
+  const data = variant(example(name) as CurveSeries);
   return {
     data,
     ...english(
@@ -289,7 +289,15 @@ function curves(name: string) {
 
 describe("the cumulative curves", () => {
   it("draws the reference budget, the actual cost to the date of calculation and the projection from it, as the API gave them [WF-IND-0100-A]", () => {
-    curves("cost_curve");
+    // The two ends of each series, where the test reads: a window of the 1 500 points of the
+    // example, whose every point is a row of the table (docs/dev/typescript.md, defect 23).
+    curves("cost_curve", (data) => ({
+      ...data,
+      series: data.series.map((series) => ({
+        ...series,
+        points: [...series.points.slice(0, 2), ...series.points.slice(-2)],
+      })),
+    }));
     const series = lastSeries();
     expect(series.map((each) => each.name)).toEqual([
       "Reference budget",
@@ -299,12 +307,12 @@ describe("the cumulative curves", () => {
       "Steps of the reference budget",
     ]);
     expect(series[1]?.data?.slice(-2)).toEqual([
-      ["2026-05-18T00:00:00Z", "105400.00"],
-      ["2026-06-03T00:00:00Z", "105400.00"],
+      ["2026-06-01T00:00:00Z", "1412970.20"],
+      ["2026-06-03T00:00:00Z", "1412970.20"],
     ]);
-    expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "105400.00"]);
-    expect(series[2]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "126634.56"]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "120534.56"]);
+    expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "1412970.20"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68206498.92"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
     expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
@@ -313,7 +321,16 @@ describe("the cumulative curves", () => {
   });
 
   it("marks a step of the reference budget at its date, named by its cause, and lists it [WF-IND-0100-A]", () => {
-    curves("cost_curve_amendment");
+    // The points of the budget up to and around the step of 10 March 2026, and the first ones of
+    // the other series: a window of the 1 500 rows the example makes, on which a row is found by
+    // its name (docs/dev/typescript.md, defect 23).
+    curves("cost_curve_amendment", (data) => ({
+      ...data,
+      series: data.series.map((series) => ({
+        ...series,
+        points: series.points.slice(0, series.name === "reference_budget" ? 8 : 2),
+      })),
+    }));
     const steps = lastSeries().at(-1);
     expect(steps?.data).toEqual([]);
     const marks = steps?.markLine?.data as { xAxis: string; name: string }[] | undefined;
@@ -342,8 +359,14 @@ describe("the cumulative curves", () => {
     ).toBeVisible();
   });
 
-  it("lists the cash out by month the API gives with the payment delays, the shifted points as given [WF-IND-0100-A]", async () => {
-    const { container, data } = curves("cost_curve_payment_delays");
+  it("lists the cash out by month the API gives with the payment delays, the shifted points as given [WF-IND-0100-A]", () => {
+    // The first points of each series, the months of the cash out entire: the two thousand points
+    // of the example are as many rows of the table of the values, which this test does not read
+    // (docs/dev/typescript.md, defect 23).
+    const { data } = curves("cost_curve_payment_delays", (data) => ({
+      ...data,
+      series: data.series.map((series) => ({ ...series, points: series.points.slice(0, 3) })),
+    }));
     // The studies, paid a month after their work: nothing paid out by the end of March.
     expect(lastSeries()[0]?.data).toContainEqual(["2026-03-31T00:00:00Z", "0.00"]);
     const table = screen.getByRole("table", { name: "Cash out by month" });
@@ -356,10 +379,24 @@ describe("the cumulative curves", () => {
       "MonthPaid outTo pay out",
       "March 20261,400.000.00",
       "April 2026101,600.000.00",
-      "May 20262,400.000.00",
-      "June 20260.001,700.00",
+      "May 20261,182,933.730.00",
+      "June 2026127,036.47173,790.61",
     ]);
-    expect(data.cash_out_by_month).toHaveLength(11);
+    expect(data.cash_out_by_month).toHaveLength(43);
+  });
+
+  it("lists the cash out in a table a screen reader reads as such", async () => {
+    // The check of the axis on its own, on a window of the rows — three points of each series,
+    // three of the forty-three months — rather than on the whole of the example (docs/dev/typescript.md,
+    // defect 23): the rows of a table are alike.
+    const { container } = curves("cost_curve_payment_delays", (data) => ({
+      ...data,
+      series: data.series.map((series) => ({ ...series, points: series.points.slice(0, 3) })),
+      cash_out_by_month: (data.cash_out_by_month ?? []).slice(0, 3),
+    }));
+    expect(
+      within(screen.getByRole("table", { name: "Cash out by month" })).getAllByRole("row"),
+    ).toHaveLength(4);
     await expectAccessible(container);
   });
 
@@ -371,8 +408,8 @@ describe("the cumulative curves", () => {
       "Earned value",
       "Actual cost",
     ]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "120534.56"]);
-    expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "100000.00"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
+    expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "1449858.33"]);
     // A task completed makes a step in the earned value at its date, as the actual cost at the
     // date of a document: both by steps, the planned value by a line.
     expect(series.map((each) => each.step)).toEqual([undefined, "end", "end"]);

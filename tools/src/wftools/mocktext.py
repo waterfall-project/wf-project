@@ -24,9 +24,11 @@ if TYPE_CHECKING:
 
     from wftools.mockstructure import JsonObject, JsonValue
 
-CORE_ONLY = "Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528)."
-"""What an example read on the core alone says of itself, until EP-02/L45 reads the whole
-structure (#376): its figures are not those of the thousand tasks that carry the core."""
+CORE_ONLY = "Lu sur le seul cœur du témoin, jusqu'à EP-14/L45b (#528)."
+"""What an example read on the core alone says of itself — the register of the risks, its matrix
+and its coverage, the two Kanban —, until EP-14/L45b scales the risks to the whole structure (#528):
+its figures are not those of the thousand tasks that carry the core, which every other reading
+sums since EP-14/L45a."""
 
 
 def _limit(key: str) -> int:

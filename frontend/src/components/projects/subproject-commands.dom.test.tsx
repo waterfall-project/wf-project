@@ -39,6 +39,12 @@ const UPDATE = "PATCH /projects/{project_id}/subprojects/{subproject_id}";
 const DELETE = "DELETE /projects/{project_id}/subprojects/{subproject_id}";
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 const SUBPROJECTS = example("subprojects") as Subproject[];
+// The example charges both sub-projects with actual costs, since the tasks drawn around the core
+// received their invoices (EP-14/L45a): the one a test deletes is a counterfactual variant of it,
+// « SP-ESS » relieved of its costs, the rest of the example kept.
+const UNCHARGED: Subproject[] = SUBPROJECTS.map((row) =>
+  row.code === "SP-ESS" ? { ...row, has_actual_costs: false } : row,
+);
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}): FakeClient {
@@ -214,7 +220,7 @@ describe("the creation and the modification of a sub-project", () => {
 describe("the deletion of a sub-project", () => {
   it("deletes a sub-project once confirmed, and takes its row away; cancelled, asks nothing", async () => {
     const client = serve();
-    render(list());
+    render(list(AVAILABLE, UNCHARGED));
     const command = within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" });
     await userEvent.click(command);
     await userEvent.click(
@@ -267,7 +273,7 @@ describe("the deletion of a sub-project", () => {
         },
       },
     });
-    render(list());
+    render(list(AVAILABLE, UNCHARGED));
     await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" }));
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),

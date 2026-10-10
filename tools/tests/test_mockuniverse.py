@@ -78,13 +78,17 @@ def test_the_nodes_render_the_payment_delays_the_curve_of_the_disbursements_appl
         for node in mockwitness.fixture("nodes_core")["items"]
         if node["kind"] == mockcore.ESTIMATE_LINE
     }
-    # Every line has its delay (WF-DEV-0020): a month for the subcontracting and the terminal
-    # blocks, nought for the others, labour and provision included.
+    # Every line has its delay (WF-DEV-0020): in the core, a month for the subcontracting and the
+    # terminal blocks, nought for the others, labour and provision included; drawn about it, a
+    # month for every disbursement, nought for the labour.
     expected = {
         number: PAYMENT_DELAY if number in {STUDIES_LINE, BLOCKS} else 0 for number in rendered
     }
     assert rendered == expected
-    assert {number: reading.delays[number] for number in rendered} == expected
+    for row in reading.lines:
+        if row.number >= mockwitness.GENERATED:
+            expected[row.number] = 0 if row.hours else PAYMENT_DELAY
+    assert reading.delays == expected
     lines = [row.number for row in mockindicators.budgeted(reading)]
     flows = dict(zip(lines, mockcurves.budget_flows(reading, delays=True), strict=True))
     assert {number: flow.delay for number, flow in flows.items()} == {
@@ -287,13 +291,28 @@ def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> No
 
 
 def test_a_subproject_has_actual_costs_when_a_line_is_imputed_to_it() -> None:
-    imputed = {mockcosts.imputed(line) for line in COSTS}
-    for subproject in fixture("subprojects"):
-        assert subproject["has_actual_costs"] == (subproject["subproject_id"] in imputed)
+    # The screens of the control station, and the invoices of the drawn tasks of the lots « Ligne
+    # d'essais » completed: both subprojects are charged (EP-14/L45a).
+    imputed = {mockcosts.imputed(line) for line in mockcosts.lines()}
+    assert imputed == {None, universe(801), universe(802)}
+    # Every example that renders a `Subproject` of the witness by its identifier says so, the one
+    # a rename answers included: otherwise the row read anew would become deletable in the mockup.
+    # Not `subproject_created`, whose sub-project is new and charged by no line (#625, L42i).
+    for name in (
+        "subprojects",
+        "subprojects_by_label",
+        "subproject_updated",
+        "subprojects_with_actual_costs",
+    ):
+        value = fixture(name)
+        subprojects = cast("list[Node]", value if isinstance(value, list) else [value])
+        for subproject in subprojects:
+            assert subproject["subproject_id"] in imputed, name
+            assert subproject["has_actual_costs"] is True, (name, subproject["code"])
 
 
 def test_each_line_is_dated_in_the_period_of_each_import_that_brought_it_and_before_it() -> None:
-    for line in COSTS:
+    for line in mockcosts.lines():
         creating = line.imports[0]
         for each in line.imports:
             start, end = each.period
@@ -484,6 +503,28 @@ def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:
     assert (
         fixture("actual_costs")["totals"]["tracked"] == fixture("project_indicators")["actual_cost"]
+    )
+    # The consultation holds every line retained, the drawn invoices among them, in one page.
+    consulted = fixture("actual_costs")
+    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 27
+
+
+def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() -> None:
+    # The witness sums its whole structure since EP-14/L45a: the estimate of the volume of §4.6.2
+    # and the estimate of the witness are one reading, and the total is that of the grid.
+    volume, witness = fixture("volume/estimate_indicators_volume"), fixture("estimate_indicators")
+    assert volume == witness
+    totals = fixture("volume/nodes_thousand")["totals"]
+    assert volume["total"]["value"] == totals["base_amount"]
+    # The reference budget is the budgeted amounts of the grid, but the provision's (WF-RIS-0050).
+    provisions = sum(
+        Decimal(node["estimate_line"]["budgeted_amount"])
+        for node in fixture("volume/nodes_thousand")["items"]
+        if node["kind"] == mockcore.ESTIMATE_LINE and node["estimate_line"]["is_computed"]
+    )
+    assert provisions == Decimal("250.00")
+    assert Decimal(fixture("project_indicators")["reference_budget"]) == (
+        Decimal(totals["budgeted_amount"]) - provisions
     )
 
 

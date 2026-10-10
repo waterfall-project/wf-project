@@ -345,6 +345,29 @@ comptes qu'il peut inscrire sans `users.read`, si bien que l'écran n'inscrit qu
 une proposition ne nomme ni son nœud ni ses rôles, et `listContributorSuggestions` dit s'appuyer sur
 le planning là où WF-PRJ-0070 nomme les lignes de devis.
 
+EP-14/L45a (#618), la première partie de l'univers témoin à l'échelle (#528), fait sommer toute la
+structure de mille tâches par les lectures qui ne sommaient que le cœur — indicateurs du projet, du
+devis et du reste à engager, courbes, plan de charge, coûts réels, histoire des révisions et leur
+comparaison, ligne du témoin au portefeuille —, depuis la seule description du témoin, par les
+générateurs du faux back (`docs/api/DECISIONS.md`, « Les lectures sur toute la structure »). Le
+front ne change pas : ce sont ses tests qui lisent les nouvelles valeurs. Les tests qui assertaient
+une valeur du cœur assertent celle de la structure, dans la forme en place — lue dans l'exemple
+quand le test le lisait déjà, écrite comme la langue la montre quand le parcours de bout en bout le
+faisait, les repères des parcours étant tenus par le générateur (`test_the_marks_*`). Ce qui n'était
+pas une simple valeur a changé de forme sans toucher aux exemples : les deux sous-projets du témoin
+portant désormais des coûts réels, la suppression s'éprouve sur une variante de l'exemple, « SP-ESS »
+déchargé (`subproject-commands.dom.test.tsx`), et le parcours des paramètres éprouve la suppression
+présentée indisponible, sa raison dite, pour l'un et l'autre (`projects.spec.ts`) — une perte de
+couverture assumée : la suppression réussie d'un sous-projet n'est plus éprouvée de bout en bout
+contre le faux back, dont aucun sous-projet ne se supprime, et seul le test dom la porte, sur la
+variante ; la table des modifications de la comparaison, 2 770 lignes, s'affirme par ses quatre
+premières lignes et son compte, lu dans l'exemple, et les écarts de montants se dérivent de l'exemple
+(`revisions/page.test.tsx`) ; le contrôle d'axe du tableau des décaissements devient un test à lui,
+sur une fenêtre de lignes de chaque table (`charts.dom.test.tsx`, défaut n° 23 de
+`docs/dev/typescript.md`). Reste à L45b (#528) ce que la décision laisse : le registre des risques,
+sa matrice et sa couverture sur le budget du seul cœur, et les deux Kanban sur les seules tâches du
+cœur.
+
 ---
 
 EP-14/L42h (#611) écrit au contrat ce que l'écran des sauvegardes et les formulaires des réglages

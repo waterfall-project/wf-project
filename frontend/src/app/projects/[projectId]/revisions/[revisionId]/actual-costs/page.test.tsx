@@ -119,7 +119,7 @@ describe("the screen of the actual costs", () => {
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
     expect(queryOf(IMPORTS)).toEqual({ limit: "12" });
-    expect(text(page)).toContain("Actual costs 6 lines retained");
+    expect(text(page)).toContain("Actual costs 27 lines retained");
   });
 
   it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
@@ -134,7 +134,7 @@ describe("the screen of the actual costs", () => {
   it("presents the three totals and the date of the last import the server gives [WF-CRE-0040-A] [WF-CRE-0050-A]", async () => {
     const page = await costsAt();
     expect(text(page)).toContain(
-      "Tracked scope 105,400.00 Excluded from the tracked scope 650.00 General total 106,050.00 Last import",
+      "Tracked scope 1,412,970.20 Excluded from the tracked scope 650.00 General total 1,413,620.20 Last import",
     );
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
   });
@@ -142,14 +142,20 @@ describe("the screen of the actual costs", () => {
   it("hands the grid the lines of the page in the order of the answer, of each the fields it reads alone", async () => {
     await costsAt();
     const [handed] = grids.costs;
-    expect(handed?.costs.items.map((line) => line.document_number)).toEqual([
-      "FA-2026-0521",
+    // The most recent documents first: the invoices of the drawn tasks completed, those written by
+    // hand among them at their dates (EP-14/L45a).
+    const documents = handed?.costs.items.map((line) => line.document_number) ?? [];
+    expect(documents).toHaveLength(27);
+    expect(documents.slice(0, 3)).toEqual(["FA-2026-1011", "FA-2026-1012", "FA-2026-1021"]);
+    expect(documents.slice(-6)).toEqual([
+      "FA-2026-1014",
       "FA-2026-0412",
       "FA-2026-0409",
       "AV-2026-0388",
       "FA-2026-0301",
       "FA-2026-0295",
     ]);
+    expect(documents.indexOf("FA-2026-0521")).toBe(10);
     expect(Object.keys(handed?.costs.items[0] ?? {})).toEqual([
       "cost_line_id",
       "document_number",
@@ -162,9 +168,9 @@ describe("the screen of the actual costs", () => {
       "passthrough",
     ]);
     expect(handed?.costs.totals).toEqual({
-      tracked: "105400.00",
+      tracked: "1412970.20",
       excluded: "650.00",
-      overall: "106050.00",
+      overall: "1413620.20",
     });
   });
 
@@ -218,7 +224,7 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    expect(text(page)).toContain("Actual costs 6 lines retained");
+    expect(text(page)).toContain("Actual costs 27 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
   });
@@ -344,14 +350,14 @@ describe("the screen of the actual costs", () => {
     const cables = "01926f3a-7c00-7000-8000-000000000c01";
     const before = text(await costsAt({ line: cables }));
     expect(before).toContain(
-      "Tracked scope 105,400.00 Excluded from the tracked scope 650.00 General total 106,050.00",
+      "Tracked scope 1,412,970.20 Excluded from the tracked scope 650.00 General total 1,413,620.20",
     );
     // The exclusion written, the page rendered again reads the consultation the server gives now:
     // 1,800.00 of cables move from one total to the other, the general total unchanged.
     server.answers = { ...server.answers, [COSTS]: "actual_costs_after_exclusion" };
     const after = text(await costsAt({ line: cables }));
     expect(after).toContain(
-      "Tracked scope 103,600.00 Excluded from the tracked scope 2,450.00 General total 106,050.00",
+      "Tracked scope 1,411,170.20 Excluded from the tracked scope 2,450.00 General total 1,413,620.20",
     );
     expect(after).toContain(
       "Excluded from the tracked scope: Câbles d'un autre projet, à réimputer",

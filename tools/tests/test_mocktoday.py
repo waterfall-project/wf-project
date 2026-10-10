@@ -7,14 +7,17 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 """
 
 import json
+from collections.abc import Sequence
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from wftools import (
     mockcore,
+    mockcosts,
     mockcurves,
     mockdata,
     mockhistory,
@@ -24,8 +27,10 @@ from wftools import (
     mocktoday,
     mockwitness,
 )
+from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import universe
-from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING
+from wftools.mockindicators import Flow
+from wftools.mockwitness import COMMISSIONING, CORE, ELECTRICAL_ENGINEERING, GENERATED
 
 type Node = dict[str, Any]
 
@@ -50,20 +55,31 @@ def _series(curve: Node, name: str) -> list[Node]:
     return next(each["points"] for each in curve["series"] if each["name"] == name)
 
 
-def test_the_estimate_today_sums_the_lines_of_the_core(today: dict[str, Any]) -> None:
+def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[str, Any]) -> None:
+    # EP-14/L45a: the estimate of the witness is that of its thousand tasks, the core's 121,534.56
+    # among them.
     estimate = today["estimate_indicators"]
-    core: Any = mockcore.whole(mockcore.core())["totals"]
+    whole: Any = mockcore.whole(mockcore.current())["totals"]
+    core: Any = mockcore.whole(mockcore.alone())["totals"]
     total = _amount(estimate["total"])
-    assert total == Decimal(core["base_amount"]) == Decimal("121534.56")
+    assert total == Decimal(whole["base_amount"]) == Decimal("65605723.89")
+    assert Decimal(core["base_amount"]) == Decimal("121534.56")
     for parts in (estimate["by_cost_type"], estimate["by_subproject"]):
         assert sum(_amount(part["amount"]) for part in parts) == total
         assert sum(_amount(part["share"]) for part in parts) == 1
-    # The order item is borne by the lot « Poste de commande »: the total of its subtree.
+    assert [part.get("label") for part in estimate["by_subproject"]] == [
+        "Poste de commande",
+        "Essais et mise en service",
+        None,
+    ]
+    # The order item is borne by the lot « Poste de commande » of the core: the total of its
+    # subtree, which no drawn task is under.
     [item] = estimate["by_order_item"]
-    lot: Any = mockcore.subtree(mockcore.core(), 551)["totals"]
-    assert _amount(item["amount"]) == Decimal(lot["base_amount"])
+    lot: Any = mockcore.subtree(mockcore.current(), 551)["totals"]
+    assert _amount(item["amount"]) == Decimal(lot["base_amount"]) == Decimal("2934.56")
     assert estimate["provisions_identified"] == "500.00"
-    # The previous marked revision is the reference: its estimate held 910 of provisions.
+    # The previous marked revision is the reference: its estimate held 910 of provisions, and the
+    # same drawn lines at the same rates.
     reference = sum(row.amounts.base for row in mockhistory.reference_rows() if row.parent)
     assert _amount(estimate["delta_to_reference"]) == total - reference == Decimal("-210.00")
     assert estimate["delta_to_previous_revision"] == estimate["delta_to_reference"]
@@ -94,12 +110,14 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
         for key in ("by_cost_type", "by_subproject", "by_order_item")
         for part in estimate[key]
     }
+    # Every subproject bears labour of the electrical engineering, the drawn tasks' among it.
     assert computed == {
         "Main-d'œuvre": False,
         "Débours": True,
         "Provision": True,
         "Poste de commande": False,
-        "unassigned": True,
+        "Essais et mise en service": False,
+        "unassigned": False,
         "Fourniture et montage des armoires": False,
     }
     shares = [part["share"] for key in ("by_cost_type", "by_subproject") for part in estimate[key]]
@@ -143,11 +161,18 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
         by_state[key] = by_state.get(key, Decimal(0)) + mockindicators.remaining_of(witness, line)
     assert by_state == {
         "completed": Decimal(0),
-        "started": Decimal("2234.56"),
+        "started": Decimal("416710.83"),
         "provision": Decimal("500.00"),
         "merged": Decimal("200.00"),
-        "not_started": Decimal("18300.00"),
+        "not_started": Decimal("66376117.89"),
     }
+    # The core alone counts as it did before the structure was summed (EP-02/L24).
+    core = mockindicators.today(CORE)
+    assert sum(
+        mockindicators.remaining_of(core, line)
+        for line in core.lines
+        if core.progress(line) == "started" and not mockhistory.is_provision(line)
+    ) == Decimal("2234.56")
     left = today["remaining_indicators"]
     assert Decimal(left["total"]) == sum(by_state.values())
     assert sum(Decimal(part["amount"]) for part in left["by_cost_type"]) == Decimal(left["total"])
@@ -166,10 +191,15 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
         assert Decimal(entry["variance"]) == variance - Decimal(entry["remaining"])
         assert entry["is_over_budget"] is (Decimal(entry["variance"]) < 0)
         assert entry["zone"] == ("alert" if entry["is_over_budget"] else "nominal")
-    # The invoice of the screens of the control station is over the estimate of its lines.
+    # The invoice of the screens is the one cost of the control station, whose drawn lots follow
+    # the factory acceptance and have not started; its budget is overrun by the inflation of its
+    # remaining, projected on the years of consumption, and by the invoice.
     assert (balances[CONTROL]["actual_cost"], balances[CONTROL]["variance"]) == (
         "2400.00",
-        "-2400.00",
+        "-1037316.10",
+    )
+    assert Decimal(balances[TESTS]["actual_cost"]) == sum(
+        line.amount for line in mockcosts.drawn() if line.code == "SP-ESS"
     )
     assert left["coverage"] == {
         key: value for key, value in today_coverage().items() if key != "context"
@@ -225,10 +255,17 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
     project = found.pop("project")
     for field in ("planned_value", "earned_value", "actual_cost", "remaining", "reference_budget"):
         assert sum(Decimal(each[field]) for each in found.values()) == Decimal(project[field])
-    # The studies, completed on 10 April, earn their budget; the occurrence earns nothing.
-    assert project["earned_value"] == "100000.00"
-    assert project["actual_cost"] == "105400.00"
-    assert project["reference_budget"] == "120534.56"
+    # The studies, completed on 10 April, earn their budget, and each drawn task completed its
+    # own; the occurrence earns nothing. The actual cost is the invoices of the tracked scope.
+    assert project["earned_value"] == "1449858.33"
+    assert project["actual_cost"] == "1412970.20"
+    assert project["reference_budget"] == "65430697.64"
+    drawn = sum(
+        line.amounts.budgeted
+        for line in witness.lines
+        if line.number >= GENERATED and witness.progress(line) == "completed"
+    )
+    assert Decimal(project["earned_value"]) == Decimal("100000.00") + drawn
 
 
 def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[str, Any]) -> None:
@@ -240,8 +277,19 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
         "scope": "project",
         "is_stored": True,
     }
-    # Nothing started: the budget and the provisions of the three risks it bore, 910.
-    assert Decimal(marked["remaining"]) == Decimal(marked["reference_budget"]) + 910
+    # Nothing started: the budget of each line projected on its year of consumption — the core's
+    # in 2026, as the budget; the drawn tasks' up to 2029 — and the provisions of the three risks
+    # it bore, 910.
+    base = mockindicators.reference()
+    projected = sum(
+        mockstructure.inflated(
+            line.amounts.budgeted, cast("int", base.facet(line)["consumption_year"])
+        )
+        for line in mockindicators.budgeted(base)
+    )
+    assert Decimal(marked["remaining"]) == projected + 910 == Decimal("68242478.05")
+    assert Decimal(marked["remaining"]) > Decimal(marked["reference_budget"]) + 910
+    assert marked["reference_budget"] == "65430697.64"
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
 
@@ -258,7 +306,11 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("21234.56", "120534.56", "101223.69", "-1223.69", "0.9879", "0.9488")
+    ) == ("66793528.72", "65430697.64", "1671458.13", "-221599.80", "0.8674", "1.0261")
+    assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
+        "watch",
+        "nominal",
+    )
 
 
 def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
@@ -273,7 +325,7 @@ def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
     )
     actual = _series(curve, "actual_cost")
     projection = _series(curve, "project_manager_projection")
-    assert actual[-1] == projection[0] == {"date": "2026-06-03", "amount": "105400.00"}
+    assert actual[-1] == projection[0] == {"date": "2026-06-03", "amount": "1412970.20"}
     assert projection[-1]["amount"] == project["projections"]["project_manager"]
     earned = _series(today["earned_value_curves"], "earned_value")
     assert earned[-1] == {"date": "2026-06-03", "amount": project["earned_value"]}
@@ -291,7 +343,7 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
         else:
             assert before == after == "0.00"
     assert [step["amount"] for step in curve["steps"]] == ["2865.00", "15000.00"]
-    assert budget[-1]["amount"] == "135534.56"
+    assert budget[-1]["amount"] == "65445697.64"
 
 
 def test_the_disbursements_to_come_sum_to_the_remaining(today: dict[str, Any]) -> None:
@@ -341,15 +393,29 @@ def test_the_workload_spreads_the_hours_of_the_lines_not_completed(today: dict[s
         assert all(month["month"] >= "2026-06" for month in role["months"])
     roles = [role["resource_role_id"] for role in today["workload"]["roles"]]
     assert roles == [universe(451), universe(452), universe(454)]
-    # The wiring, started on 4 May, has its 12.5 hours left in June, after the calculation;
-    # the reference spreads them over the whole task, May and June.
-    engineer = today["workload"]["roles"][0]["months"][0]
+    # In the core, the wiring, started on 4 May, has its 12.5 hours left in June, after the
+    # calculation; the reference spreads them over the whole task, May and June. The structure
+    # adds the hours of the drawn tasks to those months.
+    core = _loaded(mockcurves.workload(mockindicators.today(CORE), "current_remaining"))
+    engineer = core[0]["months"][0]
     assert (engineer["month"], engineer["hours"]) == ("2026-06", "12.5")
-    planned = today["workload_reference_budget"]["roles"][0]["months"][:2]
+    planned = _loaded(
+        mockcurves.workload(
+            mockindicators.reference(mockwitness.reference(CORE)), "reference_budget"
+        )
+    )[0]["months"][:2]
     assert [(month["month"], month["hours"]) for month in planned] == [
         ("2026-05", "5.95"),
         ("2026-06", "6.55"),
     ]
+    june = today["workload"]["roles"][0]["months"][0]
+    assert (june["month"], june["hours"]) == ("2026-06", "1465.75")
+    assert Decimal(june["hours"]) > Decimal(engineer["hours"])
+
+
+def _loaded(plan: mockstructure.JsonObject) -> list[Node]:
+    """Return the roles of a workload, read back from the text the generator writes."""
+    return cast("list[Node]", json.loads(json.dumps(plan))["roles"])
 
 
 def test_a_node_of_organisation_retains_the_roles_under_it_alone(today: dict[str, Any]) -> None:
@@ -399,7 +465,7 @@ def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(
 ) -> None:
     # The portfolio sums the indicators of the witness: it reads them in memory, not from the
     # file the same command writes, so that indicators changed are written whole by one run.
-    monkeypatch.setattr(mocktoday, "actual_costs", list)
+    monkeypatch.setattr(mocktoday, "actual_costs", _no_costs)
     mockdata.write(tmp_path)
     assert mockdata.check(tmp_path) == []
     written = json.loads((tmp_path / "project_indicators.json").read_text("utf-8"))["value"]
@@ -408,6 +474,12 @@ def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(
     witness = rows["value"]["items"][0]
     assert witness["cost_index"] == written["cost_index"]
     assert witness["cost_index"] != mockwitness.fixture("project_indicators")["cost_index"]
+
+
+def _no_costs(known: Sequence[mockwitness.CostLine] | None = None) -> list[mockindicators.Cost]:
+    """Stand for the actual costs of the witness with none at all, whatever the lines given."""
+    del known
+    return []
 
 
 def test_each_subproject_in_alert_is_named_in_the_summary_and_none_said_nominal() -> None:
@@ -445,8 +517,8 @@ def _spent_by(points: list[Node], day: str) -> Decimal:
 def test_the_curves_of_the_scopes_sum_to_the_curve_of_the_project(*, delays: bool) -> None:
     # Each series of the cost curve counts the lines of its scope alone (`scope`, WF-IND-0020):
     # at every date the curves of the scopes share with the project's, those of the subprojects
-    # and of what belongs to none sum to the project's. A scope without a line nor a cost — the
-    # tests and commissioning — has no point, and adds nothing.
+    # and of what belongs to none sum to the project's. Every scope has lines and costs in the
+    # whole structure, the tests and commissioning by the lots « Ligne d'essais » (EP-14/L45a).
     found = mocktoday.witness()
     curves: dict[str, Any] = {
         scope: mockcurves.cost_curve(
@@ -455,16 +527,20 @@ def test_the_curves_of_the_scopes_sum_to_the_curve_of_the_project(*, delays: boo
         for scope, _ in mockindicators.scopes()
     }
     project = curves.pop("project")
-    assert all(not _series(curves[TESTS], name) for name in ("reference_budget", "actual_cost"))
+    assert all(_series(curves[TESTS], name) for name in ("reference_budget", "actual_cost"))
     for name in ("reference_budget", "actual_cost", "project_manager_projection"):
         whole = _by_date(_series(project, name))
         parts = [_by_date(_series(curve, name)) for curve in curves.values()]
         drawn = [part for part in parts if part]
         common = [day for day in whole if all(day in part for part in drawn)]
         assert len(common) >= 2, name
+        # Each scope is read to the cent: the parts summed may miss the whole by their rounding.
+        tolerance = Decimal("0.01") * (len(drawn) - 1)
         for day in common:
             summed = [sum(amounts) for amounts in zip(*(part[day] for part in drawn), strict=True)]
-            assert summed == whole[day], (name, day)
+            assert len(summed) == len(whole[day]), (name, day)
+            for part, total in zip(summed, whole[day], strict=True):
+                assert abs(part - total) <= tolerance, (name, day)
     # The actual cost steps at the dates of documents alone: read at every date of the project's.
     for day, amounts in _by_date(_series(project, "actual_cost")).items():
         spent = [_spent_by(_series(curve, "actual_cost"), day) for curve in curves.values()]
@@ -472,7 +548,8 @@ def test_the_curves_of_the_scopes_sum_to_the_curve_of_the_project(*, delays: boo
     steps = sum(Decimal(step["amount"]) for curve in curves.values() for step in curve["steps"])
     assert steps == sum(Decimal(step["amount"]) for step in project["steps"])
     if delays:
-        # Each scope's months from its own first document: summed month by month.
+        # Each scope's months from its own first document: summed month by month, to the cent of
+        # each scope.
         months = [
             {month["month"]: month for month in curve["cash_out_by_month"]}
             for curve in curves.values()
@@ -487,7 +564,7 @@ def test_the_curves_of_the_scopes_sum_to_the_curve_of_the_project(*, delays: boo
                     ),
                     Decimal(0),
                 )
-                assert summed == Decimal(month[key]), (month["month"], key)
+                assert abs(summed - Decimal(month[key])) <= tolerance, (month["month"], key)
     assert {curve["context"]["scope"] for curve in curves.values()} == set(curves)
 
 
@@ -517,7 +594,16 @@ def test_the_evolution_of_the_indices_of_a_scope_is_its_entry_alone(today: dict[
 
 
 def test_a_scope_without_line_nor_cost_has_nothing_to_draw(today: dict[str, Any]) -> None:
+    # A declared variant since EP-14/L45a: the core read alone, where no line relates to the tests
+    # and commissioning; in the whole structure, the lots « Ligne d'essais » do.
     curve = today["cost_curve_subproject_empty"]
+    for name in ("cost_curve_subproject_empty", "cost_curve_subproject_empty_payment_delays"):
+        summary = str(mocktoday.examples()[f"{name}.json"]["summary"])
+        assert "le cœur" in summary
+        assert summary.startswith(("Variante contrefactuelle", "La même variante"))
+    found = mocktoday.witness()
+    whole = mockcurves.cost_curve(found.today, found.eras, found.costs, scope=TESTS)
+    assert all(_series(whole, name) for name in ("reference_budget", "actual_cost"))
     assert curve["context"]["scope"] == TESTS
     assert [each["points"] for each in curve["series"]] == [[], [], []]
     assert curve["steps"] == []
@@ -541,3 +627,56 @@ def test_a_scope_without_budget_draws_its_cost_and_its_projection(today: dict[st
     assert spent[-1] == _series(budgeted, "actual_cost")[-1]
     projection = _series(curve, "project_manager_projection")
     assert projection == _series(budgeted, "project_manager_projection")
+
+
+def test_the_spread_sums_the_flows_as_each_flow_spends() -> None:
+    # The flows summed at once once spent whole, and read one by one while under way, give at
+    # every day what the sum of each flow gives: on two calendars, with and without a delay, from
+    # before the first flow begins to after the last is spent.
+    standard = Calendar("standard", tuple(Decimal(h) for h in (8, 8, 8, 8, 8, 0, 0)))
+    four_days = Calendar("four", tuple(Decimal(h) for h in (10, 10, 10, 10, 0, 0, 0)))
+    flows = [
+        Flow(Decimal("1234.56"), standard, _at(6, 1), _at(6, 12, 8)),
+        Flow(Decimal("80.00"), four_days, _at(6, 4, 6), _at(6, 18, 4), 30),
+        Flow(Decimal("500.00"), standard, _at(6, 30, 8), _at(6, 30, 8)),
+        Flow(Decimal("99.99"), standard, _at(7, 13), _at(8, 7, 8), 7),
+        Flow(Decimal("0.01"), four_days, _at(7, 14), _at(7, 14, 10)),
+    ]
+    spread = mockcurves.Spread.of(flows)
+    days = {flow.first - timedelta(days=1) for flow in flows} | {flow.last for flow in flows}
+    days |= {_at(5, 1).day, _at(6, 15).day, _at(7, 31).day, _at(9, 30).day}
+    for day in sorted(days):
+        expected = sum((flow.by(day) for flow in flows), Decimal(0)).quantize(Decimal("0.01"))
+        assert spread.by(day) == expected, day
+    assert spread.by(_at(9, 30).day) == sum((flow.amount for flow in flows), Decimal(0))
+    # On the budget of the witness too, at the ends of a few months and at the day of today.
+    base = mockindicators.reference()
+    budget = mockcurves.budget_flows(base, delays=True)
+    whole = mockcurves.Spread.of(budget)
+    for day in (date(2026, 4, 30), date(2026, 6, 3), date(2027, 12, 31), date(2029, 9, 30)):
+        expected = sum((flow.by(day) for flow in budget), Decimal(0)).quantize(Decimal("0.01"))
+        assert whole.by(day) == expected, day
+
+
+def _at(month: int, day: int, hours: int = 0) -> Instant:
+    return Instant(date(2026, month, day), Decimal(hours))
+
+
+def test_the_summaries_count_the_drawn_tasks_completed_and_the_curves_step_at_their_completion(
+    today: dict[str, Any],
+) -> None:
+    # The indicators of the project and the curves of earned value say how many drawn tasks are
+    # completed — those the invoices of the actual costs are of (EP-14/L45a) —, and the earned
+    # value steps at each day one completed, after the studies on 10 April.
+    invoices = mockcosts.drawn()
+    assert len(invoices) == 21
+    for name in ("project_indicators", "earned_value_curves"):
+        summary = str(mocktoday.examples()[f"{name}.json"]["summary"])
+        assert f"{len(invoices)} tâches tirées" in summary, name
+    earned = _series(today["earned_value_curves"], "earned_value")
+    days = {point["date"] for point in earned}
+    assert {line.on.isoformat() for line in invoices} | {"2026-04-10"} <= days
+    witness = mockindicators.today()
+    for point in earned:
+        day = date.fromisoformat(point["date"])
+        assert Decimal(point["amount"]) == mockindicators.earned(witness, day), point

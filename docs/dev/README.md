@@ -1243,8 +1243,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
   révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
-  son plan de charge aujourd'hui (`wftools.mocktoday`, `wftools.mockindicators`,
-  `wftools.mockcurves`) ; ses coûts réels et le journal de leurs imports (`wftools.mockcosts`) ;
+  son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
+  `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
+  les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;
   et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
   au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
   formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
@@ -1566,11 +1567,18 @@ règles d'écriture du SQL et des migrations viennent avec EP-03, en troisième 
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — voir ci-dessous.
 
-Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
-retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
-témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit rien d'autre. Il la
-retire de la session que lit la page (`requestSession` doublé, comme le fait L43c pour
-les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du client.
+Les réponses du faux back sont les exemples du contrat, tels quels. Deux exceptions, et seulement
+elles. Un test peut retirer une permission d'une session d'exemple pour éprouver une combinaison
+qu'aucun compte du témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit
+rien d'autre. Il la retire de la session que lit la page (`requestSession` doublé, comme le fait L43c
+pour les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du
+client. Et un test peut rendre un composant sur une variante contrefactuelle d'une ligne d'exemple
+— une valeur changée, le reste de la ligne gardé —, quand aucun exemple du contrat ne porte le cas
+qu'il éprouve : la variante se passe en prop au composant, jamais servie comme réponse du client, et
+le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-ESS »
+déchargé de ses coûts réels pour la suppression d'un sous-projet, les deux du témoin en portant
+(`subproject-commands.dom.test.tsx`), et l'écart à la revue précédente absent du reste à engager
+(`remaining-summary.test.tsx`).
 
 ### Un test qui cite son exigence
 
@@ -1618,7 +1626,10 @@ jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`set
 la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
 relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
 dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
-la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. Les
+la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. La
+comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
+modifications en une table simple, rendue au serveur, qui dépasse cinq secondes en développement
+(constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense). Les
 risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
 consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
 assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
 
 // The fake back serves the first example of each operation: the history of three revisions —
 // the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
@@ -37,9 +37,11 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(main).toContainText("aucune mise à jour des taux n’est proposée");
   await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 
-  // The comparison asked of the server: what it answers is shown, nothing paired by the front.
+  // The comparison asked of the server: what it answers is shown, nothing paired by the front —
+  // the 2 770 nodes of the structure the reference re-estimated among them (EP-14/L45a), a
+  // reading of the whole structure given the time of a screen of one (`WORKING`).
   await main.getByRole("button", { name: "Comparer" }).click();
-  await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/);
+  await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
   await expect(main.getByRole("table", { name: "Ajouts" }).getByRole("row")).toHaveCount(6);
   await expect(main.getByRole("table", { name: "Retraits" })).toContainText(
     "Essais préliminaires sur site",
@@ -48,6 +50,6 @@ test("the revisions of a project, their comparison as the API renders it, its st
     "Dossier de conception",
   );
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
-  await expect(deltas.getByRole("row")).toHaveCount(6);
-  await expect(deltas.getByRole("row").nth(1)).toContainText("3 515,00");
+  await expect(deltas.getByRole("row")).toHaveCount(7);
+  await expect(deltas.getByRole("row").nth(1)).toContainText("177\u202f541,25");
 });

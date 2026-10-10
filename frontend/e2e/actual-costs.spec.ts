@@ -3,12 +3,14 @@
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
-import { withinBox } from "./scroll";
+import { scrollToFoot, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the actual costs of the project at 3 June
-// 2026 — six lines, five charged to the project alone, one of them excluded, one to its
-// sub-project — and the journal of its five imports, whatever the filters, the sort or the page
-// asked: the component and page tests prove what the screen asks of each.
+// 2026 — twenty-seven lines, the six entered by hand, five charged to the project alone, one of
+// them excluded, one to its sub-project, and the invoices of the twenty-one tasks drawn around
+// the core and completed (EP-14/L45a) — and the journal of its five imports, whatever the
+// filters, the sort or the page asked: the component and page tests prove what the screen asks
+// of each.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const COSTS = `/projects/${PROJECT}/revisions/${REVISION}/actual-costs`;
@@ -31,15 +33,19 @@ test("reads the actual costs of a project: the lines and their three totals, the
   ]) {
     await expect(grid.getByRole("columnheader", { name })).toBeVisible();
   }
+  // The lines entered by hand are the oldest, sorted by date: at the foot of the grid, past the
+  // rows it renders as it opens, reached by scrolling as a user would.
+  await scrollToFoot(grid);
   await expect(grid.getByRole("row", { name: /FA-2026-0295/ })).toContainText("Exclue");
   await expect(grid.getByRole("row", { name: /AV-2026-0388/ })).toContainText("-200,00");
-  // The grid holds in the window: its totals, the general total the server gives, are in view.
+  // The grid holds in the window: its totals, the general total the server gives, are in view —
+  // once the grid has taken its first measures.
   const total = grid.getByRole("row").last();
-  await expect(total).toHaveText(/^Total général des lignes retenues\s*106\s050,00$/);
-  expect(await withinBox(grid, total)).toBe(true);
+  await expect(total).toHaveText(/^Total général des lignes retenues\s*1\s413\s620,20$/);
+  await expect.poll(() => withinBox(grid, total)).toBe(true);
   const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
   await expect(totals).toHaveText(
-    /Périmètre suivi\s*105\s400,00\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*106\s050,00\s*Dernier import\s*3 juin 2026/,
+    /Périmètre suivi\s*1\s412\s970,20\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*1\s413\s620,20\s*Dernier import\s*3 juin 2026/,
   );
   await expect(page.getByRole("region", { name: "Journal des imports" })).toHaveCount(1);
   await expect(

@@ -16,16 +16,26 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockstructure, mockwitness, mockwrites
+from wftools import (
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockstructure,
+    mocktext,
+    mockwitness,
+    mockwrites,
+)
 from wftools.mockids import universe
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CREATED,
+    GENERATED,
     INSTALLED,
     OFFER_OPENED,
     ORDER_RECEIVED,
     REGISTER,
     TODAY,
+    N,
 )
 
 type Node = dict[str, Any]
@@ -187,8 +197,12 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     # The reserve of the reference 101: the provisions it bore on 1 February, 751 at 1,000 at
     # 25 %, 752 at 60, 753 at 600 — 910 (#287, amendment of 2026-10-06). Its reference budget, the
     # budgeted amounts but the provisions', is the one the current revision still bears: the lines
-    # the occurrence merged are budgeted nothing (WF-RIS-0050, WF-RIS-0060).
+    # the occurrence merged are budgeted nothing (WF-RIS-0050, WF-RIS-0060). Both are read on the
+    # whole structure of a thousand tasks (EP-14/L45a): the reserve is the core's, which bears the
+    # three provisions; the budget sums every line of the structure.
     rows = mockhistory.reference_rows()
+    # Without the subtree the occurrence merged, five rows; with the two provisions it bore.
+    assert len(rows) == len(mockcore.current()) - 5 + 2
     assert [mockwitness.reference_provision(risk) for risk in REGISTER] == [
         Decimal("250.00"),
         Decimal("60.00"),
@@ -199,12 +213,34 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
         mockwitness.REFERENCE_PROVISION_751
     )
     budget = mockhistory.reference_budget(rows)
-    assert budget == mockhistory.reference_budget(mockcore.core())
-    # The lines the amendment 1 did not designate keep the rates of the offer (#467).
-    assert budget == Decimal("120534.56")
+    assert budget == mockhistory.reference_budget(mockcore.current())
+    # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
+    # alone are budgeted 120,534.56, the whole structure 65,430,697.64.
+    assert mockhistory.reference_budget(mockcore.core(mockwitness.reference())) == Decimal(
+        "120534.56"
+    )
+    assert budget == Decimal("65430697.64")
     numbers = {row.number for row in rows}
     assert mockwitness.MERGED not in numbers
     assert {557, 567} <= numbers
+
+
+def test_the_register_reads_its_severities_on_the_budget_of_the_core_until_l45b(
+    history: dict[str, Any],
+) -> None:
+    # The register, the matrix and the coverage are left on the core by EP-14/L45a, which sums the
+    # whole structure everywhere else: 751 and 753 are scaled to the structure by L45b (#528,
+    # decision 4 of the frame of #287), and their summaries still say so (`mocktext.CORE_ONLY`).
+    assert mockhistory.register_budget() == Decimal("120534.56")
+    assert mockhistory.register_budget() != mockhistory.reference_budget(
+        mockhistory.reference_rows()
+    )
+    examples = mockhistory.examples()
+    for name in ("risks", "risk_matrix", "risk_coverage"):
+        assert str(examples[f"{name}.json"]["summary"]).endswith(mocktext.CORE_ONLY), name
+    assert mocktext.amount(Decimal("120534.56")) in str(examples["risks.json"]["summary"])
+    # The coverage does not read the budget: it is the same on the core and on the structure.
+    assert history["risk_coverage"]["reserve"] == "910.00"
 
 
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
@@ -225,13 +261,16 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         "kind": "task",
     }
     reference = {row.number: row for row in mockhistory.reference_rows()}
+    reference_ids = {mockcore.lineage(number) for number in reference if number < GENERATED}
     assert mockcore.lineage(555) in added
     assert reference[555].amounts.base == Decimal("250.00")
     assert [entry["label"] for entry in compared["removed"]] == [
         "Essais préliminaires sur site",
         "Location du banc d'essais",
     ]
-    assert {entry["lineage_id"]: entry["changes"] for entry in compared["changed"]} == {
+    changed = {entry["lineage_id"]: entry["changes"] for entry in compared["changed"]}
+    core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
+    assert core == {
         mockcore.lineage(526): ["dates", "duration"],
         mockcore.lineage(553): ["budgeted_amount", "reestimated_amount"],
         # Not designated by the amendment: their budget is the offer's, their amount at the one
@@ -239,7 +278,15 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         mockcore.lineage(563): ["reestimated_amount"],
         mockcore.lineage(566): ["reestimated_amount"],
     }
-    # The deltas by nature, as by subproject, sum to the difference of the two estimates.
+    # Every labour line drawn about the core is re-estimated at the rate of 2026 the same way, and
+    # nothing else of the drawn tasks changes: the offer dated them as the reference does.
+    drawn = {lineage: changes for lineage, changes in changed.items() if lineage not in core}
+    assert len(drawn) == 2_766
+    assert {tuple(cast("list[str]", changes)) for changes in drawn.values()} == {
+        ("reestimated_amount",)
+    }
+    # The deltas by nature, as by subproject, sum to the difference of the two estimates: the
+    # 4,075 of the core, and the rates of 2026 on the labour drawn.
     offer = mockhistory.offer_rows()
     difference = sum(
         (row.amounts.base for row in reference.values() if row.kind == "estimate_line"),
@@ -251,7 +298,38 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
             for entry in compared["amount_deltas"]
             if entry["dimension"] == dimension
         ]
-        assert sum(deltas, Decimal(0)) == difference == Decimal("4075.00")
+        assert sum(deltas, Decimal(0)) == difference == Decimal("178101.25")
+    summary = str(mockhistory.examples()["comparison.json"]["summary"])
+    rerated = mocktext.count(2_768)
+    assert f"les {rerated} lignes de main-d'œuvre que l'avenant ne désigne pas" in summary
+    assert "« Câblage sur site » et « Mise en service sur site »" in summary
+    assert f"{mocktext.count(2_770)} nœuds modifiés, 5 ajoutés, 2 retirés" in summary
+
+
+def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() -> None:
+    # The amendment 1 added the factory acceptance: in the offer, what follows it today — the
+    # mounting on site, the lots of the control station drawn about the core — followed the wiring
+    # it ends, and is dated the same (EP-14/L45a). The whole structure is dated, none of its tasks
+    # left without a predecessor; and the step of the amendment on the reference budget of the
+    # whole structure is the core's alone, 2,865, no drawn line being designated (#467).
+    offer = {row.number: row for row in mockhistory.offer_rows()}
+    reference = {row.number: row for row in mockhistory.reference_rows()}
+    assert mockwitness.FACTORY_ACCEPTANCE not in offer
+    followers = [
+        task
+        for task in mockcore.tasks_in_order(mockhistory.offer())
+        if any(link.predecessor == mockwitness.WIRING for link in task.links)
+    ]
+    assert [task.number for task in followers if task.number < GENERATED] == [N.MOUNTING]
+    assert len(followers) == 1 + 3
+    assert all(task.number >= GENERATED for task in followers[1:])
+    for task in followers:
+        dated = (cast("Node", offer[task.number].node["task"])["start"],)
+        assert dated == (cast("Node", reference[task.number].node["task"])["start"],)
+    assert len(offer) == len(reference) - 3 - 2 + 2
+    assert mockhistory.reference_budget(reference.values()) - mockhistory.reference_budget(
+        offer.values()
+    ) == Decimal("2865.00")
 
 
 def test_a_revision_compared_with_itself_has_no_difference() -> None:
@@ -444,7 +522,12 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
         for entry in mockwitness.fixture("comparison")["amount_deltas"]
         if entry["key"] == mockstructure.LABOR
     )
-    assert labour["delta"] == "3515.00"
+    # The 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
+    assert Decimal(labour["delta"]) == Decimal("3515.00") + Decimal("174026.25")
+    drawn_hours = sum(
+        (row.hours for row in reference.values() if row.number >= GENERATED), Decimal(0)
+    )
+    assert drawn_hours * mockstructure.RATE_STEP == Decimal("174026.25")
     grid = {
         row["cost_category_id"]: {cell["year"]: cell["amount"] for cell in row["cells"] if cell}
         for row in mockwitness.fixture("volume/hourly_rate_grid")["rows"]
@@ -526,11 +609,11 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
         patch.setattr(mockwitness, "REGISTER", (*REGISTER, late))
-        patch.setattr(mockwitness, "CORE", core)
-        rows = mockhistory.reference_rows()
-        compared = mockhistory.comparison(
-            mockhistory.offer_rows(), rows, mockhistory.OFFER, mockhistory.REFERENCE
+        rows = mockcore.core(mockwitness.reference(core), AMENDMENT_MERGED.on)
+        offered = mockcore.core(
+            mockhistory.offer(core), mockwitness.OFFER_MARKED.on, mockhistory.offer_rates()
         )
+        compared = mockhistory.comparison(offered, rows, mockhistory.OFFER, mockhistory.REFERENCE)
     assert 599 not in {row.number for row in rows}
     added = cast("list[Node]", compared["added"])
     assert mockcore.lineage(599) not in {entry["lineage_id"] for entry in added}
@@ -564,7 +647,9 @@ def test_a_line_the_amendment_does_not_designate_keeps_in_the_reference_its_offe
         for number in offer.keys() & reference.keys()
         if quantities(offer[number]) == quantities(reference[number])
     ]
-    assert sorted(kept) == [527, 554, 563, 566]
+    assert sorted(number for number in kept if number < GENERATED) == [527, 554, 563, 566]
+    # Every line drawn about the core is kept as it was: none was designated (EP-14/L45a).
+    assert sum(1 for number in kept if number >= GENERATED) == 4_991
     for number in kept:
         assert reference[number].amounts.budgeted == offer[number].amounts.budgeted, number
 

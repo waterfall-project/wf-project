@@ -102,12 +102,12 @@ const FRENCH: Language = {
   },
   // French separates thousands with a narrow no-break space (U+202F).
   figures: [
-    ["Reste à engager", "21\u202f234,56"],
-    ["Budget de référence", "120\u202f534,56"],
-    ["Valeur planifiée", "101\u202f223,69"],
-    ["Écart de délai", "-1\u202f223,69"],
-    ["Indice de délai", "0,9879"],
-    ["Indice de coût", "0,9488"],
+    ["Reste à engager", "66\u202f793\u202f528,72"],
+    ["Budget de référence", "65\u202f430\u202f697,64"],
+    ["Valeur planifiée", "1\u202f671\u202f458,13"],
+    ["Écart de délai", "-221\u202f599,80"],
+    ["Indice de délai", "0,8674"],
+    ["Indice de coût", "1,0261"],
   ],
   computedOn: "Calculé le 3 juin 2026, 16:05",
 };
@@ -141,12 +141,12 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "21,234.56"],
-    ["Reference budget", "120,534.56"],
-    ["Planned value", "101,223.69"],
-    ["Schedule variance", "-1,223.69"],
-    ["Schedule index", "0.9879"],
-    ["Cost index", "0.9488"],
+    ["Remaining to commit", "66,793,528.72"],
+    ["Reference budget", "65,430,697.64"],
+    ["Planned value", "1,671,458.13"],
+    ["Schedule variance", "-221,599.80"],
+    ["Schedule index", "0.8674"],
+    ["Cost index", "1.0261"],
   ],
   computedOn: "Computed on 3 Jun 2026, 10:05",
 };
