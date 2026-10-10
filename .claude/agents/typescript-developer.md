@@ -39,7 +39,9 @@ Ce qui suit ne dit que ce qui est propre à ton rôle.
 
 - `make check BASE=origin/epic/EP-nn` passe — le palier rapide de ce que tu as touché.
 - `make check-front TIER=full` passe quand le lot touche ce que le palier complet éprouve
-  (`make coverage-front`, `make e2e`).
+  (`make coverage-front`, `make e2e`) — une seule fois par lot, quand l'agent de livraison te
+  le demande avant la pull request ; pendant le développement et les corrections, le palier
+  rapide suffit.
 - `make requirements` : les exigences que le lot doit couvrir le sont.
 - `make lot-size BASE=origin/epic/EP-nn` : note la taille réelle à côté de l'estimation.
 
