@@ -28,9 +28,10 @@ CONTRACT = sorted(
 """The files of the contract written by hand: never a bundle `make build-openapi` writes beside."""
 
 CHANGE_KIND = "change_kind"
-UNUSED = "cost_type_unused"
+UNUSED, UNRATED, WITHOUT_ROLE = "cost_type_unused", "cost_type_unrated", "cost_type_without_role"
 CHANGE_COST_TYPE = "change_cost_type"
 CATEGORY_UNUSED, CATEGORY_UNRATED = "cost_category_unused", "cost_category_unrated"
+CATEGORY_WITHOUT_ROLE = "cost_category_without_role"
 WITHDRAWN = ("cost_type_not_last_provision", "cost_category_not_last_provision")
 """The conditions of the rule of #578, withdrawn with it (EP-14/L42p, #579)."""
 
@@ -111,10 +112,11 @@ SAID = {
 }
 """What the summary of each refusal says of the value sent, by the fields and motives it tells."""
 
-RELIT = ("updateCostCategory", "setHourlyRate")
-"""The writes of the cost settings that change the commands of other objects than the one written,
-which the answer does not bear (#577): each says the client reads the lists anew. Those #578 named
-change none since its rule was withdrawn (EP-14/L42p)."""
+RELIT = ("updateCostCategory", "setHourlyRate", "createResourceRole", "updateResourceRole")
+"""The writes of the reference that change the commands of other objects than the one written,
+which the answer does not bear (#577): each says the client reads the lists anew — a role attached
+to a category freezes its move and the kind of its nature (EP-14/L42r). Those #578 named change none
+since its rule was withdrawn (EP-14/L42p)."""
 
 TOO_LONG = {
     "cost_type_creation_refused": ("CostTypeWrite", "code", 36, "trente-six"),
@@ -169,9 +171,28 @@ def _employed(examples: dict[str, Any]) -> set[str]:
     }
 
 
-def _nature_commands(nature: Entry, employed: set[str]) -> list[Entry]:
-    """Return the commands a nature bears: its state's, always available, then its kind's."""
-    frozen = [UNUSED] if nature["cost_type_id"] in employed else []
+def _attached() -> set[str]:
+    """Return the categories a resource role is attached to, deactivated roles counted."""
+    return {role["cost_category_id"] for role in fixture("resource_roles")["items"]}
+
+
+def _natures_of(categories: set[str]) -> set[str]:
+    """Return the natures some of the categories given belong to."""
+    return {_categories()[identifier]["cost_type_id"] for identifier in categories}
+
+
+def _nature_commands(nature: Entry, employed: set[str], examples: dict[str, Any]) -> list[Entry]:
+    """Return the commands a nature bears: its state's, always available, then its kind's.
+
+    The kind misses, in that order, a category employed, one that bears hourly rates and one a role
+    is attached to (WF-REF-0030).
+    """
+    held = (
+        (UNUSED, employed),
+        (UNRATED, _natures_of(_rated(examples))),
+        (WITHOUT_ROLE, _natures_of(_attached())),
+    )
+    frozen = [condition for condition, natures in held if nature["cost_type_id"] in natures]
     return [
         {
             "command": "deactivate" if nature["is_active"] else "reactivate",
@@ -185,7 +206,7 @@ def _nature_commands(nature: Entry, employed: set[str]) -> list[Entry]:
 # --- The kind of a nature: frozen once one of its categories is employed ------------------------
 
 
-def test_the_change_of_kind_is_unavailable_exactly_for_a_nature_whose_category_a_line_bears(
+def test_the_kind_of_a_nature_is_frozen_by_a_category_employed_rated_or_attached_to_a_role(
     examples: dict[str, Any],
 ) -> None:
     employed = _employed(examples)
@@ -193,12 +214,18 @@ def test_the_change_of_kind_is_unavailable_exactly_for_a_nature_whose_category_a
     # The estimate of the witness is broken down by the three natures: each has its kind frozen.
     assert employed == {nature["cost_type_id"] for nature in natures}
     written = [fixture(name) for name in ("cost_type_updated", "cost_type_deactivated")]
-    for nature in [*natures, *written]:
-        assert nature["available_commands"] == _nature_commands(nature, employed), nature["label"]
+    listed = [*natures, *fixture("cost_types_with_inactive")["items"], *written]
+    for nature in listed:
+        expected = _nature_commands(nature, employed, examples)
+        assert nature["available_commands"] == expected, nature["label"]
+    # The labour (461) alone misses the three: its categories bear rates, two of them roles.
+    [labour] = [n for n in natures if n["kind"] == "labor"]
+    assert labour["cost_type_id"] == universe(461)
+    assert labour["available_commands"][1]["missing_conditions"] == [UNUSED, UNRATED, WITHOUT_ROLE]
     # The nature created today has no category yet: its kind may still change.
     created = fixture("cost_type_created")
     assert created["cost_type_id"] not in {c["cost_type_id"] for c in _categories().values()}
-    assert created["available_commands"] == _nature_commands(created, employed)
+    assert created["available_commands"] == _nature_commands(created, employed, examples)
     assert created["available_commands"][1]["is_available"] is True
 
 
@@ -268,10 +295,10 @@ def _lined(examples: dict[str, Any]) -> set[str]:
     }
 
 
-def test_a_category_changes_kind_only_unemployed_and_without_rates(
+def test_a_category_changes_kind_only_unemployed_without_rates_and_without_role(
     examples: dict[str, Any],
 ) -> None:
-    lined, rated = _lined(examples), _rated(examples)
+    lined, rated, attached = _lined(examples), _rated(examples), _attached()
     listed = list(_categories().values())
     written = [
         fixture(name)
@@ -285,6 +312,7 @@ def test_a_category_changes_kind_only_unemployed_and_without_rates(
             for condition, held in (
                 (CATEGORY_UNUSED, identifier in lined),
                 (CATEGORY_UNRATED, identifier in rated),
+                (CATEGORY_WITHOUT_ROLE, identifier in attached),
             )
             if held
         ]
@@ -301,13 +329,16 @@ def test_a_category_changes_kind_only_unemployed_and_without_rates(
                 "missing_conditions": missing,
             },
         ], category["code"]
-    # Every case is told: free, employed, bearing rates, and both.
+    # Every case of the universe is told: free, employed, bearing rates, and the three — the
+    # electrical engineering (402) and the commissioning (405), employed and rated, that the roles
+    # are attached to.
     assert seen == {
         (),
         (CATEGORY_UNUSED,),
         (CATEGORY_UNRATED,),
-        (CATEGORY_UNUSED, CATEGORY_UNRATED),
+        (CATEGORY_UNUSED, CATEGORY_UNRATED, CATEGORY_WITHOUT_ROLE),
     }
+    assert attached == {universe(402), universe(405)}
 
 
 # --- The last of provision for risks goes as any other: #578 withdrawn (EP-14/L42p) --------------
@@ -342,6 +373,105 @@ def test_no_file_of_the_contract_names_the_conditions_of_the_withdrawn_rule() ->
         text = (API / "paths" / "reference.yaml").read_text(encoding="utf-8")
         block = text.split(f"operationId: {name}\n", 1)[1].split("operationId:", 1)[0]
         assert "\n      '409':" not in block, name
+
+
+@pytest.mark.parametrize(
+    ("operation", "conditions"),
+    [
+        ("updateCostType", (UNUSED, UNRATED, WITHOUT_ROLE)),
+        ("updateCostCategory", (CATEGORY_UNUSED, CATEGORY_UNRATED, CATEGORY_WITHOUT_ROLE)),
+    ],
+)
+def test_a_refused_change_of_kind_names_the_first_condition_missing_in_the_order_of_the_catalogue(
+    operation: str, conditions: tuple[str, ...]
+) -> None:
+    # The order of WF-REF-0030 and WF-REF-0040 — employed, bearing rates, attached to a role —,
+    # which puts first what no action lifts: the lines of a marked revision stay, a rate is not
+    # removed, a role changes its category (EP-14/L42r).
+    said = conflict_said((API / "paths" / "reference.yaml").read_text(encoding="utf-8"), operation)
+    places = [said.find(f"`{condition}`") for condition in conditions]
+    assert -1 not in places, operation
+    assert places == sorted(places), operation
+    schema = (API / "components" / "schemas" / "projects.yaml").read_text(encoding="utf-8")
+    block = schema.split("\nCommandCondition:\n", 1)[1].split("\n\n", 1)[0]
+    listed = re.findall(r"^    - (\w+)$", block, flags=re.MULTILINE)
+    assert [listed.index(condition) for condition in conditions] == sorted(
+        listed.index(condition) for condition in conditions
+    )
+
+
+@pytest.mark.parametrize(
+    ("operation", "condition"),
+    [("updateCostType", WITHOUT_ROLE), ("updateCostCategory", CATEGORY_WITHOUT_ROLE)],
+)
+def test_a_change_of_kind_refused_for_its_roles_names_them(operation: str, condition: str) -> None:
+    # WF-IHM-0090: a condition that an action lifts says what to do — move the roles named, all of
+    # them, active or deactivated, to another category of labour —, each by what the screen of the
+    # cost settings, which does not read the deactivated roles, can show (EP-14/L42r, revue 2).
+    said = " ".join(
+        conflict_said(
+            (API / "paths" / "reference.yaml").read_text(encoding="utf-8"), operation
+        ).split()
+    )
+    assert f"`{condition}` ; nommant celle-ci, `params.resource_roles` les rôles" in said
+    assert "chacun par son identifiant, son code et son libellé" in said
+    assert "resource_role_ids" not in said
+    common = (API / "components" / "common.yaml").read_text(encoding="utf-8")
+    problem = " ".join(common.split("\nProblem:\n", 1)[1].split("\n\n", 1)[0].split())
+    assert (
+        "`resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou"
+        " `cost_category_without_role`"
+    ) in problem
+    assert (
+        "tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son"
+        " libellé (`resource_role_id`, `code`, `label`)"
+    ) in problem
+    assert (
+        "à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la"
+        " nature, refusée"
+    ) in problem
+
+
+def test_the_category_refused_for_its_role_names_it_by_its_code_and_label(
+    examples: dict[str, Any],
+) -> None:
+    # A declared counterfactual variant, its two departures said: no category of labour of the
+    # witness is without rates, and the automation engineer (453), deactivated, is attached to the
+    # electrical engineering, employed and rated (EP-14/L42r, revues 2 and 3).
+    example = examples["cost_category_role_kind_refused"]
+    refused = example["value"]
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert set(refused) == {"code", "status", "params", "correlation_id"}
+    assert list(refused["params"]) == ["missing_condition", "resource_roles"]
+    assert refused["params"]["missing_condition"] == CATEGORY_WITHOUT_ROLE
+    roles = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
+    named = refused["params"]["resource_roles"]
+    assert named
+    for each in named:
+        assert set(each) == {"resource_role_id", "code", "label"}
+        role = roles[each["resource_role_id"]]
+        assert (each["code"], each["label"]) == (role["code"], role["label"])
+        assert role["is_active"] is False
+        assert role["label"].lower() in example["summary"]
+        assert role["cost_category_id"] == universe(402)
+    assert universe(402) in _lined(examples)
+    assert universe(402) in _rated(examples)
+    labour = {
+        c["cost_category_id"] for c in _categories().values() if c["cost_type_kind"] == "labor"
+    }
+    assert labour <= _rated(examples)
+    assert example["summary"].endswith(
+        "Une variante contrefactuelle : aucune catégorie de main-d'œuvre du témoin n'est sans"
+        " taux, et l'automaticien y est rattaché à l'ingénierie électrique, employée et qui porte"
+        " des taux (WF-REF-0040, WF-IHM-0090)."
+    )
+    # Cited last under the 409, the first — the one the fake back serves — unchanged.
+    said = conflict_said(
+        (API / "paths" / "reference.yaml").read_text(encoding="utf-8"), "updateCostCategory"
+    )
+    cited = re.findall(r"fixtures/api/(\w+)\.json", said)
+    assert cited[0] == "cost_category_accounting_code_taken"
+    assert cited[-1] == "cost_category_role_kind_refused"
 
 
 @pytest.mark.parametrize(
@@ -390,6 +520,7 @@ def test_the_category_refused_for_its_rates_alone_is_unemployed_and_of_labour(
         ("subproject_code_taken", "subprojects"),
         ("org_node_code_taken", "org_nodes_with_inactive"),
         ("calendar_label_taken", "calendars_with_inactive"),
+        ("resource_role_code_taken", "resource_roles"),
     ],
 )
 def test_a_code_taken_names_its_field_and_the_object_that_bears_it(
@@ -412,6 +543,29 @@ def test_a_code_taken_names_its_field_and_the_object_that_bears_it(
         bearer = objects[field["params"]["conflicting_object_id"]]
         # The summary says the value sent: the one the object named bears in that field.
         assert bearer[field["pointer"].removeprefix("/")] in summary, name
+
+
+def _taken_under(kind: str) -> set[str]:
+    """Return the examples of a value taken that the 409 of a kind of write cites."""
+    cited: set[str] = set()
+    for path in sorted((API / "paths").glob("*.yaml")):
+        for block in path.read_text(encoding="utf-8").split("operationId: ")[1:]:
+            if block.startswith(kind) and "\n      '409':" in block:
+                said = block.split("\n      '409':", 1)[1].split("\n      '4", 1)[0]
+                cited |= set(re.findall(r"fixtures/api/(\w+_taken)\.json", said))
+    return cited
+
+
+def test_a_value_taken_cited_at_the_creation_and_the_modification_says_both(
+    examples: dict[str, Any],
+) -> None:
+    # The summary says what the example stands for, under each operation that serves it (revue 1).
+    both = _taken_under("create") & _taken_under("update")
+    assert {"org_node_code_taken", "resource_role_code_taken", "calendar_label_taken"} <= both
+    for name in both:
+        summary = examples[name]["summary"]
+        assert any(word in summary for word in ("créé", "création")), name
+        assert any(word in summary for word in ("modifi", "renomm", "recod")), name
 
 
 def test_every_category_bears_an_accounting_code_of_its_own() -> None:
@@ -586,6 +740,8 @@ def test_every_value_already_taken_names_its_fields_but_the_key_of_a_path(
 UNIQUE = (
     ("reference.yaml", "createOrgNode", "/code"),
     ("reference.yaml", "updateOrgNode", "/code"),
+    ("reference.yaml", "createResourceRole", "/code"),
+    ("reference.yaml", "updateResourceRole", "/code"),
     ("reference.yaml", "createCalendar", "/label"),
     ("reference.yaml", "updateCalendar", "/label"),
     ("reference.yaml", "createCostType", "/code"),

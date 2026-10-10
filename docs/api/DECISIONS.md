@@ -1355,6 +1355,10 @@ structure principale une telle ligne fait échouer la tâche de fond, `problem.c
 deux rôles, et un calendrier qui ne recouperait celui d'aucun autre n'existe pas au référentiel des
 exemples.
 
+*Remplacé en partie par EP-14/L42r : `updateResourceRole`, `updateCalendar` et `setDefaultCalendar`
+nomment les projets (`params.projects`, sans identifiant ni tâche, #762 option (a)) ; exemple
+`calendar_update_without_hours`.*
+
 **Les risques ont leurs commandes** (#244 ; WF-IHM-0090, WF-RIS-0020, WF-RIS-0060, WF-ADM-0100).
 `RiskCommand` — `update`, `review`, `declare_occurrence`, `delete`, une par opération —,
 `RiskCommandAvailability` sur le modèle de la révision, `Risk.available_commands` exigé.
@@ -3405,6 +3409,11 @@ catégorie que le devis du projet témoin emploie : leur type est figé ; la nat
 nature d'un autre type changerait de même le type de ses lignes : c'est la « Specification
 finding » #577, tranchée par l'auteur le 2026-10-09, section suivante.
 
+*Remplacé en partie par EP-14/L42r : `change_kind` manque aussi `cost_type_unrated` quand une
+catégorie de la nature porte un taux horaire, et `cost_type_without_role` quand un rôle lui est
+rattaché (WF-REF-0030) ; le 409 nomme la première qui manque, et pour la dernière, atteignable, les
+rôles en cause (`params.resource_roles`, WF-IHM-0090).*
+
 **Une valeur unique déjà portée est refusée par champ** (points 2 et 3 ; WF-REF-0030,
 WF-REF-0040). Le 409 `ALREADY_EXISTS` dit quel champ porte la valeur prise : `fields`, chaque champ
 désigné par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` l'objet qui la porte, actif ou
@@ -3519,6 +3528,10 @@ que WF-REF-0050 refuse aux autres natures. La phrase que la décision demande à
 catégorie employée ne se rattache qu'à une nature du même type », et une catégorie qui porte des
 taux ne quitte pas la main-d'œuvre — reste à écrire dans la spécification : ce lot ne touche pas
 `docs/spec`, et le contrat la cite par #577 en attendant.
+
+*Mise à jour par EP-14/L42r : la phrase est dans WF-REF-0040, qui y ajoute la catégorie à
+laquelle un rôle de ressource est rattaché (`cost_category_without_role`) ; les descriptions que
+L42r touche la citent à côté de #577.*
 
 **La commande dit le rattachement à une nature d'un autre type, et lui seul.**
 `CostCategory.available_commands` lit `CostCategoryCommand` — `deactivate`, `reactivate` et
@@ -4253,6 +4266,10 @@ ne rattachant un rôle qu'à une catégorie de main-d'œuvre, en attendant que l
 catégorie d'un rôle de quitter la main-d'œuvre (#684, point 2 ; revue 1). `updateResourceRole` garde
 l'autre enveloppe de son 422, `TASK_WITHOUT_WORKING_HOURS`.
 
+*Remplacé en partie par EP-14/L42r : le contrat empêche désormais la catégorie d'un rôle de quitter
+la main-d'œuvre (`cost_category_without_role`, `cost_type_without_role`) ; la catégorie qu'un rôle
+garde est toujours de main-d'œuvre, et « en attendant » n'a plus d'objet.*
+
 **Un nœud ne se place que sous un nœud actif, ni sous lui-même ni sous ses descendants** (point 5 ;
 WF-REF-0070, WF-REF-0080). `/parent_id` est refusé par `UNKNOWN_ORG_NODE` ; par `ORG_NODE_CYCLE`,
 nouveau, sans paramètre, pour le nœud lui-même ou l'un de ses descendants — écartés : `LINK_CYCLE`,
@@ -4326,6 +4343,10 @@ exemple sous leur 422 : le nouveau est le premier, celui que le faux back sert.
 `tools/tests/test_mockbounds.py` lit chaque borne dans le schéma du corps, confronte l'exemple à la
 borne du côté franchi, et vérifie qu'aucune autre borne de ces cinq corps — hors `lock_version` et
 les rétentions de L42m — n'est publiée sans refus.
+
+*Remplacé en partie par EP-14/L42r : `updateMyPreferences` déclare le refus de la largeur d'une
+colonne (#711), et `test_mockbounds.py` parcourt les corps de toutes les écritures, chaque borne
+publiée devant avoir son refus et son exemple.*
 
 **Une sauvegarde déposée est vérifiée par sa restauration, avant toute déconnexion** (#679 ;
 WF-ADM-0150, WF-ADM-0160, WF-ARC-0090). Une sauvegarde de la liste ne se restaure que vérifiée
@@ -4465,6 +4486,11 @@ commandes d'autres objets et ne disent plus « relit » ; `updateCostCategory` e
 disent encore (#577). Le verrou de l'ensemble des natures et des catégories provision que la section
 de #578 demandait à EP-03 tombe avec la règle. Écarté : garder les conditions jusqu'au lot du front,
 qui aurait présenté indisponible ce que le Vérif accepte.
+
+*Remplacé en partie par EP-14/L42r : `updateCostType` nomme `cost_type_unused`, puis
+`cost_type_unrated`, puis `cost_type_without_role`, et `updateCostCategory` `cost_category_unused`,
+puis `cost_category_unrated`, puis `cost_category_without_role`, avec les rôles en cause pour la
+dernière (`params.resource_roles`).*
 
 **Le risque désigne la catégorie de sa provision** (WF-RIS-0010 : « La ligne de provision porte la
 catégorie que le risque désigne à sa déclaration parmi les catégories actives de type provision pour
@@ -4670,6 +4696,193 @@ n'emploie nulle part.
 même changement que L42p. `test_mockproject.py` tient la nouvelle condition, son ordre et les lignes
 nommées contre la révision en cours ; `test_mockwrites.py` le collage partiel contre le plan. Les
 catalogues reçoivent `subproject_without_estimate_lines`.
+
+## Le code d'un rôle, la catégorie d'un rôle gardée, le projet du refus d'un calendrier, la largeur d'une colonne (EP-14/L42r)
+
+Les trois points de #684, que l'auteur a décidé le 2026-10-10 de traiter dans EP-14, les quatre
+mineurs de L42j (#691) et le refus de la largeur d'une colonne des préférences de grille (#711). Les
+décisions sont de l'agent de réalisation du lot (#759), chacune avec sa raison. Le lot ne touche au
+front que pour compiler, tenir ses catalogues et saisir le code d'un rôle ; le reste de l'adoption
+revient au lot du front qui suit.
+
+**Un rôle porte un code unique** (WF-REF-0090 : « Un rôle de ressource porte un code unique et un
+libellé. » ; Vérif : « La création d'un rôle dont le code existe déjà est refusée. » ; WF-DAT-0090,
+qui déclare en base l'unicité du « code de rôle de ressource »). `code`, d'un à vingt caractères
+comme celui d'un nœud, est exigé sur `ResourceRoleImage` — donc sur `ResourceRole` et sur l'image
+qu'une révision marquée fige —, sur `ResourceRoleWrite` et sur `ResourceRoleUpdate`, et se modifie
+comme le code d'un nœud. Il est unique parmi les rôles, désactivés compris. Un code déjà porté est
+refusé par 409 `ALREADY_EXISTS` sur `/code`, avec `conflicting_object_id` et
+`conflicting_object_label` : la liste des rôles lue sans les désactivés, filtrée ou paginée, peut ne
+pas montrer le porteur, que l'utilisateur réactivera plutôt que d'en créer un second, comme pour un
+nœud (L42j). Le 422 dit `/code` vide (`VALUE_REQUIRED`) ou trop long (`VALUE_TOO_LONG`).
+`listResourceRoles` cherche aussi sur le code, le filtre (`code`, qui contient le texte donné, comme
+celui des nœuds) et le trie (`sort_by=code`). Écartés :
+
+- trier par code sans `sort_by`, comme les natures et les catégories : WF-IHM-0060 n'impose aucun
+  tri par défaut, et changer celui de la liste des rôles, le libellé, serait une modification du
+  contrat qu'aucune exigence ne demande ; le libellé reste ;
+- le code du rôle sur les lignes de devis (`resource_role_code`), que #684 et #759 annonçaient avec
+  les lignes, `volume/nodes_thousand` et `mockcore` : une ligne nomme son rôle par son identifiant
+  et son libellé, comme sa catégorie, sans en porter l'image, et aucun Vérif ne demande le code à la
+  ligne ; aucun exemple ne porte non plus d'image figée, `Revision.snapshot` étant nul partout. Les
+  lectures et les écritures des rôles sont les seuls exemples touchés.
+
+Les codes du témoin : ING-ELEC, TECH-MES, AUTOM, MONT-CAB, PROG-AUTO, et DESS-ELEC pour le rôle
+créé. Exemple `resource_role_code_taken` (corrélation 1110) : AUTOM, le code de l'automaticien,
+désactivé, donné au dessinateur électricien à sa création comme au technicien de mise en service à
+sa modification, cité sous le 409 de `createResourceRole` et d'`updateResourceRole` ;
+`test_mockcostsettings.py` tient que tout exemple d'une valeur prise cité sous une création et une
+modification dit l'une et l'autre. La table `UNIQUE` compte dix-sept écritures.
+
+**Une catégorie rattachée à un rôle, ou qui porte des taux, ne quitte pas la main-d'œuvre**
+(WF-REF-0040 : « Une catégorie qui porte des taux horaires, ou à laquelle un rôle de ressource est
+rattaché, ne quitte pas la main-d'œuvre. » ; WF-REF-0030 : « Ce type ne peut plus être modifié dès
+qu'une catégorie rattachée à la nature est employée par une ligne de devis ou de reste à engager,
+porte un taux horaire ou est rattachée à un rôle de ressource. » ; Vérif : « La modification du type
+est refusée pour une nature dont une catégorie est employée, porte un taux ou est rattachée à un
+rôle de ressource. »). `change_kind` d'une nature manque désormais `cost_type_unrated` quand une de
+ses catégories porte un taux horaire, et `cost_type_without_role` quand un rôle est rattaché à l'une
+d'elles ; `change_cost_type` d'une catégorie manque `cost_category_without_role` quand un rôle lui
+est rattaché. Le 409 de `updateCostType` et celui d'`updateCostCategory` nomment la première qui
+manque, comme L42g. Les choix :
+
+- deux conditions pour la nature, et non `cost_type_unrated_and_unattached`, que #684 proposait
+  aussi : les deux causes se lèvent séparément, comme L42g l'a dit des catégories ;
+- l'ordre des exigences — employée, puis un taux, puis un rôle —, qui met d'abord ce qu'aucune
+  action ne lève : une ligne d'une révision marquée demeure, un taux se corrige sans se retirer, un
+  rôle se rattache à une autre catégorie de main-d'œuvre ;
+- un rôle désactivé compte : il garde sa catégorie et se réactive sans qu'elle soit regardée
+  (`setResourceRoleActivation`). Écarté : ne compter que les rôles actifs, qui aurait laissé un rôle
+  réactivé sur une catégorie hors main-d'œuvre, contre WF-REF-0090 ;
+- le refus nomme les rôles : quand `missing_condition` nomme `cost_type_without_role` ou
+  `cost_category_without_role`, le 409 porte `params.resource_roles`, tous les rôles en cause,
+  actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
+  `code`, `label`) — la condition se lève en les rattachant à une catégorie de main-d'œuvre hors de
+  la catégorie, ou de la nature, refusée, et WF-IHM-0090 veut qu'un refus dont la condition est
+  atteignable dise quoi faire (relectures 1 et 2). Le code et le libellé y sont parce que l'écran
+  des paramètres de coûts, qu'ouvre `cost_settings.write`, ne lit pas forcément les rôles :
+  `listResourceRoles` refuse les désactivés à qui n'a pas la permission des paramètres de
+  ressources. Montrer le code et le libellé d'un rôle désactivé à qui ne peut pas les lire suit le
+  précédent de `conflicting_object_label`, le libellé de l'objet qui porte une valeur unique, donné
+  quand le formulaire ne connaît pas la liste qui le porte (L42i, L42j). Écartés : les seuls
+  identifiants (`resource_role_ids`), que la première correction retenait — l'écran des coûts
+  n'aurait pas su les nommer ; ne nommer personne et renvoyer à `listResourceRoles` filtré par
+  `cost_category_id`, pour la même raison ; `conflicting_object_id`, qui ne nomme qu'un objet quand
+  plusieurs rôles peuvent être rattachés.
+
+Une écriture qui change les commandes d'autres objets le dit (L42g) : `createResourceRole` et
+`updateResourceRole`, qui figent la catégorie et sa nature ou libèrent l'ancienne, et
+`setHourlyRate`, dont le premier taux fige aussi le type de la nature. Elles rejoignent `RELIT` dans
+`test_mockcostsettings.py`. Le refus de `LABOUR_CATEGORY_REQUIRED` pour une catégorie gardée par
+`updateResourceRole` n'a plus de cas : la mention de la section de L42j le dit.
+
+Exemples. Les natures écrites à la main (`cost_types`, `cost_types_with_inactive`) donnent à la
+main-d'œuvre ses trois conditions. Le premier exemple de `listCostTypes` change donc, parce que la
+règle le demande ; `test_mockcostsettings.py` calcule les commandes de chaque nature d'après
+l'emploi, les taux et les rôles des exemples. Les catégories engendrées (`cost_categories`, sa page)
+ajoutent `cost_category_without_role` à MO-001 et MO-002, les deux catégories des rôles
+(`mockreference.attached`). Aucune nature ni catégorie du témoin ne manque une nouvelle condition
+sans manquer d'abord une plus ancienne : chaque catégorie de main-d'œuvre porte des taux (§4.6.2),
+et les deux catégories des rôles sont employées. Le refus qui nomme les rôles a donc son exemple en
+variante contrefactuelle déclarée, sur le précédent de `reference_readiness_without_provision`
+(L42p) : `cost_category_role_kind_refused` (corrélation 1113), cité en dernier sous le 409
+d'`updateCostCategory`, le premier inchangé — une catégorie de main-d'œuvre inemployée et sans taux,
+à laquelle seul l'automaticien, désactivé, est rattaché, passée sous les débours, le refus nommant
+AUTOM, « Automaticien » ; elle déclare ses deux écarts au témoin, où aucune catégorie de
+main-d'œuvre n'est sans taux et où l'automaticien est rattaché à l'ingénierie électrique, employée
+et qui porte des taux. `test_mockcostsettings.py` confronte le code et le libellé à
+`resource_roles`. La nature n'a pas d'exemple propre : son refus prend la même forme.
+
+**Le refus d'un calendrier nomme chaque projet par son libellé et son code, sans autre détail**
+(WF-PLA-0010 : « La modification d'un calendrier du référentiel qui produirait le même effet est
+refusée en nommant les rôles et, pour chaque projet en cause, son libellé et, lorsqu'il est
+renseigné, son code, sans autre détail. » ; Vérif : « La modification d'un calendrier qui laisserait
+une tâche sans heure dans un projet que le manager ne peut pas consulter est refusée en nommant ce
+projet par son libellé et son code ; un projet en chiffrage sans code est nommé par son seul
+libellé. » ; décision de l'agent de livraison à la relecture 1, option (a) de #762).
+`updateCalendar`, `setDefaultCalendar` et `updateResourceRole` refusent `TASK_WITHOUT_WORKING_HOURS`
+par `params.projects` : un élément par projet en cause, `{ project_label, project_code }`, ce
+dernier nul pour un projet sans code, sans identifiant de projet ni tâche — WF-ADM-0110 réserve le
+détail d'un projet à qui le consulte. Les rôles en cause restent nommés par
+`params.resource_role_ids`. Les saisies d'une révision gardent `params.tasks` dans sa forme d'avant
+ce lot (`project_id`, `node_id`, `label`), sans `project_label` ni `project_code` : l'auteur d'une
+saisie consulte son projet, et WF-PLA-0010 y demande de nommer « les rôles et la tâche en cause ».
+Cette décision remplace la raison « un code, une forme » de la première rédaction, qui donnait à
+chaque tâche le libellé et le code de son projet et gardait son nœud et son libellé, contre « sans
+autre détail ». Écartée : l'option (b) de #762, garder `params.tasks` et passer à nul le nœud et le
+libellé d'une tâche d'un projet que l'appelant ne consulte pas — la forme du refus aurait dépendu de
+ce que l'appelant consulte, et un même refus se serait lu autrement d'une session à l'autre.
+
+Exemple `calendar_update_without_hours` (corrélation 1112), cité sous le 422 d'`updateCalendar`
+après `hours_out_of_range`, qui reste le premier : la semaine de quatre jours, le calendrier du
+monteur câbleur, vidée de ses heures. Ce rôle travaille seul sur les cent trois tâches de câblage de
+la structure principale du témoin, qui n'auraient plus aucune heure travaillée, et aucun projet
+engendré ne l'emploie : le refus nomme le monteur câbleur et « Modernisation du poste de commande »,
+PRJ-001. La première rédaction disait à tort que le témoin n'offrait pas un tel refus (relecture 1),
+puis vidait la semaine standard, ce qui mettait aussi en cause les trente offres engendrées, en
+chiffrage avec un devis courant, dont la main-d'œuvre est celle de l'ingénieur électricien et du
+technicien de mise en service (relecture 3, option (b) de l'agent de livraison).
+
+`test_mockresourcesettings.py` le tient. Les rôles en cause se calculent tâche par tâche sur la
+structure principale du témoin (`nodes`, `volume/nodes_thousand`) — la seule que les exemples
+donnent, les devis propres des risques 204 et 206 n'en ayant pas — : l'union des rôles des tâches
+qui portent au moins un rôle de la semaine vidée. Les projets se calculent sur l'installation
+entière : ceux de `projects` qui ont une révision en cours, et ceux de `volume/portfolio_projects`
+qui en ont une et emploient l'un de ces rôles d'après `mockportfolio.role_shares`. L'univers ne dit
+pas quels projets engendrés en cours ont une révision en cours ; le test suppose que ce sont ceux
+dont la liste montre un devis courant, les trente offres, et vérifie qu'aucun projet engendré
+n'emploie le monteur câbleur, si bien que la supposition ne change rien. Il tient aussi qu'aucune
+tâche ni aucun identifiant de projet n'est nommé, et le texte de `Problem.params` et des trois 422.
+
+Les refus de calendrier gardent `params.resource_role_ids`, sans code ni libellé, à la différence
+des refus d'une nature ou d'une catégorie (relecture 3) : la session de `updateCalendar`,
+`setDefaultCalendar` et `updateResourceRole` peut lire tous les rôles, désactivés compris, la
+permission des paramètres de ressources ouvrant `include_inactive` ; le front devra relire toutes
+les pages de `listResourceRoles` avec `include_inactive` pour les nommer ; une saisie d'une révision
+connaît le libellé de ses rôles par ses lignes (`resource_role_label`). Le compte rendu d'un import,
+qui ne porte que les identifiants, est suivi par #768. `Problem.params` le dit, et
+`test_mockresourcesettings.py` en tient le texte.
+
+**La largeur d'une colonne a son refus** (#711). `GridPreferences.column_widths` publie `minimum:
+20`, et `updateMyPreferences` ne déclarait aucun 422. Il déclare désormais `VALIDATION_FAILED`,
+`/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à
+`20`, comme toute borne d'une écriture (L42o). Écarté : le 400 partagé, réservé à une requête mal
+formée, quand la largeur est bien formée et seulement trop petite. Exemple
+`preferences_column_width_out_of_range` (corrélation 1111), seul sous ce 422 : la colonne du libellé
+de la grille de devis réduite à 12 points.
+
+`test_mockbounds.py` dérive désormais les corps de tous les `requestBody` du contrat, soixante-huit,
+en suivant les schémas qu'ils citent — propriétés, dictionnaires, listes, compositions, et les
+éléments d'une liste écrits `- { $ref: … }`. Chaque borne que le schéma publie en `minimum` ou en
+`maximum` — ou en borne exclusive, entière ou décimale —, hors `lock_version`, doit avoir son refus
+à son pointeur, sous le 422 de l'opération, avec son exemple. Un garde-fou tient qu'aucune ligne du
+contrat hors d'un texte plié ne cite un schéma ou une borne sans que la lecture la place. Les bornes
+de L42m, la rétention et le délai entre deux revues, entrent dans sa table, et tous les exemples qui
+portent des largeurs de colonnes, la session comprise, restent au-dessus de la plus petite.
+Écartés : lire le contrat assemblé (`make build-openapi`), que les tests ne lisent pas, un
+assemblage laissé sur le disque pouvant être périmé ; une bibliothèque YAML, dont les outils ne
+dépendent pas.
+
+**Les mineurs de L42j** (#691) :
+
+1. la note de L42j dit la création sous un nœud désactivé, refusée comme le déplacement ;
+2. l'ordre de construction de la conception nomme L43g après L42j ;
+3. `test_mockresourcesettings.py` tient qu'`org_node_updated` reste le premier exemple du 200
+   d'`updateOrgNode`, et que le nœud renommé est le nœud lu, hors `label`, `lock_version` et
+   `audit.updated_*` ;
+4. deux lignes trop longues de `paths/reference.yaml` sont coupées, dans la description de
+   `setDefaultCalendar` et dans le 422 d'`updateResourceRole`.
+
+**Corrélations** 1110 à 1113. Le front reçoit les phrases des trois conditions
+(`enums.CommandCondition`), et compile sur le client régénéré. Le formulaire du rôle saisit le code,
+exigé, premier de ses champs comme celui d'un nœud : le faux back valide les corps d'après le
+contrat, et une création sans code y était refusée, ce que le parcours de bout en bout des rôles a
+montré. Écartée : envoyer le code du rôle à la modification et aucun à la création, le minimum que
+le lot visait d'abord. Le code dans la grille — colonne, recherche, filtre, tri —, le code pris
+éprouvé au champ, et #714 point 1 reviennent au lot du front qui suit, avec les rôles que nomme le
+refus d'une nature ou d'une catégorie (`params.resource_roles`) et les projets que nomme le refus
+d'un calendrier (`params.projects`) ; le formulaire d'une catégorie dit déjà la troisième condition
+de MO-001 (`cost-form.dom.test.tsx`).
 
 ## Collage et annulation
 

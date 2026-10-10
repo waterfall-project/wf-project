@@ -1,7 +1,8 @@
 {
-  "summary": "Le dessinateur électricien créé aujourd'hui par Camille Martin sous le bureau d'études électricité, actif, rattaché à la catégorie de main-d'œuvre Ingénierie électrique et à la semaine standard, actives : trois personnes, 520 heures par mois — trois fois quarante heures par semaine, 52 semaines sur 12 mois ; une capacité unique, sans date (WF-REF-0090, WF-REF-0100).",
+  "summary": "Le dessinateur électricien, sous le code DESS-ELEC, qu'aucun autre rôle ne porte, créé aujourd'hui par Camille Martin sous le bureau d'études électricité, actif, rattaché à la catégorie de main-d'œuvre Ingénierie électrique et à la semaine standard, actives : trois personnes, 520 heures par mois — trois fois quarante heures par semaine, 52 semaines sur 12 mois ; une capacité unique, sans date (WF-REF-0090, WF-REF-0100).",
   "value": {
     "resource_role_id": "01926f3a-7c00-7000-8000-000000000456",
+    "code": "DESS-ELEC",
     "label": "Dessinateur électricien",
     "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
     "org_node_label": "Bureau d'études électricité",

@@ -123,13 +123,20 @@ CommandCondition:
     désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut,
     tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par
     défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les
-    opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme
-    (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une
-    nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans
-    son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme
-    (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une
-    nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des
-    taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409.
+    opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Trois tiennent aux
+    catégories d'une nature de coût, et la nature les nomme (`CostType.available_commands`) :
+    `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée
+    est employée, `cost_type_unrated` quand l'une porte un taux horaire, `cost_type_without_role`
+    quand un rôle de ressource, actif ou désactivé, est rattaché à l'une (WF-REF-0030) ;
+    `updateCostType` nomme dans son 409 la première qui manque, dans cet ordre, et pour la
+    dernière les rôles en cause (`params.resource_roles`). Trois tiennent à
+    une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) :
+    `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est
+    employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030,
+    WF-REF-0050, #577), `cost_category_without_role` quand un rôle de ressource, actif ou
+    désactivé, lui est rattaché (WF-REF-0040) ; `updateCostCategory` nomme dans son 409 la
+    première qui manque, dans cet ordre, et pour la dernière les rôles en cause
+    (`params.resource_roles`).
     `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
     écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
     risques — jusqu'à C-291 (#728), quand aucune catégorie active n'est rattachée à une nature
@@ -202,8 +209,11 @@ CommandCondition:
     - calendar_not_default
     - calendar_active
     - cost_type_unused
+    - cost_type_unrated
+    - cost_type_without_role
     - cost_category_unused
     - cost_category_unrated
+    - cost_category_without_role
     - last_administrator
     - backup_verified
     - no_backup_running

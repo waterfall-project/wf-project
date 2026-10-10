@@ -1,7 +1,8 @@
 {
-  "summary": "Le technicien de mise en service renommé aujourd'hui « Technicien de mise en service et d'essais », à partir de la version lue : son nœud ne change pas — un rôle ne se déplace pas —, sa catégorie, son calendrier et sa capacité restent, sa version avancée d'une ; les révisions marquées sont inchangées (WF-REF-0090, WF-REF-0130).",
+  "summary": "Le technicien de mise en service renommé aujourd'hui « Technicien de mise en service et d'essais », à partir de la version lue : son nœud ne change pas — un rôle ne se déplace pas —, son code, sa catégorie, son calendrier et sa capacité restent, sa version avancée d'une ; les révisions marquées sont inchangées (WF-REF-0090, WF-REF-0130).",
   "value": {
     "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+    "code": "TECH-MES",
     "label": "Technicien de mise en service et d'essais",
     "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
     "org_node_label": "Bureau d'études électricité",

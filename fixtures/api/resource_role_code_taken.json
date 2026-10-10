@@ -1,0 +1,18 @@
+{
+  "summary": "Le code AUTOM, celui de l'automaticien, désactivé, que la liste des rôles lue sans les désactivés ne montre pas, donné au dessinateur électricien à sa création comme au technicien de mise en service à sa modification : refusé, le code d'un rôle étant unique, désactivés compris ; le refus nomme le rôle qui le porte par son identifiant et son libellé, que l'utilisateur peut réactiver plutôt que d'en créer un second ; rien n'est écrit (WF-REF-0090, WF-IHM-0090).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000453",
+          "conflicting_object_label": "Automaticien"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001110"
+  }
+}

@@ -431,7 +431,23 @@ def test_the_last_category_of_provision_goes_as_any_other() -> None:
         "cost_type_id": universe(463),
         "is_active": True,
     }
-    assert mockreference.category_commands(category, set(), set()) == [
+    assert mockreference.category_commands(category, set(), set(), set()) == [
         {"command": "deactivate", "is_available": True, "missing_conditions": []},
         {"command": "change_cost_type", "is_available": True, "missing_conditions": []},
     ]
+
+
+def test_a_category_that_a_single_deactivated_role_is_attached_to_keeps_its_nature() -> None:
+    # WF-REF-0040 : « Une catégorie qui porte des taux horaires, ou à laquelle un rôle de ressource
+    # est rattaché, ne quitte pas la main-d'œuvre » — a deactivated role is attached still, and
+    # reactivates without a look at its category (EP-14/L42r).
+    deactivated: Entry = {"cost_category_id": universe(403), "is_active": False}
+    roles = mockreference.attached([deactivated])
+    assert roles == {universe(403)}
+    category: Entry = {"cost_category_id": universe(403), "is_active": True}
+    [_, move] = mockreference.category_commands(category, set(), set(), roles)
+    assert move == {
+        "command": "change_cost_type",
+        "is_available": False,
+        "missing_conditions": ["cost_category_without_role"],
+    }

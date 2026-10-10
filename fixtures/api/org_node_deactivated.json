@@ -37,6 +37,7 @@
     "resource_roles": [
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000454",
+        "code": "MONT-CAB",
         "label": "Monteur câbleur",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
         "org_node_label": "Atelier de câblage",
