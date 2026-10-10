@@ -174,15 +174,21 @@ def test_an_account_changed_by_an_administrator_carries_the_administrator_and_th
 
 @pytest.mark.requirement("WF-DAT-0070-A")
 def test_the_platform_is_the_author_of_a_row_by_a_null_author(session: Session) -> None:
-    account = born(session)
-    session.expire_all()
-    stored = session.get_one(UserAccount, account.id)
-    assert (stored.created_by, stored.updated_by) == (None, None)
+    administrator = born(session, "administrator@example.org")
+    account = add_account(
+        session,
+        NewAccount("Martin", "Claire", "claire.martin@example.org", f"subject-{uuid4()}", "local"),
+        Stamp(administrator.id, NOON),
+    )
     later = NOON + timedelta(hours=1)
     changed = change_email(
         session, account.id, "claire.new@example.org", account.lock_version, Stamp(None, later)
     )
-    assert (changed.updated_by, changed.updated_at) == (None, later)
+    session.expire_all()
+    stored = session.get_one(UserAccount, changed.id)
+    assert stored.updated_by is None
+    assert stored.updated_at == later
+    assert stored.created_by == administrator.id
 
 
 def test_a_change_made_on_a_version_that_is_not_the_current_one_is_refused(

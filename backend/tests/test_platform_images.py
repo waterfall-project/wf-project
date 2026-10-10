@@ -5,6 +5,8 @@
 import re
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 IMAGE = re.compile(r"image:\s*(postgres:\S+@sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
 
@@ -19,3 +21,14 @@ def test_the_postgresql_of_the_chain_is_the_image_of_the_service_platform() -> N
     platform = postgres_images(ROOT / "deploy" / "compose" / "compose.service.yaml")
     assert len(chain) == 1
     assert chain == platform
+
+
+def test_redis_runs_as_its_own_user_and_its_command_does_not_carry_the_secret() -> None:
+    compose = yaml.safe_load(
+        (ROOT / "deploy" / "compose" / "compose.service.yaml").read_text(encoding="utf-8")
+    )
+    redis = compose["services"]["redis"]
+    assert redis["user"] == "redis"
+    command = " ".join(redis["command"])
+    assert "$$REDISCLI_AUTH" in command
+    assert "${WATERFALL_REDIS_PASSWORD" not in command

@@ -44,6 +44,8 @@ services:
     # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
     # The shell of the container reads the password from the environment (`$$` keeps Compose from
     # expanding it): the command line `docker inspect` shows names the variable, not its value.
+    # The entrypoint of the image no longer changes user when the command is `sh`, so the service fixes it.
+    user: redis
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
     environment:
       # `redis-cli` reads its password here, so the health check does not carry it in its text.
