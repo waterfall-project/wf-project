@@ -8,7 +8,8 @@
  * reader can use adds one, `problemDetails.<param>`, with the value named by the catalogue
  * too — a `missing_permission` by its label, a `missing_condition` by its own, a `state` by its
  * label in the enumeration the envelope names with it (`state_enum`, #413), the object it is the
- * state of named by the sentence; a state without its enumeration, or of an enumeration the
+ * state of named by the sentence, the lines that bear a sub-project (`estimate_lines`) by their
+ * numbers and their labels; a state without its enumeration, or of an enumeration the
  * catalogue does not know, adds nothing. A
  * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
@@ -49,12 +50,59 @@ type Detail = readonly [
   Readonly<Record<string, string | number>>,
 ];
 
+/** Write a sentence of `problemDetails` with its values: a part a reader names a value by. */
+export type Say = (key: Detail[0], values: Detail[1]) => string;
+
 /** Read one parameter of the envelope: its sentence, or `undefined` when it has nothing to say. */
 type Reader = (
   params: Readonly<Record<string, unknown>>,
   label: Label,
   locale: Locale,
+  say: Say,
 ) => Detail | undefined;
+
+/** A line of an estimate a refusal names (`estimate_lines`): its number and its label. */
+export interface NamedLine {
+  readonly row_number: number;
+  readonly label: string;
+}
+
+/**
+ * How many lines a refusal names in its sentence; beyond, the sentence counts them, and the notice
+ * of the refusal lists them under it (`namedLines`).
+ */
+export const LINES_IN_SENTENCE = 5;
+
+/** The name of a line a refusal names, by its number — as the grid shows it — and its label. */
+export function lineName({ row_number, label }: NamedLine, say: Say): string {
+  return say("estimateLine", { row: String(row_number), label });
+}
+
+/** Whether a value is a line a refusal names, by its number and its label. */
+function isNamedLine(value: unknown): value is NamedLine {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "row_number" in value &&
+    typeof value.row_number === "number" &&
+    "label" in value &&
+    typeof value.label === "string"
+  );
+}
+
+/**
+ * The lines the parameters of a refusal name (`estimate_lines`), each by its number in its whole
+ * structure and its label, in the order of the server; a malformed one is left out.
+ */
+export function namedLines(params: Readonly<Record<string, unknown>> | undefined): NamedLine[] {
+  const lines = params?.estimate_lines;
+  return (Array.isArray(lines) ? lines : []).filter(isNamedLine);
+}
+
+/** A list of names joined as the language of the reader joins them: « a, b et c ». */
+function conjunction(names: readonly string[], locale: Locale): string {
+  return new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(names);
+}
 
 /** An enumeration of the contract a refused state is a value of (`Problem.params.state_enum`). */
 type StateEnumeration = components["schemas"]["StateEnumeration"];
@@ -89,8 +137,21 @@ const DETAILS: readonly Reader[] = [
     const items = Array.isArray(missing_prerequisites) ? missing_prerequisites : [];
     const named = items.map((item) => label("enums.ReferenceReadiness.missing", item));
     const known = named.filter((item) => item !== undefined);
-    const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(known);
+    const list = conjunction(known, locale);
     return known.length === 0 ? undefined : ["missing_prerequisites", { prerequisites: list }];
+  },
+  // The lines that bear a sub-project its deletion is refused for, each by its number in its whole
+  // structure — as the grid shows it, never grouped — and its label (EP-14/L42q); beyond a few,
+  // counted, the notice listing them.
+  (params, _label, locale, say) => {
+    const lines = namedLines(params);
+    if (lines.length > LINES_IN_SENTENCE) {
+      return ["estimate_lines_listed", { count: lines.length }];
+    }
+    const named = lines.map((line) => lineName(line, say));
+    return named.length === 0
+      ? undefined
+      : ["estimate_lines", { lines: conjunction(named, locale) }];
   },
   ({ state, state_enum }, label) => {
     const told = stateIn(state_enum);
@@ -162,13 +223,14 @@ export function problemMessage(
 ): string {
   const t = createTranslator({ locale, messages });
   const label = labelIn(messages);
+  const say: Say = (key, values) => t(`problemDetails.${key}`, values);
   const every = [
     problem.params ?? {},
     ...(problem.fields ?? []).map((field) => field.params ?? {}),
   ];
   const details = every
-    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale)))
+    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale, say)))
     .filter((detail) => detail !== undefined)
-    .map(([key, values]) => t(`problemDetails.${key}`, values));
+    .map(([key, values]) => say(key, values));
   return [t(`errors.${problem.code}`), ...details].join(" ");
 }

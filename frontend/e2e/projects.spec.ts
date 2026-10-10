@@ -337,6 +337,9 @@ test("the settings of a project create and modify a sub-project, present unavail
   await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
     `Supprimer « SP-ESS » : indisponible. ${unmet}`,
   );
+  // Cited and charged, it lacks more than the passing of its lines, which the estimate alone
+  // lifts: no link leads there (EP-14/L53).
+  await expect(section.getByRole("link", { name: /^Voir au devis/ })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(1);
 

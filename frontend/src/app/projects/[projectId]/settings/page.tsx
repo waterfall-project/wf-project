@@ -16,7 +16,9 @@
  * on its kinds by the server (`breakdown_search`, `breakdown_kinds`), read only — a work breakdown
  * read narrowed is never the whole one to write back (`setWorkBreakdown`). The identity and the facts
  * of the project are modified in their form, as the project lists the command (`ProjectIdentity`,
- * EP-02/L44a); the sub-projects offer their commands as the project lists `update`, the contributors
+ * EP-02/L44a); the sub-projects offer their commands as the project lists `update` — a deletion the
+ * estimate lines of the revision in progress hold leading to its estimate, to a session that reads
+ * it (EP-14/L53) —, the contributors
  * theirs as it lists `manage_contributors` (EP-02/L44b): to a session that may write them, the page
  * reads the accounts the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list
  * whole when the grid reads it filtered — a reading filtered has no counter to write from. Once, under
@@ -35,6 +37,7 @@ import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { asked, readGridQuery, searched } from "@/components/grid/query";
 import type { ContributorReading, Suggestion } from "@/components/projects/contributor-commands";
+import { estimatedRevision } from "@/components/projects/estimate-lead";
 import { ProjectIdentity } from "@/components/projects/project-form";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
@@ -242,7 +245,11 @@ export default async function SettingsPage(props: ProjectPageProps) {
           <SubprojectList
             subprojects={subprojects}
             actualCosts={actualCosts}
-            editing={{ project: address.projectId, offer: update }}
+            editing={{
+              project: address.projectId,
+              offer: update,
+              estimated: estimatedRevision(read.project, session),
+            }}
             shown={{
               query: subprojectQuery,
               preferences: grids?.[SUBPROJECT_GRID_KEY] ?? undefined,

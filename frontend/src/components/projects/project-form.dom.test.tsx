@@ -146,24 +146,32 @@ describe("the creation of a project", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("tells under the form each prerequisite a refusal names, the minimum reference data incomplete meanwhile [WF-CYC-0120-A]", async () => {
-    serve({
-      [CREATE]: {
-        problem: {
-          code: "REFERENCE_INCOMPLETE",
-          status: 409,
-          params: { missing_prerequisites: ["active_cost_category", "active_resource_role"] },
-        },
-      },
-    });
-    const form = await openCreation();
-    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    const refusal = await within(form).findByRole("alert");
-    expect(refusal).toHaveTextContent("Le référentiel minimal est incomplet.");
-    expect(refusal).toHaveTextContent(/catégorie de coût active.*rôle de ressource actif/);
-    expect(router.push).not.toHaveBeenCalled();
-  });
+  // The labour and the role missing; then the provision for risks alone, PRV-001 deactivated
+  // (EP-14/L42p).
+  it.each([
+    [
+      "project_reference_incomplete",
+      "À compléter : une catégorie de main-d’œuvre active et un rôle de ressource actif.",
+    ],
+    [
+      "project_reference_without_provision",
+      "À compléter : une catégorie de provision pour risques active.",
+    ],
+  ])(
+    "tells under the form each prerequisite a refusal names, the minimum reference data incomplete meanwhile (%s) [WF-CYC-0120-A]",
+    async (refused, missing) => {
+      // Sur une plateforme dont le référentiel est incomplet, la création d'un projet est refusée,
+      // et le refus nomme chaque prérequis manquant. Sur un référentiel dont aucune catégorie de
+      // type provision pour risques n'est active, la création est refusée en nommant ce prérequis.
+      serve({ [CREATE]: { problem: { ...(example(refused) as Problem), status: 409 } } });
+      const form = await openCreation();
+      await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      const refusal = await within(form).findByRole("alert");
+      expect(refusal).toHaveTextContent(`Le référentiel minimal est incomplet. ${missing}`);
+      expect(router.push).not.toHaveBeenCalled();
+    },
+  );
 
   it("leads nowhere once the home is gone: a creation answered after the user left does not take the place of their navigation", async () => {
     const settles: (() => void)[] = [];

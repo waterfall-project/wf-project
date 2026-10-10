@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
+import type { Project } from "@/components/context/reading";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -40,6 +41,8 @@ vi.mock("next/navigation", async (original) => ({
 type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+// The revision in progress of the witness, whose estimate the session reads.
+const REVISION = (example("project") as Project).current_revision_id ?? "";
 const CREATE = "POST /projects/{project_id}/subprojects";
 const UPDATE = "PATCH /projects/{project_id}/subprojects/{subproject_id}";
 const DELETE = "DELETE /projects/{project_id}/subprojects/{subproject_id}";
@@ -93,14 +96,17 @@ function held(): { readonly timing: FakeTiming; readonly release: () => void } {
   };
 }
 
-/** The list of the sub-projects, in French, as the project lists `update` — or does not. */
-function list(offer: CommandOffer | null = AVAILABLE, rows = SUBPROJECTS) {
+/**
+ * The list of the sub-projects, in French, as the project lists `update` — or does not —, and the
+ * revision in progress whose estimate the session reads, if any.
+ */
+function list(offer: CommandOffer | null = AVAILABLE, rows = SUBPROJECTS, estimated?: string) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
         <SubprojectList
           subprojects={rows}
-          editing={{ project: PROJECT, offer: offer ?? undefined }}
+          editing={{ project: PROJECT, offer: offer ?? undefined, estimated }}
         />
       </PendingAddress>
     </NextIntlClientProvider>
@@ -367,6 +373,48 @@ describe("the deletion of a sub-project", () => {
     },
   );
 
+  it("leads from a deletion the estimate lines alone keep to the estimate filtered on the sub-project, and from no other", async () => {
+    // A counterfactual variant of `subprojects`: « SP-ESS » lacking only the passing of the lines
+    // that bear it, the rest of the example kept. The lines of its main structure show in the
+    // estimate, to be passed out of it (EP-14/L42q); those of another structure, the link does not
+    // reach.
+    const passable: Subproject[] = SUBPROJECTS.map((row) =>
+      row.code === "SP-ESS"
+        ? {
+            ...row,
+            available_commands: row.available_commands.map((each) =>
+              each.command === "delete"
+                ? { ...each, missing_conditions: ["subproject_without_estimate_lines"] }
+                : each,
+            ),
+          }
+        : row,
+    );
+    const client = serve();
+    render(list(AVAILABLE, [...passable, CREATED], REVISION));
+    // « SP-CMD », cited by the reference revision, and « SP-REC », charged with an invoice: no line
+    // passed lifts what they lack, and they lead nowhere.
+    for (const code of ["SP-CMD", "SP-REC"]) {
+      await userEvent.click(
+        within(grid()).getByRole("button", { name: `Supprimer «\u00a0${code}\u00a0»` }),
+      );
+      expect(screen.queryByRole("link")).toBeNull();
+    }
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00a0SP-ESS\u00a0»" }),
+    );
+    const ess = SUBPROJECTS.find((row) => row.code === "SP-ESS")?.subproject_id ?? "";
+    expect(
+      screen.getByRole("link", {
+        name: "Voir au devis les lignes de la structure principale qui portent «\u00a0SP-ESS\u00a0»",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/${REVISION}/estimate?subproject_id=${ess}`,
+    );
+    expect(client.calls).toEqual([]);
+  });
+
   it("tells above the list a deletion the server refuses, naming the first condition it misses", async () => {
     // Listed available on the reading, refused by the server, a marked revision citing the
     // sub-project meanwhile (§4.4.1, EP-14/L42l).
@@ -381,6 +429,27 @@ describe("the deletion of a sub-project", () => {
     const refusal = await screen.findByRole("alert");
     expect(refusal).toHaveTextContent(
       "Condition non remplie : sous-projet cité par aucune révision marquée.",
+    );
+    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+  });
+
+  it("tells above the list a deletion refused for the estimate lines that bear the sub-project, naming them [WF-DAT-0080-A]", async () => {
+    // Celle d'un sous-projet que portent des lignes de devis de la révision en cours est refusée
+    // et nomme ces lignes — passées à « SP-REC » depuis la lecture (EP-14/L42q).
+    serve({
+      [DELETE]: {
+        problem: { ...(example("subproject_delete_estimated") as Problem), status: 409 },
+      },
+    });
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Lignes de devis de la révision en cours qui portent le sous-projet : ligne 10 " +
+        "« Raccordement des borniers » et ligne 11 « Borniers ». Une ligne de " +
+        "provision change de sous-projet par son risque.",
     );
     expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
   });

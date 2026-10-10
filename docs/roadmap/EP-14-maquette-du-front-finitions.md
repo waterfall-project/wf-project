@@ -773,6 +773,54 @@ désignation des risques non identifiés, dont le `lock_version` avance et l'aud
 suppression (WF-DAT-0070, WF-IHM-0110 ; décision de l'auteur, #732). Le client, les exemples et
 l'inventaire sont régénérés après la fusion.
 
+EP-14/L53 (#760), lot technique ajouté le 2026-10-10, fait adopter par les écrans ce que L42p et
+L42q ont écrit au contrat, et solde les points 1 et 10 de #747 :
+- le prérequis : L42p le nommait déjà, à l'accueil comme dans le refus `REFERENCE_INCOMPLETE` ; L53
+  l'éprouve sur ses exemples, `reference_readiness_without_provision` et
+  `project_reference_without_provision`, et dit le prérequis de la main-d'œuvre « une catégorie de
+  main-d'œuvre active », le libellé que L42p laissait au lot du front ;
+- la grille du devis : le sous-projet d'une ligne de provision, celui que son risque désigne, est une
+  cellule calculée (`estimate_line.subproject_id`), son refus demandant au serveur ce dont il dépend,
+  et la phrase de la dépendance `risk` nomme le sous-projet avec les grandeurs, comme le contrat ;
+- la suppression d'un sous-projet que portent des lignes de devis : lue indisponible faute de
+  `subproject_without_estimate_lines` seule, `project_not_terminal` mise à part, elle mène, à une
+  session qui lit le devis, au devis de la révision en cours filtré sur le sous-projet
+  (`subproject_id`, décision de la relecture 1) — les lignes de sa structure principale, jamais
+  celles d'une autre structure —, et nulle part quand manque aussi la citation ou les coûts, qu'aucune
+  ligne déplacée ne lève (relecture 2), si bien qu'aucun sous-projet du témoin, cités et chargés tous
+  deux, n'y mène et que le parcours n'éprouve que cette absence ; les lignes ne sont nommées une à une que lorsque le serveur refuse
+  une suppression lue disponible (`params.estimate_lines`), chacune par son numéro, tel que la grille
+  le montre, et son libellé, dans la phrase jusqu'à cinq et en liste au-delà, le refus rappelant
+  qu'une ligne de provision change de sous-projet par son risque (`problemMessage`) ;
+- le collage : un aperçu qui refuse des lignes et en écrit d'autres se confirme, les lignes valides
+  écrites ; la réponse dit au-dessus de la grille d'où le bloc a été collé, le nombre de lignes
+  écrites et chaque refus de `PasteApplied.rejected`, ceux que la confirmation ajoute compris, dans
+  une région nommée, atteinte au clavier et de hauteur bornée, jusqu'à ce que l'avis soit fermé ou
+  qu'un autre bloc soit collé ; le guide du front décrit ce collage ;
+- le détail d'un risque nomme la catégorie et le sous-projet de sa provision, la catégorie dite
+  désactivée quand le serveur le dit (`provision_cost_category_is_active`).
+
+Choix, faute d'une règle de la spécification ou du contrat : le refus ne disant pas quelle ligne est
+une provision ni de quel risque, la phrase du risque suit les lignes plutôt que de renvoyer chacune à
+son risque ; les lignes sont toutes nommées, sans borne, comme le contrat les donne, sans leur
+structure, que le refus ne donne que par son identifiant (`structure_id`) — son libellé
+(`structure_label`) est demandé au contrat dans #764 ; un plan qui n'écrit
+aucune ligne n'offre que l'abandon ; un collage entièrement écrit ne dit rien de plus que sa grille ;
+le nombre de lignes refusées compte une fois une ligne refusée pour plusieurs cellules.
+
+Ce que les tests ne peuvent pas encore prouver : le faux back servant toujours le plan qui ne refuse
+rien, le collage partiel n'est éprouvé que par les tests de la grille, et la hauteur réelle de son
+avis ne se prouvera qu'en parcours, quand le faux back servira `paste_applied_partial` ; le refus
+qu'ajoute le rejugement s'éprouve en appariant `paste_plan` et `paste_applied_partial`, un
+appariement contrefactuel déclaré dans son test, l'exemple propre étant demandé dans #764, comme la
+réponse de dépendance du sous-projet d'une provision, que son test remplace par
+`dependencies_provision`. Sans objet dans ce lot : le formulaire du risque — la déclaration, la
+modification et le réexamen, que le point 2 de #760 voulait adapter — n'existe pas dans la maquette,
+l'écran des risques étant en lecture, et le contrat n'a pas d'exemple de succès de `createRisk`,
+`updateRisk` ni `reviewRisk` : #763, reporté → EP-08, noté dans ses « Constats reçus » ; le refus
+d'une annulation par `restored_subproject_exists`, Annuler et Rétablir n'étant pas branchées (EP-06),
+sa condition déjà nommée par le catalogue.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

@@ -3,11 +3,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import type { NodeList } from "@/components/grid/nodes";
 import { example } from "@/test/fixtures";
 
 import { CATALOGUES } from "./catalogues";
 import type { Locale } from "./locale";
-import { problemMessage, type ProblemText } from "./problem";
+import { LINES_IN_SENTENCE, namedLines, problemMessage, type ProblemText } from "./problem";
 
 type ErrorCode = components["schemas"]["ErrorCode"];
 
@@ -110,10 +111,10 @@ describe("the sentence of a refusal", () => {
       params: { missing_prerequisites: ["active_cost_category", "active_resource_role"] },
     };
     expect(say(problem, "fr")).toBe(
-      "Le référentiel minimal est incomplet. À compléter\u00A0: une catégorie de coût active et un rôle de ressource actif.",
+      "Le référentiel minimal est incomplet. À compléter\u00A0: une catégorie de main-d’œuvre active et un rôle de ressource actif.",
     );
     expect(say(problem, "en")).toBe(
-      "The minimum reference data is incomplete. Still missing: an active cost category and an active resource role.",
+      "The minimum reference data is incomplete. Still missing: an active labour category and an active resource role.",
     );
   });
 
@@ -129,7 +130,65 @@ describe("the sentence of a refusal", () => {
       },
     };
     expect(say(problem, "en")).toBe(
-      "The minimum reference data is incomplete. Still missing: a default calendar with working hours, an active cost category and an active resource role.",
+      "The minimum reference data is incomplete. Still missing: a default calendar with working hours, an active labour category and an active resource role.",
+    );
+  });
+
+  it("names the lines that bear a sub-project its deletion is refused for, by their numbers and their labels, in the reader's language [WF-DAT-0080-A]", () => {
+    // La suppression d'un sous-projet que portent des lignes de devis de la révision en cours est
+    // refusée et nomme ces lignes.
+    const refused = example("subproject_delete_estimated") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "L’état actuel ne permet pas cette opération. Condition non remplie\u00A0: aucune ligne de " +
+        "devis de la révision en cours portant le sous-projet. Lignes de devis de la révision en " +
+        "cours qui portent le sous-projet\u00A0: ligne 10 «\u00A0Raccordement des borniers\u00A0» " +
+        "et ligne 11 «\u00A0Borniers\u00A0». Une ligne de provision change de sous-projet par son " +
+        "risque.",
+    );
+    expect(say(refused, "en")).toBe(
+      "The current state does not allow this operation. Unmet condition: no estimate line of the " +
+        "current revision bearing the subproject. Estimate lines of the current revision that " +
+        "bear the subproject: line 10 “Raccordement des borniers” and line 11 “Borniers”. A " +
+        "provision line changes subproject through its risk.",
+    );
+  });
+
+  it("names only the well-formed lines a refusal gives, and none of an empty list", () => {
+    const { params, ...refused } = example("subproject_delete_estimated") as ProblemText;
+    const given: unknown = params?.estimate_lines;
+    const first: unknown = Array.isArray(given) ? given[0] : undefined;
+    const condition =
+      "The current state does not allow this operation. Unmet condition: no estimate line of the " +
+      "current revision bearing the subproject.";
+    // A line without its number as a number is left out, the other named.
+    const mixed = { ...params, estimate_lines: [first, { row_number: "11", label: "Borniers" }] };
+    expect(say({ ...refused, params: mixed }, "en")).toBe(
+      `${condition} Estimate lines of the current revision that bear the subproject: line 10 ` +
+        "“Raccordement des borniers”. A provision line changes subproject through its risk.",
+    );
+    expect(say({ ...refused, params: { ...params, estimate_lines: [] } }, "en")).toBe(condition);
+  });
+
+  it("counts the lines that bear a sub-project beyond a few, which the notice lists", () => {
+    // A counterfactual variant of `subproject_delete_estimated`: the first six lines of the main
+    // structure of the witness borne by the sub-project, the rest of the refusal kept.
+    const refused = example("subproject_delete_estimated") as ProblemText;
+    const volume = example("volume/nodes_thousand") as NodeList;
+    const lines = volume.items
+      .filter((node) => node.estimate_line !== undefined && node.estimate_line !== null)
+      .slice(0, LINES_IN_SENTENCE + 1)
+      .map(({ node_id, row_number, estimate_line }) => ({
+        structure_id: "01926f3a-7c00-7000-8000-000000000201",
+        node_id,
+        row_number,
+        label: estimate_line?.label ?? "",
+      }));
+    const listed = { ...refused, params: { ...refused.params, estimate_lines: lines } };
+    expect(say(listed, "fr")).toMatch(
+      /portant le sous-projet\. 6 lignes de devis de la révision en cours portent le sous-projet, listées ci-dessous\. Une ligne de provision change de sous-projet par son risque\.$/,
+    );
+    expect(namedLines(listed.params).map((line) => line.row_number)).toEqual(
+      lines.map((line) => line.row_number),
     );
   });
 
@@ -223,6 +282,7 @@ describe("the sentence of a refusal", () => {
         missing_permission: "planning.delete",
         missing_condition: 12,
         missing_prerequisites: "active_cost_category",
+        estimate_lines: [{ row_number: "10", label: "Borniers" }],
         max_columns: "12",
         component: "toString",
       },

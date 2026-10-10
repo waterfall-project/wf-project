@@ -20,13 +20,16 @@ describe("the cells of a structure the server computes", () => {
     const quantity = computedWhereNamed("estimate_line.quantity");
     const disbursement = computedWhereNamed("estimate_line.unit_disbursement");
     const hours = computedWhereNamed("estimate_line.hours");
+    const subproject = computedWhereNamed("estimate_line.subproject_id");
     // Named by their labels in the examples, never by a number written here (#400).
     const computed = (cells: typeof quantity) =>
       estimate.items.filter((node) => cells.in(node)).map(labelOf);
-    // The provision alone: its quantity and its unit disbursement come from its risk.
+    // The provision alone: its quantity, its unit disbursement and its sub-project come from its
+    // risk (EP-14/L42p).
     const PROVISION = "Provision — risque de reprise du câblage";
     expect(computed(quantity)).toEqual([PROVISION]);
     expect(computed(disbursement)).toEqual([PROVISION]);
+    expect(computed(subproject)).toEqual([PROVISION]);
     expect(computed(hours)).toEqual([]);
     expect(quantity.whole).toBe(false);
 

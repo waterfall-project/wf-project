@@ -295,11 +295,12 @@
       "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
       "reading": "Reading the report…",
       "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
-      "validRows": "{count, plural, =0 {No row is valid} one {# row is valid} other {# rows are valid}}; nothing will be written while a row is refused.",
       "noneRejected": "No row is refused.",
+      "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
       "rejectedRow": "Row {row} of the block — {reason}",
-      "blocked": "A paste with a refused row is not applied: the grid stays unchanged. Correct the block in the spreadsheet, then paste it again.",
+      "appliedFrom": "Paste applied from row {row}, column “{column}”: {count, plural, =0 {no row was written} one {# row was written} other {# rows were written}}.",
+      "refusedRows": "Rows the paste refused",
       "apply": "Apply the paste",
       "abandon": "Abandon",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
@@ -403,7 +404,10 @@
         "title": "Provision line",
         "present": "In the main structure: the provision weighs on the estimate.",
         "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
-        "absent": "Not in the main structure: the risk does not weigh on the estimate."
+        "absent": "Not in the main structure: the risk does not weigh on the estimate.",
+        "category": "Category",
+        "subproject": "Subproject",
+        "outOfSubproject": "Out of any subproject"
       },
       "reviews": {
         "title": "History of the reviews",
@@ -880,7 +884,8 @@
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "namedLines": "Estimate lines the refusal names"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -972,7 +977,8 @@
       "deleteTitle": "Delete the subproject “{code}”?",
       "deleteHint": "The subproject “{code}”, {label}, will be deleted. One charged with actual costs, or cited by a marked revision, cannot be.",
       "deleted": "“{code}” deleted.",
-      "unavailable": "{command}: unavailable. {unmet}"
+      "unavailable": "{command}: unavailable. {unmet}",
+      "estimateLines": "See in the estimate the lines of the main structure that bear “{code}”"
     },
     "contributors": {
       "title": "Contributors",
@@ -1649,6 +1655,9 @@
     "missing_permission": "Required permission: {permission}.",
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
+    "estimate_lines": "Estimate lines of the current revision that bear the subproject: {lines}. A provision line changes subproject through its risk.",
+    "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
+    "estimateLine": "line {row} “{label}”",
     "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
@@ -1935,7 +1944,7 @@
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "a default calendar with working hours",
-        "active_cost_category": "an active cost category",
+        "active_cost_category": "an active labour category",
         "active_provision_category": "an active category of provision for risks",
         "active_resource_role": "an active resource role"
       }
@@ -2242,7 +2251,7 @@
       "manual_mode": "A task in manual mode bears no float.",
       "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
-      "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
+      "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
       "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",

@@ -21,9 +21,9 @@
  * one stop of the grid in the order of tabulation, which the arrows move — the header among the
  * rows —, and a computed cell tried opens its refusal; a cell validated is written alone,
  * and what the server answers takes the place of what was read — the row, the rows the write changed
- * with it, the totals (`useCellWrites`). A block pasted
- * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
- * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`). A grid that enters a
+ * with it, the totals (`useCellWrites`). A block pasted from a spreadsheet on the active cell is
+ * shown as the server would write and refuse it, and its valid rows written once confirmed, in one
+ * operation, what was not written told (WF-IHM-0050, `useGridPaste`). A grid that enters a
  * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`).
  *
  * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
@@ -102,7 +102,7 @@ import { configColumn, type GridFeatures, type GridTable, useGridTable } from ".
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
-import { PasteDialog } from "./paste-dialog";
+import { PasteAppliedNotice, PasteDialog } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
@@ -850,6 +850,11 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onClear={paste.clear}
         onDismissed={keyboard.refocus}
         dismissible
+      />
+      <PasteAppliedNotice
+        applied={paste.applied}
+        onClear={paste.clear}
+        onDismissed={keyboard.refocus}
       />
       <UnshownNotice
         unshown={paste.hidden}

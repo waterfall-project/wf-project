@@ -96,3 +96,15 @@ test("leads from the label of a risk to its detail from the keyboard alone [WF-I
   await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`, { timeout: WORKING });
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();
 });
+
+test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p)", async ({
+  page,
+}) => {
+  await openHydrated(page, `${RISKS}?risk=${CABLING}`);
+  const provision = page
+    .getByRole("region", { name: "Risque de reprise du câblage" })
+    .getByRole("region", { name: "Ligne de provision" });
+  await expect(provision).toContainText(
+    /Catégorie\s*Provisions pour risques\s*Sous-projet\s*Hors sous-projet/,
+  );
+});

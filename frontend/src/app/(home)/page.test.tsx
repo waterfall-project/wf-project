@@ -358,17 +358,34 @@ describe("the empty states of the home", () => {
     );
   });
 
-  it("names each prerequisite an incomplete reference lacks, and leads to where it is provided", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/readiness": "reference_readiness_incomplete",
-    };
-    const html = await home();
-    expect(text(html)).toMatch(
-      /^Projects Create a project The minimum reference data is incomplete\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: a default calendar with working hours an active cost category Every state/,
-    );
-    expect(links(html).slice(1, 3)).toEqual(["/reference/resources", "/reference/costs"]);
-  });
+  // A new installation; then a reference whose one category of provision for risks, PRV-001, was
+  // deactivated (EP-14/L42p).
+  it.each([
+    [
+      "reference_readiness_incomplete",
+      "a default calendar with working hours an active labour category",
+      ["/reference/resources", "/reference/costs"],
+    ],
+    [
+      "reference_readiness_without_provision",
+      "an active category of provision for risks",
+      ["/reference/costs"],
+    ],
+  ] as const)(
+    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A]",
+    async (readiness, missing, provided) => {
+      // Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et
+      // mène au référentiel.
+      server.answers = { ...server.answers, "GET /reference/readiness": readiness };
+      const html = await home();
+      expect(text(html)).toMatch(
+        new RegExp(
+          `^Projects Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+        ),
+      );
+      expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
+    },
+  );
 
   it("names the prerequisites without a link to a function the session may not read", async () => {
     server.answers = {
@@ -377,7 +394,7 @@ describe("the empty states of the home", () => {
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
     const html = await home();
-    expect(text(html)).toContain("a default calendar with working hours an active cost category");
+    expect(text(html)).toContain("a default calendar with working hours an active labour category");
     expect(links(html)).not.toContain("/reference/costs");
   });
 
@@ -402,7 +419,7 @@ describe("the empty states of the home", () => {
     expect(text(html)).toBe(
       "Projects Create a project The minimum reference data is incomplete. Show only my projects " +
         `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
-        "a default calendar with working hours an active cost category " +
+        "a default calendar with working hours an active labour category " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
     );
   });
