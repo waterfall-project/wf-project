@@ -86,7 +86,7 @@ class FieldProblem(BaseModel):
     pointer: Annotated[
         str,
         Field(
-            description="Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901), `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération."
+            description="Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901), `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son nom, `/query/revision_id` ; un paramètre de chemin qui n'est pas un identifiant, sous `/path` suivi de son nom, `/path/year` (un identifiant mal formé est un 404, comme un objet inexistant). Aucun champ du corps ne se nomme `query`, et le seul `path` d'un corps est un texte, sans champ sous lui : un pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération."
         ),
     ]
     code: ErrorCode
