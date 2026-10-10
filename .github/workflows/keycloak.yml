@@ -3,7 +3,8 @@
 
 # The image of Keycloak (US-0350): built from deploy/keycloak — the extension compiled and tested
 # in it —, started on the service platform with its realm applied, and tried by the tests of
-# backend/tests/test_keycloak_platform.py. Publishing it is US-0430's.
+# backend/tests/test_keycloak_*.py, the API that validates its tokens included. Publishing it is
+# US-0430's.
 name: keycloak
 
 on:

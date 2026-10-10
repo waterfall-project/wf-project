@@ -12,6 +12,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from waterfall.core.users.tables import UserAccount
@@ -61,9 +62,44 @@ def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
     return account
 
 
+def add_account_if_absent(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount | None:
+    """Insert an active account unless its subject or address is taken; give that of its subject.
+
+    Two first requests of one person at once insert her once: the second waits for the first,
+    then finds its row. An address another account holds inserts nothing, and the subject then
+    has no account (``None``).
+    """
+    session.execute(
+        insert(UserAccount)
+        .values(
+            id=new_id(),
+            last_name=new.last_name,
+            first_name=new.first_name,
+            email=new.email,
+            idp_subject=new.idp_subject,
+            origin=new.origin,
+            created_at=stamp.at,
+            created_by=stamp.author,
+            updated_at=stamp.at,
+            updated_by=stamp.author,
+        )
+        .on_conflict_do_nothing()
+    )
+    return find_account_of_subject(session, new.idp_subject)
+
+
 def find_account(session: Session, user_id: UUID) -> UserAccount | None:
     """Read an account, or ``None`` if there is none."""
     return session.get(UserAccount, user_id)
+
+
+def find_account_of_subject(session: Session, subject: str) -> UserAccount | None:
+    """Read the account the identity provider knows by ``subject``, or ``None`` if there is none."""
+    return session.scalars(
+        select(UserAccount)
+        .where(UserAccount.idp_subject == subject)
+        .execution_options(populate_existing=True)
+    ).first()
 
 
 def change_email(

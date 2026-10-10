@@ -174,15 +174,21 @@ lint-compose: ## Validate the Compose files
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
 
-# The tests of tests/test_keycloak_platform.py, which the other tests of the back deselect, against
-# the Keycloak of the service platform, its realm applied: at the address the browser knows it by,
-# and at another one, its published port, as a service reaches it.
-test-keycloak: ## Start Keycloak on the service platform, apply its realm, and check that the realm and the extension answer (needs the secrets of service-up)
+# The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
+# service platform, its realm applied: at the address the browser knows it by, and at another one,
+# its published port, as a service reaches it. Those that serve the API in their process create
+# their database on the PostgreSQL of the platform, unless WATERFALL_TEST_DATABASE_URL names
+# another server. They measure the administration API of Keycloak, which the measure of the back
+# leaves out, to the thresholds of the back (coverage-keycloak.toml).
+test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included, measuring its administration client (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak openldap
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
 	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth} \
 		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=http://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth \
-		uv run --frozen pytest -m keycloak
+		WATERFALL_TEST_FRONT_ADDRESS=$${WATERFALL_FRONT_ADDRESS:-http://localhost:3000} \
+		WATERFALL_TEST_DATABASE_URL=$${WATERFALL_TEST_DATABASE_URL:-postgresql://waterfall:$${WATERFALL_POSTGRES_PASSWORD}@127.0.0.1:$${WATERFALL_POSTGRES_PORT:-5432}/postgres} \
+		uv run --frozen pytest -m keycloak --cov --cov-config=coverage-keycloak.toml --cov-report=json:coverage-keycloak.json
+	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage-keycloak.json
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
@@ -247,11 +253,13 @@ client-up-to-date: generate-client ## The versioned client is the one the contra
 
 # The models of the service, engendered from the bundled contract (WF-ARC-0060). Ruff formats
 # them with the rules of the repository, which they only find under the repository: the check
-# writes its copy beside the versioned one.
+# writes its copy beside the versioned one. An address is a plain text in them: the service gives
+# it back as it is held, which pydantic's EmailStr would refuse for a special-use domain and
+# rewrite in lower case; what an address in input must be is decided apart (#665).
 SERVER_MODELS := $(BACK)/src/waterfall/api/contract/models.py
 CODEGEN := cd $(BACK) && uv run --frozen datamodel-codegen --input ../$(BUNDLE) --input-file-type openapi \
 	--output-model-type pydantic_v2.BaseModel --target-python-version 3.13 --use-annotated \
-	--disable-timestamp --formatters ruff-format ruff-check --output
+	--disable-timestamp --type-mappings email=string --formatters ruff-format ruff-check --output
 
 generate-server-models: build-openapi ## Regenerate the Pydantic models of the service from the contract
 	@( $(CODEGEN) "$(abspath $(SERVER_MODELS))" )

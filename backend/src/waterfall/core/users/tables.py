@@ -72,7 +72,8 @@ class UserAccount(Base):
     display_preferences: Mapped[dict[str, Any]] = mapped_column(
         JSONB, server_default=text("'{}'::jsonb")
     )
-    avatar: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Read only when asked for: up to 8 MiB that reading an account does not need.
+    avatar: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
     avatar_media_type: Mapped[str | None] = mapped_column(Text)
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)

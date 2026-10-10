@@ -9,8 +9,12 @@ import uvicorn
 
 from waterfall import __version__
 from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
+from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
-from waterfall.platform.settings import SettingsError, load_settings
+from waterfall.platform.settings import SettingsError, load_service_settings
 
 NAME = "waterfall-api"
 
@@ -30,7 +34,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
     try:
-        settings = load_settings()
+        settings = load_service_settings()
     except SettingsError as error:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2
@@ -38,9 +42,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     get_logger(__name__).info(
         "service.starting", version=__version__, host=settings.host, port=settings.port
     )
-    uvicorn.run(
-        create_app(), host=settings.host, port=settings.port, log_config=None, access_log=False
-    )
+    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    keycloak = Keycloak(settings)
+    try:
+        uvicorn.run(
+            create_app(Services(database, keycloak, KeycloakAdmin(keycloak, settings))),
+            host=settings.host,
+            port=settings.port,
+            log_config=None,
+            access_log=False,
+        )
+    finally:
+        keycloak.close()
+        database.dispose()
     return 0
 
 

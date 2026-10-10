@@ -10,8 +10,10 @@ dependencies = [
     "alembic>=1.18",
     "email-validator>=2.3.0",
     "fastapi>=0.143.0",
+    "httpx2>=2.13.1",
     "psycopg[binary]>=3.3",
     "pydantic-settings>=2.15.0",
+    "pyjwt[crypto]>=2.10",
     "sqlalchemy>=2.1",
     "structlog>=26.1.0",
     "uuid-utils>=0.14",
@@ -32,7 +34,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "datamodel-code-generator>=0.83.0",
-    "httpx2>=2.13.1",
     "import-linter>=2.15",
     "openapi-core>=0.23.1",
     "pyright[nodejs]>=1.1.414",
@@ -58,8 +59,14 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 branch = true
 source_dirs = ["src/waterfall"]
-# The models engendered from the contract are written by a tool, not by us (US-0060).
-omit = ["src/waterfall/api/contract/models.py"]
+omit = [
+    # The models engendered from the contract are written by a tool, not by us (US-0060).
+    "src/waterfall/api/contract/models.py",
+    # The administration API of Keycloak, which only Keycloak answers: the tests of the service
+    # platform try it, and `make test-keycloak` measures it to the same thresholds
+    # (coverage-keycloak.toml); this measure runs no Keycloak.
+    "src/waterfall/platform/keycloak_admin.py",
+]
 
 [tool.coverage.report]
 # The guard that runs a module as a script is run by the entry points, in their own

@@ -3,6 +3,7 @@
 """The fixtures of the tests of the service."""
 
 import io
+import json
 import logging
 import os
 from collections.abc import Iterator
@@ -11,30 +12,33 @@ from uuid import uuid4
 import pytest
 import structlog
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
+from openapi_core import Config, OpenAPI
 from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
-from support import CONTRACT, PLATFORM_SECRETS, ContractClient, Logs
+from support import CONTRACT, PLATFORM_ADDRESSES, PLATFORM_SECRETS, ContractClient, Logs
 
 from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging
-from waterfall.platform.settings import Settings, load_settings
+from waterfall.platform.settings import ServiceSettings, load_service_settings
 
 
 @pytest.fixture
 def platform_environment(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
     """Give the process the secrets a service of the test platform is started with."""
-    for name, value in PLATFORM_SECRETS.items():
+    for name, value in {**PLATFORM_SECRETS, **PLATFORM_ADDRESSES}.items():
         monkeypatch.setenv(name, value)
     return PLATFORM_SECRETS
 
 
 @pytest.fixture
-def platform_settings(platform_environment: dict[str, str]) -> Settings:
-    """Read the settings of the test platform, secrets included."""
-    settings = load_settings()
+def platform_settings(platform_environment: dict[str, str]) -> ServiceSettings:
+    """Read the settings of the API of the test platform, secrets included."""
+    settings = load_service_settings()
     assert (
         settings.database_url.get_secret_value() == platform_environment["WATERFALL_DATABASE_URL"]
     )
@@ -42,7 +46,17 @@ def platform_settings(platform_environment: dict[str, str]) -> Settings:
 
 
 @pytest.fixture
-def logs(platform_settings: Settings) -> Iterator[Logs]:
+def services(platform_settings: ServiceSettings) -> Iterator[Services]:
+    """Give the services of the API of the test platform, which reach nothing until asked to."""
+    database = Database(create_database_engine(platform_settings.database_url.get_secret_value()))
+    keycloak = Keycloak(platform_settings)
+    yield Services(database, keycloak, KeycloakAdmin(keycloak, platform_settings))
+    keycloak.close()
+    database.dispose()
+
+
+@pytest.fixture
+def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
     """Capture the logs in memory, as a service of the test platform writes them, then restore."""
     root = logging.getLogger()
     handlers, level = list(root.handlers), root.level
@@ -56,14 +70,19 @@ def logs(platform_settings: Settings) -> Iterator[Logs]:
 
 @pytest.fixture(scope="session")
 def contract() -> OpenAPI:
-    """Read the interface contract, once."""
-    return OpenAPI.from_file_path(str(CONTRACT))
+    """Read the interface contract, once.
+
+    A refusal answers in ``application/problem+json``, JSON that openapi-core does not read by
+    itself: without this, no refusal could be checked against its schema.
+    """
+    config = Config(extra_media_type_deserializers={"application/problem+json": json.loads})
+    return OpenAPI.from_file_path(str(CONTRACT), config=config)
 
 
 @pytest.fixture
-def client(contract: OpenAPI) -> ContractClient:
+def client(contract: OpenAPI, services: Services) -> ContractClient:
     """Build a client on the application."""
-    return ContractClient(TestClient(create_app(), raise_server_exceptions=False), contract)
+    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
 
 
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"

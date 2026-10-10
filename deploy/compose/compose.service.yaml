@@ -13,13 +13,15 @@
 # `docker inspect`, as for any service: what these files avoid is a secret in a command line.
 name: waterfall-service
 
+x-back-environment: &back-environment
+  WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
+  WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}@redis:6379/0
+  WATERFALL_HOST: 0.0.0.0
+
 x-back: &back
   build:
     context: ../../backend
-  environment:
-    WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
-    WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}@redis:6379/0
-    WATERFALL_HOST: 0.0.0.0
+  environment: *back-environment
 
 # One image, two commands: Keycloak, and the application of the realm (deploy/keycloak/Dockerfile).
 x-keycloak: &keycloak
@@ -75,6 +77,13 @@ services:
 
   api:
     <<: *back
+    environment:
+      <<: *back-environment
+      # The issuer of the tokens is the address the browser reaches Keycloak at; the API reaches
+      # it on the back channel, for its keys and its administration API, as its service account.
+      WATERFALL_KEYCLOAK_ADDRESS: ${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:${WATERFALL_KEYCLOAK_PORT:-8080}/auth}
+      WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
+      WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
     depends_on:
       migrate:
         condition: service_completed_successfully

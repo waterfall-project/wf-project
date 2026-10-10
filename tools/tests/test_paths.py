@@ -167,8 +167,15 @@ def test_the_models_generated_from_the_contract_wake_its_family_when_only_the_ba
     "changed",
     [
         "backend/tests/test_keycloak_platform.py",
+        "backend/tests/test_keycloak_authentication.py",
         "backend/tests/conftest.py",
+        "backend/tests/support.py",
+        "backend/src/waterfall/platform/keycloak.py",
+        "backend/src/waterfall/api/authentication.py",
+        "backend/src/waterfall/core/users/accounts.py",
+        "backend/src/waterfall/migrations/versions/0001_installation_and_user_account.py",
         "backend/pyproject.toml",
+        "backend/coverage-keycloak.toml",
         "backend/uv.lock",
     ],
 )
