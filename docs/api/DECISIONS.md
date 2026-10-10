@@ -4069,6 +4069,124 @@ transversal des refus tient le nouveau 409 sans `fields`. Les catalogues reçoiv
 `enums.CommandCondition.subproject_not_cited` ; le client est régénéré, et l'adoption par l'écran
 des sous-projets revient à L44e.
 
+## La date confirmée d'une restauration déposée, le refus hors plage des paramètres (EP-14/L42m)
+
+Deux constats de contrat, #628, relevé par la relecture de L42h, et #659, relevé par celle de
+L43e, rangés dans #507 et réalisés par un lot de contrat d'EP-14 (#663). Les décisions sont de
+l'agent de réalisation du lot, chaque fois avec sa raison.
+
+**La date confirmée d'une sauvegarde déposée est l'instant que porte son archive, lu au dépôt**
+(`FileUpload.backup_taken_at` ; #628, WF-ADM-0160). WF-ADM-0160 veut une confirmation qui « énonce
+la date de la sauvegarde », et son Vérif, une confirmation qui « nomme la date de la sauvegarde » :
+pour une sauvegarde de la liste, c'est `Backup.taken_at` (EP-14/L42h) ; une sauvegarde copiée hors
+de la plateforme puis déposée (`external_backup_upload_id`) n'a pas de `Backup`. L'archive que la
+plateforme écrit porte l'instant de sa sauvegarde — celui que le nom de son fichier écrit aussi,
+`waterfall-backup-<instant>.tar` (L42h) — : le dépôt d'une sauvegarde le lit et le rend, comme la
+liste rend celui d'une sauvegarde qu'elle porte, et `startRestore` compare la date confirmée à cet
+instant, refusée sinon par le même 422 que pour une sauvegarde de la liste
+(`/acknowledged_backup_taken_at`, `BACKUP_DATE_MISMATCH`, sans paramètre). Le champ est exigé de
+tout dépôt, nul pour le fichier d'un import, qui n'a pas de date de sauvegarde : la date ne se
+compare qu'à un dépôt de sauvegarde, et une restauration demandée sur un dépôt d'import est refusée
+par `UPLOAD_PURPOSE_MISMATCH` seul (revue de L42m). Côté écriture, le téléchargement
+(`downloadBackup`) et la copie externe (`BackupExternalCopy`) disent que l'archive porte l'instant
+de sa sauvegarde, que le dépôt relit. Une archive dont
+l'instant ne se lit pas n'est pas une sauvegarde de Waterfall : le dépôt est refusé, 422
+`FILE_FORMAT_UNREADABLE`, sans paramètre — `expected_format` nomme une nature d'échange, et aucune
+n'est celle des sauvegardes ; le fichier d'un import, lui, n'est lu qu'à l'analyse (`openImport`).
+Écartés :
+
+- la date attendue dans `params` du 422 de `startRestore`, seule — l'autre proposition de #628 : la
+  confirmation doit énoncer la date *avant* que la restauration soit demandée, et un écran qui ne la
+  connaîtrait que par un premier refus ferait confirmer à l'aveugle ; ajoutée au dépôt, elle
+  doublerait ce que le dépôt rend, comme L42h a écarté de nommer dans `params` la date que la liste
+  porte ;
+- la date lue dans le nom du fichier déposé : un nom se change, et le serveur comparerait la
+  confirmation à ce que le client lui a dit ;
+- faire d'un dépôt une sauvegarde de la liste (une origine `uploaded` de plus) : un dépôt est en
+  transit et expire en un jour (WF-DAT-0120), quand la liste est celle de la rotation et du
+  marquage (WF-ADM-0170) ; ses commandes et ses filtres auraient à l'exclure partout ;
+- une opération qui relise un dépôt (`getFileUpload`), pour le seul champ que le dépôt rend déjà ;
+- lire l'instant à la restauration, dans le worker : trop tard pour la confirmation ;
+- accepter un dépôt dont l'instant ne se lit pas, la date nulle, et refuser sa restauration : un
+  dépôt de plusieurs gigaoctets gardé un jour pour rien ; un code propre (`BACKUP_UNREADABLE`), là
+  où le format illisible d'un fichier a déjà le sien.
+
+Exemples, écrits à la main : `file_upload_external_backup`, la copie de la sauvegarde planifiée de
+la nuit du 20 mai que le site de secours de Lyon garde parmi ses trente copies quand la plateforme
+n'en conserve plus que sept, déposée aujourd'hui à 13 h 50, sa taille sur la ligne des sauvegardes
+de la liste, qui croissent chaque nuit du même pas (identifiant …0a15) ; aux corrélations 1069 et
+1070, `restore_external_date_mismatch`, sa restauration confirmée avec la date de la sauvegarde du
+2 juin que la liste donne, et `file_upload_backup_unreadable`. `file_upload` porte la date nulle.
+`test_mockuniverse.py` tient le dépôt contre la liste et la planification — une nuit planifiée plus
+ancienne que la liste, dans les copies de Lyon, nommée comme la plateforme nomme ses sauvegardes —,
+et chaque refus contre son enveloppe et son opération. Que la vérification d'une sauvegarde déposée
+soit énoncée, comme celle d'une sauvegarde de la liste, n'est pas tranché ici : rien dans #628.
+
+**Un délai hors de sa plage est refusé par `VALUE_OUT_OF_RANGE`, la borne franchie ; un seuil
+hors de ]0, 1[, par un motif propre aux seuils** (#659, point 1 ; WF-REF-0170, WF-REF-0180). Le
+délai entre deux revues (`/max_weeks_between_reviews`) va de `1` à `104` semaines, les bornes que le
+schéma publiait sans que l'opération dise leur refus : 422 `VALIDATION_FAILED`,
+`VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie, comme les deux
+taux d'un projet (EP-14/L42i, `project_rates_out_of_range`) — des entiers, bornes admises. Un seuil
+(`/index_thresholds/<seuil>`) est une valeur de l'indice « inférieure à 1 » (WF-REF-0170),
+strictement positive pour laisser une zone d'alerte (`IndexThreshold`, L42h), sans précision fixée :
+l'intervalle ]0, 1[ est ouvert, et n'a ni plus petite ni plus grande valeur admise que `minimum` ou
+`maximum` pourraient nommer — la raison même pour laquelle L42h avait écarté `VALUE_OUT_OF_RANGE`
+pour l'ordre strict des seuils. Il est donc refusé par un motif par champ nouveau au catalogue,
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre, sur le modèle de `THRESHOLD_NOT_BELOW_WATCH` :
+sa phrase reprend `IndexThreshold` (« compris entre 0 et 1, l'un et l'autre exclus »), WF-REF-0170
+ne disant que « inférieures à 1 ». Le motif d'`IndexThreshold` reprend celui de L42h, élargi aux
+zéros de tête (revue 3 de L42m) : il admet `0.875` et `00.5`, et il est exactement, parmi les
+décimaux de `Decimal`, celui des valeurs strictement entre 0 et 1 — sans quoi `00.5` aurait reçu le
+code de la plage, une fausse cause. Un seuil se juge en trois temps, chacun par sa contrainte (revue 2 de L42m) : la
+forme d'abord — un seuil qui n'est pas un décimal, le motif de `Decimal` (`0,9`, `.5`), est refusé
+par `NUMBER_INVALID`, comme toute valeur décimale mal écrite ; la plage ensuite — un décimal que le
+motif du seuil refuse (`0`, `1`, `1.5`), par `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE` ; l'ordre enfin —
+`THRESHOLD_NOT_BELOW_WATCH`, entre seuils dans ]0, 1[ seulement. Écarté : un motif large
+(`^\d+(\.\d+)?$`) avec la plage dite en texte, qui perdrait une contrainte lisible par machine
+sans rien gagner, `allOf` séparant déjà la forme (`Decimal`) de la plage (`IndexThreshold`).
+Le premier exemple du 422 reste `bounds_not_ordered`, celui que le faux back sert à une requête invalide ; le nouveau,
+`reference_settings_out_of_range` (corrélation 1071 : la vigilance de l'indice de coût à 1, refusée
+par le nouveau motif, zéro semaine entre deux revues, refusée par `VALUE_OUT_OF_RANGE`), vient en
+dernier. Décision de l'agent de livraison à la relecture de L42m, qui renverse la première rédaction.
+Écartés : deux décimales au plus, de `0.01` à `0.99`, sur le modèle du taux horaire, que la première
+rédaction retenait — elle restreignait WF-REF-0170, qui ne fixe aucune précision (les deux décimales
+du taux venaient de `Money`, WF-DAT-0100), et aurait refusé `0.875` par une fausse cause ; un
+paramètre générique d'exclusion (`exclusive: true`) à côté de `minimum` et `maximum`, pour un seul
+champ du contrat ; `VALUE_OUT_OF_RANGE` nommant `0` et `1`, que le paramètre donne pour des bornes
+admises et que le front dirait comme telles (« Valeur minimale : 0 »).
+
+**La rétention des sauvegardes hors de sa plage est refusée de même** (le jumeau de #659, relevé
+par la relecture de L43d ; WF-ADM-0170) : `setBackupSchedule` publiait `minimum: 1` et
+`maximum: 365` sur `retained_count` et `external_copy.retained_count` sans que son 422 dise leur
+refus. Hors de ces bornes : `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne
+franchie, sur `/retained_count` ou `/external_copy/retained_count` ; le minimum de la copie reste la
+rétention de la plateforme (WF-EXP-0050), `1` quand celle-ci est elle-même hors de ses bornes.
+L'exemple `backup_schedule_retention_out_of_range` (corrélation 1072 : aucune sauvegarde gardée,
+quatre cents copies) vient en dernier sous le 422, `unknown_location` restant le premier ;
+`test_mockuniverse.py` le tient contre les bornes du schéma et chaque planification des exemples
+dans leur plage. Le jour d'une sauvegarde hebdomadaire (`weekday`, de 1 à 7) publie aussi des bornes
+sans refus décrit : relevé, non traité ici.
+
+**La réponse de la matrice change une zone** (`reference_settings_matrix_updated` ; #659, point 2 ;
+WF-REF-0160) : la case de la plus faible probabilité et de la plus forte gravité, p1/g4, rang 3,
+passe de vigilance à alerte, la case que #659 proposait et que le test du formulaire de la matrice
+(L43e, `settings-forms.dom.test.tsx`) change déjà dans la requête qu'il envoie — la réponse est
+celle de cette requête, pour que le test prouve qu'une zone répondue remplace la zone lue. La
+requête porte la matrice entière, les trois listes étant exigées (`RiskMatrixSettings`). Écarté :
+mettre aussi p2/g4 en alerte, pour une matrice qui ne soit jamais moins sévère à une probabilité
+plus haute — aucune exigence ne le demande (WF-REF-0160 ne règle que les bornes), et la réponse
+n'aurait plus été celle de la requête du test.
+`tools/tests/test_mocksettings.py` tient chaque réponse contre la lecture des paramètres — ce qui
+change, et rien d'autre —, le motif d'un seuil, les bornes du délai contre le schéma, chaque seuil et
+chaque délai des exemples — l'historique des indices compris — dans leur plage, le refus à ses
+pointeurs, et l'ordre des exemples du 422.
+
+Le client est régénéré ; le front reçoit la phrase du nouveau motif
+(`errors.THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`) et ne change pas autrement — les tests du formulaire
+des réglages (L43e, livré) qui disent le refus hors plage et la zone répondue, et la restauration
+depuis un fichier (L43d), qui énonce la date du dépôt, viennent ensuite.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

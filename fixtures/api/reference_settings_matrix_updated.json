@@ -1,5 +1,5 @@
 {
-  "summary": "Les paramètres communs après que l'écran des paramètres de risques a écrit aujourd'hui, par Camille Martin, la seule matrice (risk_matrix, version 1) : les probabilités bornées à 10, 25 et 50 %, les gravités à 2, 5 et 10 % du budget de référence, les seize zones inchangées ; les seuils, le délai, la devise et la langue restent tels qu'ils étaient ; version 2 (WF-REF-0160, WF-IHM-0110).",
+  "summary": "Les paramètres communs après que l'écran des paramètres de risques a écrit aujourd'hui, par Camille Martin, la seule matrice (risk_matrix, version 1) : les probabilités bornées à 10, 25 et 50 %, les gravités à 2, 5 et 10 % du budget de référence, et la case de la plus faible probabilité et de la plus forte gravité passée de vigilance à alerte, les quinze autres zones inchangées ; les seuils, le délai, la devise et la langue restent tels qu'ils étaient ; version 2 (WF-REF-0160, WF-IHM-0110).",
   "value": {
     "currency_code": "EUR",
     "default_language": "fr",
@@ -18,7 +18,7 @@
         "nominal",
         "nominal",
         "nominal",
-        "watch",
+        "alert",
         "nominal",
         "nominal",
         "watch",

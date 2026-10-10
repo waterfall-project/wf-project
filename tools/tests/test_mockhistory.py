@@ -52,14 +52,14 @@ document, a period of costs — is of the chronology, between the installation a
 _LATER = (
     ("password_setup_link.json", "expires_at", timedelta(hours=1)),
     ("import", "expires_at", timedelta(hours=24)),
-    ("file_upload.json", "expires_at", timedelta(hours=24)),
+    ("file_upload", "expires_at", timedelta(hours=24)),
     ("session", "expires_at", timedelta(hours=24)),
     ("session", "idle_expires_at", timedelta(hours=2)),
 )
 """The instants after today the examples may carry, by the start of the name of their file and
 their key, and how far after: the link to set a password, valid an hour (WF-ADM-0140); an import
-or a deposit, a day after its analysis or its deposit (WF-ARC-0100, WF-DAT-0120); a session,
-within the day, and its idleness, two hours after its last request."""
+or a deposit — of an import or of a backup —, a day after its analysis or its deposit (WF-ARC-0100,
+WF-DAT-0120); a session, within the day, and its idleness, two hours after its last request."""
 
 
 def _later(name: str, key: str) -> timedelta:

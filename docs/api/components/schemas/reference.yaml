@@ -652,7 +652,15 @@ ReferenceSettingsWrite:
   properties:
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
-    max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    max_weeks_between_reviews:
+      type: integer
+      minimum: 1
+      maximum: 104
+      description: >-
+        De 1 à 104 semaines (WF-REF-0180) : un délai hors de ces bornes est refusé par 422
+        `VALIDATION_FAILED`, `fields` désignant `/max_weeks_between_reviews` par
+        `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `1` ou `maximum` à `104`, la seule
+        borne franchie.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskMatrixSettings:
@@ -709,10 +717,17 @@ IndexThresholds:
 IndexThreshold:
   allOf:
     - $ref: ../common.yaml#/Decimal
-  pattern: '^0\.\d*[1-9]\d*$'
+  pattern: '^0+\.\d*[1-9]\d*$'
   description: >-
     Un seuil d'un indice : une valeur de l'indice strictement entre 0 et 1 (WF-REF-0170), en
-    décimal exact — `0.9`, `0.85` ; ni `0`, ni `1`.
+    décimal exact — `0.9`, `0.85`, `0.875` ; ni `0`, ni `1`. La forme se juge d'abord, la
+    plage ensuite, chacune par sa contrainte : un seuil qui n'est pas un décimal (le motif de
+    `Decimal` : `0,9`, `.5`, `abc`) est refusé par 422 `VALIDATION_FAILED`, `fields` le
+    désignant (`/index_thresholds/<seuil>`) par `NUMBER_INVALID` ; un décimal hors de ]0, 1[,
+    que le motif du seuil refuse (`0`, `1`, `1.5`, `-0.5`), par
+    `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre : l'intervalle est ouvert, et n'a ni
+    plus petite ni plus grande valeur admise à nommer. L'ordre des seuils
+    (`THRESHOLD_NOT_BELOW_WATCH`) ne se juge qu'entre seuils dans ]0, 1[.
 
 DurationUnits:
   type: object

@@ -1,0 +1,12 @@
+{
+  "summary": "La copie de la sauvegarde planifiée de la nuit du 20 mai 2026, que le site de secours de Lyon garde parmi ses trente quand la plateforme n'en conserve plus que sept, déposée aujourd'hui, 3 juin 2026, à 13 h 50 pour une restauration : le dépôt a lu dans son archive l'instant qu'elle porte, le 20 mai à 1 h en temps universel, la date que la confirmation de la restauration énonce et que la date confirmée doit répéter (WF-ADM-0160, WF-DAT-0120).",
+  "value": {
+    "upload_id": "01926f3a-7c00-7000-8000-000000000a15",
+    "purpose": "external_backup",
+    "filename": "waterfall-backup-20260520T010000Z.tar",
+    "size_bytes": 1254935756,
+    "uploaded_at": "2026-06-03T13:50:00Z",
+    "expires_at": "2026-06-04T13:50:00Z",
+    "backup_taken_at": "2026-05-20T01:00:00Z"
+  }
+}

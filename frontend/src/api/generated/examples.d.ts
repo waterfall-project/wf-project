@@ -258,7 +258,7 @@ export interface Examples {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
   "POST /file-uploads": {
-    201: "file_upload";
+    201: "file_upload" | "file_upload_external_backup";
   };
   "POST /projects": {
     201: "project_created";

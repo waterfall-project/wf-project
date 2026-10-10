@@ -234,7 +234,14 @@ BackupSchedule:
         Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le
         dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
         sauvegarde quotidienne.
-    retained_count: { type: integer, minimum: 1, maximum: 365 }
+    retained_count:
+      type: integer
+      minimum: 1
+      maximum: 365
+      description: >-
+        Le nombre de sauvegardes planifiées gardées sur la plateforme, de 1 à 365 : hors de ces
+        bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur
+        `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.
     external_copy:
       allOf: [{ $ref: '#/BackupExternalCopy' }]
       description: >-
@@ -254,7 +261,9 @@ BackupExternalCopy:
     nommé ici et jamais décrit : aucun identifiant ni secret ne se saisit à l'écran. L'échec
     d'une copie est une alerte de l'état du système, comme celui de la sauvegarde
     (`scheduled_backup_copy_failed`, WF-OBS-0030). Une sauvegarde manuelle se copie hors de la
-    plateforme par son téléchargement (WF-ADM-0150).
+    plateforme par son téléchargement (WF-ADM-0150). Copiée ou téléchargée, l'archive porte
+    l'instant de sa sauvegarde (`Backup.taken_at`), que le dépôt d'une restauration relit
+    (`uploadFile`, WF-ADM-0160).
   properties:
     is_enabled:
       type: boolean
@@ -282,7 +291,9 @@ BackupExternalCopy:
         hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre
         moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur
         `/external_copy/retained_count`, `params.minimum` disant la rétention de la
-        plateforme. Au-delà, la plus ancienne copie de ce dossier est supprimée ; le marquage
+        plateforme — `1` quand celle-ci est elle-même hors de ses bornes ; un nombre au-delà de
+        365, par le même motif, `params.maximum` à `365`. Au-delà du nombre gardé, la plus
+        ancienne copie de ce dossier est supprimée ; le marquage
         à conserver ne vaut que pour les sauvegardes de la plateforme.
 
 ExternalBackupLocationName:
@@ -393,11 +404,12 @@ RestoreRequest:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
         Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit
-        correspondre à celle de la sauvegarde désignée (WF-ADM-0160), `Backup.taken_at`, le
-        même instant quelle que soit l'écriture de son fuseau. Une autre date est refusée par
-        422 `VALIDATION_FAILED`, `fields` désignant `/acknowledged_backup_taken_at` par
-        `BACKUP_DATE_MISMATCH` : la confirmation n'a pas nommé la sauvegarde qu'elle désigne,
-        et rien n'est mis en file.
+        correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour
+        une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée,
+        l'instant que porte son archive, lu au dépôt —, le même instant quelle que soit
+        l'écriture de son fuseau. Une autre date est refusée par 422 `VALIDATION_FAILED`,
+        `fields` désignant `/acknowledged_backup_taken_at` par `BACKUP_DATE_MISMATCH` : la
+        confirmation n'a pas nommé la sauvegarde qu'elle désigne, et rien n'est mis en file.
     confirmed:
       type: boolean
       const: true

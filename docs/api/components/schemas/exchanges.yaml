@@ -5,7 +5,7 @@
 
 FileUpload:
   type: object
-  required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at]
+  required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at, backup_taken_at]
   description: >-
     Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué,
     abandonné ou expiré (WF-DAT-0120, WF-ARC-0100).
@@ -16,6 +16,15 @@ FileUpload:
     size_bytes: { type: integer, minimum: 1 }
     uploaded_at: { $ref: ../common.yaml#/Timestamp }
     expires_at: { $ref: ../common.yaml#/Timestamp }
+    backup_taken_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        D'une sauvegarde déposée pour une restauration (`external_backup`), l'instant que porte
+        son archive, lu au dépôt : celui de la sauvegarde dont elle est la copie
+        (`Backup.taken_at`), la date que la confirmation de la restauration énonce et que
+        `RestoreRequest.acknowledged_backup_taken_at` doit répéter (WF-ADM-0160). Jamais nul
+        pour une sauvegarde : une archive dont l'instant ne se lit pas est refusée au dépôt
+        (`uploadFile`). Nul pour le fichier d'un import, qui n'a pas de date de sauvegarde.
 
 FileUploadPurpose:
   type: string
