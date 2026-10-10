@@ -1961,9 +1961,15 @@ langue se choisit.
   décimal, des heures depuis la chaîne exacte du contrat (`formatMoney`, `formatDecimal`),
   jamais par un flottant ; une date de planning telle quelle, sans fuseau
   (`formatPlanningDate`) ; un horodatage en heure locale du poste, écrit dans le navigateur
-  (`LocalTime`) ; un rapport — un avancement — en pourcentage, depuis sa chaîne exacte
-  (`formatPercent`). En français, `Intl` sépare les milliers par une fine insécable
-  (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
+  (`LocalTime`) ; un rapport saisi ou réglé — un taux, une probabilité, une borne — en
+  pourcentage, depuis sa chaîne exacte, chaque chiffre gardé (`formatPercent`) ; une part que le
+  serveur calcule — la part d'une nature ou d'un poste, un avancement, un taux de charge — au
+  centième de pourcentage (`formatShare`) : une part non nulle que l'arrondi dirait nulle se dit
+  « < 0,01 % », ou « > -0,01 % », par le catalogue (`share`) ; une part nulle, quel que soit le
+  nombre de ses zéros, se lit « 0 % » ; près de 100 %, l'arrondi ordinaire. Une part donnée nulle
+  dont le montant ne l'est pas se dit de même : un pont, tant que le contrat ne dit pas la
+  précision d'une part (#694) (EP-14/L51). En français, `Intl` sépare les milliers par une fine
+  insécable (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
   britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
   nombres restant « 1,234.56 ».
 

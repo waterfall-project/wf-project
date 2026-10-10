@@ -84,6 +84,14 @@ describe("an indicator", () => {
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.22%"]);
   });
 
+  it("shows a progress too small to show below the smallest share, never « 0 % » (#626)", () => {
+    // A variant of `project_indicators`: its physical progress, 0.0222, changed to 0.00003.
+    render(
+      page("indicator.names.physicalProgress", { ...PHYSICAL_PROGRESS, value: "0.00003" }, "en"),
+    );
+    expect(screen.getAllByRole("definition")[0]).toHaveTextContent("<0.01%");
+  });
+
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {
     const { container } = render(
       page("indicator.names.costIndex", MARKED.cost_index.value, "en", MARKED.context),

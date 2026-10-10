@@ -21,7 +21,7 @@ import { CELL, ListTable } from "@/components/projects/project-tables";
 import { RiskMatrixView } from "@/components/risks/risk-matrix";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { formatDecimal, formatMonth, formatPercent, formatPlanningDate } from "@/i18n/format";
+import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
 import { ComputableValue, Figure, ViewSection } from "./portfolio-value";
 
@@ -165,6 +165,7 @@ function Breakdown({
   readonly parts: readonly AmountByKey[];
 }) {
   const t = useTranslations("portfolio.costStructure");
+  const bounds = useTranslations("share");
   const locale = useLocale();
   return (
     <ViewSection title={title}>
@@ -176,7 +177,9 @@ function Breakdown({
               <ComputedAmount amount={part.amount} />
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {part.share === undefined ? null : formatPercent(part.share, locale)}
+              {part.share === undefined
+                ? null
+                : formatShare(part.share, locale, bounds, part.amount)}
             </TableCell>
           </TableRow>
         ))}
@@ -269,6 +272,7 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
 /** Render the aggregated workload: for each role, its capacity and, month by month, its load. */
 export function WorkloadView({ workload }: { readonly workload: Schemas["PortfolioWorkload"] }) {
   const t = useTranslations("portfolio.workload");
+  const bounds = useTranslations("share");
   const locale = useLocale();
   if (workload.roles.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("none")}</p>;
@@ -300,7 +304,7 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
                     {month.zone === undefined ? null : <Signal zone={month.zone} variant="icon" />}
                     <ComputableValue
                       value={month.load_ratio}
-                      format={(ratio) => formatPercent(ratio, locale)}
+                      format={(ratio) => formatShare(ratio, locale, bounds)}
                     />
                   </span>
                 </span>

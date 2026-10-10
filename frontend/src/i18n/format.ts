@@ -177,6 +177,69 @@ export function formatPercent(value: Decimal, locale: Locale): string {
   }).format(exact);
 }
 
+/** The places of a percentage a share is shown to: hundredths, the fourth place of the ratio. */
+const SHARE_PLACES = 2;
+
+/** The smallest share shown, a hundredth of a percent, by which a smaller one is said. */
+const SMALLEST_SHARE = "0.0001";
+
+/** The side of zero a share lies on, when rounding would show it as nil: below or above its bound. */
+export type ShareSide = "below" | "above";
+
+/**
+ * The words of the catalogue that put a share on its side of a bound — « < 0,01 % » in French,
+ * `<0.01%` in English —: the translator of `share`, `useTranslations("share")`.
+ */
+export type ShareWords = (side: ShareSide, values: { readonly share: string }) => string;
+
+/** A ratio rounded to the places a share is shown to, in their units: `0.12345` is `1235`. */
+function shareUnits(value: DecimalString): bigint {
+  const [whole = "0", fraction = ""] = shiftPoint(value, SHARE_PLACES + 2).split(".");
+  // Half a unit rounds away from zero, as `Intl` rounds (`halfExpand`).
+  const away = /^[5-9]/.test(fraction);
+  return BigInt(whole) + (away ? (value.startsWith("-") ? -1n : 1n) : 0n);
+}
+
+/**
+ * Format a share — a ratio of the contract, `0.0076`, the part a nature takes of a total — as a
+ * percentage to the hundredth: « 0,76 % ». The places shown are those `formatPercent` showed, up to
+ * the second — `0.337` is « 33,7 % », `0.1300` « 13,00 % » —, so that a share given to its fourth
+ * place shows as before. A share that the rounding would show as nil while it is not says so by the
+ * catalogue (#626): `0.00003` is « < 0,01 % », `-0.00003` « > -0,01 % »; a nil share is « 0 % »,
+ * however many zeros it is written with. Near the whole, the ordinary rounding is kept, the author
+ * having decided the side of zero only (#626).
+ *
+ * Given the amount the share is of, a share given nil while its amount is not is one too small to
+ * show, on the side of its amount's sign: the fake back rounds a share to its fourth place, which the
+ * contract does not say (#694). A bridge until the contract settles it, then removed or made official.
+ * No float: the rounding moves the point of the decimal string and compares its digits.
+ */
+export function formatShare(
+  value: Decimal,
+  locale: Locale,
+  words: ShareWords,
+  amount?: Money,
+): string {
+  const exact = decimal(value);
+  const percent = (ratio: Decimal, places: number) =>
+    numberFormat(locale, {
+      style: "percent",
+      minimumFractionDigits: places,
+      maximumFractionDigits: SHARE_PLACES,
+      signDisplay: "negative",
+    }).format(decimal(ratio));
+  if (shareUnits(exact) !== 0n) {
+    return percent(exact, Math.min(SHARE_PLACES, Math.max(0, fractionDigits(exact) - 2)));
+  }
+  const side =
+    compareDecimals(exact, "0") || (amount === undefined ? 0 : compareDecimals(amount, "0"));
+  if (side === 0) {
+    return percent("0", 0);
+  }
+  const bound = percent(side > 0 ? SMALLEST_SHARE : `-${SMALLEST_SHARE}`, SHARE_PLACES);
+  return words(side > 0 ? "below" : "above", { share: bound });
+}
+
 /**
  * Format an amount, `Money` of the contract, with its two decimals: `1234.56` is
  * « 1 234,56 » in French and `1,234.56` in English. Given the currency of the installation,

@@ -123,3 +123,20 @@ describe("the way from the estimate to the imports and exports (#521)", () => {
     expect(await estimatePage("session_manager")).not.toContain("/exchanges");
   });
 });
+
+describe("the shares of the estimate (#626)", () => {
+  it("says a share the server gives nil while its amount is not below the smallest shown, never « 0% »", async () => {
+    // The estimate the offer v1.0 kept at its marking: its order item, 2,019.56 of 65,427,832.64,
+    // the server gives a share of « 0 ».
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/estimate-indicators": "estimate_indicators_breakdown",
+    };
+    const page = (await estimatePage("session"))
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/\s+/g, " ");
+    expect(page).toContain("By order item Fourniture et montage des armoires 2,019.56 (<0.01%)");
+    expect(page).toContain("No subproject 65,427,832.64 (100%)");
+  });
+});

@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
-import { formatPercent, formatPlanningDate } from "@/i18n/format";
+import { formatPlanningDate, formatShare } from "@/i18n/format";
 
 type Schemas = components["schemas"];
 type Computable = Schemas["Computable"];
@@ -94,6 +94,7 @@ function ValuePeriod({ scope }: { readonly scope: Schemas["PortfolioScope"] }) {
  */
 export function PortfolioValueView({ value }: { readonly value: Schemas["PortfolioValue"] }) {
   const t = useTranslations("portfolio.value");
+  const bounds = useTranslations("share");
   const locale = useLocale();
   const amounts = [
     ["orderBook", value.order_book],
@@ -111,7 +112,7 @@ export function PortfolioValueView({ value }: { readonly value: Schemas["Portfol
         <Figure name={t("conversionRate")}>
           <ComputableValue
             value={value.conversion_rate}
-            format={(rate) => formatPercent(rate, locale)}
+            format={(rate) => formatShare(rate, locale, bounds)}
           />
         </Figure>
       </dl>
