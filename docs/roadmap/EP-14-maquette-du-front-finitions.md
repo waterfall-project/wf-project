@@ -741,6 +741,38 @@ libellé du type, la condition et la commande nouvelles, la désactivation de la
 disponible ; l'adoption suit dans un lot du front : le prérequis à l'accueil, la catégorie et le
 sous-projet au formulaire du risque.
 
+EP-14/L42q (#727), lot de contrat coupé d'EP-14/L42p le 2026-10-10 pour tenir sa taille, en porte
+les points 3 et 5 (#712) :
+- la suppression d'un sous-projet que portent des lignes de devis de la révision en cours est
+  refusée (C-273), `subproject_without_estimate_lines` venant après la citation et les coûts, et le
+  409 nomme ces lignes (`params.estimate_lines`) ;
+- un collage partiellement invalide écrit ses lignes valides : `applyPaste` rend les lignes écrites
+  et les refus de l'aperçu, ligne par ligne (`PasteApplied`, WF-IHM-0050).
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front ne change que pour
+compiler, tenir ses catalogues et ses tests, qui lisent la troisième condition des sous-projets ;
+l'adoption suit dans un lot du front : les lignes que nomme le refus de la suppression d'un
+sous-projet, la confirmation d'un collage partiellement refusé — le guide du front
+(`docs/dev/README.md`, § « Le front », le collage) décrit encore le collage d'avant, qui refusait la
+confirmation d'un plan portant un refus, et revient à ce lot. La revue 1 a ajouté : les lignes
+acceptées sont jugées de nouveau à la confirmation, le compteur de la structure ne couvrant pas le
+référentiel ; un collage sans ligne valide ne crée pas d'entrée d'annulation ; `params.estimate_lines`
+n'a pas de borne. La revue 2 : le plan retient le compteur de la structure lu à l'aperçu, et
+`applyPaste` répond 412 si la structure a changé depuis ; l'annulation d'une saisie de la grille qui
+rendrait un sous-projet supprimé depuis est refusée (`restored_subproject_exists`, la condition de
+L42p, portée à l'identique ici). La revue 3 : cette condition vaut pour toute annulation et tout
+rétablissement qui rendraient un sous-projet supprimé depuis, dans les mêmes mots que L42p
+(`CommandCondition`, les 409 d'`undoLastChange` et de `redoLastUndo`).
+
+L42p, fusionné avant lui (#757), a été fusionné dans le lot, sans rebase. DECISIONS.md et ces notes
+gardent les deux apports, L42p d'abord. La description de `deleteSubproject` garde le texte de L42q,
+sans « la décision contredit le Vérif » ni « qu'aucun coût réel ne charge est retiré de la base » de
+l'ancien texte, dit qu'une ligne de provision se passe par son risque (`updateRisk`,
+`provision_subproject_id`), et reprend mot pour mot la phrase de L42p : la suppression passe à nul la
+désignation des risques non identifiés, dont le `lock_version` avance et l'audit nomme l'auteur de la
+suppression (WF-DAT-0070, WF-IHM-0110 ; décision de l'auteur, #732). Le client, les exemples et
+l'inventaire sont régénérés après la fusion.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

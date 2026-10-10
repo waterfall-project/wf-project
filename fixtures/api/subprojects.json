@@ -1,5 +1,5 @@
 {
-  "summary": "Les deux sous-projets du projet, identifiés par leur code, déclarés le 20 janvier 2026, après la commande qui en a apporté les codes de l'ERP, chacun avec ses commandes : les lignes de devis de la référence marquée le 1er février citent l'un et l'autre — le Poste de commande par celles du cœur et des lots « Poste de commande », les essais et la mise en service par celles des lots « Ligne d'essais » —, et le Poste de commande porte la facture des écrans que l'import du 3 juin lui a imputée (actual_costs_subproject), les essais et la mise en service les factures des tâches terminées de leurs lots « Ligne d'essais » (actual_costs) ; ni l'un ni l'autre ne se supprime, les deux conditions manquant, la citation d'abord (§4.4.1, WF-PRJ-0050, WF-CRE-0020, WF-IHM-0090).",
+  "summary": "Les deux sous-projets du projet, identifiés par leur code, déclarés le 20 janvier 2026, après la commande qui en a apporté les codes de l'ERP, chacun avec ses commandes : les lignes de devis de la référence marquée le 1er février citent l'un et l'autre — le Poste de commande par celles du cœur et des lots « Poste de commande », les essais et la mise en service par celles des lots « Ligne d'essais » —, et le Poste de commande porte la facture des écrans que l'import du 3 juin lui a imputée (actual_costs_subproject), les essais et la mise en service les factures des tâches terminées de leurs lots « Ligne d'essais » (actual_costs) ; les lignes de devis de la révision en cours portent encore l'un et l'autre ; ni l'un ni l'autre ne se supprime, les trois conditions manquant, la citation d'abord, les lignes de la révision en cours en dernier (§4.4.1, WF-DAT-0080, WF-PRJ-0050, WF-CRE-0020, WF-IHM-0090).",
   "value": [
     {
       "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
@@ -17,7 +17,8 @@
           "is_available": false,
           "missing_conditions": [
             "subproject_not_cited",
-            "subproject_without_actual_costs"
+            "subproject_without_actual_costs",
+            "subproject_without_estimate_lines"
           ]
         }
       ],
@@ -53,7 +54,8 @@
           "is_available": false,
           "missing_conditions": [
             "subproject_not_cited",
-            "subproject_without_actual_costs"
+            "subproject_without_actual_costs",
+            "subproject_without_estimate_lines"
           ]
         }
       ],

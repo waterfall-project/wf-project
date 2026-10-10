@@ -335,11 +335,13 @@ describe("the deletion of a sub-project", () => {
   });
 
   it.each([
-    // Charged and cited by the reference revision (EP-14/L45a, L42l).
+    // Charged, cited by the reference revision and borne by lines of the current revision
+    // (EP-14/L45a, L42l, L42q).
     [
       "SP-CMD",
-      "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût réel " +
-        "imputé au sous-projet.",
+      "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût réel " +
+        "imputé au sous-projet et aucune ligne de devis de la révision en cours portant le " +
+        "sous-projet.",
     ],
     // Created charged with an invoice, cited by no marked revision (`subproject_created`).
     ["SP-REC", "Condition non remplie : aucun coût réel imputé au sous-projet."],
@@ -419,7 +421,8 @@ describe("the commands a project lists", () => {
     expect(remove).toHaveAttribute("aria-disabled", "true");
     expect(remove).toHaveAccessibleDescription(
       "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût " +
-        "réel imputé au sous-projet et projet non clos.",
+        "réel imputé au sous-projet, aucune ligne de devis de la révision en cours portant le " +
+        "sous-projet et projet non clos.",
     );
     await userEvent.click(modify);
     expect(screen.queryByRole("dialog")).toBeNull();

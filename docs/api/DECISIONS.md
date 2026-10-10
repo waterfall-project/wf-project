@@ -4012,6 +4012,9 @@ dans un lot propre.
 
 ## La suppression d'un sous-projet cité par une révision marquée (EP-14/L42l)
 
+*Corrigée par C-256 ; complétée par EP-14/L42q (C-273), section « Le sous-projet porté par le devis
+en cours, le collage partiel (EP-14/L42q) ». Le texte qui suit est gardé tel quel.*
+
 **Un sous-projet qu'une révision marquée cite ne se supprime pas** (#647 ; décision de l'auteur du
 2026-10-10 sur #634 ; §4.4.1, WF-PRJ-0050, WF-IHM-0090). Les sous-projets déterminent la courbe de la
 valeur acquise : supprimer un sous-projet qu'une révision marquée cite y aurait des effets de bord
@@ -4595,6 +4598,78 @@ installation neuve sans calendrier par défaut, quand WF-EXP-0020 en crée un et
 WF-CYC-0120 nomme la catégorie de main-d'œuvre et le rôle manquants. La déclaration d'un risque sur
 une structure principale sans tâche, refusée « en nommant la condition manquante » (WF-RIS-0010), n'a
 pas de 409 décrit à `createRisk`.
+
+## Le sous-projet porté par le devis en cours, le collage partiel (EP-14/L42q)
+
+Les points 3 et 5 de #712, coupés d'EP-14/L42p pour tenir sa taille et réalisés dans ce lot (#727) :
+le contrat suit la spécification révisée par #708 — C-273 et le Vérif de WF-IHM-0050, que le critère
+d'US-0130 reprend désormais. L42q se fusionne après L42p, dont il prend la plage des corrélations
+élargie. Les décisions sont de l'agent de réalisation du lot, chacune avec sa raison. Le lot ne touche
+au front que pour compiler sur le client régénéré, tenir ses catalogues et ses tests ; l'adoption par
+les écrans revient à un lot du front.
+
+**La suppression d'un sous-projet que portent des lignes de devis de la révision en cours est
+refusée** (C-273, décision de l'auteur, voie B ; WF-PRJ-0050 : « Un sous-projet auquel des coûts
+réels sont imputés, qu'une révision marquée cite, ou que portent des lignes de devis de la révision
+en cours, ne peut pas être supprimé » ; WF-DAT-0080, Vérif : « Celle d'un sous-projet que portent des
+lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces
+lignes passées hors sous-projet ou à un autre sous-projet. »). `subproject_without_estimate_lines`
+rejoint le catalogue et la commande `delete` du sous-projet, **après** `subproject_not_cited` et
+`subproject_without_actual_costs`, avant `project_not_terminal` : des conditions qui ne se lèvent pas —
+une révision marquée est immuable, un coût imputé le reste, exclu ou non — à celle que lève le passage
+des lignes, la raison que L42l donnait. Une ligne de provision dont le risque a désigné le sous-projet
+(C-299, EP-14/L42p) compte, comme toute ligne de la révision en cours, dans quelque structure
+qu'elle soit. Le 409 de
+`deleteSubproject` nomme la première qui manque ; quand c'est celle-ci, il nomme aussi les lignes,
+comme le Vérif le demande : `params.estimate_lines`, toutes, chacune par sa structure, son nœud, son
+numéro de ligne et son libellé, la structure principale d'abord, sans borne — un sous-projet n'en
+porte au plus que les lignes d'une révision, et l'utilisateur doit pouvoir toutes les déplacer
+(revue 1). Écartés : un compte de lignes, que
+l'utilisateur n'aurait pas pu retrouver ; les lignes dans la lecture du sous-projet, qui aurait
+alourdi chaque lecture pour le seul refus ; la condition avant les coûts, qui aurait renvoyé vers des
+lignes dont le passage ne suffit pas. Les deux sous-projets du témoin sont portés par des lignes de
+la révision en cours, sur toute la structure : `subprojects` et `subproject_updated`, écrits à la
+main, listent les trois conditions, les listes dérivées sont engendrées, et `subproject_delete_cited`
+dit « la première des trois » ; le sous-projet créé n'en porte aucune ; ceux du projet clos
+(`subprojects_completed`, EP-14/L42o), dont la révision en cours reste la 102, listent la nouvelle
+condition avant `project_not_terminal`. Nouvel exemple, en dernier :
+`subproject_delete_estimated` (corrélation 1101), contrefactuel — la réception sur site délestée de
+sa facture, à laquelle les lignes 10 et 11, « Raccordement des borniers » et « Borniers », auraient
+été passées. La description de `deleteSubproject` ne dit plus que la décision de L42l contredit le
+Vérif de WF-DAT-0080 : C-256 l'a corrigé.
+
+**Un collage partiellement invalide écrit les lignes valides** (WF-IHM-0050 : « après confirmation,
+les lignes valides sont écrites en une seule opération, et les lignes refusées ne le sont pas » ;
+Vérif : « Un bloc dont une cellule porte une catégorie inconnue signale cette ligne ; confirmé, il
+écrit les autres lignes et non celle-ci ; abandonné, il ne modifie aucune ligne. »). `applyPaste`
+rend `PasteApplied` : `NodesWritten` et `rejected`, les refus de l'aperçu, ligne par ligne — la ligne,
+la colonne, le motif (`PasteRejection`, extrait de `PastePlan`) —, que la confirmation n'a pas écrits ;
+un succès partiel se lit à ce que `rejected` n'est pas vide. Une ligne dont une cellule est refusée
+l'est entière. Le plan retient le compteur de la structure lu à l'aperçu, et la confirmation est
+refusée par 412 si la structure a changé depuis, quel que soit le compteur envoyé (revue 2) : un
+compteur relu entre l'aperçu et la confirmation ne doit pas faire écrire un plan jugé sur une autre
+structure. Le référentiel n'a pas de compteur : à la confirmation, les lignes acceptées sont jugées
+de nouveau (revue 1), et une ligne devenue invalide — une catégorie ou un rôle désactivés
+entre-temps — passe dans `rejected` avec son motif. Toute annulation et tout rétablissement qui
+rendraient un sous-projet supprimé depuis — une écriture de la grille, la suppression d'une ligne ou
+d'une tâche et de ses lignes comprise, comme une saisie de risque — sont refusés par 409,
+`restored_subproject_exists`, la condition de L42p, dans les mêmes mots qu'elle (revues 2 et 3,
+#732). Sans aucune ligne valide, rien n'est écrit, le compteur reste, et aucune entrée
+d'annulation n'est créée (WF-IHM-0110) : il n'y aurait rien à annuler. `rejected` est exigé,
+vide pour un collage entier : `paste_applied`, le premier exemple, garde son scénario et y gagne
+`"rejected": []` ; `paste_applied_partial`, engendré par `make mock-data` (`mockwrites`), confirme le
+bloc de `paste_plan_unknown_category` — les lignes 28 et 30 écrites, la 29 laissée, son refus redit —,
+dont le résumé ne dit plus qu'un collage partiellement invalide ne s'applique pas. Écartés : refuser
+la confirmation d'un plan qui porte un refus, la forme d'avant, contraire au Vérif ; se fier au plan
+sans juger de nouveau les lignes, le compteur de la structure ne couvrant pas le référentiel, qui
+aurait laissé écrire une ligne sur une catégorie désactivée depuis l'aperçu ; `rejected` sur
+`NodesWritten`, que toutes les écritures de grille partagent ; un statut 207, que le contrat
+n'emploie nulle part.
+
+**Corrélation** 1101 ; la plage des corrélations écrites à la main va jusqu'à 1199 (`mockids`), le
+même changement que L42p. `test_mockproject.py` tient la nouvelle condition, son ordre et les lignes
+nommées contre la révision en cours ; `test_mockwrites.py` le collage partiel contre le plan. Les
+catalogues reçoivent `subproject_without_estimate_lines`.
 
 ## Collage et annulation
 

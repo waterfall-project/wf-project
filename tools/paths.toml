@@ -136,6 +136,7 @@ paths = [
     "fixtures/api/paste_plan_unknown_category.json",
     "fixtures/api/paste_too_wide.json",
     "fixtures/api/paste_applied.json",
+    "fixtures/api/paste_applied_partial.json",
     "fixtures/api/comparison.json",
     "fixtures/api/risks.json",
     "fixtures/api/risk.json",

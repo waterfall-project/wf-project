@@ -305,10 +305,11 @@ describe("the settings of a project", () => {
   });
 
   it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {
-    // Each sub-project of the witness is cited by the reference revision and charged (EP-14/L42l).
+    // Each sub-project of the witness is cited by the reference revision and charged (EP-14/L42l),
+    // and borne by lines of the current revision (EP-14/L42q).
     const undeletable =
-      "Unmet conditions: subproject cited by no marked revision and no actual cost booked against " +
-      "the subproject.";
+      "Unmet conditions: subproject cited by no marked revision, no actual cost booked against " +
+      "the subproject and no estimate line of the current revision bearing the subproject.";
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/subprojects"]).toBe(
       `/projects/${PROJECT}/subprojects`,

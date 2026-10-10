@@ -2009,7 +2009,8 @@
       "no_restore_running": "aucune restauration en cours",
       "project_before_in_progress": "projet non encore en cours",
       "subproject_not_cited": "sous-projet cité par aucune révision marquée",
-      "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet"
+      "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
+      "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet"
     },
     "ProjectExit": {
       "to_state": {
