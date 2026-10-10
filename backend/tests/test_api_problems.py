@@ -18,7 +18,7 @@ from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.api.contract.models import Problem
+from waterfall.api.contract.models import DisplayPreferences, Problem
 from waterfall.platform.errors import (
     BadRequestError,
     ConflictError,
@@ -90,6 +90,10 @@ def build_app(services: Services) -> FastAPI:
     @app.post("/spans")
     def span(span: Span) -> Span:
         return span
+
+    @app.post("/preferences")
+    def prefer(preferences: DisplayPreferences) -> None:
+        del preferences
 
     @app.get("/things/{thing_id}")
     def read_thing(thing_id: UUID) -> str:
@@ -336,6 +340,15 @@ def test_any_other_fault_is_a_validation_failed_on_its_field(app: FastAPI) -> No
     assert problem.fields is not None
     assert [(f.pointer, f.code.value) for f in problem.fields] == [
         ("/query/code", "VALIDATION_FAILED")
+    ]
+
+
+def test_a_nul_in_an_item_of_a_list_is_pointed_at_the_item(app: FastAPI) -> None:
+    sent = {"grids": {"tasks": {"hidden_columns": ["a", "\x00"]}}}
+    problem = problem_of(TestClient(app).post("/preferences", json=sent))
+    assert problem.fields is not None
+    assert [(f.pointer, f.code.value) for f in problem.fields] == [
+        ("/grids/tasks/hidden_columns/1", "VALIDATION_FAILED")
     ]
 
 

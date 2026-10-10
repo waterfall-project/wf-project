@@ -10,6 +10,7 @@ contract (``ContractClient``).
 import ast
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -487,6 +488,7 @@ def test_a_role_is_composed_of_any_permissions_and_its_creation_inscribed(
     )
     assert (entry.actor_user_id, entry.actor_display_name) == (CALLER, "Camille Martin")
     assert entry.params == {"permissions": body["permissions"]}
+    assert entry.occurred_at == datetime.fromisoformat(body["audit"]["created_at"])
     assert entry.correlation_id == response.headers[HEADER]
 
 
@@ -575,6 +577,7 @@ def test_a_change_is_inscribed_with_what_it_grants_withdraws_and_renames(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
     changed = role(database, "Chef de projet", permissions=("planning.read", "planning.write"))
+    written: list[datetime] = []
     for label, permissions, version in [
         ("Pilote", ["planning.read", "risks.read"], 0),
         ("Pilote", ["planning.read"], 1),
@@ -584,8 +587,11 @@ def test_a_change_is_inscribed_with_what_it_grants_withdraws_and_renames(
             "permissions": permissions,
             "lock_version": version,
         }
-        assert api.patch(f"{ROLES}/{changed}", headers=headers, json=sent).status_code == 200
+        response = api.patch(f"{ROLES}/{changed}", headers=headers, json=sent)
+        assert response.status_code == 200
+        written.append(datetime.fromisoformat(response.json()["audit"]["updated_at"]))
     renamed, withdrawn = journal(database)
+    assert [renamed.occurred_at, withdrawn.occurred_at] == written
     assert {entry.action for entry in (renamed, withdrawn)} == {"access_role_update"}
     assert (renamed.object_id, renamed.object_label, renamed.actor_user_id) == (
         changed,
@@ -648,6 +654,7 @@ def test_a_deleted_role_is_no_longer_read_its_row_kept_and_its_deletion_inscribe
         "Auditeur",
         CALLER,
     )
+    assert entry.occurred_at == row.deleted_at
     assert entry.correlation_id == response.headers[HEADER]
 
 
@@ -700,7 +707,6 @@ def test_the_administrator_role_its_holder_holds_is_not_deleted(
     assert labels(api, headers) == ["Administrateur"]
 
 
-@pytest.mark.requirement("WF-ADM-0120-A")
 @pytest.mark.parametrize("withdrawn", ADMINISTRATION)
 def test_a_change_that_takes_the_administration_from_the_last_administrator_is_refused(
     api: ContractClient, database: Database, headers: dict[str, str], withdrawn: str
@@ -727,7 +733,6 @@ def test_a_change_that_takes_the_administration_from_the_last_administrator_is_r
     )
 
 
-@pytest.mark.requirement("WF-ADM-0120-A")
 def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:

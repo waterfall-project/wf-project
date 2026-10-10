@@ -9,8 +9,9 @@ deactivated — runs under one advisory lock of transaction, always the same, an
 administrators under it: two such writes never decide each on what the other is changing.
 """
 
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import distinct, func, select
@@ -52,17 +53,19 @@ def administrators(session: Session) -> frozenset[UUID]:
 
 
 @contextmanager
-def guard_last_administrator(session: Session, code: str = LAST_ADMINISTRATOR) -> Generator[None]:
+def guard_last_administrator(
+    session: Session, code: str = LAST_ADMINISTRATOR, params: Mapping[str, Any] | None = None
+) -> Generator[None]:
     """Run a write under the lock of the rule, and refuse it if it leaves no administrator.
 
     The administrators are read under the lock before the write and after it: a write that takes
-    the last one away raises ``ConflictError(code)``, and the transaction, rolled back, writes
-    nothing. An installation that had none — before its bootstrap — is not refused for having
-    none after.
+    the last one away raises ``ConflictError(code, params)``, the refusal of the write it guards,
+    and the transaction, rolled back, writes nothing. An installation that had none — before its
+    bootstrap — is not refused for having none after.
     """
     lock_administrators(session)
     held = administrators(session)
     yield
     session.flush()
     if held and not administrators(session):
-        raise ConflictError(code)
+        raise ConflictError(code, params)

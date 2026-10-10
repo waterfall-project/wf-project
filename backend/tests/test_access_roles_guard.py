@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The writes of the roles in the core: the guard of the last administrator, the predefined roles.
 
-What the API does not reach here: two writes at once, the code a refusal of the guard takes for
-the write that runs under it, a permission outside the catalogue, the roles the bootstrap
-creates, and a text that holds a NUL anywhere in a model of the contract.
+What the API does not reach here: two writes at once, the code and the parameters a refusal of
+the guard takes for the write that runs under it, a permission outside the catalogue, the roles
+the bootstrap creates, and a text that holds a NUL anywhere in a model of the contract.
 """
 
 import json
@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, text, update
 from support import CONTRACT
 
-from waterfall.api.contract.base import NUL_FAULT, holds_nul
+from waterfall.api.contract.base import NUL_FAULT, nul_path
 from waterfall.api.contract.models import AccessRoleWrite, Description, DisplayPreferences
 from waterfall.core.access_roles.interface import (
     LAST_ADMINISTRATOR,
@@ -62,7 +62,6 @@ def waits_on_an_advisory_lock(database: Database) -> bool:
     return False
 
 
-@pytest.mark.requirement("WF-ADM-0120-A")
 def test_two_writes_that_each_take_one_of_the_last_two_administrators_do_not_both_pass(
     database: Database,
 ) -> None:
@@ -88,8 +87,9 @@ def test_two_writes_that_each_take_one_of_the_last_two_administrators_do_not_bot
         concurrent.start()
         # Without the lock, the second write would not wait: it would decide on the first not
         # yet committed, and pass too.
-        waits_on_an_advisory_lock(database)
+        queued = waits_on_an_advisory_lock(database)
     concurrent.join(QUEUED_WITHIN)
+    assert queued
     assert not concurrent.is_alive()
     assert refusals == [LAST_ADMINISTRATOR]
     assert administration_of(database, first) == set()
@@ -101,19 +101,24 @@ def test_the_guard_refuses_with_the_code_of_the_write_it_guards_and_nothing_is_w
     database: Database,
 ) -> None:
     # The deactivation of an account, which its command says in advance, is refused by its own
-    # code (US-0360): the guard takes it from the write it runs.
+    # code and parameters (US-0360): the guard takes them from the write it runs.
     administrator = holder(database)
     role(database, "Direction", permissions=ADMINISTRATION, holders=(administrator,))
     with (
         pytest.raises(ConflictError) as raised,
         logging_context(correlation_id=CORRELATION),
         database.transaction() as session,
-        guard_last_administrator(session, "STATE_FORBIDS_OPERATION"),
+        guard_last_administrator(
+            session, "STATE_FORBIDS_OPERATION", {"missing_condition": "last_administrator"}
+        ),
     ):
         session.execute(
             update(UserAccount).where(UserAccount.id == administrator).values(state="deactivated")
         )
-    assert raised.value.code == "STATE_FORBIDS_OPERATION"
+    assert (raised.value.code, raised.value.params) == (
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "last_administrator"},
+    )
     with database.transaction() as session:
         state = session.scalar(select(UserAccount.state).where(UserAccount.id == administrator))
     assert state == "active"
@@ -182,19 +187,22 @@ def test_the_platform_creates_the_predefined_roles_and_inscribes_them_as_itself(
 
 
 @pytest.mark.parametrize(
-    ("value", "held"),
+    ("value", "path"),
     [
-        ("Chif\x00freur", True),
-        (["planning.read", "\x00"], True),
-        ({"widths": {"label\x00": 120}}, True),
-        ({"widths": {"label": "\x00"}}, True),
-        (Description("Chif\x00freur"), True),
-        ("Chiffreur", False),
-        ([1, None, True, {"label": ["Chiffreur"]}], False),
+        ("Chif\x00freur", ()),
+        (["planning.read", "\x00"], (1,)),
+        ({"widths": {"label\x00": 120}}, ("widths",)),
+        ({"widths": {"label": "\x00"}}, ("widths", "label")),
+        ({"sets": {"\x00"}}, ("sets",)),
+        (Description("Chif\x00freur"), ()),
+        ("Chiffreur", None),
+        ([1, None, True, {"label": ["Chiffreur"]}], None),
     ],
 )
-def test_a_nul_is_found_at_any_depth_of_a_value(value: object, *, held: bool) -> None:
-    assert holds_nul(value) is held
+def test_a_nul_is_found_at_any_depth_of_a_value_and_where_it_lies(
+    value: object, path: tuple[int | str, ...] | None
+) -> None:
+    assert nul_path(value) == path
 
 
 @pytest.mark.parametrize(
