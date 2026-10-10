@@ -848,7 +848,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un nœud d'organisation
-         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Créé actif, il ne prend pas place sous un parent désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
+         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`. Créé actif, il ne prend place que sous un parent actif ou à la racine : aucun objet actif ne subsiste dans un service fermé (WF-REF-0070, WF-REF-0080).
          */
         post: operations["createOrgNode"];
         delete?: never;
@@ -872,7 +872,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un nœud d'organisation
-         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`, `fields[].params.conflicting_object_id` le nœud qui le porte. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), mais un nœud actif ne se déplace pas sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Un nœud désactivé se déplace où l'on veut, il n'y est pas actif.
+         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`. Un nœud se déplace dans l'arbre (`parent_id`, §3.4.4.2.1), sous un autre nœud actif ou à la racine, ses descendants et ses rôles avec lui (WF-REF-0070) : ni sous un nœud désactivé, qu'il soit lui-même actif ou non — aucun objet actif ne subsiste dans un service fermé (WF-REF-0080) —, ni sous lui-même ou l'un de ses descendants, l'arbre restant un arbre. Le parent est exigé à la modification, nul pour une racine. Seul le déplacement est contraint, jugé sur le parent envoyé : un nœud désactivé qui garde son parent désactivé se modifie.
          */
         patch: operations["updateOrgNode"];
         trace?: never;
@@ -936,7 +936,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un rôle de ressource
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se modifient vers des objets actifs, la catégorie de main-d'œuvre (WF-REF-0090).
          */
         patch: operations["updateResourceRole"];
         trace?: never;
@@ -994,13 +994,13 @@ export interface paths {
         };
         /**
          * Calendriers
-         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le tri par `is_default` met en tête. Chaque calendrier porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la désactivation du calendrier par défaut est indisponible (WF-REF-0120).
+         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le tri par `is_default` met en tête. Chaque calendrier porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : celle qui change son état, la désactivation du calendrier par défaut indisponible, et, sauf pour le calendrier par défaut, sa désignation, indisponible pour un calendrier désactivé (WF-REF-0120).
          */
         get: operations["listCalendars"];
         put?: never;
         /**
          * Créer un calendrier
-         * @description Jours ouvrés, heures par jour et jours chômés (WF-REF-0110).
+         * @description Un libellé, unique parmi les calendriers, actifs ou désactivés, et les heures de chaque jour de la semaine, de 0 à 24 (WF-REF-0110) : un libellé déjà porté est refusé par 409, `ALREADY_EXISTS`.
          */
         post: operations["createCalendar"];
         delete?: never;
@@ -1024,7 +1024,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un calendrier
-         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0110, WF-REF-0130).
+         * @description Sans effet rétroactif sur les révisions marquées (WF-REF-0110, WF-REF-0130). Le libellé reste unique parmi les calendriers : un libellé déjà porté par un autre est refusé par 409, `ALREADY_EXISTS`.
          */
         patch: operations["updateCalendar"];
         trace?: never;
@@ -1039,7 +1039,7 @@ export interface paths {
         get?: never;
         /**
          * Désigner le calendrier par défaut
-         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans une révision en cours. L'écriture change la disponibilité de la désactivation des deux calendriers, que la réponse ne porte que pour l'un (`calendar_not_default`) : le client relit la liste.
+         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120), dont la version avance. Un calendrier désactivé ne se désigne pas, ce que sa commande `set_default` dit d'avance (`available_commands`) ; désigner celui qui l'est déjà, que sa commande ne liste pas, répond 200 sans rien changer — la version contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée. Les tâches sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans une révision en cours. Relève de la permission de modification des paramètres de ressources (WF-ADM-0100). L'écriture change la disponibilité des commandes des deux calendriers — la désactivation et la désignation —, que la réponse ne porte que pour l'un : le client relit la liste.
          */
         put: operations["setDefaultCalendar"];
         post?: never;
@@ -1142,7 +1142,7 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des taux (WF-REF-0030, WF-REF-0050).
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie dit le type de sa nature (`cost_type_kind`), par lequel un formulaire ne propose à un rôle que des catégories de main-d'œuvre (WF-REF-0090). Chaque catégorie porte ses commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des taux (WF-REF-0030, WF-REF-0050).
          */
         get: operations["listCostCategories"];
         put?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_ORG_NODE" | "UNKNOWN_CALENDAR" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "ORG_NODE_CYCLE" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2699,7 +2699,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, ou la probabilité de gain et le taux d'inflation d'un projet, au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010) et celui d'un sous-projet (WF-PRJ-0050). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, ou les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, ou les heures d'un jour d'un calendrier, au plus `24`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050) et celui d'un nœud d'organisation (WF-REF-0070). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -2950,10 +2950,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Deux tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, décision de l'auteur du 2026-10-10, #634) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`).
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Deux tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, décision de l'auteur du 2026-10-10, #634) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`).
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "calendar_active" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3238,7 +3238,7 @@ export interface components {
             lock_version: components["schemas"]["LockVersion"];
         };
         /**
-         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource, calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource ; un calendrier les porte sous `CalendarCommand`, qui leur ajoute sa désignation par défaut, une nature et une catégorie de coût sous `CostTypeCommand` et `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
          * @enum {string}
          */
         ReferenceCommand: "deactivate" | "reactivate";
@@ -3250,7 +3250,7 @@ export interface components {
         };
         /** @description Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit l'objet sans la permission de modifier sa fonction — un rôle lu pour choisir celui d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
         ReferenceCommands: components["schemas"]["ReferenceCommandAvailability"][];
-        /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). */
+        /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). Ses commandes sont celles de `ReferenceCommand`. */
         OrgNode: {
             org_node_id: components["schemas"]["Uuid"];
             /** @description Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est refusé par 409, `ALREADY_EXISTS` (WF-REF-0070). */
@@ -3269,16 +3269,18 @@ export interface components {
         OrgNodeWrite: {
             code: string;
             label: string;
-            /** @description Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`. */
+            /** @description Le parent du nœud, absent ou nul à la création pour une racine ; exigé à la modification (`OrgNodeUpdate`), où la racine s'écrit `null` et un parent absent est refusé par `VALUE_REQUIRED`. Un nœud ne se crée ni ne se déplace que sous un nœud actif ou à la racine (WF-REF-0070) : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422 sur `/parent_id` : un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE` ; le nœud lui-même ou l'un de ses descendants, `ORG_NODE_CYCLE` ; un nœud désactivé, `INACTIVE_REFERENCE_OBJECT` — à la modification, seulement quand elle change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son parent désactivé se modifie. Un seul motif, le premier dans cet ordre : inconnu, puis boucle, puis désactivé. */
             parent_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas. */
+        /** @description Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas, et son parent, exigé — nul pour une racine —, le corps entier étant envoyé : un parent absent ne se lit ni comme la racine ni comme le parent lu : il est refusé, 422 `VALUE_REQUIRED` sur `/parent_id`. */
         OrgNodeUpdate: components["schemas"]["OrgNodeWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
+            /** @description Le parent envoyé, celui de `OrgNodeWrite`, ici exigé ; `null` pour une racine. */
+            parent_id: components["schemas"]["Uuid"] | null;
         };
         /** @description Nombre d'heures, décimal exact. */
         Hours: components["schemas"]["Decimal"];
-        /** @description Capacité unique, sans date de validité (WF-REF-0100). */
+        /** @description Capacité unique, sans date de validité (WF-REF-0100) : des heures par mois et un effectif, jamais négatifs. Écrite, une valeur négative est refusée par 422, `VALUE_OUT_OF_RANGE` sur `/capacity/monthly_hours` ou `/capacity/headcount`, `fields[].params.minimum` à `0`. */
         RoleCapacity: {
             monthly_hours: components["schemas"]["Hours"];
             headcount: components["schemas"]["Decimal"];
@@ -3301,7 +3303,7 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image figée par une révision marquée n'en porte pas (`EmployedReference`). */
+        /** @description Ce qu'un rôle de ressource lu aujourd'hui ajoute à son image : ses commandes. Une image figée par une révision marquée n'en porte pas (`EmployedReference`). */
         ReferenceObjectCommands: {
             available_commands: components["schemas"]["ReferenceCommands"];
         };
@@ -3309,13 +3311,15 @@ export interface components {
         ResourceRole: components["schemas"]["ResourceRoleImage"] & components["schemas"]["ReferenceObjectCommands"];
         ResourceRoleWrite: {
             label: string;
-            /** @description Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080). */
+            /** @description Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080) ; un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE`. */
             org_node_id: components["schemas"]["Uuid"];
+            /** @description Une catégorie dont la nature relève de la main-d'œuvre, active (WF-REF-0090) : refusée par 422 sur `/cost_category_id`, inconnue, `UNKNOWN_COST_CATEGORY`, hors main-d'œuvre, `LABOUR_CATEGORY_REQUIRED`, désactivée, `INACTIVE_REFERENCE_OBJECT`. */
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Un calendrier actif (WF-REF-0090) : refusé par 422 sur `/calendar_id`, inconnu, `UNKNOWN_CALENDAR`, désactivé, `INACTIVE_REFERENCE_OBJECT`. */
             calendar_id: components["schemas"]["Uuid"];
             capacity: components["schemas"]["RoleCapacity"];
         };
-        /** @description Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). */
+        /** @description Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se modifient vers des objets actifs, et une catégorie de main-d'œuvre (WF-REF-0090), refusés comme à la création ; un rôle qui garde les siens, désactivés depuis, se modifie. */
         ResourceRoleUpdate: {
             label: string;
             cost_category_id: components["schemas"]["Uuid"];
@@ -3340,6 +3344,7 @@ export interface components {
             days_per_month: components["schemas"]["Decimal"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Les heures travaillées de chaque jour de la semaine, de `0` à `24` (WF-REF-0110). Écrite, une valeur hors de ces bornes est refusée par 422, `VALUE_OUT_OF_RANGE` sur `/weekly_hours/<jour>`, `fields[].params.minimum` à `0` ou `maximum` à `24`, la seule borne franchie. */
         WeeklyHours: {
             monday: components["schemas"]["Hours"];
             tuesday: components["schemas"]["Hours"];
@@ -3349,9 +3354,10 @@ export interface components {
             saturday: components["schemas"]["Hours"];
             sunday: components["schemas"]["Hours"];
         };
-        /** @description Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        /** @description Calendrier : un libellé et sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
         CalendarImage: {
             calendar_id: components["schemas"]["Uuid"];
+            /** @description Libellé du calendrier, unique parmi les calendriers, désactivés compris : un libellé déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/label` (WF-REF-0110). */
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
             is_default: boolean;
@@ -3359,8 +3365,23 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Commandes portées par un calendrier (WF-IHM-0090) : le désactiver et le réactiver, par `setCalendarActivation`, comme tout objet du référentiel (`ReferenceCommand`) — un calendrier ne porte que celle qui change son état —, et le désigner par défaut, par `setDefaultCalendar`, listée pour tout calendrier qui ne l'est pas : désigner celui qui l'est déjà ne change rien. La désactivation du calendrier par défaut est indisponible, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné ; la désignation d'un calendrier désactivé, `calendar_active` manquante, le calendrier par défaut étant actif (WF-REF-0120). La réactivation est toujours disponible. Toutes relèvent de la permission de modification des paramètres de ressources (`resource_settings.write`, WF-ADM-0100).
+         * @enum {string}
+         */
+        CalendarCommand: "deactivate" | "reactivate" | "set_default";
+        CalendarCommandAvailability: {
+            command: components["schemas"]["CalendarCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes du calendrier que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CalendarCommand` : au plus deux, celle qui change son état et, s'il n'est pas le calendrier par défaut, sa désignation par défaut. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les calendriers sans la permission de modifier les paramètres de ressources. Un appel envoyé malgré la liste est refusé par son code d'erreur, sauf la désignation du calendrier qui l'est déjà, non listée, qui répond 200 sans rien changer — la version contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée. */
+        CalendarCommands: components["schemas"]["CalendarCommandAvailability"][];
         /** @description Calendrier tel que le référentiel le lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
-        Calendar: components["schemas"]["CalendarImage"] & components["schemas"]["ReferenceObjectCommands"];
+        Calendar: components["schemas"]["CalendarImage"] & {
+            available_commands: components["schemas"]["CalendarCommands"];
+        };
         CalendarWrite: {
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
@@ -3417,6 +3438,8 @@ export interface components {
             cost_type_id: components["schemas"]["Uuid"];
             /** @description Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150). */
             cost_type_label: string;
+            /** @description Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020). */
+            cost_type_kind: components["schemas"]["CostTypeKind"];
             /** @description Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040). */
             accounting_code: string;
             is_active: boolean;
@@ -6670,7 +6693,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte et `conflicting_object_label` son libellé — l'arbre lu sans les désactivés, ou filtré, peut ne pas le montrer ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6679,7 +6702,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un parent désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides, `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; un parent que le référentiel n'a pas, `/parent_id` par `UNKNOWN_ORG_NODE`, ou désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0070, WF-REF-0080). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6717,7 +6740,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
+            /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte et `conflicting_object_label` son libellé, comme à la création ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6726,8 +6749,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
-            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud actif déplacé sous un nœud désactivé, `/parent_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            /** @description La version envoyée n'est plus celle du nœud : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou `/label` vides, par `VALUE_REQUIRED`, ou trop longs, par `VALUE_TOO_LONG` ; `/parent_id` absent, par `VALUE_REQUIRED` — `null` désigne la racine —, inconnu, par `UNKNOWN_ORG_NODE`, le nœud lui-même ou l'un de ses descendants, par `ORG_NODE_CYCLE`, et, quand la modification change le parent, un nœud désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0070, WF-REF-0080) — un seul motif, dans cet ordre. Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6877,7 +6908,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé, `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un libellé vide, `/label` par `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par `VALUE_TOO_LONG` ; un rattachement absent ou nul, `/org_node_id`, `/cost_category_id` ou `/calendar_id` par `VALUE_REQUIRED` — les trois sont obligatoires (WF-REF-0090) — ; un rattachement que le référentiel n'a pas, par `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, `/cost_category_id` par `LABOUR_CATEGORY_REQUIRED` ; un rattachement désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0080, WF-REF-0090) ; une capacité négative, `/capacity/monthly_hours` ou `/capacity/headcount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0`. Un champ ne porte qu'un motif : une catégorie désactivée et hors main-d'œuvre est dite hors main-d'œuvre, ce que sa réactivation ne lèverait pas. Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6915,8 +6946,16 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            412: components["responses"]["PreconditionFailed"];
-            /** @description Le calendrier donné au rôle laisserait une tâche d'une révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause (WF-PLA-0010). */
+            /** @description La version envoyée n'est plus celle du rôle : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label` vide ou trop long ; `/cost_category_id` ou `/calendar_id` absent ou nul, par `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED`, gardée comme changée — un rôle dont la catégorie a quitté la main-d'œuvre ne se modifie pas sans en changer (WF-REF-0090), en attendant que le contrat l'empêche (#684, point 2) ; une capacité négative, par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification change la catégorie ou le calendrier du rôle, un objet désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause (WF-PLA-0010). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7125,7 +7164,24 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Un libellé déjà porté par un autre calendrier, actif ou désactivé (WF-REF-0110) : `ALREADY_EXISTS`, `fields` désignant `/label` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le calendrier qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus : un libellé vide, `/label` par `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par `VALUE_TOO_LONG` ; les heures d'un jour hors de 0 à 24, `/weekly_hours/<jour>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` à `24`, la seule borne franchie (WF-REF-0110). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateCalendar: {
@@ -7155,8 +7211,25 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            412: components["responses"]["PreconditionFailed"];
-            /** @description Les heures données au calendrier laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause — `resource_role_ids` vide pour les tâches sans ligne de main-d'œuvre (WF-PLA-0010). */
+            /** @description Un libellé déjà porté par un autre calendrier, actif ou désactivé (WF-REF-0110), comme à la création : `ALREADY_EXISTS`, `fields` désignant `/label` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le calendrier qui le porte ; rien n'est écrit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label` vide ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la seule borne franchie (WF-REF-0110). Ou bien les heures données au calendrier laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause — `resource_role_ids` vide pour les tâches sans ligne de main-d'œuvre (WF-PLA-0010). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7176,7 +7249,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description Le compteur lu du calendrier désigné, seul : celui du précédent, que la désignation change aussi, n'est pas envoyé, comme une désactivation en cascade n'envoie pas ceux qu'elle désactive. */
+        requestBody: {
+            content: {
+                "application/json": {
+                    lock_version: components["schemas"]["LockVersion"];
+                };
+            };
+        };
         responses: {
             /** @description Calendrier désigné par défaut. */
             200: {
@@ -7190,7 +7270,24 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description La désignation d'un calendrier désactivé, refusée, rien n'étant écrit (WF-REF-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_active`, la condition que sa commande `set_default` dit manquante ; le calendrier se réactive d'abord. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide, `params.tasks` nommant les tâches (WF-PLA-0010). */
             422: {
                 headers: {

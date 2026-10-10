@@ -1,5 +1,5 @@
 {
-  "summary": "Les calendriers de l'installation lus avec les désactivés (include_inactive), chacun avec la commande qui change son état : la semaine standard, par défaut, que la désactivation ne peut atteindre tant qu'un autre n'a pas été désigné, la semaine de quatre jours du monteur câbleur, et la semaine de trente-neuf heures, quatre jours de huit heures et un de sept, désactivée, celle de l'automaticien, qui se réactive (WF-REF-0110, WF-REF-0120, WF-REF-0150, WF-IHM-0090).",
+  "summary": "Les calendriers de l'installation lus avec les désactivés (include_inactive), chacun avec la commande qui change son état : la semaine standard, par défaut, que la désactivation ne peut atteindre tant qu'un autre n'a pas été désigné, la semaine de quatre jours du monteur câbleur, sa désignation par défaut disponible, et la semaine de trente-neuf heures, quatre jours de huit heures et un de sept, désactivée, celle de l'automaticien, qui se réactive, sa désignation indisponible faute de calendar_active (WF-REF-0110, WF-REF-0120, WF-REF-0150, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -19,6 +19,11 @@
         "available_commands": [
           {
             "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "set_default",
             "is_available": true,
             "missing_conditions": []
           }
@@ -58,6 +63,13 @@
             "command": "reactivate",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "set_default",
+            "is_available": false,
+            "missing_conditions": [
+              "calendar_active"
+            ]
           }
         ],
         "audit": {

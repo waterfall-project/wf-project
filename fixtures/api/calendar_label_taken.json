@@ -1,0 +1,17 @@
+{
+  "summary": "Le libellé « Semaine de trente-neuf heures » donné à un calendrier créé — ou à la semaine de quatre jours renommée : refusé, le libellé d'un calendrier étant unique, désactivés compris ; la semaine de trente-neuf heures le porte, désactivée, nommée par son identifiant ; rien n'est écrit (WF-REF-0110).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/label",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000483"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001086"
+  }
+}

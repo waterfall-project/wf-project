@@ -164,7 +164,7 @@ modifier le contrat en passant, contre la règle « le contrat d'abord ».
 |---|---|---|---|
 | L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e, L43f |
 | L42i — projet, sous-projets, contributeurs | #590, #592 | Le déclencheur du prochain état énuméré, et ce que `getProjectNextState` rend d'un projet en cours ou terminal ; la probabilité de gain annoncée figée, le statut et le pointeur de son refus ; le code pris nommant le projet qui le porte, par son libellé, comme L42g l'a décidé pour le référentiel ; les bornes des deux taux. Un sous-projet liste ses commandes (modifier, supprimer), la suppression indisponible avec sa condition quand des coûts réels lui sont imputés ou qu'une révision marquée le cite, son 409 nommé ; le code pris nommant le sous-projet qui le porte ; le refus par champ d'un compte inconnu ou désactivé dans `setContributors` ; une proposition nomme son nœud et ses rôles, dit si le compte est actif, et `listContributorSuggestions` s'appuie sur les lignes de devis comme WF-PRJ-0070. Les écrans de L44a et L44b l'adoptent dans le lot. | écrans L44a, L44b |
-| L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans le lot. | écrans L43b |
+| L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans un lot propre, L43g (#685), ajouté après la part de contrat pour tenir le plafond. | écrans L43b, par L43g |
 | L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 marque supprimée une chronologie qu'une révision marquée cite, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
 
 Les noms des codes et des conditions ci-dessus sont ceux que le cadrage propose ; chaque partie
@@ -555,6 +555,36 @@ rétention hors de 1 à 365, sur la plateforme ou sur l'emplacement externe. Les
 écartées sont dans `docs/api/DECISIONS.md`. Le front reçoit la phrase du nouveau motif et compile sur
 le client régénéré ; les tests que #659 annonce — un délai de zéro refusé au champ, la zone répondue
 vérifiée — et la restauration depuis un fichier, avec la date du dépôt (L43d), viennent ensuite.
+
+EP-14/L42j (#613), sa part de contrat, écrit ce que l'écran des paramètres de ressources de L43b
+attendait (#575, points 1 à 7). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`.
+
+Les commandes et le type d'une catégorie :
+- un calendrier liste sa désignation par défaut (`CalendarCommand.set_default`), indisponible pour
+  un calendrier désactivé, faute de la condition `calendar_active` ;
+- `setDefaultCalendar` porte la version lue, refuse une version périmée (412) et un calendrier
+  désactivé (409, la même condition) ;
+- une catégorie dit le type de sa nature (`cost_type_kind`).
+
+Chaque écriture de l'organisation, des rôles et des calendriers décrit ses refus par champ :
+- une référence inconnue, par `UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR` ou `UNKNOWN_COST_CATEGORY` ;
+- un nœud déplacé sous lui-même ou ses descendants, par `ORG_NODE_CYCLE`, ou sous un nœud désactivé,
+  même désactivé lui-même — WF-REF-0070, révisé le 2026-10-09 ;
+- la catégorie hors main-d'œuvre d'un rôle (`LABOUR_CATEGORY_REQUIRED`), ou son rattachement
+  désactivé, refusé à la modification quand elle le change (WF-REF-0090) ;
+- les heures d'un jour hors de 0 à 24 et une capacité négative, par `VALUE_OUT_OF_RANGE` et la borne
+  franchie ;
+- le code pris d'un nœud, son porteur nommé par son libellé, et le libellé pris d'un calendrier
+  (WF-REF-0110, révisé de même) ;
+- la version périmée.
+
+Le client est régénéré. Le front ne change que pour compiler : la désignation envoie la version
+lue, les catalogues reçoivent les codes, la condition et les commandes nouvelles. L'adoption par les
+écrans de L43b, que la conception plaçait dans le lot, revient à un lot propre, L43g (#685), pour
+tenir le plafond. Trois règles de la
+même révision sortent du périmètre de #575 et attendent une décision (#684) : le code unique d'un
+rôle, sa catégorie gardée dans la main-d'œuvre, le projet que nomme le refus d'un calendrier.
 
 ## US-0200 — Accessibilité minimale
 

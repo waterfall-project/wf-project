@@ -1613,12 +1613,15 @@
     "DATE_INVALID": "This is not a valid date.",
     "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
     "UNKNOWN_COST_TYPE": "Unknown cost type.",
+    "UNKNOWN_ORG_NODE": "Unknown organisation node.",
+    "UNKNOWN_CALENDAR": "Unknown calendar.",
     "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
     "UNKNOWN_USER": "Unknown account.",
     "USER_INACTIVE": "This account is deactivated.",
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
+    "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
@@ -1986,6 +1989,7 @@
       "org_node_parent_active": "parent node active",
       "org_node_active": "organisation node active",
       "calendar_not_default": "calendar other than the default one",
+      "calendar_active": "calendar active",
       "cost_type_unused": "no category of the nature employed",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
@@ -2297,6 +2301,11 @@
       "review": "Review the risk",
       "declare_occurrence": "Declare the risk occurred",
       "delete": "Delete the risk"
+    },
+    "CalendarCommand": {
+      "deactivate": "Deactivate the calendar",
+      "reactivate": "Reactivate the calendar",
+      "set_default": "Set as default calendar"
     },
     "ReferenceCommand": {
       "deactivate": "Deactivate",

@@ -550,6 +550,7 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
         "backup_retain_refused",
         "restore_unverified_refused",
         "risk_delete_cited",
+        "calendar_default_refused",
     } <= named.keys()
     for name, refused in named.items():
         assert (refused["status"], refused["code"]) == FORBIDDEN, name
