@@ -815,6 +815,32 @@ refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REF
 `/parent_id` ou `/org_node_id` — se dit au champ, le reste comme pour les coûts ; l'écran dit que le
 faux back ne garde rien (`MockupNotice`).
 
+Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
+#512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
+`risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
+`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
+la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
+seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
+semaines entières (`control: "whole"`, un nombre entier jugé au champ avec les autres, dit par le
+texte propre au champ, `invalid`). Chaque écran suit sa seule permission : une session qui porte
+l'une sans l'autre lit l'autre écran sans commande ni avis. Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran et la
+version lue (`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde une
+autre permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03, n'y
+sont offertes. Le formulaire du référentiel range côte à côte, sous une légende, les champs qui vont
+ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une fenêtre
+étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un indice,
+chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`), que les
+groupes répètent ; et il juge, une fois chaque champ vérifié, les règles qui
+lient des champs entre eux (`rules`), avant toute demande : chaque borne qui n'est pas strictement
+au-dessus de la précédente, à son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas
+sous son seuil de vigilance (`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait,
+les décimaux comparés sans flottant (`compareDecimals`). Le refus du serveur se dit de même : par
+champ au champ, la permission manquante (403) et la version périmée (412, les deux écrans partageant
+le compteur) sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus
+récente qu'eux, la page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle
+est partie, jamais un dialogue rouvert depuis ; face au faux back, qui répond par le
+premier exemple de l'opération — les seuils écrits —, la matrice montrée reste celle d'avant.
+
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
 comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le

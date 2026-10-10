@@ -1295,6 +1295,20 @@
       "title": "Rythme des revues",
       "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
     },
+    "riskForm": {
+      "modify": "Modifier la matrice de risques",
+      "hint": "Les trois bornes de chaque axe, strictement croissantes, et la zone de chacune des seize cases ; la matrice vaut pour tous les projets.",
+      "probability": "Bornes de probabilité (%)",
+      "severity": "Bornes de gravité (% du budget de référence)",
+      "saved": "Matrice de risques enregistrée."
+    },
+    "indicatorForm": {
+      "modify": "Modifier les seuils et le délai",
+      "hint": "Chaque seuil est une valeur de l’indice comprise entre 0 et 1, exclus, le seuil d’alerte sous le seuil de vigilance ; le délai se compte en semaines entières.",
+      "weeks": "Délai maximal entre deux révisions marquées (semaines)",
+      "weeksInvalid": "Le délai est un nombre entier de semaines.",
+      "saved": "Seuils et délai enregistrés."
+    },
     "boundsOf": "Bornes de « {list} »",
     "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
   },

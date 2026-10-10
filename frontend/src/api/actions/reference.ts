@@ -5,7 +5,8 @@
  * (`setHourlyRate`); a node of the organisation, a resource role, a calendar, a nature or a category
  * of cost created, modified, deactivated or reactivated (`createReferenceObject`,
  * `updateReferenceObject`, `setActivation`); a calendar designated by default
- * (`designateDefaultCalendar`) —: the screen asks the server of Next, which calls the API (§4.3.1),
+ * (`designateDefaultCalendar`); the risk matrix, or the thresholds of the indices and the delay
+ * between two reviews, written (`updateReferenceSettings`) —: the screen asks the server of Next, which calls the API (§4.3.1),
  * and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). Nothing is
  * deleted (WF-REF-0010).
  */
@@ -270,4 +271,35 @@ export async function designateDefaultCalendar(
       }),
     ),
   );
+}
+
+/**
+ * What the screen of the risk settings writes: the matrix alone, from the version read — never a field
+ * of the other screen, which the type refuses.
+ */
+export type RiskMatrixWrite = Pick<
+  Required<Schemas["ReferenceSettingsWrite"]>,
+  "risk_matrix" | "lock_version"
+> & { readonly index_thresholds?: never; readonly max_weeks_between_reviews?: never };
+
+/**
+ * What the screen of the indicator settings writes: the thresholds and the delay between two reviews
+ * alone, from the version read — never the matrix, which the type refuses.
+ */
+export type IndicatorWrite = Pick<
+  Required<Schemas["ReferenceSettingsWrite"]>,
+  "index_thresholds" | "max_weeks_between_reviews" | "lock_version"
+> & { readonly risk_matrix?: never };
+
+/**
+ * Write the settings of one screen of the reference data from the version read — the risk matrix
+ * (WF-REF-0160), or the thresholds of the indices and the delay between two reviews (WF-REF-0170,
+ * WF-REF-0180) —, never the fields of the other screen, which another permission guards
+ * (WF-ADM-0100): the API answers every setting with its next version, and the page is read anew. The
+ * currency (WF-REF-0140) and the default language of the installation are not written here.
+ */
+export async function updateReferenceSettings(
+  write: RiskMatrixWrite | IndicatorWrite,
+): Promise<Outcome<Schemas["ReferenceSettings"]>> {
+  return readAnew(await decode(() => serverClient().PATCH("/reference/settings", { body: write })));
 }

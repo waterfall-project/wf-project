@@ -6,6 +6,7 @@ import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
 import {
+  compareDecimals,
   editableDecimal,
   editablePercent,
   formatBytes,
@@ -227,6 +228,19 @@ describe("a percentage entered", () => {
     expect(percentRatio("1.1")).toBe("0.011");
     expect(percentRatio("0.7")).toBe("0.007");
     expect(percentRatio("57")).toBe("0.57");
+  });
+});
+
+describe("two decimals compared", () => {
+  it("orders two decimals of the contract by their digits, never through a float", () => {
+    expect(compareDecimals("0.1", "0.25")).toBeLessThan(0);
+    expect(compareDecimals("0.3", "0.30")).toBe(0);
+    expect(compareDecimals("10", "9.99")).toBeGreaterThan(0);
+    expect(compareDecimals("-0.5", "0.1")).toBeLessThan(0);
+    expect(compareDecimals("-2", "-10")).toBeGreaterThan(0);
+    // A float would make the two equal: 2^53 + 1 has no double of its own.
+    expect(Number("9007199254740993") === Number("9007199254740992")).toBe(true);
+    expect(compareDecimals("9007199254740993", "9007199254740992")).toBeGreaterThan(0);
   });
 });
 

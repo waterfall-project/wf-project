@@ -1295,6 +1295,20 @@
       "title": "Pace of the reviews",
       "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
     },
+    "riskForm": {
+      "modify": "Modify the risk matrix",
+      "hint": "The three bounds of each axis, strictly rising, and the zone of each of the sixteen cells; the matrix holds for every project.",
+      "probability": "Bounds of probability (%)",
+      "severity": "Bounds of severity (% of the reference budget)",
+      "saved": "Risk matrix saved."
+    },
+    "indicatorForm": {
+      "modify": "Modify the thresholds and the delay",
+      "hint": "Each threshold is a value of the index between 0 and 1, both excluded, the alert threshold below the watch threshold; the delay counts whole weeks.",
+      "weeks": "Longest delay between two marked revisions (weeks)",
+      "weeksInvalid": "The delay is a whole number of weeks.",
+      "saved": "Thresholds and delay saved."
+    },
     "boundsOf": "Bounds of “{list}”",
     "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
