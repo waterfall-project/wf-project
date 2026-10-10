@@ -1,5 +1,5 @@
 {
-  "summary": "De l'offre v1.0, marquée le 15 décembre 2025, à la révision de référence, marquée le 1er février 2026 par la fusion de l'avenant 1, rapprochées par lignée sur toute la structure du témoin : 3 lignes de provision ajoutées par l'identification des risques le 12 janvier 2026, à la provision de chacun ce jour-là — 751 à 250,00 —, et, par l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, « Essais préliminaires sur site » retirés avec leur ligne, la durée du dossier de conception et la charge du raccordement des borniers modifiées ; les 2 768 lignes de main-d'œuvre que l'avenant ne désigne pas — dans le cœur, « Câblage sur site » et « Mise en service sur site » ; et les 2 766 des tâches tirées autour de lui — gardent le budget de l'offre et sont réestimées au taux de 2026 de leur catégorie (WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du devis à l'année de référence, par nature — 177 541,25 de main-d'œuvre, -350,00 de débours, 910,00 de provisions — et par sous-projet, chaque poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant été déclarés après la commande, et les lignes du poste de commande passent de l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). 2 770 nœuds modifiés, 5 ajoutés, 2 retirés.",
+  "summary": "De l'offre v1.0, marquée le 15 décembre 2025, à la révision de référence, marquée le 1er février 2026 par la fusion de l'avenant 1, rapprochées par lignée sur toute la structure du témoin : 3 lignes de provision ajoutées par l'identification des risques le 12 janvier 2026, à la provision de chacun ce jour-là — 751 à 250 000,00 —, et, par l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, « Essais préliminaires sur site » retirés avec leur ligne, la durée du dossier de conception et la charge du raccordement des borniers modifiées ; les 2 768 lignes de main-d'œuvre que l'avenant ne désigne pas — dans le cœur, « Câblage sur site » et « Mise en service sur site » ; et les 2 766 des tâches tirées autour de lui — gardent le budget de l'offre et sont réestimées au taux de 2026 de leur catégorie (WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du devis à l'année de référence, par nature — 177 541,25 de main-d'œuvre, -350,00 de débours, 850 060,00 de provisions — et par sous-projet, chaque poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant été déclarés après la commande, et les lignes du poste de commande passent de l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). 2 770 nœuds modifiés, 5 ajoutés, 2 retirés.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
@@ -2790,10 +2790,10 @@
     "amount_deltas": [
       {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","delta":"177541.25"},
       {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","delta":"-350.00"},
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","delta":"910.00"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","delta":"850060.00"},
       {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","delta":"22276516.46"},
       {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","delta":"20807656.85"},
-      {"dimension":"subproject","key":"unassigned","label":null,"delta":"-42906072.06"}
+      {"dimension":"subproject","key":"unassigned","label":null,"delta":"-42056922.06"}
     ]
   }
 }

@@ -1633,15 +1633,17 @@ C11 à C13 (chronologie, comparaison, réception usine) par L23 et L24 ; C14 et 
 par L24 ; C16 (identifiants à double emploi) par L20 et L25. La structure de mille tâches est
 datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376), et
 les lectures du témoin somment toute cette structure depuis EP-14/L45a (#618) : la sous-section
-« Les lectures sur toute la structure » dit lesquelles, et ce qu'elles valent. Reste la décision 4
-du cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07
-(option (a)), et avec elle le registre des risques, sa matrice et le Kanban, qui lisent encore le
-seul cœur, qu'EP-14/L45b (#528) reprend.
+« Les lectures sur toute la structure » dit lesquelles, et ce qu'elles valent. La décision 4 du
+cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07
+(option (a)), est appliquée depuis EP-14/L45b (#619, fin de #528), et avec elle le registre des
+risques, sa matrice, leur couverture et le Kanban lisent toute la structure : la sous-section
+« Les risques à l'échelle et le Kanban de toute la structure » le dit. #287 est soldé.
 
 Les sous-sections disent, lot par lot, ce que chacun a fait ; ce qu'une sous-section laisse est
-repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-14/L45a (#618) et L45b (#528).
+repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-14/L45a (#618) et L45b (#619).
 Ce qu'une sous-section décrit et qu'une suivante a changé — la capacité des rôles, le cours des
-projets du portefeuille, le budget de référence du témoin — se lit dans la dernière qui en parle.
+projets du portefeuille, le budget de référence du témoin, la réserve pour risques et les gravités
+de 751 et 753 — se lit dans la dernière qui en parle.
 
 ### Le socle (EP-02/L20)
 
@@ -2391,6 +2393,76 @@ et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une r�
 lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
 calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
 
+### Les risques à l'échelle et le Kanban de toute la structure (EP-14/L45b)
+
+**751 et 753 sont portés à l'échelle de la structure de mille tâches ; 752 garde les chiffres de son
+Vérif** (#619, fin de #528 ; décision 4 du cadrage de #287, option (a) de l'auteur du 2026-10-07,
+reprise par la conception d'EP-14, « L'univers témoin à l'échelle »). La gravité reste mesurée en
+part du budget de référence (WF-RIS-0040, décision de #287) — celui de toute la structure,
+65 430 697,64, que la provision ne touche pas (WF-RIS-0050) — ; `mockhistory.register_budget`, le
+budget du seul cœur, disparaît, et avec lui les résumés « Lu sur le seul cœur du témoin, jusqu'à
+EP-14/L45b » (`mocktext.CORE_ONLY`). La description du témoin dit l'échelle une fois
+(`mockwitness.RISK_SCALE`) : les gravités que les réexamens de 751 et 753 retiennent sont leurs
+chiffres du cœur multipliés par mille, et la ligne de provision de 751 dans le cœur porte la
+provision du risque, budgétée à celle que la référence connaissait — un test tient l'une à l'autre.
+« Risque de reprise du câblage » est identifié à 1 000 000 à 25 %, porté à 1 250 000, puis à 40 % :
+sa provision vaut 500 000, et 250 000 au marquage de la référence. « Indisponibilité de
+l'automaticien » est identifié et écarté à 12 000 000 à 5 % : 600 000 dans la référence. « Retard de
+livraison des armoires » reste à 200 à 30 %, survenu, ses lignes de 120 et 80 (WF-RIS-0060).
+
+**Ce que les exemples valent.** La réserve pour risques de la référence passe de 910 à 850 060 ; les
+totaux du registre, de 500, 60 et 600 à 500 000, 60 et 600 000, leur somme de 1 160 à 1 100 060 ; la
+couverture oppose 850 060 aux 500 000 de provision et aux 200 des lignes fusionnées, et l'écart passe
+de 210 à 349 860. Dans la matrice, 751 est à 1,91 % du budget, au niveau 2 de gravité, dans la case
+de vigilance où il était ; 752, sous le centième de pour cent, au niveau 1 ; 753, à 18,34 %, au
+niveau 4, case (1, 4), de vigilance — sur le budget du seul cœur, il était à 9,96 %, au niveau 3,
+case nominale. La provision suit dans toutes les lectures de la révision courante : le devis passe
+de 65 605 723,89 à 66 105 223,89, ses provisions de 500 à 500 000, le lot « Poste de commande » de
+2 934,56 à 502 434,56 ; le reste à engager de 66 793 528,72 à 67 293 028,72, la projection du chef de
+projet de 68 206 498,92 à 68 705 998,92, la marge de -2 775 801,28 à -3 275 301,28, et l'avancement
+financier du projet (`project_indicators`), le coût réel sur la projection, de 0,0207 à 0,0206 ;
+la révision « Référence » conservait un reste à engager de 69 091 628,05, et non plus
+68 242 478,05 ; le budget de référence, les indices et les courbes de valeur acquise ne bougent pas. **Les écarts de
+`estimate_indicators_volume` sont à une seule échelle** : le devis de la structure face à la
+référence de la structure, -349 860 — les 500 000 de provision et les 200 des lignes fusionnées,
+face aux 850 060 de provisions que la référence portait. Le portefeuille somme ces lectures en
+mémoire, comme avant : ses provisions identifiées, sa réserve agrégée et ses écartés suivent, et
+ses projections du chef de projet gagnent les 499 500 de provision ajoutés au poste de commande — de
+2 794 900 868,92 à 2 795 400 368,92 dans `portfolio_performance`, l'écart de 132 280 671,28 à
+132 780 171,28 ; chaque point de la projection de `portfolio_cost_curve` après la date du jour,
+jusqu'à 2 143 593 192,97 fin novembre ; la prévision de juin des décaissements de
+`portfolio_cost_curve_payment_delays`, de 30 915 524,64 à 31 415 024,64.
+
+**Les deux Kanban présentent toute la structure** (`startable_tasks`, `startable_tasks_milestone`,
+WF-RAE-0030) : les 960 tâches qui ne sont pas des récapitulatives — 925 non démarrées, 8 démarrées
+dont les pupitres opérateurs et le câblage des armoires, 27 terminées dont les 21 tâches tirées que
+L45a a terminées —, et après le geste qui termine le câblage, 925, 7 et 28, la réception usine seule
+signalée à terminer. Leur résumé compte chaque colonne et nomme les tâches du cœur, depuis la
+réponse (`mocktext.kanban`) ; `mockdata.of_core` disparaît. Le contrat ne change pas :
+`listStartableTasks` n'a ni filtre ni page, et la conception d'EP-14 veut le Kanban de toute la
+structure.
+
+**L'exemple trié du devis du poste de commande se trie par montant décroissant**
+(`nodes_estimate_sorted`, #526). Trié par montant croissant, il plaçait la provision de 500 avant la
+main-d'œuvre et le débours sous le câblage ; à 500 000, elle vient après eux, et le tri croissant
+laisserait les lignes dans l'ordre du plan : l'exemple ne montrerait plus de tri, ni le Vérif de
+WF-IHM-0060-A, « le tri par montant réordonne les lignes sous chaque tâche sans déplacer les
+tâches ». Trié par montant décroissant, il renverse les trois lignes du câblage — la provision de
+500 000, « Borniers » de 1 234,56, puis la main-d'œuvre de 1 000 — et laisse les tâches à leur
+place ; sa phrase est tirée de sa réponse, comme celle du tri par heures (`nodes_estimate_hours`),
+qui reste. Sous le tri décroissant, aucune ligne du câblage n'est suivie à l'écran de celle qui la
+suit dans le plan : le collage sous un tri, refusé depuis la provision et accepté depuis
+« Borniers », s'éprouve sur l'exemple trié par heures, où le débours et la provision se suivent
+encore. Écarté : le tri par libellé, qui déplaçait aussi les lignes, mais ne prouvait plus le Vérif,
+qui parle du montant, et rendait sous le câblage le même ordre que l'exemple trié par heures, qu'il
+doublait.
+
+**Options écartées.** Porter 751 et 753 à la même part du budget que sur le cœur (× 542,84) : des
+montants sans rondeur, et 753 à 9,96 %, au ras de la borne de 10 % ; mesurer la gravité sur le seul
+cœur, variante déclarée (option (c) soumise sur #376), que l'auteur n'a pas retenue ; porter aussi
+752 à l'échelle, contre la décision 4, qui lui garde les chiffres de son Vérif ; un Kanban filtré au
+cœur, que le contrat ne permet pas et que la conception écarte.
+
 ## Les commandes manquantes et les mineurs des relectures (EP-02/L38)
 
 Trois précisions du contrat, que la maquette demandait et qu'aucune décision nouvelle ne change :
@@ -2826,8 +2898,9 @@ que le planning trie.
 Deux exemples, engendrés par `wftools.mocksort` (`LineSort`, ses colonnes typées comme celles de
 la ligne que nomme `NodeColumn`) et ordonnés par `wftools.mockcore`, lisent le devis du lot
 « Poste de commande » : `estimate_sorted`, trié par montant à l'année de référence, croissant —
-sous le câblage, la provision, la main-d'œuvre puis le débours ; le jalon de réception usine, de
-montant nul, que le tri des frères aurait mis en tête, reste le dernier — et `estimate_hours`,
+sous le câblage, la provision, la main-d'œuvre puis le débours (revu par EP-14/L45b : trié depuis
+par montant décroissant, la provision, le débours puis la main-d'œuvre) ; le jalon de réception
+usine, de montant nul, que le tri des frères aurait mis en tête, reste le dernier — et `estimate_hours`,
 trié par heures, décroissant — le débours et la provision, sans heures, d'abord, dans l'ordre du
 plan, puis la main-d'œuvre. Sous un tri, le
 collage d'un bloc qui écrirait dans une ligne du plan autre que celle affichée à la suite est

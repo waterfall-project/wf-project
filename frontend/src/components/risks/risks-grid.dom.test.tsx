@@ -117,8 +117,8 @@ describe("the grid of the risks", () => {
     expect(cellsOf("Risque de reprise du câblage").map((each) => each.textContent)).toEqual([
       "Risque de reprise du câblage",
       `40${NBSP}%`,
-      `1${NARROW}250,00`,
-      "500,00",
+      `1${NARROW}250${NARROW}000,00`,
+      `500${NARROW}000,00`,
       "Identifié",
       "02/03/2026",
       "",
@@ -212,9 +212,9 @@ describe("the grid of the risks", () => {
       within(cell(label, ZONE)).getByRole("img").getAttribute("aria-label");
     expect(zone("Risque de reprise du câblage")).toBe("Vigilance");
     expect(zone("Retard de livraison des armoires")).toBe("Nominal");
-    // 12 000 is under a tenth of the reference budget of the witness, 120 534,56: its cell is
-    // nominal at a probability of 5 %, as the server classes it.
-    expect(zone("Indisponibilité de l'automaticien")).toBe("Nominal");
+    // 12 000 000 is over a tenth of the reference budget of the whole structure, 65 430 697,64:
+    // its cell is of vigilance at a probability of 5 %, as the server classes it.
+    expect(zone("Indisponibilité de l'automaticien")).toBe("Vigilance");
   });
 
   it("asks the server to sort by the provision, from the heaviest to the lightest [WF-RIS-0040-A]", async () => {
@@ -248,7 +248,7 @@ describe("the grid of the risks", () => {
   it("shows in its totals row the general total of the provisions the server gives, never a sum [WF-RIS-0040-A]", () => {
     renderRisks();
     const totals = within(grid()).getAllByRole("row").at(-1);
-    expect(totals).toHaveTextContent(/^Total général.*1 160,00$/);
+    expect(totals).toHaveTextContent(/^Total général.*1 100 060,00$/);
   });
 
   it("says no risk answers the request, its totals those of the server", () => {
@@ -262,7 +262,7 @@ describe("the grid of the risks", () => {
     const english = screen.getByRole("grid", { name: "Risk register" });
     expect(within(english).getByRole("columnheader", { name: /Severity/ })).toBeVisible();
     expect(within(english).getAllByRole("row").at(-1)).toHaveTextContent(
-      /^General total.*1,160\.00$/,
+      /^General total.*1,100,060\.00$/,
     );
   });
 });

@@ -61,15 +61,15 @@ describe("the summary of the estimate", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Calculé le .*Total du devis 65 605 723,89 ` +
-          `Provisions identifiées 500,00 Écart avec la référence -210,00 ` +
-          `Écart avec la révision marquée précédente -210,00 ` +
-          `Par nature de coût Main-d'œuvre 9 131 215,00 \\(13,92 %\\) ` +
-          `Débours 56 474 008,89 \\(86,08 %\\) Provision 500,00 \\(0 %\\) ` +
-          `Par sous-projet Poste de commande 22 276 516,46 \\(33,96 %\\) ` +
-          `Essais et mise en service 20 807 656,85 \\(31,72 %\\) ` +
-          `Hors sous-projet 22 521 550,58 \\(34,32 %\\) ` +
-          `Par poste Fourniture et montage des armoires 2 934,56 \\(0 %\\)$`,
+        `^Indicateurs du devis Calculé le .*Total du devis 66 105 223,89 ` +
+          `Provisions identifiées 500 000,00 Écart avec la référence -349 860,00 ` +
+          `Écart avec la révision marquée précédente -349 860,00 ` +
+          `Par nature de coût Main-d'œuvre 9 131 215,00 \\(13,81 %\\) ` +
+          `Débours 56 474 008,89 \\(85,43 %\\) Provision 500 000,00 \\(0,76 %\\) ` +
+          `Par sous-projet Poste de commande 22 276 516,46 \\(33,7 %\\) ` +
+          `Essais et mise en service 20 807 656,85 \\(31,48 %\\) ` +
+          `Hors sous-projet 23 021 050,58 \\(34,82 %\\) ` +
+          `Par poste Fourniture et montage des armoires 502 434,56 \\(0,76 %\\)$`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
@@ -92,7 +92,7 @@ describe("the summary of the estimate", () => {
     );
     // The amounts the missing rates do not touch are computed; no share without the total.
     expect(html).toContain(
-      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 56 474 008,89 Provision 500,00",
+      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 56 474 008,89 Provision 500 000,00",
     );
     expect(html).not.toContain("%");
     expect(html).not.toContain("Total du devis 0,00");
@@ -113,13 +113,15 @@ describe("the summary of the estimate", () => {
         "en",
       ),
     );
-    expect(html).toContain("Identified provisions 500.00 Deviation from the reference -210.00 By");
+    expect(html).toContain(
+      "Identified provisions 500,000.00 Deviation from the reference -349,860.00 By",
+    );
     expect(html).not.toContain("previous marked revision");
   });
 
   it("breaks the total down by order item as the API gives it, and leaves the order items out of a planning not structured in them, rather than nil [WF-DEV-0060-A]", () => {
     expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
-      /Par sous-projet .* Par poste Fourniture et montage des armoires 2 934,56 \(0 %\)$/,
+      /Par sous-projet .* Par poste Fourniture et montage des armoires 502 434,56 \(0,76 %\)$/,
     );
     const indicators = example("estimate_indicators") as EstimateIndicators;
     expect(

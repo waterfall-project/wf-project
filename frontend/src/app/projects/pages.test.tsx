@@ -357,7 +357,7 @@ describe("the witness path", () => {
       [NODES_READ]: "nodes_estimate",
     });
     // The hours, the amount at the year of reference and the one corrected for inflation.
-    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 2,934\.56 2,934\.56$/);
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -712,7 +712,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 65,605,723.89 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(

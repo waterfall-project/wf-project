@@ -19,16 +19,10 @@ from typing import TYPE_CHECKING, cast
 from wftools import REPOSITORY
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
     from decimal import Decimal
 
     from wftools.mockstructure import JsonObject, JsonValue
-
-CORE_ONLY = "Lu sur le seul cœur du témoin, jusqu'à EP-14/L45b (#528)."
-"""What an example read on the core alone says of itself — the register of the risks, its matrix
-and its coverage, the two Kanban —, until EP-14/L45b scales the risks to the whole structure (#528):
-its figures are not those of the thousand tasks that carry the core, which every other reading
-sums since EP-14/L45a."""
 
 
 def _limit(key: str) -> int:
@@ -100,6 +94,41 @@ def span(task: JsonObject) -> str:
     """Say the dates of a task: du 1er juillet 2026 au 18 décembre 2026."""
     start, finish = (cast("dict[str, str]", task[key])["date"] for key in ("start", "finish"))
     return f"du {day(date.fromisoformat(start))} au {day(date.fromisoformat(finish))}"
+
+
+_COLUMNS = (("not_started", "non démarrées"), ("started", "démarrées"), ("completed", "terminées"))
+"""The columns of the Kanban, by their key in the answer, and how a summary says each."""
+
+
+def kanban(answer: JsonObject, core: Collection[str]) -> str:
+    """Say a Kanban from its answer: each column counted, its tasks of the core named.
+
+    The tasks drawn about the core are counted, never named; the tasks not started whose
+    predecessors are all completed — the milestones the Kanban invites to complete — are named.
+    """
+
+    def label(node: JsonObject) -> str:
+        return f"« {cast('JsonObject', node['task'])['label']} »"
+
+    parts: list[str] = []
+    for key, said in _COLUMNS:
+        nodes = cast("list[JsonObject]", answer[key])
+        named = [label(node) for node in nodes if node["node_id"] in core]
+        drawn = len(nodes) - len(named)
+        parts.append(
+            f"{count(len(nodes))} {said} — dans le cœur, {listed(named) or 'aucune'} ; "
+            f"{count(drawn)} tirées autour de lui —"
+        )
+    waiting = cast("list[JsonObject]", answer["not_started"])
+    ready = [label(node) for node in waiting if node["predecessors_completed"]]
+    flagged = (
+        f"{listed(ready)} signalée{'s' if len(ready) > 1 else ''} à terminer, "
+        f"{'ses' if len(ready) == 1 else 'leurs'} prédécesseurs tous terminés "
+        f"(predecessors_completed)"
+        if ready
+        else "aucune tâche non démarrée dont les prédécesseurs soient tous terminés"
+    )
+    return f"{' ; '.join(parts)} ; {flagged}"
 
 
 @dataclass(frozen=True, slots=True)

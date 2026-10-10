@@ -421,6 +421,24 @@ facture importée sous son code (#625). Les choix et les options écartées sont
 l'adoption par les écrans de L44a et L44b, que la conception plaçait dans le lot, revient à l'agent
 TypeScript dans un lot propre, L44e (#636), pour tenir le plafond.
 
+EP-14/L45b (#619), la dernière partie de l'univers témoin à l'échelle (#528), applique la décision 4
+du cadrage de #287 : les risques 751 et 753 sont portés à l'échelle de la structure de mille
+tâches — leurs chiffres du cœur multipliés par mille, une fois dans la description du témoin —, 752
+garde ceux de son Vérif, et le registre des risques, sa matrice et leur couverture lisent la gravité
+sur le budget de référence de toute la structure ; la réserve, les totaux, la couverture et la
+provision de 751 dans toutes les lectures de la révision courante suivent, et les deux Kanban
+présentent toutes les tâches de la structure (`docs/api/DECISIONS.md`, « Les risques à l'échelle et
+le Kanban de toute la structure »). L'exemple trié du devis du poste de commande se trie par montant
+décroissant, le tri croissant ne déplaçant plus aucune ligne : il renverse les lignes du câblage et
+éprouve encore le Vérif de WF-IHM-0060-A. Le front ne change pas : ses tests lisent les nouvelles
+valeurs, et ceux dont la forme tenait au cœur — le tri par montant, un Kanban de quinze tâches —
+sont repris par le lot TypeScript : le Kanban s'affirme par colonne, les tâches du cœur en tête puis
+la première tirée, et le nombre de ses cartes, celui de l'exemple ; le devis trié par montant, par
+ses numéros de ligne et ses montants lus dans l'exemple ; le collage sous un tri, sur le devis trié
+par heures, depuis la provision déplacée (refusé) et depuis « Borniers » (accepté). Le Kanban rend
+ses 960 cartes sans fenêtre ni page, en quatre secondes environ en développement après le clic,
+dans la borne des écrans de grille où il était déjà (`WORKING`). #528 et #287 sont soldés.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

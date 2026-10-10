@@ -1,18 +1,22 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of how the fake back compares a searched text: whatever its case and its accents.
+"""Tests of how the fake back compares a searched text, and of how it says a Kanban.
 
-The rule of every search of the contract (docs/api/README.md, « Une recherche… »), decided by the
-author on 2026-10-09 — not the Vérif of a requirement: none is cited (WF-QUA-0010). A search
+A searched text is found whatever its case and its accents: the rule of every search of the
+contract (docs/api/README.md, « Une recherche… »), decided by the author on 2026-10-09. A search
 transliterates as PostgreSQL's ``unaccent`` does with the table it ships, then lowers, as the
-service will by ``lower(unaccent(…))`` (EP-03).
+service will by ``lower(unaccent(…))`` (EP-03). The summary of a Kanban is read from its answer
+(EP-14/L45b). Not the Vérif of a requirement: none is cited (WF-QUA-0010).
 """
 
 import json
+from typing import Any
 
 import pytest
 
 from wftools import REPOSITORY, mocktext
+
+type Node = dict[str, Any]
 
 
 @pytest.mark.parametrize("text", ["etudes", "ETUDES", "Études", "études", "EtUdEs"])
@@ -90,3 +94,28 @@ def test_the_longest_source_of_a_table_is_replaced_first() -> None:
 def test_a_rule_of_more_than_two_strings_is_refused() -> None:
     with pytest.raises(ValueError, match="more than two strings"):
         mocktext.Unaccent.read("¼\t1 / 4\n")
+
+
+def test_the_summary_of_a_kanban_says_milestones_ready_and_a_column_without_the_core() -> None:
+    # An answer made by hand, where the examples go not: two milestones ready, said in the
+    # plural, and a column without a task of the core, which names none.
+    def node(key: str, label: str, *, ready: bool = False) -> Node:
+        return {"node_id": key, "task": {"label": label}, "predecessors_completed": ready}
+
+    answer: Node = {
+        "not_started": [
+            node("a", "Jalon A", ready=True),
+            node("x", "Tirée X"),
+            node("b", "Jalon B", ready=True),
+            node("y", "Tirée Y"),
+        ],
+        "started": [node("z", "Tirée Z"), node("w", "Tirée W")],
+        "completed": [node("c", "Faite C"), node("v", "Tirée V"), node("u", "Tirée U")],
+    }
+    assert mocktext.kanban(answer, {"a", "b", "c"}) == (
+        "4 non démarrées — dans le cœur, « Jalon A » et « Jalon B » ; 2 tirées autour de lui — ; "
+        "2 démarrées — dans le cœur, aucune ; 2 tirées autour de lui — ; "
+        "3 terminées — dans le cœur, « Faite C » ; 2 tirées autour de lui — ; "
+        "« Jalon A » et « Jalon B » signalées à terminer, leurs prédécesseurs tous terminés "
+        "(predecessors_completed)"
+    )

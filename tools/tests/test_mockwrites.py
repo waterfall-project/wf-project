@@ -211,8 +211,8 @@ def test_a_line_deleted_leaves_its_ancestors_and_the_totals_to_render(
     assert deleted["nodes"] == []
     above = numbered(deleted["ancestors"])
     assert sorted(above) == [CONTROL_STATION, WIRING]
-    assert above[WIRING]["task"]["base_amount"] == "1500.00"
-    assert above[CONTROL_STATION]["task"]["base_amount"] == "1700.00"
+    assert above[WIRING]["task"]["base_amount"] == "501000.00"
+    assert above[CONTROL_STATION]["task"]["base_amount"] == "501200.00"
     totals = deleted["totals"]
     assert totals["estimate_line_count"] == whole["totals"]["estimate_line_count"] - 1
     assert money(totals["base_amount"]) == money(whole["totals"]["base_amount"]) - money("1234.56")

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
@@ -17,6 +17,15 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 
+/** Expect a column of the Kanban to hold so many cards, the first of them as given, in order. */
+async function expectCards(column: Locator, count: number, first: readonly RegExp[]) {
+  const cards = column.getByRole("listitem");
+  await expect(cards).toHaveCount(count);
+  for (const [index, card] of first.entries()) {
+    await expect(cards.nth(index)).toHaveText(card);
+  }
+}
+
 test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban of the three states without any percentage to enter [WF-RAE-0030-A]", async ({
   page,
 }) => {
@@ -31,10 +40,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The indicators, dated, each figure as the server gives it, the coverage of the risks with them.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*66\s793\s528,72/);
+  await expect(indicators).toContainText(/Reste à engager\s*67\s293\s028,72/);
   await expect(indicators).toContainText("Calculé le");
   await expect(indicators.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
+    /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
   // The control station, the tests and commissioning and the whole without sub-project all over
@@ -93,28 +102,34 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     timeout: WORKING,
   });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kanban — démarrage des tâches");
-  // Every task not started (#425), none signalled: the factory acceptance waits for the wiring.
+  // Every task of the structure that is not a summary, each column in the order of the plan: the
+  // tasks of the core first, then those drawn around it (EP-14/L45b), the first of them read, the
+  // others counted, as `startable_tasks` gives them. Every task not started (#425), none
+  // signalled: the factory acceptance waits for the wiring.
   const notStarted = page.getByRole("region", { name: "Non démarrées" });
-  await expect(notStarted.getByRole("listitem")).toHaveText([
+  await expectCards(notStarted, 925, [
     /^18\s*Jalon\s*Réception usine\s*Fin le 30\/06\/2026$/,
     /^20\s*Montage des armoires sur site\s*Fin le 18\/12\/2026$/,
     /^23\s*Mise en service\s*Fin le 01\/01\/2027$/,
+    /^27\s*Préparation 1\.1\.1\s*Fin le 14\/07\/2026$/,
   ]);
   const started = page.getByRole("region", { name: "Démarrées", exact: true });
-  await expect(started.getByRole("listitem")).toHaveText([
+  await expectCards(started, 8, [
     /^4\s*Pupitres opérateurs\s*Fin le 24\/04\/2026/,
     /^9\s*Câblage des armoires\s*Fin le 30\/06\/2026$/,
+    /^311\s*Revue 1\.2\.11\s*Fin le 10\/06\/2026$/,
   ]);
   await expect(started.getByRole("img", { name: "Fin dépassée" })).toHaveCount(1);
   // The tasks completed, each with the date it was, which the Kanban reopens (#425).
   const completed = page.getByRole("region", { name: "Terminées" });
-  await expect(completed.getByRole("listitem")).toHaveText([
+  await expectCards(completed, 27, [
     /^2\s*Études de détail\s*Terminée le 10\/04\/2026$/,
     /^5\s*Revue de conception\s*Terminée le 24\/04\/2026$/,
     /^6\s*Jalon\s*Réception des études\s*Terminée le 24\/04\/2026$/,
     /^7\s*Dossier de conception\s*Terminée le 15\/04\/2026$/,
     /^14\s*Relance du fournisseur\s*Terminée le 08\/05\/2026$/,
     /^16\s*Transport exceptionnel\s*Terminée le 15\/05\/2026$/,
+    /^247\s*Préparation 1\.2\.1\s*Terminée le 01\/05\/2026$/,
   ]);
   const main = page.getByRole("main");
   for (const role of ["textbox", "spinbutton", "slider", "button", "combobox"] as const) {

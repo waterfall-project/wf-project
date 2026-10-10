@@ -83,7 +83,7 @@ from wftools import (
     mockwrites,
     paths,
 )
-from wftools.mockids import CATEGORIES, identifier
+from wftools.mockids import CATEGORIES, identifier, universe
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PROJECT_COUNT,
@@ -365,14 +365,6 @@ def wiring_completed() -> tuple[Task, ...]:
     )
 
 
-def of_core(rows: Iterable[mockcore.Row]) -> list[mockcore.Row]:
-    """Return the rows of the core in a reading of the whole structure: those the Kanban shows.
-
-    ``listStartableTasks`` has no filter that would leave out the 985 tasks drawn about the core.
-    """
-    return [row for row in rows if row.number < mockwitness.GENERATED]
-
-
 def readings() -> dict[str, JsonObject]:
     """Return the named examples read from the core of the witness, by file name.
 
@@ -387,6 +379,11 @@ def readings() -> dict[str, JsonObject]:
     studies = mockcore.subtree(rows, STUDIES.number)
     estimate = mockcore.subtree(rows, CONTROL_STATION.number)
     total = cast("JsonObject", estimate["totals"])
+    [provision] = [row.amounts.base for row in rows if row.number == _PROVISION]
+    # The Kanban of the whole structure, today and after the wiring declared completed (#528).
+    today = mockcore.startable(rows)
+    gesture = mockcore.startable(mockcore.current(described(wiring_completed())))
+    core = {universe(row.number) for row in rows if row.number < mockwitness.GENERATED}
     return {
         "nodes.json": _example(
             f"Le sous-arbre « Études » du cœur du témoin, lu avec ses lignes (subtree_of) le "
@@ -427,7 +424,7 @@ def readings() -> dict[str, JsonObject]:
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
             f"{_amount(Decimal(1_000))} —, un débours de {_amount(Decimal('1234.56'))} et la "
-            f"ligne de provision de {_amount(Decimal(500))} du risque de reprise du câblage, "
+            f"ligne de provision de {_amount(provision)} du risque de reprise du câblage, "
             f"dont la grille ne saisit ni les grandeurs ni le montant ; le sous-arbre fusionné "
             f"par la survenance du risque 752, ses lignes de 120 et 80 budgétées à zéro ; le "
             f"jalon de réception usine, le 30 juin. Le devis totalise "
@@ -539,26 +536,22 @@ def readings() -> dict[str, JsonObject]:
             [],
         ),
         "startable_tasks.json": _example(
-            f"Le Kanban du cœur du témoin le {day}, sur la révision en cours, ses tâches par "
-            f"état : non démarrées, la réception usine, le montage des armoires sur site et la "
-            f"mise en service, aucune dont les prédécesseurs soient tous terminés — la réception "
-            f"usine attend la fin du câblage, et rien ne se termine seul ; démarrées, les "
-            f"pupitres opérateurs, en mode manuel et en dépassement de fin, et le câblage des "
-            f"armoires ; terminées, avec leur date, les études de détail, la revue de conception, "
-            f"la réception des études, le dossier de conception et les deux tâches fusionnées "
-            f"par la survenance, que le Kanban rouvre. Jamais une récapitulative, dont l'état "
-            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040). {mocktext.CORE_ONLY}",
-            mockcore.startable(of_core(rows)),
+            f"Le Kanban de toute la structure du témoin le {day}, sur la révision en cours, ses "
+            f"tâches par état, chaque colonne dans l'ordre du plan : {mocktext.kanban(today, core)}"
+            f". La réception usine attend la fin du câblage, et rien ne se termine seul ; les "
+            f"pupitres opérateurs sont en mode manuel et en dépassement de fin ; les terminées "
+            f"portent leur date, et le Kanban les rouvre. Jamais une récapitulative, dont l'état "
+            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
+            today,
         ),
         "startable_tasks_milestone.json": _example(
-            f"Le Kanban du cœur du témoin le {day}, le câblage des armoires déclaré terminé ce "
-            f"jour-là : la réception usine, jalon dont le seul prédécesseur est terminé, posée à "
-            f"la main au 30 juin, non démarrée tant que personne ne la termine, et signalée à "
-            f"terminer (predecessors_completed) ; les autres tâches non démarrées, dont un "
-            f"prédécesseur ne l'est pas ; les pupitres opérateurs toujours démarrés, en "
-            f"dépassement de fin ; le câblage parmi les terminées, à la date du geste "
-            f"(WF-RAE-0030, WF-PLA-0130). {mocktext.CORE_ONLY}",
-            mockcore.startable(of_core(mockcore.current(described(wiring_completed())))),
+            f"Le Kanban de toute la structure du témoin le {day}, le câblage des armoires déclaré "
+            f"terminé ce jour-là : {mocktext.kanban(gesture, core)}. La réception usine, jalon "
+            f"dont le seul prédécesseur est terminé, est posée à la main au 30 juin, non démarrée "
+            f"tant que personne ne la termine ; les pupitres opérateurs restent démarrés, en "
+            f"dépassement de fin ; le câblage est parmi les terminées, à la date du geste "
+            f"(WF-RAE-0030, WF-PLA-0130).",
+            gesture,
         ),
         "dependencies_summary.json": _example(
             "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses cinq "

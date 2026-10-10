@@ -7,7 +7,7 @@
     "by_cost_type": [
       {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}},
       {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"56474008.89","reason":null},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":{"is_computable":true,"value":"500.00","reason":null},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}}
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":{"is_computable":true,"value":"500000.00","reason":null},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}}
     ],
     "by_subproject": [
       {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","amount":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}},
@@ -17,7 +17,7 @@
     "by_order_item": [
       {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}},"share":{"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}}
     ],
-    "provisions_identified": "500.00",
+    "provisions_identified": "500000.00",
     "delta_to_reference": {"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}},
     "delta_to_previous_revision": {"is_computable":false,"value":null,"reason":"hourly_rate_missing","params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}}
   }

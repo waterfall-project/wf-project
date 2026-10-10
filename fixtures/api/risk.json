@@ -1,5 +1,5 @@
 {
-  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250,00, total de son devis propre, et sa provision de 500,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Il se modifie, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
+  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250 000,00, total de son devis propre, et sa provision de 500 000,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Il se modifie, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "risk_id": "01926f3a-7c00-7000-8000-000000000751",
@@ -7,8 +7,8 @@
     "description": "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
     "mitigation_notes": "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
     "probability": "0.4",
-    "severity": "1250.00",
-    "provision_amount": "500.00",
+    "severity": "1250000.00",
+    "provision_amount": "500000.00",
     "state": "identified",
     "structure_id": "01926f3a-7c00-7000-8000-000000000204",
     "provision_node_id": "01926f3a-7c00-7000-8000-000000000555",

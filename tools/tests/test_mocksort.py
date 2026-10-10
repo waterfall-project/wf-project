@@ -9,6 +9,7 @@ Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre a
 import json
 import re
 from dataclasses import replace
+from decimal import Decimal
 from typing import Any, cast
 
 import pytest
@@ -60,14 +61,23 @@ def _in_place(plan: Node, read: Node) -> None:
 def test_a_sort_moves_the_lines_under_each_task_and_never_a_task(
     readings: dict[str, Any],
 ) -> None:
-    # A grid of a tree does not sort; its sort is but a sort of the lines under each task.
+    # A grid of a tree does not sort; its sort is but a sort of the lines under each task. By the
+    # amount, descending: the provision of 751 at the scale of the structure, the blocks, then
+    # the labour — the order of the plan reversed (EP-14/L45b).
     read = readings["nodes_estimate_sorted.json"]
     _in_place(readings["nodes_estimate.json"], read)
-    assert _under(read["items"], WIRING) == [PROVISION, LABOUR, BLOCKS]
-    # The milestone, of no amount, stays last: a sort of the siblings would have put it first.
+    plan = cast("list[Node]", readings["nodes_estimate.json"]["items"])
+    assert _under(plan, WIRING) == [LABOUR, BLOCKS, PROVISION]
+    assert _under(read["items"], WIRING) == [PROVISION, BLOCKS, LABOUR]
+    amounts = [
+        Decimal(_facet(node)["base_amount"])
+        for node in read["items"]
+        if node["parent_id"] == universe(WIRING)
+    ]
+    assert amounts == sorted(amounts, reverse=True)
+    assert len(set(amounts)) == len(amounts)
     siblings = [node for node in read["items"] if node["parent_id"] == universe(CONTROL_STATION)]
     assert [_number(node) for node in siblings] == [WIRING, OCCURRED, MILESTONE]
-    assert _facet(siblings[-1])["base_amount"] == "0.00"
 
 
 def test_a_line_without_a_value_comes_first_in_the_descending_order_in_plan_order(

@@ -349,7 +349,7 @@ def test_the_one_provision_is_that_of_the_risk_identified(items: list[Node]) -> 
     provisions = [node for node in lines(items) if node["estimate_line"]["is_computed"]]
     assert [node["node_id"] for node in provisions] == [mockids.universe(N.PROVISION)]
     [line] = [node["estimate_line"] for node in provisions]
-    assert (line["base_amount"], line["budgeted_amount"]) == ("500.00", "250.00")
+    assert (line["base_amount"], line["budgeted_amount"]) == ("500000.00", "250000.00")
 
 
 def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
@@ -381,10 +381,10 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "task_count": 1_000,
         "estimate_line_count": 5_000,
         "hours": "116270",
-        "base_amount": "65605723.89",
-        "budgeted_amount": "65430947.64",
-        "reestimated_amount": "65605723.89",
-        "inflated_amount": "68424191.06",
+        "base_amount": "66105223.89",
+        "budgeted_amount": "65680697.64",
+        "reestimated_amount": "66105223.89",
+        "inflated_amount": "68923691.06",
     }
 
     def row(number: int) -> Node:

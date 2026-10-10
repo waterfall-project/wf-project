@@ -98,7 +98,7 @@ AMENDMENT_MERGED = Event(
 )
 RISK_751_REVIEWED = Event(
     date(2026, 2, 2),
-    "Réexamen de 751 : gravité portée à 1 250 ; la saisie ouvre la révision courante 102 ; "
+    "Réexamen de 751 : gravité portée à 1 250 000 ; la saisie ouvre la révision courante 102 ; "
     "753 écarté",
     time(9, 0),
 )
@@ -222,10 +222,18 @@ def role_calendars() -> dict[str, Calendar]:
 
 # --- The readable core of the structure -------------------------------------------------------
 
-REFERENCE_PROVISION_751 = Decimal("250.00")
+RISK_SCALE = 1000
+"""The scale of the risks 751 and 753 to the structure of a thousand tasks: their figures of the
+core, a thousand times (decision 4 of the frame of #287, option (a) of the author of 2026-10-07,
+EP-14/L45b). Their severity is a share of the reference budget of the whole structure, which the
+matrix reads (WF-RIS-0040): at the figures of the core, every risk would fall to its first level of
+severity. The risk 752 keeps the figures of its Vérif (WF-RIS-0060)."""
+
+REFERENCE_PROVISION_751 = Decimal("250.00") * RISK_SCALE
 """The provision of the risk 751 when the reference 101 was marked, on 1 February 2026: its
-severity of 1,000 at 25 % (``risk_reviews``), before its review raised it to 1,250 at 40 %. The
-reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is budgeted so."""
+severity of 1,000,000 at 25 % (``risk_reviews``), before its review raised it to 1,250,000 at
+40 %. The reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is
+budgeted so."""
 
 PAYMENT_DELAY = 30
 """The payment delay of the subcontracting and of the terminal blocks, in days: paid a month
@@ -474,7 +482,7 @@ CONTROL_STATION = Task(
                     N.PROVISION,
                     "Provision — risque de reprise du câblage",
                     PROVISIONS,
-                    unit=Decimal("500.00"),
+                    unit=Decimal("500.00") * RISK_SCALE,
                     budgeted=REFERENCE_PROVISION_751,
                     is_provision=True,
                 ),
@@ -520,10 +528,10 @@ CONTROL_STATION = Task(
     ),
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
-studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
-of the risk 751, budgeted at the 250 the reference knew; the subtree merged into the current
-revision by the occurrence of the risk 752, its lines of 120 and 80 budgeted nothing
-(WF-RIS-0060); and the factory acceptance at the end of the wiring."""
+studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of
+500,000 of the risk 751, at the scale of the structure, budgeted at the 250,000 the reference knew;
+the subtree merged into the current revision by the occurrence of the risk 752, its lines of 120
+and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
@@ -660,9 +668,9 @@ REWORK = Risk(
     "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
     204,
     (
-        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00")),
-        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00")),
-        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00")),
+        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00") * RISK_SCALE),
+        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00") * RISK_SCALE),
+        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00") * RISK_SCALE),
     ),
     reference_provision_line=N.PROVISION,
     provision_line=N.PROVISION,
@@ -687,8 +695,10 @@ AUTOMATION_ENGINEER = Risk(
     None,
     206,
     (
-        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00")),
-        Review(_at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00"), DISMISSED),
+        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
+        Review(
+            _at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE, DISMISSED
+        ),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_753,
 )
@@ -698,7 +708,8 @@ identified, its provision the line 555 of the core; the delay of the cabinets, o
 20 February, its own estimate merged into the current revision (WF-RIS-0060) — the subtree 541
 of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
 identified on 12 January, before the reference 101 was marked, which bore their provisions: the
-lines 555, 557 and 567 of its structure (``mockhistory``)."""
+lines 555, 557 and 567 of its structure (``mockhistory``). The rework and the unavailability are
+at the scale of the structure (``RISK_SCALE``), the delay at the figures of its Vérif."""
 
 # --- The reference, as marked -----------------------------------------------------------------
 
@@ -759,7 +770,7 @@ def reference(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
 
     Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
     merged on 20 February is not there yet, and each identified risk bears its line of provision
-    at the provision it then had: 751 at 1,000 at 25 %, 752 and 753 on the lines the current
+    at the provision it then had: 751 at 1,000,000 at 25 %, 752 and 753 on the lines the current
     revision no longer bears. Marked while the project was in progress, it is the previous
     review of the current revision, whose lines show its quantities (WF-RAE-0040).
     """

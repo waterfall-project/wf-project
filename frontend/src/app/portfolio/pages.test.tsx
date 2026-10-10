@@ -207,7 +207,7 @@ describe("the screens of the portfolio", () => {
   it("opens the project of each of the heaviest risks, and fills the matrix [WF-PTF-0030-A]", async () => {
     const markup = await render(RisksPage);
     const page = text(markup);
-    expect(page).toMatch(/Provisions of the identified risks .*103,826,197\.03/);
+    expect(page).toMatch(/Provisions of the identified risks .*104,325,697\.03/);
     expect(markup.match(/href="\/projects\/[\w-]+"/g)).toHaveLength(10);
     expect(markup).toContain(
       'href="/projects/01926f3a-7c00-7000-8000-000300000119">Extension de la sous-station — Grenoble</a>',
@@ -283,7 +283,7 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("Cumulative costs of the portfolio");
     expect(page).toContain("Reference budget 31 Dec 2025 210,664,042.15");
     expect(page).toContain("Actual cost 3 Jun 2026 1,285,133,439.68");
-    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,093,692.97");
+    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,593,192.97");
     // Without the payment delays, the server details no cash-out: no second chart.
     expect(page).not.toContain("Cash-out by month");
     expect(markup).toContain(
@@ -305,7 +305,7 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("Cumulative cash-out of the portfolio");
     expect(page).toContain("Cash-out by month");
-    expect(page).toContain("June 2026 19,713,579.42 30,915,524.64");
+    expect(page).toContain("June 2026 19,713,579.42 31,415,024.64");
     expect(markup).toContain('href="/portfolio/cost-curve?horizon_months=24"');
     expect(page).toContain("Back to the cumulative costs");
   });
@@ -313,7 +313,7 @@ describe("the screens of the portfolio", () => {
   it("presents the coverage of the risks of the portfolio, each sum as the server made it, the variance signed [WF-PTF-0090-A]", async () => {
     const page = text(await render(RisksPage));
     expect(page).toContain(
-      "Risk coverage Reference reserve 102,854,375.80 Remaining provisions 103,826,197.03 Cost of the occurred risks 4,605,324.00 Coverage variance -5,577,145.23",
+      "Risk coverage Reference reserve 103,703,525.80 Remaining provisions 104,325,697.03 Cost of the occurred risks 4,605,324.00 Coverage variance -5,227,495.23",
     );
   });
 

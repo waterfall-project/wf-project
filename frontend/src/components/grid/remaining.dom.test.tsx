@@ -220,25 +220,27 @@ describe("the grid of the remaining to commit", () => {
     // The figures at the previous remaining to commit, kept by the server and never computed nor
     // entered: those of the reference marked on 1 February, the previous review — the hours of
     // the labour, the unit disbursements of the terminal blocks and of the provision, the latter
-    // the one figure the review has changed since, 250 then, 500 now.
+    // the one figure the review has changed since, 250 000 then, 500 000 now.
     expect(cell(LABOUR, "previous_quantity")).toHaveTextContent(/^1$/);
     expect(cell(LABOUR, "previous_hours")).toHaveTextContent(/^12,5$/);
     expect(cell(LABOUR, "previous_unit_disbursement")).toHaveTextContent(/^$/);
     expect(cell(DISBURSEMENT, "previous_unit_disbursement")).toHaveTextContent(/^1\s234,56$/);
-    expect(cell(PROVISION, "previous_unit_disbursement")).toHaveTextContent(/^250,00$/);
-    expect(cell(PROVISION, "unit_disbursement")).toHaveTextContent(/^500,00$/);
+    expect(cell(PROVISION, "previous_unit_disbursement")).toHaveTextContent(/^250\s000,00$/);
+    expect(cell(PROVISION, "unit_disbursement")).toHaveTextContent(/^500\s000,00$/);
     // A line merged by the occurrence of a risk after that review has none.
     expect(cell(MERGED_LINE, "unit_disbursement")).toHaveTextContent(/^80,00$/);
     for (const column of ["previous_quantity", "previous_hours", "previous_unit_disbursement"]) {
       expect(cell(MERGED_LINE, column)).toHaveTextContent(/^$/);
       expect(cell(LABOUR, column)).toHaveAttribute("aria-readonly", "true");
     }
-    // The provision of the risk of rewiring: budgeted at the 250 the reference knew, re-estimated
-    // at its 500 now, at its 250 by the previous review, the reference marked on 1 February — an
-    // amount as the grid writes one, computed.
-    expect(cell(PROVISION, "budgeted_amount")).toHaveTextContent(/250,00$/);
-    expect(cell(PROVISION, "reestimated_amount")).toHaveTextContent(/500,00$/);
-    expect(cell(PROVISION, "previous_reestimated_amount")).toHaveAccessibleName("Calculé 250,00");
+    // The provision of the risk of rewiring: budgeted at the 250 000 the reference knew,
+    // re-estimated at its 500 000 now, at its 250 000 by the previous review, the reference marked
+    // on 1 February — an amount as the grid writes one, computed.
+    expect(cell(PROVISION, "budgeted_amount")).toHaveTextContent(/250\s000,00$/);
+    expect(cell(PROVISION, "reestimated_amount")).toHaveTextContent(/500\s000,00$/);
+    expect(cell(PROVISION, "previous_reestimated_amount")).toHaveAccessibleName(
+      /^Calculé 250\s000,00$/,
+    );
     expect(cell(LABOUR, "previous_reestimated_amount")).toHaveTextContent(/^1\s000,00$/);
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
     expect(cell(DISBURSEMENT, "unit_disbursement")).toHaveTextContent(/^1\s234,56$/);
@@ -250,7 +252,7 @@ describe("the grid of the remaining to commit", () => {
     );
     // The totals of the answer, never a sum of the rows.
     expect(within(table).getAllByRole("row").at(-1)).toHaveTextContent(
-      /^Total — 6 tâches, 5 lignes.*2\s484,56.*12,5.*2\s934,56$/,
+      /^Total — 6 tâches, 5 lignes.*252\s234,56.*12,5.*502\s434,56$/,
     );
     await expectAccessible(container);
   });
@@ -279,7 +281,7 @@ describe("the grid of the remaining to commit", () => {
     // The previous review stays as it was read: what is entered now never rewrites it (WF-RAE-0040).
     expect(cell(LABOUR, "previous_hours")).toHaveTextContent(/^12,5$/);
     expect(cell(LABOUR, "previous_reestimated_amount")).toHaveTextContent(/^1\s000,00$/);
-    expect(cell(WIRING, "reestimated_amount")).toHaveTextContent(/2\s534,56$/);
+    expect(cell(WIRING, "reestimated_amount")).toHaveTextContent(/502\s034,56$/);
     // The totals of the reading, narrowed to the tasks started, read anew by the same request —
     // never those of the whole structure the write answered.
     await vi.waitFor(() => {
@@ -325,7 +327,7 @@ describe("the grid of the remaining to commit", () => {
     render(grid());
     expect(cell(COMPLETED_LINE, "unit_disbursement")).toHaveAttribute("aria-readonly", "true");
     expect(cell(COMPLETED_LINE, "quantity")).toHaveAttribute("aria-readonly", "true");
-    expect(cell(PROVISION, "unit_disbursement")).toHaveAccessibleName(/^Calculé 500,00$/);
+    expect(cell(PROVISION, "unit_disbursement")).toHaveAccessibleName(/^Calculé 500\s000,00$/);
     expect(cell(LABOUR, "unit_disbursement")).toHaveAttribute("aria-readonly", "true");
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-readonly");
   });

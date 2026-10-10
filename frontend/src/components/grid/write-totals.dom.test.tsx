@@ -140,19 +140,19 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "",
-      "65\u202f605\u202f723,89",
-      "68\u202f424\u202f191,06",
+      "66\u202f105\u202f223,89",
+      "68\u202f923\u202f691,06",
     ]);
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
     // at the year of reference and corrected for inflation.
     await vi.waitFor(() => {
-      expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/3\s054,56$/);
+      expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/502\s554,56$/);
     });
-    expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/2\s854,56$/);
-    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
-    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/502\s354,56$/);
+    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/502\s554,56$/);
+    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals().slice(1)).toEqual([
       "Total — 1\u202f000 tâches, 5\u202f000 lignes",
       "",
@@ -163,8 +163,8 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "",
-      "65\u202f605\u202f843,89",
-      "68\u202f424\u202f311,06",
+      "66\u202f105\u202f343,89",
+      "68\u202f923\u202f811,06",
     ]);
   });
 
@@ -179,7 +179,7 @@ describe("what a write answers besides the row written", () => {
     await vi.waitFor(() => {
       expect(totals()[1]).toBe("Total — 6 tâches, 1 ligne");
     });
-    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals()[5]).toBe("0");
     expect(totals()[10]).toBe("100\u202f000,00");
     // The same search, after the write, each node asked by its identifier alone.
@@ -231,7 +231,7 @@ describe("what a write answers besides the row written", () => {
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
-    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals()[5]).toBe("12,5");
   });
 
