@@ -246,6 +246,21 @@ export function percentRatio(entered: Decimal): Decimal {
   return shiftPoint(entered, -2);
 }
 
+/**
+ * The order of two `Decimal`s of the contract — below zero when the first is the smaller, zero when
+ * they are equal, above zero otherwise —, their digits compared as whole numbers once their decimals
+ * are made as many, never through a float: `0.3` and `0.30` are equal, `0.1` is below `0.25`.
+ */
+export function compareDecimals(left: Decimal, right: Decimal): number {
+  const [leftWhole = "", leftFraction = ""] = decimal(left).split(".");
+  const [rightWhole = "", rightFraction = ""] = decimal(right).split(".");
+  const places = Math.max(leftFraction.length, rightFraction.length);
+  const difference =
+    BigInt(leftWhole + leftFraction.padEnd(places, "0")) -
+    BigInt(rightWhole + rightFraction.padEnd(places, "0"));
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+}
+
 /** A text of a pattern, as a regular expression matches it literally. */
 function literal(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

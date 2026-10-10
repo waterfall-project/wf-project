@@ -403,6 +403,36 @@ une lecture filtrée compte ce que le serveur retient et ne se dit jamais vide, 
 partent de la ligne lue. La mention « le contrat ne trie, ne cherche ni ne filtre » disparaît du
 guide et des tests.
 
+EP-14/L43e (#616), lot technique, donne aux paramètres des risques et des indicateurs leurs
+formulaires, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#512). À une session qui porte `risk_settings.write`, l'écran des risques offre de
+modifier la matrice entière — ses six bornes, saisies en pourcentages, et ses seize zones, un choix
+par case, rangées comme la table les montre (WF-REF-0160) — ; à une session qui porte
+`indicator_settings.write`, l'écran des indicateurs offre de modifier les quatre seuils et le délai
+entre deux revues, en semaines entières (WF-REF-0170, WF-REF-0180). Chaque formulaire envoie par
+`updateReferenceSettings` le seul sous-objet de son écran avec la version lue ; ni la devise
+(WF-REF-0140) ni la langue de l'installation ne s'y saisissent. Avant toute demande, le formulaire
+refuse au champ que le serveur désignerait une borne qui n'est pas strictement au-dessus de la
+précédente et un seuil d'alerte qui n'est pas sous son seuil de vigilance ; le serveur dit le reste,
+par champ au champ, la permission manquante et la version périmée — que les deux écrans partagent —
+sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus récente, la
+page relue ; l'écran dit que le faux back ne garde rien (`MockupNotice`). Le formulaire du
+référentiel y gagne trois pièces que d'autres écrans pourront prendre : des champs rangés sous une
+légende commune, qui commence leur nom (`group`) ; des règles qui lient des champs entre eux
+(`rules`) ; un champ de nombre entier, jugé avec les autres (`control: "whole"`), le délai refusé
+s'il n'est pas un nombre entier de semaines. Chaque écran n'est offert qu'à sa permission : une
+session qui ne porte que l'une des deux voit l'autre écran en lecture, ce que les tests de page
+éprouvent en retirant l'autre permission de la session d'exemple. Écartés : un
+formulaire dans la page plutôt qu'un dialogue — les paramètres du projet, seul autre objet unique que
+la maquette modifie, ouvrent le leur depuis une commande, et le dialogue porte déjà les refus par
+champ ; un contrôle de la plage des seuils et du délai au front, que la conception ne demande pas et
+que le serveur juge — le client engendré ne porte ni l'intervalle ]0, 1[ des seuils ni les 1 à 104
+semaines du délai, et le front ne les recopie pas. Le contrat ne décrit pas ce refus hors plage, sans
+code ni exemple : un constat de contrat le suit (#659), et le faux back y répondrait par le premier exemple
+de son 422, les bornes non ordonnées. Le faux back répondant à toute écriture par le premier exemple de l'opération —
+les seuils écrits, la matrice inchangée —, le parcours de bout en bout de la matrice voit le succès
+dit et la matrice d'avant ; la matrice répondue n'est éprouvée que par le test du formulaire.
+
 EP-14/L42i (#612) écrit au contrat ce que les écrans de L44a et L44b attendaient (#590, #592) : le
 déclencheur du prochain état est énuméré (`LifecycleTrigger`) et `getProjectNextState` répond 200,
 sans prochain état, d'un projet en cours ou clos ; le projet dit d'avance que sa probabilité de gain
