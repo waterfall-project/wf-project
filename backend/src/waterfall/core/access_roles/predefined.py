@@ -34,7 +34,6 @@ ADMINISTRATOR = (
     "access_roles.read",
     "access_roles.write",
     "system_status.read",
-    "system_status.write",
     "backups.read",
     "backups.write",
     "audit_log.read",
@@ -42,7 +41,6 @@ ADMINISTRATOR = (
 )
 PROJECT_MANAGER = (
     "portfolio_projects.read",
-    "portfolio_projects.write",
     "cost_settings.read",
     "resource_settings.read",
     "risk_settings.read",
