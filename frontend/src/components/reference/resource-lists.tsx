@@ -276,8 +276,8 @@ export function ResourceRoleList({
   readonly categories: readonly Choice[] | undefined;
   /**
    * The categories of cost of labour a role may be attached to (WF-REF-0090); none when the session
-   * reads neither them nor the natures, and the creation, which a role cannot do without one, is not
-   * offered (WF-IHM-0090).
+   * does not read them, and the creation, which a role cannot do without one, is not offered
+   * (WF-IHM-0090).
    */
   readonly labour: readonly Choice[] | undefined;
   /** The calendars the roles may be restricted or attached to, in the order of the server. */
@@ -451,7 +451,11 @@ export function CalendarList({
           }
           refused={refused !== undefined}
           reads={CALENDAR_READS}
-          dialog={<CalendarDialog />}
+          dialog={
+            <CalendarDialog
+              names={Object.fromEntries(rows.map((row) => [row.calendar_id, row.label]))}
+            />
+          }
           filters={
             <>
               {readsInactive ? (

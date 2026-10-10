@@ -639,6 +639,45 @@ client régénéré et par la valeur attendue d'un test de `formatShare`, la par
 nulle ; l'adoption — l'exemple du projet clos dans son test, la restauration depuis un
 fichier, la branche du montant de `formatShare` qui n'a plus d'objet — revient aux lots du front.
 
+EP-14/L43g (#685), lot technique, fait adopter par les écrans des paramètres de ressources ce que
+L42j a écrit au contrat. « Désigner » suit la commande que le calendrier liste
+(`CalendarCommand.set_default`), et non plus l'état de la ligne : absente, rien ; indisponible pour
+un calendrier désactivé, présentée `aria-disabled` avec sa condition (`calendar_active`), un appui la
+disant dans la région de la liste (`UnavailableCellCommand`) ; le 409 et le 412 de la désignation
+sont dits au-dessus de la liste. Le formulaire du rôle ne propose que les catégories dont la nature
+est de main-d'œuvre d'après `cost_type_kind` : la page ne lit plus les natures, et une session qui
+lit les catégories actives sans les paramètres de coûts peut créer un rôle, ce que
+`resources/page.test.tsx` éprouve (revue 1). Le formulaire du nœud
+ne propose comme parents que les nœuds actifs, hors du nœud et de ses descendants, qu'il soit actif
+ou désactivé, et garde, marqué et choisi, le parent désactivé qu'il a, à sa place dans l'arbre lu
+(revue 1) ; le parent est envoyé, nul
+pour une racine. Les refus par champ de L42j — `UNKNOWN_*`, `ORG_NODE_CYCLE`,
+`LABOUR_CATEGORY_REQUIRED`, `INACTIVE_REFERENCE_OBJECT`, `VALUE_OUT_OF_RANGE` avec sa borne — sont
+dits au champ par le formulaire du référentiel, sans code propre ; le code pris d'un nœud nomme son
+porteur d'après l'arbre ou la liste, sinon par `conflicting_object_label`, et le libellé pris d'un
+calendrier d'après la page, par son identifiant, sinon de façon générique (« Déjà porté par un
+autre calendrier. ») ; la version périmée se dit sous le formulaire avec l'offre de relire. Choix :
+garder les noms tirés de l'arbre avant le libellé du refus — écarté : ne plus lire que le libellé,
+qui ferait perdre le nom de l'objet en conflit quand la réponse arrive le dialogue fermé
+(`OutcomeNotice` ne lit que les noms de l'écran) ; une phrase propre à la désignation indisponible
+(`reference.state.designationUnavailable`) dans la région des activations plutôt qu'une région à
+part. Le contrat n'a pas d'exemple de `UNKNOWN_CALENDAR`, de `UNKNOWN_COST_CATEGORY`, ni de
+`UNKNOWN_ORG_NODE` sur `/parent_id` : ils passent par le même chemin que les codes éprouvés, sans
+test propre. Les tests reprennent les exemples `org_node_code_taken`, `org_node_move_cycle_refused`,
+`org_node_update_stale`, `org_node_renamed_under_inactive`, `resource_role_attachments_refused`,
+`resource_role_update_refused`, `calendar_label_taken`, `calendar_hours_refused`,
+`calendar_update_stale`, `calendar_default_refused`, `calendar_default_stale` et `calendars_reader` ;
+un arbre déclaré dans le test, le service des achats désactivé, éprouve qu'un nœud désactivé ne se
+voit pas proposer un parent désactivé, le témoin n'en ayant aucun ; un deuxième, le bureau d'études
+automatismes actif et celui d'électricité désactivé avec son atelier, que le parent gardé prend sa
+place dans l'arbre ; un troisième, sur cinq niveaux, le bureau d'électricité rattaché sous la cellule
+robotique désactivée, qu'un parent gardé dont le parent n'est pas offert vient en dernier, sans
+décalage (revue 2). Les tests des calendriers
+passent dans `calendar-commands.dom.test.tsx`, ceux des nœuds et des rôles dépassant sinon le
+plafond de mille lignes d'un fichier. Les tests des refus propres au contrat de L42j — la boucle,
+les heures hors bornes, l'effectif négatif, la désignation refusée ou indisponible — ne citent aucune
+exigence : les Vérif de WF-REF-0070 à 0120 n'en disent rien (revue 1).
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

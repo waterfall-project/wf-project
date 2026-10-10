@@ -19,8 +19,8 @@
  * settings of the costs keep, are offered only when the API gives them. A session that may modify the
  * settings of the resources creates and modifies the nodes, the roles and the calendars, and
  * deactivates them as each lists it (EP-02/L43b): a role is attached to a category of labour alone
- * (WF-REF-0090), which the page knows by reading the natures too; the screen then says that the fake
- * back keeps none of what is written (`MockupNotice`). Bounds the API refuses (422,
+ * (WF-REF-0090), which each category says (`cost_type_kind`, EP-14/L43g); the screen then says that
+ * the fake back keeps none of what is written (`MockupNotice`). Bounds the API refuses (422,
  * an upper bound below the lower one) leave their list unread, the bound said at its field; any other
  * read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -262,14 +262,11 @@ function readCalendars(
 
 /**
  * The categories of cost and the calendars the roles may be filtered on, every one the session
- * reads, as a list of choices is read (#303): the categories none when the API refuses them. For a
- * session whose forms are offered, the natures too, by which a role is attached to a category of
- * labour alone (WF-REF-0090) — none when the API refuses them.
+ * reads, as a list of choices is read (#303): the categories none when the API refuses them. Each
+ * category says the type of its nature, by which a role is attached to a category of labour alone
+ * (WF-REF-0090, `cost_type_kind`).
  */
-function readChoices(
-  client: ApiClient,
-  { editable, inactive, inactiveCategories }: ResourceQueries,
-) {
+function readChoices(client: ApiClient, { inactive, inactiveCategories }: ResourceQueries) {
   return Promise.all([
     readEveryPageUnlessRefused("listCostCategories", REFUSED, (page) =>
       client.GET("/reference/cost-categories", {
@@ -279,13 +276,6 @@ function readChoices(
     readEveryPage("listCalendars", (page) =>
       client.GET("/reference/calendars", { params: { query: { ...inactive, ...page } } }),
     ),
-    editable
-      ? readEveryPageUnlessRefused("listCostTypes", REFUSED, (page) =>
-          client.GET("/reference/cost-types", {
-            params: { query: { ...inactiveCategories, ...page } },
-          }),
-        )
-      : undefined,
   ]);
 }
 
@@ -369,7 +359,7 @@ export default async function ResourceSettingsPage({
   const permissions = session?.permissions ?? [];
   const grids = session?.user.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
-  const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead, natures]] =
+  const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
   const readsInactive = permissions.includes("resource_settings.read");
@@ -405,7 +395,7 @@ export default async function ResourceSettingsPage({
           editable={editable}
           nodes={nodes}
           categories={categoryRead?.map(categoryChoice)}
-          labour={labourOf(categoryRead, natures)}
+          labour={labourOf(categoryRead)}
           calendars={calendarRead.map((calendar) => ({
             id: calendar.calendar_id,
             label: calendar.label,

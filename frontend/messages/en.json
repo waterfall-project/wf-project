@@ -1132,7 +1132,8 @@
       "unavailable": "Reactivating “{name}” is unavailable. {unmet}",
       "deactivate": "Deactivate “{name}”",
       "deactivateShort": "Deactivate",
-      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}"
+      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}",
+      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",
@@ -1157,7 +1158,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
@@ -1183,8 +1184,8 @@
     },
     "orgNodeForm": {
       "create": "New organisation node",
-      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. An active node only takes place under an active node.",
-      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along; active, it only takes place under an active node.",
+      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. A node only takes place under an active node.",
+      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along, and only takes place under an active node; its deactivated parent may be kept.",
       "parent": "Parent",
       "root": "None — root"
     },
