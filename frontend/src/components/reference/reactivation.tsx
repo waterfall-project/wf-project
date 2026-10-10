@@ -6,10 +6,11 @@
  * after the row that knows it; the version stale (412), with the offer to reload; a form whose dialog
  * is gone — is told above the list (`Reactivations`), which a cell of a dense grid has no room for;
  * and a command the server lists unavailable — a node under a deactivated parent, a role under a
- * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
- * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
- * role an account holds is (`later-commands.tsx`): a press does not run it, and says in the region of
- * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
+ * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120), the
+ * designation by default of a deactivated calendar (`calendar-default.tsx`) — stays presented, marked
+ * `aria-disabled` and described by the conditions it lacks, as the deletion of a role an account
+ * holds is (`later-commands.tsx`): a press does not run it, and says in the region of the list the
+ * conditions it lacks (`UnavailableActivation`). The commands themselves are those of
  * `commands.tsx`.
  *
  * Every prop is data — the name of the object, its commands —, never a function: a server component
@@ -32,6 +33,7 @@ import {
   useState,
 } from "react";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import type { CommandOffer } from "@/components/commands/offer";
@@ -57,12 +59,23 @@ interface Reported {
 /** A command that changes the state of an object of the reference data. */
 type ActivationCommand = "deactivate" | "reactivate";
 
+/** A command of a row whose unavailability a press tells: an activation, or a designation. */
+type ToldCommand =
+  ActivationCommand | Extract<components["schemas"]["CalendarCommand"], "set_default">;
+
+/** The sentence that tells what an unavailable command lacks, by command. */
+const TOLD = {
+  reactivate: "unavailable",
+  deactivate: "deactivationUnavailable",
+  set_default: "designationUnavailable",
+} as const satisfies Readonly<Record<ToldCommand, string>>;
+
 /**
  * What a press of an unavailable command says, the how-many-th press it was, and the reading of the
  * list it was pressed on.
  */
 interface Told {
-  readonly command: ActivationCommand;
+  readonly command: ToldCommand;
   readonly name: string;
   readonly offer: CommandOffer;
   readonly press: number;
@@ -75,7 +88,7 @@ interface Told {
  */
 interface ListReport {
   readonly report: (reported: Reported) => void;
-  readonly tell: (name: string, offer: CommandOffer, command: ActivationCommand) => void;
+  readonly tell: (name: string, offer: CommandOffer, command: ToldCommand) => void;
   readonly reading: string;
   /** Give the focus to the active cell of the grid of the list, or to the list. */
   readonly refocus: () => void;
@@ -106,7 +119,7 @@ function ToldConditions({ told }: { readonly told: Told | undefined }) {
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
       {told === undefined ? null : (
         <span key={told.press}>
-          {t(told.command === "reactivate" ? "unavailable" : "deactivationUnavailable", {
+          {t(TOLD[told.command], {
             name: told.name,
             unmet: unmet(told.offer),
           })}
@@ -126,8 +139,9 @@ interface Kept extends Reported {
  * dismissed — one that arrives while another is told is added to it, never put in its place, save
  * the refusal of the same command on the same object, which replaces the one before —: a
  * success after them does not take them away, and the focus goes back to the active cell of the grid
- * — or to the list, ringed — once one is. What an unavailable reactivation pressed
- * lacks is said in the region of the list, on the same reading alone. A refusal is told only on the reading it
+ * — or to the list, ringed — once one is. What an unavailable command pressed — a reactivation, a
+ * deactivation or a designation by default — lacks is said in the region of the list, on the same
+ * reading alone. A refusal is told only on the reading it
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
  * hidden, a search of its own — says nothing of the list now shown (défaut n° 1 de
  * `typescript.md`); a sort of another list of the screen leaves it said.
@@ -160,7 +174,7 @@ export function Reactivations({
   const value = useMemo(
     () => ({
       report,
-      tell: (name: string, offer: CommandOffer, command: ActivationCommand) => {
+      tell: (name: string, offer: CommandOffer, command: ToldCommand) => {
         setTold((before) => ({ command, name, offer, press: (before?.press ?? 0) + 1, reading }));
       },
       reading,

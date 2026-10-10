@@ -534,8 +534,8 @@ describe("the settings of the resources", () => {
     const page = text(await resourcesAt());
     expect(page).toMatch(/Maquette.*Nouveau nœud.*Nouveau rôle.*Nouveau calendrier.*Désigner/);
     expect(page).not.toMatch(/Supprimer|Effacer/);
-    // The natures are read whole, by which a role is attached to a category of labour alone.
-    expect(queriesOf("GET /reference/cost-types")).toEqual([WHOLE]);
+    // The natures are not read: a category says if it is of labour (`cost_type_kind`).
+    expect(queriesOf("GET /reference/cost-types")).toEqual([]);
     server.clients = [];
     server.answers = {
       ...server.answers,

@@ -593,8 +593,9 @@ describe("the grid of the calendars", () => {
       "Par défaut",
       "État",
     ]);
-    // By label, as the list without sort gives them: the standard week, the default one, second.
-    expect(cell(0, "is_default")).toHaveTextContent(/^$/);
+    // By label, as the list without sort gives them: the standard week, the default one, second; the
+    // other offers its designation as it lists it (`set_default`).
+    expect(cell(0, "is_default")).toHaveTextContent("Désigner");
     expect(cell(1, "is_default")).toHaveTextContent("Calendrier par défaut");
   });
 });

@@ -61,23 +61,21 @@ export interface Attached {
 }
 
 /**
- * The objects offered to an entry, in the order given: the active ones — every one read with
- * `every`, a deactivated one marked —, and the one the object is attached to, by the name its row
- * gives it, marked deactivated when the list read does not offer it. A list not read offers nothing
- * but the one attached, named without a mark: nothing says it is deactivated.
+ * The objects offered to an entry, in the order given: the active ones, and the one the object is
+ * attached to, by the name its row gives it, marked deactivated when the list read does not offer
+ * it. A list not read offers nothing but the one attached, named without a mark: nothing says it is
+ * deactivated.
  */
 export function offered(
   choices: readonly Choice[] | undefined,
   attached: Attached | undefined,
-  every = false,
 ): Offered[] {
   if (choices === undefined) {
     return attached === undefined ? [] : [{ ...attached, active: false, deactivated: false }];
   }
-  const shown = (every ? choices : choices.filter((choice) => choice.active)).map((choice) => ({
-    ...choice,
-    deactivated: !choice.active,
-  }));
+  const shown = choices
+    .filter((choice) => choice.active)
+    .map((choice) => ({ ...choice, deactivated: false }));
   if (attached === undefined || shown.some((choice) => choice.id === attached.id)) {
     return shown;
   }
@@ -97,18 +95,10 @@ export function categoryChoice(category: components["schemas"]["CostCategory"]):
 
 /**
  * The categories of cost a role may be attached to: those whose nature is of labour (WF-REF-0090),
- * as the natures read say — the contract filters the categories by no type of nature (#507); none
- * when either list was not read.
+ * as each says the type of its nature (`cost_type_kind`, EP-14/L42j); none when they were not read.
  */
 export function labourOf(
   categories: readonly components["schemas"]["CostCategory"][] | undefined,
-  natures: readonly components["schemas"]["CostType"][] | undefined,
 ): Choice[] | undefined {
-  if (categories === undefined || natures === undefined) {
-    return undefined;
-  }
-  const labour = new Set(
-    natures.filter((nature) => nature.kind === "labor").map((nature) => nature.cost_type_id),
-  );
-  return categories.filter((category) => labour.has(category.cost_type_id)).map(categoryChoice);
+  return categories?.filter((category) => category.cost_type_kind === "labor").map(categoryChoice);
 }

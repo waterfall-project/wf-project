@@ -4,10 +4,10 @@
  * The forms and the commands of the settings of the resources (FBS-3.2, EP-02/L43b), in dialogs over
  * their lists (`ReferenceForm`), offered to a session that may modify them:
  *
- * - a node of the organisation by its code, unique, its name and its parent — none for a root —
- *   (WF-REF-0070): an active node takes place under an active one alone, no active object remaining
- *   in a closed service, a deactivated one moves where one wants (WF-REF-0080, `updateOrgNode`);
- *   never under itself nor under one of its descendants, which it takes along;
+ * - a node of the organisation by its code, unique, its name and its parent — none for a root, sent
+ *   null —: a node, active or not, takes place under an active one alone (WF-REF-0070), the parent
+ *   it has kept even deactivated; never under itself nor under one of its descendants, which it
+ *   takes along;
  * - a resource role by its name, its node, its category of labour and its calendar — the three
  *   attachments required, among the active objects (WF-REF-0090) — and its single capacity, the hours
  *   a month and the headcount they stand for (WF-REF-0100); its node is set at its creation, a role
@@ -16,6 +16,14 @@
  * - a calendar by its name and its seven values of hours, from Monday, and nothing else
  *   (WF-REF-0110).
  *
+ * The server judges the rest, each refusal by field said at its field by `ReferenceForm` (EP-14/L42j):
+ * a reference unknown (`UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY`, `UNKNOWN_CALENDAR`), a node moved
+ * under itself or one of its descendants (`ORG_NODE_CYCLE`), a category not of labour
+ * (`LABOUR_CATEGORY_REQUIRED`), an attachment deactivated meanwhile (`INACTIVE_REFERENCE_OBJECT`), a
+ * figure out of its bounds, with the bound crossed (`VALUE_OUT_OF_RANGE`); a code or a label already
+ * held names its holder (`ALREADY_EXISTS`); the version stale (412) is told under the form, with the
+ * offer to read the page anew.
+ *
  * The designation of the default calendar is that of `calendar-default.tsx`.
  */
 "use client";
@@ -23,6 +31,7 @@
 import { useLocale, useTranslations } from "next-intl";
 
 import { createReferenceObject, updateReferenceObject } from "@/api/actions/reference";
+import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { editableDecimal } from "@/i18n/format";
 
 import { useListForm } from "./commands";
@@ -49,57 +58,99 @@ function outside(nodes: readonly Choice[], id: string | undefined): Choice[] {
   return [...nodes.slice(0, at), ...(end < 0 ? [] : nodes.slice(end))];
 }
 
+/** The parent a node keeps, deactivated, as the tree read or the list shows it, and its own parent. */
+interface Kept {
+  readonly id: string;
+  readonly code?: string | undefined;
+  readonly label: string;
+  readonly level?: number | undefined;
+  /** The node it is under, as the tree read or its row says; none for a root, or when nothing says. */
+  readonly above: string | null;
+  /** Its place in the tree read; none when the tree does not hold it. */
+  readonly place?: number | undefined;
+}
+
 /**
- * The parents a node may take, from those of the tree read: the parent it has is offered all the
- * same — WF-REF-0080 leaves a deactivated node under a deactivated parent —, in its place when the
- * tree read holds it, marked when it is not active. One the tree read does not hold — read without
- * the deactivated ones — is not active, and is marked: placed under its own parent, at its depth,
- * when the rows of the list name it and the tree holds that one; at the end and set in by nothing
- * otherwise, never seeming to be under a node it is not under.
+ * The deactivated parent a node keeps, by what shows it: the tree read, whose order and depths give
+ * its place and the node it is under; or the rows of the list — read under `org_is_active=false`, the
+ * tree without the deactivated ones —; or the name the row of the node gives it, and nothing else.
+ */
+function keptParent(
+  { id, label }: { readonly id: string; readonly label: string },
+  nodes: readonly Choice[],
+  rows: readonly OrgNode[],
+): Kept {
+  const place = nodes.findIndex((each) => each.id === id);
+  const read = nodes[place];
+  if (read !== undefined) {
+    const depth = read.level ?? 1;
+    const above = nodes.slice(0, place).findLast((each) => (each.level ?? 1) < depth);
+    const { code, level } = read;
+    return { id, code, label: read.label, level, above: above?.id ?? null, place };
+  }
+  const row = rows.find((each) => each.org_node_id === id);
+  return row === undefined
+    ? { id, label, above: null }
+    : { id, code: row.code, label: row.label, level: row.level, above: row.parent_id ?? null };
+}
+
+/**
+ * Where a kept parent goes among the parents offered: at its place in the tree read — before the
+ * first offer the tree holds after it, the front reordering nothing of what the server orders —; one
+ * the tree does not hold, right under its own parent when that one is offered, at the end otherwise.
+ */
+function slotOf(
+  offers: readonly Offered[],
+  nodes: readonly Choice[],
+  { above, place }: Pick<Kept, "above" | "place">,
+): number {
+  if (place !== undefined) {
+    const after = offers.findIndex(
+      (offer) => nodes.findIndex((each) => each.id === offer.id) > place,
+    );
+    return after < 0 ? offers.length : after;
+  }
+  const under = above === null ? -1 : offers.findIndex((offer) => offer.id === above);
+  return under < 0 ? offers.length : under + 1;
+}
+
+/**
+ * The parents a node may take (WF-REF-0070): the active nodes of the tree read, in its order — a
+ * node, active or not, takes place under an active one alone (`updateOrgNode`, EP-14/L42j) —, never
+ * the node itself nor one of its descendants, which it takes along. The parent it has is offered all
+ * the same when it is deactivated, marked: the contract refuses a deactivated parent only when the
+ * modification changes it, and a node renamed under its deactivated parent keeps it. When the node
+ * it is under is offered, or it is a root, it keeps its depth and its place — in the tree read, or
+ * under its own parent as the rows of the list name it (`slotOf`); otherwise it comes last, set in by
+ * nothing, never seeming to be under a node it is not under nor above one that is not under it.
  */
 function parentsOf(
   node: OrgNode | undefined,
   nodes: readonly Choice[],
   rows: readonly OrgNode[],
 ): Offered[] {
-  const every = node?.is_active === false;
-  const tree = outside(nodes, node?.org_node_id);
-  if (node?.parent_id === null || node?.parent_id === undefined) {
-    return offered(tree, undefined, every);
+  const offers = outside(nodes, node?.org_node_id)
+    .filter((each) => each.active)
+    .map((each) => ({ ...each, deactivated: false }));
+  const parent = node?.parent_id ?? null;
+  if (node === undefined || parent === null || offers.some((offer) => offer.id === parent)) {
+    return offers;
   }
-  const attached = { id: node.parent_id, label: node.parent_label ?? "" };
-  return nodes.some((each) => each.id === attached.id)
-    ? offered(tree, attached, every)
-    : placed(
-        offered(tree, undefined, every),
-        attached,
-        rows.find((row) => row.org_node_id === attached.id),
-      );
-}
-
-/**
- * A parent the tree read does not hold among the parents offered, marked: under its own parent, at
- * its depth, when its row is shown and the tree holds that one; at the end, set in by nothing,
- * otherwise.
- */
-function placed(
-  offers: readonly Offered[],
-  { id, label }: { readonly id: string; readonly label: string },
-  shown: OrgNode | undefined,
-): Offered[] {
-  const above = shown?.parent_id ?? null;
-  const at = above === null ? -1 : offers.findIndex((offer) => offer.id === above);
-  const parent: Offered = {
-    id,
-    code: shown?.code,
-    label: shown?.label ?? label,
-    level: at < 0 ? undefined : shown?.level,
+  const { above, place, level, ...kept } = keptParent(
+    { id: parent, label: node.parent_label ?? "" },
+    nodes,
+    rows,
+  );
+  // It keeps its depth, and its place, only when the node it is under is offered — or it is a root.
+  const keeps = above === null || offers.some((offer) => offer.id === above);
+  const shown: Offered = {
+    ...kept,
+    level: keeps ? level : undefined,
     active: false,
     deactivated: true,
   };
-  return at < 0
-    ? [...offers, parent]
-    : [...offers.slice(0, at + 1), parent, ...offers.slice(at + 1)];
+  const slot = keeps ? slotOf(offers, nodes, { above, place }) : offers.length;
+  return [...offers.slice(0, slot), shown, ...offers.slice(slot)];
 }
 
 /** Name the objects offered to a choice: a node set in by its depth, a deactivated one marked. */
@@ -137,10 +188,10 @@ export function OrgNodeDialog({
   }
   const { row, ...rest } = form;
   const node = row as OrgNode | undefined;
-  // An active node, or one created active, takes place under an active one alone (WF-REF-0080), a
-  // deactivated one under any node read, its parent offered all the same.
+  // A node takes place under an active one alone, its deactivated parent offered all the same.
   const parents = parentsOf(node, nodes, rows);
-  // What names the node that holds a code taken (409 `ALREADY_EXISTS`): the tree, or the list.
+  // What names the node that holds a code taken (409 `ALREADY_EXISTS`): the tree, or the list; the
+  // label the refusal gives otherwise (`conflicting_object_label`).
   const names = Object.fromEntries(
     [
       ...rows.map((each) => ({ id: each.org_node_id, code: each.code, label: each.label })),
@@ -314,8 +365,17 @@ export function ResourceRoleDialog({
   );
 }
 
-/** The dialog of the list of the calendars, while its form is open. */
-export function CalendarDialog() {
+/**
+ * The dialog of the list of the calendars, while its form is open: a label already held by another
+ * calendar, deactivated ones counted (409 `ALREADY_EXISTS`, WF-REF-0110), names it by its identifier
+ * when the page shows it, generically otherwise.
+ */
+export function CalendarDialog({
+  names,
+}: {
+  /** The names of the calendars of the page, by identifier. */
+  readonly names: ObjectNames;
+}) {
   const t = useTranslations("reference");
   const columns = useTranslations("grid.columns");
   const days = useTranslations("admin.schedule.weekdays");
@@ -342,6 +402,7 @@ export function CalendarDialog() {
       }
       hint={t("calendarForm.hint")}
       creating={calendar === undefined}
+      names={names}
       fields={[
         required("label", columns("label"), LABEL_LENGTH),
         ...DAYS.map((day): FormField => ({

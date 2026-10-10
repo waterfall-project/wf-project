@@ -280,7 +280,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
         width: 180,
         contract: "is_default",
         value: (calendar) => (calendar.is_default ? "default" : null),
-        render: (calendar) => <DefaultCalendarCell calendar={calendar} editable={editable} />,
+        render: (calendar) => <DefaultCalendarCell calendar={calendar} />,
       },
       ...commandColumns<Calendar, CalendarSort>(
         editable,

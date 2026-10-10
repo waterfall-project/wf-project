@@ -19,9 +19,9 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import type { CostCategory, CostType } from "./cost-kinds";
+import type { CostCategory } from "./cost-kinds";
 import { type Choice, labourOf } from "./kinds";
-import type { Calendar, OrgNode, ResourceRole } from "./resource-grids";
+import { type Calendar, DAYS, type OrgNode, type ResourceRole } from "./resource-grids";
 import {
   CalendarList,
   type DayBounds,
@@ -60,7 +60,6 @@ const NO_BOUNDS = { min: undefined, max: undefined };
 const tree = example("org_nodes_with_inactive") as OrgNode[];
 const roles = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
 const calendars = example("calendars_with_inactive") as { items: Calendar[]; meta: ListPage };
-const natures = example("cost_types") as { items: CostType[] };
 
 /** The nodes of the whole tree, deactivated ones among them, as the page offers them. */
 const NODE_CHOICES: NodeOffered[] = tree.map((node) => ({
@@ -76,8 +75,7 @@ const ACTIVE_NODES = NODE_CHOICES.filter((node) => node.active);
 
 /** The first categories of labour of the volumes, as the page offers them to a role. */
 const LABOUR: Choice[] = (
-  labourOf((example("volume/cost_categories") as { items: CostCategory[] }).items, natures.items) ??
-  []
+  labourOf((example("volume/cost_categories") as { items: CostCategory[] }).items) ?? []
 ).slice(0, 2);
 
 /** The calendars, the thirty-nine-hour week deactivated among them. */
@@ -172,24 +170,24 @@ function roleList(editable = true, categoriesRead = true) {
   );
 }
 
-/** The calendars, the active ones, for a session that may write them or not. */
-function calendarList(editable = true) {
+/**
+ * The calendars, the active ones unless told, for a session that may write them — their commands
+ * listed — or not.
+ */
+function calendarList(
+  editable = true,
+  rows: readonly Calendar[] = calendars.items.filter((calendar) => calendar.is_active),
+) {
   return inFrench(
     <CalendarList
-      rows={calendars.items.filter((calendar) => calendar.is_active)}
+      rows={rows}
       page={calendars.meta}
       query={NO_QUERY}
       preferences={undefined}
       readsInactive
       editable={editable}
       state={undefined}
-      hours={
-        Object.fromEntries(
-          ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map(
-            (day) => [day, NO_BOUNDS],
-          ),
-        ) as DayBounds
-      }
+      hours={Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds}
     />,
   );
 }
@@ -293,44 +291,36 @@ describe("the organisation", () => {
   });
 
   it.each([
-    // The technical direction, which the tree names.
+    // The tree read with the deactivated nodes names the office of automation, which holds it.
+    ["shown", tree, NODE_CHOICES, "BE-AUTO · Bureau d'études automatismes"],
+    // Read without them, the tree does not show it: the refusal names it by its label.
     [
-      "01926f3a-7c00-7000-8000-000000000470",
-      "Déjà porté par «\u00a0DT · Direction technique\u00a0».",
+      "not shown",
+      tree.filter((node) => node.is_active),
+      ACTIVE_NODES,
+      "Bureau d'études automatismes",
     ],
-    // A node the tree read does not hold.
-    ["01926f3a-7c00-7000-8000-000000000499", "Déjà porté par un autre nœud."],
   ])(
-    "says at the code the refusal of a code that exists already, naming the node %s that holds it, the form kept to be corrected [WF-REF-0070-A]",
-    async (holder, named) => {
-      // The envelope of the contract: the field taken, and the node that holds it.
-      serve({
-        [NODES]: {
-          problem: {
-            code: "ALREADY_EXISTS",
-            status: 409,
-            fields: [
-              {
-                pointer: "/code",
-                code: "ALREADY_EXISTS",
-                params: { conflicting_object_id: holder },
-              },
-            ],
-          },
-        },
-      });
-      render(organisation());
+    "says at the code the refusal of a code that exists already, naming the node that holds it, %s by the tree, the form kept to be corrected [WF-REF-0070-A]",
+    async (_shown, rows, nodes, holder) => {
+      serve({ [NODES]: { problem: example("org_node_code_taken") as Problem & { status: 409 } } });
+      render(organisation(rows, nodes));
       const form = await opened("Nouveau nœud", "Nouveau nœud d’organisation");
       const code = within(form).getByRole("textbox", { name: "Code" });
-      await userEvent.type(code, "DT");
-      await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Doublon");
+      await userEvent.type(code, "BE-AUTO");
+      await userEvent.type(
+        within(form).getByRole("textbox", { name: "Libellé" }),
+        "Bureau d'études mécanique",
+      );
       await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
       // La création d'un nœud dont le code existe déjà est refusée.
       await vi.waitFor(() => {
         expect(code).toHaveFocus();
       });
-      expect(code).toHaveAccessibleDescription(`Cet élément existe déjà. ${named}`);
-      expect(code).toHaveValue("DT");
+      expect(code).toHaveAccessibleDescription(
+        `Cet élément existe déjà. Déjà porté par «\u00a0${holder}\u00a0».`,
+      );
+      expect(code).toHaveValue("BE-AUTO");
       expect(within(form).queryByRole("alert")).toBeNull();
       expect(refresh).not.toHaveBeenCalled();
     },
@@ -459,18 +449,130 @@ describe("the organisation", () => {
     expect(options(parent).at(-1)).toBe("Bureau d'études automatismes (désactivé)");
   });
 
-  it("offers a deactivated node every node as its parent, the deactivated ones marked", async () => {
-    serve();
-    render(organisation(tree));
+  it("offers a deactivated node the active nodes alone as its parent, its deactivated parent kept in its place, chosen, and sent unchanged [WF-REF-0070-A]", async () => {
+    // A tree declared here, the service of the purchases deactivated as well: the witness has no
+    // deactivated node that a deactivated one could be moved under.
+    const closed = NODE_CHOICES.map((node) =>
+      node.code === "ACHATS" ? { ...node, active: false } : node,
+    );
+    const client = serve({ [NODE]: "org_node_renamed_under_inactive" });
+    render(organisation(tree, closed));
+    const robotics = nodeOf("CEL-ROBOT");
     const form = await opened("Modifier « Cellule robotique »", "Modifier « Cellule robotique »");
-    expect(options(within(form).getByRole("combobox", { name: "Parent" }))).toEqual([
+    const parent = within(form).getByRole("combobox", { name: "Parent" });
+    // Le déplacement sous un nœud désactivé est refusé : the purchases are not offered; the office of
+    // automation, its parent, is, under the direction.
+    expect(options(parent)).toEqual([
       "Aucun — racine",
       "DT · Direction technique",
-      " BE-AUTO · Bureau d'études automatismes (désactivé)",
-      " BE-ELEC · Bureau d'études électricité",
-      "  AT-CABL · Atelier de câblage",
-      " ACHATS · Service des achats",
+      "\u2003BE-AUTO · Bureau d'études automatismes (désactivé)",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
     ]);
+    expect(parent).toHaveValue(nodeOf("BE-AUTO").org_node_id);
+    // Renamed under its parent, which the modification does not change: the contract refuses it not.
+    const label = within(form).getByRole("textbox", { name: "Libellé" });
+    await userEvent.clear(label);
+    await userEvent.type(label, "Cellule robotique et vision");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(announced()).toContain("« Cellule robotique et vision » enregistré.");
+    });
+    expect(writes(client)).toEqual([
+      {
+        route: NODE,
+        path: `/reference/org-nodes/${robotics.org_node_id}`,
+        body: {
+          code: "CEL-ROBOT",
+          label: "Cellule robotique et vision",
+          parent_id: nodeOf("BE-AUTO").org_node_id,
+          lock_version: robotics.lock_version,
+        },
+      },
+    ]);
+  });
+
+  it("keeps a deactivated parent at its place in the order of the tree, set in by its depth under the node offered above it", async () => {
+    serve();
+    // A tree declared here from the choices of `org_nodes_with_inactive` (`NODE_CHOICES`): the office
+    // of automation active, the office of electricity deactivated — and its workshop with it, the
+    // cascade of WF-REF-0080 leaving no active node under a deactivated one.
+    const reorganised = NODE_CHOICES.map((node) =>
+      node.code === "BE-AUTO"
+        ? { ...node, active: true }
+        : node.code === "BE-ELEC" || node.code === "AT-CABL"
+          ? { ...node, active: false }
+          : node,
+    );
+    render(organisation(tree, reorganised));
+    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const parent = within(form).getByRole("combobox", { name: "Parent" });
+    expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
+    // After the office of automation, as the tree orders them, and not right under the direction.
+    expect(options(parent)).toEqual([
+      "Aucun — racine",
+      "DT · Direction technique",
+      "\u2003BE-AUTO · Bureau d'études automatismes",
+      "\u2003BE-ELEC · Bureau d'études électricité (désactivé)",
+      "\u2003ACHATS · Service des achats",
+    ]);
+  });
+
+  it("offers last, set in by nothing, a deactivated parent whose own parent is not offered, no offer after it", async () => {
+    serve();
+    // A tree declared here from the choices of `org_nodes_with_inactive` (`NODE_CHOICES`), on five
+    // levels, the witness having three: the office of electricity attached under the robotics cell,
+    // deactivated, and so deactivated by the cascade of WF-REF-0080 — its depth and its state the
+    // one fact —, its workshop one level deeper.
+    const deeper = NODE_CHOICES.map((node) =>
+      node.code === "BE-ELEC"
+        ? { ...node, level: 4, active: false }
+        : node.code === "AT-CABL"
+          ? { ...node, level: 5 }
+          : node,
+    );
+    render(organisation(tree, deeper));
+    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const parent = within(form).getByRole("combobox", { name: "Parent" });
+    expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
+    // Not at its place before the purchases, where it would seem a root above them.
+    expect(options(parent)).toEqual([
+      "Aucun — racine",
+      "DT · Direction technique",
+      "\u2003ACHATS · Service des achats",
+      "BE-ELEC · Bureau d'études électricité (désactivé)",
+    ]);
+  });
+
+  it("says at the parent the refusal of a move under the node itself or one of its descendants, the tree changed meanwhile", async () => {
+    serve({
+      [NODE]: { problem: example("org_node_move_cycle_refused") as Problem & { status: 422 } },
+    });
+    render(organisation());
+    const form = await opened(
+      "Modifier « Direction technique »",
+      "Modifier « Direction technique »",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    const parent = within(form).getByRole("combobox", { name: "Parent" });
+    await vi.waitFor(() => {
+      expect(parent).toHaveFocus();
+    });
+    expect(parent).toHaveAccessibleDescription(
+      "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
+    );
+    expect(within(form).queryByRole("alert")).toBeNull();
+  });
+
+  it("tells under the form the modification of a node from a stale version, with the offer to read the page anew", async () => {
+    serve({ [NODE]: { problem: example("org_node_update_stale") as Problem & { status: 412 } } });
+    render(organisation());
+    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    const alert = await within(form).findByRole("alert");
+    expect(alert).toHaveTextContent("Quelqu’un a modifié cette donnée entre-temps");
+    expect(within(alert).getByRole("button", { name: "Recharger" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBe(form);
   });
 
   it("says at the parent the refusal of an active node moved under a deactivated one", async () => {
@@ -630,6 +732,64 @@ describe("the resource roles", () => {
     expect(node).toHaveAccessibleDescription("Cet élément du référentiel est désactivé.");
   });
 
+  it("says at each attachment the refusal the server gives it — a node unknown, a category not of labour, a calendar deactivated meanwhile — the first taking the focus [WF-REF-0090-A]", async () => {
+    serve({
+      [ROLES]: {
+        problem: example("resource_role_attachments_refused") as Problem & { status: 422 },
+      },
+    });
+    render(roleList());
+    const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Libellé" }),
+      "Dessinateur électricien",
+    );
+    const node = within(form).getByRole("combobox", { name: "Nœud d’organisation" });
+    await userEvent.selectOptions(node, "DT · Direction technique");
+    const category = within(form).getByRole("combobox", { name: "Catégorie de coût" });
+    await userEvent.selectOptions(category, LABOUR[0]?.id ?? "");
+    const calendar = within(form).getByRole("combobox", { name: "Calendrier" });
+    await userEvent.selectOptions(calendar, "Semaine standard");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "520");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    // La création d'un rôle […] est refusée, de même que son rattachement à une catégorie hors
+    // main-d'œuvre ou à un objet désactivé.
+    await vi.waitFor(() => {
+      expect(node).toHaveFocus();
+    });
+    expect(node).toHaveAccessibleDescription("Nœud d’organisation inconnu.");
+    expect(category).toHaveAccessibleDescription(
+      "Une catégorie de coût de main-d’œuvre est requise.",
+    );
+    expect(calendar).toHaveAccessibleDescription("Cet élément du référentiel est désactivé.");
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says at its field a headcount under the least the server admits, with that least, and at the calendar one deactivated meanwhile", async () => {
+    serve({
+      [ROLE]: { problem: example("resource_role_update_refused") as Problem & { status: 422 } },
+    });
+    render(roleList());
+    const form = await opened(
+      "Modifier « Technicien de mise en service »",
+      "Modifier « Technicien de mise en service »",
+    );
+    const headcount = within(form).getByRole("textbox", { name: "Effectif" });
+    await userEvent.clear(headcount);
+    await userEvent.type(headcount, "-1");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    const calendar = within(form).getByRole("combobox", { name: "Calendrier" });
+    await vi.waitFor(() => {
+      expect(calendar).toHaveFocus();
+    });
+    expect(calendar).toHaveAccessibleDescription("Cet élément du référentiel est désactivé.");
+    expect(headcount).toHaveAccessibleDescription(
+      "La valeur sort des limites admises. Valeur minimale\u00a0: 0.",
+    );
+  });
+
   it("modifies a role but its node, which its form names, from the version read, its capacity shown in the language of the reader", async () => {
     const client = serve();
     render(roleList());
@@ -714,136 +874,15 @@ describe("the resource roles", () => {
   });
 });
 
-describe("the calendars", () => {
-  it("creates a calendar by its seven values of hours, from Monday, and asks nothing else [WF-REF-0110-A]", async () => {
-    const client = serve();
-    render(calendarList());
-    const form = await opened("Nouveau calendrier", "Nouveau calendrier");
-    // Un calendrier se saisit par sept valeurs d'heures, du lundi au dimanche, et aucune autre
-    // donnée n'est demandée.
-    expect(
-      within(form)
-        .getAllByRole("textbox")
-        .map((field) => (field as HTMLInputElement).labels?.[0]?.textContent),
-    ).toEqual(["Libellé", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]);
-    expect(within(form).queryByRole("combobox")).toBeNull();
-    await userEvent.type(
-      within(form).getByRole("textbox", { name: "Libellé" }),
-      "Semaine de trente-cinq heures",
-    );
-    for (const day of ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"]) {
-      await userEvent.type(within(form).getByRole("textbox", { name: day }), "7");
-    }
-    for (const day of ["Samedi", "Dimanche"]) {
-      await userEvent.type(within(form).getByRole("textbox", { name: day }), "0");
-    }
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await vi.waitFor(() => {
-      expect(refresh).toHaveBeenCalledOnce();
-    });
-    expect(writes(client)[0]?.body).toEqual({
-      label: "Semaine de trente-cinq heures",
-      weekly_hours: {
-        monday: "7",
-        tuesday: "7",
-        wednesday: "7",
-        thursday: "7",
-        friday: "7",
-        saturday: "0",
-        sunday: "0",
-      },
-    });
-    expect(announced()).toContain("« Semaine de trente-cinq heures » créé.");
-  });
-
-  it("modifies a calendar from the version read, its hours shown in the language of the reader", async () => {
-    const client = serve();
-    render(calendarList());
-    const form = await opened(
-      "Modifier « Semaine de quatre jours »",
-      "Modifier « Semaine de quatre jours »",
-    );
-    expect(within(form).getByRole("textbox", { name: "Lundi" })).toHaveValue("10");
-    const label = within(form).getByRole("textbox", { name: "Libellé" });
-    await userEvent.clear(label);
-    await userEvent.type(label, "Semaine de quatre jours de dix heures");
-    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-    await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(1);
-    });
-    expect(client.calls[0]?.body).toMatchObject({
-      label: "Semaine de quatre jours de dix heures",
-      weekly_hours: { monday: "10", friday: "0" },
-      lock_version: 1,
-    });
-  });
-
-  it("designates an active calendar by default from its row, reads the page anew, and shows the answer in its row", async () => {
-    const client = serve();
-    render(calendarList());
-    // The default calendar is marked, and offers no designation.
-    expect(
-      screen.queryByRole("button", { name: "Désigner « Semaine standard » par défaut" }),
-    ).toBeNull();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Désigner « Semaine de quatre jours » par défaut" }),
-    );
-    await vi.waitFor(() => {
-      expect(refresh).toHaveBeenCalledOnce();
-    });
-    // Withdrawing the designation from the one before is the server's: the page read anew shows it.
-    expect(writes(client)).toEqual([
-      {
-        route: DEFAULT,
-        path: "/reference/calendars/01926f3a-7c00-7000-8000-000000000482/default",
-        body: { lock_version: 1 },
-      },
-    ]);
-    expect(announced()).toContain("« Semaine de quatre jours » désigné calendrier par défaut.");
-    const row = document.querySelector('td[data-row="0"][data-column="is_default"]');
-    expect(row).toHaveTextContent("Calendrier par défaut");
-  });
-
-  it("says the refusal of a designation above the list, the row as the page read it", async () => {
-    serve({ [DEFAULT]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } });
-    render(calendarList());
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut",
-      }),
-    );
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "L’état actuel ne permet pas cette opération.",
-    );
-    expect(refresh).not.toHaveBeenCalled();
-    expect(document.querySelector('td[data-row="0"][data-column="is_default"]')).toHaveTextContent(
-      "Désigner",
-    );
-  });
-
-  it("presents the deactivation of the default calendar unavailable, with its condition [WF-REF-0120-A]", async () => {
-    const client = serve();
-    render(calendarList());
-    // La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné.
-    const command = screen.getByRole("button", {
-      name: "Désactiver « Semaine standard »",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription(
-      "Condition non remplie : calendrier autre que celui par défaut.",
-    );
-    await userEvent.click(command);
-    expect(client.calls).toEqual([]);
-  });
-});
-
 describe("a session that may only read the settings of the resources", () => {
   it("is offered neither creation, modification nor designation, and no screen offers to delete [WF-IHM-0090-A] [WF-REF-0010-A]", () => {
     serve();
+    // The server lists the commands of no calendar to it.
+    const read = example("calendars_reader") as { items: Calendar[] };
     render(
       <>
         {roleList(false)}
-        {calendarList(false)}
+        {calendarList(false, read.items)}
       </>,
     );
     expect(screen.queryByRole("button", { name: /^(Nouveau|Modifier|Désigner)/ })).toBeNull();

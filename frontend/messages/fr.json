@@ -1132,7 +1132,8 @@
       "unavailable": "La réactivation de « {name} » est indisponible. {unmet}",
       "deactivate": "Désactiver « {name} »",
       "deactivateShort": "Désactiver",
-      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}"
+      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}",
+      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",
@@ -1157,7 +1158,7 @@
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "takenBy": "Déjà porté par « {name} ».",
-      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} calendar {Déjà porté par un autre calendrier.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
@@ -1183,8 +1184,8 @@
     },
     "orgNodeForm": {
       "create": "Nouveau nœud d’organisation",
-      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud actif ne prend place que sous un nœud actif.",
-      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants ; actif, il ne prend place que sous un nœud actif.",
+      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud ne prend place que sous un nœud actif.",
+      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants, et ne prend place que sous un nœud actif ; son parent désactivé se garde.",
       "parent": "Parent",
       "root": "Aucun — racine"
     },

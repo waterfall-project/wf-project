@@ -388,7 +388,7 @@ test("presents fixed the type of a nature whose category is employed, and the de
   await expect(form).toBeHidden();
 });
 
-test("creates a role in its form and designates the default calendar, its row showing the answer, the mock-up saying the fake back keeps nothing (EP-02/L43b)", async ({
+test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, the mock-up saying the fake back keeps nothing (EP-02/L43b, EP-14/L43g)", async ({
   page,
 }) => {
   test.slow();
@@ -430,7 +430,30 @@ test("creates a role in its form and designates the default calendar, its row sh
     "«\u00a0Dessinateur électricien\u00a0» créé.",
   );
 
-  // The four-day week designated by default from its row: the row shows what the server answers.
+  // The workshop moved under the direction in its form: the active nodes alone are offered as its
+  // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
+  const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
+  const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
+  await page
+    .getByRole("treegrid", { name: "Arbre d’organisation" })
+    .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
+    .click();
+  const parent = nodeForm.getByRole("combobox", { name: "Parent" });
+  await expect(parent.getByRole("option")).toHaveText([
+    "Aucun — racine",
+    "DT · Direction technique",
+    "\u2003BE-ELEC · Bureau d'études électricité",
+    "\u2003ACHATS · Service des achats",
+  ]);
+  await parent.selectOption({ label: "DT · Direction technique" });
+  await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(nodeForm).toBeHidden({ timeout: WORKING });
+  await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
+    "«\u00a0Atelier de câblage\u00a0» enregistré.",
+  );
+
+  // The four-day week designated by default from its row, as it lists the command: the row shows
+  // what the server answers.
   const calendars = page.getByRole("grid", { name: "Calendriers" });
   await calendars
     .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })

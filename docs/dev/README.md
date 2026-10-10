@@ -739,7 +739,8 @@ catégorie sa seule nature, et la note le dit à part (« Le type de la nature d
 lisible : seule elle est proposée. »). `costs/page.test.tsx` éprouve ce que la page passe au
 formulaire, les natures servies par `cost_types_with_inactive`, la lecture avec les désactivées, qui
 ne vaut que pour elle.
-Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste (`OrgNodeDialog`). Le
+Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste, sinon par le libellé que
+le refus donne (`OrgNodeDialog`). Le
 formulaire refuse à son champ ce qui manque, ou un nombre qui n'en est pas un dans la langue du
 lecteur (`parseDecimal`), avant toute demande, et le champ prend le focus ; le
 serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
@@ -802,33 +803,44 @@ porte `resource_settings.write` : « Nouveau nœud », « Nouveau rôle », « N
 modification de chaque ligne, la désactivation ou la réactivation comme l'objet la liste — un nœud
 avec ses descendants, que la réponse remplace dans l'arbre (WF-REF-0080), les rôles qu'elle désactive
 avec lui étant ceux de l'autre liste, que la page relue montre. Un nœud s'écrit par son code, son
-libellé et son parent — aucun pour une racine —, choisi dans l'ordre de l'arbre, chaque nœud décalé de
-sa profondeur (`treeLabel`) : un nœud actif, ou créé, parmi les actifs seuls, un désactivé parmi tous
-ceux que l'arbre lit, les désactivés marqués (WF-REF-0080, `updateOrgNode`), jamais sous lui-même ni
-sous l'un de ses descendants, qu'il emmène ; son parent est toujours offert, d'après `parent_id` et
-`parent_label`, marqué désactivé quand l'arbre lu ne le compte pas parmi les actifs — lu sans les
-désactivés, sous `org_is_active=false` —, et la liste le montre choisi ; absent de l'arbre lu, il se
-place sous son propre parent quand la ligne de la liste le nomme, sinon à la fin, sans décalage. Un rôle s'écrit par son
+libellé et son parent — nul pour une racine, envoyé à la modification comme à la création (`OrgNodeUpdate`) —, choisi dans l'ordre de l'arbre, chaque nœud
+décalé de sa profondeur (`treeLabel`) : parmi les nœuds actifs seuls, que le nœud soit actif ou
+désactivé (WF-REF-0070, EP-14/L43g), jamais sous lui-même ni sous l'un de ses descendants, qu'il
+emmène ; son parent est toujours offert, d'après `parent_id` et `parent_label`, marqué désactivé quand
+il l'est, et la liste le montre choisi — le contrat ne refuse un parent désactivé que si la
+modification le change ; désactivé, il garde sa profondeur
+quand le nœud au-dessus de lui est offert, ou qu'il est une racine, et alors sa place — dans l'arbre
+lu, le front ne réordonnant rien, ou sous son propre parent quand la ligne de la liste le nomme — ; à
+la fin sans décalage sinon. Un rôle s'écrit par son
 libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du rôle
 modifié marqué désactivé (WF-REF-0090), nommé sans marque quand la liste n'est pas lue, faute de savoir
 s'il l'est — et sa
 capacité, heures par mois et effectif, saisis dans la langue du lecteur (WF-REF-0100) ; son nœud se
 fixe à la création, et sa modification le nomme sans l'offrir : un rôle se recrée sous un autre nœud
-(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît à sa nature, que la page lit aussi
-(`listCostTypes`, `labourOf` de `kinds.ts`) : le contrat ne filtre pas les catégories par le type de
-leur nature — un rapprochement de deux listes, faute de mieux, signalé sous #507. Une session qui ne lit
-ni les catégories ni les natures (`cost_settings.read`) ne peut choisir aucune catégorie : « Nouveau
+(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît au type de sa nature, que chaque catégorie dit
+(`cost_type_kind`, `labourOf` de `kinds.ts`, EP-14/L43g) : la page ne lit pas les natures pour cela.
+Une session à qui l'API refuse les catégories ne peut en choisir aucune : « Nouveau
 rôle » ne lui est pas offert (WF-IHM-0090), et la modification nomme la catégorie du rôle comme sa ligne
 la nomme. La modification d'un objet répondue pour un autre objet est une panne du service
 (`INTERNAL_ERROR`), dite sous le formulaire comme la réponse d'une cellule pour une autre ligne. Un
 calendrier s'écrit par son libellé
-et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier actif
-et non par défaut se désigne par défaut depuis sa ligne (`setDefaultCalendar`, WF-REF-0120), la page
-relue montrant le précédent sans la désignation ; le contrat ne listant pas cette commande
-(`ReferenceCommand`), le front l'offre sur l'état que la ligne lit, par la seule règle qu'il donne. Un
-refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REFERENCE_OBJECT` sur
-`/parent_id` ou `/org_node_id` — se dit au champ, le reste comme pour les coûts ; l'écran dit que le
-faux back ne garde rien (`MockupNotice`).
+et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier se désigne
+par défaut depuis sa ligne comme il en liste la commande
+(`CalendarCommand.set_default`, `setDefaultCalendar`, WF-REF-0120, EP-14/L43g), depuis la version lue,
+la page relue montrant le précédent sans la désignation : absente — sur le calendrier par défaut, ou
+pour une session qui ne modifie pas —, rien, le front ne déduisant rien de l'état de la ligne ;
+indisponible pour un calendrier désactivé, présentée `aria-disabled`, décrite par sa condition
+(`calendar_active`), et un appui la dit dans la région de la liste sans rien demander
+(`UnavailableCellCommand`) ; le refus du serveur — le calendrier désactivé entre-temps (409), la
+version périmée (412), avec l'offre de relire — se dit au-dessus de la liste. Un refus par champ se
+dit au champ (`ReferenceForm`) : une référence inconnue (`UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY`,
+`UNKNOWN_CALENDAR`), un nœud placé sous lui-même ou l'un de ses descendants (`ORG_NODE_CYCLE`), une
+catégorie hors main-d'œuvre (`LABOUR_CATEGORY_REQUIRED`), un parent, un nœud ou un rattachement
+désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des heures hors de 0 à 24 ou une capacité
+négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un calendrier,
+désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon générique
+sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre de relire ;
+l'écran dit que le faux back ne garde rien (`MockupNotice`).
 
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
 #512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
