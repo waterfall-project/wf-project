@@ -11,8 +11,10 @@ from support import (
     DB_CREDENTIAL,
     DECODED_CREDENTIAL,
     ENCODED_CREDENTIAL,
+    PLATFORM_ADDRESSES,
     PLATFORM_SECRETS,
     PLUS_CREDENTIAL,
+    SERVICE_CREDENTIAL,
 )
 
 from waterfall.platform.settings import Settings, SettingsError, load_settings
@@ -46,6 +48,19 @@ def test_a_service_started_without_one_secret_names_that_one_only() -> None:
     assert result.returncode != 0
     assert "WATERFALL_DATABASE_URL: is missing" in result.stderr
     assert "WATERFALL_REDIS_URL" not in result.stderr
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_api_started_without_the_secret_of_its_service_account_names_it() -> None:
+    present = {
+        **{name: value for name, value in PLATFORM_SECRETS.items() if value != SERVICE_CREDENTIAL},
+        **PLATFORM_ADDRESSES,
+    }
+    result = start_api(present)
+    assert result.returncode != 0
+    assert "WATERFALL_SERVICE_CLIENT_SECRET: is missing" in result.stderr
+    assert "WATERFALL_DATABASE_URL" not in result.stderr
+    assert "WATERFALL_KEYCLOAK_ADDRESS" not in result.stderr
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

@@ -1248,7 +1248,7 @@ commande.
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests de `backend/tests/test_keycloak_platform.py`, que les autres tests du back écartent (marqueur `keycloak`) ; mêmes secrets que `service-up` |
+| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1845,6 +1845,25 @@ ses paramètres, jamais une phrase.
 
   *Contrôles* : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
   les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
+
+- **Connaître l'appelant** — une route gardée prend `Caller` et, si elle lit ou écrit la base,
+  `Transaction` (`waterfall.api.authentication`) : la première valide le jeton d'accès par les
+  clés du royaume (`waterfall.platform.keycloak`) et lit le compte par `idp_subject` à chaque
+  requête, la seconde ouvre la transaction de la requête, validée quand la route a construit sa
+  réponse et avant qu'elle parte. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
+  jeton expiré un 401 `SESSION_EXPIRED`, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un
+  compte que Waterfall ne connaît pas encore est créé sans rôle s'il vient de l'annuaire ou d'un
+  fournisseur externe, refusé comme un compte désactivé sinon. L'appelant devient l'auteur
+  (`actor`) de chaque journal de la requête. L'API lit `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse
+  du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
+  joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test
+  signe ses jetons par des clés qu'il engendre et sert comme le royaume sert les siennes
+  (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak s'éprouve contre la
+  plateforme (`make test-keycloak`), et la couverture du code, qui ne la joue pas, l'écarte par
+  le nom de ses fonctions (`[tool.coverage.report]`).
+
+  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`), `make test-keycloak`
+  (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne `Caller`, la revue.
 
 ## Clés de traduction
 

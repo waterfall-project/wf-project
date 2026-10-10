@@ -20,6 +20,7 @@ from support import (
 )
 
 from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.platform.correlation import FORM
 
 if TYPE_CHECKING:
@@ -46,11 +47,11 @@ def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClie
 
 
 def test_every_route_of_the_application_is_an_operation_of_the_contract(
-    contract: OpenAPI,
+    contract: OpenAPI, services: Services
 ) -> None:
     declared = operations(contract)
     # The application describes what it serves; it just does not serve the description.
-    served = create_app().openapi()["paths"]
+    served = create_app(services).openapi()["paths"]
     routes = {
         operation["operationId"]: (method.upper(), path)
         for path, item in served.items()
@@ -58,7 +59,7 @@ def test_every_route_of_the_application_is_an_operation_of_the_contract(
     }
     assert routes
     # A route left out of its own description would escape the comparison above.
-    for route in create_app().routes:
+    for route in create_app(services).routes:
         router = getattr(route, "original_router", None)
         for served_route in cast("list[BaseRoute]", router.routes) if router else [route]:
             assert isinstance(served_route, APIRoute)
@@ -98,10 +99,10 @@ def test_a_correlation_identifier_of_the_wrong_form_is_replaced(client: Contract
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")
-def test_what_a_request_carries_is_not_written_to_the_logs(logs: Logs) -> None:
+def test_what_a_request_carries_is_not_written_to_the_logs(logs: Logs, services: Services) -> None:
     # A route that fails writes the refusal and its trace: where what a request carries — and
     # a secret of the platform that the failure quotes — could leak.
-    app = create_app()
+    app = create_app(services)
 
     @app.get("/fail")
     def fail(request: Request) -> None:

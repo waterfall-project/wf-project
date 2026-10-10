@@ -63,14 +63,15 @@ target = "check-roadmap"
 [families.keycloak]
 # The image of Keycloak, built and tried on the service platform at each change of what it is made
 # of or started with (US-0350): the extension, the themes, the realm, the files of the platform,
-# and the tests that try it, with what they run on — their fixtures, the settings of Pytest and
-# the locked dependencies of the back.
+# the tests that try it, with what they run on — their fixtures, the settings of Pytest and the
+# locked dependencies of the back —, and the client of Keycloak in the back, which they try.
 paths = [
     "deploy/keycloak/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/keycloak-database.sql",
-    "backend/tests/test_keycloak_platform.py",
+    "backend/tests/test_keycloak_*.py",
     "backend/tests/conftest.py",
+    "backend/src/waterfall/platform/keycloak.py",
     "backend/pyproject.toml",
     "backend/uv.lock",
 ]

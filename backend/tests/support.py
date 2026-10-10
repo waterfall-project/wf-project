@@ -27,10 +27,14 @@ ENCODED_CREDENTIAL = "p%40ss%2Fw%3Ard%231%5Cx"
 DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
 # The two decodings differ on this one: ``unquote`` keeps the plus, ``unquote_plus`` makes a space.
 PLUS_CREDENTIAL = "a+b%40"
+SERVICE_CREDENTIAL = "service-client-pass-6e1b0a"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",
+    "WATERFALL_SERVICE_CLIENT_SECRET": SERVICE_CREDENTIAL,
 }
+# Where a service of the test platform reaches Keycloak: an address that answers nothing.
+PLATFORM_ADDRESSES = {"WATERFALL_KEYCLOAK_ADDRESS": "http://127.0.0.1:9/auth"}
 SECRETS = [
     DB_CREDENTIAL,
     REDIS_CREDENTIAL,
@@ -88,7 +92,8 @@ class ContractClient:
             response.content,
             status_code=response.status_code,
             headers=dict(response.headers),
-            content_type=response.headers["content-type"].split(";")[0],
+            # An answer without content, a 204, has no type.
+            content_type=response.headers.get("content-type", "").split(";")[0],
         )
         self.contract.validate_response(request, conforming)
         return response
@@ -96,6 +101,10 @@ class ContractClient:
     def get(self, path: str, **kwargs: Any) -> Response:
         """Send a GET and check the answer."""
         return self.request("GET", path, **kwargs)
+
+    def delete(self, path: str, **kwargs: Any) -> Response:
+        """Send a DELETE and check the answer."""
+        return self.request("DELETE", path, **kwargs)
 
 
 def raw_account(**overrides: object) -> dict[str, object]:

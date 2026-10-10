@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.api.contract.models import Problem
 from waterfall.platform.errors import (
     BadRequestError,
@@ -74,9 +75,9 @@ ERRORS: dict[str, Exception] = {
 }
 
 
-def build_app() -> FastAPI:
+def build_app(services: Services) -> FastAPI:
     """Build the application with routes of its own that fail in every way a route can."""
-    app = create_app()
+    app = create_app(services)
 
     @app.get("/fail/{kind}")
     def fail(kind: str) -> None:
@@ -127,9 +128,9 @@ def build_app() -> FastAPI:
 
 
 @pytest.fixture
-def app() -> FastAPI:
+def app(services: Services) -> FastAPI:
     """Give a fresh application with those routes."""
-    return build_app()
+    return build_app(services)
 
 
 def problem_of(response: Any) -> Problem:

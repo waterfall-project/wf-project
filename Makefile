@@ -174,14 +174,18 @@ lint-compose: ## Validate the Compose files
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
 
-# The tests of tests/test_keycloak_platform.py, which the other tests of the back deselect, against
-# the Keycloak of the service platform, its realm applied: at the address the browser knows it by,
-# and at another one, its published port, as a service reaches it.
-test-keycloak: ## Start Keycloak on the service platform, apply its realm, and check that the realm and the extension answer (needs the secrets of service-up)
+# The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
+# service platform, its realm applied: at the address the browser knows it by, and at another one,
+# its published port, as a service reaches it. Those that serve the API in their process create
+# their database on the PostgreSQL of the platform, unless WATERFALL_TEST_DATABASE_URL names
+# another server.
+test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak openldap
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
 	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$${WATERFALL_KEYCLOAK_ADDRESS:-http://localhost:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth} \
 		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=http://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8080}/auth \
+		WATERFALL_TEST_FRONT_ADDRESS=$${WATERFALL_FRONT_ADDRESS:-http://localhost:3000} \
+		WATERFALL_TEST_DATABASE_URL=$${WATERFALL_TEST_DATABASE_URL:-postgresql://waterfall:$${WATERFALL_POSTGRES_PASSWORD}@127.0.0.1:$${WATERFALL_POSTGRES_PORT:-5432}/postgres} \
 		uv run --frozen pytest -m keycloak
 
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------

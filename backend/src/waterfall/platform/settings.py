@@ -74,15 +74,39 @@ class Settings(BaseSettings):
         return tuple(dict.fromkeys(value for value in [*held, *extra] if value))
 
 
+class ServiceSettings(Settings):
+    """What a process that reaches Keycloak reads besides: the API, and the worker after it.
+
+    ``keycloak_address`` is where the browser reaches Keycloak, which names the issuer of every
+    token whoever asks for it; ``keycloak_backchannel`` is where this process reaches it, for its
+    keys and its administration API — the same address unless a network of the platform gives
+    another one. ``service_client_secret`` is the secret of the service account of the realm.
+    """
+
+    keycloak_address: str = Field(min_length=1, pattern="^https?://")
+    keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+    service_client_secret: SecretStr = Field(min_length=1)
+
+
 def load_settings() -> Settings:
     """Read the settings from the environment, or raise a ``SettingsError`` that names each fault.
 
     The message names the variables and what is wrong with them, never the values they hold.
     """
+    return _load(Settings)
+
+
+def load_service_settings() -> ServiceSettings:
+    """Read the settings of a process that reaches Keycloak, as ``load_settings`` does."""
+    return _load(ServiceSettings)
+
+
+def _load[Kind: Settings](kind: type[Kind]) -> Kind:
     # The values come from the environment, which pydantic-settings reads itself.
     from_environment: dict[str, Any] = {}
     try:
-        return Settings(**from_environment)
+        return kind(**from_environment)
     except ValidationError as error:
         faults = [
             f"{ENV_PREFIX}{'_'.join(str(part) for part in fault['loc']).upper()}: "
