@@ -735,7 +735,9 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - `WF-DAT-0070-A` — « Une ligne mise à jour par un traitement automatique porte la plateforme comme auteur. » : constaté sur un compte mis à jour par la lecture des
   comptes du fournisseur (US-0370).
 - écart : `WF-DAT-0080-A` — « La suppression d’un sous-projet non référencé le retire de la base. » : le sous-projet arrive en EP-04.
-- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée est refusée, et le sous-projet reste proposé à la saisie. » : EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un lot référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un sous-projet que portent des lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces lignes passées hors sous-projet ou à un autre sous-projet. » : EP-04.
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
   d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
 - écart : `WF-DAT-0090-A` — « L’insertion d’une ligne de devis référençant une catégorie inexistante est rejetée par la base. » : le devis arrive en EP-07, qui clôt
@@ -753,7 +755,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. » et « Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour. » : le planning arrive en
   EP-06 ; l'affichage est déjà celui d'EP-02.
 - propre à l'US : les horodatages d'audit sont conservés en temps universel (WF-DAT-0100).
-- écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans interruption de service ni perte de données. » : la mise à jour sans interruption relève du
+- écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s’exécute sur le schéma migré. » : la mise à jour sans interruption relève du
   déploiement — EP-13.
 - `WF-DAT-0140-A` — « Une migration déjà appliquée ne se rejoue pas. »
 - écart : `WF-DAT-0140-A` — « Après une suite de migrations, les montants et les indicateurs conservés d’une révision marquée antérieure sont inchangés. » : la révision marquée arrive en EP-04 ; EP-13 le
@@ -834,7 +836,8 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-ADM-0180-A` — « Sur une installation sans annuaire ni fournisseur externe, un compte local se connecte. »
 - `WF-ADM-0180-A` — « Après fédération d’un annuaire, un compte de l’annuaire se connecte avec ses identifiants d’annuaire et un compte local avec son mot de passe. »
 - `WF-ADM-0180-A` — « Avec un fournisseur externe, la première connexion d’une personne inconnue crée son compte, sans rôle, et elle n’a aucun droit tant qu’un rôle ne lui est pas donné. »
-- `WF-ADM-0180-A` — « Après retrait de l’annuaire, les comptes qui en venaient existent toujours et ne peuvent plus se connecter tant qu’aucun fournisseur ne les reconnaît. »
+- `WF-ADM-0180-A` — « Après retrait de l’annuaire et synchronisation, les comptes qui en venaient existent toujours, désactivés, et leurs actes restent attribués. »
+- `WF-ADM-0180-A` — « Réactivés après une nouvelle fédération qui les reconnaît, ils se connectent. »
 - `WF-ADM-0180-A` — « Aucun écran de Waterfall ne paramètre un annuaire. »
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
@@ -883,14 +886,14 @@ cessent d'être attribuables.
 **Critères d'acceptation.**
 
 - `WF-ADM-0050-A` — « La création d’un compte sans nom, sans prénom ou sans adresse est refusée, de même que celle d’un compte dont l’adresse est déjà portée par un autre. »
-- `WF-ADM-0050-A` — « Le nom, le prénom et l’adresse d’un compte de l’annuaire ou d’un fournisseur externe ne sont pas modifiables dans Waterfall. »
+- `WF-ADM-0050-A` — « Le nom, le prénom et l’adresse d’un compte de l’annuaire ou d’un fournisseur externe ne sont pas modifiables dans Waterfall, hors leur anonymisation (WF-ADM-0060). »
 - `WF-ADM-0060-A` — « Aucun écran ne propose de supprimer un compte. »
 - `WF-ADM-0060-A` — « La connexion d’un compte désactivé est refusée. »
 - écart : `WF-ADM-0060-A` — « Une révision marquée par un compte depuis désactivé affiche toujours son auteur. » : la révision marquée arrive en EP-04, qui clôt
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
   d'audit des comptes et des rôles qu'il a écrits.
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
-- `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
+- `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran — journal d’audit compris — ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
   des colonnes d'audit et le refus de réactivation ; la révision marquée arrive en EP-04, qui
   clôt l'exigence.
 - propre à l'US : la table des comptes liste les comptes de l'installation, actifs et
@@ -956,11 +959,12 @@ qu'elle se soit connectée.
 
 **Critères d'acceptation.**
 
-- `WF-ADM-0070-A` — « Après synchronisation, chaque personne de l’annuaire retenue a un compte actif dans Waterfall, sans rôle si elle n’en avait pas, avant toute connexion. »
+- `WF-ADM-0070-A` — « Après lecture, chaque personne de l’annuaire retenue a un compte actif dans Waterfall, sans rôle si elle n’en avait pas, avant toute connexion. »
 - écart : `WF-ADM-0070-A` — « Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. » : le compte est désactivé ici ; ses actes —
   révisions marquées, contributeurs inscrits — arrivent en EP-04, qui clôt l'exigence.
 - `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. »
 - `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité. »
+- `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. »
 - `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
   tâche planifiée de lecture, quotidienne par défaut.
 - écart : `WF-ARC-0090-A` — « Le marquage d’une révision de dix mille objets n’immobilise aucune requête au-delà de la création de la tâche, et l’utilisateur en voit l’aboutissement. » : le marquage arrive en EP-04 ; ici, la lecture
@@ -993,7 +997,8 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 **Critères d'acceptation.**
 
 - `WF-ADM-0010-A` — « Sur une installation neuve, les trois rôles existent et leurs permissions couvrent les usages des exigences citées. »
-- `WF-ADM-0010-A` — « Un administrateur en renomme un, en modifie les permissions et le supprime, sans erreur. »
+- `WF-ADM-0010-A` — « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte. »
+- `WF-ADM-0010-A` — « La suppression du rôle « administrateur » qu’il porte est refusée (WF-ADM-0090, WF-ADM-0120). »
 - écart : `WF-ADM-0020-A` — « Un rôle d’habilitation composé sur mesure permet à un utilisateur de cumuler des permissions relevant de deux acteurs différents. » : ici, les permissions effectives d'un
   utilisateur portent celles des deux acteurs ; l'exercice des deux attend la première action
   d'un autre acteur que l'administrateur — EP-05, qui clôt l'exigence.
@@ -1129,6 +1134,7 @@ relit.
   d'une révision arrive en EP-04.
 - `WF-SEC-0030-A` — « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription. »
 - `WF-SEC-0030-A` — « Une mise à jour ou une suppression exécutée directement en base sur une inscription du journal est rejetée par la base. »
+- `WF-SEC-0030-A` — « Après anonymisation d’un compte, aucune inscription ne porte plus son nom ; leur nombre, leurs dates et leurs actions sont inchangés. »
 - écart : `WF-SEC-0030-A` — « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : la consultation du journal est ici ; les projets
   et leur terminaison arrivent en EP-04, et la conservation se constate en EP-13, qui clôt
   l'exigence.
@@ -1166,13 +1172,13 @@ traîne dans une procédure, et que la relancer soit sans danger.
 
 **Critères d'acceptation.**
 
-- `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le lien produit, se connecte, et dispose des trois rôles prédéfinis et du catalogue des permissions. »
+- `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le lien produit, se connecte, porte le rôle « administrateur », et trouve les trois rôles prédéfinis et le catalogue des permissions. »
 - écart : `WF-EXP-0020-A` — « La création d’un projet est refusée et nomme les prérequis manquants, jusqu’à ce qu’une catégorie de coût de main-d’œuvre et un rôle de ressource aient été saisis. » : le référentiel arrive en EP-05 et la création
   d'un projet en EP-04, qui clôt l'exigence.
 - `WF-EXP-0020-A` — « Une seconde exécution de l’installation ne crée ni compte, ni calendrier, ni nature supplémentaire ; elle produit un nouveau lien, qui remplace le précédent, tant que l’administrateur n’a pas fixé son mot de passe, et aucun lien ensuite. » : pour le compte et le lien ; le
   calendrier et la nature arrivent en EP-05, qui les ajoute à l'amorçage.
 - `WF-EXP-0020-A` — « Le lien produit à l’installation est accepté plus d’une heure après sa production. »
-- écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8 et le délai six semaines. » : les bornes, les seuils et le délai
+- écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end. » : les bornes, les seuils et le délai
   arrivent en EP-05, qui les ajoute à l'amorçage.
 - propre à l'US : l'amorçage applique les migrations, crée le catalogue des permissions, les
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et

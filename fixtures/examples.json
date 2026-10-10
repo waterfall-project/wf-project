@@ -42,9 +42,9 @@
       "sentence": "Une offre à 40 % de probabilité contribue pour tout au pipeline brut et pour 40 % au pipeline pondéré."
     },
     {
-      "key": "WF-PTF-0050-A#4506f09a53ee",
+      "key": "WF-PTF-0050-A#82adcb588823",
       "requirement": "WF-PTF-0050-A",
-      "sentence": "Sur dix offres closes dans la période, dont quatre gagnées, le taux de transformation vaut 40 %."
+      "sentence": "Sur dix offres sorties de l'état Chiffrage dans la période vers En cours ou vers Perdu, dont quatre passées à En cours, le taux de transformation vaut 40 % ; une onzième, abandonnée dans la période, ne le change pas."
     },
     {
       "key": "WF-PTF-0060-A#45748fe78d7c",
@@ -72,9 +72,14 @@
       "sentence": "Une offre à 40 % dont le devis porte 100 de main-d'œuvre ajoute 40 à la main-d'œuvre du budget agrégé lorsqu'elle est incluse."
     },
     {
-      "key": "WF-PTF-0080-A#cc79c443cedf",
+      "key": "WF-PTF-0080-A#c53a7c6ba53d",
       "requirement": "WF-PTF-0080-A",
-      "sentence": "Une offre incluse dont le devis porte une provision de 50 n'ajoute rien à la part des provisions du budget agrégé, et 50 pondérés à celle du reste à engager agrégé."
+      "sentence": "Une offre incluse, à 40 %, dont le devis porte une ligne de provision pour risques de 50 n'ajoute rien à la nature de cette ligne dans le budget agrégé, et ajoute 20 à cette nature dans le reste à engager agrégé."
+    },
+    {
+      "key": "WF-PTF-0080-A#47418792a9e5",
+      "requirement": "WF-PTF-0080-A",
+      "sentence": "Une ligne de 50 d'une nature hors main-d'œuvre, une provision pour aléas par exemple, ajoute 20 à sa nature dans l'un et dans l'autre."
     },
     {
       "key": "WF-PTF-0100-A#b4875ef04969",
@@ -82,14 +87,34 @@
       "sentence": "Un projet en chiffrage à 40 % contribue pour 40 % de ses courbes lorsqu'il est inclus."
     },
     {
+      "key": "WF-PTF-0100-A#faac2b71539d",
+      "requirement": "WF-PTF-0100-A",
+      "sentence": "Une offre incluse à 40 %, dont le devis porte 100 hors provisions et une provision de 50, apporte 40 au budget cumulé final et 60 à la projection."
+    },
+    {
       "key": "WF-REF-0160-A#0fa3e0540e72",
       "requirement": "WF-REF-0160-A",
       "sentence": "Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 60 est au troisième niveau sur un projet de budget 1 000 (6 %) et au deuxième sur un projet de budget 2 000 (3 %)."
     },
     {
+      "key": "WF-REF-0160-A#1470bfdbb110",
+      "requirement": "WF-REF-0160-A",
+      "sentence": "Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 50 sur un projet de budget 1 000 est au troisième niveau."
+    },
+    {
       "key": "WF-REF-0170-A#828c34614a3f",
       "requirement": "WF-REF-0170-A",
       "sentence": "Un indice traverse les trois zones lorsque sa valeur décroît de 1 à 0,5, avec des seuils fixés à 0,9 et 0,8."
+    },
+    {
+      "key": "WF-REF-0170-A#8fb208c05af6",
+      "requirement": "WF-REF-0170-A",
+      "sentence": "Avec des seuils à 0,9 et 0,8, un indice de 0,9 est nominal et un indice de 0,8 en vigilance."
+    },
+    {
+      "key": "WF-REV-0040-A#33816107e968",
+      "requirement": "WF-REV-0040-A",
+      "sentence": "Un projet dont les offres v2 puis v3 sont marquées, et dont v2 a été désignée par erreur, accepte la désignation de v3 tant qu'il n'a reçu aucun coût réel."
     },
     {
       "key": "WF-REV-0050-A#1779578395bf",
@@ -182,9 +207,9 @@
       "sentence": "Pour une ligne consommée dans l'année de référence, le montant d'une ligne de main-d'œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour cette année ; pour une ligne consommée deux ans plus tard, avec un taux d'inflation de 3 %, il vaut ce produit fois 1,0609 (WF-DEV-0030)."
     },
     {
-      "key": "WF-DEV-0020-A#4979d3ee3b2d",
+      "key": "WF-DEV-0020-A#378d44187659",
       "requirement": "WF-DEV-0020-A",
-      "sentence": "La saisie d'une charge de 80 heures sur une ligne budgétée à 100 heures, consommée dans l'année de référence, donne un montant réestimé de 80 fois le taux et laisse le montant budgété inchangé."
+      "sentence": "La saisie d'une charge de 80 heures sur une ligne de quantité 1 budgétée à 100 heures, consommée dans l'année de référence, donne un montant réestimé de 80 fois le taux et laisse le montant budgété inchangé."
     },
     {
       "key": "WF-DEV-0060-A#5fe268c741ee",
@@ -192,9 +217,9 @@
       "sentence": "Sur un planning importé dont aucune tâche n'est rattachée à un poste, les totaux par poste sont absents plutôt que nuls ; après rattachement d'une récapitulative au poste 1, son total apparaît, et il vaut celui de son sous-arbre ; après rattachement d'une feuille à un poste, le total de ce poste est le montant des lignes de cette feuille."
     },
     {
-      "key": "WF-DEV-0050-A#d7cf1e3e5408",
+      "key": "WF-DEV-0050-A#52fb4a7cb73b",
       "requirement": "WF-DEV-0050-A",
-      "sentence": "La grille de devis ne présente pas le montant budgété ; une ligne dont la tâche se place deux ans après l'année de référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son montant."
+      "sentence": "La grille de devis ne présente pas le montant budgété ; une ligne dont la tâche se place deux ans après l'année de référence, avec une inflation de 2 %, affiche un montant réestimé supérieur de 4,04 % à son montant aux taux de l'année de référence."
     },
     {
       "key": "WF-DEV-0030-A#e6c446928b5b",
@@ -207,9 +232,9 @@
       "sentence": "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première."
     },
     {
-      "key": "WF-DEV-0070-A#770838613a49",
+      "key": "WF-DEV-0070-A#e69ddd150e53",
       "requirement": "WF-DEV-0070-A",
-      "sentence": "Une tâche démarrée de quatre mois, à mi-parcours à la date de calcul, dont une ligne porte un reste de 80 heures, présente ces 80 heures sur les deux mois restants au prorata de leurs heures travaillées — 40 et 40 s'ils en comptent autant — et rien sur les mois écoulés ; sur une révision marquée, la date de calcul est sa date de marquage."
+      "sentence": "Une tâche démarrée qui couvre exactement quatre mois civils, à mi-parcours à la date de calcul — le premier jour du troisième mois —, dont une ligne porte un reste de 80 heures, présente ces 80 heures sur les deux mois restants au prorata de leurs heures travaillées — 40 et 40 s'ils en comptent autant — et rien sur les mois écoulés ; sur une révision marquée, la date de calcul est sa date de marquage."
     },
     {
       "key": "WF-RAE-0010-A#1dfcd306dada",
@@ -232,14 +257,29 @@
       "sentence": "Dans une révision créée en 2027 où le taux de 2027 d'une catégorie a été accepté, une tâche non démarrée dont une ligne relève de cette catégorie compte pour sa charge au taux de 2027, et non au taux de 2026 corrigé d'une année d'inflation."
     },
     {
+      "key": "WF-RAE-0010-A#ad832f038c00",
+      "requirement": "WF-RAE-0010-A",
+      "sentence": "Après un avenant qui porte de 100 à 150 heures une ligne non réestimée d'une tâche non démarrée, le reste à engager compte 150 heures ; une ligne réestimée à 140 avant l'avenant garde 140."
+    },
+    {
       "key": "WF-RAE-0020-A#71b655664115",
       "requirement": "WF-RAE-0020-A",
       "sentence": "Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, l'écart au budget vaut + 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de − 50."
     },
     {
-      "key": "WF-RAE-0040-A#a158a2580d31",
+      "key": "WF-RAE-0040-A#a27e44651c10",
       "requirement": "WF-RAE-0040-A",
-      "sentence": "La saisie d'une charge de 80 heures sur une ligne budgétée à 100 heures donne un montant réestimé de 80 fois le taux, projeté sur l'année de consommation de la ligne (WF-DEV-0030) ; le montant n'est pas saisissable."
+      "sentence": "La saisie d'une charge de 80 heures sur une ligne de quantité 1 budgétée à 100 heures donne un montant réestimé de 80 fois le taux, projeté sur l'année de consommation de la ligne (WF-DEV-0030) ; le montant n'est pas saisissable."
+    },
+    {
+      "key": "WF-RIS-0010-A#bd03f92aacb4",
+      "requirement": "WF-RIS-0010-A",
+      "sentence": "La suppression de la tâche qui porte une provision de 40 laisse le devis inchangé, la provision étant passée sur la tâche parente."
+    },
+    {
+      "key": "WF-RIS-0010-A#43948c17123a",
+      "requirement": "WF-RIS-0010-A",
+      "sentence": "Un risque déclaré sur le sous-projet S2 porte sa provision au reste à engager de S2 ; sans sous-projet désigné, elle compte hors sous-projet."
     },
     {
       "key": "WF-RIS-0050-A#ba9e53e8bcb3",
@@ -260,6 +300,11 @@
       "key": "WF-RIS-0050-A#921a20810dcf",
       "requirement": "WF-RIS-0050-A",
       "sentence": "Sur un projet dont la réserve est nulle et sans risque survenu, un risque identifié après la référence, de provision 30, porte les provisions restantes à 30 et l'écart de couverture à −30."
+    },
+    {
+      "key": "WF-RIS-0050-A#f3002ed87630",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Sur le projet dont le risque est survenu à 250 : un avenant qui ne touche pas aux risques laisse la réserve à 60 et l'écart de couverture à −190 ; un avenant qui intègre au budget de référence les lignes de ce risque porte le budget de référence à 1 250 et laisse la réserve à 60 et l'écart à −190 ; un avenant qui déclare un nouveau risque de provision 50 porte la réserve à 110 et les provisions restantes à 50, et laisse l'écart à −190."
     },
     {
       "key": "WF-RIS-0060-A#474d7bce167a",
@@ -332,14 +377,14 @@
       "sentence": "Un jalon repoussé d'un mois à chacune de trois revues mensuelles trace une droite de pente 1."
     },
     {
-      "key": "WF-IND-0100-A#852a9627713f",
+      "key": "WF-IND-0100-A#a494a6a86a06",
       "requirement": "WF-IND-0100-A",
-      "sentence": "Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du budget présente à la date de l'avenant une marche égale à l'écart des deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence."
+      "sentence": "Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du budget présente, au point du mois de l'avenant, une marche égale à l'écart des deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence."
     },
     {
-      "key": "WF-IND-0100-A#5ab0cd6ba8b7",
+      "key": "WF-IND-0100-A#fe59cdb8f930",
       "requirement": "WF-IND-0100-A",
-      "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, la courbe décalée est la courbe de référence translatée de 60 jours ; la somme des décaissements à venir égale le reste à engager, provisions des risques identifiés comprises."
+      "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée translatée de 60 jours ; la projection l'est aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."
     },
     {
       "key": "WF-IHM-0100-A#bcb52ee478df",
@@ -357,14 +402,14 @@
       "sentence": "Un montant de 0,10 additionné dix fois donne exactement 1,00."
     },
     {
-      "key": "WF-DAT-0140-A#e6dc822ae424",
+      "key": "WF-DAT-0140-A#0d1c5ff97ae7",
       "requirement": "WF-DAT-0140-A",
-      "sentence": "Une installation en version N passe en version N+1 sans interruption de service ni perte de données."
+      "sentence": "Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s'exécute sur le schéma migré."
     },
     {
-      "key": "WF-EXP-0020-A#a75d0412be88",
+      "key": "WF-EXP-0020-A#5f2bce6a634e",
       "requirement": "WF-EXP-0020-A",
-      "sentence": "Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8 et le délai six semaines."
+      "sentence": "Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end."
     },
     {
       "key": "WF-EXP-0030-A#cf6a050caccd",
