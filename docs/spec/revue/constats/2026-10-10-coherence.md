@@ -432,6 +432,8 @@ l’état terminé résulte de la saisie d’un reste à engager nul sur les lig
 une tâche sans ligne, d’un geste du Kanban (WF-RAE-0030). » Glossaire, entrée « État d’avancement », même
 correction.
 
+
+**Décision de l’auteur (2026-10-10).** voie B : le passage direct est permis ; une tâche non démarrée dont le reste à engager est mis à zéro est terminée, avec une date de démarrage égale à sa date de terminaison.
 **Statut.** à traiter
 
 
@@ -502,6 +504,8 @@ c’est pourquoi la liaison est un objet et non une simple flèche entre deux t�
 liaisons multiples, dire dans WF-INTF-0050 que l'export n'en écrit qu'une par paire de tâches et le signale,
 et le réserver dans WF-INTF-0060.)
 
+
+**Décision de l’auteur (2026-10-10).** voie A : une seule liaison entre deux mêmes tâches.
 **Statut.** à traiter
 
 
@@ -548,6 +552,8 @@ Si l'auteur préfère la seconde lecture, il faut ajouter à WF-ADM-0070 : « Le
 raccordement d’origine a été désactivé (WF-ADM-0180) ne sont pas désactivés par la lecture. » Il
 faut aussi conserver ce raccordement d'origine parmi les attributs de WF-ADM-0050.
 
+
+**Décision de l’auteur (2026-10-10).** voie A : la lecture désactive les comptes d’un raccordement retiré.
 **Statut.** à traiter
 
 
@@ -794,6 +800,8 @@ et ces lignes sont hors sous-projet. » Si l’auteur préfère le refus, écrir
 « … ni aucune ligne de devis de la révision en cours ne le référence » et l’ajouter au Vérif de
 WF-PRJ-0050.
 
+
+**Décision de l’auteur (2026-10-10).** voie B : la suppression d’un sous-projet que portent des lignes de devis de la révision en cours est refusée. Les codes de sous-projet viennent de l’ERP et définissent la granularité des coûts réels ; les lignes de devis qu’un sous-projet porte peuvent changer d’une révision à l’autre.
 **Statut.** à traiter
 
 
@@ -899,6 +907,8 @@ une ligne réestimée à 140 avant l’avenant garde 140. » Si l’auteur veut 
 réestimation, se calcule depuis les grandeurs de la référence » de WF-RAE-0010 qu’il faut
 remplacer par « faute de réestimation, est celui que la ligne portait avant la dernière fusion ».
 
+
+**Décision de l’auteur (2026-10-10).** voie A : le budget de référence et le reste à engager prennent la nouvelle valeur à la contractualisation de l’avenant.
 **Statut.** à traiter
 
 
@@ -972,6 +982,8 @@ la structure des coûts et les risques lisent, projet par projet, la dernière r
 antérieure à cette date » et §4.4.2 « le portefeuille ne lit que les indicateurs conservés, hormis
 ces trois vues, qui lisent chaque projet dans sa propre partition ».
 
+
+**Décision de l’auteur (2026-10-10).** voie A : les agrégats sont conservés au marquage.
 **Statut.** à traiter
 
 
@@ -1184,6 +1196,8 @@ lit les F0 fait de fait les F1.
   (WF-IHM-0060), des réglages du plan de charge agrégé (WF-PTF-0060) et de la langue (WF-INTF-0160)
   est exigée [F0] ; les autres préférences d'affichage sont souhaitées [F1]. »
 
+
+**Décision de l’auteur (2026-10-10).** WF-EXP-0030 reste en F1 et la Vérif de WF-DAT-0140 est réécrite ; WF-ADM-0040 passe en F0.
 **Statut.** à traiter
 
 
@@ -1234,6 +1248,8 @@ ligne ; confirmé, il écrit les autres lignes et non celle-ci ; abandonné, il 
 ligne. […] » (Si l'auteur veut le « tout ou rien », écrire à l'inverse : « Un collage dont une ligne
 est refusée ne peut pas être confirmé ; il se corrige ou s'abandonne. »)
 
+
+**Décision de l’auteur (2026-10-10).** voie A : les lignes valides d’un collage sont écrites.
 **Statut.** à traiter
 
 
@@ -1387,6 +1403,8 @@ existante placée dans l’onglet d’un autre sous-projet que le sien garde son
 compte rendu. » (Ou, si l'auteur veut que le fichier fasse foi : « …change de sous-projet, et le compte
 rendu le présente comme un écart ».)
 
+
+**Décision de l’auteur (2026-10-10).** voie B : le fichier fait foi ; une ligne placée dans l’onglet d’un autre sous-projet en change, ce qui ne modifie que la ventilation du projet, présentée agrégée dans les indicateurs.
 **Statut.** à traiter
 
 
@@ -1562,6 +1580,8 @@ Tel quel, WF-PLA-0140 (« peut être supprimée ») est la seule règle effectiv
 désignent des tâches d’une révision marquée soit conservée, l’écrire comme telle, avec la référence en
 cause.
 
+
+**Décision de l’auteur (2026-10-10).** voie A : un livrable ou une chronologie se supprime physiquement.
 **Statut.** à traiter
 
 
@@ -1588,6 +1608,8 @@ terminée, elle compte pour zéro comme les autres. » Si l’ajout d’une lign
 doit plutôt être refusé, le dire dans WF-DEV-0050 et WF-INTF-0100 / WF-INTF-0120 (rejet au compte
 rendu).
 
+
+**Décision de l’auteur (2026-10-10).** voie B : l’ajout d’une ligne à une tâche terminée est refusé, par la grille comme par les imports.
 **Statut.** à traiter
 
 
@@ -1676,6 +1698,8 @@ elle compte dans l’ensemble « hors sous-projet » (WF-RAE-0020). » Ou, si l�
 ligne de provision appartient au sous-projet que le risque désigne, facultativement, à sa
 déclaration. »
 
+
+**Décision de l’auteur (2026-10-10).** voie B : le risque désigne, facultativement, le sous-projet de sa provision ; à défaut, elle compte hors sous-projet.
 **Statut.** à traiter
 
 
@@ -1729,6 +1753,8 @@ retire la part des risques survenus ou écartés avant lui, et l’écart de cou
 couverture ne compare à la réserve que le coût des risques survenus depuis cette référence. » Ajouter
 à la Vérif le cas de l’avenant.
 
+
+**Décision de l’auteur (2026-10-10).** la réserve est cumulative : elle conserve la provision des risques survenus ou écartés avant une nouvelle référence, et s’augmente de celle des risques nouveaux qu’un avenant déclare. Un avenant qui intègre au budget les lignes d’un risque survenu rétablit l’indice de coût sans toucher la couverture : la provision a été consommée à la survenance.
 **Statut.** à traiter
 
 
@@ -1814,6 +1840,8 @@ lundi au vendredi et aucune le samedi et le dimanche, » (valeurs à confirmer p
 ajouter : « […] et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le
 week-end. » ; §4.5.2, texte : même précision.
 
+
+**Décision de l’auteur (2026-10-10).** les valeurs proposées sont retenues ; le calendrier est paramétrable.
 **Statut.** à traiter
 
 
@@ -2231,6 +2259,8 @@ n’en dit rien.
 qui la porterait au-delà est refusé, et le refus nomme la tâche en cause. » Si l’auteur ne veut pas de
 ces refus à la fusion, réduire le renvoi à « (WF-PLA-0170) ».
 
+
+**Décision de l’auteur (2026-10-10).** voie A : la fusion est refusée comme une saisie ou un import.
 **Statut.** à traiter
 
 
@@ -2252,6 +2282,8 @@ le socle seul ». Le PBS-2.2 qu’elle cite sort de la matrice. C’est la seule
 
 **Proposition.** WF-PLA-0160, champ FBS : « FBS-4.3, FBS-4.3.4 ». (À défaut, retirer PBS-2.2 du champ PBS.)
 
+
+**Décision de l’auteur (2026-10-10).** voie A : FBS-4.3.4 ajoutée au champ FBS.
 **Statut.** à traiter
 
 
@@ -2667,6 +2699,8 @@ après la dernière saisie et non avant. »
    retirer le renvoi du §4.4.2.
 6. WF-ARC-0090, motif : « […] et l’import d’un fichier de dix-huit mille lignes de coût (§4.6.2) […] ».
 
+
+**Décision de l’auteur (2026-10-10).** voie A : la ligne « Espace des révisions » est ajoutée au tableau 14.
 **Statut.** à traiter
 
 
