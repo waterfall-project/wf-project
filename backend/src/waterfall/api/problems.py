@@ -28,6 +28,7 @@ logger = get_logger(__name__)
 # What Pydantic calls a fault, said as the code of the contract that a field gets.
 _NUMBER_FAULTS = {
     "int_parsing",
+    "int_parsing_size",
     "int_type",
     "int_from_float",
     "float_parsing",

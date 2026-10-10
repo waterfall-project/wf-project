@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import Query
 
-# The parameter ``search`` of the contract, absent by default. PostgreSQL refuses a text that
-# holds a NUL: refused here, it is a value the field refuses (422), not a failure of the database.
-Search = Annotated[str | None, Query(min_length=1, max_length=200, pattern=r"^[^\x00]*$")]
+from waterfall.api.contract.base import Text
+
+# The parameter ``search`` of the contract, absent by default; a text, which refuses a NUL.
+Search = Annotated[Text | None, Query(min_length=1, max_length=200)]

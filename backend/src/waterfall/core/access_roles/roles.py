@@ -222,10 +222,10 @@ def _views(session: Session, rows: Sequence[tuple[AccessRole, int]]) -> list[Rol
 
 def _grant(session: Session, role_id: UUID, codes: Sequence[str]) -> None:
     """Make the permissions of the role those of ``codes``, all of the catalogue (422 otherwise)."""
-    known = dict(
-        session.execute(select(Permission.code, Permission.id).where(Permission.code.in_(codes)))
-        .tuples()
-        .all()
+    known: dict[str, UUID] = dict(
+        session.execute(
+            select(Permission.code, Permission.id).where(Permission.code.in_(codes))
+        ).all()
     )
     unknown = tuple(
         FieldError(f"/permissions/{index}", VALIDATION_FAILED)
@@ -332,8 +332,9 @@ def delete_role(session: Session, role_id: UUID, act: Act) -> None:
     """Mark a role deleted, or refuse it while an account holds it (409).
 
     A role no account holds takes no permission from anyone: the guard of the last administrator
-    has nothing to refuse, but its lock keeps an attribution of the role from passing between the
-    reading of its holders and its deletion.
+    has nothing to refuse, but its lock — which the attribution of roles takes too (US-0360) —
+    keeps an attribution of the role from passing between the reading of its holders and its
+    deletion.
     """
     with guard_last_administrator(session):
         role = _lock_role(session, role_id)
