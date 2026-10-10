@@ -4,7 +4,9 @@
 
 The roles are read as they are written around the service (``access_rows``), and written through
 the API, which inscribes each write in the journal of audit. Every answer is checked against the
-contract (``ContractClient``).
+contract (``ContractClient``). The caller holds a role of its own, which gives it the permissions
+the operations ask for (``caller_permissions``) and which the table of the roles read here leaves
+out (``labels``); a test that needs its caller to hold other ones says which.
 """
 
 import ast
@@ -40,13 +42,24 @@ PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
+# The role of the caller, and the permissions it gives unless a test says otherwise.
+CALLER_ROLE = "Habilitations de l'appelant"
+CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
 # The example of the contract that gives the catalogue as it is delivered.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
 
 
 @pytest.fixture
-def headers(database: Database, realm: TestRealm) -> dict[str, str]:
-    """Write the account of the caller, Camille Martin, and give the header of its token."""
+def caller_permissions() -> tuple[str, ...]:
+    """Give the permissions the role of the caller grants: to consult and change the roles."""
+    return CONSULT_AND_CHANGE
+
+
+@pytest.fixture
+def headers(
+    database: Database, realm: TestRealm, caller_permissions: tuple[str, ...]
+) -> dict[str, str]:
+    """Write the account of the caller, Camille Martin, and its role; give its token's header."""
     with database.transaction() as session:
         session.execute(
             insert(UserAccount).values(
@@ -58,14 +71,18 @@ def headers(database: Database, realm: TestRealm) -> dict[str, str]:
                 )
             )
         )
+    role(database, CALLER_ROLE, permissions=caller_permissions, holders=(CALLER,))
     return bearer(realm.token(SUBJECT, KEY))
 
 
 def labels(api: ContractClient, headers: dict[str, str], query: str = "") -> list[str]:
-    """Give the labels of the table of the roles, in its order, for a query of filters and sort."""
+    """Give the labels of the table of the roles, in its order, for a query of filters and sort.
+
+    The role of the caller is left out, wherever the filters and the sort place it.
+    """
     response = api.get(f"{ROLES}{query}", headers=headers)
     assert response.status_code == 200
-    return [entry["label"] for entry in response.json()]
+    return [entry["label"] for entry in response.json() if entry["label"] != CALLER_ROLE]
 
 
 def test_the_catalogue_is_the_enumeration_of_the_contract_in_its_order(
@@ -707,6 +724,8 @@ def test_the_administrator_role_its_holder_holds_is_not_deleted(
     assert labels(api, headers) == ["Administrateur"]
 
 
+# The caller changes the roles by ``Direction`` alone, which it may then take from itself.
+@pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
 @pytest.mark.parametrize("withdrawn", ADMINISTRATION)
 def test_a_change_that_takes_the_administration_from_the_last_administrator_is_refused(
     api: ContractClient, database: Database, headers: dict[str, str], withdrawn: str

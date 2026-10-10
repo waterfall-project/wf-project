@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The catalogue of permissions and the roles: the operations of the family ``access`` on them.
 
-The evaluation of the permission each operation asks for arrives with US-0390: until then, any
-account the API knows may call them. A write is inscribed in the journal of audit by its caller.
+Each operation on the roles asks for its permission (WF-ADM-0110): to consult the roles, and to
+change them besides for a write on a role the path names. The catalogue asks for none: the
+contract refuses its reading to no caller it knows. A write is inscribed in the journal of audit
+by its caller.
 """
 
 from typing import Annotated
@@ -20,6 +22,7 @@ from waterfall.api.contract.models import (
     Permission,
     SortOrder,
 )
+from waterfall.api.evaluation import Requires
 from waterfall.api.queries import Search
 from waterfall.core.access_roles.interface import (
     Act,
@@ -46,8 +49,14 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # The greatest integer PostgreSQL represents (``bigint``).
 GREATEST_COUNT = 2**63 - 1
 
-# The reads need the caller known and active, but nothing of it; a write names it its author.
+# The catalogue needs the caller known and active, but nothing of it.
 AUTHENTICATED = [Depends(caller)]
+CONSULTATION = "access_roles.read"
+CHANGE = "access_roles.write"
+# A role the caller may not consult is unknown to it, before the change is asked of it.
+READ = [Depends(Requires(CONSULTATION))]
+CREATE = [Depends(Requires(CHANGE))]
+WRITE = [Depends(Requires(CONSULTATION, CHANGE))]
 
 
 def access_role(view: RoleView) -> AccessRole:
@@ -126,7 +135,7 @@ def role_filters(
 @router.get(
     "/access-roles",
     operation_id="listAccessRoles",
-    dependencies=AUTHENTICATED,
+    dependencies=READ,
     response_model_exclude_unset=True,
 )
 def get_access_roles(
@@ -143,7 +152,7 @@ def get_access_roles(
 @router.get(
     "/access-roles/{access_role_id}",
     operation_id="getAccessRole",
-    dependencies=AUTHENTICATED,
+    dependencies=READ,
     response_model_exclude_unset=True,
 )
 def get_access_role(access_role_id: UUID, session: Transaction) -> AccessRole:
@@ -158,6 +167,7 @@ def _write(body: AccessRoleWrite) -> RoleWrite:
 @router.post(
     "/access-roles",
     operation_id="createAccessRole",
+    dependencies=CREATE,
     status_code=201,
     response_model_exclude_unset=True,
 )
@@ -169,6 +179,7 @@ def post_access_role(body: AccessRoleWrite, account: Caller, session: Transactio
 @router.patch(
     "/access-roles/{access_role_id}",
     operation_id="updateAccessRole",
+    dependencies=WRITE,
     response_model_exclude_unset=True,
 )
 def patch_access_role(
@@ -180,7 +191,12 @@ def patch_access_role(
     return access_role(changed)
 
 
-@router.delete("/access-roles/{access_role_id}", operation_id="deleteAccessRole", status_code=204)
+@router.delete(
+    "/access-roles/{access_role_id}",
+    operation_id="deleteAccessRole",
+    dependencies=WRITE,
+    status_code=204,
+)
 def remove_access_role(access_role_id: UUID, account: Caller, session: Transaction) -> Response:
     """Mark a role deleted, unless an account holds it (WF-ADM-0090)."""
     delete_role(session, access_role_id, Act(audit_actor(account), utc_now()))
