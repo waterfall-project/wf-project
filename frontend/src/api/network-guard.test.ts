@@ -84,6 +84,19 @@ const CLIENTS: readonly string[] = [
   "node:http2",
 ];
 
+// What reaches the identity provider or Redis, for the session of the front: each through the one
+// module that wraps it.
+const SESSION_NETWORK =
+  "Reach the identity provider through src/session/provider.ts, Redis through src/session/store.ts.";
+const IDENTITY_CLIENTS = ["openid-client", "oauth4webapi", "jose"];
+const REDIS_CLIENTS = ["@redis/client", "redis", "ioredis"];
+const SESSION_CLIENTS = [...IDENTITY_CLIENTS, ...REDIS_CLIENTS];
+// Each module that wraps one, with what it may import, and what it may not.
+const SESSION_WRAPPERS: readonly [string, readonly string[], readonly string[]][] = [
+  ["src/session/provider.ts", IDENTITY_CLIENTS, REDIS_CLIENTS],
+  ["src/session/store.ts", REDIS_CLIENTS, IDENTITY_CLIENTS],
+];
+
 // The other ways of naming a module: a subpath, a type, a re-export.
 const IMPORTS: readonly string[] = [
   'import axios from "axios/unsafe/core/Axios.js";\nexport const client = axios;',
@@ -133,18 +146,24 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // and @tanstack/virtual-core the rows in view from the sizes and the scroll it observes. Nor
 // does Apache ECharts (US-0240), imported piece by piece: it draws the series it is handed, in
 // SVG — an image would be loaded from an address given as a symbol (`image://`), and no chart
-// gives one; a map, from the GeoJSON registered with it, which no chart registers.
+// gives one; a map, from the GeoJSON registered with it, which no chart registers. The session of
+// the front (US-0350) does reach the network, and is examined for its own lists,
+// IDENTITY_MODULES and REDIS_MODULES: openid-client and jose speak to the identity provider,
+// @redis/client to Redis.
 const DEPENDENCIES = [
+  "@redis/client",
   "@tanstack/react-table",
   "@tanstack/virtual-core",
   "class-variance-authority",
   "clsx",
   "echarts",
   "geist",
+  "jose",
   "lucide-react",
   "next",
   "next-intl",
   "openapi-fetch",
+  "openid-client",
   "radix-ui",
   "react",
   "react-dom",
@@ -270,6 +289,33 @@ describe("the network guard", { timeout: 60_000 }, () => {
       expect(await lint(code, CLIENT), code).toEqual([]);
     }
   });
+
+  it.each(SESSION_CLIENTS)(
+    "refuses %s outside the modules of the session that wrap it, statically or not",
+    async (name) => {
+      const imported = `import * as client from "${name}";\nexport default client;`;
+      await refused(imported, "no-restricted-imports", PAGE, SESSION_NETWORK);
+      await refused(imported, "no-restricted-imports", SERVER, SESSION_NETWORK);
+      const dynamic = `export const client = await import("${name}");`;
+      await refused(dynamic, "no-restricted-syntax", PAGE, SESSION_NETWORK);
+    },
+  );
+
+  it.each(SESSION_WRAPPERS)(
+    "lets the session reach its own libraries in %s, and nothing else of the network",
+    async (file, own, others) => {
+      const imported = (name: string) =>
+        `import * as client from "${name}";\nexport default client;`;
+      for (const name of own) {
+        expect(await lint(imported(name), file), name).toEqual([]);
+      }
+      for (const name of others) {
+        await refused(imported(name), "no-restricted-imports", file, SESSION_NETWORK);
+      }
+      await refused(GLOBALS[0]?.[1] ?? "", "no-restricted-globals", file);
+      await refused(IMPORTS[0] ?? "", "no-restricted-imports", file);
+    },
+  );
 
   it("lets a page call the API through the server client", async () => {
     const code = [

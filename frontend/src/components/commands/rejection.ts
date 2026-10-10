@@ -10,7 +10,8 @@
  *   which passes for out of reach too — the one limit of the rule;
  * - any other rejection is classed by its `digest`, the one thing of an error thrown on the server
  *   Next forwards: the API out of reach (`UNREACHABLE_DIGEST`), a session lost
- *   (`SESSION_REQUIRED_DIGEST`), which leads to the sign-in page, an account deactivated
+ *   (`SESSION_LOST_DIGEST`, `SESSION_REQUIRED_DIGEST`), which the notice says before it leads to
+ *   the sign-in page — never at once: the write is told as not applied —, an account deactivated
  *   (`ACCOUNT_DEACTIVATED_DIGEST`), which it does not — signing in again would loop —, or the unexpected error
  *   (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the API, or
  *   the digest Next computed —, kept only when it has the form the contract gives a
@@ -35,10 +36,13 @@ function asBoundaryError(error: unknown): BoundaryError {
 }
 
 /** The outcome of a loss the screen of failure tells apart: out of reach, signed out, deactivated. */
-function outcomeOfLoss(kind: "unreachable" | "signed_out" | "deactivated"): Outcome<never> {
+function outcomeOfLoss(
+  kind: "unreachable" | "session_lost" | "signed_out" | "deactivated",
+): Outcome<never> {
   switch (kind) {
     case "unreachable":
       return { kind: "unreachable" };
+    case "session_lost":
     case "signed_out":
       return {
         kind: "signed_out",

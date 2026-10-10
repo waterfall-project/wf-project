@@ -6,8 +6,9 @@
  *
  * In production, Next forwards to an error boundary no more of an error thrown on the server
  * than its `digest` — its message and its class stay on the server. An error that sets its
- * own `digest` keeps it: the API out of reach carries `UNREACHABLE_DIGEST`, a refusal for
- * want of a session `SESSION_REQUIRED_DIGEST`, one for a deactivated account
+ * own `digest` keeps it: the API out of reach carries `UNREACHABLE_DIGEST`, a request the front
+ * held no session for `SESSION_LOST_DIGEST`, a refusal of the API for want of a session
+ * `SESSION_REQUIRED_DIGEST`, one for a deactivated account
  * `ACCOUNT_DEACTIVATED_DIGEST`, which the boundary tells apart; an unexpected
  * answer of the API carries the correlation identifier of the request (WF-OBS-0020), which
  * the API wrote in its logs, behind `CORRELATION_PREFIX`; any other error — an answer without
@@ -24,7 +25,18 @@
 /** The digest of an error that says the API did not answer at all. */
 export const UNREACHABLE_DIGEST = "WATERFALL_API_UNREACHABLE";
 
-/** The digest of an error that says the API refused the read for want of a session (401). */
+/**
+ * The digest of an error that says the front holds no session that lives for the request, which
+ * did not leave (`SessionLost`, `src/session/tokens.ts`): the screen of failure leads to the
+ * sign-in page at once, which cannot loop.
+ */
+export const SESSION_LOST_DIGEST = "WATERFALL_SESSION_LOST";
+
+/**
+ * The digest of an error that says the API refused the read for want of a session (401), the
+ * front having presented a token: the screen of failure offers the sign-in page, and goes nowhere
+ * by itself — the token it would bring back could be refused again.
+ */
 export const SESSION_REQUIRED_DIGEST = "WATERFALL_SESSION_REQUIRED";
 
 /** The digest of an error that says the API refused the read, the account being deactivated. */
@@ -42,11 +54,13 @@ export function correlationDigest(correlationId: string): string {
 export type BoundaryError = Error & { readonly digest?: string | undefined };
 
 /**
- * What the screen of failure says: the API out of reach, no session — the way to sign in —,
- * the account deactivated, or a defect, with its reference when the error carries one.
+ * What the screen of failure says: the API out of reach, no session — the front held none, and
+ * the screen leads to the sign-in page at once, or the API refused the one it held, and the screen
+ * offers the way to sign in —, the account deactivated, or a defect, with its reference when the
+ * error carries one.
  */
 export type Failure =
-  | { readonly kind: "unreachable" | "signed_out" | "deactivated" }
+  | { readonly kind: "unreachable" | "session_lost" | "signed_out" | "deactivated" }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
 /**
@@ -64,6 +78,9 @@ function referenceOf(digest: string | undefined): string | undefined {
 export function failureOf(error: BoundaryError): Failure {
   if (error.digest === UNREACHABLE_DIGEST) {
     return { kind: "unreachable" };
+  }
+  if (error.digest === SESSION_LOST_DIGEST) {
+    return { kind: "session_lost" };
   }
   if (error.digest === SESSION_REQUIRED_DIGEST) {
     return { kind: "signed_out" };

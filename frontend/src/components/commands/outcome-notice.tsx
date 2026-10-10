@@ -17,7 +17,6 @@
 "use client";
 
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useId } from "react";
@@ -53,22 +52,25 @@ const ALERT = "space-y-1 text-sm text-destructive";
 const SENTENCE = "flex items-start gap-1.5";
 const ICON = "mt-0.5 size-4 shrink-0";
 
+/** The address of the sign-in page, which comes back to the screen shown: its path and its query. */
+export function useSignInHref(): string {
+  const query = useSearchParams().toString();
+  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`);
+}
+
 /**
- * The link to the sign-in page, which comes back to the screen shown: its path and its query,
- * as the browser shows them. The screen of failure offers it too, when a read wanted a session.
+ * The link to the sign-in page, which comes back to the screen shown, as the browser shows it. The
+ * screen of failure offers it too, when a read wanted a session. A plain link, never one of the
+ * router: `/login` sends the browser to another site, which the router would fetch, and prefetch
+ * — each time starting a sign-in for nothing.
  */
 export function SignIn() {
   const t = useTranslations("outcome");
-  const query = useSearchParams().toString();
-  const screen = `${usePathname()}${query === "" ? "" : `?${query}`}`;
   return (
-    <Link
-      href={loginHref(screen)}
-      className="inline-flex items-center gap-1.5 font-medium underline"
-    >
+    <a href={useSignInHref()} className="inline-flex items-center gap-1.5 font-medium underline">
       <LogIn aria-hidden="true" className="size-4" />
       {t("signIn")}
-    </Link>
+    </a>
   );
 }
 

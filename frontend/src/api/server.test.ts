@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cookieJar } from "@/test/session";
+
 import { API_PREFIX } from "./client";
 import { DEFAULT_ADDRESS, isMockAuthentication, MOCK_TOKEN, serverClient } from "./server";
+
+// A request without a session: no cookie, so no token — the session itself is tried by
+// src/session/tokens.test.ts, against Redis.
+vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookieJar()) }));
 
 /** Stub the platform's fetch, which the server client uses: the addresses it is asked for. */
 function stubFetch(authorizations: (string | null)[] = []): string[] {
@@ -50,7 +56,7 @@ describe("serverClient", () => {
 });
 
 describe("the mock authentication", () => {
-  it("sends the fixed token of the fake back, and nothing without the mode", async () => {
+  it("sends the fixed token of the fake back, and that of the session without the mode — none without one", async () => {
     const sent: (string | null)[] = [];
     stubFetch(sent);
     vi.stubEnv("WATERFALL_AUTH", undefined);

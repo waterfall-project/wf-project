@@ -10,7 +10,9 @@
  * Without a session — none open, or an API out of reach — the session is `undefined`: the
  * page renders without preferences, and the shell offers no selectors. Its state tells the
  * two apart for the navigation: none open (a 401), it offers no function; none that can be
- * read, the status screen still (WF-ADM-0130).
+ * read, the status screen still (WF-ADM-0130). A session the cookie names and that lives no more
+ * is neither: the read fails with `SessionLost`, which leads to the sign-in page
+ * (`src/session/tokens.ts`).
  */
 import "server-only";
 

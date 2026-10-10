@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   correlationDigest,
+  SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
@@ -38,11 +39,14 @@ describe("a server action whose promise rejected", () => {
 
   it("is classed by its digest as the screen of failure classes it: out of reach, signed out", () => {
     expect(rejected(thrown(UNREACHABLE_DIGEST))).toEqual({ kind: "unreachable" });
-    expect(rejected(thrown(SESSION_REQUIRED_DIGEST))).toEqual({
-      kind: "signed_out",
-      problem: { code: "SESSION_REQUIRED", status: 401 },
-      conflictingObjectId: null,
-    });
+    // A session the front held no more is told as signed out too: the notice leads away on a click.
+    for (const digest of [SESSION_REQUIRED_DIGEST, SESSION_LOST_DIGEST]) {
+      expect(rejected(thrown(digest))).toEqual({
+        kind: "signed_out",
+        problem: { code: "SESSION_REQUIRED", status: 401 },
+        conflictingObjectId: null,
+      });
+    }
   });
 
   it("is a refusal that says the account deactivated, not a session lost, by its digest", () => {

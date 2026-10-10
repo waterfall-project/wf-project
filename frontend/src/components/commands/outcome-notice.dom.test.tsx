@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
+import type { NextRouter } from "next/router";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
@@ -49,6 +51,38 @@ describe("the notice of an outcome", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+  });
+
+  it("leads to the sign-in page by a link the browser follows, a whole document, which the router does not take over", () => {
+    const lost = Object.assign(new Error("Server Components render"), {
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+    // A router that would take over the links of the page: a link of the router calls it.
+    const router = { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(() => Promise.resolve()) };
+    render(
+      <RouterContext.Provider value={router as unknown as NextRouter}>
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+          <OutcomeNotice outcome={rejected(lost)} onClear={vi.fn()} />
+        </NextIntlClientProvider>
+      </RouterContext.Provider>,
+    );
+    const link = screen.getByRole("link", { name: "Se connecter" });
+    expect(link).toHaveAttribute("href", "/login?next=%2Faccount");
+    // Whether the click reached the window still to be followed by the browser; then not followed.
+    const followed = vi.fn();
+    window.addEventListener(
+      "click",
+      (event) => {
+        followed(!event.defaultPrevented);
+        event.preventDefault();
+      },
+      { once: true },
+    );
+    fireEvent.mouseEnter(link);
+    fireEvent.click(link);
+    expect(followed).toHaveBeenCalledWith(true);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.prefetch).not.toHaveBeenCalled();
   });
 
   it("says a deactivated account without leading to the sign-in page, which would loop", () => {

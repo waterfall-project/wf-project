@@ -41,14 +41,20 @@ describe("createApiClient", () => {
     expect(new URL(urls[0] ?? "").search).toBe("?status=queued,running");
   });
 
-  it("sends the bearer token it is given with every request, none otherwise", async () => {
+  it("sends the bearer token it is given, asked for at each request, none otherwise", async () => {
     const { send, requests } = recorder();
-    const client = createApiClient({ address: "http://localhost:4010", fetch: send, token: "t0k" });
+    const tokens = ["t0k", undefined, "t1k"];
+    const bearer = () => Promise.resolve(tokens.shift());
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send, bearer });
+    await client.GET("/health");
+    await client.GET("/health");
     await client.GET("/health");
     const bare = createApiClient({ address: "http://localhost:4010", fetch: send });
     await bare.GET("/health");
     expect(requests.map((request) => request.headers.get("Authorization"))).toEqual([
       "Bearer t0k",
+      null,
+      "Bearer t1k",
       null,
     ]);
   });

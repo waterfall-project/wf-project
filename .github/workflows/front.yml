@@ -25,6 +25,18 @@ jobs:
     # full tier, took about 6 minutes on a 4-core workstation busy with other work by October
     # 2026, the coverage being most of it: less on a hosted runner, and 12 leaves it room.
     timeout-minutes: 12
+    # The sessions of the front are tested against a real Redis (docs/dev/README.md, "Un test
+    # contre Redis"), the image of the service platform, which lives for the job.
+    services:
+      redis:
+        image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,3 +57,4 @@ jobs:
       - run: make check-front-code
         env:
           TIER: ${{ inputs.tier }}
+          WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
