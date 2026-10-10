@@ -1982,9 +1982,17 @@ ses paramètres, jamais une phrase.
   en 500 `INTERNAL_ERROR`, attrapée par `CorrelationMiddleware` : journalisée une fois avec sa
   trace, sa corrélation et l'auteur de la requête, sans rien en rendre.
   Un code que le contrat ne connaît pas est un défaut : le gestionnaire le rend en 500.
+  Un texte reçu qui contient le caractère NUL, que PostgreSQL refuse dans une colonne comme dans
+  un `jsonb`, est une valeur refusée — 422 `VALIDATION_FAILED` au pointeur du champ —, jamais un
+  500 de la base (#743) : chaque modèle engendré hérite de `ContractModel`
+  (`waterfall.api.contract.base`, que `[tool.datamodel-codegen]` de `backend/pyproject.toml`
+  donne au générateur), qui cherche le NUL dans chacun de ses champs, élément d'une liste, clé ou
+  valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
+  même module.
 
-  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`) ; que
-  le code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
+  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
+  `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
+  code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
   réponses des tests d'API contre le contrat.
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :

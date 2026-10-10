@@ -2,21 +2,24 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The catalogue of permissions and the table of the roles, as the API gives them.
 
-The roles are written around the service, as the lot that writes them will: these tests read.
-Every answer is checked against the contract (``ContractClient``).
+The roles are read as they are written around the service (``access_rows``), and written through
+the API, which inscribes each write in the journal of audit. Every answer is checked against the
+contract (``ContractClient``).
 """
 
+import ast
 import json
 import re
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from access_rows import ADMINISTRATION, holder, role
 from openapi_core import OpenAPI
+from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import ProgrammingError
@@ -26,19 +29,17 @@ import waterfall
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles import roles
-from waterfall.core.access_roles.tables import (
-    AccessRole,
-    AccessRolePermission,
-    Permission,
-    UserAccessRole,
-)
+from waterfall.core.access_roles.predefined import ADMINISTRATOR
+from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import AuditEntry
+from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database
 
 PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
-DAY = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 # The example of the contract that gives the catalogue as it is delivered.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
 
@@ -50,65 +51,14 @@ def headers(database: Database, realm: TestRealm) -> dict[str, str]:
         session.execute(
             insert(UserAccount).values(
                 **raw_account(
-                    idp_subject=SUBJECT, first_name="Camille", email="camille@example.org"
+                    id=CALLER,
+                    idp_subject=SUBJECT,
+                    first_name="Camille",
+                    email="camille@example.org",
                 )
             )
         )
     return bearer(realm.token(SUBJECT, KEY))
-
-
-def holder(database: Database, *, active: bool = True) -> UUID:
-    """Write an account that holds no role yet, and give its identifier."""
-    state = "active" if active else "deactivated"
-    row = raw_account(email=f"{uuid4().hex}@example.org", state=state)
-    with database.transaction() as session:
-        session.execute(insert(UserAccount).values(**row))
-    return UUID(str(row["id"]))
-
-
-@dataclass(frozen=True, slots=True)
-class Row:
-    """A role as a test writes it: its label, permissions, nature, holders, deletion and author."""
-
-    label: str
-    permissions: tuple[str, ...] = ()
-    is_predefined: bool = False
-    holders: tuple[UUID, ...] = ()
-    deleted: bool = False
-    author: UUID | None = None
-
-
-def role(database: Database, label: str, **columns: Any) -> UUID:
-    """Write a role around the service, as ``Row`` describes it; give its identifier."""
-    row = Row(label, **columns)
-    identifier = uuid4()
-    with database.transaction() as session:
-        session.execute(
-            insert(AccessRole).values(
-                id=identifier,
-                label=row.label,
-                is_predefined=row.is_predefined,
-                deleted_at=DAY + timedelta(days=1) if row.deleted else None,
-                created_at=DAY,
-                created_by=row.author,
-                updated_at=DAY,
-                updated_by=row.author,
-            )
-        )
-        granted = session.scalars(
-            select(Permission.id).where(Permission.code.in_(row.permissions))
-        ).all()
-        for permission_id in granted:
-            session.execute(
-                insert(AccessRolePermission).values(
-                    access_role_id=identifier, permission_id=permission_id
-                )
-            )
-        for user_id in row.holders:
-            session.execute(
-                insert(UserAccessRole).values(user_account_id=user_id, access_role_id=identifier)
-            )
-    return identifier
 
 
 def labels(api: ContractClient, headers: dict[str, str], query: str = "") -> list[str]:
@@ -230,16 +180,108 @@ def test_the_service_may_not_remove_a_role_from_the_database(database: Database)
     assert isinstance(raised.value.orig, psycopg.errors.InsufficientPrivilege)
 
 
+# What names a role in a deletion: its table, its class, or a variable that holds one. The rows of
+# ``access_role_permission`` may go, and ``role_id`` is an identifier, not a role.
+ROLE_NAMES = {"AccessRole", "access_role", "role", "roles"}
+# A SQL text that removes rows of the table of the roles, its name quoted or qualified or not.
+REMOVAL = re.compile(
+    r"\b(?:DELETE\s+FROM|TRUNCATE(?:\s+TABLE)?)\s+(?:ONLY\s+)?"
+    r"(?:\"?public\"?\.)?\"?access_role\"?(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def _docstrings(tree: ast.Module) -> set[int]:
+    """Give the identities of the docstrings of a module, its classes and its functions."""
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            first = node.body[0] if node.body else None
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+                found.add(id(first.value))
+    return found
+
+
+def _names_a_role(node: ast.AST) -> bool:
+    return any(
+        (isinstance(part, ast.Name) and part.id in ROLE_NAMES)
+        or (isinstance(part, ast.Attribute) and part.attr in ROLE_NAMES)
+        for part in ast.walk(node)
+    )
+
+
+def role_removals(source: str) -> list[int]:
+    """Give the lines of a source that remove a role: a deletion of the ORM, or a SQL text.
+
+    A call ``delete(...)`` or ``.delete(...)`` removes a role when what it is called on or with
+    names one; a text, a docstring apart, when it is SQL that deletes from or truncates the table.
+    """
+    tree = ast.parse(source)
+    docstrings = _docstrings(tree)
+    lines: list[int] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            function = node.func
+            name = function.id if isinstance(function, ast.Name) else None
+            if isinstance(function, ast.Attribute):
+                name = function.attr
+            if name == "delete" and _names_a_role(node):
+                lines.append(node.lineno)
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstrings
+            and REMOVAL.search(node.value)
+        ):
+            lines.append(node.lineno)
+    return lines
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "session.delete(role)",
+        "session.execute(delete(tables.AccessRole))",
+        "session.execute(sqlalchemy.delete(AccessRole).where(AccessRole.id == role_id))",
+        "session.execute(AccessRole.__table__.delete())",
+        "text('DELETE FROM \"access_role\" WHERE id = :id')",
+        "text('delete from public.access_role')",
+        "text(f'TRUNCATE access_role CASCADE')",
+        "text('truncate table only access_role')",
+    ],
+)
+def test_a_removal_of_a_role_is_found_in_a_source(source: str) -> None:
+    assert role_removals(source) == [1]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "session.execute(update(AccessRole).values(deleted_at=at))",
+        "delete(AccessRolePermission).where(AccessRolePermission.access_role_id == role_id)",
+        "session.delete(upload)",
+        "text('DELETE FROM access_role_permission WHERE access_role_id = :id')",
+        (
+            'def mark(role):\n    """Never delete from access_role: mark the role."""\n'
+            "    # delete from access_role\n"
+        ),
+    ],
+)
+def test_what_does_not_remove_a_role_is_not_found(source: str) -> None:
+    assert role_removals(source) == []
+
+
 @pytest.mark.requirement("WF-DAT-0080-A")
 def test_no_query_of_the_service_deletes_a_role_physically() -> None:
     # The sources of the whole service, so that a query written outside the module is seen too.
-    # A function may be named for deleting a role: it marks it deleted, it does not remove it.
     paths = sorted(Path(waterfall.__file__).parent.rglob("*.py"))
     assert Path(roles.__file__) in paths
-    sources = "\n".join(path.read_text(encoding="utf-8") for path in paths)
-    # ``\b`` spares ``AccessRolePermission`` and ``access_role_permission``, whose rows may go.
-    assert not re.search(r"delete\(\s*AccessRole\b", sources)
-    assert not re.search(r"DELETE\s+FROM\s+access_role\b", sources, re.IGNORECASE)
+    found = {
+        str(path): lines
+        for path in paths
+        if (lines := role_removals(path.read_text(encoding="utf-8")))
+    }
+    assert found == {}
 
 
 @pytest.fixture
@@ -376,6 +418,11 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
             "?holder_count_max=many",
             [{"pointer": "/query/holder_count_max", "code": "NUMBER_INVALID"}],
         ),
+        # Beyond the digits Python reads in an integer, still a malformed number (#743).
+        (
+            f"?holder_count_min={'9' * 5000}",
+            [{"pointer": "/query/holder_count_min", "code": "NUMBER_INVALID"}],
+        ),
         # The database refuses a text that holds a NUL: the field refuses it first.
         ("?search=%00", [{"pointer": "/query/search", "code": "VALIDATION_FAILED"}]),
     ],
@@ -395,3 +442,317 @@ def test_the_roles_and_the_catalogue_are_read_by_a_known_caller_only(
     api: ContractClient, path: str
 ) -> None:
     assert problem(api.get(path))[:2] == (401, "SESSION_REQUIRED")
+
+
+# The caller as the rows and the journal name it.
+CAMILLE = {"kind": "user", "user_id": str(CALLER), "display_name": "Camille Martin"}
+
+
+def journal(database: Database) -> list[AuditEntry]:
+    """Read the inscriptions of the journal of audit, in their order."""
+    with database.transaction() as session:
+        entries = session.scalars(select(AuditEntry).order_by(AuditEntry.id)).all()
+        session.expunge_all()
+    return list(entries)
+
+
+def kept(database: Database, role_id: UUID) -> AccessRole:
+    """Read the row of a role as the table keeps it, deleted or not."""
+    with database.transaction() as session:
+        row = session.get_one(AccessRole, role_id)
+        session.expunge(row)
+    return row
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_a_role_is_composed_of_any_permissions_and_its_creation_inscribed(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    sent: dict[str, object] = {
+        "label": "Chiffreur",
+        "permissions": ["estimate.write", "audit_log.read", "users.read"],
+    }
+    response = api.post(ROLES, headers=headers, json=sent)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["permissions"] == ["users.read", "audit_log.read", "estimate.write"]
+    assert (body["label"], body["is_predefined"], body["holder_count"]) == ("Chiffreur", False, 0)
+    assert (body["audit"]["created_by"], body["lock_version"]) == (CAMILLE, 0)
+    assert api.get(f"{ROLES}/{body['access_role_id']}", headers=headers).json() == body
+    [entry] = journal(database)
+    assert (entry.action, entry.object_kind, str(entry.object_id), entry.object_label) == (
+        "access_role_create",
+        "access_role",
+        body["access_role_id"],
+        "Chiffreur",
+    )
+    assert (entry.actor_user_id, entry.actor_display_name) == (CALLER, "Camille Martin")
+    assert entry.params == {"permissions": body["permissions"]}
+    assert entry.occurred_at == datetime.fromisoformat(body["audit"]["created_at"])
+    assert entry.correlation_id == response.headers[HEADER]
+
+
+def test_a_permission_outside_the_catalogue_is_refused(
+    api: ContractClient, headers: dict[str, str]
+) -> None:
+    sent: dict[str, object] = {
+        "label": "Rapports",
+        "permissions": ["planning.read", "reports.read"],
+    }
+    assert problem(api.post(ROLES, headers=headers, json=sent)) == (
+        422,
+        "VALIDATION_FAILED",
+        [{"pointer": "/permissions/1", "code": "VALIDATION_FAILED"}],
+    )
+    assert labels(api, headers) == []
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "createAccessRole",
+        # The contract declares no 422 for the change of a role: the answer, the one every refused
+        # value gets, is not the contract's until it does (#748).
+        pytest.param(
+            "updateAccessRole",
+            marks=pytest.mark.xfail(raises=ResponseNotFound, strict=True, reason="#748"),
+        ),
+    ],
+)
+def test_a_label_that_holds_a_nul_is_refused_at_its_field(
+    api: ContractClient, database: Database, headers: dict[str, str], operation: str
+) -> None:
+    # PostgreSQL refuses a text that holds a NUL: the field refuses it first, not the database.
+    written = role(database, "Chiffreur")
+    sent: dict[str, object] = {"label": "Chif\x00freur", "permissions": [], "lock_version": 0}
+    if operation == "createAccessRole":
+        response = api.post(ROLES, headers=headers, json=sent)
+    else:
+        response = api.patch(f"{ROLES}/{written}", headers=headers, json=sent)
+    assert problem(response) == (
+        422,
+        "VALIDATION_FAILED",
+        [{"pointer": "/label", "code": "VALIDATION_FAILED"}],
+    )
+    assert (labels(api, headers), journal(database)) == (["Chiffreur"], [])
+
+
+@pytest.mark.requirement("WF-ADM-0010-A")
+def test_a_predefined_role_is_renamed_changed_and_deleted_when_no_account_holds_it(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime
+    # sans erreur un rôle prédéfini qu'aucun compte ne porte. »
+    role(
+        database, "Administrateur", permissions=ADMINISTRATOR, is_predefined=True, holders=(CALLER,)
+    )
+    pilot = role(
+        database,
+        "Chef de projet",
+        permissions=("planning.read", "planning.write"),
+        is_predefined=True,
+        holders=(holder(database),),
+    )
+    unheld = role(database, "Manager", permissions=("planning.read",), is_predefined=True)
+    change = {"label": "Pilote", "permissions": ["risks.read", "planning.read"], "lock_version": 0}
+    response = api.patch(f"{ROLES}/{pilot}", headers=headers, json=change)
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["label"], body["permissions"], body["is_predefined"]) == (
+        "Pilote",
+        ["planning.read", "risks.read"],
+        True,
+    )
+    assert (body["holder_count"], body["lock_version"], body["audit"]["updated_by"]) == (
+        1,
+        1,
+        CAMILLE,
+    )
+    assert api.delete(f"{ROLES}/{unheld}", headers=headers).status_code == 204
+    assert labels(api, headers) == ["Administrateur", "Pilote"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_a_change_is_inscribed_with_what_it_grants_withdraws_and_renames(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    changed = role(database, "Chef de projet", permissions=("planning.read", "planning.write"))
+    written: list[datetime] = []
+    for label, permissions, version in [
+        ("Pilote", ["planning.read", "risks.read"], 0),
+        ("Pilote", ["planning.read"], 1),
+    ]:
+        sent: dict[str, object] = {
+            "label": label,
+            "permissions": permissions,
+            "lock_version": version,
+        }
+        response = api.patch(f"{ROLES}/{changed}", headers=headers, json=sent)
+        assert response.status_code == 200
+        written.append(datetime.fromisoformat(response.json()["audit"]["updated_at"]))
+    renamed, withdrawn = journal(database)
+    assert [renamed.occurred_at, withdrawn.occurred_at] == written
+    assert {entry.action for entry in (renamed, withdrawn)} == {"access_role_update"}
+    assert (renamed.object_id, renamed.object_label, renamed.actor_user_id) == (
+        changed,
+        "Pilote",
+        CALLER,
+    )
+    assert renamed.params == {
+        "permissions_granted": ["risks.read"],
+        "permissions_withdrawn": ["planning.write"],
+        "previous_label": "Chef de projet",
+    }
+    # The label unchanged, the inscription does not say a previous one.
+    assert withdrawn.params == {"permissions_granted": [], "permissions_withdrawn": ["risks.read"]}
+
+
+def test_a_change_on_a_version_no_longer_current_is_refused_and_writes_nothing(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    changed = role(database, "Chiffreur", permissions=("estimate.read",))
+    first = {"label": "Chiffrage", "permissions": ["estimate.read"], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{changed}", headers=headers, json=first).status_code == 200
+    stale: dict[str, object] = {"label": "Devis", "permissions": [], "lock_version": 0}
+    response = api.patch(f"{ROLES}/{changed}", headers=headers, json=stale)
+    assert response.status_code == 412
+    assert response.json()["code"] == "STALE_LOCK_VERSION"
+    assert response.json()["params"] == {"expected_lock_version": 1}
+    body = api.get(f"{ROLES}/{changed}", headers=headers).json()
+    assert (body["label"], body["permissions"], body["lock_version"]) == (
+        "Chiffrage",
+        ["estimate.read"],
+        1,
+    )
+    assert len(journal(database)) == 1
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_a_deleted_role_is_no_longer_read_its_row_kept_and_its_deletion_inscribed(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # « un rôle supprimé n'est plus lu ni attribuable, et sa ligne est conservée, ce que le
+    # journal d'audit et les attributions passées citent » — the side of the writes.
+    deleted = role(database, "Auditeur", permissions=("audit_log.read",))
+    role(database, "Chiffreur")
+    response = api.delete(f"{ROLES}/{deleted}", headers=headers)
+    assert (response.status_code, response.content) == (204, b"")
+    assert api.get(f"{ROLES}/{deleted}", headers=headers).status_code == 404
+    assert labels(api, headers) == ["Chiffreur"]
+    row = kept(database, deleted)
+    assert (row.label, row.deleted_at is not None, row.lock_version, row.updated_by) == (
+        "Auditeur",
+        True,
+        1,
+        CALLER,
+    )
+    [entry] = journal(database)
+    assert (entry.action, entry.object_id, entry.object_label, entry.actor_user_id) == (
+        "access_role_delete",
+        deleted,
+        "Auditeur",
+        CALLER,
+    )
+    assert entry.occurred_at == row.deleted_at
+    assert entry.correlation_id == response.headers[HEADER]
+
+
+@pytest.mark.parametrize("method", ["PATCH", "DELETE"])
+def test_a_deleted_role_is_neither_changed_nor_deleted_again(
+    api: ContractClient, database: Database, headers: dict[str, str], method: str
+) -> None:
+    deleted = role(database, "Auditeur", deleted=True)
+    for path in (f"{ROLES}/{deleted}", f"{ROLES}/{uuid4()}"):
+        sent: dict[str, object] = {"label": "Auditrice", "permissions": [], "lock_version": 0}
+        response = api.request(method, path, headers=headers, json=sent)
+        assert problem(response)[:2] == (404, "NOT_FOUND")
+    row = kept(database, deleted)
+    assert (row.label, row.lock_version, journal(database)) == ("Auditeur", 0, [])
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+@pytest.mark.parametrize("active", [True, False])
+def test_a_role_an_account_holds_is_not_deleted(
+    api: ContractClient, database: Database, headers: dict[str, str], *, active: bool
+) -> None:
+    # « La suppression d'un rôle est refusée tant qu'un compte le porte. » — a deactivated
+    # account holds it too.
+    held = role(database, "Chiffreur", holders=(holder(database, active=active),))
+    assert problem(api.delete(f"{ROLES}/{held}", headers=headers)) == (
+        409,
+        "ACCESS_ROLE_IN_USE",
+        [],
+    )
+    assert (labels(api, headers), kept(database, held).deleted_at, journal(database)) == (
+        ["Chiffreur"],
+        None,
+        [],
+    )
+
+
+@pytest.mark.requirement("WF-ADM-0010-A")
+def test_the_administrator_role_its_holder_holds_is_not_deleted(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # « La suppression du rôle « administrateur » qu'il porte est refusée (WF-ADM-0090,
+    # WF-ADM-0120). »
+    held = role(
+        database, "Administrateur", permissions=ADMINISTRATOR, is_predefined=True, holders=(CALLER,)
+    )
+    assert problem(api.delete(f"{ROLES}/{held}", headers=headers))[:2] == (
+        409,
+        "ACCESS_ROLE_IN_USE",
+    )
+    assert labels(api, headers) == ["Administrateur"]
+
+
+@pytest.mark.parametrize("withdrawn", ADMINISTRATION)
+def test_a_change_that_takes_the_administration_from_the_last_administrator_is_refused(
+    api: ContractClient, database: Database, headers: dict[str, str], withdrawn: str
+) -> None:
+    # A deactivated account that holds the role is no administrator: Camille is the last one.
+    direction = role(
+        database,
+        "Direction",
+        permissions=(*ADMINISTRATION, "users.read"),
+        holders=(CALLER, holder(database, active=False)),
+    )
+    kept_ones = [code for code in ("users.read", *ADMINISTRATION) if code != withdrawn]
+    sent: dict[str, object] = {"label": "Direction", "permissions": kept_ones, "lock_version": 0}
+    assert problem(api.patch(f"{ROLES}/{direction}", headers=headers, json=sent)) == (
+        409,
+        "LAST_ADMINISTRATOR",
+        [],
+    )
+    body = api.get(f"{ROLES}/{direction}", headers=headers).json()
+    assert (body["permissions"], body["lock_version"], journal(database)) == (
+        ["users.read", "users.write", "access_roles.write"],
+        0,
+        [],
+    )
+
+
+def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    direction = role(database, "Direction", permissions=ADMINISTRATION, holders=(CALLER,))
+    role(database, "Administration", permissions=ADMINISTRATION, holders=(holder(database),))
+    sent: dict[str, object] = {
+        "label": "Direction",
+        "permissions": ["users.write"],
+        "lock_version": 0,
+    }
+    response = api.patch(f"{ROLES}/{direction}", headers=headers, json=sent)
+    assert (response.status_code, response.json()["permissions"]) == (200, ["users.write"])
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("POST", ROLES), ("PATCH", f"{ROLES}/{uuid4()}"), ("DELETE", f"{ROLES}/{uuid4()}")],
+)
+def test_the_roles_are_written_by_a_known_caller_only(
+    api: ContractClient, method: str, path: str
+) -> None:
+    sent: dict[str, object] = {"label": "Chiffreur", "permissions": [], "lock_version": 0}
+    assert problem(api.request(method, path, json=sent))[:2] == (401, "SESSION_REQUIRED")

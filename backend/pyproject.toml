@@ -100,3 +100,9 @@ type = "independence"
 modules = ["waterfall.core.*"]
 ignore_imports = ["waterfall.core.** -> waterfall.core.*.interface"]
 unmatched_ignore_imports_alerting = "none"
+
+# The generator of the models of the contract (`make generate-server-models`), which reads this
+# section besides its command line: every model it engenders refuses a text that holds a NUL,
+# which PostgreSQL would refuse later as a failure (waterfall.api.contract.base).
+[tool.datamodel-codegen]
+base-class = "waterfall.api.contract.base.ContractModel"

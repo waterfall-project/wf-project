@@ -7,6 +7,7 @@ write is the identifier of an account, or ``None`` for the platform itself (WF-D
 moment is an argument, never read here.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -91,6 +92,17 @@ def add_account_if_absent(session: Session, new: NewAccount, stamp: Stamp) -> Us
 def find_account(session: Session, user_id: UUID) -> UserAccount | None:
     """Read an account, or ``None`` if there is none."""
     return session.get(UserAccount, user_id)
+
+
+def find_active_accounts(session: Session, user_ids: Collection[UUID]) -> list[UUID]:
+    """Give, of the accounts given, the identifiers of those that are active."""
+    return list(
+        session.scalars(
+            select(UserAccount.id).where(
+                UserAccount.id.in_(user_ids), UserAccount.state == "active"
+            )
+        )
+    )
 
 
 def find_account_of_subject(session: Session, subject: str) -> UserAccount | None:

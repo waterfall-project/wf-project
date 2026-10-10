@@ -126,6 +126,14 @@ class ContractClient:
         """Send a GET and check the answer."""
         return self.request("GET", path, **kwargs)
 
+    def post(self, path: str, **kwargs: Any) -> Response:
+        """Send a POST and check the answer."""
+        return self.request("POST", path, **kwargs)
+
+    def patch(self, path: str, **kwargs: Any) -> Response:
+        """Send a PATCH and check the answer."""
+        return self.request("PATCH", path, **kwargs)
+
     def delete(self, path: str, **kwargs: Any) -> Response:
         """Send a DELETE and check the answer."""
         return self.request("DELETE", path, **kwargs)

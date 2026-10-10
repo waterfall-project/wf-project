@@ -2,28 +2,40 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The catalogue of permissions and the roles: the operations of the family ``access`` on them.
 
-Their writes arrive with the next lot of US-0380, the evaluation of the permission each operation
-asks for with US-0390: until then, any account the API knows may read them.
+The evaluation of the permission each operation asks for arrives with US-0390: until then, any
+account the API knows may call them. A write is inscribed in the journal of audit by its caller.
 """
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
-from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Transaction, caller
-from waterfall.api.contract.models import AccessRole, Permission, SortOrder
+from waterfall.api.actors import actor_ref, audit_actor
+from waterfall.api.authentication import Caller, Transaction, caller
+from waterfall.api.contract.models import (
+    AccessRole,
+    AccessRoleUpdate,
+    AccessRoleWrite,
+    Permission,
+    SortOrder,
+)
 from waterfall.api.queries import Search
 from waterfall.core.access_roles.interface import (
+    Act,
     RoleFilters,
     RoleSort,
     RoleView,
+    RoleWrite,
     SortColumn,
+    create_role,
+    delete_role,
     list_permissions,
     list_roles,
     read_role,
+    update_role,
 )
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnprocessableError
 
 router = APIRouter(tags=["access"])
@@ -34,7 +46,7 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # The greatest integer PostgreSQL represents (``bigint``).
 GREATEST_COUNT = 2**63 - 1
 
-# The reads need the caller known and active, but nothing of it.
+# The reads need the caller known and active, but nothing of it; a write names it its author.
 AUTHENTICATED = [Depends(caller)]
 
 
@@ -137,3 +149,39 @@ def get_access_roles(
 def get_access_role(access_role_id: UUID, session: Transaction) -> AccessRole:
     """Give a role that is not deleted."""
     return access_role(read_role(session, access_role_id))
+
+
+def _write(body: AccessRoleWrite) -> RoleWrite:
+    return RoleWrite(body.label, [code.value for code in body.permissions])
+
+
+@router.post(
+    "/access-roles",
+    operation_id="createAccessRole",
+    status_code=201,
+    response_model_exclude_unset=True,
+)
+def post_access_role(body: AccessRoleWrite, account: Caller, session: Transaction) -> AccessRole:
+    """Compose a role of any set of permissions (WF-ADM-0020)."""
+    return access_role(create_role(session, _write(body), Act(audit_actor(account), utc_now())))
+
+
+@router.patch(
+    "/access-roles/{access_role_id}",
+    operation_id="updateAccessRole",
+    response_model_exclude_unset=True,
+)
+def patch_access_role(
+    access_role_id: UUID, body: AccessRoleUpdate, account: Caller, session: Transaction
+) -> AccessRole:
+    """Rename a role and set its permissions, for all its holders at once (WF-ADM-0090)."""
+    act = Act(audit_actor(account), utc_now())
+    changed = update_role(session, access_role_id, _write(body), body.lock_version.root, act)
+    return access_role(changed)
+
+
+@router.delete("/access-roles/{access_role_id}", operation_id="deleteAccessRole", status_code=204)
+def remove_access_role(access_role_id: UUID, account: Caller, session: Transaction) -> Response:
+    """Mark a role deleted, unless an account holds it (WF-ADM-0090)."""
+    delete_role(session, access_role_id, Act(audit_actor(account), utc_now()))
+    return Response(status_code=204)

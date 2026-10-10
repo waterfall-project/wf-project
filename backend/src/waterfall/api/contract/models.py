@@ -8,7 +8,9 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+
+from waterfall.api.contract.base import ContractModel
 
 
 class ErrorCode(StrEnum):
@@ -83,7 +85,7 @@ class StateEnumeration(StrEnum):
     ProjectState = "ProjectState"
 
 
-class FieldProblem(BaseModel):
+class FieldProblem(ContractModel):
     pointer: Annotated[
         str,
         Field(
@@ -94,14 +96,14 @@ class FieldProblem(BaseModel):
     params: dict[str, Any] | None = None
 
 
-class Params(BaseModel):
+class Params(ContractModel):
     model_config = ConfigDict(
         extra="allow",
     )
     state_enum: StateEnumeration | None = None
 
 
-class Problem(BaseModel):
+class Problem(ContractModel):
     code: ErrorCode
     status: Annotated[int, Field(ge=400, le=599)]
     params: Annotated[
@@ -141,7 +143,7 @@ class Timestamp(RootModel[AwareDatetime]):
     ]
 
 
-class ComponentHealth(BaseModel):
+class ComponentHealth(ContractModel):
     component: PlatformComponent
     is_available: bool
     checked_at: Timestamp
@@ -150,12 +152,12 @@ class ComponentHealth(BaseModel):
     ] = None
 
 
-class StorageUsage(BaseModel):
+class StorageUsage(ContractModel):
     used_bytes: Annotated[int, Field(ge=0)]
     available_bytes: Annotated[int, Field(ge=0)]
 
 
-class OperationOutcome(BaseModel):
+class OperationOutcome(ContractModel):
     at: Timestamp
     succeeded: bool
     problem: Problem | None = None
@@ -205,7 +207,7 @@ class Code(StrEnum):
     error_rate_abnormal = "error_rate_abnormal"
 
 
-class Params1(BaseModel):
+class Params1(ContractModel):
     component: PlatformComponent | None = None
     used_bytes: Annotated[int | None, Field(ge=0)] = None
     available_bytes: Annotated[int | None, Field(ge=0)] = None
@@ -214,7 +216,7 @@ class Params1(BaseModel):
     failure: ExternalBackupFailure | None = None
 
 
-class Alert(BaseModel):
+class Alert(ContractModel):
     code: Code
     since: Timestamp
     severity: AlertZone
@@ -226,7 +228,7 @@ class Alert(BaseModel):
     ] = None
 
 
-class SystemStatus(BaseModel):
+class SystemStatus(ContractModel):
     version: str
     components: list[ComponentHealth]
     storage: StorageUsage
@@ -257,7 +259,7 @@ class Language(StrEnum):
     en = "en"
 
 
-class Installation(BaseModel):
+class Installation(ContractModel):
     default_language: Language
     avatar_max_bytes: Annotated[
         int,
@@ -296,7 +298,7 @@ class Kind(StrEnum):
     identity_sync = "identity_sync"
 
 
-class BackgroundTaskRef(BaseModel):
+class BackgroundTaskRef(ContractModel):
     task_id: Uuid
     kind: Annotated[
         Kind,
@@ -317,7 +319,7 @@ class BackgroundTaskRef(BaseModel):
     ] = None
 
 
-class PaginationMeta(BaseModel):
+class PaginationMeta(ContractModel):
     limit: Annotated[int, Field(ge=1, le=500)]
     offset: Annotated[int, Field(ge=0)]
     total: Annotated[int, Field(ge=0)]
@@ -334,7 +336,7 @@ class Kind1(StrEnum):
     platform = "platform"
 
 
-class ActorRef(BaseModel):
+class ActorRef(ContractModel):
     kind: Kind1
     user_id: Uuid | None = None
     display_name: Annotated[
@@ -345,7 +347,7 @@ class ActorRef(BaseModel):
     ] = None
 
 
-class Audit(BaseModel):
+class Audit(ContractModel):
     created_at: Timestamp
     created_by: ActorRef
     updated_at: Timestamp
@@ -362,7 +364,7 @@ class LockVersion(RootModel[int]):
     ]
 
 
-class UserAccount(BaseModel):
+class UserAccount(ContractModel):
     user_id: Uuid
     last_name: Annotated[str, Field(max_length=100, min_length=1)]
     first_name: Annotated[str, Field(max_length=100, min_length=1)]
@@ -416,12 +418,12 @@ class SortOrder(StrEnum):
 type ColumnWidthsAdditionalProperty = Annotated[int, Field(ge=20)]
 
 
-class Sort(BaseModel):
+class Sort(ContractModel):
     column: str
     order: SortOrder
 
 
-class GridPreferences(BaseModel):
+class GridPreferences(ContractModel):
     hidden_columns: list[str] | None = None
     column_widths: dict[str, ColumnWidthsAdditionalProperty] | None = None
     sort: Sort | None = None
@@ -440,7 +442,7 @@ class Theme(StrEnum):
     dark = "dark"
 
 
-class DisplayPreferences(BaseModel):
+class DisplayPreferences(ContractModel):
     language: Annotated[
         Language1 | None,
         Field(
@@ -570,7 +572,7 @@ class CommandCondition(StrEnum):
     is_active_account = "is_active_account"
 
 
-class UserCommandAvailability(BaseModel):
+class UserCommandAvailability(ContractModel):
     command: UserCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -588,7 +590,7 @@ class User(UserAccount):
     ]
 
 
-class UserCreate(BaseModel):
+class UserCreate(ContractModel):
     last_name: Annotated[str, Field(max_length=100, min_length=1)]
     first_name: Annotated[str, Field(max_length=100, min_length=1)]
     email: Annotated[str, Field(max_length=254)]
@@ -596,7 +598,7 @@ class UserCreate(BaseModel):
     access_role_ids: list[Uuid] | None = None
 
 
-class UserUpdate(BaseModel):
+class UserUpdate(ContractModel):
     last_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
     first_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
     email: Annotated[str | None, Field(max_length=254)] = None
@@ -604,17 +606,17 @@ class UserUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class UserRolesWrite(BaseModel):
+class UserRolesWrite(ContractModel):
     access_role_ids: list[Uuid]
     lock_version: LockVersion
 
 
-class SkippedItem(BaseModel):
+class SkippedItem(ContractModel):
     email: str
     code: ErrorCode
 
 
-class IdentitySyncReport(BaseModel):
+class IdentitySyncReport(ContractModel):
     created: Annotated[int, Field(ge=0)]
     updated: Annotated[int, Field(ge=0)]
     deactivated: Annotated[int, Field(ge=0)]
@@ -633,7 +635,7 @@ class Kind2(StrEnum):
     structuring = "structuring"
 
 
-class Permission(BaseModel):
+class Permission(ContractModel):
     code: PermissionCode
     kind: Annotated[
         Kind2,
@@ -647,7 +649,7 @@ class Permission(BaseModel):
     ] = None
 
 
-class AccessRole(BaseModel):
+class AccessRole(ContractModel):
     access_role_id: Uuid
     label: Annotated[str, Field(max_length=100, min_length=1)]
     permissions: list[PermissionCode]
@@ -657,7 +659,7 @@ class AccessRole(BaseModel):
     lock_version: LockVersion
 
 
-class AccessRoleWrite(BaseModel):
+class AccessRoleWrite(ContractModel):
     label: Annotated[str, Field(max_length=100, min_length=1)]
     permissions: list[PermissionCode]
 
@@ -681,7 +683,7 @@ class Origin(StrEnum):
     scheduled = "scheduled"
 
 
-class Backup(BaseModel):
+class Backup(ContractModel):
     backup_id: Uuid
     taken_at: Timestamp
     size_bytes: Annotated[int, Field(ge=0)]
@@ -698,7 +700,7 @@ class Backup(BaseModel):
     origin: Origin | None = None
 
 
-class BackupRetain(BaseModel):
+class BackupRetain(ContractModel):
     is_retained: bool
 
 
@@ -714,7 +716,7 @@ class ExternalBackupPath(RootModel[str]):
     ]
 
 
-class BackupExternalCopy(BaseModel):
+class BackupExternalCopy(ContractModel):
     is_enabled: Annotated[
         bool,
         Field(
@@ -759,7 +761,7 @@ class Weekday(RootModel[int]):
     ]
 
 
-class BackupSchedule(BaseModel):
+class BackupSchedule(ContractModel):
     is_enabled: bool
     frequency: Frequency | None = None
     at_time: Annotated[
@@ -800,7 +802,7 @@ class Description(RootModel[str]):
     ]
 
 
-class ExternalBackupLocation(BaseModel):
+class ExternalBackupLocation(ContractModel):
     name: ExternalBackupLocationName
     kind: ExternalBackupLocationKind
     description: Annotated[
@@ -811,7 +813,7 @@ class ExternalBackupLocation(BaseModel):
     ]
 
 
-class ExternalBackupLocationTestRequest(BaseModel):
+class ExternalBackupLocationTestRequest(ContractModel):
     path: Annotated[
         ExternalBackupPath | None,
         Field(
@@ -820,7 +822,7 @@ class ExternalBackupLocationTestRequest(BaseModel):
     ] = None
 
 
-class ExternalBackupLocationTest(BaseModel):
+class ExternalBackupLocationTest(ContractModel):
     location: ExternalBackupLocationName
     path: Annotated[
         ExternalBackupPath | None,
@@ -833,7 +835,7 @@ class ExternalBackupLocationTest(BaseModel):
     ]
 
 
-class RestoreRequest1(BaseModel):
+class RestoreRequest1(ContractModel):
     backup_id: Uuid
     external_backup_upload_id: Annotated[
         Uuid | None,
@@ -850,7 +852,7 @@ class RestoreRequest1(BaseModel):
     confirmed: Literal[True]
 
 
-class RestoreRequest2(BaseModel):
+class RestoreRequest2(ContractModel):
     backup_id: Uuid | None = None
     external_backup_upload_id: Annotated[
         Uuid,
@@ -916,7 +918,7 @@ class AuditObjectKind(StrEnum):
     external_backup_upload = "external_backup_upload"
 
 
-class AuditRevision(BaseModel):
+class AuditRevision(ContractModel):
     revision_id: Uuid
     label: Annotated[
         str | None,
@@ -926,7 +928,7 @@ class AuditRevision(BaseModel):
     ]
 
 
-class AuditObject(BaseModel):
+class AuditObject(ContractModel):
     kind: AuditObjectKind
     object_id: Uuid
     label: Annotated[
@@ -943,13 +945,13 @@ class AuditObject(BaseModel):
     ]
 
 
-class AuditProject(BaseModel):
+class AuditProject(ContractModel):
     project_id: Uuid
     code: str
     label: str
 
 
-class AuditEvent(BaseModel):
+class AuditEvent(ContractModel):
     audit_event_id: Uuid
     occurred_at: Annotated[
         Timestamp,
@@ -980,7 +982,7 @@ class AuditEvent(BaseModel):
     ]
 
 
-class AuditActorFacet(BaseModel):
+class AuditActorFacet(ContractModel):
     user_id: Uuid
     display_name: Annotated[
         str,
@@ -990,7 +992,7 @@ class AuditActorFacet(BaseModel):
     ]
 
 
-class AuditFacets(BaseModel):
+class AuditFacets(ContractModel):
     actors: Annotated[
         list[AuditActorFacet],
         Field(
@@ -1011,7 +1013,7 @@ class MissingEnum(StrEnum):
     active_resource_role = "active_resource_role"
 
 
-class ReferenceReadiness(BaseModel):
+class ReferenceReadiness(ContractModel):
     is_complete: bool
     missing: list[MissingEnum]
 
@@ -1035,7 +1037,7 @@ class Percent(RootModel[Decimal]):
     ]
 
 
-class RiskMatrixSettings(BaseModel):
+class RiskMatrixSettings(ContractModel):
     probability_bounds: Annotated[list[Percent], Field(max_length=3, min_length=3)]
     severity_bounds: Annotated[list[Percent], Field(max_length=3, min_length=3)]
     zones: Annotated[
@@ -1048,14 +1050,14 @@ class RiskMatrixSettings(BaseModel):
     ]
 
 
-class IndexThresholds(BaseModel):
+class IndexThresholds(ContractModel):
     cost_watch: Decimal
     cost_alert: Decimal
     schedule_watch: Decimal
     schedule_alert: Decimal
 
 
-class ReferenceSettings(BaseModel):
+class ReferenceSettings(ContractModel):
     currency_code: Annotated[
         str,
         Field(
@@ -1070,7 +1072,7 @@ class ReferenceSettings(BaseModel):
     lock_version: LockVersion
 
 
-class ReferenceSettingsWrite(BaseModel):
+class ReferenceSettingsWrite(ContractModel):
     default_language: Language | None = None
     risk_matrix: RiskMatrixSettings | None = None
     index_thresholds: IndexThresholds | None = None
@@ -1083,7 +1085,7 @@ class ReferenceCommand(StrEnum):
     reactivate = "reactivate"
 
 
-class ReferenceCommandAvailability(BaseModel):
+class ReferenceCommandAvailability(ContractModel):
     command: ReferenceCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -1112,7 +1114,7 @@ class ParentLabel(RootModel[str]):
     ]
 
 
-class OrgNode(BaseModel):
+class OrgNode(ContractModel):
     org_node_id: Uuid
     code: Annotated[
         str,
@@ -1143,7 +1145,7 @@ class OrgNode(BaseModel):
     lock_version: LockVersion
 
 
-class OrgNodeWrite(BaseModel):
+class OrgNodeWrite(ContractModel):
     code: Annotated[str, Field(max_length=20, min_length=1)]
     label: Annotated[str, Field(max_length=200, min_length=1)]
     parent_id: Annotated[
@@ -1162,12 +1164,12 @@ class Hours(RootModel[Decimal]):
     root: Annotated[Decimal, Field(description="Nombre d'heures, décimal exact.")]
 
 
-class RoleCapacity(BaseModel):
+class RoleCapacity(ContractModel):
     monthly_hours: Hours
     headcount: Decimal
 
 
-class ResourceRoleImage(BaseModel):
+class ResourceRoleImage(ContractModel):
     resource_role_id: Uuid
     label: Annotated[str, Field(max_length=200, min_length=1)]
     org_node_id: Uuid
@@ -1203,7 +1205,7 @@ class ResourceRoleImage(BaseModel):
     lock_version: LockVersion
 
 
-class ReferenceObjectCommands(BaseModel):
+class ReferenceObjectCommands(ContractModel):
     available_commands: ReferenceCommands
 
 
@@ -1211,7 +1213,7 @@ class ResourceRole(ResourceRoleImage, ReferenceObjectCommands):
     pass
 
 
-class ResourceRoleWrite(BaseModel):
+class ResourceRoleWrite(ContractModel):
     label: Annotated[str, Field(max_length=200, min_length=1)]
     org_node_id: Annotated[
         Uuid,
@@ -1224,7 +1226,7 @@ class ResourceRoleWrite(BaseModel):
     capacity: RoleCapacity
 
 
-class ResourceRoleUpdate(BaseModel):
+class ResourceRoleUpdate(ContractModel):
     label: Annotated[str, Field(max_length=200, min_length=1)]
     cost_category_id: Uuid
     calendar_id: Uuid
@@ -1232,21 +1234,21 @@ class ResourceRoleUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class DurationUnits(BaseModel):
+class DurationUnits(ContractModel):
     hours_per_day: Annotated[Decimal, Field(description="8 par défaut.")]
     hours_per_week: Annotated[Decimal, Field(description="40 par défaut.")]
     days_per_month: Annotated[Decimal, Field(description="20 par défaut.")]
     lock_version: LockVersion
 
 
-class DurationUnitsWrite(BaseModel):
+class DurationUnitsWrite(ContractModel):
     hours_per_day: Decimal
     hours_per_week: Decimal
     days_per_month: Decimal
     lock_version: LockVersion
 
 
-class WeeklyHours(BaseModel):
+class WeeklyHours(ContractModel):
     monday: Hours
     tuesday: Hours
     wednesday: Hours
@@ -1256,7 +1258,7 @@ class WeeklyHours(BaseModel):
     sunday: Hours
 
 
-class CalendarImage(BaseModel):
+class CalendarImage(ContractModel):
     calendar_id: Uuid
     label: Annotated[str, Field(max_length=200, min_length=1)]
     weekly_hours: WeeklyHours
@@ -1270,7 +1272,7 @@ class Calendar(CalendarImage, ReferenceObjectCommands):
     pass
 
 
-class CalendarWrite(BaseModel):
+class CalendarWrite(ContractModel):
     label: Annotated[str, Field(max_length=200, min_length=1)]
     weekly_hours: WeeklyHours
 
@@ -1291,7 +1293,7 @@ class CostTypeCommand(StrEnum):
     change_kind = "change_kind"
 
 
-class CostTypeCommandAvailability(BaseModel):
+class CostTypeCommandAvailability(ContractModel):
     command: CostTypeCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -1309,7 +1311,7 @@ class CostTypeCommands(RootModel[list[CostTypeCommandAvailability]]):
     ]
 
 
-class CostType(BaseModel):
+class CostType(ContractModel):
     cost_type_id: Uuid
     code: Annotated[
         str,
@@ -1327,7 +1329,7 @@ class CostType(BaseModel):
     lock_version: LockVersion
 
 
-class CostTypeWrite(BaseModel):
+class CostTypeWrite(ContractModel):
     code: Annotated[str, Field(max_length=20, min_length=1)]
     label: Annotated[str, Field(max_length=200, min_length=1)]
     kind: CostTypeKind
@@ -1337,7 +1339,7 @@ class CostTypeUpdate(CostTypeWrite):
     lock_version: LockVersion
 
 
-class CostCategoryImage(BaseModel):
+class CostCategoryImage(ContractModel):
     cost_category_id: Uuid
     code: Annotated[
         str,
@@ -1376,7 +1378,7 @@ class CostCategoryCommand(StrEnum):
     change_cost_type = "change_cost_type"
 
 
-class CostCategoryCommandAvailability(BaseModel):
+class CostCategoryCommandAvailability(ContractModel):
     command: CostCategoryCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -1398,7 +1400,7 @@ class CostCategory(CostCategoryImage):
     available_commands: CostCategoryCommands
 
 
-class CostCategoryWrite(BaseModel):
+class CostCategoryWrite(ContractModel):
     code: Annotated[str, Field(max_length=20, min_length=1)]
     label: Annotated[str, Field(max_length=200, min_length=1)]
     cost_type_id: Annotated[
@@ -1428,7 +1430,7 @@ class Money(RootModel[Decimal]):
     ]
 
 
-class HourlyRate(BaseModel):
+class HourlyRate(ContractModel):
     cost_category_id: Uuid
     year: Year
     amount: Money
@@ -1436,7 +1438,7 @@ class HourlyRate(BaseModel):
     lock_version: LockVersion
 
 
-class HourlyRateRow(BaseModel):
+class HourlyRateRow(ContractModel):
     cost_category_id: Uuid
     code: Annotated[str, Field(max_length=20, min_length=1)]
     label: Annotated[str, Field(max_length=200, min_length=1)]
@@ -1449,7 +1451,7 @@ class HourlyRateRow(BaseModel):
     ]
 
 
-class HourlyRateGrid(BaseModel):
+class HourlyRateGrid(ContractModel):
     years: Annotated[
         list[Year],
         Field(
@@ -1465,7 +1467,7 @@ class HourlyRateGrid(BaseModel):
     meta: PaginationMeta
 
 
-class HourlyRateWrite(BaseModel):
+class HourlyRateWrite(ContractModel):
     amount: Annotated[
         Money,
         Field(
@@ -1504,7 +1506,7 @@ class ProjectCommand(StrEnum):
     import_remaining = "import_remaining"
 
 
-class ProjectCommandAvailability(BaseModel):
+class ProjectCommandAvailability(ContractModel):
     command: ProjectCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -1522,7 +1524,7 @@ class Code1(RootModel[str]):
     ]
 
 
-class Project(BaseModel):
+class Project(ContractModel):
     project_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
@@ -1571,13 +1573,13 @@ class Code2(RootModel[str]):
     root: Annotated[str, Field(max_length=50)]
 
 
-class ProjectCreate(BaseModel):
+class ProjectCreate(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
     code: Code2 | None = None
 
 
-class ProjectUpdate(BaseModel):
+class ProjectUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
     description: str | None = None
     code: Code2 | None = None
@@ -1587,7 +1589,7 @@ class ProjectUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class StateTransition(BaseModel):
+class StateTransition(ContractModel):
     from_state: ProjectState | None
     to_state: ProjectState
     occurred_at: Timestamp
@@ -1600,7 +1602,7 @@ class StateTransition(BaseModel):
     ]
 
 
-class NextState(BaseModel):
+class NextState(ContractModel):
     current_state: ProjectState
     next_state: ProjectState | None
     trigger: Annotated[
@@ -1620,7 +1622,7 @@ class ToState(StrEnum):
     abandoned = "abandoned"
 
 
-class ProjectExit(BaseModel):
+class ProjectExit(ContractModel):
     to_state: ToState
     confirmed: Annotated[
         Literal[True],
@@ -1642,24 +1644,24 @@ class WorkBreakdownKind(StrEnum):
     deliverable = "deliverable"
 
 
-class Deliverable(BaseModel):
+class Deliverable(ContractModel):
     deliverable_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
 
 
-class WorkPackage(BaseModel):
+class WorkPackage(ContractModel):
     work_package_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     deliverables: list[Deliverable]
 
 
-class OrderItem(BaseModel):
+class OrderItem(ContractModel):
     order_item_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     work_packages: list[WorkPackage]
 
 
-class WorkBreakdownReading(BaseModel):
+class WorkBreakdownReading(ContractModel):
     order_items: list[OrderItem]
     lock_version: Annotated[
         LockVersion | None,
@@ -1669,7 +1671,7 @@ class WorkBreakdownReading(BaseModel):
     ]
 
 
-class WorkBreakdown(BaseModel):
+class WorkBreakdown(ContractModel):
     order_items: list[OrderItem]
     lock_version: Annotated[
         LockVersion,
@@ -1679,7 +1681,7 @@ class WorkBreakdown(BaseModel):
     ]
 
 
-class Subproject(BaseModel):
+class Subproject(ContractModel):
     subproject_id: Uuid
     code: Annotated[str, Field(max_length=50, min_length=1)]
     label: Annotated[str, Field(max_length=300, min_length=1)]
@@ -1688,7 +1690,7 @@ class Subproject(BaseModel):
     lock_version: LockVersion
 
 
-class SubprojectWrite(BaseModel):
+class SubprojectWrite(ContractModel):
     code: Annotated[str, Field(max_length=50, min_length=1)]
     label: Annotated[str, Field(max_length=300, min_length=1)]
 
@@ -1702,7 +1704,7 @@ class ContributorKind(StrEnum):
     contributor = "contributor"
 
 
-class Contributor(BaseModel):
+class Contributor(ContractModel):
     user_id: Uuid
     display_name: str
     kind: ContributorKind
@@ -1714,7 +1716,7 @@ class Contributor(BaseModel):
     ]
 
 
-class ContributorList(BaseModel):
+class ContributorList(ContractModel):
     items: list[Contributor]
     lock_version: Annotated[
         LockVersion | None,
@@ -1724,12 +1726,12 @@ class ContributorList(BaseModel):
     ]
 
 
-class ContributorWrite(BaseModel):
+class ContributorWrite(ContractModel):
     user_id: Uuid
     kind: ContributorKind
 
 
-class ContributorsWrite(BaseModel):
+class ContributorsWrite(ContractModel):
     contributors: Annotated[list[ContributorWrite], Field(min_length=1)]
     lock_version: Annotated[
         LockVersion,
@@ -1739,14 +1741,14 @@ class ContributorsWrite(BaseModel):
     ]
 
 
-class ContributorSuggestion(BaseModel):
+class ContributorSuggestion(ContractModel):
     user_id: Uuid
     display_name: str
     org_node_id: Uuid
     resource_role_ids: list[Uuid]
 
 
-class Timeline(BaseModel):
+class Timeline(ContractModel):
     timeline_id: Uuid
     label: Annotated[str, Field(max_length=200, min_length=1)]
 
@@ -1756,14 +1758,14 @@ class RevisionStatus(StrEnum):
     marked = "marked"
 
 
-class EmployedReference(BaseModel):
+class EmployedReference(ContractModel):
     resource_roles: list[ResourceRoleImage]
     calendars: list[CalendarImage]
     cost_categories: list[CostCategoryImage]
     hourly_rates: list[HourlyRate]
 
 
-class RevisionSnapshot(BaseModel):
+class RevisionSnapshot(ContractModel):
     inflation_rate: Percent
     win_probability: Percent
     employed_reference: EmployedReference
@@ -1785,7 +1787,7 @@ class RevisionCommand(StrEnum):
     export_task_tree_image = "export_task_tree_image"
 
 
-class RevisionCommandAvailability(BaseModel):
+class RevisionCommandAvailability(ContractModel):
     command: RevisionCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -1803,7 +1805,7 @@ class VersionName(RootModel[str]):
     ]
 
 
-class Revision(BaseModel):
+class Revision(ContractModel):
     revision_id: Uuid
     project_id: Uuid
     version_name: Annotated[
@@ -1835,7 +1837,7 @@ class Revision(BaseModel):
     lock_version: LockVersion
 
 
-class RevisionCreate(BaseModel):
+class RevisionCreate(ContractModel):
     description: str | None = None
     apply_rate_update: Annotated[
         bool | None,
@@ -1845,13 +1847,13 @@ class RevisionCreate(BaseModel):
     ] = False
 
 
-class RevisionMark(BaseModel):
+class RevisionMark(ContractModel):
     version_name: Annotated[str, Field(max_length=100, min_length=1)]
     description: str | None = None
     lock_version: LockVersion
 
 
-class ReferenceDesignation(BaseModel):
+class ReferenceDesignation(ContractModel):
     revision_id: Uuid
     confirmed: Literal[True]
 
@@ -1861,7 +1863,7 @@ class Source(StrEnum):
     inflated_previous = "inflated_previous"
 
 
-class Category(BaseModel):
+class Category(ContractModel):
     cost_category_id: Uuid
     label: Annotated[
         str,
@@ -1876,7 +1878,7 @@ class Category(BaseModel):
     source: Source
 
 
-class RateUpdateProposal(BaseModel):
+class RateUpdateProposal(ContractModel):
     target_year: Annotated[
         Year | None,
         Field(
@@ -1900,7 +1902,7 @@ class Change(StrEnum):
     parent = "parent"
 
 
-class ComparedNode(BaseModel):
+class ComparedNode(ContractModel):
     lineage_id: Uuid
     label: str
     kind: NodeKind
@@ -1912,7 +1914,7 @@ class Dimension(StrEnum):
     subproject = "subproject"
 
 
-class AmountDelta(BaseModel):
+class AmountDelta(ContractModel):
     dimension: Dimension
     key: Annotated[
         str,
@@ -1934,7 +1936,7 @@ class AmountDelta(BaseModel):
     ]
 
 
-class RevisionComparison(BaseModel):
+class RevisionComparison(ContractModel):
     from_revision_id: Uuid
     to_revision_id: Uuid
     added: list[ComparedNode]
@@ -1954,7 +1956,7 @@ class StructureKind(StrEnum):
     risk = "risk"
 
 
-class CostStructure(BaseModel):
+class CostStructure(ContractModel):
     structure_id: Uuid
     revision_id: Uuid
     kind: StructureKind
@@ -1977,13 +1979,13 @@ class CostStructure(BaseModel):
     ]
 
 
-class StructureCreate(BaseModel):
+class StructureCreate(ContractModel):
     kind: StructureKind
     label: Annotated[str, Field(max_length=300, min_length=1)]
     risk_id: Uuid | None = None
 
 
-class StructureMerge(BaseModel):
+class StructureMerge(ContractModel):
     confirmed: Literal[True]
     version_name: Annotated[str, Field(max_length=100, min_length=1)]
 
@@ -2043,7 +2045,7 @@ class DurationUnit(StrEnum):
     emo = "emo"
 
 
-class Duration(BaseModel):
+class Duration(ContractModel):
     value: Annotated[
         Decimal,
         Field(
@@ -2053,7 +2055,7 @@ class Duration(BaseModel):
     unit: DurationUnit
 
 
-class WorkInstant(BaseModel):
+class WorkInstant(ContractModel):
     date: PlanningDate
     hours: Hours
 
@@ -2070,17 +2072,17 @@ class NotComputableReason(StrEnum):
     hourly_rate_missing = "hourly_rate_missing"
 
 
-class MissingRate(BaseModel):
+class MissingRate(ContractModel):
     cost_category_id: Uuid
     label: str | None = None
     year: Year
 
 
-class Params2(BaseModel):
+class Params2(ContractModel):
     missing_rates: Annotated[list[MissingRate] | None, Field(min_length=1)] = None
 
 
-class Computable(BaseModel):
+class Computable(ContractModel):
     is_computable: bool
     value: Decimal | None = None
     reason: Annotated[
@@ -2102,7 +2104,7 @@ class Kind3(StrEnum):
     milestone_tracking = "milestone_tracking"
 
 
-class TrackingEntry(BaseModel):
+class TrackingEntry(ContractModel):
     kind: Kind3
     timeline_id: Uuid | None = None
 
@@ -2117,7 +2119,7 @@ class ExternalId(RootModel[str]):
     ]
 
 
-class TaskFacet(BaseModel):
+class TaskFacet(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
     scheduling_mode: SchedulingMode
@@ -2220,7 +2222,7 @@ class TaskFacet(BaseModel):
     ] = None
 
 
-class EntryAvailability(BaseModel):
+class EntryAvailability(ContractModel):
     is_available: bool
     missing_conditions: list[CommandCondition]
 
@@ -2235,7 +2237,7 @@ class PaymentDelayDays(RootModel[int]):
     ]
 
 
-class EstimateLineFacet(BaseModel):
+class EstimateLineFacet(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     cost_category_id: Uuid
     cost_category_label: Annotated[
@@ -2371,12 +2373,12 @@ class LagUnit(StrEnum):
     percent = "percent"
 
 
-class Lag(BaseModel):
+class Lag(ContractModel):
     value: Decimal
     unit: LagUnit
 
 
-class PredecessorWrite(BaseModel):
+class PredecessorWrite(ContractModel):
     predecessor_node_id: Uuid
     link_type: LinkType
     lag: Lag
@@ -2416,7 +2418,7 @@ class EditableField(StrEnum):
     estimate_line_subproject_id = "estimate_line.subproject_id"
 
 
-class Node(BaseModel):
+class Node(ContractModel):
     node_id: Uuid
     lineage_id: Uuid
     kind: NodeKind
@@ -2448,7 +2450,7 @@ class Node(BaseModel):
     lock_version: LockVersion
 
 
-class NodeTotals(BaseModel):
+class NodeTotals(ContractModel):
     task_count: Annotated[int, Field(ge=0)]
     estimate_line_count: Annotated[int, Field(ge=0)]
     hours: Hours
@@ -2458,7 +2460,7 @@ class NodeTotals(BaseModel):
     inflated_amount: Money
 
 
-class NodeListMeta(BaseModel):
+class NodeListMeta(ContractModel):
     summary_depth: Annotated[
         int,
         Field(
@@ -2468,7 +2470,7 @@ class NodeListMeta(BaseModel):
     ]
 
 
-class TaskFacetWrite(BaseModel):
+class TaskFacetWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
@@ -2483,7 +2485,7 @@ class PaymentDelayDays1(RootModel[int]):
     root: Annotated[int, Field(ge=0)]
 
 
-class EstimateLineWrite(BaseModel):
+class EstimateLineWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     cost_category_id: Uuid
     quantity: Decimal
@@ -2498,7 +2500,7 @@ class Position(RootModel[int]):
     root: Annotated[int, Field(ge=0)]
 
 
-class NodeCreate(BaseModel):
+class NodeCreate(ContractModel):
     kind: NodeKind
     parent_id: Uuid | None
     position: Position | None = None
@@ -2506,7 +2508,7 @@ class NodeCreate(BaseModel):
     estimate_line: EstimateLineWrite | None = None
 
 
-class NodeSchedule(BaseModel):
+class NodeSchedule(ContractModel):
     node_id: Uuid
     start: WorkInstant
     finish: WorkInstant
@@ -2530,7 +2532,7 @@ class NodeSchedule(BaseModel):
     ]
 
 
-class NodeInflation(BaseModel):
+class NodeInflation(ContractModel):
     node_id: Uuid
     inflated_amount: Annotated[
         Money,
@@ -2546,7 +2548,7 @@ class NodeInflation(BaseModel):
     ]
 
 
-class NodesWritten(BaseModel):
+class NodesWritten(ContractModel):
     nodes: Annotated[
         list[Node],
         Field(
@@ -2622,13 +2624,13 @@ class ComputedDependency(StrEnum):
     severity_and_probability = "severity_and_probability"
 
 
-class DependencyRow(BaseModel):
+class DependencyRow(ContractModel):
     node_id: Uuid
     row_number: Annotated[int, Field(ge=1)]
     label: str
 
 
-class ComputedValueDependencies(BaseModel):
+class ComputedValueDependencies(ContractModel):
     node_id: Uuid
     field: ComputedValueField
     depends_on: Annotated[
@@ -2640,7 +2642,7 @@ class ComputedValueDependencies(BaseModel):
     ]
 
 
-class TaskFacetUpdate(BaseModel):
+class TaskFacetUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
@@ -2662,7 +2664,7 @@ class TaskFacetUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class EstimateLineUpdate(BaseModel):
+class EstimateLineUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
     cost_category_id: Uuid | None = None
     quantity: Decimal | None = None
@@ -2674,24 +2676,24 @@ class EstimateLineUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class PredecessorsReplace(BaseModel):
+class PredecessorsReplace(ContractModel):
     predecessors: list[PredecessorWrite]
     lock_version: LockVersion
 
 
-class ProgressUpdate(BaseModel):
+class ProgressUpdate(ContractModel):
     progress: TaskProgress
     occurred_on: PlanningDate | None = None
     lock_version: LockVersion
 
 
-class ReestimatedAmountBasis(BaseModel):
+class ReestimatedAmountBasis(ContractModel):
     quantity: Decimal | None = None
     hours: Hours | None = None
     unit_disbursement: Money | None = None
 
 
-class RemainingUpdate(BaseModel):
+class RemainingUpdate(ContractModel):
     reestimated_amount_basis: Annotated[
         ReestimatedAmountBasis,
         Field(description="Les grandeurs saisies dont le montant réestimé est recalculé."),
@@ -2706,14 +2708,14 @@ class RemainingUpdate(BaseModel):
     lock_version: LockVersion
 
 
-class NodeMove(BaseModel):
+class NodeMove(ContractModel):
     node_ids: Annotated[list[Uuid], Field(min_length=1)]
     parent_id: Uuid | None
     position: Position | None = None
     lock_version: LockVersion
 
 
-class PastePreview(BaseModel):
+class PastePreview(ContractModel):
     target_node_id: Uuid
     target_column: Annotated[
         NodeColumn,
@@ -2724,7 +2726,7 @@ class PastePreview(BaseModel):
     rows: Annotated[list[list[str]], Field(min_length=1)]
 
 
-class RejectedItem(BaseModel):
+class RejectedItem(ContractModel):
     row: Annotated[int, Field(description="La ligne du bloc refusée, comptée de zéro.", ge=0)]
     column: Annotated[
         NodeColumn | None,
@@ -2736,13 +2738,13 @@ class RejectedItem(BaseModel):
     params: dict[str, Any] | None = None
 
 
-class PastePlan(BaseModel):
+class PastePlan(ContractModel):
     paste_id: Uuid
     accepted: Annotated[int, Field(ge=0)]
     rejected: list[RejectedItem]
 
 
-class PasteApply(BaseModel):
+class PasteApply(ContractModel):
     paste_id: Uuid
     confirmed: Literal[True]
     lock_version: Annotated[
@@ -2750,7 +2752,7 @@ class PasteApply(BaseModel):
     ]
 
 
-class Undone(BaseModel):
+class Undone(ContractModel):
     kind: str | None = None
     node_ids: list[Uuid] | None = None
     risk_ids: Annotated[
@@ -2761,12 +2763,12 @@ class Undone(BaseModel):
     ] = None
 
 
-class UndoResult(BaseModel):
+class UndoResult(ContractModel):
     undone: Undone
     remaining_depth: Annotated[int, Field(ge=0)]
 
 
-class CalculationContext(BaseModel):
+class CalculationContext(ContractModel):
     revision_id: Uuid
     revision_status: RevisionStatus | None = None
     computed_at: Timestamp
@@ -2784,7 +2786,7 @@ class CalculationContext(BaseModel):
     ] = None
 
 
-class ComputableMoney(BaseModel):
+class ComputableMoney(ContractModel):
     is_computable: bool
     value: Money | None = None
     reason: Annotated[
@@ -2801,14 +2803,14 @@ class ComputableMoney(BaseModel):
     ] = None
 
 
-class ComputableAmountByKey(BaseModel):
+class ComputableAmountByKey(ContractModel):
     key: str
     label: str | None = None
     amount: ComputableMoney
     share: Computable | None = None
 
 
-class EstimateIndicators(BaseModel):
+class EstimateIndicators(ContractModel):
     context: CalculationContext
     total: ComputableMoney
     by_cost_type: list[ComputableAmountByKey]
@@ -2856,13 +2858,13 @@ class OrgNodeLabel(RootModel[str]):
     ]
 
 
-class Month(BaseModel):
+class Month(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
     zone: WorkloadZone | None = None
 
 
-class Role(BaseModel):
+class Role(ContractModel):
     resource_role_id: Uuid
     label: str
     org_node_id: Uuid | None = None
@@ -2870,7 +2872,7 @@ class Role(BaseModel):
     months: list[Month]
 
 
-class WorkloadPlan(BaseModel):
+class WorkloadPlan(ContractModel):
     context: CalculationContext
     basis: Annotated[
         Basis,
@@ -2893,7 +2895,7 @@ class WorkloadPlan(BaseModel):
     roles: list[Role]
 
 
-class RiskCoverageTotals(BaseModel):
+class RiskCoverageTotals(ContractModel):
     reserve: Money
     remaining_provisions: Money
     occurred_cost: Money
@@ -2905,14 +2907,14 @@ class RiskCoverageTotals(BaseModel):
     ]
 
 
-class AmountByKey(BaseModel):
+class AmountByKey(ContractModel):
     key: str
     label: str | None = None
     amount: Money
     share: Percent | None = None
 
 
-class SubprojectBalance(BaseModel):
+class SubprojectBalance(ContractModel):
     key: str
     label: str | None = None
     budget: Money
@@ -2928,7 +2930,7 @@ class SubprojectBalance(BaseModel):
     zone: AlertZone
 
 
-class RemainingIndicators(BaseModel):
+class RemainingIndicators(ContractModel):
     context: CalculationContext
     total: Money
     coverage: Annotated[
@@ -2962,12 +2964,12 @@ class NotStartedTask(Node):
     ]
 
 
-class IndexValue(BaseModel):
+class IndexValue(ContractModel):
     value: Computable
     zone: AlertZone | None
 
 
-class Projections(BaseModel):
+class Projections(ContractModel):
     at_budget: Money
     project_manager: Money
     at_observed_rate: ComputableMoney
@@ -2991,7 +2993,7 @@ class Projections(BaseModel):
     ] = None
 
 
-class ProjectIndicators(BaseModel):
+class ProjectIndicators(ContractModel):
     context: CalculationContext
     reference_budget: Money
     planned_value: Annotated[
@@ -3038,24 +3040,24 @@ class ProjectIndicators(BaseModel):
     projections: Projections
 
 
-class Point(BaseModel):
+class Point(ContractModel):
     marked_at: Timestamp
     forecast_date: PlanningDate
 
 
-class Milestone(BaseModel):
+class Milestone(ContractModel):
     lineage_id: Uuid
     label: str
     completed_on: PlanningDate | None = None
     points: list[Point]
 
 
-class MilestoneTracking(BaseModel):
+class MilestoneTracking(ContractModel):
     context: CalculationContext
     milestones: list[Milestone]
 
 
-class CashOutMonth(BaseModel):
+class CashOutMonth(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     past: Money
     forecast: Money
@@ -3069,12 +3071,12 @@ class Name(StrEnum):
     project_manager_projection = "project_manager_projection"
 
 
-class Point1(BaseModel):
+class Point1(ContractModel):
     date: PlanningDate
     amount: Money
 
 
-class Series(BaseModel):
+class Series(ContractModel):
     name: Name
     points: list[Point1]
 
@@ -3083,7 +3085,7 @@ class Cause(StrEnum):
     amendment = "amendment"
 
 
-class Step(BaseModel):
+class Step(ContractModel):
     date: PlanningDate
     amount: Annotated[
         Money,
@@ -3094,7 +3096,7 @@ class Step(BaseModel):
     cause: Cause
 
 
-class CurveSeries(BaseModel):
+class CurveSeries(ContractModel):
     context: CalculationContext
     payment_delays: Annotated[
         bool,
@@ -3117,7 +3119,7 @@ class CurveSeries(BaseModel):
     ]
 
 
-class IndexHistoryPoint(BaseModel):
+class IndexHistoryPoint(ContractModel):
     at: Timestamp
     revision_id: Uuid
     version_name: str | None
@@ -3125,7 +3127,7 @@ class IndexHistoryPoint(BaseModel):
     schedule_index: IndexValue
 
 
-class IndexHistoryScope(BaseModel):
+class IndexHistoryScope(ContractModel):
     scope: Annotated[
         str,
         Field(
@@ -3143,7 +3145,7 @@ class IndexHistoryScope(BaseModel):
     ]
 
 
-class IndexHistory(BaseModel):
+class IndexHistory(ContractModel):
     context: CalculationContext
     thresholds: IndexThresholds
     scopes: Annotated[
@@ -3160,7 +3162,7 @@ class RiskState(StrEnum):
     dismissed = "dismissed"
 
 
-class RiskMatrixCell(BaseModel):
+class RiskMatrixCell(ContractModel):
     probability_level: Annotated[int, Field(ge=1, le=4)]
     severity_level: Annotated[int, Field(ge=1, le=4)]
     zone: AlertZone
@@ -3171,7 +3173,7 @@ class FieldModel(StrEnum):
     provision_amount = "provision_amount"
 
 
-class RiskComputedField(BaseModel):
+class RiskComputedField(ContractModel):
     field: FieldModel
     dependencies: Annotated[
         list[ComputedDependency],
@@ -3186,7 +3188,7 @@ class RiskCommand(StrEnum):
     delete = "delete"
 
 
-class RiskCommandAvailability(BaseModel):
+class RiskCommandAvailability(ContractModel):
     command: RiskCommand
     is_available: bool
     missing_conditions: Annotated[
@@ -3194,7 +3196,7 @@ class RiskCommandAvailability(BaseModel):
     ]
 
 
-class Risk(BaseModel):
+class Risk(ContractModel):
     risk_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
@@ -3238,7 +3240,7 @@ class Risk(BaseModel):
     lock_version: LockVersion
 
 
-class ProvisionTotals(BaseModel):
+class ProvisionTotals(ContractModel):
     total: Money
     identified: Money
     occurred: Money
@@ -3246,7 +3248,7 @@ class ProvisionTotals(BaseModel):
     reserve: Money
 
 
-class RiskWrite(BaseModel):
+class RiskWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1)]
     description: str | None = None
     mitigation_notes: str | None = None
@@ -3257,7 +3259,7 @@ class RiskUpdate(RiskWrite):
     lock_version: LockVersion
 
 
-class RiskReview(BaseModel):
+class RiskReview(ContractModel):
     reviewed_on: PlanningDate
     probability: Percent
     severity: Money
@@ -3270,30 +3272,30 @@ class State(StrEnum):
     dismissed = "dismissed"
 
 
-class RiskReviewWrite(BaseModel):
+class RiskReviewWrite(ContractModel):
     probability: Percent
     state: State
     lock_version: LockVersion
 
 
-class RiskOccurrence(BaseModel):
+class RiskOccurrence(ContractModel):
     confirmed: Literal[True]
 
 
-class RiskMatrixLevel(BaseModel):
+class RiskMatrixLevel(ContractModel):
     level: Annotated[int, Field(ge=1, le=4)]
     lower: Percent
     upper: Percent | None
 
 
-class Cell(BaseModel):
+class Cell(ContractModel):
     probability_level: Annotated[int, Field(ge=1, le=4)]
     severity_level: Annotated[int, Field(ge=1, le=4)]
     count: Annotated[int, Field(ge=0)]
     zone: AlertZone
 
 
-class RiskMatrix(BaseModel):
+class RiskMatrix(ContractModel):
     probability_levels: Annotated[
         list[RiskMatrixLevel],
         Field(
@@ -3328,7 +3330,7 @@ class SubprojectCode(RootModel[str]):
     ]
 
 
-class ActualCostLine(BaseModel):
+class ActualCostLine(ContractModel):
     cost_line_id: Uuid
     document_number: Annotated[
         str,
@@ -3376,7 +3378,7 @@ class ActualCostLine(BaseModel):
     audit: Audit
 
 
-class ActualCostTotals(BaseModel):
+class ActualCostTotals(ContractModel):
     tracked: Money
     excluded: Money
     overall: Money
@@ -3391,12 +3393,12 @@ class ActualCostListMeta(PaginationMeta):
     ]
 
 
-class ScopeExclusion(BaseModel):
+class ScopeExclusion(ContractModel):
     is_in_tracked_scope: bool
     reason: str | None = None
 
 
-class CostImport(BaseModel):
+class CostImport(ContractModel):
     cost_import_id: Uuid
     imported_at: Timestamp
     actor: ActorRef
@@ -3412,7 +3414,7 @@ class FileUploadPurpose(StrEnum):
     external_backup = "external_backup"
 
 
-class FileUpload(BaseModel):
+class FileUpload(ContractModel):
     upload_id: Uuid
     purpose: FileUploadPurpose
     filename: str
@@ -3421,7 +3423,7 @@ class FileUpload(BaseModel):
     expires_at: Timestamp
 
 
-class ChunkedUploadOpen(BaseModel):
+class ChunkedUploadOpen(ContractModel):
     filename: Annotated[
         str,
         Field(
@@ -3444,7 +3446,7 @@ class ReceivedPart(RootModel[int]):
     root: Annotated[int, Field(ge=1)]
 
 
-class ChunkedUpload(BaseModel):
+class ChunkedUpload(ContractModel):
     chunked_upload_id: Uuid
     filename: str
     size_bytes: Annotated[int, Field(ge=1)]
@@ -3483,7 +3485,7 @@ class ExchangeKind(StrEnum):
     actual_costs = "actual_costs"
 
 
-class ImportRejection(BaseModel):
+class ImportRejection(ContractModel):
     row: Annotated[int, Field(ge=1)]
     code: ErrorCode
     params: dict[str, Any] | None = None
@@ -3529,7 +3531,7 @@ class Target(StrEnum):
     actual_cost_line = "actual_cost_line"
 
 
-class ImportDifference(BaseModel):
+class ImportDifference(ContractModel):
     change: Annotated[
         Change1,
         Field(
@@ -3572,7 +3574,7 @@ class ImportIgnoredKind(StrEnum):
     date_constraints = "date_constraints"
 
 
-class ImportIgnored(BaseModel):
+class ImportIgnored(ContractModel):
     kind: ImportIgnoredKind
     count: Annotated[
         int, Field(description="Combien d'éléments de cette nature le fichier portait.", ge=1)
@@ -3585,7 +3587,7 @@ class ImportIgnored(BaseModel):
     ]
 
 
-class ImportCompletedTask(BaseModel):
+class ImportCompletedTask(ContractModel):
     lineage_id: Uuid
     label: str
     completed_on: Annotated[
@@ -3596,7 +3598,7 @@ class ImportCompletedTask(BaseModel):
     ]
 
 
-class ImportDateMismatch(BaseModel):
+class ImportDateMismatch(ContractModel):
     lineage_id: Annotated[
         Uuid | None,
         Field(description="La lignée de la tâche ; nulle pour une tâche que l'import crée."),
@@ -3616,7 +3618,7 @@ class RequiresConfirmationReason(StrEnum):
     unknown_subproject = "unknown_subproject"
 
 
-class ImportReport(BaseModel):
+class ImportReport(ContractModel):
     format_version: str | None = None
     read_count: Annotated[int, Field(ge=0)]
     rejected: list[ImportRejection]
@@ -3657,7 +3659,7 @@ class Status(StrEnum):
     failed = "failed"
 
 
-class Import(BaseModel):
+class Import(ContractModel):
     import_id: Uuid
     kind: ExchangeKind
     filename: Annotated[
@@ -3678,7 +3680,7 @@ class Import(BaseModel):
     task: BackgroundTaskRef | None = None
 
 
-class ImportRequest(BaseModel):
+class ImportRequest(ContractModel):
     kind: ExchangeKind
     upload_id: Annotated[
         Uuid, Field(description="Un dépôt fait pour un import (`FileUploadPurpose`, `import`).")
@@ -3690,7 +3692,7 @@ class ImportRequest(BaseModel):
     period_to: PlanningDate | None = None
 
 
-class ImportApply(BaseModel):
+class ImportApply(ContractModel):
     confirmed: Literal[True]
 
 
@@ -3707,7 +3709,7 @@ class Depth(RootModel[int]):
     ]
 
 
-class ExportRequest(BaseModel):
+class ExportRequest(ContractModel):
     kind: Kind4
     revision_id: Annotated[
         Uuid,
@@ -3732,7 +3734,7 @@ class OrgNodeLabel1(RootModel[str]):
     ]
 
 
-class PortfolioScope(BaseModel):
+class PortfolioScope(ContractModel):
     states: list[ProjectState]
     as_of: PlanningDate
     from_: Annotated[PlanningDate | None, Field(alias="from")] = None
@@ -3747,7 +3749,7 @@ class PortfolioScope(BaseModel):
     project_count: Annotated[int, Field(ge=0)]
 
 
-class PortfolioProjectRow(BaseModel):
+class PortfolioProjectRow(ContractModel):
     project_id: Uuid
     label: str
     code: str | None = None
@@ -3783,7 +3785,7 @@ class PortfolioProjectRow(BaseModel):
     last_marked_at: Timestamp | None
 
 
-class PortfolioValue(BaseModel):
+class PortfolioValue(ContractModel):
     scope: PortfolioScope
     order_book: Money
     pipeline_gross: Money
@@ -3796,14 +3798,14 @@ class Month1(RootModel[str]):
     root: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
 
 
-class Month2(BaseModel):
+class Month2(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
     load_ratio: Computable
     zone: AlertZone | None = None
 
 
-class Role1(BaseModel):
+class Role1(ContractModel):
     resource_role_id: Uuid
     label: str
     capacity_monthly_hours: Hours | None = None
@@ -3815,7 +3817,7 @@ class Role1(BaseModel):
     ]
 
 
-class PortfolioWorkload(BaseModel):
+class PortfolioWorkload(ContractModel):
     scope: PortfolioScope
     under_load_threshold: Annotated[
         Percent,
@@ -3837,19 +3839,19 @@ class Index(StrEnum):
     schedule = "schedule"
 
 
-class ZoneDistributionItem(BaseModel):
+class ZoneDistributionItem(ContractModel):
     index: Index
     zone: AlertZone
     project_count: Annotated[int, Field(ge=0)]
 
 
-class QuarterlyItem(BaseModel):
+class QuarterlyItem(ContractModel):
     quarter: Annotated[str, Field(pattern="^\\d{4}-Q[1-4]$")]
     cost_index: Computable
     schedule_index: Computable
 
 
-class PortfolioPerformance(BaseModel):
+class PortfolioPerformance(ContractModel):
     scope: PortfolioScope
     reference_budget: Money | None = None
     cost_index: IndexValue
@@ -3871,14 +3873,14 @@ class PortfolioPerformance(BaseModel):
     quarterly: list[QuarterlyItem]
 
 
-class PortfolioCostStructure(BaseModel):
+class PortfolioCostStructure(ContractModel):
     scope: PortfolioScope
     budget_by_cost_type: list[AmountByKey]
     remaining_by_cost_type: list[AmountByKey]
     labor_by_org_node: list[AmountByKey]
 
 
-class HeaviestItem(BaseModel):
+class HeaviestItem(ContractModel):
     risk_id: Uuid
     label: str
     project_id: Uuid
@@ -3892,12 +3894,12 @@ class HeaviestItem(BaseModel):
     provision_amount: Money
 
 
-class PeriodOutcome(BaseModel):
+class PeriodOutcome(ContractModel):
     occurred_provisions: Money
     dismissed_provisions: Money
 
 
-class PortfolioRisks(BaseModel):
+class PortfolioRisks(ContractModel):
     scope: PortfolioScope
     identified_total: Money
     heaviest: list[HeaviestItem]
@@ -3917,12 +3919,12 @@ class Name1(StrEnum):
     project_manager_projection = "project_manager_projection"
 
 
-class Series1(BaseModel):
+class Series1(ContractModel):
     name: Name1
     points: list[Point1]
 
 
-class PortfolioCostCurve(BaseModel):
+class PortfolioCostCurve(ContractModel):
     scope: PortfolioScope
     payment_delays: Annotated[
         bool,
@@ -3946,14 +3948,14 @@ class Code4(StrEnum):
     contractual_milestone_overdue = "contractual_milestone_overdue"
 
 
-class Params4(BaseModel):
+class Params4(ContractModel):
     weeks_since_last_mark: Annotated[int | None, Field(ge=1)] = None
     lineage_id: Uuid | None = None
     milestone_label: Annotated[str | None, Field(min_length=1)] = None
     reference_date: PlanningDate | None = None
 
 
-class Signal(BaseModel):
+class Signal(ContractModel):
     project_id: Uuid
     project_label: str
     can_open: Annotated[
@@ -3972,6 +3974,6 @@ class Signal(BaseModel):
     ] = None
 
 
-class PilotHealth(BaseModel):
+class PilotHealth(ContractModel):
     scope: PortfolioScope
     signals: list[Signal]

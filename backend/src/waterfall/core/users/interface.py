@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What the accounts offer to the other modules and to the API.
 
-The label of an account; the author of a row, named as it is shown; the account the identity
-provider knows by a subject, as the account itself reads it; and the account of a person the
-provider knows and Waterfall not yet, created without any role (WF-ADM-0180). The other operations
-on accounts arrive with the stories that need them (US-0360).
+The label of an account; the author of a row, named as it is shown; which accounts are active;
+the account the identity provider knows by a subject, as the account itself reads it; and the
+account of a person the provider knows and Waterfall not yet, created without any role
+(WF-ADM-0180). The other operations on accounts arrive with the stories that need them (US-0360).
 """
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -23,6 +23,7 @@ from waterfall.core.users.accounts import (
     add_account_if_absent,
     find_account,
     find_account_of_subject,
+    find_active_accounts,
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.keycloak_admin import ProviderAccount
@@ -108,6 +109,11 @@ def read_author(session: Session, user_id: UUID | None) -> Author | None:
         return None
     author = session.get_one(UserAccount, user_id)
     return Author(user_id, display_name(author.first_name, author.last_name))
+
+
+def active_accounts(session: Session, user_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Keep, of the accounts given, those that are active."""
+    return frozenset(find_active_accounts(session, user_ids)) if user_ids else frozenset()
 
 
 def read_account_of_subject(session: Session, subject: str) -> Account | None:
