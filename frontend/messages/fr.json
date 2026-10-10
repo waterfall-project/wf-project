@@ -1198,8 +1198,8 @@
     },
     "roleForm": {
       "create": "Nouveau rôle de ressource",
-      "createHint": "Le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
-      "modifyHint": "Le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
     },
     "calendarForm": {
       "create": "Nouveau calendrier",
@@ -2010,8 +2010,11 @@
       "calendar_not_default": "calendrier autre que celui par défaut",
       "calendar_active": "calendrier actif",
       "cost_type_unused": "aucune catégorie de la nature employée",
+      "cost_type_unrated": "aucune catégorie de la nature portant un taux horaire",
+      "cost_type_without_role": "aucune catégorie de la nature rattachée à un rôle de ressource",
       "cost_category_unused": "catégorie employée par aucune ligne",
       "cost_category_unrated": "catégorie sans taux horaire",
+      "cost_category_without_role": "catégorie rattachée à aucun rôle de ressource",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "backup_verified": "sauvegarde vérifiée",
       "no_backup_running": "aucune sauvegarde en cours",

@@ -366,7 +366,8 @@ test("presents fixed the type of a nature whose category is employed, with its c
   const deactivation = natures.getByRole("button", { name: "Désactiver « Provision »" });
   await expect(deactivation).not.toHaveAttribute("aria-disabled", "true");
 
-  // The type of the labour, whose categories the estimate employs, is fixed with its condition:
+  // The type of the labour, whose categories the estimate employs, bear rates and serve roles, is
+  // fixed with its conditions (EP-14/L42r):
   // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
   // Its modification is opened from its row, pressed again until React opens it.
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
@@ -380,7 +381,7 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
   await expect(type).toHaveAccessibleDescription(
-    /^Le type ne se modifie pas\. Condition non remplie\s:\saucune catégorie de la nature employée\.$/,
+    /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
   );
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -404,6 +405,7 @@ test("creates a role in its form, moves a node under an active one, and designat
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
+  await form.getByRole("textbox", { name: "Code" }).fill("DESS-ELEC");
   await form.getByRole("textbox", { name: "Libellé" }).fill("Dessinateur électricien");
   // The active nodes alone, in the order of the tree; the categories of labour alone.
   await form

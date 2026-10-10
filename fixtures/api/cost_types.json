@@ -1,5 +1,5 @@
 {
-  "summary": "Les trois natures de coût de l'installation, une de chaque type : la main-d'œuvre, les débours et la provision — de type provision pour risques —, par lesquelles le devis du projet témoin se ventile, chacune avec la commande qui la désactive, disponible, et la modification de son type indisponible, ses catégories étant employées par ce devis (WF-REF-0030, WF-IHM-0090).",
+  "summary": "Les trois natures de coût de l'installation, une de chaque type : la main-d'œuvre, les débours et la provision — de type provision pour risques —, par lesquelles le devis du projet témoin se ventile, chacune avec la commande qui la désactive, disponible, et la modification de son type indisponible, ses catégories étant employées par ce devis — celles de la main-d'œuvre portant en outre des taux horaires, et deux d'entre elles, l'ingénierie électrique et la mise en service, des rôles de ressources rattachés (WF-REF-0030, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -54,7 +54,9 @@
             "command": "change_kind",
             "is_available": false,
             "missing_conditions": [
-              "cost_type_unused"
+              "cost_type_unused",
+              "cost_type_unrated",
+              "cost_type_without_role"
             ]
           }
         ],

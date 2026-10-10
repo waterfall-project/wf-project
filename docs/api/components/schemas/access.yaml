@@ -288,6 +288,10 @@ GridPreferences:
       items: { type: string }
     column_widths:
       type: object
+      description: >-
+        La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur
+        plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur
+        `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`.
       additionalProperties: { type: integer, minimum: 20 }
     sort:
       anyOf:

@@ -143,8 +143,9 @@ Problem:
         revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un
         projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au
         moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le
-        niveau d'une image d'arborescence, au moins `1`, ou le jour d'une sauvegarde
-        hebdomadaire, au moins `1`), `maximum` (la plus grande valeur admise d'une valeur trop
+        niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde
+        hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au
+        moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop
         grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
         portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
         le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
@@ -154,12 +155,29 @@ Problem:
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
         WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas
-        (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` et `tasks` pour une saisie qui
-        laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
-        calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
-        tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son
-        nœud et son libellé (`project_id`, `node_id`, `label`) ; `estimate_lines` pour la
-        suppression d'un sous-projet que portent des lignes de devis de la révision en cours
+        (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` pour une écriture qui laisserait une
+        tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont
+        les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
+        tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que
+        la session d'une modification du référentiel peut nommer, lisant tous les rôles
+        (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes
+        (`resource_role_label`) ; `resource_roles` quand
+        `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role`
+        (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou
+        désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
+        `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à
+        rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature,
+        refusée (WF-IHM-0090) ; `tasks` pour une saisie d'une révision — `createNode`,
+        `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou
+        importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) :
+        les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`,
+        `node_id`, `label`), l'auteur de la saisie consultant son projet ; `projects` pour une
+        modification du référentiel qui produirait le même effet (`updateCalendar`,
+        `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son
+        libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans
+        identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet
+        (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que
+        portent des lignes de devis de la révision en cours
         (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
         WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
         libellé (`structure_id`, `node_id`, `row_number`, `label`). Les paramètres d'un motif par
@@ -175,8 +193,8 @@ Problem:
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
         lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un
-        projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050) et celui d'un nœud
-        d'organisation (WF-REF-0070).
+        projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud
+        d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090).
     fields:
       type: array
       description: >-

@@ -1,0 +1,17 @@
+{
+  "summary": "Les préférences enregistrées avec la colonne du libellé de la grille de devis réduite à 12 points : refusées, la largeur au-dessous de la plus petite admise, vingt points, le champ désigné avec la borne franchie ; rien n'est enregistré (WF-IHM-0060).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/grids/estimate/column_widths/label",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 20
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001111"
+  }
+}

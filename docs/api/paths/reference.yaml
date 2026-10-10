@@ -397,16 +397,23 @@
       écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans
       elle, l'un et l'autre sont refusés par 403. Une table plate, triée, filtrée et paginée
       par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé
-      du rôle ; le nœud, la catégorie, le calendrier et l'état se filtrent, les heures
-      mensuelles et l'effectif de la capacité se bornent (`<colonne>_min`, `<colonne>_max`,
-      inclusives), et `meta.total` compte les rôles retenus. Chaque rôle porte la commande qui
-      change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la réactivation d'un
-      rôle dont le nœud est désactivé est indisponible (WF-REF-0080).
+      et sur le code du rôle (WF-REF-0090), comme celle des nœuds ; le code, le nœud, la
+      catégorie, le calendrier et l'état se filtrent, les heures mensuelles et l'effectif de la
+      capacité se bornent (`<colonne>_min`, `<colonne>_max`, inclusives), et `meta.total` compte
+      les rôles retenus. Chaque rôle porte la commande qui change son état, disponible ou non
+      (`available_commands`, WF-IHM-0090) : la réactivation d'un rôle dont le nœud est désactivé
+      est indisponible (WF-REF-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
+      - name: code
+        in: query
+        description: >-
+          Restreint aux rôles dont le code contient le texte donné, comparé comme la recherche,
+          comme le code d'un nœud (WF-IHM-0130).
+        schema: { type: string, minLength: 1, maxLength: 20 }
       - name: org_node_id
         in: query
         description: >-
@@ -450,14 +457,15 @@
         in: query
         description: >-
           Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé,
-          le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —, les
-          heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés après
-          les actifs dans l'ordre croissant (WF-IHM-0060).
+          le code, le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —,
+          les heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés
+          après les actifs dans l'ordre croissant (WF-IHM-0060).
           À égalité, l'ordre de la liste sans tri, puis l'identifiant.
         schema:
           type: string
           enum:
             - label
+            - code
             - org_node
             - cost_category
             - calendar
@@ -501,10 +509,14 @@
     operationId: createResourceRole
     summary: Créer un rôle de ressource
     description: >-
-      Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100). Le
-      nœud est fixé à la création : un rôle ne se déplace pas d'un nœud à l'autre, il est
-      recréé sous le nouveau (§3.4.4.2.1). Créé actif, il ne naît pas sous un nœud désactivé
-      (WF-REF-0080).
+      Code, libellé, rattachements dans l'organisation et capacité du rôle (WF-REF-0090,
+      WF-REF-0100). Son code est unique : un code déjà porté par un autre rôle, actif ou
+      désactivé, est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`. Le nœud est
+      fixé à la création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le
+      nouveau (§3.4.4.2.1). Créé actif, il ne naît pas sous un nœud désactivé (WF-REF-0080). Le
+      rôle rattaché, sa catégorie ne quitte plus la main-d'œuvre et la nature de celle-ci ne
+      change plus de type (WF-REF-0030, WF-REF-0040) : la création change les commandes de la
+      catégorie et de sa nature, que la réponse ne porte pas, et le client relit leurs listes.
     tags: [reference]
     requestBody:
       required: true
@@ -521,12 +533,24 @@
               created: { $ref: ../../../fixtures/api/resource_role_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: >-
+          Un code déjà porté par un autre rôle, actif ou désactivé (WF-REF-0090) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le rôle qui le porte et `conflicting_object_label` son libellé — la liste lue sans les
+          désactivés, filtrée ou paginée, peut ne pas le montrer ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/resource_role_code_taken.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus : un libellé vide, `/label` par
-          `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par `VALUE_TOO_LONG` ; un
-          rattachement absent ou nul, `/org_node_id`, `/cost_category_id` ou `/calendar_id` par
-          `VALUE_REQUIRED` — les trois sont obligatoires (WF-REF-0090) — ; un rattachement que le
+          `VALIDATION_FAILED`, `fields` localisant chaque refus : un code ou un libellé vides,
+          `/code` ou `/label` par `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, par
+          `VALUE_TOO_LONG` ; un rattachement absent ou nul, `/org_node_id`, `/cost_category_id` ou
+          `/calendar_id` par `VALUE_REQUIRED` — les trois sont obligatoires (WF-REF-0090) — ; un
+          rattachement que le
           référentiel n'a pas, par `UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY` ou
           `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, `/cost_category_id` par
           `LABOUR_CATEGORY_REQUIRED` ; un rattachement désactivé, par `INACTIVE_REFERENCE_OBJECT`
@@ -546,10 +570,14 @@
     operationId: updateResourceRole
     summary: Modifier un rôle de ressource
     description: >-
-      Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Le nœud du
-      rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une réorganisation
-      le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se
-      modifient vers des objets actifs, la catégorie de main-d'œuvre (WF-REF-0090).
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130). Un code déjà
+      porté par un autre rôle est refusé par 409, `ALREADY_EXISTS`, `fields` désignant `/code`. Le
+      nœud du rôle ne se modifie pas : un rôle ne se déplace pas d'un nœud à l'autre, une
+      réorganisation le recrée sous le nouveau (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son
+      calendrier se modifient vers des objets actifs, la catégorie de main-d'œuvre (WF-REF-0090).
+      Un changement de catégorie change les commandes de l'ancienne et de la nouvelle catégorie et
+      de leurs natures (WF-REF-0030, WF-REF-0040), que la réponse ne porte pas : le client relit
+      leurs listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/ResourceRoleId
@@ -569,6 +597,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un code déjà porté par un autre rôle, actif ou désactivé (WF-REF-0090) : `ALREADY_EXISTS`,
+          `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          le rôle qui le porte et `conflicting_object_label` son libellé, comme à la création ;
+          rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/resource_role_code_taken.json }
       '412':
         description: >-
           La version envoyée n'est plus celle du rôle : il a été modifié depuis sa lecture, et
@@ -581,20 +620,22 @@
               stale: { $ref: ../../../fixtures/api/resource_role_update_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label`
-          vide ou trop long ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
+          `/label` vides ou trop longs ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
           `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une
-          catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED`, gardée comme changée — un
-          rôle dont la catégorie a quitté la main-d'œuvre ne se modifie pas sans en changer
-          (WF-REF-0090), en attendant que le contrat l'empêche (#684, point 2) ; une capacité
-          négative, par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification
+          catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle
+          garde ne l'est jamais, aucune catégorie à laquelle un rôle est rattaché ne quittant la
+          main-d'œuvre (WF-REF-0040, `cost_category_without_role`) — ; une capacité négative, par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification
           change la catégorie ou le calendrier du rôle, un objet désactivé, par
           `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés
           depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une
           révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais
           celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause
-          (WF-PLA-0010). Rien n'est écrit.
+          `params.resource_role_ids` nommant les rôles en cause et `params.projects` chaque projet
+          en cause, par son libellé et son code (`project_label`, `project_code`), sans
+          identifiant ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110).
+          Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -965,14 +1006,17 @@
           semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus
           aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui
           n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` et `params.tasks` nommant les rôles et les tâches en cause —
-          `resource_role_ids` vide pour les tâches sans ligne de main-d'œuvre (WF-PLA-0010). Rien
-          n'est écrit.
+          `params.resource_role_ids` nommant les rôles en cause — vide quand seules des tâches sans
+          ligne de main-d'œuvre perdent leurs heures — et `params.projects` chaque projet en
+          cause, par son libellé et son code (`project_label`, `project_code`), sans identifiant
+          ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est
+          écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
+              task_without_hours: { $ref: ../../../fixtures/api/calendar_update_without_hours.json }
 
 /reference/calendars/{calendar_id}/default:
   put:
@@ -984,12 +1028,13 @@
       précédent (WF-REF-0120), dont la version avance. Un calendrier désactivé ne se désigne
       pas, ce que sa commande `set_default` dit d'avance (`available_commands`) ; désigner celui
       qui l'est déjà, que sa commande ne liste pas, répond 200 sans rien changer — la version
-      contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée. Les tâches sans ligne de main-d'œuvre relèvent du calendrier
-      par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas
-      l'être tant qu'une telle tâche existe dans une révision en cours. Relève de la permission
-      de modification des paramètres de ressources (WF-ADM-0100). L'écriture change la
-      disponibilité des commandes des deux calendriers — la désactivation et la désignation —,
-      que la réponse ne porte que pour l'un : le client relit la liste.
+      contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée. Les tâches
+      sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier
+      sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans
+      une révision en cours. Relève de la permission de modification des paramètres de
+      ressources (WF-ADM-0100). L'écriture change la disponibilité des commandes des deux
+      calendriers — la désactivation et la désignation —, que la réponse ne porte que pour l'un :
+      le client relit la liste.
     parameters:
       - $ref: ../components/parameters.yaml#/CalendarId
     requestBody:
@@ -1041,7 +1086,9 @@
           Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de
           main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure
           travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide,
-          `params.tasks` nommant les tâches (WF-PLA-0010).
+          `params.projects` nommant chaque projet en cause par son libellé et son code
+          (`project_label`, `project_code`), sans identifiant ni tâche (WF-PLA-0010,
+          WF-ADM-0110).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1111,7 +1158,8 @@
       (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se
       filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes
       (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son
-      type, indisponible dès qu'une de ses catégories est employée (WF-REF-0030).
+      type, indisponible dès qu'une de ses catégories est employée, porte un taux horaire ou est
+      rattachée à un rôle de ressource (WF-REF-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1162,7 +1210,8 @@
       Nature de coût de l'installation, de l'un des trois types (WF-REF-0030). Son code est
       unique : un code déjà porté par une autre nature, active ou désactivée, est refusé par 409,
       `ALREADY_EXISTS`. Créée, elle porte ses commandes (`available_commands`) : la modification
-      de son type est disponible tant qu'aucune de ses catégories n'est employée.
+      de son type est disponible tant qu'aucune de ses catégories n'est employée, ne porte de taux
+      horaire ni n'est rattachée à un rôle de ressource.
     tags: [reference]
     requestBody:
       required: true
@@ -1209,10 +1258,11 @@
     description: >-
       Le code, le libellé et le type d'une nature se modifient, sans effet rétroactif sur les
       révisions marquées (WF-REF-0130). Le type ne peut plus être modifié dès qu'une catégorie
-      rattachée est employée — portée par une ligne d'une révision, marquée ou non
-      (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance
-      (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté
-      par une autre nature est refusé par 409, `ALREADY_EXISTS`.
+      rattachée est employée — portée par une ligne d'une révision, marquée ou non —, porte un
+      taux horaire ou est rattachée à un rôle de ressource (WF-REF-0030), ce que la commande
+      `change_kind` de la nature dit d'avance (`available_commands`) ; le code et le libellé se
+      modifient toujours. Un code déjà porté par une autre nature est refusé par 409,
+      `ALREADY_EXISTS`.
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
     requestBody:
@@ -1233,10 +1283,16 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Un autre type pour une nature dont une catégorie est employée (WF-REF-0030) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_unused`, la condition
-          que la commande `change_kind` dit manquante. Un code déjà porté par une autre nature,
-          active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
+          Un autre type pour une nature dont une catégorie est employée, porte un taux horaire ou
+          est rattachée à un rôle de ressource (WF-REF-0030) : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première des conditions que la commande `change_kind` dit
+          manquantes, `cost_type_unused`, puis `cost_type_unrated`, puis
+          `cost_type_without_role` ; nommant celle-ci, `params.resource_roles` les rôles rattachés
+          aux catégories de la nature, actifs ou désactivés, chacun par son identifiant, son code
+          et son libellé, qu'il faut d'abord rattacher à une catégorie de main-d'œuvre hors de la
+          nature (WF-IHM-0090). Un code déjà porté par
+          une autre nature, active ou désactivée :
+          `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit.
         content:
           application/problem+json:
@@ -1320,8 +1376,8 @@
       nature (`cost_type_kind`), par lequel un formulaire ne propose à un rôle que des catégories
       de main-d'œuvre (WF-REF-0090). Chaque catégorie porte ses
       commandes (`available_commands`, WF-IHM-0090) : celle qui change son état, et son
-      rattachement à une nature d'un autre type, indisponible quand elle est employée ou porte des
-      taux (WF-REF-0030, WF-REF-0050).
+      rattachement à une nature d'un autre type, indisponible quand elle est employée, porte des
+      taux ou qu'un rôle de ressource lui est rattaché (WF-REF-0030, WF-REF-0040, WF-REF-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1423,12 +1479,13 @@
       code comptable restent uniques parmi les catégories, actives ou désactivées : une valeur
       déjà portée par une autre est refusée par 409, `ALREADY_EXISTS`. Une catégorie ne passe pas
       sous une nature désactivée ; elle garde la sienne, même désactivée. Une catégorie employée ne
-      se rattache qu'à une nature du même type, et une catégorie qui porte des taux ne quitte pas
-      la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa
-      commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même
-      type, le rattachement est toujours permis. Un changement de nature change la disponibilité
-      des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle
-      nature —, que la réponse ne porte pas : le client relit les listes.
+      se rattache qu'à une nature du même type, et une catégorie qui porte des taux, ou à laquelle
+      un rôle de ressource est rattaché, ne quitte pas la main-d'œuvre (WF-REF-0030, WF-REF-0040,
+      WF-REF-0050 ; décision de l'auteur du 2026-10-09, #577) : sa commande `change_cost_type` le
+      dit d'avance (`available_commands`). Vers une nature du même type, le rattachement est
+      toujours permis. Un changement de nature change la disponibilité des commandes d'autres
+      objets — le changement de type de l'ancienne et de la nouvelle nature —, que la réponse ne
+      porte pas : le client relit les listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -1454,10 +1511,13 @@
           (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ
           dont la valeur est prise, `/code` ou `/accounting_code`,
           `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre
-          type pour une catégorie employée, ou qui porte des taux (#577) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la
-          commande `change_cost_type` dit manquantes, `cost_category_unused` avant
-          `cost_category_unrated`. Rien n'est écrit.
+          type pour une catégorie employée, qui porte des taux, ou à laquelle un rôle est rattaché
+          (WF-REF-0040, #577) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première
+          des conditions que la commande `change_cost_type` dit manquantes, `cost_category_unused`,
+          puis `cost_category_unrated`, puis `cost_category_without_role` ; nommant celle-ci,
+          `params.resource_roles` les rôles rattachés à la catégorie, actifs ou désactivés, chacun
+          par son identifiant, son code et son libellé, qu'il faut d'abord rattacher à une autre
+          catégorie de main-d'œuvre (WF-IHM-0090). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1465,6 +1525,7 @@
               accounting_code_taken: { $ref: ../../../fixtures/api/cost_category_accounting_code_taken.json }
               employed_kind_changed: { $ref: ../../../fixtures/api/cost_category_kind_refused.json }
               rated_kind_changed: { $ref: ../../../fixtures/api/cost_category_rated_kind_refused.json }
+              role_kind_changed: { $ref: ../../../fixtures/api/cost_category_role_kind_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -1646,8 +1707,9 @@
       compteur, une correction avec la version lue. La correction d'un taux n'affecte aucune
       révision marquée (WF-REF-0050, WF-REF-0130). Le taux est positif. Le premier taux d'une
       catégorie rend indisponible son rattachement à une nature d'un autre type
-      (`cost_category_unrated`, #577), que la réponse ne porte pas : le client relit la liste des
-      catégories.
+      (`cost_category_unrated`, #577) et la modification du type de sa nature
+      (`cost_type_unrated`, WF-REF-0030), que la réponse ne porte pas : le client relit les listes
+      des catégories et des natures.
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
       - $ref: ../components/parameters.yaml#/RateYear

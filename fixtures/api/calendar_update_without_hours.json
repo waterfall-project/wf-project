@@ -1,0 +1,19 @@
+{
+  "summary": "La semaine de quatre jours, le calendrier du monteur câbleur, modifiée aujourd'hui à zéro heure chaque jour, à partir de la version lue : refusée, les tâches de câblage du projet témoin, dont toute la main-d'œuvre est au monteur câbleur, n'ayant plus aucune heure travaillée dans la semaine ; aucun projet engendré n'emploie ce rôle. Le refus nomme le monteur câbleur, et le projet par son libellé et son code, « Modernisation du poste de commande », PRJ-001, sans autre détail : ni tâche ni identifiant, l'auteur de la modification pouvant ne pas consulter le projet ; rien n'est écrit (WF-PLA-0010, WF-REF-0110).",
+  "value": {
+    "code": "TASK_WITHOUT_WORKING_HOURS",
+    "status": 422,
+    "params": {
+      "resource_role_ids": [
+        "01926f3a-7c00-7000-8000-000000000454"
+      ],
+      "projects": [
+        {
+          "project_label": "Modernisation du poste de commande",
+          "project_code": "PRJ-001"
+        }
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001112"
+  }
+}
