@@ -3,9 +3,10 @@
 """The role of the service: what the API and the worker may do in the database, and no more.
 
 The migrations run as the owner of the tables; the API and the worker connect as the role of the
-service, which owns nothing and holds only what each table grants it: ``SELECT``, ``INSERT``,
-``UPDATE`` and ``DELETE`` on the two tables that exist, granted here; on the journal of audit,
-``INSERT`` and ``SELECT`` alone (WF-SEC-0030, migration ``0003``). A role is global to the
+service, which owns nothing and holds only what each table grants it: ``SELECT``, ``INSERT``
+and ``UPDATE`` on the two tables that exist, granted here — no ``DELETE``: the installation keeps
+its row and an account is never deleted (WF-DAT-0080) —; on the journal of audit, ``INSERT`` and
+``SELECT`` alone (WF-SEC-0030, migration ``0003``). A role is global to the
 server, its rights are granted database by database: it is named after the database,
 ``<database>_service`` — ``waterfall_service`` for the database ``waterfall`` —, so that two
 installations of one server share neither its password nor its rights. It is created without
@@ -42,7 +43,7 @@ BEGIN
     END IF;
     EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', service);
     EXECUTE format(
-        'GRANT SELECT, INSERT, UPDATE, DELETE ON installation, user_account TO %I', service
+        'GRANT SELECT, INSERT, UPDATE ON installation, user_account TO %I', service
     );
 END
 $$
@@ -54,7 +55,7 @@ DECLARE
     service text := current_database() || '_service';
 BEGIN
     EXECUTE format(
-        'REVOKE SELECT, INSERT, UPDATE, DELETE ON installation, user_account FROM %I', service
+        'REVOKE SELECT, INSERT, UPDATE ON installation, user_account FROM %I', service
     );
     EXECUTE format('REVOKE USAGE ON SCHEMA public FROM %I', service);
 END

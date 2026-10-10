@@ -125,7 +125,9 @@ par un rôle de connexion qui en est membre, créé pour la session de tests (fi
 un droit oublié y échoue comme il échouerait en service.
 
 *Contrôle* : le test de `tests/test_audit_journal.py` qui lit les droits du rôle sur chaque
-table que la `Base` déclare.
+table que la `Base` déclare et les compare à ceux qu'il attend, table par table, chacun avec sa
+raison : une table nouvelle sans entrée le fait échouer. Un test qui supprime ce que le service
+ne supprime pas passe par le propriétaire (fixture `owner`).
 
 ### Migrations : deux temps, et chacune compatible avec le code voisin
 

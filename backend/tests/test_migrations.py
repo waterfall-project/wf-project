@@ -255,6 +255,7 @@ def test_two_databases_of_one_server_share_no_role_of_the_service(database_url: 
         assert own != other
         assert ("audit_entry", "INSERT") in privileges(first, own)
         assert ("audit_entry", "INSERT") in privileges(second, other)
+        assert ("user_account", "DELETE") not in privileges(first, own)
         assert (privileges(first, other), privileges(second, own)) == (set(), set())
 
 

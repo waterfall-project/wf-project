@@ -13,7 +13,7 @@ import pytest
 import structlog
 from fastapi.testclient import TestClient
 from openapi_core import Config, OpenAPI
-from sqlalchemy import delete, text
+from sqlalchemy import Engine, delete, text
 from sqlalchemy.orm import Session
 from support import (
     CONTRACT,
@@ -168,6 +168,18 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
         for table in reversed(Base.metadata.sorted_tables):
             connection.execute(delete(table))
     owner.dispose()
+
+
+@pytest.fixture
+def owner(database_url: str) -> Iterator[Engine]:
+    """Give an engine of the owner of the tables, on the database the service sees.
+
+    What the service may not do — delete an account, change the journal — a test does around it,
+    through the owner.
+    """
+    engine = create_database_engine(database_url)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture

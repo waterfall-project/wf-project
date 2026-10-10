@@ -6,7 +6,6 @@ The refusals are tried as the service meets them — by a role of the service, t
 connect as — and as the owner of the tables, whom only the trigger stops (WF-SEC-0030).
 """
 
-from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
@@ -34,7 +33,7 @@ from waterfall.platform.audit import (
     Inscription,
     record,
 )
-from waterfall.platform.database import Base, Database, create_database_engine
+from waterfall.platform.database import Base, Database
 from waterfall.platform.logs import logging_context
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
@@ -70,14 +69,6 @@ def count(database: Database) -> int:
     """Count the inscriptions of the journal."""
     with database.engine.connect() as connection:
         return connection.execute(text("SELECT count(*) FROM audit_entry")).scalar_one()
-
-
-@pytest.fixture
-def owner(database_url: str) -> Iterator[Engine]:
-    """Give an engine of the owner of the tables, on the database the service sees."""
-    engine = create_database_engine(database_url)
-    yield engine
-    engine.dispose()
 
 
 def test_an_action_is_inscribed_with_its_author_its_object_and_the_correlation_of_its_request(
@@ -216,6 +207,19 @@ def read_labels(database: Database) -> list[str | None]:
         return list(connection.execute(text("SELECT object_label FROM audit_entry")).scalars())
 
 
+# What the service needs on each table, and why; a table the code declares and this does not
+# fails the test below, which says so (docs/dev/sql.md, "Le rôle du service").
+SERVICE_RIGHTS: dict[str, set[str]] = {
+    # Read by getInstallation, its settings changed by an administrator, its row inserted by the
+    # bootstrap (US-0420); never deleted: it is the installation.
+    "installation": {"SELECT", "INSERT", "UPDATE"},
+    # Created, read, changed, deactivated; never deleted (WF-DAT-0080).
+    "user_account": {"SELECT", "INSERT", "UPDATE"},
+    # Inscribed and read; neither changed nor deleted (WF-SEC-0030).
+    "audit_entry": {"SELECT", "INSERT"},
+}
+
+
 @pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_nothing_more(
     database: Database,
@@ -247,11 +251,10 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
     held: dict[str, set[str]] = {}
     for table, privilege in grants:
         held.setdefault(table, set()).add(privilege)
-    every_change = {"SELECT", "INSERT", "UPDATE", "DELETE"}
-    assert held == {
-        table.name: {"SELECT", "INSERT"} if table.name == "audit_entry" else every_change
-        for table in Base.metadata.sorted_tables
-    }
+    tables = {table.name for table in Base.metadata.sorted_tables}
+    undeclared = tables - SERVICE_RIGHTS.keys()
+    assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
+    assert held == {name: SERVICE_RIGHTS[name] for name in tables}
     assert tuple(role) == (False, False, False, 0)
     assert tuple(connected_as) == (True, False)
 

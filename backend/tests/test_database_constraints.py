@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from sqlalchemy import delete, insert, text
+from sqlalchemy import Engine, delete, insert, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Executable
 from support import raw_account
@@ -142,18 +142,21 @@ def test_an_author_that_is_not_an_account_is_refused(database: Database, column:
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
-def test_an_account_that_authored_another_cannot_be_deleted(database: Database) -> None:
+def test_an_account_that_authored_another_cannot_be_deleted(
+    database: Database, owner: Engine
+) -> None:
     author = insert_account(database, email="author@example.org")
     insert_account(
         database, email="written@example.org", created_by=author["id"], updated_by=author["id"]
     )
-    statement = delete(UserAccount).where(UserAccount.id == author["id"])
-    assert refusal(database, statement) == "fk_user_account_created_by_user_account"
+    with pytest.raises(IntegrityError) as raised, owner.begin() as connection:
+        connection.execute(delete(UserAccount).where(UserAccount.id == author["id"]))
+    assert constraint_of(raised.value) == "fk_user_account_created_by_user_account"
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_avatar(
-    database: Database,
+    database: Database, owner: Engine
 ) -> None:
     good = {
         "id": 1,
@@ -170,7 +173,7 @@ def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_a
         connection.execute(row())
     assert refusal(database, row(id=2)) == "ck_installation_single_row"
     assert refusal(database, row()) == "pk_installation"
-    with database.engine.begin() as connection:
+    with owner.begin() as connection:
         connection.execute(delete(Installation))
     assert refusal(database, row(default_language="de")) == (
         "ck_installation_default_language_known"
