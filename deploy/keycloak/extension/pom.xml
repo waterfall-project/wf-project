@@ -84,7 +84,7 @@ against the Keycloak of the image: no JVM is asked of the workstation.
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.3</version>
         <configuration>
-          <!-- The log manager Keycloak runs with: the classes of Keycloak refuse any other. -->
+          <!-- The log manager Keycloak runs with: its classes complain under any other. -->
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemPropertyVariables>
