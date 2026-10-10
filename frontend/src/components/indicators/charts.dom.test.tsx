@@ -311,7 +311,7 @@ describe("the cumulative curves", () => {
       ["2026-06-03T00:00:00Z", "1412970.20"],
     ]);
     expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "1412970.20"]);
-    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68206498.92"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68705998.92"]);
     expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
@@ -380,7 +380,7 @@ describe("the cumulative curves", () => {
       "March 20261,400.000.00",
       "April 2026101,600.000.00",
       "May 20261,182,933.730.00",
-      "June 2026127,036.47173,790.61",
+      "June 2026127,036.47673,290.61",
     ]);
     expect(data.cash_out_by_month).toHaveLength(43);
   });

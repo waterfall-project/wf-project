@@ -1,24 +1,24 @@
 {
-  "summary": "Les indicateurs du devis de la révision courante au 3 juin 2026 : 65 605 723,89 au total, dont 9 131 215,00 de main-d'œuvre, 56 474 008,89 de débours, 500,00 de provision — la provision du risque encore identifié —, ventilés par nature, par sous-projet et par le poste « Fourniture et montage des armoires » du lotissement, que porte le lot « Poste de commande », 2 934,56. L'écart avec la référence, -210,00, est aussi celui avec la révision marquée précédente, la référence elle-même : les 500,00 de provision et les 200,00 des lignes fusionnées par la survenance, face aux 910,00 de provisions qu'elle portait (WF-DEV-0060, WF-RIS-0050).",
+  "summary": "Les indicateurs du devis de la révision courante au 3 juin 2026 : 66 105 223,89 au total, dont 9 131 215,00 de main-d'œuvre, 56 474 008,89 de débours, 500 000,00 de provision — la provision du risque encore identifié —, ventilés par nature, par sous-projet et par le poste « Fourniture et montage des armoires » du lotissement, que porte le lot « Poste de commande », 502 434,56. L'écart avec la référence, -349 860,00, est aussi celui avec la révision marquée précédente, la référence elle-même : les 500 000,00 de provision et les 200,00 des lignes fusionnées par la survenance, face aux 850 060,00 de provisions qu'elle portait (WF-DEV-0060, WF-RIS-0050).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
-    "total": {"is_computable":true,"value":"65605723.89","reason":null},
+    "total": {"is_computable":true,"value":"66105223.89","reason":null},
     "by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":{"is_computable":true,"value":"9131215.00","reason":null},"share":{"is_computable":true,"value":"0.1392","reason":null}},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"56474008.89","reason":null},"share":{"is_computable":true,"value":"0.8608","reason":null}},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":{"is_computable":true,"value":"500.00","reason":null},"share":{"is_computable":true,"value":"0","reason":null}}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":{"is_computable":true,"value":"9131215.00","reason":null},"share":{"is_computable":true,"value":"0.1381","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"56474008.89","reason":null},"share":{"is_computable":true,"value":"0.8543","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":{"is_computable":true,"value":"500000.00","reason":null},"share":{"is_computable":true,"value":"0.0076","reason":null}}
     ],
     "by_subproject": [
-      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","amount":{"is_computable":true,"value":"22276516.46","reason":null},"share":{"is_computable":true,"value":"0.3396","reason":null}},
-      {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","amount":{"is_computable":true,"value":"20807656.85","reason":null},"share":{"is_computable":true,"value":"0.3172","reason":null}},
-      {"key":"unassigned","amount":{"is_computable":true,"value":"22521550.58","reason":null},"share":{"is_computable":true,"value":"0.3432","reason":null}}
+      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","amount":{"is_computable":true,"value":"22276516.46","reason":null},"share":{"is_computable":true,"value":"0.337","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","amount":{"is_computable":true,"value":"20807656.85","reason":null},"share":{"is_computable":true,"value":"0.3148","reason":null}},
+      {"key":"unassigned","amount":{"is_computable":true,"value":"23021050.58","reason":null},"share":{"is_computable":true,"value":"0.3482","reason":null}}
     ],
     "by_order_item": [
-      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":true,"value":"2934.56","reason":null},"share":{"is_computable":true,"value":"0","reason":null}}
+      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":true,"value":"502434.56","reason":null},"share":{"is_computable":true,"value":"0.0076","reason":null}}
     ],
-    "provisions_identified": "500.00",
-    "delta_to_reference": {"is_computable":true,"value":"-210.00","reason":null},
-    "delta_to_previous_revision": {"is_computable":true,"value":"-210.00","reason":null}
+    "provisions_identified": "500000.00",
+    "delta_to_reference": {"is_computable":true,"value":"-349860.00","reason":null},
+    "delta_to_previous_revision": {"is_computable":true,"value":"-349860.00","reason":null}
   }
 }

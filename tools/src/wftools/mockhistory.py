@@ -17,7 +17,8 @@ revisions are described from the whole structure of the witness, its core first,
   risk in its cell of the matrix and give the totals of the provisions (WF-RIS-0040);
 - the register of the risks, a risk alone, the matrix, the reviews of a risk and the coverage of
   the risks (``risks``, ``risk``, ``risk_occurred_detail``, ``risk_matrix``, ``risk_reviews``,
-  ``risk_coverage``), from the risks of ``mockwitness`` and the core read today.
+  ``risk_coverage``), from the risks of ``mockwitness`` and the whole structure read today, 751
+  and 753 at its scale (EP-14/L45b).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each
 marked revision is priced at the rates of its reference year: the reference at those of 2026, the
@@ -172,18 +173,6 @@ def offer(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
 def reference_rows() -> list[mockcore.Row]:
     """Return the reference read on the day it was marked, on the whole structure."""
     return mockcore.core(mockcore.REFERENCE, AMENDMENT_MERGED.on)
-
-
-def register_budget() -> Decimal:
-    """Return the reference budget the register reads the severity of its risks on: the core's.
-
-    The three risks of the witness are those of its core: read on the budget of the whole
-    structure, 12,000 would be a hundredth of a hundredth of it. They are scaled to the structure
-    by EP-14/L45b (#528, decision 4 of the frame of #287), and the register, the matrix and the
-    coverage read the core alone until then — the one reading of the witness that still does, with
-    the Kanban (``mocktext.CORE_ONLY``).
-    """
-    return reference_budget(mockcore.core(reference(), AMENDMENT_MERGED.on))
 
 
 def offer_rates() -> dict[str, Decimal]:
@@ -510,7 +499,7 @@ def readings() -> dict[str, JsonObject]:
     command writes.
     """
     today, rows = mockcore.current(), reference_rows()
-    budget = register_budget()
+    budget = reference_budget(rows)
     return {
         "risks": {
             "items": [risk_item(risk, budget) for risk in REGISTER],
@@ -556,7 +545,9 @@ def _percent(value: Decimal) -> str:
 
 
 def _share(value: Decimal, budget: Decimal) -> str:
-    return f"{mocktext.amount((value / budget * 100).quantize(Decimal('0.01')))} %"
+    """Say a share of a budget in percent, to the hundredth; under a hundredth, said so."""
+    share = (value / budget * 100).quantize(Decimal("0.01"))
+    return f"{mocktext.amount(share)} %" if share else "moins de 0,01 %"
 
 
 _VERBS = {
@@ -628,7 +619,7 @@ def _percents(bounds: list[str]) -> str:
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
     today, rows = mockcore.current(), reference_rows()
-    budget = register_budget()
+    budget = reference_budget(rows)
     rework, delay, engineer = REGISTER
     read = readings()
     register = read["risks"]
@@ -686,11 +677,16 @@ def examples() -> dict[str, JsonObject]:
         f"des {identified} risques encore identifiés",
     )
     occurred_text = _agreed(occurred, "du risque survenu", f"des {occurred} risques survenus")
-    cell = cast("dict[str, int]", items[2]["matrix_cell"])
     scale = (
-        f"la gravité lue sur le budget de référence, {_amount(budget)} : "
-        f"{_amount(engineer.last.severity)} pour « {engineer.label} », "
-        f"{_share(engineer.last.severity, budget)}, au niveau {cell['severity_level']}"
+        f"la gravité lue sur le budget de référence de toute la structure, {_amount(budget)} : "
+        + _named(
+            [
+                f"{_amount(risk.last.severity)} pour « {risk.label} », "
+                f"{_share(risk.last.severity, budget)}, au niveau "
+                f"{cast('dict[str, int]', item['matrix_cell'])['severity_level']}"
+                for risk, item in zip(REGISTER, items, strict=True)
+            ]
+        )
     )
     return {
         "comparison.json": mocktext.example(
@@ -723,7 +719,7 @@ def examples() -> dict[str, JsonObject]:
             f"case de matrice, {scale} ; avec ses commandes — {commands_text} —, les trois "
             f"totaux de provisions — les survenus et les écartés pour la provision que portait "
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
-            f"WF-RIS-0050). {mocktext.CORE_ONLY}",
+            "WF-RIS-0050).",
             register,
         ),
         "risk.json": mocktext.example(
@@ -749,7 +745,7 @@ def examples() -> dict[str, JsonObject]:
             f"gravité bornés à {_percents(severities)} du budget de référence "
             f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses "
             f"risques — {counted} du registre, {scale} —, et les totaux de provisions "
-            f"(WF-RIS-0040, WF-REF-0160). {mocktext.CORE_ONLY}",
+            "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
         ),
         "risk_reviews.json": mocktext.example(
@@ -772,7 +768,7 @@ def examples() -> dict[str, JsonObject]:
             f"{_amount(Decimal(cast('str', covered['occurred_cost'])))} réestimés des lignes "
             f"fusionnées {occurred_text} ; l'écart de couverture vaut "
             f"{_amount(Decimal(cast('str', covered['coverage_variance'])))} (WF-RIS-0050, "
-            f"WF-RAE-0020). {mocktext.CORE_ONLY}",
+            "WF-RAE-0020).",
             covered,
         ),
     }

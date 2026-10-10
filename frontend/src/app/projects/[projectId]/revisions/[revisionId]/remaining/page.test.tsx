@@ -179,14 +179,14 @@ describe("the screen of the remaining to commit", () => {
     const summary = section(await remainingAt(), "Remaining to commit indicators");
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 66,793,528.72 Margin on the reference budget -2,775,801.28 " +
-        "Deviation from the previous review -1,448,949.33 By nature of cost",
+      "Remaining to commit 67,293,028.72 Margin on the reference budget -3,275,301.28 " +
+        "Deviation from the previous review -1,798,599.33 By nature of cost",
     );
     // Each amount bears the one mark of a computed value.
     expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
-    expect(text(summary)).toContain("Débours: 57,634,670.39 (86.29%)");
+    expect(text(summary)).toContain("Débours: 57,634,670.39 (85.65%)");
     expect(text(summary)).toContain(
-      "Risk reserve 910.00 Remaining provisions 500.00 Cost of the occurred risks 200.00 Coverage variance 210.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );
   });
 
@@ -199,15 +199,15 @@ describe("the screen of the remaining to commit", () => {
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
     expect(summary).toContain("Poste de commande: 23,251,697.56, margin -1,037,116.10");
-    expect(summary).toContain("No subproject: 22,783,577.07, margin -900,325.22");
+    expect(summary).toContain("No subproject: 23,283,077.07, margin -1,399,825.22");
     // Each by the zone the server gives it, named: every scope is over its budget, the remaining
     // of its tasks not started projected on their years of consumption beyond it (EP-14/L45a).
     expect(
       [...markup.matchAll(/role="img" aria-label="(Alert|Nominal|Watch)"/g)].map((m) => m[1]),
     ).toEqual(["Alert", "Alert", "Alert"]);
     // The margin on the reference budget, in the sense of the balances: 200 more of it.
-    expect(summary).toContain("Margin on the reference budget -2,775,601.28");
-    expect(summary).toContain("Deviation from the previous review -1,449,149.33");
+    expect(summary).toContain("Margin on the reference budget -3,275,101.28");
+    expect(summary).toContain("Deviation from the previous review -1,798,799.33");
   });
 
   it("says the indicators unavailable when the API does not find them, the grid shown", async () => {

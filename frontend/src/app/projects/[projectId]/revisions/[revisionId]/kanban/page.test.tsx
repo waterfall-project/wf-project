@@ -5,8 +5,9 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { StartableTasks } from "@/components/remaining/kanban";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import KanbanPage, { generateMetadata } from "./page";
 
@@ -31,12 +32,21 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const STARTABLE = "GET /projects/{project_id}/remaining-indicators/startable-tasks";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 
+const TASKS = example("startable_tasks") as StartableTasks;
+
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
   return markup
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** The markup of the column of the Kanban a page names so. */
+function column(markup: string, name: string): string {
+  return (
+    new RegExp(`<section aria-label="${name}"[^>]*>(.*?)</section>`, "s").exec(markup)?.[1] ?? ""
+  );
 }
 
 /** Render in English, as the shell hands its texts to a screen. */
@@ -91,15 +101,38 @@ describe("the Kanban of the start of the tasks", () => {
     expect(callsTo(STARTABLE).map((call) => call.path)).toEqual([
       `/projects/${PROJECT}/remaining-indicators/startable-tasks`,
     ]);
+    // Every task of the structure that is not a summary, each column in the order of the plan:
+    // the tasks of the core first, then those drawn around it (EP-14/L45b) — the first of them
+    // read here, the others counted: one card per task the API gives, none left out by the front.
     // The tasks not started whose predecessors are not completed too (#425): the assembly on site
     // and the commissioning wait for the wiring, and are presented all the same.
-    expect(text(page)).toContain(
-      "Not started 18 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
+    const columns = [
+      [
+        "Not started",
+        TASKS.not_started,
+        "Not started 18 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
+          "27 Préparation 1.1.1 Finish on 14/07/2026 ",
+      ],
+      [
+        "Started",
+        TASKS.started,
         "Started 4 Pupitres opérateurs Finish on 24/04/2026 Finish overdue 9 Câblage des armoires Finish on 30/06/2026 " +
+          "311 Revue 1.2.11 Finish on 10/06/2026 ",
+      ],
+      [
+        "Completed",
+        TASKS.completed,
         "Completed 2 Études de détail Completed on 10/04/2026 5 Revue de conception Completed on 24/04/2026 " +
-        "6 Milestone Réception des études Completed on 24/04/2026 7 Dossier de conception Completed on 15/04/2026 " +
-        "14 Relance du fournisseur Completed on 08/05/2026 16 Transport exceptionnel Completed on 15/05/2026",
-    );
+          "6 Milestone Réception des études Completed on 24/04/2026 7 Dossier de conception Completed on 15/04/2026 " +
+          "14 Relance du fournisseur Completed on 08/05/2026 16 Transport exceptionnel Completed on 15/05/2026 " +
+          "247 Préparation 1.2.1 Completed on 01/05/2026 ",
+      ],
+    ] as const;
+    for (const [name, tasks, head] of columns) {
+      const markup = column(page, name);
+      expect(text(markup).slice(0, head.length)).toBe(head);
+      expect(markup.match(/<li\b/g)).toHaveLength(tasks.length);
+    }
     // No milestone is signalled whose predecessors are not all completed: the factory acceptance
     // waits for the wiring.
     expect(text(page)).not.toContain("milestone to complete");

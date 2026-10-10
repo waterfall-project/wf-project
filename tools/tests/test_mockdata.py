@@ -74,8 +74,8 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "27 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
     total = volumes["estimate_indicators_volume.json"]["value"]["total"]
-    assert total == mockstructure.computable("65605723.89")
-    assert "65 605 723,89 au total" in volumes["estimate_indicators_volume.json"]["summary"]
+    assert total == mockstructure.computable("66105223.89")
+    assert "66 105 223,89 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
@@ -136,7 +136,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     assert total == mockstructure.computable(nodes["totals"]["base_amount"])
     # The one provision is the core's, of the risk identified: none is drawn (WF-RIS-0010).
     provisions = [Decimal(line["base_amount"]) for line in lines if line["is_computed"]]
-    assert provisions == [Decimal(indicators["provisions_identified"])] == [Decimal(500)]
+    assert provisions == [Decimal(indicators["provisions_identified"])] == [Decimal(500_000)]
     for name in ("by_cost_type", "by_subproject"):
         parts = indicators[name]
         assert all(part["amount"]["is_computable"] for part in parts)
@@ -146,7 +146,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     [item] = indicators["by_order_item"]
     assert (item["label"], item["amount"]) == (
         "Fourniture et montage des armoires",
-        mockstructure.computable("2934.56"),
+        mockstructure.computable("502434.56"),
     )
     unassigned = sum(
         (Decimal(line["base_amount"]) for line in lines if not line["subproject_id"]),
@@ -622,10 +622,17 @@ def test_the_missing_rates_are_those_the_estimate_indicators_name() -> None:
     assert mockwitness.fixture("missing_rates") == indicators["total"]["params"]["missing_rates"]
 
 
-def test_two_runs_write_the_same_bytes() -> None:
+def test_two_runs_write_the_same_bytes(
+    universe_computed: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
     first = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
     second = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
     assert first == second
+    # The named examples too, computed anew against the computation the session shares: the one
+    # test that confronts two computations of the universe, since the others share one.
+    _, named = universe_computed
+    anew = {name: mockdata.render(example) for name, example in mockdata.named().items()}
+    assert anew == {name: mockdata.render(example) for name, example in named.items()}
 
 
 def test_an_example_is_written_one_line_per_item() -> None:
@@ -638,6 +645,7 @@ def test_an_example_is_written_one_line_per_item() -> None:
     )
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> None:
     assert mockdata.main([], tmp_path) == 0
     volume = tmp_path / mockdata.VOLUME
@@ -647,6 +655,7 @@ def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> No
     assert mockdata.main(["--check"], tmp_path) == 0
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_an_outdated_missing_or_left_over_volume_fails_the_check(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -670,6 +679,7 @@ def test_an_outdated_missing_or_left_over_volume_fails_the_check(
     assert "run make mock-data" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_any_entry_left_over_or_unreadable_fails_the_check(tmp_path: Path) -> None:
     mockdata.write(tmp_path)
     volume = tmp_path / mockdata.VOLUME
@@ -686,6 +696,7 @@ def test_any_entry_left_over_or_unreadable_fails_the_check(tmp_path: Path) -> No
     ]
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) -> None:
     volume = tmp_path / mockdata.VOLUME
     volume.mkdir()
@@ -702,6 +713,7 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
     ]
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_a_directory_left_over_is_not_sent_to_make_mock_data(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -713,6 +725,7 @@ def test_a_directory_left_over_is_not_sent_to_make_mock_data(
     assert "run make mock-data" not in err
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_the_examples_are_written_with_plain_line_ends_whatever_was_there(tmp_path: Path) -> None:
     volume = tmp_path / mockdata.VOLUME
     volume.mkdir()

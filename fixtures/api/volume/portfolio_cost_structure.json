@@ -9,9 +9,9 @@
       {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"266262019.77","share":"0.1"}
     ],
     "remaining_by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"754883714.62","share":"0.5"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"603906971.70","share":"0.4"},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"150976742.92","share":"0.1"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"755133464.62","share":"0.5"},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"604106771.70","share":"0.4"},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"151026692.92","share":"0.1"}
     ],
     "labor_by_org_node": [
       {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1464441108.70","share":"1"}

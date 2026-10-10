@@ -194,8 +194,9 @@ def test_the_current_revision_is_opened_before_the_occurrence_merges_into_it() -
 def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurrence_keeps() -> (
     None
 ):
-    # The reserve of the reference 101: the provisions it bore on 1 February, 751 at 1,000 at
-    # 25 %, 752 at 60, 753 at 600 — 910 (#287, amendment of 2026-10-06). Its reference budget, the
+    # The reserve of the reference 101: the provisions it bore on 1 February, 751 at 1,000,000 at
+    # 25 %, 752 at 60, 753 at 600,000 — 850,060 (#287, amendment of 2026-10-06; 751 and 753 at the
+    # scale of the structure, EP-14/L45b). Its reference budget, the
     # budgeted amounts but the provisions', is the one the current revision still bears: the lines
     # the occurrence merged are budgeted nothing (WF-RIS-0050, WF-RIS-0060). Both are read on the
     # whole structure of a thousand tasks (EP-14/L45a): the reserve is the core's, which bears the
@@ -204,11 +205,11 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     # Without the subtree the occurrence merged, five rows; with the two provisions it bore.
     assert len(rows) == len(mockcore.current()) - 5 + 2
     assert [mockwitness.reference_provision(risk) for risk in REGISTER] == [
-        Decimal("250.00"),
+        Decimal("250000.00"),
         Decimal("60.00"),
-        Decimal("600.00"),
+        Decimal("600000.00"),
     ]
-    assert mockhistory.reserve(rows) == Decimal("910.00")
+    assert mockhistory.reserve(rows) == Decimal("850060.00")
     assert mockwitness.reference_provision(mockwitness.REWORK) == (
         mockwitness.REFERENCE_PROVISION_751
     )
@@ -225,22 +226,73 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     assert {557, 567} <= numbers
 
 
-def test_the_register_reads_its_severities_on_the_budget_of_the_core_until_l45b(
+def test_the_register_reads_its_severities_on_the_reference_budget_of_the_whole_structure(
     history: dict[str, Any],
 ) -> None:
-    # The register, the matrix and the coverage are left on the core by EP-14/L45a, which sums the
-    # whole structure everywhere else: 751 and 753 are scaled to the structure by L45b (#528,
-    # decision 4 of the frame of #287), and their summaries still say so (`mocktext.CORE_ONLY`).
-    assert mockhistory.register_budget() == Decimal("120534.56")
-    assert mockhistory.register_budget() != mockhistory.reference_budget(
-        mockhistory.reference_rows()
-    )
+    # EP-14/L45b (#528, decision 4 of the frame of #287): the register, the matrix and the coverage
+    # read the whole structure, as every other reading since L45a, and no summary says the core
+    # alone any more. The severity is a share of the reference budget of the thousand tasks.
+    budget = mockhistory.reference_budget(mockhistory.reference_rows())
     examples = mockhistory.examples()
     for name in ("risks", "risk_matrix", "risk_coverage"):
-        assert str(examples[f"{name}.json"]["summary"]).endswith(mocktext.CORE_ONLY), name
-    assert mocktext.amount(Decimal("120534.56")) in str(examples["risks.json"]["summary"])
-    # The coverage does not read the budget: it is the same on the core and on the structure.
-    assert history["risk_coverage"]["reserve"] == "910.00"
+        assert "seul cœur" not in str(examples[f"{name}.json"]["summary"]), name
+    said = f"budget de référence de toute la structure, {mocktext.amount(budget)}"
+    assert said in str(examples["risks.json"]["summary"])
+    assert said in str(examples["risk_matrix.json"]["summary"])
+    cells = {item["risk_id"]: item["matrix_cell"] for item in history["risks"]["items"]}
+    for risk in REGISTER:
+        cell = mockhistory.matrix_cell(risk, budget)
+        assert cells[universe(risk.number)] == cell, risk.number
+    # Each severity said with its share of that budget, to the hundredth, and its level: the
+    # share of 752, under a hundredth, said so.
+    amount = mocktext.amount
+    summary = str(examples["risk_matrix.json"]["summary"])
+    for severity, label, share, level in (
+        (1_250_000, "Risque de reprise du câblage", "1,91 %", 2),
+        (200, "Retard de livraison des armoires", "moins de 0,01 %", 1),
+        (12_000_000, "Indisponibilité de l'automaticien", "18,34 %", 4),
+    ):
+        said = f"{amount(Decimal(severity))} pour « {label} », {share}, au niveau {level}"
+        assert said in summary, said
+
+
+def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() -> None:
+    # Decision 4 of the frame of #287, option (a) of the author of 2026-10-07: 751 and 753 at the
+    # scale of the structure — their figures of the core a thousand times —, so that the matrix
+    # still speaks on its budget; 752 keeps the figures of the Vérif of WF-RIS-0060.
+    budget = mockhistory.reference_budget(mockhistory.reference_rows())
+    rework, delay, engineer = REGISTER
+    assert mockwitness.RISK_SCALE == 1000
+    assert [review.severity for review in rework.reviews] == [
+        Decimal(1_000_000),
+        Decimal(1_250_000),
+        Decimal(1_250_000),
+    ]
+    assert [review.severity for review in engineer.reviews] == [Decimal(12_000_000)] * 2
+    assert [(review.probability, review.severity) for review in delay.reviews] == [
+        (Decimal("0.3"), Decimal(200))
+    ] * 2
+    # At the figures of the core, 751 and 753 would fall to the first level of severity, as 752.
+    for risk in (rework, engineer):
+        core = replace(
+            risk,
+            reviews=tuple(
+                replace(review, severity=review.severity / mockwitness.RISK_SCALE)
+                for review in risk.reviews
+            ),
+        )
+        assert mockhistory.matrix_cell(core, budget)["severity_level"] == 1, risk.number
+        assert cast("int", mockhistory.matrix_cell(risk, budget)["severity_level"]) > 1, risk.number
+    assert mockhistory.matrix_cell(delay, budget)["severity_level"] == 1
+    # The line of provision of 751 in the core bears its provision, budgeted at the reference's.
+    [line] = [
+        line
+        for task in mockwitness.CONTROL_STATION.children
+        for line in task.lines
+        if line.number == N.PROVISION
+    ]
+    assert line.unit == mockhistory.provision(rework) == Decimal("500000.00")
+    assert line.budgeted == mockwitness.reference_provision(rework) == Decimal("250000.00")
 
 
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
@@ -248,7 +300,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
 ) -> None:
     # C12 and C13 (#287): the comparison names the nodes of the core by their lineages and
     # labels — the factory acceptance is the core's, 656 —, and the provision of 751 the
-    # reference added is the 250 it then had, not the 500 of today.
+    # reference added is the 250,000 it then had, not the 500,000 of today.
     compared = history["comparison"]
     assert (compared["from_revision_id"], compared["to_revision_id"]) == (
         mockhistory.OFFER,
@@ -263,7 +315,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     reference = {row.number: row for row in mockhistory.reference_rows()}
     reference_ids = {mockcore.lineage(number) for number in reference if number < GENERATED}
     assert mockcore.lineage(555) in added
-    assert reference[555].amounts.base == Decimal("250.00")
+    assert reference[555].amounts.base == Decimal("250000.00")
     assert [entry["label"] for entry in compared["removed"]] == [
         "Essais préliminaires sur site",
         "Location du banc d'essais",
@@ -286,7 +338,9 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         ("reestimated_amount",)
     }
     # The deltas by nature, as by subproject, sum to the difference of the two estimates: the
-    # 4,075 of the core, and the rates of 2026 on the labour drawn.
+    # 3,165 of the core without its provisions, the 850,060 of the provisions the reference bore —
+    # 751 and 753 at the scale of the structure (EP-14/L45b) —, and the rates of 2026 on the labour
+    # drawn.
     offer = mockhistory.offer_rows()
     difference = sum(
         (row.amounts.base for row in reference.values() if row.kind == "estimate_line"),
@@ -298,7 +352,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
             for entry in compared["amount_deltas"]
             if entry["dimension"] == dimension
         ]
-        assert sum(deltas, Decimal(0)) == difference == Decimal("178101.25")
+        assert sum(deltas, Decimal(0)) == difference == Decimal("1027251.25")
     summary = str(mockhistory.examples()["comparison.json"]["summary"])
     rerated = mocktext.count(2_768)
     assert f"les {rerated} lignes de main-d'œuvre que l'avenant ne désigne pas" in summary
@@ -365,11 +419,11 @@ def test_the_register_totals_its_provisions_and_sets_the_reserve_beside(
     # dismissed for the provision the reference bore; the reserve of the reference beside.
     register = history["risks"]
     assert register["totals"] == {
-        "identified": "500.00",
+        "identified": "500000.00",
         "occurred": "60.00",
-        "dismissed": "600.00",
-        "total": "1160.00",
-        "reserve": "910.00",
+        "dismissed": "600000.00",
+        "total": "1100060.00",
+        "reserve": "850060.00",
     }
     assert history["risk_matrix"]["totals"] == register["totals"]
     items = {item["risk_id"]: item for item in register["items"]}
@@ -389,9 +443,10 @@ def test_the_register_totals_its_provisions_and_sets_the_reserve_beside(
 def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_give(
     history: dict[str, Any],
 ) -> None:
-    # The severity is read on the reference budget of the witness, 120,834.56: 1,250 is 1.03 %
-    # of it, level 2; 200, level 1; 12,000, 9.93 %, level 3 — the matrix at the scale of the
-    # witness (#287). The matrix counts the risks of the register in their cells.
+    # The severity is read on the reference budget of the whole structure, 65,430,697.64:
+    # 1,250,000 is 1.91 % of it, level 2; 200, level 1; 12,000,000, 18.34 %, level 4 — 751 and
+    # 753 at the scale of the structure (EP-14/L45b). The matrix counts the risks of the register
+    # in their cells.
     cells = {
         item["risk_id"]: (
             item["matrix_cell"]["probability_level"],
@@ -403,7 +458,7 @@ def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_
     assert cells == {
         universe(751): (3, 2, "watch"),
         universe(752): (3, 1, "nominal"),
-        universe(753): (1, 3, "nominal"),
+        universe(753): (1, 4, "watch"),
     }
     counted = {
         (cell["probability_level"], cell["severity_level"]): cell
@@ -413,7 +468,7 @@ def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_
     assert {key: cell["count"] for key, cell in counted.items()} == {
         (3, 2): 1,
         (3, 1): 1,
-        (1, 3): 1,
+        (1, 4): 1,
     }
     assert {(p, s, cell["zone"]) for (p, s), cell in counted.items()} == set(cells.values())
     assert mockhistory.level(Decimal("0.3"), ["0.1", "0.3", "0.6"]) == 3
@@ -465,17 +520,18 @@ def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
 def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
     history: dict[str, Any],
 ) -> None:
-    # The reviews of 751, the latest first: identified on 12 January at 25 % of 1,000 — the
-    # 250 the reference knew on 1 February —, raised to 1,250 on 2 February, to 40 % on 2 March.
+    # The reviews of 751, the latest first: identified on 12 January at 25 % of 1,000,000 — the
+    # 250,000 the reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on
+    # 2 March.
     reviews = history["risk_reviews"]
     assert [(r["reviewed_on"], r["probability"], r["severity"]) for r in reviews] == [
-        ("2026-03-02", "0.4", "1250.00"),
-        ("2026-02-02", "0.25", "1250.00"),
-        ("2026-01-12", "0.25", "1000.00"),
+        ("2026-03-02", "0.4", "1250000.00"),
+        ("2026-02-02", "0.25", "1250000.00"),
+        ("2026-01-12", "0.25", "1000000.00"),
     ]
     known = mockwitness.REWORK.known_on(AMENDMENT_MERGED.on)
     assert known is not None
-    assert known.severity * known.probability == Decimal("250.00")
+    assert known.severity * known.probability == Decimal("250000.00")
     for item, risk in zip(history["risks"]["items"], REGISTER, strict=True):
         assert item["audit"]["created_at"] == mockhistory.stamp(risk.reviews[0].at)
         assert item["last_review_on"] == risk.last.at.date().isoformat()
@@ -484,8 +540,8 @@ def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
 def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
     history: dict[str, Any],
 ) -> None:
-    # WF-RIS-0050: the reserve of 910 against the 500 of the provision still identified and the
-    # 200 reestimated of the lines merged by the occurrence: +210, read today.
+    # WF-RIS-0050: the reserve of 850,060 against the 500,000 of the provision still identified
+    # and the 200 reestimated of the lines merged by the occurrence: +349,860, read today.
     covered = history["risk_coverage"]
     assert covered["context"]["computed_at"] == mockhistory.stamp(TODAY)
     assert covered["context"]["revision_id"] == mockhistory.CURRENT
@@ -494,7 +550,7 @@ def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
         covered["remaining_provisions"],
         covered["occurred_cost"],
         covered["coverage_variance"],
-    ) == ("910.00", "500.00", "200.00", "210.00")
+    ) == ("850060.00", "500000.00", "200.00", "349860.00")
 
 
 def test_the_history_is_the_fixtures_the_front_reads(history: dict[str, Any]) -> None:
@@ -557,7 +613,7 @@ def test_a_risk_identified_after_the_reference_has_no_share_in_it() -> None:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
         counted = mockhistory.totals(rows)
-    assert (counted["dismissed"], counted["reserve"]) == ("600.00", "910.00")
+    assert (counted["dismissed"], counted["reserve"]) == ("600000.00", "850060.00")
 
 
 def test_one_run_of_the_generator_reaches_its_fixed_point(
@@ -570,7 +626,7 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
         mockwitness.REWORK,
         reviews=(
             *mockwitness.REWORK.reviews,
-            mockwitness.Review(TODAY, Decimal("0.6"), Decimal("1250.00")),
+            mockwitness.Review(TODAY, Decimal("0.6"), Decimal("1250000.00")),
         ),
     )
     monkeypatch.setattr(mockhistory, "REGISTER", (rework, *REGISTER[1:]))
@@ -580,7 +636,7 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
     versioned = mockwitness.fixture("volume/portfolio_risks")
     assert written["value"]["identified_total"] != versioned["identified_total"]
     risks = json.loads((tmp_path / "risks.json").read_text("utf-8"))["value"]
-    assert risks["totals"]["identified"] == "750.00"
+    assert risks["totals"]["identified"] == "750000.00"
 
 
 def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference() -> None:
@@ -617,7 +673,7 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
     assert 599 not in {row.number for row in rows}
     added = cast("list[Node]", compared["added"])
     assert mockcore.lineage(599) not in {entry["lineage_id"] for entry in added}
-    assert mockhistory.reserve(rows) == Decimal("910.00")
+    assert mockhistory.reserve(rows) == Decimal("850060.00")
 
 
 def test_the_summary_of_the_matrix_says_the_bounds_of_the_installation() -> None:

@@ -138,10 +138,11 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
         "estimate_line.quantity",
         "estimate_line.unit_disbursement",
     ]
-    assert (provision["is_computed"], provision["base_amount"]) == (True, "500.00")
-    # The provision of 751 today, 1,250 at 40 %, budgeted at the 250 the reference 101 knew —
-    # 1,000 at 25 % — which the reserve for risks counts, never the reference budget
-    # (WF-RIS-0050): the budgeted total of the lot is 2,484.56, not the 2,734.56 of its lines.
+    assert (provision["is_computed"], provision["base_amount"]) == (True, "500000.00")
+    # The provision of 751 today, 1,250,000 at 40 %, budgeted at the 250,000 the reference 101
+    # knew — 1,000,000 at 25 % — which the reserve for risks counts, never the reference budget
+    # (WF-RIS-0050): the budgeted total of the wiring is 252,234.56, not the 502,234.56 of its
+    # lines (751 at the scale of the structure, EP-14/L45b).
     assert provision["budgeted_amount"] == str(mockwitness.REFERENCE_PROVISION_751)
     # The last review before the reference 101 was marked (1 February) is what justifies it.
     reviews = cast("list[dict[str, str]]", mockwitness.fixture("risk_reviews"))
@@ -151,8 +152,8 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
         if date.fromisoformat(review["reviewed_on"]) <= mockwitness.AMENDMENT_MERGED.on
     ]
     known = max(before, key=lambda review: review["reviewed_on"])
-    assert Decimal(known["severity"]) * Decimal(known["probability"]) == Decimal("250.00")
-    assert facet(estimate[WIRING])["budgeted_amount"] == "2484.56"
+    assert Decimal(known["severity"]) * Decimal(known["probability"]) == Decimal("250000.00")
+    assert facet(estimate[WIRING])["budgeted_amount"] == "252234.56"
 
 
 def test_a_task_sums_its_lines_and_its_subordinates_and_the_totals_sum_the_lines_alone(
@@ -160,16 +161,16 @@ def test_a_task_sums_its_lines_and_its_subordinates_and_the_totals_sum_the_lines
 ) -> None:
     estimate = nodes(readings["nodes_estimate.json"])
     wiring, lot = facet(estimate[WIRING]), facet(estimate[CONTROL_STATION])
-    assert wiring["base_amount"] == "2734.56"
-    assert (lot["base_amount"], lot["budgeted_amount"]) == ("2934.56", "2484.56")
+    assert wiring["base_amount"] == "502234.56"
+    assert (lot["base_amount"], lot["budgeted_amount"]) == ("502434.56", "252234.56")
     assert readings["nodes_estimate.json"]["totals"] == {
         "task_count": 6,
         "estimate_line_count": 5,
         "hours": "12.5",
-        "base_amount": "2934.56",
-        "budgeted_amount": "2484.56",
-        "reestimated_amount": "2934.56",
-        "inflated_amount": "2934.56",
+        "base_amount": "502434.56",
+        "budgeted_amount": "252234.56",
+        "reestimated_amount": "502434.56",
+        "inflated_amount": "502434.56",
     }
     # Read in the reference year, a line is not corrected: its amounts agree (WF-DEV-0030).
     for node in estimate.values():
@@ -538,6 +539,7 @@ def test_an_example_that_names_a_label_of_the_core_names_it_by_the_core_identifi
     assert strays == []
 
 
+@pytest.mark.usefixtures("computed_once")
 def test_a_name_declared_generated_that_the_generator_does_not_write_fails_the_check(
     tmp_path: Path,
 ) -> None:
@@ -844,11 +846,11 @@ def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review(
     line = cast("Node", drawn.node["estimate_line"])
     assert line["previous_quantity"] == line["quantity"]
     assert line["previous_reestimated_amount"] == line["reestimated_amount"]
-    # The provision of 751, at 500 today, was at the 250 the reference knew.
+    # The provision of 751, at 500,000 today, was at the 250,000 the reference knew.
     provision = cast("Node", today[PROVISION].node["estimate_line"])
     assert (provision["unit_disbursement"], provision["previous_unit_disbursement"]) == (
-        "500.00",
-        "250.00",
+        "500000.00",
+        "250000.00",
     )
     labour = cast("Node", today[LABOUR].node["estimate_line"])
     assert (labour["previous_hours"], labour["previous_unit_disbursement"]) == ("12.5", None)
@@ -912,27 +914,67 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated() -
     assert f"les {drawn} des tâches tirées autour de lui" in str(example["summary"])
 
 
-def test_the_two_kanbans_read_the_same_structure_their_tasks_not_written_alike() -> None:
-    # Both read the whole structure, filtered to its core: a task the gesture does not write keeps
-    # the float the structure gives it, in one as in the other (#376).
+def test_the_two_kanbans_present_the_whole_structure_their_tasks_not_written_alike() -> None:
+    # Both present every task of the whole structure, not its core alone (EP-14/L45b, #528): a
+    # task the gesture does not write keeps the float the structure gives it, in one as in the
+    # other (#376).
     readings = mockdata.readings()
 
+    def columns(name: str) -> dict[str, list[Node]]:
+        return cast("dict[str, list[Node]]", json.loads(mockdata.render(readings[name]))["value"])
+
     def floats(name: str) -> dict[str, Any]:
-        value = cast("dict[str, list[Node]]", json.loads(mockdata.render(readings[name]))["value"])
         return {
             node["node_id"]: node["task"]["total_float"]
-            for column in value.values()
+            for column in columns(name).values()
             for node in column
         }
 
+    leaves = [
+        row
+        for row in mockcore.current()
+        if row.kind == mockcore.TASK and not cast("Node", row.node["task"])["is_summary"]
+    ]
     today, gesture = floats("startable_tasks.json"), floats("startable_tasks_milestone.json")
+    assert today.keys() == gesture.keys() == {cast("str", row.node["node_id"]) for row in leaves}
+    assert sum(1 for row in leaves if row.number >= mockwitness.GENERATED) > 900
     written = {universe(WIRING), universe(MILESTONE)}
-    assert today.keys() == gesture.keys()
     assert {key: today[key] for key in today.keys() - written} == {
         key: gesture[key] for key in gesture.keys() - written
     }
     # The design file, without a successor, has the float of the whole structure, not the core's.
     assert today[universe(FILE)] == {"value": "880.5", "unit": "d"}
+
+
+def test_the_summary_of_a_kanban_counts_its_columns_and_names_its_tasks_of_the_core() -> None:
+    readings = mockdata.readings()
+    core = {universe(row.number) for row in mockcore.alone()}
+    for name, flagged in (
+        ("startable_tasks.json", []),
+        ("startable_tasks_milestone.json", ["Réception usine"]),
+    ):
+        example = readings[name]
+        summary = str(example["summary"])
+        value = cast("dict[str, list[Node]]", json.loads(mockdata.render(example))["value"])
+        assert "seul cœur" not in summary, name
+        for key, said in (
+            ("not_started", "non démarrées"),
+            ("started", "démarrées"),
+            ("completed", "terminées"),
+        ):
+            nodes = value[key]
+            drawn = sum(1 for node in nodes if node["node_id"] not in core)
+            assert f"{mocktext.count(len(nodes))} {said} — dans le cœur" in summary, (name, key)
+            assert f"; {mocktext.count(drawn)} tirées autour de lui" in summary, (name, key)
+            for node in nodes:
+                if node["node_id"] in core:
+                    assert f"« {node['task']['label']} »" in summary, (name, node["node_id"])
+        ready = [n["task"]["label"] for n in value["not_started"] if n["predecessors_completed"]]
+        assert ready == flagged, name
+        if ready:
+            assert f"« {ready[0]} » signalée à terminer" in summary, name
+        else:
+            assert "aucune tâche non démarrée dont les prédécesseurs" in summary, name
 
 
 def test_a_quantity_is_an_exact_decimal_rendered_as_the_contract_carries_it() -> None:

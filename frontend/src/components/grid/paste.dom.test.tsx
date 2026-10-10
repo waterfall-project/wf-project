@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatMoney } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import {
   example,
@@ -198,11 +199,23 @@ const UNSHOWN_ROWS = {
 };
 
 /**
- * The estimate of the control station sorted by amount, as the server answers it: the lines
- * reordered under each task, the tasks in the order of the tree (#526).
+ * The estimate of the control station sorted by amount, descending, as the server answers it:
+ * the lines reordered under each task, the tasks in the order of the tree (#526).
  */
 const estimateSorted = example("nodes_estimate_sorted") as NodeList;
-const BY_AMOUNT = { column: "base_amount", order: "asc" } as const;
+const BY_AMOUNT = { column: "base_amount", order: "desc" } as const;
+
+/**
+ * The same estimate sorted by hours, descending: under the wiring, the disbursement and the
+ * provision, which have no hours, first in the order of the plan, then the labour (#526).
+ */
+const estimateHours = example("nodes_estimate_hours") as NodeList;
+const BY_HOURS = { column: "hours", order: "desc" } as const;
+
+/** The index of a line of the estimate sorted by hours, found by its label in the example. */
+function hoursLine(label: string): number {
+  return estimateHours.items.findIndex((node) => node.estimate_line?.label === label);
+}
 
 /** Paste a block on a cell, and expect it refused, saying why, nothing asked. */
 async function expectRefused(client: FakeClient, target: HTMLElement, text: string, why: string) {
@@ -261,9 +274,9 @@ describe("a block pasted from a spreadsheet", () => {
       "2\u202f607\u202f299,00",
       "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
+    expect(totalAmount()).toBe("66\u202f144\u202f071,71");
     // The total corrected for inflation, as the server answered it: lines of later years in it.
-    expect(totalInflated()).toBe("68\u202f463\u202f038,88");
+    expect(totalInflated()).toBe("68\u202f962\u202f538,88");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -455,7 +468,7 @@ describe("a block pasted from a spreadsheet", () => {
       "2\u202f607\u202f299,00",
       "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
+    expect(totalAmount()).toBe("66\u202f144\u202f071,71");
     expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -569,7 +582,7 @@ describe("a block pasted from a spreadsheet", () => {
       "2\u202f607\u202f299,00",
       "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
+    expect(totalAmount()).toBe("66\u202f144\u202f071,71");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(
@@ -719,24 +732,30 @@ describe("a block pasted from a spreadsheet", () => {
     serve();
     renderGrid(true, undefined, { nodes: estimateSorted, sort: BY_AMOUNT });
     const rows = estimateSorted.items.map((_, row) => cell(row, ROW_NUMBER_KEY).textContent);
-    expect(rows).toEqual(["8", "9", "12", "10", "11", "13", "14", "15", "16", "17", "18"]);
-    expect(amounts([2, 3, 4])).toEqual(["500,00", "1\u202f000,00", "1\u202f234,56"]);
+    // Under the wiring, the provision, the terminal blocks, then the labour: the plan reversed.
+    expect(rows).toEqual(["8", "9", "12", "11", "10", "13", "14", "15", "16", "17", "18"]);
+    const wiring = estimateSorted.items.slice(2, 5).map((node) => node.estimate_line?.base_amount);
+    const values = wiring.map(Number);
+    expect(values).toEqual([...values].sort((a, b) => b - a));
+    expect(amounts([2, 3, 4])).toEqual(wiring.map((amount) => formatMoney(amount ?? "", "fr")));
     // The factory acceptance, a milestone of no amount, stays the last, as in the tree.
     expect(cell(estimateSorted.items.length - 1, "label")).toHaveTextContent("Réception usine");
   });
 
-  it("refuses a block from the first line the sort of the estimate moved under its task, saying so, and takes one whose rows follow in the plan (#526)", async () => {
+  it("refuses a block from the line the sort of the estimate moved under its task, saying so, and takes one whose rows follow in the plan (#526)", async () => {
     const client = serve();
-    renderGrid(true, undefined, { nodes: estimateSorted, sort: BY_AMOUNT });
-    // From the provision, moved first under its task, a block of two rows would write the row
-    // after it in the plan, the next task, which the grid shows elsewhere: refused (L41a).
-    await expectRefused(client, cell(2, "label"), "a\nb", UNSHOWN_ROWS.sorted);
-    // From the labour, the disbursement follows in the plan as on the screen: asked.
-    await pasteOn(cell(3, "label"), "a\nb");
+    renderGrid(true, undefined, { nodes: estimateHours, sort: BY_HOURS });
+    // From the provision, moved before the labour, a block of two rows would write the row after
+    // it in the plan, the next task, where the grid shows the labour: refused (L41a).
+    const provision = hoursLine("Provision — risque de reprise du câblage");
+    await expectRefused(client, cell(provision, "label"), "a\nb", UNSHOWN_ROWS.sorted);
+    // From the terminal blocks, the provision follows in the plan as on the screen: asked.
+    const blocks = hoursLine("Borniers");
+    await pasteOn(cell(blocks, "label"), "a\nb");
     await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     expect(bodies(client, PREVIEW)).toEqual([
       {
-        target_node_id: estimateSorted.items[3]?.node_id,
+        target_node_id: estimateHours.items[blocks]?.node_id,
         target_column: "label",
         rows: [["a"], ["b"]],
       },

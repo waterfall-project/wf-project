@@ -164,7 +164,7 @@ describe("the screen of the indicators of a project", () => {
     // chart below: the milestones, the cumulative costs, the earned value.
     expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 2.07% Budget consumption 2.16% Actual cost",
+      "Financial progress Computed on Financial progress 2.06% Budget consumption 2.16% Actual cost",
     );
     expect(page).toContain("Evolution of the cost index Computed on");
     expect(page).toContain("Evolution of the schedule index Computed on");
@@ -173,10 +173,10 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost 1,412,970.20 Remaining to commit 66,793,528.72 Reference budget 65,430,697.64",
+      "Actual cost 1,412,970.20 Remaining to commit 67,293,028.72 Reference budget 65,430,697.64",
     );
     expect(page).toContain(
-      "At budget 65,393,809.51 -36,888.13 Project manager’s 68,206,498.92 2,775,801.28",
+      "At budget 65,393,809.51 -36,888.13 Project manager’s 68,705,998.92 3,275,301.28",
     );
     expect(page).toContain(
       "Schedule variance -221,599.80 Earned value 1,449,858.33 Planned value 1,671,458.13",

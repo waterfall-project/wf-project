@@ -1,5 +1,5 @@
 {
-  "summary": "La matrice des risques de la révision courante : 4 niveaux de probabilité bornés à 10, 30 et 60 %, 4 de gravité bornés à 1, 5 et 10 % du budget de référence (`reference_settings`) ; chaque case avec sa zone et le nombre de ses risques — les 3 du registre, la gravité lue sur le budget de référence, 120 534,56 : 12 000,00 pour « Indisponibilité de l'automaticien », 9,96 %, au niveau 3 —, et les totaux de provisions (WF-RIS-0040, WF-REF-0160). Lu sur le seul cœur du témoin, jusqu'à EP-14/L45b (#528).",
+  "summary": "La matrice des risques de la révision courante : 4 niveaux de probabilité bornés à 10, 30 et 60 %, 4 de gravité bornés à 1, 5 et 10 % du budget de référence (`reference_settings`) ; chaque case avec sa zone et le nombre de ses risques — les 3 du registre, la gravité lue sur le budget de référence de toute la structure, 65 430 697,64 : 1 250 000,00 pour « Risque de reprise du câblage », 1,91 %, au niveau 2, 200,00 pour « Retard de livraison des armoires », moins de 0,01 %, au niveau 1 et 12 000 000,00 pour « Indisponibilité de l'automaticien », 18,34 %, au niveau 4 —, et les totaux de provisions (WF-RIS-0040, WF-REF-0160).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "probability_levels": [
@@ -17,8 +17,8 @@
     "cells": [
       {"probability_level":1,"severity_level":1,"count":0,"zone":"nominal"},
       {"probability_level":1,"severity_level":2,"count":0,"zone":"nominal"},
-      {"probability_level":1,"severity_level":3,"count":1,"zone":"nominal"},
-      {"probability_level":1,"severity_level":4,"count":0,"zone":"watch"},
+      {"probability_level":1,"severity_level":3,"count":0,"zone":"nominal"},
+      {"probability_level":1,"severity_level":4,"count":1,"zone":"watch"},
       {"probability_level":2,"severity_level":1,"count":0,"zone":"nominal"},
       {"probability_level":2,"severity_level":2,"count":0,"zone":"nominal"},
       {"probability_level":2,"severity_level":3,"count":0,"zone":"watch"},
@@ -32,6 +32,6 @@
       {"probability_level":4,"severity_level":3,"count":0,"zone":"alert"},
       {"probability_level":4,"severity_level":4,"count":0,"zone":"alert"}
     ],
-    "totals": {"identified":"500.00","occurred":"60.00","dismissed":"600.00","total":"1160.00","reserve":"910.00"}
+    "totals": {"identified":"500000.00","occurred":"60.00","dismissed":"600000.00","total":"1100060.00","reserve":"850060.00"}
   }
 }

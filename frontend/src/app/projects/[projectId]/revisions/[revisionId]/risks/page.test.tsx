@@ -151,7 +151,7 @@ describe("the screen of the risks", () => {
       "last_review_on",
       "matrix_cell",
     ]);
-    expect(handed?.risks.totals.total).toBe("1160.00");
+    expect(handed?.risks.totals.total).toBe("1100060.00");
   });
 
   it("asks the server for the sort, the search and the states the address names, by the names of the contract [WF-RIS-0040-A]", async () => {
@@ -188,7 +188,7 @@ describe("the screen of the risks", () => {
   it("shows the three totals of the provisions, distinct, and the general total, as the server gives them [WF-RIS-0040-A]", async () => {
     const page = await risksAt();
     expect(text(page)).toContain(
-      "Identified risks 500.00 Occurred risks 60.00 Dismissed risks 600.00 General total 1,160.00",
+      "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
     expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
   });
@@ -200,7 +200,7 @@ describe("the screen of the risks", () => {
     const start = page.indexOf('<section aria-label="Provisions of the risks retained">');
     const totals = page.slice(start, page.indexOf("</section>", start));
     expect(text(totals)).toBe(
-      "Identified risks 500.00 Occurred risks 60.00 Dismissed risks 600.00 General total 1,160.00",
+      "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
     expect(text(page).match(/Risk reserve/g)).toHaveLength(1);
   });
@@ -210,7 +210,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
     expect(page).toContain('<section aria-label="Risk coverage"><dl');
     expect(text(page)).toContain(
-      "Risk reserve 910.00 Remaining provisions 500.00 Cost of the occurred risks 200.00 Coverage variance 210.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );
   });
 
@@ -229,7 +229,7 @@ describe("the screen of the risks", () => {
       "60% and over 0 0 0 0",
       "30% to under 60% 1 1 0 0",
       "10% to under 30% 0 0 0 0",
-      "0% to under 10% 0 0 1 0",
+      "0% to under 10% 0 0 0 1",
     ]);
     const zones = (row: string) =>
       [...row.matchAll(/role="img" aria-label="(\w+)"/g)].map((m) => m[1]);
@@ -246,7 +246,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250.00 Provision 500.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -260,9 +260,9 @@ describe("the screen of the risks", () => {
     // The history, from the latest, shows the probability and the severity move.
     expect(said).toContain(
       "History of the reviews Date Probability Severity State By " +
-        "02/03/2026 40% 1,250.00 Identified Camille Martin " +
-        "02/02/2026 25% 1,250.00 Identified Camille Martin " +
-        "12/01/2026 25% 1,000.00 Identified Camille Martin",
+        "02/03/2026 40% 1,250,000.00 Identified Camille Martin " +
+        "02/02/2026 25% 1,250,000.00 Identified Camille Martin " +
+        "12/01/2026 25% 1,000,000.00 Identified Camille Martin",
     );
   });
 

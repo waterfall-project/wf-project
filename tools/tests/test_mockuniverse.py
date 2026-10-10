@@ -535,7 +535,7 @@ def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() ->
         for node in fixture("volume/nodes_thousand")["items"]
         if node["kind"] == mockcore.ESTIMATE_LINE and node["estimate_line"]["is_computed"]
     )
-    assert provisions == Decimal("250.00")
+    assert provisions == Decimal("250000.00")
     assert Decimal(fixture("project_indicators")["reference_budget"]) == (
         Decimal(totals["budgeted_amount"]) - provisions
     )
