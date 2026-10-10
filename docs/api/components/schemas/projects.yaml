@@ -154,12 +154,13 @@ CommandCondition:
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
-    la commande, `updateProject` la nomme dans son 409. Une tient à un sous-projet, et le
-    sous-projet la nomme (`Subproject.available_commands`) : `subproject_without_actual_costs`
-    manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) ;
-    `deleteSubproject` la nomme dans son 409. Aucune condition ne tient à la citation d'un
-    sous-projet par une révision marquée : sa suppression aboutit, et le marque supprimé
-    (WF-DAT-0080).
+    la commande, `updateProject` la nomme dans son 409. Deux tiennent à un sous-projet, et le
+    sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la
+    suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les
+    sous-projets déterminant la courbe de la valeur acquise (§4.4.1, décision de l'auteur du
+    2026-10-10, #634) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet
+    auquel des coûts réels sont imputés (WF-PRJ-0050). `deleteSubproject` nomme dans son 409 la
+    première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`).
   enum:
     - is_contributor
     - is_project_manager
@@ -195,6 +196,7 @@ CommandCondition:
     - no_backup_running
     - no_restore_running
     - project_before_in_progress
+    - subproject_not_cited
     - subproject_without_actual_costs
 
 ProjectCommand:
@@ -437,7 +439,8 @@ Subproject:
   description: >-
     Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans
     le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050), ni dès qu'une
-    révision marquée le cite (WF-DAT-0080) : ses commandes le disent d'avance.
+    révision marquée le cite (§4.4.1, décision de l'auteur du 2026-10-10, #634) : ses commandes le
+    disent d'avance.
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string, minLength: 1, maxLength: 50 }
@@ -456,7 +459,9 @@ Subproject:
         non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
         `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour
         qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos
-        (WF-CYC-0100). Un appel envoyé malgré la liste est refusé par son code d'erreur.
+        (WF-CYC-0100), après les conditions propres au sous-projet, comme le projet liste les
+        siennes (`project_completed`). Un appel envoyé malgré la liste est refusé par son code
+        d'erreur.
       items: { $ref: '#/SubprojectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -466,10 +471,14 @@ SubprojectCommand:
   enum: [update, delete]
   description: >-
     Commandes portées par un sous-projet (WF-IHM-0090) : le modifier, par `updateSubproject`, et
-    le supprimer, par `deleteSubproject`. La suppression est indisponible dès que des coûts réels
-    lui sont imputés, `subproject_without_actual_costs` manquante (WF-PRJ-0050) ; qu'une révision
-    marquée le cite ne l'empêche pas : il est alors conservé et marqué supprimé (WF-DAT-0080). Un
-    sous-projet se crée par la commande `update` du projet.
+    le supprimer, par `deleteSubproject`. La suppression est indisponible dès qu'une révision
+    marquée le cite, `subproject_not_cited` manquante (§4.4.1, décision de l'auteur du 2026-10-10,
+    #634), dès que des coûts réels lui sont imputés, `subproject_without_actual_costs` manquante
+    (WF-PRJ-0050), et sur un projet clos, `project_not_terminal` manquante (WF-CYC-0100). Quand
+    plusieurs manquent, la commande les liste dans cet ordre : `subproject_not_cited`, puis
+    `subproject_without_actual_costs`, puis `project_not_terminal` — les conditions propres au
+    sous-projet avant celle du projet, comme le projet liste les siennes. Un sous-projet se crée
+    par la commande `update` du projet.
 
 SubprojectCommandAvailability:
   type: object

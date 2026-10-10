@@ -411,8 +411,9 @@ est figée (`update_win_probability`, `project_before_in_progress`) et la refuse
 ses deux taux sont bornés de 0 à 1 (422 `VALUE_OUT_OF_RANGE`, la borne franchie) ; le code pris d'un
 projet ou d'un sous-projet nomme son porteur par son libellé (`conflicting_object_label`) ; chaque
 sous-projet liste ses commandes (`update`, `delete`), la suppression indisponible par
-`subproject_without_actual_costs` seule — un sous-projet qu'une révision marquée cite se supprime,
-marqué supprimé (WF-DAT-0080), comme une chronologie (L42k) —, son 409 nommé par la condition, et
+`subproject_without_actual_costs` seule — un sous-projet qu'une révision marquée cite se supprimait
+alors, marqué supprimé (WF-DAT-0080), comme une chronologie (L42k), ce que L42l renverse —, son 409
+nommé par la condition, et
 `update` du projet couvre ses sous-projets ; `setContributors` refuse à sa ligne un compte inconnu
 (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) ; une proposition nomme son nœud et ses rôles, et
 `listContributorSuggestions` s'appuie sur les lignes de devis ; `subproject_created` porte déjà la
@@ -438,6 +439,18 @@ ses numéros de ligne et ses montants lus dans l'exemple ; le collage sous un tr
 par heures, depuis la provision déplacée (refusé) et depuis « Borniers » (accepté). Le Kanban rend
 ses 960 cartes sans fenêtre ni page, en quatre secondes environ en développement après le clic,
 dans la borne des écrans de grille où il était déjà (`WORKING`). #528 et #287 sont soldés.
+
+EP-14/L42l (#647) corrige L42i sur la décision de l'auteur du 2026-10-10 (#634) : un sous-projet
+qu'une révision marquée cite **ne se supprime pas** (§4.4.1), les sous-projets déterminant la courbe
+de la valeur acquise. La condition que le cadrage prévoyait et que L42i avait retirée en suivant le
+Vérif de WF-DAT-0080 revient, `subproject_not_cited`, listée avant `subproject_without_actual_costs`
+quand les deux manquent et nommée par le 409 de `deleteSubproject` ; aucun sous-projet n'est plus
+marqué supprimé. Le Vérif de WF-DAT-0080 dit encore le contraire : sa correction attend l'auteur
+(`docs/spec/TODO.md`, § 2). Depuis L45a, la référence porte toute la structure : elle cite les deux
+sous-projets du témoin, et non le seul Poste de commande ; seul le sous-projet créé ne l'est pas. La
+phrase de la note de L42i qui disait qu'un tel sous-projet se supprime est mise au passé. Le front ne
+change pas : l'écran des sous-projets, et sa variante « SP-ESS » déchargée, que la citation garde
+désormais indisponible, reviennent à L44e.
 
 ## US-0200 — Accessibilité minimale
 

@@ -1957,6 +1957,7 @@
       "no_backup_running": "no backup running",
       "no_restore_running": "no restoration running",
       "project_before_in_progress": "project not yet in progress",
+      "subproject_not_cited": "subproject cited by no marked revision",
       "subproject_without_actual_costs": "no actual cost booked against the subproject"
     },
     "ProjectExit": {
