@@ -9,22 +9,18 @@ unknown to Waterfall, and closing sessions, need Keycloak itself:
 """
 
 import time
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
-from realm import TestRealm, new_key
+from realm import KEY, TestRealm, new_key
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, raw_account
+from support import ContractClient, Logs, bearer, raw_account
 
-from waterfall.api.app import create_app
-from waterfall.api.authentication import Services, admit
+from waterfall.api.authentication import admit
 from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
@@ -35,45 +31,12 @@ from waterfall.platform.keycloak import (
     IdentityProviderError,
     Keycloak,
 )
-from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
+from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
 SESSIONS = "/api/v1/me/sessions"
-KEY = "key-1"
 SUBJECT = "4b1f0c1e-9a51-4c47-8d0e-2f6a1c3e5b70"
-
-
-@pytest.fixture
-def realm() -> Iterator[TestRealm]:
-    """Serve one key of the realm of test, then stop."""
-    served = TestRealm()
-    served.add_key(KEY)
-    yield served
-    served.stop()
-
-
-@pytest.fixture
-def realm_settings(platform_settings: ServiceSettings, realm: TestRealm) -> ServiceSettings:
-    """Give the settings of the API, Keycloak being the realm of test."""
-    return platform_settings.model_copy(update={"keycloak_address": realm.address})
-
-
-@pytest.fixture
-def keycloak(realm_settings: ServiceSettings) -> Iterator[Keycloak]:
-    """Give the client of the realm of test."""
-    client = Keycloak(realm_settings)
-    yield client
-    client.close()
-
-
-@pytest.fixture
-def api(
-    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
-) -> ContractClient:
-    """Give a client of the application on the database of test and the realm of test."""
-    app = create_app(Services(database, keycloak, KeycloakAdmin(keycloak, realm_settings)))
-    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
 def account(database: Database, **overrides: object) -> dict[str, Any]:
@@ -82,11 +45,6 @@ def account(database: Database, **overrides: object) -> dict[str, Any]:
     with database.transaction() as session:
         session.execute(insert(UserAccount).values(**row))
     return row
-
-
-def bearer(token: str) -> dict[str, str]:
-    """Give the header that carries an access token."""
-    return {"Authorization": f"Bearer {token}"}
 
 
 def refusal(response: Any) -> tuple[int, str]:

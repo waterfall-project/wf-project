@@ -4,22 +4,15 @@
 
 from fastapi import APIRouter, Response
 
+from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, ServicesOf
-from waterfall.api.contract.models import ActorRef, UserSelf
-from waterfall.core.users.interface import Account, Author
+from waterfall.api.contract.models import UserSelf
+from waterfall.core.users.interface import Account
 from waterfall.platform.logs import get_logger
 
 router = APIRouter(tags=["me"])
 
 logger = get_logger(__name__)
-
-
-def _actor(author: Author | None) -> ActorRef:
-    if author is None:
-        return ActorRef.model_validate({"kind": "platform"})
-    return ActorRef.model_validate(
-        {"kind": "user", "user_id": author.user_id, "display_name": author.display_name}
-    )
 
 
 def user_self(account: Account) -> UserSelf:
@@ -43,9 +36,9 @@ def user_self(account: Account) -> UserSelf:
             "has_avatar": account.has_avatar,
             "audit": {
                 "created_at": account.created_at,
-                "created_by": _actor(account.created_by),
+                "created_by": actor_ref(account.created_by),
                 "updated_at": account.updated_at,
-                "updated_by": _actor(account.updated_by),
+                "updated_by": actor_ref(account.updated_by),
             },
             "lock_version": account.lock_version,
             "display_preferences": account.display_preferences,

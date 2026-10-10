@@ -13,6 +13,7 @@ import pytest
 import structlog
 from fastapi.testclient import TestClient
 from openapi_core import Config, OpenAPI
+from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, text
 from sqlalchemy.orm import Session
 from support import (
@@ -26,6 +27,7 @@ from support import (
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
@@ -60,6 +62,38 @@ def services(platform_settings: ServiceSettings) -> Iterator[Services]:
     yield Services(database, keycloak, KeycloakAdmin(keycloak, platform_settings))
     keycloak.close()
     database.dispose()
+
+
+@pytest.fixture
+def realm() -> Iterator[TestRealm]:
+    """Serve one key of the realm of test, then stop."""
+    served = TestRealm()
+    served.add_key(KEY)
+    yield served
+    served.stop()
+
+
+@pytest.fixture
+def realm_settings(platform_settings: ServiceSettings, realm: TestRealm) -> ServiceSettings:
+    """Give the settings of the API, Keycloak being the realm of test."""
+    return platform_settings.model_copy(update={"keycloak_address": realm.address})
+
+
+@pytest.fixture
+def keycloak(realm_settings: ServiceSettings) -> Iterator[Keycloak]:
+    """Give the client of the realm of test."""
+    client = Keycloak(realm_settings)
+    yield client
+    client.close()
+
+
+@pytest.fixture
+def api(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> ContractClient:
+    """Give a client of the application on the database of test and the realm of test."""
+    app = create_app(Services(database, keycloak, KeycloakAdmin(keycloak, realm_settings)))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
 @pytest.fixture
@@ -157,7 +191,8 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
 
     The rows of every table the code declares are deleted by the owner, the journal of audit
     included: its triggers, which refuse any deletion, are off for that transaction alone — what
-    only a superuser may do, and the service never.
+    only a superuser may do, and the service never. A table the migrations fill — the catalogue
+    of permissions — keeps its rows, as an installation does.
     """
     db = Database(create_database_engine(service_database_url))
     yield db
@@ -166,7 +201,8 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     with owner.begin() as connection:
         connection.execute(text("SET LOCAL session_replication_role = replica"))
         for table in reversed(Base.metadata.sorted_tables):
-            connection.execute(delete(table))
+            if not table.info.get(WRITTEN_BY_MIGRATION):
+                connection.execute(delete(table))
     owner.dispose()
 
 
