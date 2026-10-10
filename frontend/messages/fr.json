@@ -939,7 +939,6 @@
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
     "modifyTitle": "Modifier « {name} »",
     "modifyHint": "Le taux d’inflation ne touche aucune révision marquée.",
-    "modifyHintFrozen": "Le taux d’inflation ne touche aucune révision marquée. La probabilité de gain ne se modifie plus une fois le projet en cours.",
     "label": "Libellé",
     "code": "Code projet",
     "description": "Description",
@@ -969,8 +968,7 @@
       "deleteTitle": "Supprimer le sous-projet « {code} » ?",
       "deleteHint": "Le sous-projet « {code} », {label}, sera supprimé. Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se supprime pas.",
       "deleted": "« {code} » supprimé.",
-      "deleteCharged": "Des coûts réels lui sont imputés.",
-      "deleteUnavailable": "La suppression de « {code} » est indisponible : des coûts réels lui sont imputés."
+      "unavailable": "{command} : indisponible. {unmet}"
     },
     "contributors": {
       "title": "Contributeurs",
@@ -989,6 +987,7 @@
       "withdraw": "Retirer {name}",
       "refusedFor": "{name} : {problem}",
       "proposals": "Contributeurs proposés",
+      "proposedFrom": "{node} : {count, plural, one {rôle} other {rôles}} {roles}",
       "inscribe": "Inscrire {name}",
       "suggested": "{count, plural, one {Proposé d’après les rôles du devis, à confirmer :} other {Proposés d’après les rôles du devis, à confirmer :}} {names}.",
       "saved": "Liste des contributeurs enregistrée."
@@ -1082,11 +1081,6 @@
     "closed": "Le projet est clos : aucun état ne le suit.",
     "state": "État visé",
     "trigger": "Déclencheur",
-    "triggers": {
-      "first_revision_created": "Première révision créée",
-      "reference_designated_and_code_set": "Révision de référence désignée et code projet renseigné"
-    },
-    "unknownTrigger": "Déclencheur non reconnu",
     "conditions": "Conditions restantes",
     "noCondition": "Aucune"
   },
@@ -1618,6 +1612,7 @@
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",
+    "maximum": "Valeur maximale : {maximum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}."

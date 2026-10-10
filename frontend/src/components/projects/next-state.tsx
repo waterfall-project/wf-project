@@ -8,10 +8,10 @@
  * in progress, only the exits of its lifecycle remain; terminal, it is closed, and no state follows it
  * (WF-CYC-0080) — the terminal states being those an exit leads to (`EXIT_STATES`), from the contract.
  *
- * The contract names the trigger by a code it does not enumerate (`NextState.trigger`): the
- * catalogue renders the two of the lifecycle (figure 8 of the specification), and a code it does
- * not know is said to be unknown rather than shown raw — an « Interface contract issue » raised by
- * EP-02/L44a. Neither server nor client: it renders on either side.
+ * The trigger is one of the two facts of the lifecycle the contract enumerates (`LifecycleTrigger`,
+ * figure 8 of the specification, EP-14/L42i), rendered by the catalogue of the enumeration; the server
+ * answers a project in progress or terminal without a next state nor a trigger. Neither server nor
+ * client: it renders on either side.
  */
 import { CircleArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -27,18 +27,11 @@ type ProjectState = components["schemas"]["ProjectState"];
 /** The terminal states of a project: those an exit of its lifecycle leads to (WF-CYC-0080). */
 const TERMINAL: readonly ProjectState[] = Object.values(EXIT_STATES);
 
-/** The triggers of the lifecycle the catalogue renders, as the examples of the contract name them. */
-const TRIGGERS = ["first_revision_created", "reference_designated_and_code_set"] as const;
-
-/** Whether a trigger is one the catalogue renders. */
-function isTrigger(code: string): code is (typeof TRIGGERS)[number] {
-  return (TRIGGERS as readonly string[]).includes(code);
-}
-
 /** Render the next state of a project, its trigger and the conditions it still lacks. */
 export function NextStateFacts({ next }: { readonly next: NextState }) {
   const t = useTranslations("nextState");
   const condition = useTranslations("enums.CommandCondition");
+  const triggers = useTranslations("enums.LifecycleTrigger");
   const { next_state: state, trigger, missing_conditions: missing } = next;
   return (
     <section aria-label={t("title")} className="space-y-2">
@@ -54,12 +47,12 @@ export function NextStateFacts({ next }: { readonly next: NextState }) {
           <dd>
             <ProjectStateBadge state={state} />
           </dd>
-          <dt className="text-muted-foreground">{t("trigger")}</dt>
-          <dd>
-            {trigger !== null && isTrigger(trigger)
-              ? t(`triggers.${trigger}`)
-              : t("unknownTrigger")}
-          </dd>
+          {trigger === null ? null : (
+            <>
+              <dt className="text-muted-foreground">{t("trigger")}</dt>
+              <dd>{triggers(trigger)}</dd>
+            </>
+          )}
           <dt className="text-muted-foreground">{t("conditions")}</dt>
           <dd>
             {missing.length === 0 ? (

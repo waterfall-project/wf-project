@@ -89,8 +89,9 @@ export async function writeSubproject(
 }
 
 /**
- * Delete a sub-project (WF-PRJ-0050): refused once actual costs are charged to it, or a marked
- * revision cites it (409).
+ * Delete a sub-project (WF-PRJ-0050): refused (409) while a marked revision cites it or actual costs
+ * are charged to it, or its project is terminal, the first condition it lacks named
+ * (`params.missing_condition`).
  */
 export async function deleteSubproject(projectId: string, subprojectId: string): Promise<Settled> {
   return readAnew(

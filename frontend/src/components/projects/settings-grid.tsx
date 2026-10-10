@@ -58,7 +58,10 @@ export type SettingsGridProps =
     } & GridProps<BreakdownRow, never>)
   | ({
       readonly kind: "subprojects";
-      /** Whether each row offers its modification and its deletion. */
+      /**
+       * Whether each row offers its modification and its deletion, as it lists them: the project
+       * lists `update`, available or not.
+       */
       readonly editable?: boolean;
     } & GridProps<Subproject, SubprojectSort>)
   | ({ readonly kind: "contributors" } & GridProps<Contributor, ContributorSort>);

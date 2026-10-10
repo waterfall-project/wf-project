@@ -19,18 +19,21 @@
  * available, or unavailable with the conditions it lacks — a terminal project (WF-CYC-0100). It
  * takes what `ProjectUpdate` takes: the label, the code, the description, the date the order was
  * received — which no transition requires (WF-PRJ-0080) —, the inflation rate and the probability of
- * winning, both entered as percentages and sent as the ratios of the contract. The probability is
- * frozen from the state in progress, as the contract says (`Project.win_probability`, WF-PRJ-0090):
- * the form no longer offers it, and says why. The answer takes the place of what the screen shows as
+ * winning, both entered as percentages and sent as the ratios of the contract. The probability
+ * follows a command of its own (`update_win_probability`, EP-14/L42i), frozen from the state in
+ * progress (WF-PRJ-0090): listed unavailable, the field is shown fixed, the conditions it lacks said
+ * under it, and the value is not sent. The answer takes the place of what the screen shows as
  * long as it is newer than the project the page read (`lock_version`) — against the fake back, which
  * keeps nothing, for as long as the screen stays; the settings say so once, under their header
  * (`MockupNotice`) —, and the page is read anew. The form writes from the version it opened on, as the
  * lists of the reference data do (`CommandedList`, `opened`): a reading that comes while it is open
  * does not lend its `lock_version` to a draft entered on another, which the optimistic lock refuses.
  *
- * A refusal by field is said at its field — a code another project bears (409), the probability
- * frozen meanwhile —, any other under the form, the version stale (412) with the offer to read the
- * page anew; a refusal answered once the dialog is gone is told above the facts (`Reactivations`).
+ * A refusal by field is said at its field — a code another project bears (409), named by the label
+ * the refusal gives it, the screen not showing the other projects; a rate out of its bounds (422),
+ * the bound said in percentages as the field enters it —, any other under the form — the probability
+ * frozen meanwhile (409, the condition it lacks named), the version stale (412) with the offer to read
+ * the page anew; a refusal answered once the dialog is gone is told above the facts (`Reactivations`).
  */
 "use client";
 
@@ -41,9 +44,9 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { createProject, updateProject } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
-import { Command } from "@/components/commands/command";
+import { Command, useUnmet } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
-import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { Reactivations } from "@/components/reference/reactivation";
@@ -54,8 +57,7 @@ import {
   required,
 } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
-import { editablePercent, percentRatio } from "@/i18n/format";
-import type { ProjectState } from "@/navigation/home";
+import { editablePercent, percentRatio, ratioPercent } from "@/i18n/format";
 
 import { SettingsFacts } from "./project-facts";
 
@@ -63,8 +65,11 @@ import { SettingsFacts } from "./project-facts";
 const LABEL_LENGTH = 300;
 const CODE_LENGTH = 50;
 
-/** The states in which the probability of winning may still be modified (WF-PRJ-0090). */
-const WIN_PROBABILITY_OPEN: readonly ProjectState[] = ["created", "pricing"];
+/** The rates of a project, entered as percentages, which the server bounds as ratios (EP-14/L42i). */
+const RATES: ReadonlySet<string> = new Set(["/inflation_rate", "/win_probability"]);
+
+/** The bounds a refusal by field may name. */
+const BOUNDS: ReadonlySet<string> = new Set(["minimum", "maximum"]);
 
 /** An optional text as the contract writes it: none when left empty. */
 function orNull(value: string | undefined): string | null {
@@ -153,6 +158,48 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
   );
 }
 
+/**
+ * A refusal of the rates as the form says it: each bound the server names in a ratio (`1`), said in
+ * the percentage the field enters (`100`); any other answer as it is.
+ */
+function inPercent(answer: Outcome<Project>): Outcome<Project> {
+  if (!("problem" in answer) || answer.problem.fields === undefined) {
+    return answer;
+  }
+  const fields = answer.problem.fields.map((field) =>
+    RATES.has(field.pointer) && field.params !== undefined
+      ? {
+          ...field,
+          params: Object.fromEntries(
+            Object.entries(field.params).map(([key, value]) => [
+              key,
+              BOUNDS.has(key) && typeof value === "string" ? (ratioPercent(value) ?? value) : value,
+            ]),
+          ),
+        }
+      : field,
+  );
+  return { ...answer, problem: { ...answer.problem, fields } };
+}
+
+/**
+ * The field of the probability of winning, as the project lists its command
+ * (`update_win_probability`): a number, available; shown fixed otherwise, the conditions it lacks
+ * said under it.
+ */
+function useWinProbabilityField(): (offer: CommandOffer | undefined) => FormField {
+  const t = useTranslations("projectForm");
+  const unmet = useUnmet();
+  return (offer) => {
+    const shared = { name: "win_probability", label: t("winProbability") };
+    if (offer?.is_available === true) {
+      return { ...shared, control: "number", required: true };
+    }
+    const lacking = offer !== undefined && offer.missing_conditions.length > 0;
+    return { ...shared, control: "fixed", note: lacking ? unmet(offer) : undefined };
+  };
+}
+
 /** What the modification of a project starts from: the project as the screen shows it. */
 function draftOf(project: Project, locale: ReturnType<typeof useLocale>): Draft {
   return {
@@ -180,21 +227,14 @@ function UpdateForm({
   const t = useTranslations("projectForm");
   const locale = useLocale();
   const identity = useIdentityFields();
-  const open = WIN_PROBABILITY_OPEN.includes(project.state);
+  const probability = useWinProbabilityField();
+  const offer = findOffer(project.available_commands, "update_win_probability");
+  const open = offer?.is_available === true;
   const fields: FormField[] = [
     ...identity,
     { name: "order_received_on", label: t("orderReceivedOn"), control: "date" },
     { name: "inflation_rate", label: t("inflationRate"), control: "number", required: true },
-    ...(open
-      ? [
-          {
-            name: "win_probability",
-            label: t("winProbability"),
-            control: "number",
-            required: true,
-          } as const,
-        ]
-      : []),
+    probability(offer),
   ];
   const ask = ({
     label = "",
@@ -202,7 +242,7 @@ function UpdateForm({
     description,
     order_received_on: received,
     inflation_rate: inflation = "0",
-    win_probability: probability = "0",
+    win_probability: winProbability = "0",
   }: Draft): Promise<Outcome<Project>> =>
     updateProject(project.project_id, {
       label,
@@ -210,15 +250,15 @@ function UpdateForm({
       description: orNull(description),
       order_received_on: orNull(received),
       inflation_rate: percentRatio(inflation),
-      // Frozen from the state in progress: not sent, the server would refuse it.
-      ...(open ? { win_probability: percentRatio(probability) } : {}),
+      // Frozen as its command says: not sent, the server would refuse it.
+      ...(open ? { win_probability: percentRatio(winProbability) } : {}),
       lock_version: project.lock_version,
     });
   return (
     <ReferenceForm<Project>
       kind="project"
       title={t("modifyTitle", { name: project.label })}
-      hint={t(open ? "modifyHint" : "modifyHintFrozen")}
+      hint={t("modifyHint")}
       creating={false}
       fields={fields}
       initial={draftOf(project, locale)}
@@ -227,13 +267,19 @@ function UpdateForm({
       answering={(answer) =>
         answer.kind === "done" && answer.data.project_id !== project.project_id
           ? ANOTHER_OBJECT
-          : answer
+          : inPercent(answer)
       }
       onDone={onDone}
       onClose={onClose}
       onClosed={onClosed}
     />
   );
+}
+
+/** The version a form opened on, which it writes from, and the how-many-th opening it is. */
+interface Editing {
+  readonly project: Project;
+  readonly opening: number;
 }
 
 /** What the last modification did, and the how-many-th it was. */
@@ -245,14 +291,17 @@ interface Said {
 /**
  * The identity and the facts of a project on its settings, the command that modifies them as the
  * project lists it, and its form; the answer of the server shown while it is newer than the project
- * read.
+ * read. An answer closes only the opening of the form it was sent from: one that comes once the
+ * dialog was closed and opened anew is shown, and leaves the new dialog open (#660).
  */
 export function ProjectIdentity({ project }: { readonly project: Project }) {
   const t = useTranslations("projectForm");
   const command = useTranslations("enums.ProjectCommand");
   const [answered, setAnswered] = useState<Project>();
-  // The version the form opened on, which it writes from: none while it is closed.
-  const [editing, setEditing] = useState<Project>();
+  // The version the form opened on, which it writes from, and its opening: none while it is closed.
+  const [editing, setEditing] = useState<Editing>();
+  // How many times the form was opened: what tells an opening from the next.
+  const openings = useRef(0);
   const [said, setSaid] = useState<Said>();
   const trigger = useRef<HTMLButtonElement>(null);
   // An answer is for this project alone — the page keys the section by it, and an answer for
@@ -274,7 +323,8 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
             variant="outline"
             size="sm"
             onClick={() => {
-              setEditing(shown);
+              openings.current += 1;
+              setEditing({ project: shown, opening: openings.current });
             }}
           >
             {icon}
@@ -287,13 +337,16 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
       <SettingsFacts project={shown} />
       {editing === undefined ? null : (
         <UpdateForm
-          project={editing}
+          key={editing.opening}
+          project={editing.project}
           onDone={(answer) => {
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
             setSaid((before) => ({ text: t("saved"), count: (before?.count ?? 0) + 1 }));
-            setEditing(undefined);
+            // Closed if it is still the opening the answer was sent from, never a later one.
+            const { opening } = editing;
+            setEditing((current) => (current?.opening === opening ? undefined : current));
           }}
           onClose={() => {
             setEditing(undefined);

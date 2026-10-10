@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -34,6 +35,8 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001/settings",
   useSearchParams: () => new URLSearchParams(),
 }));
+
+type Problem = components["schemas"]["Problem"];
 
 const CREATE = "POST /projects";
 const UPDATE = "PATCH /projects/{project_id}";
@@ -164,6 +167,25 @@ describe("the creation of a project", () => {
     }
     // The answer arrives, and is left to fall: nothing navigates.
     await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("tells a code another project bears at its field, naming the project by the label the refusal gives it [WF-PRJ-0010-A]", async () => {
+    // La saisie d'un code déjà porté par un autre projet est refusée.
+    serve({
+      [CREATE]: { problem: { ...(example("project_code_taken") as Problem), status: 409 } },
+    });
+    const form = await openCreation();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    const code = within(form).getByRole("textbox", { name: "Code projet" });
+    await userEvent.type(code, "PRJ-001");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(code).toHaveFocus();
+    });
+    expect(code).toHaveAccessibleDescription(
+      "Cet élément existe déjà. Déjà porté par «\u00a0Modernisation du poste de commande\u00a0».",
+    );
     expect(router.push).not.toHaveBeenCalled();
   });
 
@@ -300,14 +322,23 @@ describe("the modification of a project", () => {
     expect(client.calls[0]?.body).toMatchObject({ description: "Brouillon.", lock_version: 7 });
   });
 
-  it("freezes the probability of winning from the state in progress, saying why, and offers it before, entered as a percentage [WF-PRJ-0090-A]", async () => {
-    // La modification de la probabilité est refusée à partir de l'état En cours.
+  it("freezes the probability of winning as the project lists its command, naming the condition it lacks, and offers it before, entered as a percentage [WF-PRJ-0090-A]", async () => {
+    // La modification de la probabilité est refusée à partir de l'état En cours : the witness, in
+    // progress, lists `update_win_probability` unavailable (EP-14/L42i); the field is shown fixed,
+    // and the value is not sent.
     const client = serve();
     const progress = await openModification();
-    expect(within(progress).queryByRole("textbox", { name: "Probabilité de gain (%)" })).toBeNull();
-    expect(progress).toHaveAccessibleDescription(
-      /La probabilité de gain ne se modifie plus une fois le projet en cours\./,
+    const frozen = within(progress).getByRole("textbox", { name: "Probabilité de gain (%)" });
+    expect(frozen).toHaveAttribute("readonly");
+    expect(frozen).toHaveValue("100");
+    expect(frozen).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: projet non encore en cours.",
     );
+    await userEvent.click(within(progress).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    expect(client.calls[0]?.body).not.toHaveProperty("win_probability");
     cleanup();
 
     const offer = await openModification(pricing);
@@ -317,25 +348,62 @@ describe("the modification of a project", () => {
     await userEvent.type(probability, "45");
     await userEvent.click(within(offer).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(1);
+      expect(client.calls).toHaveLength(2);
     });
-    expect(client.calls[0]?.body).toMatchObject({ win_probability: "0.45", lock_version: 2 });
+    expect(client.calls[1]?.body).toMatchObject({ win_probability: "0.45", lock_version: 2 });
   });
 
-  it("tells a code another project bears, the form open to correct it [WF-PRJ-0010-A]", async () => {
-    // La saisie d'un code déjà porté par un autre projet est refusée.
+  it("tells under the form the probability of winning frozen meanwhile, naming the condition it lacks [WF-PRJ-0090-A]", async () => {
+    // La modification de la probabilité est refusée à partir de l'état En cours : the offer read in
+    // pricing, the project passed in progress meanwhile, and the server refuses by the condition.
+    serve({
+      [UPDATE]: {
+        problem: { ...(example("project_win_probability_frozen") as Problem), status: 409 },
+      },
+    });
+    const form = await openModification(pricing);
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "L’état actuel ne permet pas cette opération. Condition non remplie : projet non encore en cours.",
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says at each rate the bound it crosses, in percentages as the field enters it, the first refused taking the focus", async () => {
+    // The probability sent at 40 % — refused above 100 — and the inflation under 0 (EP-14/L42i).
+    serve({
+      [UPDATE]: { problem: { ...(example("project_rates_out_of_range") as Problem), status: 422 } },
+    });
+    const form = await openModification(pricing);
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    const inflation = within(form).getByRole("textbox", { name: "Taux d’inflation annuel (%)" });
+    await vi.waitFor(() => {
+      expect(inflation).toHaveFocus();
+    });
+    expect(inflation).toHaveAccessibleDescription(
+      "La valeur sort des limites admises. Valeur minimale\u00a0: 0.",
+    );
+    expect(
+      within(form).getByRole("textbox", { name: "Probabilité de gain (%)" }),
+    ).toHaveAccessibleDescription(
+      "La valeur sort des limites admises. Valeur maximale\u00a0: 100.",
+    );
+    expect(within(form).queryByRole("alert")).toBeNull();
+  });
+
+  it("tells a code another project bears, the holder named generically when the refusal gives no label, the form open to correct it", async () => {
+    // The refusal of the contract (`project_code_taken`) without the label of the project that bears
+    // the code: a fallback held for robustness, should a server leave it out.
+    const taken = example("project_code_taken") as Problem;
     serve({
       [UPDATE]: {
         problem: {
-          code: "ALREADY_EXISTS",
+          ...taken,
           status: 409,
-          fields: [
-            {
-              pointer: "/code",
-              code: "ALREADY_EXISTS",
-              params: { conflicting_object_id: pricing.project_id },
-            },
-          ],
+          fields: (taken.fields ?? []).map(({ params, ...field }) => ({
+            ...field,
+            params: { conflicting_object_id: params?.conflicting_object_id },
+          })),
         },
       },
     });
@@ -344,8 +412,8 @@ describe("the modification of a project", () => {
     await userEvent.clear(code);
     await userEvent.type(code, "PRJ-002");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-    // Said at its field (EP-02/L42g), which takes the focus — the holder named generically, the
-    // screen not showing the other projects —; nothing is shown as written, and the code typed stays
+    // Said at its field (EP-02/L42g), which takes the focus — the holder named generically, neither
+    // the screen nor the refusal naming it —; nothing is shown as written, and the code typed stays
     // to be corrected.
     await vi.waitFor(() => {
       expect(code).toHaveFocus();
@@ -358,6 +426,38 @@ describe("the modification of a project", () => {
     // Said at its field, the refusal is not told again under the form.
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("closes on an answer only the opening of the form it was sent from: a late answer shows, and leaves the dialog opened anew open (#660)", async () => {
+    const settles: (() => void)[] = [];
+    const until = new Promise<void>((settle) => {
+      settles.push(settle);
+    });
+    const client = serve({}, { hold: () => until });
+    render(inFrench(<ProjectIdentity project={witness} />));
+    const name = `Modifier «\u00a0${witness.label}\u00a0»`;
+    await userEvent.click(screen.getByRole("button", { name: "Modifier le projet" }));
+    await userEvent.click(within(dialog(name)).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    // Closed while the modification is held, then opened anew.
+    await userEvent.click(within(dialog(name)).getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Modifier le projet" }));
+    expect(dialog(name)).toBeInTheDocument();
+    for (const settle of settles) {
+      settle();
+    }
+    // The answer is shown, and the dialog opened anew stays.
+    await vi.waitFor(() => {
+      expect(screen.getByLabelText("Paramètres du projet")).toHaveTextContent(
+        "Remplacement des automates et de la supervision du poste de commande.",
+      );
+    });
+    expect(dialog(name)).toBeInTheDocument();
   });
 
   it("says the version stale under the form, and offers to read the page anew", async () => {

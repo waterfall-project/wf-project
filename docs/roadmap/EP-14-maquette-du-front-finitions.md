@@ -482,6 +482,35 @@ phrase de la note de L42i qui disait qu'un tel sous-projet se supprime est mise 
 change pas : l'écran des sous-projets, et sa variante « SP-ESS » déchargée, que la citation garde
 désormais indisponible, reviennent à L44e.
 
+EP-14/L44e (#636), lot technique, fait lire aux écrans du projet ce que L42i a écrit au contrat. Le
+cycle de vie nomme le déclencheur par `enums.LifecycleTrigger` : la liste locale et « déclencheur non
+reconnu » quittent l'écran et les catalogues, et un projet en cours ou clos, que le serveur répond sans
+prochain état ni déclencheur, le dit comme avant. Les paramètres du projet : la probabilité de gain suit
+`update_win_probability` — indisponible, le champ est montré figé, ses conditions dites sous lui, et la
+valeur n'est pas envoyée ; figée entre-temps, le 409 `STATE_FORBIDS_OPERATION` est dit sous le
+formulaire, comme le `kind` figé d'une nature —, et un taux hors de ses bornes est dit au champ, la
+borne que le serveur donne en rapport dite en pourcentage, comme le champ la saisit (`ratioPercent`) ;
+le front ne vérifie pas les bornes avant l'envoi, le serveur seul les juge. `problem.ts` lit `maximum`
+comme `minimum`, un décimal du contrat seulement, une date bornant une période restant au filtre de
+la période. Le code déjà porté, d'un projet comme d'un sous-projet, nomme son porteur par
+`conflicting_object_label` dans le formulaire partagé (`ReferenceForm`), après les noms de la liste et
+avant le repli générique. Chaque sous-projet offre la modification et la suppression qu'il liste,
+indisponibles avec leurs conditions comme les commandes des sauvegardes (`UnavailableCellCommand`) —
+la suppression d'un sous-projet qu'une révision marquée cite (`subproject_not_cited`, L42l) ou auquel
+des coûts réels sont imputés (`subproject_without_actual_costs`), et, sur un projet clos, chaque
+commande (`project_not_terminal`) —, la suppression n'étant plus déduite de `has_actual_costs` ; les
+colonnes des commandes paraissent dès que le projet liste `update`, disponible ou non, comme « Nouveau
+sous-projet » (WF-IHM-0090). Une réponse à la modification du projet ne ferme que l'ouverture du
+formulaire d'où elle est partie (#660, ajouté au lot). Les propositions de
+contributeurs disent leur nœud et leurs rôles, l'inscrit prend `is_active` du contrat, et
+`UNKNOWN_USER` et `USER_INACTIVE` sont dits à la ligne du compte, par la lecture des refus par champ
+de L44b. Les tests reprennent les exemples de refus du contrat (`project_code_taken`,
+`project_win_probability_frozen`, `project_rates_out_of_range`, `subproject_code_taken`,
+`subproject_delete_cited`, `contributors_accounts_refused`, `contributors_without_manager_refused`) ;
+la suppression éprouvée part du sous-projet créé, non cité, déchargé (`subproject_created`), et des
+variantes contrefactuelles de `subprojects`, déclarées dans le test, éprouvent une ligne sans commande
+et les commandes indisponibles d'un projet clos.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

@@ -19,11 +19,12 @@
  * `fields[]`, convention #293) is said at each field it points at, by the sentence of its code and its parameters
  * (`problemMessage`), the first field refused taking the focus — a value already held (409
  * `ALREADY_EXISTS`, `fields[]`) too, which names the object that holds it as the list shows it
- * (`names`), or generically when the list does not show it (WF-REF-0030, WF-REF-0040); any other
- * refusal — a state that forbids the write (409) with the condition it lacks, the version stale (412)
- * with the offer to read the page anew, the API out of reach, a field the form does not show — is
- * told under the form (`OutcomeNotice`), which stays open to be corrected, without what is said at the
- * fields already.
+ * (`names`), by the label the refusal gives it when the list does not show it
+ * (`conflicting_object_label`, EP-14/L42i), or generically without either (WF-REF-0030,
+ * WF-REF-0040); any other refusal — a state that forbids the write (409) with the condition it lacks,
+ * the version stale (412) with the offer to read the page anew, the API out of reach, a field the form
+ * does not show — is told under the form (`OutcomeNotice`), which stays open to be corrected, without
+ * what is said at the fields already.
  *
  * The button that sends says the write under way. The dialog may be closed meanwhile: the answer of
  * the server is handed back all the same (`onDone`), and a refusal is told above the list, on the
@@ -110,8 +111,8 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
 > {
   /**
    * What the form writes: a kind of object of the reference data, a project, a sub-project or the
-   * settings of the installation — what names the holder of a value already taken when the list does
-   * not (`takenByAnother`).
+   * settings of the installation — what names the holder of a value already taken when neither the
+   * list nor the refusal does (`takenByAnother`).
    */
   readonly kind: ListForm["kind"] | "project" | "subproject" | "settings";
   readonly title: string;
@@ -405,14 +406,18 @@ export function ReferenceForm<T = ReferenceObject>({
 
   /**
    * What holds the value a field refused as already held (`ALREADY_EXISTS`): the object, by its name
-   * in the list, or generically; nothing for any other refusal.
+   * in the list, or by the label the refusal gives it (`conflicting_object_label`) when the list does
+   * not show it — a project, a sub-project (EP-14/L42i) —, or generically; nothing for any other
+   * refusal.
    */
   const holderOf = (problem: FieldProblem | undefined) => {
     if (problem?.code !== "ALREADY_EXISTS") {
       return undefined;
     }
-    const holder = problem.params?.conflicting_object_id;
-    const name = typeof holder === "string" ? names[holder] : undefined;
+    const { conflicting_object_id: holder, conflicting_object_label: label } = problem.params ?? {};
+    const name =
+      (typeof holder === "string" ? names[holder] : undefined) ??
+      (typeof label === "string" && label !== "" ? label : undefined);
     return name === undefined ? t("takenByAnother", { kind }) : t("takenBy", { name });
   };
 

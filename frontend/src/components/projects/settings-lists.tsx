@@ -193,7 +193,7 @@ export function SubprojectList({
             <SettingsGrid
               kind="subprojects"
               rows={subprojects}
-              editable={editing?.offer?.is_available === true}
+              editable={editing?.offer !== undefined}
               query={shown.query}
               preferences={shown.preferences}
             />

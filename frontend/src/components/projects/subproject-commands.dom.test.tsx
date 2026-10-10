@@ -39,23 +39,22 @@ const UPDATE = "PATCH /projects/{project_id}/subprojects/{subproject_id}";
 const DELETE = "DELETE /projects/{project_id}/subprojects/{subproject_id}";
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 const SUBPROJECTS = example("subprojects") as Subproject[];
-// The example charges both sub-projects with actual costs, since the tasks drawn around the core
-// received their invoices (EP-14/L45a): the one a test deletes is a counterfactual variant of it,
-// « SP-ESS » relieved of its costs, its deletion listed available as the server would then list
-// it (EP-14/L42i), the rest of the example kept.
-const UNCHARGED: Subproject[] = SUBPROJECTS.map((row) =>
-  row.code === "SP-ESS"
-    ? {
-        ...row,
-        has_actual_costs: false,
-        available_commands: row.available_commands.map((each) =>
-          each.command === "delete"
-            ? { ...each, is_available: true, missing_conditions: [] }
-            : each,
-        ),
-      }
-    : row,
-);
+// Both sub-projects of the example are charged with actual costs and cited by the reference revision
+// (EP-14/L45a, L42l): none deletes. The one a test deletes is a counterfactual variant of the
+// sub-project created (`subproject_created`), « SP-REC », which no marked revision cites, relieved of
+// its costs and its deletion listed available as the server would then list it, the rest of the
+// example kept; it is listed after the two of `subprojects`.
+const CREATED = example("subproject_created") as Subproject;
+const DELETABLE: Subproject[] = [
+  ...SUBPROJECTS,
+  {
+    ...CREATED,
+    has_actual_costs: false,
+    available_commands: CREATED.available_commands.map((each) =>
+      each.command === "delete" ? { ...each, is_available: true, missing_conditions: [] } : each,
+    ),
+  },
+];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}): FakeClient {
@@ -204,14 +203,15 @@ describe("the creation and the modification of a sub-project", () => {
     await userEvent.type(code, "SP-CMD");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     // La création de deux sous-projets de même code dans un même projet est refusée.
-    // Said at its field, which takes the focus — the holder named generically (EP-02/L42g), the form
-    // not knowing the rows the list shows —; the refusal is not told again under the form.
+    // Said at its field, which takes the focus — the holder named by the label the refusal gives it
+    // (EP-14/L42i), the form not knowing the rows the list shows —; the refusal is not told again
+    // under the form.
     await vi.waitFor(() => {
       expect(code).toHaveFocus();
     });
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAccessibleDescription(
-      "Cet élément existe déjà. Déjà porté par un autre sous-projet.",
+      "Cet élément existe déjà. Déjà porté par « Poste de commande ».",
     );
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
@@ -229,21 +229,23 @@ describe("the creation and the modification of a sub-project", () => {
 });
 
 describe("the deletion of a sub-project", () => {
-  it("deletes a sub-project once confirmed, and takes its row away; cancelled, asks nothing", async () => {
+  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing", async () => {
     const client = serve();
-    render(list(AVAILABLE, UNCHARGED));
-    const command = within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" });
+    render(list(AVAILABLE, DELETABLE));
+    const command = within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" });
     await userEvent.click(command);
+    const title = "Supprimer le sous-projet « SP-REC » ?";
+    expect(screen.getByRole("dialog", { name: title })).toHaveAccessibleDescription(
+      "Le sous-projet « SP-REC », Réception sur site, sera supprimé. " +
+        "Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se " +
+        "supprime pas.",
+    );
     await userEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Supprimer le sous-projet « SP-ESS » ?" }),
-      ).getByRole("button", { name: "Annuler" }),
+      within(screen.getByRole("dialog", { name: title })).getByRole("button", { name: "Annuler" }),
     );
     expect(client.calls).toEqual([]);
     await userEvent.click(command);
-    const confirmation = screen.getByRole("dialog", {
-      name: "Supprimer le sous-projet « SP-ESS » ?",
-    });
+    const confirmation = screen.getByRole("dialog", { name: title });
     await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
@@ -251,61 +253,100 @@ describe("the deletion of a sub-project", () => {
     expect(writes(client)).toEqual([
       {
         route: DELETE,
-        path: `/projects/${PROJECT}/subprojects/01926f3a-7c00-7000-8000-000000000802`,
+        path: `/projects/${PROJECT}/subprojects/${CREATED.subproject_id}`,
         body: undefined,
       },
     ]);
-    expect(within(grid()).queryByRole("row", { name: /^SP-ESS/ })).toBeNull();
-    expect(announced()).toContain("« SP-ESS » supprimé.");
+    expect(within(grid()).queryByText("SP-REC")).toBeNull();
+    expect(announced()).toContain("« SP-REC » supprimé.");
   });
 
-  it("presents unavailable the deletion of a sub-project charged with actual costs, and asks nothing [WF-PRJ-0050-A]", async () => {
+  it("presents unavailable the deletion of a sub-project charged with actual costs and cited by a marked revision, as the row lists it, and asks nothing [WF-PRJ-0050-A]", async () => {
     const client = serve();
     render(list());
-    // La suppression d'un sous-projet portant des coûts réels est refusée.
+    // La suppression d'un sous-projet portant des coûts réels est refusée : the row lists `delete`
+    // unavailable, `subproject_not_cited` and `subproject_without_actual_costs` lacking (EP-14/L42l).
+    const unmet =
+      "Conditions non remplies : sous-projet cité par aucune révision marquée et aucun coût " +
+      "réel imputé au sous-projet.";
     const charged = within(grid()).getByRole("button", { name: "Supprimer « SP-CMD »" });
     expect(charged).toHaveAttribute("aria-disabled", "true");
-    expect(charged).toHaveAccessibleDescription("Des coûts réels lui sont imputés.");
+    expect(charged).toHaveAccessibleDescription(unmet);
     await userEvent.click(charged);
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(announced()).toContain(
-      "La suppression de « SP-CMD » est indisponible : des coûts réels lui sont imputés.",
-    );
+    expect(announced()).toContain(`Supprimer «\u00a0SP-CMD\u00a0»\u00a0: indisponible. ${unmet}`);
     expect(client.calls).toEqual([]);
   });
 
-  it("tells above the list a deletion the server refuses, naming the condition it misses", async () => {
-    // The refusal of EP-14/L42i: the command `delete` unavailable, its condition named.
+  it("tells above the list a deletion the server refuses, naming the first condition it misses", async () => {
+    // Listed available on the reading, refused by the server, a marked revision citing the
+    // sub-project meanwhile (§4.4.1, EP-14/L42l).
     serve({
-      [DELETE]: {
-        problem: {
-          code: "STATE_FORBIDS_OPERATION",
-          status: 409,
-          params: { missing_condition: "subproject_without_actual_costs" },
-        },
-      },
+      [DELETE]: { problem: { ...(example("subproject_delete_cited") as Problem), status: 409 } },
     });
-    render(list(AVAILABLE, UNCHARGED));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" }));
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
     const refusal = await screen.findByRole("alert");
     expect(refusal).toHaveTextContent(
-      "Condition non remplie : aucun coût réel imputé au sous-projet.",
+      "Condition non remplie : sous-projet cité par aucune révision marquée.",
     );
-    expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toBeInTheDocument();
+    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+  });
+});
+
+describe("the commands a sub-project lists", () => {
+  it("offers on a row only the commands it lists", () => {
+    // A counterfactual variant of the example: « SP-CMD » listing no command, the rest kept.
+    const rows: Subproject[] = SUBPROJECTS.map((row) =>
+      row.code === "SP-CMD" ? { ...row, available_commands: [] } : row,
+    );
+    serve();
+    render(list(AVAILABLE, rows));
+    // The grid has no row header: the row is the one of the code's cell.
+    const cmd = within(grid()).getByText("SP-CMD").closest("tr");
+    expect(cmd).not.toBeNull();
+    expect(within(cmd as HTMLElement).queryByRole("button")).toBeNull();
+    expect(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
   });
 });
 
 describe("the commands a project lists", () => {
-  it("presents the creation unavailable on a terminal project, naming the condition, and no command on the rows", () => {
-    serve();
-    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }));
+  it("presents on a terminal project the creation and the commands of each row unavailable, naming the conditions, and asks nothing", async () => {
+    // A counterfactual variant of the example, as the server lists the sub-projects of a terminal
+    // project: each command unavailable, `project_not_terminal` last (EP-14/L42l), the rest kept.
+    const rows: Subproject[] = SUBPROJECTS.map((row) => ({
+      ...row,
+      available_commands: row.available_commands.map((each) => ({
+        ...each,
+        is_available: false,
+        missing_conditions: [...each.missing_conditions, "project_not_terminal" as const],
+      })),
+    }));
+    const client = serve();
+    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }, rows));
     const create = screen.getByRole("button", { name: "Nouveau sous-projet" });
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
-    expect(within(grid()).queryByRole("button", { name: /Modifier|Supprimer/ })).toBeNull();
+    const modify = within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" });
+    expect(modify).toHaveAttribute("aria-disabled", "true");
+    expect(modify).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
+    const remove = within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    expect(remove).toHaveAccessibleDescription(
+      "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût " +
+        "réel imputé au sous-projet et projet non clos.",
+    );
+    await userEvent.click(modify);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(announced()).toContain(
+      `Modifier «\u00a0SP-ESS\u00a0»\u00a0: indisponible. Condition non remplie\u00a0: projet non clos.`,
+    );
+    expect(client.calls).toEqual([]);
   });
 
   it("offers nothing when the project lists no command `update`", () => {

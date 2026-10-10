@@ -939,7 +939,6 @@
     "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
     "modifyTitle": "Modify “{name}”",
     "modifyHint": "The inflation rate affects no marked revision.",
-    "modifyHintFrozen": "The inflation rate affects no marked revision. The probability of winning no longer changes once the project is in progress.",
     "label": "Label",
     "code": "Project code",
     "description": "Description",
@@ -969,8 +968,7 @@
       "deleteTitle": "Delete the subproject “{code}”?",
       "deleteHint": "The subproject “{code}”, {label}, will be deleted. One charged with actual costs, or cited by a marked revision, cannot be.",
       "deleted": "“{code}” deleted.",
-      "deleteCharged": "Actual costs are charged to it.",
-      "deleteUnavailable": "Deleting “{code}” is unavailable: actual costs are charged to it."
+      "unavailable": "{command}: unavailable. {unmet}"
     },
     "contributors": {
       "title": "Contributors",
@@ -989,6 +987,7 @@
       "withdraw": "Withdraw {name}",
       "refusedFor": "{name}: {problem}",
       "proposals": "Proposed contributors",
+      "proposedFrom": "{node}: {count, plural, one {role} other {roles}} {roles}",
       "inscribe": "Inscribe {name}",
       "suggested": "{count, plural, one {Proposed from the roles of the estimate, to be confirmed:} other {Proposed from the roles of the estimate, to be confirmed:}} {names}.",
       "saved": "List of the contributors saved."
@@ -1082,11 +1081,6 @@
     "closed": "The project is closed: no state follows it.",
     "state": "State ahead",
     "trigger": "Trigger",
-    "triggers": {
-      "first_revision_created": "First revision created",
-      "reference_designated_and_code_set": "Reference revision designated and project code filled in"
-    },
-    "unknownTrigger": "Unknown trigger",
     "conditions": "Remaining conditions",
     "noCondition": "None"
   },
@@ -1618,6 +1612,7 @@
     "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
+    "maximum": "Maximum value: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}."
