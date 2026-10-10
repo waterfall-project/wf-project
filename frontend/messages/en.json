@@ -1495,8 +1495,7 @@
       "write": "Edit access roles"
     },
     "system_status": {
-      "read": "View the system status",
-      "write": "Edit the system status"
+      "read": "View the system status"
     },
     "backups": {
       "read": "View backups",
@@ -1506,32 +1505,25 @@
       "read": "View the audit log"
     },
     "portfolio_projects": {
-      "read": "View the project portfolio",
-      "write": "Edit the project portfolio"
+      "read": "View the project portfolio"
     },
     "portfolio_workload": {
-      "read": "View the aggregated workload",
-      "write": "Edit the aggregated workload"
+      "read": "View the aggregated workload"
     },
     "portfolio_performance": {
-      "read": "View the portfolio performance",
-      "write": "Edit the portfolio performance"
+      "read": "View the portfolio performance"
     },
     "portfolio_cost_structure": {
-      "read": "View the portfolio cost structure",
-      "write": "Edit the portfolio cost structure"
+      "read": "View the portfolio cost structure"
     },
     "portfolio_risks": {
-      "read": "View the portfolio risks",
-      "write": "Edit the portfolio risks"
+      "read": "View the portfolio risks"
     },
     "portfolio_cost_curve": {
-      "read": "View the portfolio S-curve",
-      "write": "Edit the portfolio S-curve"
+      "read": "View the portfolio S-curve"
     },
     "portfolio_pilot_health": {
-      "read": "View the project control health",
-      "write": "Edit the project control health"
+      "read": "View the project control health"
     },
     "cost_settings": {
       "read": "View cost settings",

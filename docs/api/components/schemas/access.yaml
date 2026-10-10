@@ -255,8 +255,10 @@ PermissionCode:
   type: string
   description: >-
     Code du catalogue, livré et non modifiable : deux permissions par fonction de
-    second niveau, consulter et modifier, la permission d'une fonction couvrant ses
-    sous-fonctions ; plus une permission propre par action irréversible ou
+    second niveau, consulter et modifier, sauf pour les fonctions en lecture seule — l'état du
+    système (FBS-1.3), le journal d'audit (FBS-1.5) et les vues du portefeuille (FBS-2.1 à
+    FBS-2.7) —, qui n'ont que la permission de consulter (WF-ADM-0100, #739) ; la permission
+    d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou
     structurante — créer un projet, marquer une révision, abandonner une révision en cours,
     désigner la révision de référence, fusionner un différentiel, déclarer une sortie du
     cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la
@@ -265,9 +267,7 @@ PermissionCode:
     déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
     pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
     (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne
-    sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle
-    n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait
-    que sa permission de consulter. L'énumération est le catalogue : une permission
+    sous l'administration, FBS-1.5 « Journal d'audit ». L'énumération est le catalogue : une permission
     nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.
@@ -276,25 +276,17 @@ PermissionCode:
     - access_roles.read
     - access_roles.write
     - system_status.read
-    - system_status.write
     - backups.read
     - backups.write
     - audit_log.read
     # FBS-2 — Portefeuille.
     - portfolio_projects.read
-    - portfolio_projects.write
     - portfolio_workload.read
-    - portfolio_workload.write
     - portfolio_performance.read
-    - portfolio_performance.write
     - portfolio_cost_structure.read
-    - portfolio_cost_structure.write
     - portfolio_risks.read
-    - portfolio_risks.write
     - portfolio_cost_curve.read
-    - portfolio_cost_curve.write
     - portfolio_pilot_health.read
-    - portfolio_pilot_health.write
     # FBS-3 — Paramètres applicatifs.
     - cost_settings.read
     - cost_settings.write
