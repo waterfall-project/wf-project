@@ -14,10 +14,10 @@ import { example } from "@/test/fixtures";
 
 import { PermissionMatrix } from "./account-lists";
 import { BACKUPS_LIST, NEWEST_FIRST, readBackupFilters } from "./backup-address";
+import { BackupScheduleFacts } from "./backup-schedule";
 import {
   AlertList,
   BackupList,
-  BackupScheduleFacts,
   ComponentList,
   OperationList,
   StorageFacts,
@@ -183,7 +183,7 @@ describe("the state of the platform and its backups", () => {
         .getByRole("row", { name: /^Sauvegarde/ })
         .querySelector("time"),
     ).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
-    expect(screen.getByText("Désactivée")).toBeInTheDocument();
+    expect(screen.getByText("Suspendue")).toBeInTheDocument();
     expect(screen.getByText("7 sauvegardes conservées")).toBeInTheDocument();
     expect(screen.queryByText("Fréquence")).toBeNull();
     // A schedule suspended keeps its copy set, as it keeps its retention.

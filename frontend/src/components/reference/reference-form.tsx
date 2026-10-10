@@ -3,20 +3,24 @@
 /**
  * The form that creates or modifies an object of the reference data, in a dialog over its list
  * (EP-02/L43) — or a project, its identity and its facts (EP-02/L44a), or a sub-project of a project
- * (EP-02/L44b), or the settings of the risks or of the indicators (EP-14/L43e) —: the fields of its
- * kind, each by the pointer of the contract it writes (`code`, `capacity/monthly_hours`), a text, a
- * number, a date of planning or a choice — or a value the object lists no command to change, shown
- * fixed, read-only, and sent as it is (EP-02/L42g). A field may say a note under it, which describes
- * it: why it is fixed, or why its choices are fewer. Fields that go together — the three bounds of an
- * axis, the zones of a level of probability — are set side by side under the legend of their group
- * (`group`).
+ * (EP-02/L44b), the settings of the risks or of the indicators (EP-14/L43e), or the schedule of the
+ * backups (EP-14/L43d) —: the fields of its kind, each by the pointer of the contract it writes
+ * (`code`, `capacity/monthly_hours`), a text, a number, a whole number, a date of planning, a time of
+ * day or a choice — or a value the object lists no command to change, shown fixed, read-only, and
+ * sent as it is (EP-02/L42g). A field may say a note under it, which describes it: why it is fixed,
+ * or why its choices are fewer — or what its value means, the note following what is typed (the
+ * local time a universal one stands for). Fields that go together — the three bounds of an axis, the
+ * zones of a level of probability — are set side by side under the legend of their group (`group`).
+ * What goes with the fields without being one — the test of a location — follows them (`after`),
+ * from what the form holds.
  *
  * The form is checked here before anything is asked: a field required left empty, a number that is
  * not one in the language of the reader (`parseDecimal`), a date that is none (`isPlanningDate`), is
  * said at the field, which takes the focus; then the rules that bind fields to one another (`rules`) —
- * bounds in their order, an alert below its watch —, each broken one said at the field that breaks it,
- * as the server would point at it. The rest is the server's to judge: a refusal by field (422,
- * `fields[]`, convention #293) is said at each field it points at, by the sentence of its code and its parameters
+ * bounds in their order, an alert below its watch, a count of copies below the retention —, each
+ * broken one said at the field that breaks it, as the server would point at it. The rest is the
+ * server's to judge: a refusal by field (422, `fields[]`, convention #293) is said at each field it
+ * points at, by the sentence of its code and its parameters
  * (`problemMessage`), the first field refused taking the focus — a value already held (409
  * `ALREADY_EXISTS`, `fields[]`) too, which names the object that holds it as the list shows it
  * (`names`), by the label the refusal gives it when the list does not show it
@@ -34,7 +38,15 @@
 
 import { Plus, Save, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  type SubmitEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -71,17 +83,20 @@ export interface FormField {
   readonly name: string;
   readonly label: string;
   /**
-   * A text, a number, a whole number — a count, sent as its digits —, a date of planning, a choice,
-   * or a value shown fixed — read-only, by the text of its choice.
+   * A text, a number, a whole number — a count, sent as its digits —, a date of planning, a time of
+   * day — `HH:MM` —, a choice, or a value shown fixed — read-only, by the text of its choice.
    */
-  readonly control: "text" | "number" | "whole" | "date" | "choice" | "fixed";
+  readonly control: "text" | "number" | "whole" | "date" | "time" | "choice" | "fixed";
   readonly required?: boolean;
   /** The longest text the contract takes. */
   readonly maxLength?: number;
   /** The values a choice offers, each with its text, in their order; a fixed value shown by its own. */
   readonly choices?: readonly (readonly [string, string])[];
-  /** What is said under the field, which describes it: why it is fixed, or offers fewer choices. */
-  readonly note?: string | undefined;
+  /**
+   * What is said under the field, which describes it: why it is fixed, or offers fewer choices; or
+   * what the value typed means, said from what the form holds.
+   */
+  readonly note?: string | ((draft: Draft) => string | undefined) | undefined;
   /** The text of the choice of none — a root for the parent of a node —; « Choose… » otherwise. */
   readonly none?: string;
   /**
@@ -89,7 +104,10 @@ export interface FormField {
    * starts the name of each, which its label alone repeats from one group to the next.
    */
   readonly group?: string;
-  /** What is said of a value the field refuses as malformed, rather than the sentence of its code. */
+  /**
+   * What is said of a value the field refuses as malformed — not a number, a date or a time half
+   * entered —, rather than the sentence of its code.
+   */
   readonly invalid?: string;
 }
 
@@ -114,7 +132,7 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * settings of the installation — what names the holder of a value already taken when neither the
    * list nor the refusal does (`takenByAnother`).
    */
-  readonly kind: ListForm["kind"] | "project" | "subproject" | "settings";
+  readonly kind: ListForm["kind"] | "project" | "subproject" | "settings" | "backup_schedule";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
@@ -137,6 +155,8 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * the contract writes them: a refusal at each field that breaks one; none, and the form asks.
    */
   readonly rules?: ((values: Draft) => ReadonlyMap<string, FieldProblem>) | undefined;
+  /** What follows the fields without being one, from what the form holds: the test of a location. */
+  readonly after?: ((draft: Draft) => ReactNode) | undefined;
   /** The answer of the server as the form takes it (`ListForm.answering`). */
   readonly answering: (answer: Outcome<T>) => Outcome<T>;
   /** Take the answer of the server, the dialog open or closed. */
@@ -163,11 +183,13 @@ function numeric(
 }
 
 /**
- * A field judged before asking: its value as the contract writes it — a text trimmed, a number as the
- * contract writes it, a choice or a fixed value as it is —, or why it is refused: a date half
- * entered, which its control gives as an empty text (`badInput`) and which would otherwise leave as
- * none, a field required left empty, a number that is not one in the language of the reader
- * (`parseDecimal`), a whole number that is not digits alone, a date that is none (`isPlanningDate`).
+ * A field judged before asking: its value as the contract writes it — a text trimmed, a number as
+ * the contract writes it, a choice or a fixed value as it is —, or why it is refused: a date or a
+ * time half entered, which its control gives as an empty text (`badInput`) and which would
+ * otherwise leave as none — a time is no date, and its field says it by its own sentence
+ * (`invalid`) —, a field required left empty, a number that is not one in the language of the
+ * reader (`parseDecimal`), a whole number that is not digits alone, a date that is none
+ * (`isPlanningDate`).
  */
 function judged(
   { control, required }: FormField,
@@ -176,7 +198,7 @@ function judged(
   badInput: boolean,
 ): { readonly value: string } | { readonly code: FieldProblem["code"] } {
   const value = control === "choice" || control === "fixed" ? typed : typed.trim();
-  if (control === "date" && badInput) {
+  if ((control === "date" || control === "time") && badInput) {
     return { code: "DATE_INVALID" };
   }
   if (required === true && value === "") {
@@ -320,7 +342,7 @@ function FieldControl({
     <Input
       {...props}
       maxLength={maxLength}
-      type={control === "date" ? "date" : undefined}
+      type={control === "date" || control === "time" ? control : undefined}
       inputMode={control === "number" ? "decimal" : control === "whole" ? "numeric" : undefined}
     />
   );
@@ -335,6 +357,7 @@ export function ReferenceForm<T = ReferenceObject>({
   initial,
   ask,
   rules,
+  after,
   names = {},
   kind,
   target,
@@ -426,9 +449,10 @@ export function ReferenceForm<T = ReferenceObject>({
    * of its group first, when it has one.
    */
   const field = (
-    { name, label, control, required, maxLength, choices, none, note, invalid }: FormField,
+    { name, label, control, required, maxLength, choices, none, note: said, invalid }: FormField,
     legend?: string,
   ) => {
+    const note = typeof said === "function" ? said(draft) : said;
     const problem = problems.get(name);
     const holder = holderOf(problem);
     const own = `${id}-${name}`;
@@ -465,7 +489,8 @@ export function ReferenceForm<T = ReferenceObject>({
         )}
         {problem === undefined ? null : (
           <p id={`${own}-problem`} className="text-sm text-destructive">
-            {problem.code === "NUMBER_INVALID" && invalid !== undefined
+            {(problem.code === "NUMBER_INVALID" || problem.code === "DATE_INVALID") &&
+            invalid !== undefined
               ? invalid
               : problemMessage(problem, { locale, messages })}
           </p>
@@ -514,6 +539,7 @@ export function ReferenceForm<T = ReferenceObject>({
               </fieldset>
             ),
           )}
+          {after?.(draft)}
           <OutcomeNotice
             outcome={outcome}
             onClear={() => {

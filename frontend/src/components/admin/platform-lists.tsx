@@ -11,14 +11,11 @@
  * address asks (WF-IHM-0130, EP-14/L42h) — by period, origin, verification, marking and size —,
  * with the commands each backup lists (`available_commands`, WF-IHM-0090) — mark it to be kept or
  * no longer, download it, restore the platform from it — and, for a session that may modify the
- * backups, the command that starts one (EP-02/L43c, `backup-commands.tsx`); and their schedule and
- * retention (WF-ADM-0170), read only — its form comes with EP-14/L43d —, its time said in universal
- * time as the contract gives it, unconverted: a time of day has no date to take the offset of a zone
- * with summer time from.
+ * backups, the command that starts one (EP-02/L43c, `backup-commands.tsx`). Their schedule, their
+ * retention and its form are `backup-schedule.tsx` (EP-14/L43d).
  */
 import {
   Bell,
-  CalendarClock,
   CircleCheck,
   CircleX,
   DatabaseBackup,
@@ -72,18 +69,6 @@ type SystemStatus = components["schemas"]["SystemStatus"];
 type ComponentHealth = components["schemas"]["ComponentHealth"];
 type OperationOutcome = components["schemas"]["OperationOutcome"];
 type Alert = components["schemas"]["Alert"];
-type BackupSchedule = components["schemas"]["BackupSchedule"];
-
-/** The days of a weekly schedule, from 1, Monday, as the contract numbers them (ISO 8601). */
-const WEEKDAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const;
 
 /** Whether something holds — a component available, an operation succeeded —, by a mark and a word. */
 function Outcome({
@@ -446,55 +431,5 @@ export function BackupList({
         <RestoreOpened />
       </Reactivations>
     </BackupCommands>
-  );
-}
-
-/**
- * The schedule of the backups — off, or how often, on which day, at what time —, their retention,
- * and the copy of each scheduled backup to an external location (WF-ADM-0170): none, or the
- * location the installation declares, the folder in it and the copies kept there, suspended or
- * not. Read only: the form that sets them comes with EP-02/L43d (#519).
- */
-export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSchedule }) {
-  const t = useTranslations("admin.schedule");
-  const frequencies = useTranslations("enums.BackupSchedule.frequency");
-  const weekday =
-    schedule.frequency === "weekly" ? WEEKDAYS[(schedule.weekday ?? 0) - 1] : undefined;
-  const facts: (readonly [string, string])[] = [
-    [t("state"), schedule.is_enabled ? t("enabled") : t("disabled")],
-  ];
-  if (schedule.is_enabled) {
-    if (schedule.frequency !== undefined) {
-      facts.push([t("frequency"), frequencies(schedule.frequency)]);
-    }
-    if (weekday !== undefined) {
-      facts.push([t("weekday"), t(`weekdays.${weekday}`)]);
-    }
-    if (schedule.at_time !== undefined) {
-      facts.push([t("at"), t("universalTime", { time: schedule.at_time })]);
-    }
-  }
-  facts.push([t("retained"), t("count", { count: schedule.retained_count })]);
-  const copy = schedule.external_copy;
-  if (copy === undefined) {
-    facts.push([t("externalCopy"), t("externalCopyNone")]);
-  } else {
-    const named = { location: copy.location, path: copy.path, count: copy.retained_count };
-    facts.push([
-      t("externalCopy"),
-      copy.is_enabled ? t("externalCopyTo", named) : t("externalCopySuspended", named),
-    ]);
-  }
-  return (
-    <ReferenceSection title={t("title")} icon={CalendarClock}>
-      <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
-        {facts.map(([term, value]) => (
-          <div key={term} className="contents">
-            <dt className="text-muted-foreground">{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </ReferenceSection>
   );
 }

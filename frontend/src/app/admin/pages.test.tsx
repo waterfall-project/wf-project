@@ -152,6 +152,7 @@ beforeEach(() => {
     "GET /system/status": "system_status",
     "GET /backups": "backups",
     "GET /backup-schedule": "backup_schedule",
+    "GET /external-backup-locations": "external_backup_locations",
   };
 });
 
@@ -733,6 +734,9 @@ describe("the backups", () => {
     );
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
+    // The schedule set by its form, from the locations the installation declares (EP-14/L43d).
+    expect(buttons(page).filter((name) => name === "Modifier la planification")).toHaveLength(1);
+    expect(queriesOf("GET /external-backup-locations")).toEqual([{}]);
   });
 
   it("offer no command of the backups to a session whose backups list none, nor say the fake back keeps nothing, and no start to one that may not modify them [WF-IHM-0090-A]", async () => {
@@ -766,6 +770,8 @@ describe("the backups", () => {
     ]);
     expect(links(page)).toEqual([]);
     expect(text(page)).not.toContain("Maquette");
+    // No form of the schedule, and no reading of the locations it alone needs.
+    expect(queriesOf("GET /external-backup-locations")).toEqual([]);
   });
 
   it("present the restoration unavailable on each backup while a backup runs, as the backups list it [WF-IHM-0090-A]", async () => {
@@ -796,7 +802,7 @@ describe("the backups", () => {
   });
 
   it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
-    // The screen reads the copy the schedule sets; the form comes with EP-14/L43d.
+    // The screen reads the copy the schedule sets, by the name of its location.
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
       "Copie externe Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées",
@@ -816,7 +822,7 @@ describe("the backups", () => {
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toMatch(/Sauvegardes Sauvegarder maintenant Aucune sauvegarde\.$/);
     expect(page).not.toContain('aria-label="Sauvegardes" role="grid"');
-    expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
+    expect(buttons(page)).toEqual(["Modifier la planification", "Sauvegarder maintenant"]);
     const narrowed = rendered(await BackupsPage(searched({ origins: "manual" })));
     expect(text(narrowed)).not.toContain("Aucune sauvegarde.");
     expect(narrowed).toContain('aria-label="Filtrer par déclenchement"');
