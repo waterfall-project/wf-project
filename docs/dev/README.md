@@ -1697,7 +1697,8 @@ au serveur de Next comme le royaume `waterfall` — code à usage unique pour so
 de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui.
 `make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
 refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
-reste — le jeton de déconnexion que Keycloak poste au front, `refresh_expires_in` — revient aux
+jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
+(`frontend/e2e/service/session.spec.ts`) ; le reste — `refresh_expires_in` — revient aux
 parcours contre le service d'US-0350/L5.
 
 ### Un parcours de bout en bout
@@ -1746,17 +1747,36 @@ celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.i
 (`WATERFALL_FRONT_BACKCHANNEL`) ; puis Prism en mandataire entre le front et l'API
 (`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
 `WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
-`docs/api/waterfall.proxy.json` : une réponse hors de son schéma, ou d'un statut que l'opération
-ne déclare pas, devient une erreur 500 (`sl-violations`), une adresse hors du contrat un 404 de
-Prism, et le parcours échoue (WF-ARC-0060). Prism n'y exige aucun jeton : le service
-authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin Playwright avec
-`E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire), `WATERFALL_KEYCLOAK_ADDRESS`,
-`WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (le Redis de la plateforme) et
-`NODE_EXTRA_CA_CERTS` (la racine de l'autorité du frontal de Keycloak) ; le secret du client du
-front vient de l'environnement. La plateforme reste démarrée : `make service-down` l'arrête.
-Tant que l'amorçage (US-0420) n'existe pas, le compte qui se connecte est la personne de
-l'annuaire de test, `dominique.annuaire@waterfall.test` (`deploy/keycloak/development/`), que
+`docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
+(`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors
+du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n'y exige aucun
+jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
+Playwright avec `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
+`E2E_CONTRACT_PROXY` (son conteneur), `WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
+`WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
+l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur
+de Keycloak, viennent de l'environnement. La plateforme reste démarrée : `make service-down`
+l'arrête. Tant que l'amorçage (US-0420) n'existe pas, le compte qui se connecte est la personne
+de l'annuaire de test, `dominique.annuaire@waterfall.test` (`deploy/keycloak/development/`), que
 l'API admet sans rôle à sa première requête (WF-ADM-0180).
+
+Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
+le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
+royaume —, et à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
+retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
+(`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
+l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
+l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
+(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire écrit pendant
+chaque parcours, et le fait échouer sur toute erreur de Prism (WF-ARC-0060). Un statut que
+l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+`sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
+aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
+tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
+(#726). Le parcours de la connexion s'y joue (`session.spec.ts`) : se connecter, se déconnecter,
+aucun jeton dans le navigateur, et la fermeture des sessions par le royaume, que le canal de retour
+porte au front sur chacun des postes ; ce dernier ferme les sessions par l'API d'administration de
+Keycloak, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
@@ -1813,7 +1833,9 @@ démarre que le faux back et le front construit — le harnais n'en réutilise a
 l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
 `make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
 la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
-seule, sans le serveur de développement, que pose `make e2e-measure` ; absente, le tout. Sans
+seule, sans le serveur de développement, que pose `make e2e-measure` ; `service`, les parcours
+contre le service seuls, que pose `make e2e-service` et qui exige `WATERFALL_API_ADDRESS` ;
+absente, le tout, sans les parcours contre le service. Sans
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 

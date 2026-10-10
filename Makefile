@@ -354,7 +354,9 @@ e2e-service: install-front ## End-to-end paths of the project `service` against 
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@$(PNPM) exec env WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) \
+	@proxy=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+		$(PNPM) exec env WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) \
+		E2E_CONTRACT_PROXY=$$proxy \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) \

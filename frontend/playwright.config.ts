@@ -27,6 +27,12 @@
  * measure, depending on all of them, would otherwise drag every one into each part —, with no
  * production build; `measure`, the measure alone, with no development server, a runner to
  * itself. Unset, the whole harness: the paths, then the measure.
+ *
+ * `service` plays the paths of `e2e/service/` alone (US-0340), which the others leave out:
+ * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
+ * (`make e2e-service`), with the real authentication — no fixed token —, and the development
+ * server listening on every interface, so that Keycloak reaches its back channel from its
+ * container (#681).
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
@@ -60,10 +66,10 @@ const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
 // authentication stands.
 const AUTHENTICATION =
   NAMED_API === undefined ? { WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" } : {};
-const PARTS = ["paths", "measure"] as const;
+const PARTS = ["paths", "measure", "service"] as const;
 type Part = (typeof PARTS)[number];
 
-/** The half of the harness the environment names, or the whole of it; anything else refused. */
+/** The part of the harness the environment names, or the whole of it; anything else refused. */
 function part(): Part | undefined {
   const named = process.env.E2E_PART;
   if (named === undefined || named === "") {
@@ -77,11 +83,17 @@ function part(): Part | undefined {
 }
 
 const PART = part();
-const PLAYS_PATHS = PART !== "measure";
-const PLAYS_MEASURE = PART !== "paths";
+const PLAYS_SERVICE = PART === "service";
+const PLAYS_PATHS = PART === undefined || PART === "paths";
+const PLAYS_MEASURE = PART === undefined || PART === "measure";
+if (PLAYS_SERVICE && NAMED_API === undefined) {
+  throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
+}
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
+// The paths against the real service, which need its platform: `make e2e-service` alone plays them.
+const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 const onWorkstation = process.env.CI === undefined;
 
 /** The fake back, started on the port of the harness — unless the environment names an API. */
@@ -109,8 +121,24 @@ function pathProjects(): Project[] {
   return [
     {
       name: "chromium",
-      testIgnore: MEASURES,
+      testIgnore: [MEASURES, SERVICE_PATHS],
       use: { ...devices["Desktop Chrome"], locale: "fr-FR" },
+    },
+  ];
+}
+
+/** The paths against the real service, in a French browser — when they are the part played. */
+function serviceProjects(): Project[] {
+  if (!PLAYS_SERVICE) {
+    return [];
+  }
+  return [
+    {
+      name: "service",
+      testMatch: SERVICE_PATHS,
+      // Keycloak's front end answers with a certificate of its own local authority (#680), which
+      // the server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
+      use: { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true },
     },
   ];
 }
@@ -135,12 +163,15 @@ function measureProjects(): Project[] {
 
 /** The development server the paths play against — unless the measure is played alone. */
 function developmentServer(): WebServer[] {
-  if (!PLAYS_PATHS) {
+  if (!PLAYS_PATHS && !PLAYS_SERVICE) {
     return [];
   }
+  // Against the service, on every interface: Keycloak posts to the back channel of the front from
+  // its container, through the address of the workstation (`host.docker.internal`).
+  const hostname = PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1";
   return [
     {
-      command: `pnpm dev --hostname 127.0.0.1 --port ${String(FRONT_PORT)}`,
+      command: `pnpm dev --hostname ${hostname} --port ${String(FRONT_PORT)}`,
       url: FRONT,
       env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
       reuseExistingServer: false,
@@ -174,12 +205,16 @@ function productionServer(): WebServer[] {
 
 export default defineConfig({
   testDir: "e2e",
+  // The paths against the service sign in as one account, the person of the test directory, until
+  // the bootstrap gives them others (US-0420): one closing its sessions closes them all. They run
+  // one after the other.
+  ...(PLAYS_SERVICE ? { workers: 1 } : {}),
   forbidOnly: !onWorkstation,
   retries: 0,
   reporter: [["list"]],
   use: { baseURL: FRONT, trace: "retain-on-failure" },
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
-  projects: [...pathProjects(), ...measureProjects()],
+  projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
   webServer: [...fakeBack(), ...developmentServer(), ...productionServer()],
 });
