@@ -20,6 +20,14 @@
         ]
       },
       {
+        "command": "update_win_probability",
+        "is_available": false,
+        "missing_conditions": [
+          "project_before_in_progress",
+          "project_not_terminal"
+        ]
+      },
+      {
         "command": "manage_contributors",
         "is_available": false,
         "missing_conditions": [

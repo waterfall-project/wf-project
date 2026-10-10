@@ -1300,7 +1300,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier les paramètres d'un projet
-         * @description Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée (WF-PRJ-0040).
+         * @description Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet terminal (WF-CYC-0100), comme la commande `update` du projet le dit d'avance. La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) : la commande `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par champ (422) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée (WF-PRJ-0040). L'un et l'autre sont des rapports de `0` à `1`, hors desquels la valeur est refusée par champ (422).
          */
         patch: operations["updateProject"];
         trace?: never;
@@ -1334,7 +1334,7 @@ export interface paths {
         };
         /**
          * Prochain état, déclencheur et conditions restantes
-         * @description Consultable à tout moment avant En cours, sans avoir tenté d'action (WF-CYC-0050). Les transitions vers Chiffrage et En cours ne sont jamais des commandes (WF-CYC-0020).
+         * @description Consultable à tout moment avant En cours, sans avoir tenté d'action (WF-CYC-0050) : le prochain état, le fait qui y mène (`LifecycleTrigger`) et, une par une, les conditions qui restent. Les transitions vers Chiffrage et En cours ne sont jamais des commandes (WF-CYC-0020). D'un projet en cours ou dans un état terminal, l'opération répond 200 : le prochain état et le déclencheur nuls, aucune condition — aucun fait ne le mène plus loin, et les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060).
          */
         get: operations["getProjectNextState"];
         put?: never;
@@ -1398,13 +1398,13 @@ export interface paths {
         };
         /**
          * Sous-projets
-         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets par projet.
+         * @description Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050), chacun avec ses commandes (`Subproject.available_commands`, WF-IHM-0090). Une table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060, WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets par projet.
          */
         get: operations["listSubprojects"];
         put?: never;
         /**
          * Créer un sous-projet
-         * @description Un sous-projet du projet courant (WF-PRJ-0050).
+         * @description Un sous-projet du projet courant (WF-PRJ-0050), par la commande `update` du projet, réservée à ses chefs de projet (WF-PRJ-0060). Les lignes de coût réel qui portaient déjà son code lui sont imputées aussitôt (WF-CRE-0020) : la réponse le dit (`has_actual_costs`).
          */
         post: operations["createSubproject"];
         delete?: never;
@@ -1425,14 +1425,14 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un sous-projet
-         * @description Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050) ou qu'une révision marquée le référence, auquel cas il est conservé et marqué supprimé (WF-DAT-0080).
+         * @description Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite est conservé et marqué supprimé : la révision l'affiche toujours, la saisie ne le propose plus (WF-DAT-0080) ; un sous-projet qu'aucune ne cite est retiré. L'un et l'autre répondent 204.
          */
         delete: operations["deleteSubproject"];
         options?: never;
         head?: never;
         /**
          * Modifier un sous-projet
-         * @description Un sous-projet du projet courant (WF-PRJ-0050).
+         * @description Un sous-projet du projet courant (WF-PRJ-0050), comme sa commande `update` le dit (`Subproject.available_commands`) : son code et son libellé, à tout moment, coûts réels imputés ou non.
          */
         patch: operations["updateSubproject"];
         trace?: never;
@@ -1451,7 +1451,7 @@ export interface paths {
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ; un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte que l'installation n'a pas, ou un compte désactivé inscrit ou changé de qualité, l'est par 422, `fields` désignant le compte à sa ligne (`/contributors/<n>/user_id`) par `UNKNOWN_USER` ou `USER_INACTIVE` — un contributeur désactivé depuis son inscription reste dans la liste, tel qu'il a été lu (WF-ADM-0060). Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ; un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
          */
         put: operations["setContributors"];
         post?: never;
@@ -1470,7 +1470,7 @@ export interface paths {
         };
         /**
          * Contributeurs proposés
-         * @description Proposés d'après les nœuds d'organisation des rôles employés par le planning ; jamais appliqués sans confirmation (WF-PRJ-0070).
+         * @description Les comptes actifs rattachés aux nœuds d'organisation des rôles de ressources employés par les lignes de devis du projet — celles de sa révision en cours, ou de sa dernière révision marquée quand il n'en a pas —, que la liste des contributeurs ne compte pas encore (WF-PRJ-0070, WF-ADM-0060) ; chacun nomme son nœud et les rôles qui le font proposer. Jamais inscrits sans confirmation : la liste s'écrit par `setContributors`.
          */
         get: operations["listContributorSuggestions"];
         put?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BACKUP_DATE_MISMATCH" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2699,7 +2699,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, ou la probabilité de gain et le taux d'inflation d'un projet, de `0` à `1`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010) et celui d'un sous-projet (WF-PRJ-0050). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -2950,10 +2950,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409.
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Une tient à un sous-projet, et le sous-projet la nomme (`Subproject.available_commands`) : `subproject_without_actual_costs` manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) ; `deleteSubproject` la nomme dans son 409. Aucune condition ne tient à la citation d'un sous-projet par une révision marquée : sa suppression aboutit, et le marque supprimé (WF-DAT-0080).
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_without_actual_costs";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3494,10 +3494,10 @@ export interface components {
          */
         PlanningDate: string;
         /**
-         * @description Commandes portées par le projet : modifier ses paramètres, ses contributeurs, ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge` (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`, `reference_revision_designated`, `no_background_task_running`), celles du risque sur le risque (`RiskCommand.declare_occurrence`) ; importer les coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un planning MS Project, un devis, un reste à engager — une commande par nature, chacune gardée par sa permission —, que l'import applique à la révision en cours et crée au besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer. La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`, WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020), et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision est en cours, la commande n'est plus listée sur le projet, mais sur elle.
+         * @description Commandes portées par le projet : modifier ses paramètres — `update` couvre le paramétrage du projet, réservé à ses chefs de projet (WF-PRJ-0060) : ses attributs (WF-PRJ-0080), son lotissement (WF-PRJ-0020) et ses sous-projets (WF-PRJ-0050), que chaque sous-projet détaille (`Subproject.available_commands`) —, et parmi eux la probabilité de gain, dont `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090) ; ses contributeurs, ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge` (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`, `reference_revision_designated`, `no_background_task_running`), celles du risque sur le risque (`RiskCommand.declare_occurrence`) ; importer les coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un planning MS Project, un devis, un reste à engager — une commande par nature, chacune gardée par sa permission —, que l'import applique à la révision en cours et crée au besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer. La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`, WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020), et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision est en cours, la commande n'est plus listée sur le projet, mais sur elle.
          * @enum {string}
          */
-        ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines" | "import_planning" | "import_estimate" | "import_remaining";
+        ProjectCommand: "update" | "update_win_probability" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines" | "import_planning" | "import_estimate" | "import_remaining";
         ProjectCommandAvailability: {
             command: components["schemas"]["ProjectCommand"];
             is_available: boolean;
@@ -3512,9 +3512,9 @@ export interface components {
             /** @description Code sous lequel l'ERP connaît le projet, unique dans l'installation et exigé pour le passage à En cours (WF-PRJ-0010). */
             code?: string | null;
             state: components["schemas"]["ProjectState"];
-            /** @description Taux d'inflation annuel, 0 par défaut (WF-PRJ-0040). */
+            /** @description Taux d'inflation annuel, 0 par défaut, modifiable à tout moment (WF-PRJ-0040) : un rapport, de `0` à `1` inclus — `0.03` pour 3 % —, hors duquel `updateProject` refuse la valeur (`VALUE_OUT_OF_RANGE`). */
             inflation_rate: components["schemas"]["Percent"];
-            /** @description Probabilité de gain, 0 par défaut, figée à partir de En cours et sans effet sur aucun calcul du projet (WF-PRJ-0090). */
+            /** @description Probabilité de gain, 0 par défaut, sans effet sur aucun calcul du projet (WF-PRJ-0090) : un rapport, de `0` à `1` inclus, hors duquel `updateProject` refuse la valeur (`VALUE_OUT_OF_RANGE`). Modifiable aux états Créé et Chiffrage, figée à partir de En cours : la commande `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress`. */
             win_probability: components["schemas"]["Percent"];
             order_received_on?: components["schemas"]["PlanningDate"] | null;
             /** @description Révision de référence, désignée une fois à la contractualisation (WF-REV-0040). */
@@ -3539,7 +3539,9 @@ export interface components {
             label?: string;
             description?: string | null;
             code?: string | null;
+            /** @description De `0` à `1` inclus, un rapport (WF-PRJ-0040). */
             inflation_rate?: components["schemas"]["Percent"];
+            /** @description De `0` à `1` inclus, un rapport ; refusée dès En cours, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress` (WF-PRJ-0090). Absente, la valeur ne change pas. */
             win_probability?: components["schemas"]["Percent"];
             order_received_on?: components["schemas"]["PlanningDate"] | null;
             lock_version: components["schemas"]["LockVersion"];
@@ -3553,12 +3555,17 @@ export interface components {
             /** @description Motif donné à la sortie manuelle qui a produit la transition (WF-CYC-0090) ; nul pour une transition automatique ou une sortie confirmée sans motif. */
             reason: string | null;
         };
-        /** @description Prochain état, son fait déclencheur et les conditions restantes, consultables à tout moment avant En cours (WF-CYC-0050). */
+        /**
+         * @description Les deux faits déclencheurs des transitions automatiques du cycle de vie, et aucun autre (WF-CYC-0020) : la création de la première révision mène de Créé à Chiffrage ; la désignation de la révision de référence et la saisie du code projet, dans n'importe quel ordre, mènent de Chiffrage à En cours (WF-CYC-0030). Rendus par le front dans la langue du lecteur (WF-ARC-0110).
+         * @enum {string}
+         */
+        LifecycleTrigger: "first_revision_created" | "reference_designated_and_code_set";
+        /** @description Prochain état, son fait déclencheur et les conditions restantes, consultables à tout moment avant En cours (WF-CYC-0050). D'un projet en cours ou dans un état terminal, qu'aucun fait ne mène plus loin : le prochain état et le déclencheur nuls, aucune condition — les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060), pas un prochain état. */
         NextState: {
             current_state: components["schemas"]["ProjectState"];
             next_state: components["schemas"]["ProjectState"] | null;
-            /** @description Code du fait déclencheur, rendu par le front (WF-ARC-0110). */
-            trigger: string | null;
+            /** @description Le fait qui mènera au prochain état, nul avec lui (WF-CYC-0050). */
+            trigger: components["schemas"]["LifecycleTrigger"] | null;
             /** @description Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050). */
             missing_conditions: components["schemas"]["CommandCondition"][];
         };
@@ -3605,12 +3612,26 @@ export interface components {
             /** @description Le compteur du lotissement lu entier (`WorkBreakdownReading.lock_version`) ; nul — celui d'une lecture filtrée —, la saisie est refusée par 422, périmé par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050). */
+        /**
+         * @description Commandes portées par un sous-projet (WF-IHM-0090) : le modifier, par `updateSubproject`, et le supprimer, par `deleteSubproject`. La suppression est indisponible dès que des coûts réels lui sont imputés, `subproject_without_actual_costs` manquante (WF-PRJ-0050) ; qu'une révision marquée le cite ne l'empêche pas : il est alors conservé et marqué supprimé (WF-DAT-0080). Un sous-projet se crée par la commande `update` du projet.
+         * @enum {string}
+         */
+        SubprojectCommand: "update" | "delete";
+        SubprojectCommandAvailability: {
+            command: components["schemas"]["SubprojectCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050), ni dès qu'une révision marquée le cite (WF-DAT-0080) : ses commandes le disent d'avance. */
         Subproject: {
             subproject_id: components["schemas"]["Uuid"];
             code: string;
             label: string;
+            /** @description Vrai dès qu'une ligne de coût réel lui est imputée, exclue du périmètre suivi ou non (WF-CRE-0020) : la création d'un sous-projet dont des lignes portaient déjà le code le rend vrai aussitôt. */
             has_actual_costs: boolean;
+            /** @description Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            available_commands: components["schemas"]["SubprojectCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3651,12 +3672,17 @@ export interface components {
             /** @description Le compteur de la liste lue entière (`ContributorList.lock_version`) ; nul — celui d'une lecture filtrée —, la liste est refusée par 422 ; périmé, par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Proposition fondée sur les nœuds d'organisation des rôles employés par le planning ; jamais appliquée sans confirmation (WF-PRJ-0070). */
+        /** @description Un compte proposé comme contributeur : rattaché à un nœud d'organisation dont un rôle de ressources est employé par une ligne de devis du projet, et que la liste des contributeurs ne compte pas encore ; jamais inscrit sans confirmation (WF-PRJ-0070). Nomme son nœud et les rôles de ce nœud que le devis emploie, par leur identifiant et leur libellé, pour que l'écran dise pourquoi il est proposé sans relire le référentiel (WF-ARC-0020). */
         ContributorSuggestion: {
             user_id: components["schemas"]["Uuid"];
             display_name: string;
+            /** @description Toujours vrai : un compte désactivé n'est plus proposé (WF-ADM-0060), et l'inscrire serait refusé (`USER_INACTIVE`). Rendu, comme `Contributor.is_active`, pour que la proposition confirmée prenne place dans la liste telle quelle, sans que l'écran devine rien. */
+            is_active: boolean;
             org_node_id: components["schemas"]["Uuid"];
+            org_node_label: string;
             resource_role_ids: components["schemas"]["Uuid"][];
+            /** @description Les libellés des rôles, dans l'ordre de `resource_role_ids`. */
+            resource_role_labels: string[];
         };
         /** @description Chronologie nommée, à laquelle des tâches sont inscrites (WF-PLA-0140, WF-PLA-0060). */
         Timeline: {
@@ -7794,7 +7820,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte. */
+            /** @description Référentiel minimal incomplet (WF-CYC-0120) : `REFERENCE_INCOMPLETE`, `params.missing_prerequisites` nommant chaque prérequis manquant, une valeur de `ReferenceReadiness.missing` chacun. Ou un code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7803,7 +7829,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED` (WF-PRJ-0080), ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/code` plus long que le schéma ne l'admet, `VALUE_TOO_LONG`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getProject: {
@@ -7857,7 +7891,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit. */
+            /** @description Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ ; ou une commande indisponible, `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant : `project_before_in_progress` pour `/win_probability` envoyée à un projet qui a atteint En cours, figée comme sa commande `update_win_probability` le disait d'avance (WF-PRJ-0090, WF-IHM-0090) ; `project_not_terminal` sur un projet terminal (WF-CYC-0100). Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7867,7 +7901,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : `/win_probability` ou `/inflation_rate` hors de `0` à `1`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `fields[].params.maximum` la borne franchie (WF-PRJ-0040, WF-PRJ-0090) ; `/label` vide, `VALUE_REQUIRED`, ou, comme `/code`, plus long que le schéma ne l'admet, `VALUE_TOO_LONG`. Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listProjectStateTransitions: {
@@ -7905,7 +7947,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Prochain état et ce qui manque pour l'atteindre. */
+            /** @description Prochain état et ce qui manque pour l'atteindre ; nul, sans condition, pour un projet en cours ou clos. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8084,8 +8126,17 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte. */
+            /** @description Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`. Rien n'est écrit. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides, `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8107,7 +8158,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Sous-projet supprimé. */
+            /** @description Sous-projet supprimé, retiré ou marqué supprimé (WF-DAT-0080). */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -8117,7 +8168,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Sous-projet portant des coûts réels ou cité par une révision marquée. */
+            /** @description La commande `delete` est indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui lui manque — `subproject_without_actual_costs` pour un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050), `project_not_terminal` sur un projet clos (WF-CYC-0100). Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8156,7 +8207,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte ; rien n'est écrit. */
+            /** @description Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8166,6 +8217,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides, `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listContributors: {
@@ -8230,7 +8290,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060). */
+            /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, sans paramètre, WF-PRJ-0060) ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8240,7 +8300,15 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque refus : un compte que l'installation n'a pas, `/contributors/<n>/user_id` par `UNKNOWN_USER` ; un compte désactivé inscrit ou changé de qualité, `/contributors/<n>/user_id` par `USER_INACTIVE` (WF-ADM-0060) ; un compteur nul, celui d'une lecture filtrée, `/lock_version` par `VALUE_REQUIRED` (WF-IHM-0110). Rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listContributorSuggestions: {

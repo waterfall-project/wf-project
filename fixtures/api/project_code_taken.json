@@ -1,0 +1,18 @@
+{
+  "summary": "Le code PRJ-001, celui du projet témoin, donné à la rénovation du poste de livraison — à sa création comme à sa modification : refusé, le code d'un projet étant unique dans l'installation, et le projet qui le porte nommé par son identifiant et son libellé, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0010).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000001",
+          "conflicting_object_label": "Modernisation du poste de commande"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001060"
+  }
+}

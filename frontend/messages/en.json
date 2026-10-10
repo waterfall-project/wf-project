@@ -1550,10 +1550,8 @@
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
     "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
-    "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
     "TASK_ALREADY_STARTED": "The task has already started.",
     "TASK_COMPLETED": "The task is completed.",
-    "WIN_PROBABILITY_FROZEN": "The win probability can no longer be changed once the project is in progress.",
     "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
     "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
     "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
@@ -1580,6 +1578,8 @@
     "UNKNOWN_COST_TYPE": "Unknown cost type.",
     "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
+    "UNKNOWN_USER": "Unknown account.",
+    "USER_INACTIVE": "This account is deactivated.",
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
@@ -1908,6 +1908,7 @@
     },
     "ProjectCommand": {
       "update": "Edit the project",
+      "update_win_probability": "Edit the win probability",
       "manage_contributors": "Manage contributors",
       "create_revision": "Create a revision",
       "complete": "Complete the project",
@@ -1954,7 +1955,9 @@
       "last_administrator": "another active account holding the administration permissions",
       "backup_verified": "backup verified",
       "no_backup_running": "no backup running",
-      "no_restore_running": "no restoration running"
+      "no_restore_running": "no restoration running",
+      "project_before_in_progress": "project not yet in progress",
+      "subproject_without_actual_costs": "no actual cost booked against the subproject"
     },
     "ProjectExit": {
       "to_state": {
@@ -1962,6 +1965,14 @@
         "lost": "Lost",
         "abandoned": "Abandoned"
       }
+    },
+    "LifecycleTrigger": {
+      "first_revision_created": "First revision created",
+      "reference_designated_and_code_set": "Reference revision designated and project code filled in"
+    },
+    "SubprojectCommand": {
+      "update": "Edit the subproject",
+      "delete": "Delete the subproject"
     },
     "ContributorKind": {
       "project_manager": "Project manager",

@@ -3751,6 +3751,187 @@ chaque exemple contre la liste écrite à la main ; `test_mockuniverse.py` tient
 règle des périodes. Le client est régénéré ; la grille de L43c adoptera les commandes, le tri et
 les filtres en L43f, les formulaires sont à L43d et L43e.
 
+## Le projet, les sous-projets et les contributeurs : commandes, bornes et refus (EP-14/L42i)
+
+Les écarts au contrat relevés par EP-02/L44a (#590) et EP-02/L44b (#592), rangés dans #507 et
+regroupés au cadrage d'EP-14 par les écrans qui les consomment — les paramètres et le cycle de vie
+du projet, ses sous-projets et ses contributeurs —, et le point de #625 qui touche un exemple du
+sous-projet. Les décisions sont de l'agent de réalisation du lot (#612), chaque fois avec sa
+raison ; les noms que le cadrage et les issues proposaient sont arrêtés ici. Le lot ne touche au
+front que pour compiler sur le client régénéré ; l'adoption par les écrans de L44a et L44b suit.
+
+**Le déclencheur du prochain état est énuméré** (`LifecycleTrigger`, #590 ; WF-CYC-0020,
+WF-CYC-0050) : `first_revision_created` et `reference_designated_and_code_set`, les deux faits de la
+figure 8, que les exemples de L44a nommaient déjà et que le front rendait par son catalogue en
+tenant pour « non reconnu » tout autre code. `NextState.trigger` les cite, nul avec `next_state`.
+D'un projet en cours ou dans un état terminal, `getProjectNextState` répond 200, le prochain état
+et le déclencheur nuls, aucune condition — ce que `next_state` et `next_state_completed` montraient
+sans que l'opération le dise. Écartés : un 404 ou un 409, qui feraient d'une lecture un refus et
+obligeraient l'écran du cycle de vie à distinguer deux chemins pour dire « aucun fait ne mène plus
+loin » ; un troisième déclencheur pour les sorties du cycle de vie, qui sont des commandes du projet
+(WF-CYC-0060), pas un prochain état. Le catalogue reçoit `enums.LifecycleTrigger` ; l'écran de L44a,
+qui garde encore sa liste et son « déclencheur non reconnu », l'adoptera.
+
+**La probabilité de gain est dite figée d'avance** (`ProjectCommand.update_win_probability`,
+`CommandCondition.project_before_in_progress` ; #590, WF-PRJ-0090, WF-IHM-0090). Une commande du
+projet, toujours listée juste après `update`, dont elle est une part : disponible aux états Créé et
+Chiffrage, `project_before_in_progress` manquante dès En cours — `project_not_terminal` avec elle sur
+un projet clos, comme `update` la nomme (`project_completed`). La règle d'EP-02 : un objet dit ses
+commandes d'avance, et l'écran ne déduit rien de son état. Écartés : un booléen du projet
+(`is_win_probability_frozen`), qui doublerait une commande sans nommer sa condition ; garder le
+champ dans `update` seule, qui ne peut dire qu'une part de ses champs est figée ; la condition
+nommée par l'effet (`win_probability_editable`) plutôt que par le fait qui doit tenir, à la manière
+de `project_not_terminal` ; `project_in_pricing`, qui existe mais exclut Créé. La valeur envoyée
+malgré la commande est refusée comme toute commande qu'un état rend indisponible (EP-02/L42a) :
+409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress`
+(`project_win_probability_frozen`) — l'enveloppe du `kind` figé d'une nature de coût, que
+`updateCostType` refuse par `cost_type_unused` (EP-02/L42g) : un champ qu'une commande fige se refuse
+par la condition de cette commande, et le front n'a qu'une lecture pour les deux.
+`WIN_PROBABILITY_FROZEN`, qui figurait au catalogue sans qu'aucune réponse le déclare, en est retiré,
+comme `HAS_ACTUAL_COSTS`. Écartés, à la relecture : un 422 `VALIDATION_FAILED`, `fields` désignant
+`/win_probability` par `WIN_PROBABILITY_FROZEN`, que la première rédaction du lot avait retenu — il
+donnait au même fait deux enveloppes selon l'écran, et un motif par champ sans paramètre là où la
+condition existe déjà ; un 409 `WIN_PROBABILITY_FROZEN` sans paramètre, la lecture qu'autorisait
+l'ancien catalogue. Le formulaire, qui dit au champ les refus par champ, dit celui-ci en alerte, par
+`problemMessage`, comme le `kind` figé. Absente de la requête, la valeur ne change pas : c'est un
+`PATCH`. `test_mockproject.py` tient la règle en travers des exemples : tout refus de ce lot qui
+nomme une `missing_condition` est un 409 `STATE_FORBIDS_OPERATION`.
+
+**Les deux taux sont bornés** (#590 ; WF-PRJ-0040, WF-PRJ-0090) : `inflation_rate` et
+`win_probability` sont des rapports, de `0` à `1` inclus — `0.03` pour 3 %, les écrans saisissant en
+pourcentages et envoyant en rapports (L44a) —, hors desquels `updateProject` refuse la valeur par
+champ : 422 `VALIDATION_FAILED`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la
+seule borne franchie, comme la fin d'une période antérieure à son début ne porte que `minimum`.
+Écartés : contraindre `Percent` lui-même, qu'une borne de gravité de la matrice des risques dépasse
+(EP-14/L42h) ; des `minimum` et `maximum` du schéma, qu'une chaîne décimale ne porte pas. L'exemple
+(`project_rates_out_of_range`) envoie 40 — un pourcentage pour un rapport, l'erreur que l'écran
+préviendra — et -0,01.
+
+**Le porteur d'un code pris est nommé par son libellé** (`fields[].params.conflicting_object_label`,
+le compagnon de `conflicting_object_id`, le nom que #590 proposait ; #592 ; WF-PRJ-0010,
+WF-PRJ-0050), par `createProject` et `updateProject` pour le code d'un projet, `createSubproject` et
+`updateSubproject` pour celui d'un sous-projet, et la convention du README le dit. EP-02/L42g nomme
+le porteur par le seul identifiant dans le référentiel, dont les formulaires ont la liste ; ce lot
+ajoute le libellé là où le formulaire ne connaît pas la liste qui porte le code — l'accueil est
+paginé et filtré par état, la liste des sous-projets peut être lue filtrée —, et où un chef de
+projet peut ne pas avoir la permission de lire le projet qui le porte, que relire par son
+identifiant lui répondrait 404 (WF-ADM-0110). Écartés : un code propre (`PROJECT_CODE_TAKEN`), le
+motif étant celui de toute valeur unique ; rendre l'objet entier dans `params`, dont l'écran ne
+dirait que le libellé ; `label` tout court, que la première rédaction du lot avait retenu et qui ne
+disait pas de quoi il est le libellé, quand `tasks[].label` nomme déjà une tâche dans `params`.
+`project_code_taken` (PRJ-001, le code du témoin, donné à la rénovation du poste de livraison, à sa
+création comme à sa modification) et `subproject_code_taken` le montrent.
+
+**Les refus de `createProject` sont exemplifiés** (#590) : `project_reference_incomplete`, 409
+`REFERENCE_INCOMPLETE`, `params.missing_prerequisites` nommant chaque prérequis par une valeur de
+`ReferenceReadiness.missing` — une variante contrefactuelle, le référentiel du témoin étant
+complet —, et `project_creation_refused`, 422, le libellé absent (`VALUE_REQUIRED`, WF-PRJ-0080) et
+un code de cinquante-et-un caractères (`VALUE_TOO_LONG`). Les 422 de `createProject`, `updateProject`,
+`createSubproject` et `updateSubproject`, qui renvoyaient à la réponse partagée, sont décrits en place.
+
+**Chaque sous-projet porte ses commandes** (`Subproject.available_commands`, `SubprojectCommand`,
+`SubprojectCommandAvailability` ; #592, WF-IHM-0090), sur le modèle de `UserCommand` et de
+`BackupCommand` : au plus deux, dans l'ordre de l'énumération, `update` (`updateSubproject`) et
+`delete` (`deleteSubproject`). Elles suivent la commande `update` du projet : la liste est vide pour
+qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100) ;
+la création d'un sous-projet, qu'aucun sous-projet ne peut lister, suit `update` aussi. Une
+condition s'ajoute au catalogue, nommée comme ce qui doit tenir : `subproject_without_actual_costs`
+manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) — les
+deux du témoin, le Poste de commande par la facture des écrans, les essais et la mise en service par
+celles des tâches tirées depuis EP-14/L45a. Aucun exemple ne montre donc la suppression disponible,
+le témoin chargeant tous ses sous-projets : `test_mockproject.py` éprouve l'autre côté de la règle
+sur une variante construite dans le test (`has_actual_costs` faux, `delete` disponible), plutôt que
+par un exemple de plus. Elle est la seule : qu'une révision marquée cite
+un sous-projet ne fonde aucun refus. Le Vérif de WF-DAT-0080 dit que la suppression d'un sous-projet
+référencé par une révision marquée *le marque supprimé* — la révision l'affiche toujours, la saisie
+ne le propose plus — : elle aboutit, en suppression logique, et `deleteSubproject` répond 204, comme
+L42k le prévoit pour `deleteTimeline`. Le cadrage d'EP-14 et #592 portaient une
+`subproject_not_cited`, que la première rédaction du lot avait écrite ; la relecture l'a corrigée
+contre le Vérif. Si un écran veut avertir avant la suppression que la révision marquée gardera le
+sous-projet, c'est une information de lecture, pas une condition : elle n'entre pas ici, et revient à
+EP-04, qui écrit le back des projets. La modification reste disponible, coûts imputés ou non : rien ne
+l'interdit. Écartés : déduire la suppression de `has_actual_costs` dans le front, ce que L44b faisait
+faute de mieux ; un booléen de plus pour la permission, que la commande dit ; `HAS_ACTUAL_COSTS`,
+retiré du catalogue des codes : aucune réponse ne le déclarait, et le refus d'une commande qu'un état
+rend indisponible est `STATE_FORBIDS_OPERATION` (EP-02/L42a). Le 409 de `deleteSubproject` le dit,
+`params.missing_condition` nommant la condition (`subproject_delete_refused`), ou
+`project_not_terminal` sur un projet clos.
+
+**`update` couvre le paramétrage du projet, sous-projets compris** (#592, point 3 ; FBS-4.2.3,
+WF-PRJ-0050, WF-PRJ-0060) : la description de `ProjectCommand` le dit — les attributs
+(WF-PRJ-0080), le lotissement (WF-PRJ-0020) et les sous-projets (WF-PRJ-0050), que chaque sous-projet
+détaille. Écarté : `manage_subprojects`, une commande du projet de plus, qui aurait la permission, les
+porteurs et la condition d'`update` — les chefs de projet, `project_not_terminal` — et doublerait ce
+que chaque sous-projet dit déjà : une permission, une commande. `manage_contributors` reste à part,
+parce que la liste des contributeurs a son propre compteur et sa propre règle (WF-PRJ-0060).
+
+**Le sous-projet créé porte déjà des coûts** (`subproject_created`, #625 ; WF-CRE-0020) : la facture
+FA-2026-0295, « Réception du client sur site », importée sous le code SP-REC et imputée jusque-là au
+seul projet — exclue du périmètre suivi, elle n'en reste pas moins sa ligne —, lui est imputée dès
+sa création, `has_actual_costs` vrai et `delete` indisponible aussitôt. `test_mockuniverse.py`
+confronte aux lignes imputées chaque exemple qui lit ou écrit un sous-projet (`CHARGED`) : les
+listes lues, celle que répond un renommage, et le sous-projet créé — un seul tuple depuis la reprise
+d'EP-14/L45a, qui y ajoutait les siens.
+
+**Un compte inconnu ou désactivé est refusé à sa ligne** (`setContributors`, #592 ; WF-PRJ-0060,
+WF-ADM-0060) : 422 `VALIDATION_FAILED`, `fields` désignant `/contributors/<n>/user_id` par
+`UNKNOWN_USER`, pour un compte que l'installation n'a pas, ou `USER_INACTIVE`, pour un compte
+désactivé inscrit ou changé de qualité, sans paramètre : la ligne dit le compte, et le formulaire le
+nomme. Deux motifs nouveaux au catalogue, à côté d'`UNKNOWN_SUBPROJECT` et `UNKNOWN_RESOURCE_ROLE`,
+nommés comme `User.is_active` et `Contributor.is_active`. Écartés : `INACTIVE_REFERENCE_OBJECT`, un
+compte n'étant pas un objet du référentiel ; `UNKNOWN_OBJECT`, trop large pour un formulaire qui le
+dit à un champ. Un contributeur désactivé depuis son inscription reste dans la liste, tel qu'il a
+été lu, et la liste renvoyée avec lui n'est pas refusée — WF-ADM-0060 veut qu'il y reste et y soit
+signalé ; écarté : refuser toute liste qui le garde, qui obligerait à retirer Alix Moreau pour
+changer la qualité de Lucas Petit. `LAST_PROJECT_MANAGER` reste un code propre, 409 sans paramètre,
+que `contributors_without_manager_refused` montre : la liste envoyée décide, qu'aucune commande ne
+dit d'avance, comme `LAST_ADMINISTRATOR` (EP-02/L42d) ; `setContributors` nomme aussi son 409 sur un
+projet clos, `project_not_terminal`.
+
+**Une proposition nomme son nœud et ses rôles, et dit que le compte est actif**
+(`ContributorSuggestion.org_node_label`, `resource_role_labels`, `is_active` ; #592, WF-PRJ-0070,
+WF-ADM-0060) : les libellés dans l'ordre des identifiants, pour que l'écran dise pourquoi un compte
+est proposé sans relire le référentiel (WF-ARC-0020) ; `is_active` toujours vrai — un compte
+désactivé n'est plus proposé, et l'inscrire serait refusé —, rendu comme `Contributor.is_active`
+pour que la proposition confirmée prenne place dans la liste telle quelle. Écartés : le taire, ce
+qui ferait supposer à l'écran ce que le serveur sait ; emboîter un `Contributor`, dont la qualité
+n'est pas celle d'une proposition. `listContributorSuggestions` dit d'où viennent les propositions :
+les comptes actifs rattachés aux nœuds d'organisation des rôles de ressources qu'emploient les
+lignes de devis du projet, que la liste ne compte pas encore ; l'ancienne description disait « le
+planning » là où WF-PRJ-0070 nomme les lignes de devis. Quelle révision porte ces lignes — celles de
+la révision en cours, ou de la dernière révision marquée quand il n'en a pas — est une décision de ce
+lot, que ni WF-PRJ-0070 ni la conception d'EP-14 ne posent : la révision en cours est celle qu'un
+chef de projet chiffre quand il compose sa liste, et un projet sans révision en cours n'a que ses
+révisions marquées ; EP-04, qui écrit le back des projets, la confirme ou la change.
+
+**Aucune opération ne liste les candidats inscriptibles** (#592, point 5) — écarté. L'écran de L44b
+n'inscrit que les propositions, et WF-PRJ-0070 ne décrit que cela ; une opération qui ouvrirait à
+tout chef de projet le répertoire des comptes de l'installation contournerait la permission
+`users.read` (WF-ADM-0100), et celui qui la porte a `listUsers`. EP-04, qui écrit le back des
+projets, dira s'il en faut une.
+
+**Exemples.** Écrits à la main, aux corrélations 1060 à 1067 : `project_code_taken`,
+`project_reference_incomplete`, `project_creation_refused`, `project_win_probability_frozen` (la
+probabilité du témoin, en cours, ramenée à 0,8), `project_rates_out_of_range` (l'offre, en
+chiffrage), `subproject_delete_refused` (le Poste de commande), `contributors_without_manager_refused`
+(Camille Martin passée contributrice) et `contributors_accounts_refused` (Alix Moreau, désactivée,
+passée chef de projet à la deuxième ligne, et un compte inconnu à la cinquième, hors des quatre
+lignes de la liste du témoin). Chaque lecture d'un
+projet qui liste `update` liste `update_win_probability` à sa suite ; chaque lecture ou écriture d'un
+sous-projet porte ses commandes ; `contributor_suggestions` nomme l'atelier de câblage et le monteur
+câbleur ; les listes engendrées par `wftools.mocklists` en dérivent sans retouche de l'outil.
+`tools/tests/test_mockproject.py` tient chacun contre l'univers et contre le contrat : la commande qui
+suit `update` et son état, les taux dans leurs bornes, le prochain état de chaque projet, les
+commandes de chaque sous-projet d'après ses seuls coûts — et qu'aucune `CommandCondition` ne tient à
+la citation par une révision marquée —, le libellé du porteur d'un code pris, les lignes désignées
+d'une liste refusée, ce que chaque proposition nomme, et le 409 de tout refus qui nomme une
+condition. Le client est régénéré ; le front reçoit l'icône de la commande, ses catalogues
+(`enums.ProjectCommand.update_win_probability`, `enums.CommandCondition.project_before_in_progress` et
+`subproject_without_actual_costs`, `enums.LifecycleTrigger`, `enums.SubprojectCommand`,
+`errors.UNKNOWN_USER` et `USER_INACTIVE`, `HAS_ACTUAL_COSTS` et `WIN_PROBABILITY_FROZEN` retirés) et
+le test de la suppression refusée adapté au 409 nommé ; les écrans de L44a et L44b adoptent le reste
+dans un lot propre.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

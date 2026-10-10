@@ -1,10 +1,24 @@
 {
-  "summary": "Le sous-projet de la réception sur site, créé aujourd'hui sous le code SP-REC que l'ERP lui a donné ; aucun coût réel ne lui est encore imputé (WF-PRJ-0050).",
+  "summary": "Le sous-projet de la réception sur site, créé aujourd'hui sous le code SP-REC que l'ERP lui a donné : la facture FA-2026-0295, « Réception du client sur site », importée sous ce code et imputée jusque-là au seul projet, lui est imputée aussitôt (WF-CRE-0020) — exclue du périmètre suivi, elle n'en reste pas moins sa ligne —, et il ne se supprime déjà plus (WF-PRJ-0050, WF-IHM-0090).",
   "value": {
     "subproject_id": "01926f3a-7c00-7000-8000-000000000803",
     "code": "SP-REC",
     "label": "Réception sur site",
-    "has_actual_costs": false,
+    "has_actual_costs": true,
+    "available_commands": [
+      {
+        "command": "update",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "delete",
+        "is_available": false,
+        "missing_conditions": [
+          "subproject_without_actual_costs"
+        ]
+      }
+    ],
     "audit": {
       "created_at": "2026-06-03T14:05:00Z",
       "created_by": {

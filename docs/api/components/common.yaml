@@ -141,7 +141,8 @@ Problem:
         champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
         plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop
         grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
-        portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`,
+        portefeuille postérieur à la fin que le serveur a complétée, ou la probabilité de gain et
+        le taux d'inflation d'un projet, de `0` à `1`), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
@@ -160,7 +161,9 @@ Problem:
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
-        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040).
+        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
+        lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un
+        projet (WF-PRJ-0010) et celui d'un sous-projet (WF-PRJ-0050).
     fields:
       type: array
       description: >-
@@ -229,12 +232,15 @@ ErrorCode:
     # porte la permission de modifier les comptes ou les rôles d'habilitation (WF-ADM-0120) ;
     # la désactivation de ce compte, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_ADMINISTRATOR
+    # Une liste de contributeurs qui ne garderait aucun chef de projet (`setContributors`,
+    # WF-PRJ-0060) ; la suppression d'un sous-projet auquel des coûts réels sont imputés, ou
+    # qu'une révision marquée cite, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_PROJECT_MANAGER
     - ACCESS_ROLE_IN_USE
-    - HAS_ACTUAL_COSTS
     - TASK_ALREADY_STARTED
     - TASK_COMPLETED
-    - WIN_PROBABILITY_FROZEN
+    # Un projet créé alors que le référentiel minimal est incomplet ;
+    # `params.missing_prerequisites` nomme chaque prérequis (WF-CYC-0120).
     - REFERENCE_INCOMPLETE
     - PASSWORD_RESET_TOKEN_INVALID
     # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
@@ -284,6 +290,11 @@ ErrorCode:
     # Une réestimation qui termine la tâche sans la date de terminaison que la validation
     # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
+    # Un compte que l'installation n'a pas, ou un compte désactivé inscrit ou changé de qualité,
+    # dans une liste de contributeurs (`/contributors/<n>/user_id`, `setContributors`,
+    # WF-PRJ-0060, WF-ADM-0060).
+    - UNKNOWN_USER
+    - USER_INACTIVE
     # Une copie externe des sauvegardes vers un emplacement que l'installation ne déclare pas
     # (`setBackupSchedule`, `BackupExternalCopy.location`, WF-ADM-0170) ; `params.location`
     # le nomme.

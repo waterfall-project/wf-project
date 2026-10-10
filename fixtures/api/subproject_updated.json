@@ -1,10 +1,24 @@
 {
-  "summary": "Les essais et mise en service renommés aujourd'hui « Essais, mise en service et réception », leur code SP-ESS et leurs coûts réels gardés (has_actual_costs) : la version suivante de celle lue, qui ne se supprime pas plus qu'elle (WF-PRJ-0050, WF-IHM-0110).",
+  "summary": "Les essais et mise en service renommés aujourd'hui « Essais, mise en service et réception », leur code SP-ESS et leurs coûts réels gardés (has_actual_costs) : la version suivante de celle lue, ses commandes comme avant — le renommage disponible, la suppression non, la condition manquant (WF-PRJ-0050, WF-IHM-0110).",
   "value": {
     "subproject_id": "01926f3a-7c00-7000-8000-000000000802",
     "code": "SP-ESS",
     "label": "Essais, mise en service et réception",
     "has_actual_costs": true,
+    "available_commands": [
+      {
+        "command": "update",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "delete",
+        "is_available": false,
+        "missing_conditions": [
+          "subproject_without_actual_costs"
+        ]
+      }
+    ],
     "audit": {
       "created_at": "2026-01-20T10:00:00Z",
       "created_by": {

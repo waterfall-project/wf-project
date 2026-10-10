@@ -450,7 +450,7 @@ def test_a_code_taken_names_its_field_and_the_object_that_bears_it(
     for field in refused["fields"]:
         assert field["code"] == "ALREADY_EXISTS", name
         assert field["pointer"] in {"/code", "/accounting_code"}, name
-        assert list(field["params"]) == ["conflicting_object_id"], name
+        assert list(field["params"])[:1] == ["conflicting_object_id"], name
         bearer = objects[field["params"]["conflicting_object_id"]]
         # The summary says the value sent: the one the object named bears in that field.
         assert bearer[field["pointer"].removeprefix("/")] in summary, name
@@ -619,7 +619,12 @@ def test_every_value_already_taken_names_its_fields_but_the_key_of_a_path(
         assert refused["fields"], name
         for field in refused["fields"]:
             assert field["code"] == "ALREADY_EXISTS", name
-            assert list(field["params"]) == ["conflicting_object_id"], name
+            # The bearer by its identifier; by its label too for a project or a subproject, whose
+            # form does not know the list that bears it (EP-14/L42i).
+            assert list(field["params"]) in (
+                ["conflicting_object_id"],
+                ["conflicting_object_id", "conflicting_object_label"],
+            ), name
 
 
 UNIQUE = (

@@ -1,0 +1,11 @@
+{
+  "summary": "La suppression du poste de commande : refusée, la facture des écrans lui étant imputée — la condition qui manque à sa commande delete ; rien n'est écrit (WF-PRJ-0050, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "subproject_without_actual_costs"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001065"
+  }
+}

@@ -111,13 +111,29 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: >-
-          Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) :
+          Référentiel minimal incomplet (WF-CYC-0120) : `REFERENCE_INCOMPLETE`,
+          `params.missing_prerequisites` nommant chaque prérequis manquant, une valeur de
+          `ReferenceReadiness.missing` chacun. Ou un code projet déjà employé (WF-PRJ-0010) :
           `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
-          `fields[].params.conflicting_object_id` le projet qui le porte.
+          `fields[].params.conflicting_object_id` le projet qui le porte et
+          `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ.
+          Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+            examples:
+              reference_incomplete: { $ref: ../../../fixtures/api/project_reference_incomplete.json }
+              code_taken: { $ref: ../../../fixtures/api/project_code_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`
+          (WF-PRJ-0080), ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/code` plus
+          long que le schéma ne l'admet, `VALUE_TOO_LONG`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
 
 /projects/{project_id}:
   get:
@@ -151,9 +167,12 @@
     summary: Modifier les paramètres d'un projet
     description: >-
       Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet
-      terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
-      (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune
-      révision marquée (WF-PRJ-0040).
+      terminal (WF-CYC-0100), comme la commande `update` du projet le dit d'avance. La
+      probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) : la commande
+      `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par
+      champ (422) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée
+      (WF-PRJ-0040). L'un et l'autre sont des rapports de `0` à `1`, hors desquels la valeur est
+      refusée par champ (422).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -176,12 +195,31 @@
         description: >-
           Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields`
           désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet
-          qui le porte ; ou un autre conflit d'état, que `code` nomme. Rien n'est écrit.
+          qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire
+          dit au champ ; ou une commande indisponible, `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la nommant : `project_before_in_progress` pour
+          `/win_probability` envoyée à un projet qui a atteint En cours, figée comme sa commande
+          `update_win_probability` le disait d'avance (WF-PRJ-0090, WF-IHM-0090) ;
+          `project_not_terminal` sur un projet terminal (WF-CYC-0100). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/project_code_taken.json }
+              win_probability_frozen: { $ref: ../../../fixtures/api/project_win_probability_frozen.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/win_probability` ou
+          `/inflation_rate` hors de `0` à `1`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou
+          `fields[].params.maximum` la borne franchie (WF-PRJ-0040, WF-PRJ-0090) ; `/label` vide,
+          `VALUE_REQUIRED`, ou, comme `/code`, plus long que le schéma ne l'admet, `VALUE_TOO_LONG`.
+          Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              rates_out_of_range: { $ref: ../../../fixtures/api/project_rates_out_of_range.json }
 
 /projects/{project_id}/state-transitions:
   get:
@@ -216,13 +254,18 @@
     summary: Prochain état, déclencheur et conditions restantes
     description: >-
       Consultable à tout moment avant En cours, sans avoir tenté d'action
-      (WF-CYC-0050). Les transitions vers Chiffrage et En cours ne sont jamais des
-      commandes (WF-CYC-0020).
+      (WF-CYC-0050) : le prochain état, le fait qui y mène (`LifecycleTrigger`) et, une par une,
+      les conditions qui restent. Les transitions vers Chiffrage et En cours ne sont jamais des
+      commandes (WF-CYC-0020). D'un projet en cours ou dans un état terminal, l'opération répond
+      200 : le prochain état et le déclencheur nuls, aucune condition — aucun fait ne le mène plus
+      loin, et les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
       '200':
-        description: Prochain état et ce qui manque pour l'atteindre.
+        description: >-
+          Prochain état et ce qui manque pour l'atteindre ; nul, sans condition, pour un projet en
+          cours ou clos.
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/NextState }
@@ -367,7 +410,8 @@
     tags: [projects]
     summary: Sous-projets
     description: >-
-      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050). Une
+      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050), chacun
+      avec ses commandes (`Subproject.available_commands`, WF-IHM-0090). Une
       table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060,
       WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels
       se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets
@@ -415,7 +459,9 @@
     operationId: createSubproject
     summary: Créer un sous-projet
     description: >-
-      Un sous-projet du projet courant (WF-PRJ-0050).
+      Un sous-projet du projet courant (WF-PRJ-0050), par la commande `update` du projet, réservée
+      à ses chefs de projet (WF-PRJ-0060). Les lignes de coût réel qui portaient déjà son code lui
+      sont imputées aussitôt (WF-CRE-0020) : la réponse le dit (`has_actual_costs`).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -438,7 +484,18 @@
         description: >-
           Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant
           `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le
-          porte.
+          porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au
+          champ ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `project_not_terminal`. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
+          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -448,7 +505,9 @@
     operationId: updateSubproject
     summary: Modifier un sous-projet
     description: >-
-      Un sous-projet du projet courant (WF-PRJ-0050).
+      Un sous-projet du projet courant (WF-PRJ-0050), comme sa commande `update` le dit
+      (`Subproject.available_commands`) : son code et son libellé, à tout moment, coûts réels
+      imputés ou non.
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -473,34 +532,52 @@
         description: >-
           Code déjà employé par un autre sous-projet du projet (WF-PRJ-0050) : `ALREADY_EXISTS`,
           `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le sous-projet qui le porte ; rien n'est écrit.
+          le sous-projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que
+          le formulaire dit au champ ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `project_not_terminal`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
+          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
   delete:
     operationId: deleteSubproject
     tags: [projects]
     summary: Supprimer un sous-projet
     description: >-
-      Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050) ou qu'une révision
-      marquée le référence, auquel cas il est conservé et marqué supprimé (WF-DAT-0080).
+      Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050), ce que sa commande `delete` dit
+      d'avance (`Subproject.available_commands`, WF-IHM-0090) ; réservée aux chefs de projet
+      (WF-PRJ-0060). Un sous-projet qu'une révision marquée cite est conservé et marqué supprimé :
+      la révision l'affiche toujours, la saisie ne le propose plus (WF-DAT-0080) ; un sous-projet
+      qu'aucune ne cite est retiré. L'un et l'autre répondent 204.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/SubprojectId
     responses:
       '204':
-        description: Sous-projet supprimé.
+        description: Sous-projet supprimé, retiré ou marqué supprimé (WF-DAT-0080).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Sous-projet portant des coûts réels ou cité par une révision marquée.
+        description: >-
+          La commande `delete` est indisponible : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` nommant la condition qui lui manque —
+          `subproject_without_actual_costs` pour un sous-projet auquel des coûts réels sont imputés
+          (WF-PRJ-0050), `project_not_terminal` sur un projet clos (WF-CYC-0100). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
 
 /projects/{project_id}/contributors:
   get:
@@ -574,8 +651,11 @@
     description: >-
       La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
       projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
-      garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
-      inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste
+      garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte que
+      l'installation n'a pas, ou un compte désactivé inscrit ou changé de qualité, l'est par 422,
+      `fields` désignant le compte à sa ligne (`/contributors/<n>/user_id`) par `UNKNOWN_USER` ou
+      `USER_INACTIVE` — un contributeur désactivé depuis son inscription reste dans la liste, tel
+      qu'il a été lu (WF-ADM-0060). Porte le compteur de la liste
       lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ;
       un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant
       `/lock_version` par `VALUE_REQUIRED`.
@@ -601,12 +681,28 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060).
+        description: >-
+          La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, sans paramètre,
+          WF-PRJ-0060) ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `project_not_terminal`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              without_manager: { $ref: ../../../fixtures/api/contributors_without_manager_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque refus : un compte que l'installation n'a
+          pas, `/contributors/<n>/user_id` par `UNKNOWN_USER` ; un compte désactivé inscrit ou
+          changé de qualité, `/contributors/<n>/user_id` par `USER_INACTIVE` (WF-ADM-0060) ; un
+          compteur nul, celui d'une lecture filtrée, `/lock_version` par `VALUE_REQUIRED`
+          (WF-IHM-0110). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              accounts_refused: { $ref: ../../../fixtures/api/contributors_accounts_refused.json }
 
 /projects/{project_id}/contributors/suggestions:
   get:
@@ -614,8 +710,11 @@
     tags: [projects]
     summary: Contributeurs proposés
     description: >-
-      Proposés d'après les nœuds d'organisation des rôles employés par le planning ;
-      jamais appliqués sans confirmation (WF-PRJ-0070).
+      Les comptes actifs rattachés aux nœuds d'organisation des rôles de ressources employés par
+      les lignes de devis du projet — celles de sa révision en cours, ou de sa dernière révision
+      marquée quand il n'en a pas —, que la liste des contributeurs ne compte pas encore
+      (WF-PRJ-0070, WF-ADM-0060) ; chacun nomme son nœud et les rôles qui le font proposer. Jamais
+      inscrits sans confirmation : la liste s'écrit par `setContributors`.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
