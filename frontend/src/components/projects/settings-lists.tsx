@@ -160,15 +160,27 @@ export function SubprojectList({
    */
   readonly actualCosts?: boolean | undefined;
   readonly shown?: Shown<SubprojectSort>;
-  /** The project, and the command `update` it lists: absent, nothing is offered. */
-  readonly editing?: { readonly project: string; readonly offer: CommandOffer | undefined };
+  /**
+   * The project, and the command `update` it lists: absent, nothing is offered; and the revision in
+   * progress whose estimate a sub-project its estimate lines keep may be read in — none when the
+   * project has none, or when the session may not read the estimate.
+   */
+  readonly editing?: {
+    readonly project: string;
+    readonly offer: CommandOffer | undefined;
+    readonly estimated?: string | undefined;
+  };
 }) {
   const t = useTranslations("projectLists.subprojects");
   const empty =
     subprojects.length === 0 && shown.query.search === undefined && actualCosts === undefined;
   return (
     // Keyed by the project: an answer of the server never outlives its project.
-    <SubprojectCommands key={editing?.project} project={editing?.project}>
+    <SubprojectCommands
+      key={editing?.project}
+      project={editing?.project}
+      estimated={editing?.estimated}
+    >
       <ReferenceSection
         title={t("title")}
         icon={FolderTree}

@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import { CATALOGUES } from "@/i18n/catalogues";
 import { formatMoney } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -17,14 +15,28 @@ import {
   type Problem,
   unreachable,
 } from "@/test/fixtures";
-import { estimateReference } from "@/test/reference";
-
-import type { GridPreferences } from "./settings";
+import {
+  APPLY,
+  BLOCK,
+  bodies,
+  cell,
+  copied,
+  FIRST,
+  LINE,
+  LINE_4,
+  labels,
+  NODES,
+  nodes,
+  pasteOn,
+  PREVIEW,
+  READ,
+  renderGrid,
+  ROW,
+  UNKNOWN,
+} from "@/test/paste-grid";
 
 import { ROW_NUMBER_KEY } from "./columns";
-import { EstimateGrid } from "./estimate-grid";
-import type { NodeList, NodeSortColumn, NodesWritten } from "./nodes";
-import type { GridSort } from "./query";
+import type { NodeList } from "./nodes";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -38,48 +50,6 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const PREVIEW =
-  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview";
-const APPLY =
-  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste";
-const LINE =
-  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
-// The main structure of the current revision of the witness project, and its version, as
-// `listCostStructures` gives them.
-const STRUCTURE = {
-  project_id: "01926f3a-7c00-7000-8000-000000000001",
-  revision_id: "01926f3a-7c00-7000-8000-000000000102",
-  structure_id: "01926f3a-7c00-7000-8000-000000000201",
-};
-const STRUCTURE_VERSION = 1;
-const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
-
-// Twelve rows of the structure the fake back serves, from the first phase drawn after the core:
-// the phase, its lot, its first task, then its lines « Heures d'ingénierie », « Heures de mise en
-// service » and « Matériel », on which the rows applied of the examples land (`paste_applied`),
-// found by their identifiers in the examples, never by a number written here (#400).
-const volume = example("volume/nodes_thousand") as NodeList;
-const LINE_4 = (example("paste_applied") as NodesWritten).nodes[0]?.node_id ?? "";
-const FIRST = 3;
-const START = volume.items.findIndex((node) => node.node_id === LINE_4) - FIRST;
-const nodes: NodeList = { ...volume, items: volume.items.slice(START, START + 12) };
-// The number of the first line written, as the structure numbers it.
-const ROW = nodes.items[FIRST]?.row_number ?? 0;
-
-// A block of three rows and four columns — label, category, role, quantity —, as a spreadsheet
-// copies it; the same, its second row naming a category the reference does not know.
-const BLOCK = [
-  ["Heures de câblage et repérage", "Ingénierie électrique", "Ingénieur électricien", "1"],
-  ["Heures d'essais", "Mise en service", "Technicien de mise en service", "1"],
-  ["Matériel de câblage", "Matériel électrique", "", "24"],
-];
-const UNKNOWN = [BLOCK[0] ?? [], ["Heures d'essais", "Essais", "", "1"], BLOCK[2] ?? []];
-
-/** A block as the clipboard holds it: tab-separated values, each row ended. */
-function copied(block: readonly (readonly string[])[]): string {
-  return block.map((row) => `${row.join("\t")}\n`).join("");
-}
-
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   const client = fakeClient(
@@ -88,52 +58,6 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   );
   server.client = client;
   return client;
-}
-
-/** What a reading asked besides the rows, and the rows it answered. */
-interface Reading {
-  readonly nodes: NodeList;
-  readonly search?: string;
-  readonly sort?: GridSort<NodeSortColumn>;
-}
-
-/**
- * The grid of the estimate on the rows, open to entry or not, with the settings kept if any — or on
- * the rows a reading answered, searched or sorted.
- */
-function renderGrid(editable = true, preferences?: GridPreferences, reading?: Reading) {
-  const search = reading?.search;
-  return render(
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <EstimateGrid
-        filters={search === undefined ? {} : { search }}
-        nodes={reading?.nodes ?? nodes}
-        structure={STRUCTURE}
-        structureVersion={STRUCTURE_VERSION}
-        reference={estimateReference()}
-        editable={editable}
-        tasksEditable
-        query={{ sort: reading?.sort, search }}
-        preferences={preferences}
-      />
-    </NextIntlClientProvider>,
-  );
-}
-
-/** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
-function cell(row: number, column: string): HTMLElement {
-  const found = screen
-    .getByRole("treegrid", { hidden: true })
-    .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
-  if (found === null) {
-    throw new Error(`no cell ${column} in the row ${row.toString()}`);
-  }
-  return found;
-}
-
-/** The labels of the rows 4 to 6. */
-function labels(): string[] {
-  return [0, 1, 2].map((offset) => cell(FIRST + offset, "label").textContent);
 }
 
 /** The amounts at the year of reference of rows, by their index, without the mark Σ. */
@@ -152,19 +76,6 @@ function totalInflated(): string | null | undefined {
   const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
   return row?.querySelectorAll("td")[11]?.textContent;
 }
-
-/** Paste a block on a cell, as the browser hands it at the event `paste`. */
-async function pasteOn(target: HTMLElement, text: string): Promise<void> {
-  target.focus();
-  await userEvent.paste(text);
-}
-
-/** The bodies a route was called with. */
-function bodies(client: FakeClient, route: string): unknown[] {
-  return client.calls.filter((call) => call.route === route).map((call) => call.body);
-}
-
-const READ = ["Heures d'ingénierie", "Heures de mise en service", "Matériel"];
 
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
@@ -292,20 +203,17 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, PREVIEW)).toEqual([
       { target_node_id: LINE_4, target_column: "label", rows: UNKNOWN },
     ]);
-    // The row refused, by its place in the block, its reason, and its cells as copied; the
-    // report promises no write, since a refused row blocks the whole of it.
-    expect(
-      await within(dialog).findByText(
-        "2 lignes sont valides ; rien ne sera écrit tant qu’une ligne est refusée.",
-      ),
-    ).toBeVisible();
+    // The row refused, by its place in the block, its reason, and its cells as copied; the other
+    // two to be written, the confirmation writing them alone (EP-14/L42q).
+    expect(await within(dialog).findByText("2 lignes seront écrites.")).toBeVisible();
     expect(within(dialog).getByText("1 ligne est refusée :")).toBeVisible();
     const refused = within(dialog).getByRole("listitem");
     expect(refused).toHaveTextContent("Ligne 2 du bloc — Catégorie de coût inconnue.");
     expect(within(refused).getByText("Essais")).toBeVisible();
-    // A paste partly invalid is not applied: abandoning it is all the dialog offers.
-    expect(within(dialog).queryByRole("button", { name: "Appliquer le collage" })).toBeNull();
-    expect(within(dialog).getByText(/la grille reste inchangée/)).toBeVisible();
+    expect(
+      within(dialog).getByText(/^Confirmé, le collage écrit les lignes valides/),
+    ).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Appliquer le collage" })).toBeVisible();
     await expectAccessible(dialog);
 
     await userEvent.keyboard("{Escape}");
@@ -379,7 +287,10 @@ describe("a block pasted from a spreadsheet", () => {
       release = resolve;
     });
     const client = fakeClient(
-      { [PREVIEW]: ["paste_plan", "paste_plan_unknown_category"], [APPLY]: "paste_applied" },
+      {
+        [PREVIEW]: ["paste_plan", "paste_plan_unknown_category"],
+        [APPLY]: "paste_applied_partial",
+      },
       { hold: (route, index) => (route === PREVIEW && index === 0 ? held : undefined) },
     );
     server.client = client;
@@ -392,7 +303,7 @@ describe("a block pasted from a spreadsheet", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
 
     // A second block is pasted; the plan of the first arrives then: the report stays the
-    // second's — a plan that refuses a row — and never offers to apply the first's.
+    // second's — a plan that refuses a row — and its confirmation applies the second's alone.
     await pasteOn(cell(FIRST, "label"), copied(UNKNOWN));
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await within(second).findByText("1 ligne est refusée :");
@@ -401,8 +312,14 @@ describe("a block pasted from a spreadsheet", () => {
       await held;
     });
     expect(within(second).getByText("1 ligne est refusée :")).toBeVisible();
-    expect(within(second).queryByRole("button", { name: "Appliquer le collage" })).toBeNull();
+    expect(within(second).getByText("2 lignes seront écrites.")).toBeVisible();
     expect(bodies(client, APPLY)).toEqual([]);
+    await userEvent.click(within(second).getByRole("button", { name: "Appliquer le collage" }));
+    await vi.waitFor(() => {
+      expect(bodies(client, APPLY)).toEqual([
+        { paste_id: "01926f3a-7c00-7000-8000-000000000992", confirmed: true, lock_version: 1 },
+      ]);
+    });
   });
 
   it("tells nothing of a preview the server refused once it was abandoned", async () => {

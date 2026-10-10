@@ -10,10 +10,16 @@
  * lists them (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
  * `aria-disabled`, described by the conditions it lacks — a sub-project a marked revision cites
  * deletes not, `subproject_not_cited` lacking (§4.4.1), nor one charged with actual costs,
- * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor any of a terminal project,
- * `project_not_terminal` lacking —, a press saying them in the region of the list without asking
- * anything (`UnavailableCellCommand`). A deletion is confirmed first, and a refusal of the server —
- * the first condition it lacks named (409) — is told above the list.
+ * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor one estimate lines of the current
+ * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), nor any of a terminal
+ * project, `project_not_terminal` lacking —, a press saying them in the region of the list without
+ * asking anything (`UnavailableCellCommand`); a deletion that lacks the passing of the estimate lines
+ * that bear the sub-project alone, `project_not_terminal` aside, leads besides to the estimate of the
+ * revision in progress, filtered on it, where those of its main structure show (`subproject_id`) —
+ * those of another structure it does not reach —, a citation or actual costs, which no line passed
+ * lifts, leading nowhere (`leadsToEstimate`). A deletion is confirmed first, and a refusal of the
+ * server — the first condition it lacks named (409), and the lines that bear the sub-project, one by
+ * one, when they are what it lacks (`params.estimate_lines`, WF-DAT-0080) — is told above the list.
  *
  * The creation and the modification open the form of the reference data (`ReferenceForm`): the code
  * and the label, required, no longer than the contract takes; a code another sub-project bears (409
@@ -34,6 +40,7 @@
 "use client";
 
 import { PencilLine, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -65,7 +72,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { functionHref, functionOf } from "@/navigation/functions";
 
+import { leadsToEstimate } from "./estimate-lead";
 import type { Subproject } from "./settings-grids";
 
 /** The longest code and label of a sub-project the contract takes. */
@@ -82,16 +91,30 @@ interface Opened {
   readonly opening: number;
 }
 
+/** A link the region of the list offers after what it says: where to lift a condition. */
+interface Lead {
+  readonly href: string;
+  readonly text: string;
+}
+
 /** What the commands of the list hold: the project, what is open, the answers of the server. */
 interface Commands {
   readonly project: string;
+  /**
+   * The estimate of the revision in progress filtered on a sub-project, where the lines of its main
+   * structure that bear it show; none when the session may not read it, or no revision is in
+   * progress.
+   */
+  readonly estimate: (subproject: string) => string | undefined;
   readonly opened: Opened | undefined;
-  readonly said: { readonly text: string; readonly count: number } | undefined;
+  readonly said:
+    { readonly text: string; readonly count: number; readonly lead: Lead | undefined } | undefined;
   readonly answers: ReadonlyMap<string, Subproject>;
   readonly deleted: ReadonlySet<string>;
   readonly answer: (row: Subproject) => void;
   readonly remove: (id: string) => void;
-  readonly say: (text: string) => void;
+  /** Say a sentence in the region of the list, and the link that follows it, if any. */
+  readonly say: (text: string, lead?: Lead) => void;
   readonly open: (opened: Omit<Opened, "opening">) => void;
   /** Close what is open; given an opening, only if it is still the one open. */
   readonly close: (opening?: number) => void;
@@ -122,12 +145,28 @@ export function useSubprojectRows(rows: readonly Subproject[]): readonly Subproj
   }, [rows, answers, deleted]);
 }
 
+/**
+ * The estimate of a revision filtered on a sub-project (`subproject_id`), as the navigation leads
+ * to it.
+ */
+function estimateOf(project: string, revision: string, subproject: string): string | undefined {
+  return functionHref(functionOf("estimate"), {
+    projectId: project,
+    revisionId: revision,
+    revisionInPath: true,
+    parameters: new URLSearchParams({ subproject_id: subproject }),
+  });
+}
+
 /** The commands of the sub-projects of a project, for the list they hold; none without a project. */
 export function SubprojectCommands({
   project,
+  estimated,
   children,
 }: {
   readonly project: string | undefined;
+  /** The revision in progress whose estimate the session may read; none, no estimate is led to. */
+  readonly estimated?: string | undefined;
   readonly children: ReactNode;
 }) {
   const [opened, setOpened] = useState<Opened>();
@@ -142,6 +181,8 @@ export function SubprojectCommands({
         ? undefined
         : {
             project,
+            estimate: (subproject) =>
+              estimated === undefined ? undefined : estimateOf(project, estimated, subproject),
             opened,
             said,
             answers,
@@ -157,8 +198,8 @@ export function SubprojectCommands({
             remove: (id) => {
               setDeleted((before) => new Set(before).add(id));
             },
-            say: (text) => {
-              setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
+            say: (text, lead) => {
+              setSaid((before) => ({ text, count: (before?.count ?? 0) + 1, lead }));
             },
             open: (next) => {
               openings.current += 1;
@@ -170,7 +211,7 @@ export function SubprojectCommands({
               );
             },
           },
-    [project, opened, said, answers, deleted],
+    [project, estimated, opened, said, answers, deleted],
   );
   return <SubprojectContext value={commands}>{children}</SubprojectContext>;
 }
@@ -201,7 +242,16 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
   return (
     <div className="flex flex-wrap items-center gap-2">
       <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-        {said === undefined ? null : <span key={said.count}>{said.text}</span>}
+        {said === undefined ? null : (
+          <span key={said.count} className="inline-flex flex-wrap gap-x-1">
+            <span>{said.text}</span>
+            {said.lead === undefined ? null : (
+              <Link href={said.lead.href} className="font-medium text-foreground underline">
+                {said.lead.text}
+              </Link>
+            )}
+          </span>
+        )}
       </p>
       {offer === undefined ? null : (
         <>
@@ -231,16 +281,18 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
 /**
  * A command of a row the row lists unavailable, with the conditions it lacks
  * (`UnavailableCellCommand`): pressed, it says them in the region of the list, after the command
- * named by the code of the row.
+ * named by the code of the row, and offers there the link that lifts one, if any.
  */
 function UnavailableCommand({
   name,
   offer,
+  lead,
   children,
 }: {
   /** The accessible name of the command, which names the sub-project by its code. */
   readonly name: string;
   readonly offer: CommandOffer;
+  readonly lead?: Lead | undefined;
   readonly children: ReactNode;
 }) {
   const t = useTranslations("projectLists.subprojects");
@@ -250,7 +302,7 @@ function UnavailableCommand({
       name={name}
       offer={offer}
       onPress={(unmet) => {
-        commands?.say(t("unavailable", { command: name, unmet }));
+        commands?.say(t("unavailable", { command: name, unmet }), lead);
       }}
     >
       {children}
@@ -298,7 +350,9 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
 /**
  * The command that deletes a row, named after its code, as the row lists `delete`: absent, nothing;
  * unavailable, with the conditions it lacks — a marked revision that cites it (§4.4.1), actual costs
- * charged to it (WF-PRJ-0050), a terminal project; available, it opens its confirmation.
+ * charged to it (WF-PRJ-0050), estimate lines of the revision in progress that bear it, which it
+ * leads to when they alone lack (EP-14/L42q), a terminal project; available, it opens its
+ * confirmation.
  */
 export function DeleteSubproject({ row }: { readonly row: Subproject }) {
   const t = useTranslations("projectLists.subprojects");
@@ -315,8 +369,19 @@ export function DeleteSubproject({ row }: { readonly row: Subproject }) {
     return null;
   }
   if (!offer.is_available) {
+    const estimate = leadsToEstimate(offer.missing_conditions)
+      ? commands?.estimate(row.subproject_id)
+      : undefined;
     return (
-      <UnavailableCommand name={name} offer={offer}>
+      <UnavailableCommand
+        name={name}
+        offer={offer}
+        lead={
+          estimate === undefined
+            ? undefined
+            : { href: estimate, text: t("estimateLines", { code: row.code }) }
+        }
+      >
         {content}
       </UnavailableCommand>
     );

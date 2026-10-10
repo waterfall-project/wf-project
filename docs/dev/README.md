@@ -244,8 +244,22 @@ référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà 
 (`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
 par le serveur, 409 `STATE_FORBIDS_OPERATION` nommant la première condition qui manque, dit au-dessus
 de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée cite
-(`subproject_not_cited`, §4.4.1) ou auquel des coûts réels sont imputés
-(`subproject_without_actual_costs`, WF-PRJ-0050) ; l'écran n'en déduit rien de `has_actual_costs`. Les
+(`subproject_not_cited`, §4.4.1), auquel des coûts réels sont imputés
+(`subproject_without_actual_costs`, WF-PRJ-0050) ou que portent des lignes de devis de la révision en
+cours (`subproject_without_estimate_lines`, EP-14/L42q) ; l'écran n'en déduit rien de
+`has_actual_costs`. Lue indisponible faute de cette seule dernière condition — `project_not_terminal`
+mise à part —, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
+cours filtré sur le sous-projet (`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la
+liste avec ses conditions ; il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune
+ligne déplacée ne lève. Il atteint les lignes de la structure principale, jamais celles d'une autre
+structure, la structure propre d'un risque.
+Les lignes ne sont nommées une à une que lorsque le serveur refuse une suppression lue disponible
+(`params.estimate_lines`) : chacune par son numéro dans sa structure, tel que la grille le montre, et
+son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile
+(`LINES_IN_SENTENCE`, `OutcomeNotice`), et le refus rappelle qu'une ligne de provision change de
+sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une ligne
+par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas (`structure_label`,
+demandé dans #764). Les
 contributeurs, comme le projet liste `manage_contributors` (`contributor-commands.tsx`), se modifient
 en une liste entière dans un dialogue (`setContributors`) : la qualité de chacun, son retrait, et
 l'inscription, une à une, des propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070),
@@ -272,7 +286,10 @@ Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'au
 un autre objet que ceux du référentiel et saisit une date de planning). L'accueil offre « Créer un
 projet » à une session qui porte la permission de le créer (`project_create`, `platformOffer`,
 WF-ADM-0100), indisponible, décrite par le refus qu'elle rencontrerait, tant que le référentiel
-minimal est incomplet (`getReferenceReadiness`, WF-CYC-0120) ; le formulaire prend ce que
+minimal est incomplet (`getReferenceReadiness`, WF-CYC-0120) — l'accueil nomme chaque prérequis
+manquant, la catégorie de main-d'œuvre active et, depuis EP-14/L42p, la catégorie de provision pour
+risques active (`active_provision_category`) comprises, et mène aux paramètres de coûts, comme le
+refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
 `ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
 (WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
 sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
@@ -459,7 +476,10 @@ seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâch
 comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
 l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
 nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
-désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes du référentiel ne
+désactivé (`cost_category_label`, `resource_role_label`, #305) ; le sous-projet d'une ligne de
+provision, celui que son risque désigne, y est une cellule calculée, que le nœud nomme
+(`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande au serveur
+ce dont il dépend, comme ses grandeurs — les listes du référentiel ne
 servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne
 demandent les objets désactivés (`include_inactive`) qu'à une session qui porte la permission de
 lecture de leur partie du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur
@@ -562,7 +582,11 @@ gravité et la provision sont des colonnes calculées entières — aucun champ 
 (`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
 par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
 quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
-retirée à la survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la
+retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
+libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
+(`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
+(EP-14/L42p) —, historique des réexamens. L'écran ne déclare, ne modifie ni ne réexamine aucun
+risque : la maquette n'en a pas le formulaire. Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 
@@ -1182,19 +1206,31 @@ plan — une grille qui colle lit tous les genres de nœud, et ses numéros se s
 ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que
 montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
-annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
-telles que copiées et son motif ; un plan qui refuse une ligne n'annonce que des lignes valides,
-rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; ce
-qu'il rend prend la place de ce qui était lu (`CellWrites.applied`) ; une écriture de cellule
-partie avant le collage et répondue après se prend comme toute réponse, le compteur de la
-structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son refus se
-tait quand le collage a écrit sa ligne depuis. Un plan qui refuse
-une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
-arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
-contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
-la trie ou non, et la confirmation porte la version
-de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
-#201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
+annoncée — combien de lignes seront écrites, chaque ligne refusée par sa place dans le bloc, ses
+cellules telles que copiées et son motif, une ligne refusée pour plusieurs cellules comptée une
+fois —, et `applyPaste` l'applique sur confirmation, en une seule opération : les lignes valides sont
+écrites, les lignes refusées ne le sont pas (WF-IHM-0050, EP-14/L42q). Un plan qui refuse des lignes
+et en écrit d'autres le dit, et se confirme ; un plan qui n'écrit aucune ligne n'offre que
+l'abandon. Ce que la confirmation rend prend la place de ce qui était lu (`CellWrites.applied`) ; une
+écriture de cellule partie avant le collage et répondue après se prend comme toute réponse, le
+compteur de la structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son
+refus se tait quand le collage a écrit sa ligne depuis. Ce qu'elle n'a pas écrit
+(`PasteApplied.rejected`) — les refus de l'aperçu, et ceux que le serveur ajoute en jugeant de
+nouveau les lignes acceptées, une catégorie ou un rôle désactivés entre-temps — est dit au-dessus de
+la grille avec la cellule d'où le bloc a été collé et le nombre de lignes écrites
+(`PasteAppliedNotice`), chaque refus comme à l'aperçu, lu dans la réponse et jamais dans le plan,
+jusqu'à ce que l'utilisateur ferme l'avis ou colle à nouveau ; les refus y sont une région nommée,
+atteinte au clavier, dont la hauteur est bornée — ils défilent, la grille reste dans la fenêtre
+(défaut n° 13), la phrase et la fermeture hors du défilement. Un collage entièrement écrit ne dit
+rien de plus que sa grille. Échap abandonne, une
+réponse arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien
+du contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
+la trie ou non, et la confirmation porte la version de la structure lue (`structureVersion`), le
+serveur refusant par 412 un plan jugé sur une structure qui a changé depuis l'aperçu (#200, #201).
+Le faux back ne sert que le premier exemple de chaque opération, le plan qui ne refuse rien : le
+collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.dom.test.tsx`,
+`paste-dialog.dom.test.tsx`), et la hauteur réelle de l'avis ne se prouvera qu'en parcours. Une grille sans
+`paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 
 Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
 toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose (`undoable`
@@ -1209,7 +1245,9 @@ elles restent atteignables au clavier, `aria-disabled`, décrites par leur raiso
 dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une cellule, la
 recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
 `undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
-navigateur.
+navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
+annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
+(EP-14/L42p).
 
 Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
 (WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont

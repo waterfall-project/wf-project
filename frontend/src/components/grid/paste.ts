@@ -22,10 +22,13 @@
  * (`unshownRows`, L40, #527). Otherwise the server says what it
  * would write and refuse, with the reason of each refusal, and writes nothing (`GridPaste.preview`);
  * the grid shows that plan, and applies it once confirmed, in one operation (`GridPaste.apply`), what
- * the server wrote taking the place of what was read (`CellWrites.applied`). A paste abandoned asks
- * nothing more, and an answer that arrives after it is dropped; a plan that refuses a row cannot be
- * applied: the grid stays as it was. The grid judges nothing of what is pasted: the server reads the
- * cells, and says why.
+ * the server wrote taking the place of what was read (`CellWrites.applied`) — its valid rows, a plan
+ * that refuses some applied all the same, the refused rows left as they were (EP-14/L42q). What the
+ * confirmation did not write — the refusals of the preview, and those the server adds judging the
+ * accepted rows again — is told with the cell the block was pasted from and the number of rows
+ * written, the refusals in a region whose height is bounded, until the next paste or until the user
+ * dismisses it (`applied`). A paste abandoned asks nothing more, and an answer that arrives after
+ * it is dropped. The grid judges nothing of what is pasted: the server reads the cells, and says why.
  *
  * A grid without `paste` in its configuration — read only — takes no paste: the browser does what
  * it does with one, and nothing is asked.
@@ -39,7 +42,14 @@ import type { Outcome } from "@/api/problem";
 import { rejected } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
-import type { ColumnName, GridColumn, GridConfig, PastedBlock, PastePlan } from "./columns";
+import type {
+  ColumnName,
+  GridColumn,
+  GridConfig,
+  PastedBlock,
+  PastePlan,
+  PasteRejection,
+} from "./columns";
 import { type CellPosition, positionOf } from "./grid-keyboard";
 
 /** A cell of a spreadsheet's copy: quoted, its quotes doubled within, or as it is. */
@@ -98,6 +108,18 @@ export interface Pasting {
   readonly target: PasteTarget;
   readonly plan: PastePlan | undefined;
   readonly applying: boolean;
+}
+
+/**
+ * What a paste confirmed did not write, told once it is applied: where the block was pasted from,
+ * how many rows the server wrote, the rows it refused, each with its reason, and the block they are
+ * rows of.
+ */
+export interface PasteReport {
+  readonly target: PasteTarget;
+  readonly written: number;
+  readonly rejected: readonly PasteRejection[];
+  readonly block: PastedBlock;
 }
 
 /** The refusal of a block wider than the grid from its cell, as the server says it. */
@@ -297,6 +319,8 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // The column the grid does not show a refused block would reach, named to the user (#200).
   const [hidden, setHidden] = useState<Unshown>();
+  // What the last paste applied did not write, told until the next one.
+  const [applied, setApplied] = useState<PasteReport>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
   // The cell the block was pasted on, which has the focus back once the report closes.
@@ -307,6 +331,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const refuse = (told: Outcome<never> | undefined, masked: Unshown | undefined) => {
     setOutcome(told);
     setHidden(masked);
+    setApplied(undefined);
   };
   /** Ask the server the plan of a block, from a row and the first column it fills. */
   const ask = (
@@ -389,9 +414,9 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   }, [paste]);
 
   /**
-   * Apply the plan shown, once: what the server wrote takes the place of what was read, and a
-   * refusal is told. The dialog stays until the server answers, and cannot be abandoned meanwhile:
-   * what is under way is written whatever happens to it.
+   * Apply the plan shown, once: what the server wrote takes the place of what was read, the rows it
+   * did not write are told, and a refusal is told. The dialog stays until the server answers, and
+   * cannot be abandoned meanwhile: what is under way is written whatever happens to it.
    */
   const apply = () => {
     const plan = pasting?.plan;
@@ -404,7 +429,18 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       .catch(rejected)
       .then((answer) => {
         if (answer.kind === "done") {
-          writes.applied(answer.data);
+          const { written, rejected: refused } = answer.data;
+          writes.applied(written);
+          setApplied(
+            refused.length === 0
+              ? undefined
+              : {
+                  target: pasting.target,
+                  written: written.rows.length,
+                  rejected: refused,
+                  block: pasting.block,
+                },
+          );
         }
         current.current += 1;
         setPasting(undefined);
@@ -417,6 +453,8 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     outcome,
     /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,
+    /** What the last paste applied did not write; none when it wrote every row. */
+    applied,
     apply,
     /** Abandon the paste shown, before it is applied: nothing more is asked, nothing written. */
     abandon: () => {
@@ -429,7 +467,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     refocus: () => {
       origin.current?.focus({ preventScroll: true });
     },
-    /** Forget the outcome told. */
+    /** Forget what was told: the refusal of a paste, or the rows one applied did not write. */
     clear: () => {
       refuse(undefined, undefined);
     },

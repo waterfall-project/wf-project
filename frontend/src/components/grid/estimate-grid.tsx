@@ -99,22 +99,26 @@ interface Moved {
 }
 
 /**
- * What the API answered a write with, as the grid of the estimate reads it; the version the
- * structure moved on to is told, for the next paste.
+ * What the API wrote, as the grid of the estimate reads it; the version the structure moved on to
+ * is told, for the next paste.
  */
+function readWritten(written: NodesWritten, moved: Moved): EstimateWritten {
+  moved.to(written.structure_lock_version);
+  return nodesWritten(written, ESTIMATE_FIELDS, moved.whole);
+}
+
+/** What the API answered a write with, as the grid of the estimate reads it. */
 function asWritten(outcome: Outcome<NodesWritten>, moved: Moved): Outcome<EstimateWritten> {
-  if (outcome.kind !== "done") {
-    return outcome;
-  }
-  moved.to(outcome.data.structure_lock_version);
-  return { kind: "done", data: nodesWritten(outcome.data, ESTIMATE_FIELDS, moved.whole) };
+  return outcome.kind === "done"
+    ? { kind: "done", data: readWritten(outcome.data, moved) }
+    : outcome;
 }
 
 /**
  * How the grid pastes a block in the structure: from the node of the active cell and its column,
  * under the name of its column in the contract (#200), the block measured on the columns of the
  * facet of the node (#223); the plan confirmed, with the version of the structure last read or
- * answered (#201).
+ * answered (#201), what it wrote read as any write, and the rows it refused kept as answered.
  */
 function structurePaste(
   structure: StructurePath,
@@ -131,15 +135,19 @@ function structurePaste(
         target_column: column,
         rows: block.map((cells) => [...cells]),
       }),
-    apply: async (plan) =>
-      asWritten(
-        await applyPaste(structure, {
-          paste_id: plan.paste_id,
-          confirmed: true,
-          lock_version: version,
-        }),
-        moved,
-      ),
+    apply: async (plan) => {
+      const outcome = await applyPaste(structure, {
+        paste_id: plan.paste_id,
+        confirmed: true,
+        lock_version: version,
+      });
+      return outcome.kind === "done"
+        ? {
+            kind: "done",
+            data: { written: readWritten(outcome.data, moved), rejected: outcome.data.rejected },
+          }
+        : outcome;
+    },
   };
 }
 

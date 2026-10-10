@@ -295,11 +295,12 @@
       "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
-      "validRows": "{count, plural, =0 {Aucune ligne n’est valide} one {# ligne est valide} other {# lignes sont valides}} ; rien ne sera écrit tant qu’une ligne est refusée.",
       "noneRejected": "Aucune ligne n’est refusée.",
+      "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
-      "blocked": "Un collage dont une ligne est refusée ne s’applique pas : la grille reste inchangée. Corrigez le bloc dans le tableur, puis collez-le à nouveau.",
+      "appliedFrom": "Collage appliqué à partir de la ligne {row}, colonne « {column} » : {count, plural, =0 {aucune ligne n’a été écrite} one {# ligne a été écrite} other {# lignes ont été écrites}}.",
+      "refusedRows": "Lignes refusées par le collage",
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
@@ -403,7 +404,10 @@
         "title": "Ligne de provision",
         "present": "Présente dans la structure principale : la provision pèse sur le devis.",
         "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent la provision.",
-        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis."
+        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis.",
+        "category": "Catégorie",
+        "subproject": "Sous-projet",
+        "outOfSubproject": "Hors sous-projet"
       },
       "reviews": {
         "title": "Historique des réexamens",
@@ -880,7 +884,8 @@
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
     "signIn": "Se connecter",
-    "dismiss": "Fermer l’avis"
+    "dismiss": "Fermer l’avis",
+    "namedLines": "Lignes de devis nommées par le refus"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
@@ -972,7 +977,8 @@
       "deleteTitle": "Supprimer le sous-projet « {code} » ?",
       "deleteHint": "Le sous-projet « {code} », {label}, sera supprimé. Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se supprime pas.",
       "deleted": "« {code} » supprimé.",
-      "unavailable": "{command} : indisponible. {unmet}"
+      "unavailable": "{command} : indisponible. {unmet}",
+      "estimateLines": "Voir au devis les lignes de la structure principale qui portent « {code} »"
     },
     "contributors": {
       "title": "Contributeurs",
@@ -1649,6 +1655,9 @@
     "missing_permission": "Permission requise : {permission}.",
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
+    "estimate_lines": "Lignes de devis de la révision en cours qui portent le sous-projet : {lines}. Une ligne de provision change de sous-projet par son risque.",
+    "estimate_lines_listed": "{count, number} lignes de devis de la révision en cours portent le sous-projet, listées ci-dessous. Une ligne de provision change de sous-projet par son risque.",
+    "estimateLine": "ligne {row} « {label} »",
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",
@@ -1935,7 +1944,7 @@
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",
-        "active_cost_category": "une catégorie de coût active",
+        "active_cost_category": "une catégorie de main-d’œuvre active",
         "active_provision_category": "une catégorie de provision pour risques active",
         "active_resource_role": "un rôle de ressource actif"
       }
@@ -2242,7 +2251,7 @@
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
       "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
-      "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "risk": "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
       "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",

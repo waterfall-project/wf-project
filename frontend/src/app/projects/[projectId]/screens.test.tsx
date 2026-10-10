@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ComponentProps, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import type { Project } from "@/components/context/reading";
 import { TransitionList } from "@/components/projects/project-tables";
 import {
   ContributorList,
@@ -113,6 +114,28 @@ function sortable(markup: string, name?: string): string[] {
     .map((header) => text(header[1] ?? ""));
 }
 
+/**
+ * The first element of a type a page hands down, its props as the page gave them — before anything
+ * renders it.
+ */
+function handed<P>(node: ReactNode, type: (props: P) => ReactNode): ReactElement<P> | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node as readonly ReactNode[]) {
+      const found = handed(child, type);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+  if (!isValidElement(node)) {
+    return undefined;
+  }
+  return node.type === type
+    ? (node as ReactElement<P>)
+    : handed((node.props as { readonly children?: ReactNode }).children, type);
+}
+
 /** The names of the buttons of a page. */
 function buttons(markup: string): string[] {
   return [...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
@@ -175,6 +198,16 @@ describe("the screen of a project", () => {
 });
 
 describe("the settings of a project", () => {
+  it("hands the sub-projects the revision in progress whose estimate a deletion leads to, the session reading the estimate (EP-14/L53)", async () => {
+    const list = handed<ComponentProps<typeof SubprojectList>>(
+      await SettingsPage(at()),
+      SubprojectList,
+    );
+    expect(list?.props.editing?.estimated).toBe(
+      (example("project") as Project).current_revision_id,
+    );
+  });
+
   it("shows the inflation rate and the probability of winning as the API gives them", async () => {
     const page = html(await SettingsPage(at()));
     expect(page.startsWith(BANNER)).toBe(true);

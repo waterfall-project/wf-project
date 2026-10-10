@@ -6,8 +6,11 @@
  * WF-IHM-0030) —, the date of its last review; its description and its mitigation notes, as the
  * user wrote them; its provision line in the main structure, present while the risk weighs on the
  * estimate, withdrawn once it occurred, the lines merged from its own estimate bearing the
- * provision (WF-RIS-0060); and the history of its reviews, from the latest, which shows how its
- * probability and its severity moved (WF-RIS-0010). Everything as the API gives it.
+ * provision (WF-RIS-0060), and the category and the sub-project the risk designates for it, by the
+ * labels the server resolves — the category said deactivated when it or its nature is
+ * (`provision_cost_category_is_active`), the provision out of any sub-project when it designates
+ * none (WF-RIS-0010, EP-14/L42p); and the history of its reviews, from the latest, which shows how
+ * its probability and its severity moved (WF-RIS-0010). Everything as the API gives it.
  */
 import { FileMinus, FileText, History, ShieldAlert } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -54,20 +57,33 @@ function Note({ name, text }: { readonly name: string; readonly text: string | n
 
 /**
  * Where the provision line of the risk stands in the main structure: there while the API names it;
- * withdrawn at the occurrence of the risk (WF-RIS-0060); absent otherwise.
+ * withdrawn at the occurrence of the risk (WF-RIS-0060); absent otherwise. Then the category and the
+ * sub-project the risk designates for it, which it keeps whatever its state.
  */
 function ProvisionLine({ risk }: { readonly risk: Risk }) {
   const t = useTranslations("risks.detail.provisionLine");
+  const form = useTranslations("reference.form");
   const present = risk.provision_node_id !== null && risk.provision_node_id !== undefined;
   const Icon = present ? FileText : FileMinus;
   const said = present ? "present" : risk.state === "occurred" ? "withdrawn" : "absent";
+  const category = risk.provision_cost_category_label;
   return (
-    <section aria-label={t("title")} className="space-y-0.5">
+    <section aria-label={t("title")} className="space-y-1">
       <h3 className="text-xs text-muted-foreground">{t("title")}</h3>
       <p className="flex items-start gap-1.5 text-sm">
         <Icon aria-hidden="true" className={`${ICON} mt-0.5`} />
         {t(said)}
       </p>
+      <dl className="grid grid-cols-2 gap-x-4 text-sm">
+        <Fact name={t("category")}>
+          {risk.provision_cost_category_is_active
+            ? category
+            : form("deactivatedChoice", { choice: category, kind: "cost_category" })}
+        </Fact>
+        <Fact name={t("subproject")}>
+          {risk.provision_subproject_label ?? t("outOfSubproject")}
+        </Fact>
+      </dl>
     </section>
   );
 }

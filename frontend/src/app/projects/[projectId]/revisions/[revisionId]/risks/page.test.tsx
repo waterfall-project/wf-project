@@ -5,10 +5,11 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { type Risk, RiskDetail } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import RisksPage, { generateMetadata } from "./page";
 
@@ -279,6 +280,26 @@ describe("the screen of the risks", () => {
     );
     // Nothing of the detail is entered.
     expect(facts).not.toContain("<input");
+  });
+
+  it("names the category and the sub-project the risk designates for its provision, by the labels the server resolves (EP-14/L42p)", async () => {
+    const page = await risksAt({ risk: CABLING });
+    expect(text(page)).toContain(
+      "Provision line In the main structure: the provision weighs on the estimate. " +
+        "Category Provisions pour risques Subproject Out of any subproject",
+    );
+  });
+
+  it("says deactivated the category of a provision that is no longer active, as the server says", () => {
+    // A counterfactual variant of `risk`: its category deactivated since its designation, the rest
+    // of the example kept.
+    const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
+    const detail = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        <RiskDetail risk={risk} reviews={[]} />
+      </NextIntlClientProvider>,
+    );
+    expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
   });
 
   it("says the provision line of a risk occurred withdrawn at its occurrence [WF-RIS-0060-A]", async () => {

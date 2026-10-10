@@ -208,7 +208,7 @@ describe("the empty states", () => {
         .map((item) => [item.textContent, item.querySelector("a")?.getAttribute("href")]),
     ).toEqual([
       ["un calendrier par défaut pourvu d’heures travaillées", "/reference/resources"],
-      ["une catégorie de coût active", "/reference/costs"],
+      ["une catégorie de main-d’œuvre active", "/reference/costs"],
     ]);
     await expectAccessible(container);
   });

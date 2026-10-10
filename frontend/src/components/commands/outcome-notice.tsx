@@ -6,8 +6,10 @@
  * parameters (WF-ARC-0110); for a stale object (412), an offer to reload it; for a conflict
  * (409), the object in conflict, named when the screen knows it — or by the label the refusal gives
  * it (`conflicting_object_label`, EP-14/L42i), a project or a sub-project the screen does not show
- * (#714) —; without a session (401), the way to the sign-in page, which comes back here; and, the
- * API out of reach, that it is — the screen stays, it never goes blank.
+ * (#714) —, and the lines it names beyond the few its sentence holds, listed under it in a region
+ * that scrolls (`estimate_lines`, EP-14/L53); without a session (401), the way to the sign-in page,
+ * which comes back here; and, the API out of reach, that it is — the screen stays, it never goes
+ * blank.
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once. A
  * screen where the work goes on after a refusal — the cells of a grid entered one after the
@@ -26,7 +28,7 @@ import { useId } from "react";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
-import { problemMessage } from "@/i18n/problem";
+import { LINES_IN_SENTENCE, lineName, namedLines, problemMessage } from "@/i18n/problem";
 import { loginHref } from "@/navigation/login";
 
 /**
@@ -117,6 +119,34 @@ function Dismiss({ onClear, told }: { readonly onClear: () => void; readonly tol
   );
 }
 
+/**
+ * The lines a refusal names beyond those its sentence holds (`LINES_IN_SENTENCE`), listed under it,
+ * each by its number and its label, in a list that scrolls past a few, reached by the keyboard;
+ * nothing for fewer — the sentence names them.
+ */
+function NamedLines({ problem }: { readonly problem: Problem }) {
+  const t = useTranslations("outcome");
+  const details = useTranslations("problemDetails");
+  const lines = namedLines(problem.params);
+  if (lines.length <= LINES_IN_SENTENCE) {
+    return null;
+  }
+  return (
+    <ul
+      aria-label={t("namedLines")}
+      tabIndex={0}
+      className="max-h-40 list-disc space-y-0.5 overflow-y-auto rounded-md pl-6 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {lines.map((line, index) => (
+        // Two structures may number a line alike: the key takes its rank too.
+        <li key={`${line.row_number.toString()}:${index.toString()}`}>
+          {lineName(line, (key, values) => details(key, values))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Tell of the outcome of an action; nothing on success. */
 export function OutcomeNotice({
   outcome,
@@ -163,6 +193,7 @@ export function OutcomeNotice({
         <CircleAlert aria-hidden="true" className={ICON} />
         {problemMessage(problem, { locale, messages })}
       </p>
+      <NamedLines problem={problem} />
       {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
       {kind === "signed_out" ? <SignIn /> : null}
