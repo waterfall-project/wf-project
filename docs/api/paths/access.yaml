@@ -16,8 +16,9 @@
       l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent,
       l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par
       `include_inactive` — ; `meta.total` compte les
-      comptes retenus. Un tri à égalité se départage par l'identifiant du compte, pour que deux
-      pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060).
+      comptes retenus. Un tri à égalité se départage par l'ordre de la liste sans tri — le nom
+      puis le prénom —, puis par l'identifiant du compte, dans l'ordre croissant, pour que deux
+      pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060, #741).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -72,7 +73,7 @@
           libellé, un compte sans rattachement après les autres dans l'ordre croissant — et
           l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se
           comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se
-          rangent par leur identifiant, dans le sens du tri.
+          rangent par le nom puis le prénom, puis par leur identifiant, dans l'ordre croissant.
         schema:
           type: string
           enum: [last_name, first_name, email, origin, access_roles, org_node, is_active]
@@ -456,8 +457,9 @@
       incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre
       de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés
       compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se
-      départage par l'identifiant du rôle, pour que deux lectures successives rendent le même
-      ordre (WF-IHM-0060).
+      départage par l'ordre de la liste sans tri — le libellé —, puis par l'identifiant du rôle,
+      dans l'ordre croissant, pour que deux lectures successives rendent le même ordre
+      (WF-IHM-0060, #741).
     parameters:
       - $ref: ../components/parameters.yaml#/Search
       - name: is_predefined
@@ -485,7 +487,8 @@
         description: >-
           Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé,
           la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de
-          porteurs ; deux rôles à égalité se rangent par leur identifiant, dans le sens du tri.
+          porteurs ; deux rôles à égalité se rangent par leur libellé, puis par leur identifiant,
+          dans l'ordre croissant.
         schema:
           type: string
           enum: [label, is_predefined, holder_count]

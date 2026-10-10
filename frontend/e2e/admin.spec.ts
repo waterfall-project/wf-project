@@ -65,9 +65,10 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  // A header, the forty-nine permissions of the functions — the journal of audit has its
-  // consultation alone —, and the ten permissions of their own.
-  await expect(matrix.getByRole("row")).toHaveCount(60);
+  // A header, the forty-one permissions of the functions — the functions in reading alone, the
+  // state of the system, the journal of audit and the views of the portfolio, have their
+  // consultation alone (#739) —, and the ten permissions of their own.
+  await expect(matrix.getByRole("row")).toHaveCount(52);
   await expect(
     matrix.getByRole("rowheader", { name: "Journal d’audit", exact: true }),
   ).toBeVisible();
