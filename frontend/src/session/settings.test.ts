@@ -22,6 +22,7 @@ describe("the settings of the session", () => {
       realmAddress: "http://localhost:8080/auth/realms/waterfall",
       realmBackchannel: "http://localhost:8080/auth/realms/waterfall",
       callback: "https://waterfall.example/auth/callback",
+      signedOut: "https://waterfall.example/login",
       clientSecret: "secret",
     });
     vi.stubEnv("WATERFALL_KEYCLOAK_BACKCHANNEL", "https://keycloak:8443/auth");

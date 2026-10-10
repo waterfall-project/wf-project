@@ -200,7 +200,12 @@ d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et 
 (`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
 une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme les sessions
 du compte par `closeMySessions`, puis efface celles que le front garde de ce compte et le témoin,
-sans attendre Keycloak ; Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
+sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
+`/login` redemande les identifiants. Quand la session que nomme le témoin ne vit plus, la requête ne
+part pas : le témoin s'efface, et le navigateur va au point de déconnexion du royaume (client
+`waterfall-front`, retour à `/login`), qui ferme la session de Keycloak de ce navigateur après une
+confirmation ; les autres postes du compte, eux, ne sont pas fermés faute de jeton (#689, à
+trancher). Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
 désactivation, retrait des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du
 front et non une opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume
 et efface les sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts`

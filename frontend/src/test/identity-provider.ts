@@ -23,6 +23,7 @@ export const TEST_SETTINGS: SessionSettings = {
   realmAddress: "https://keycloak.test/auth/realms/waterfall",
   realmBackchannel: "https://keycloak.test/auth/realms/waterfall",
   callback: "https://front.test/auth/callback",
+  signedOut: "https://front.test/login",
   clientSecret: "test-only-front-client",
 };
 

@@ -11,7 +11,11 @@ import { STORAGE_KEY } from "@/components/tasks/storage";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { loadDocument } from "@/navigation/document";
+import { createIdentityProvider } from "@/session/provider";
+import { SessionLost } from "@/session/tokens";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { TEST_SETTINGS } from "@/test/identity-provider";
+import { cookieJar } from "@/test/session";
 
 import { Shell } from "./shell";
 
@@ -24,6 +28,12 @@ vi.mock("@/api/server", () => ({
   isMockAuthentication: () => true,
 }));
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
+// The realm of the tests, and a request that holds no cookie: what a lost session reaches.
+vi.mock("@/session/provider", async (original) => ({
+  ...(await original<typeof import("@/session/provider")>()),
+  identityProvider: () => createIdentityProvider(TEST_SETTINGS),
+}));
+vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookieJar()) }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   usePathname: () => SCREEN,
@@ -122,6 +132,30 @@ describe("signing out from the menu of the account", () => {
     await signOut();
     expect(rememberedContext()).toBeUndefined();
     expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login");
+  });
+
+  it("sends the browser to the sign-out of the realm, not to the sign-in, when the front had lost its session [WF-SEC-0020-A]", async () => {
+    const sent: Request[] = [];
+    server.client = createApiClient({
+      address: "http://api.test",
+      bearer: () => {
+        throw new SessionLost();
+      },
+      fetch: (request) => {
+        sent.push(request);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    shell();
+    await signOut();
+    expect(sent).toEqual([]);
+    expect(rememberedContext()).toBeUndefined();
+    expect(loadDocument).toHaveBeenCalledOnce();
+    const address = new URL(vi.mocked(loadDocument).mock.lastCall?.[0] ?? "");
+    expect(`${address.origin}${address.pathname}`).toBe(
+      `${TEST_SETTINGS.realmAddress}/protocol/openid-connect/logout`,
+    );
+    expect(address.searchParams.get("post_logout_redirect_uri")).toBe(TEST_SETTINGS.signedOut);
   });
 
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {

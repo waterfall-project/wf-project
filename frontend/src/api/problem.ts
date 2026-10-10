@@ -320,6 +320,29 @@ function isSessionLost(error: unknown): boolean {
   );
 }
 
+/** A request that did not leave: the session of the front its cookie names lives no more. */
+export interface Lost {
+  readonly kind: "lost";
+}
+
+/**
+ * Call the API and decode its answer, `unreachable` when it does not answer at all, and `lost`
+ * when the request did not leave, the session of the front lost — for the one action that must
+ * tell it apart from a refusal of the API, the sign-out.
+ */
+export async function decodeOrLost<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T> | Lost> {
+  let answer: Answer<T> | undefined;
+  try {
+    answer = await reach(call);
+  } catch (error) {
+    if (isSessionLost(error)) {
+      return { kind: "lost" };
+    }
+    throw error;
+  }
+  return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
+}
+
 /**
  * Call the API and decode its answer, `unreachable` when it does not answer at all. Without a
  * session that lives, the request does not leave, and the outcome is `signed_out`, as if the API
@@ -327,17 +350,12 @@ function isSessionLost(error: unknown): boolean {
  * sign-in page — never the screen of failure, which would lead there at once.
  */
 export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T>> {
-  let answer: Answer<T> | undefined;
-  try {
-    answer = await reach(call);
-  } catch (error) {
-    if (isSessionLost(error)) {
-      const problem: Problem = { code: "SESSION_REQUIRED", status: 401 };
-      return { kind: "signed_out", problem, conflictingObjectId: null };
-    }
-    throw error;
+  const outcome = await decodeOrLost(call);
+  if (outcome.kind === "lost") {
+    const problem: Problem = { code: "SESSION_REQUIRED", status: 401 };
+    return { kind: "signed_out", problem, conflictingObjectId: null };
   }
-  return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
+  return outcome;
 }
 
 /** The outcome of an action whose success is all the screen needs to know. */

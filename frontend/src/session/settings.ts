@@ -11,6 +11,8 @@
  */
 import "server-only";
 
+import { LOGIN_ROUTE } from "@/navigation/login";
+
 /** The realm of Waterfall (`deploy/keycloak/realm/waterfall.yaml`). */
 export const REALM = "waterfall";
 
@@ -28,6 +30,8 @@ export interface SessionSettings {
   readonly realmBackchannel: string;
   /** The return address the realm sends the code to, under the address of the front. */
   readonly callback: string;
+  /** Where the realm sends the browser once it has ended its session: the sign-in of the front. */
+  readonly signedOut: string;
   /** The secret of the client of the front. */
   readonly clientSecret: string;
 }
@@ -57,6 +61,7 @@ export function sessionSettings(): SessionSettings {
       backchannel === undefined || backchannel === "" ? address : backchannel,
     ),
     callback: `${front}${CALLBACK_PATH}`,
+    signedOut: `${front}${LOGIN_ROUTE}`,
     clientSecret: required("WATERFALL_FRONT_CLIENT_SECRET"),
   };
 }

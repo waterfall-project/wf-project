@@ -5,9 +5,12 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
+import { createIdentityProvider } from "@/session/provider";
+import { FRONT_CLIENT } from "@/session/settings";
 import { openSession, readSession } from "@/session/store";
-import { SESSION_COOKIE } from "@/session/tokens";
+import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { TEST_SETTINGS } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
 import { signOut } from "./session";
@@ -23,6 +26,10 @@ vi.mock("@/api/server", () => ({
   isMockAuthentication: () => server.mock,
 }));
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(server.jar) }));
+vi.mock("@/session/provider", async (original) => ({
+  ...(await original<typeof import("@/session/provider")>()),
+  identityProvider: () => createIdentityProvider(TEST_SETTINGS),
+}));
 
 withTestRedis();
 
@@ -90,6 +97,34 @@ describe("the server action of the session", () => {
       expect(server.jar.held.has(SESSION_COOKIE)).toBe(false);
     },
   );
+
+  it("sends the browser to the sign-out of the realm when the session of the front is lost, the request not leaving [WF-SEC-0020-A]", async () => {
+    const lost = randomUUID();
+    server.jar = cookieJar({ [SESSION_COOKIE]: lost });
+    const sent: Request[] = [];
+    server.client = createApiClient({
+      address: "http://api.test",
+      bearer: requestBearer,
+      fetch: (request) => {
+        sent.push(request);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+
+    const outcome = await signOut();
+
+    expect(sent).toEqual([]);
+    expect(outcome.kind).toBe("provider");
+    const address = new URL(outcome.kind === "provider" ? outcome.address : "");
+    expect(`${address.origin}${address.pathname}`).toBe(
+      `${TEST_SETTINGS.realmAddress}/protocol/openid-connect/logout`,
+    );
+    expect(Object.fromEntries(address.searchParams)).toEqual({
+      client_id: FRONT_CLIENT,
+      post_logout_redirect_uri: "https://front.test/login",
+    });
+    expect(server.jar.held.has(SESSION_COOKIE)).toBe(false);
+  });
 
   it("touches no session of the front on the fake back, which grants its own", async () => {
     server.mock = true;

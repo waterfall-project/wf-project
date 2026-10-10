@@ -38,6 +38,12 @@ export interface IdentityProvider {
   /** The address of the sign-in, for a request of its state, its nonce and its PKCE challenge. */
   signInAddress(state: string, nonce: string, challenge: string): URL;
   /**
+   * The address that ends the session of the realm in the browser, then sends it back to the
+   * sign-in of the front: a sign-out the client asks for without an ID token, which the realm has
+   * the user confirm.
+   */
+  signOutAddress(): URL;
+  /**
    * Exchange the code of a return, after checking its state, its nonce and its verifier; nothing
    * when the realm refused the sign-in — an error in the return, a code it refuses, a wrong nonce.
    */
@@ -139,12 +145,13 @@ export function createIdentityProvider(
   send?: Send,
   timeout = REFRESH_TIMEOUT,
 ): IdentityProvider {
-  const { realmAddress, realmBackchannel, callback } = settings;
+  const { realmAddress, realmBackchannel, callback, signedOut } = settings;
   const endpoints = `${realmBackchannel}/protocol/openid-connect`;
   const config = new oidc.Configuration(
     {
       issuer: realmAddress,
       authorization_endpoint: `${realmAddress}/protocol/openid-connect/auth`,
+      end_session_endpoint: `${realmAddress}/protocol/openid-connect/logout`,
       token_endpoint: `${endpoints}/token`,
       jwks_uri: `${endpoints}/certs`,
     },
@@ -168,6 +175,12 @@ export function createIdentityProvider(
         nonce,
         code_challenge: challenge,
         code_challenge_method: "S256",
+      }),
+
+    signOutAddress: () =>
+      oidc.buildEndSessionUrl(config, {
+        client_id: FRONT_CLIENT,
+        post_logout_redirect_uri: signedOut,
       }),
 
     async exchange(query, state, nonce, verifier) {
