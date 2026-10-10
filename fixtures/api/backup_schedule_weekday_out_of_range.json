@@ -1,0 +1,17 @@
+{
+  "summary": "La planification hebdomadaire enregistrée aujourd'hui avec le dimanche numéroté 0, à l'américaine, quand ISO 8601 le numérote 7 : refusée, le jour au-dessous du plus petit admis, 1, le lundi, le champ désigné avec la borne franchie ; rien n'est écrit (WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/weekday",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001091"
+  }
+}

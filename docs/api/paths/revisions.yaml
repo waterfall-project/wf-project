@@ -613,13 +613,16 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
           nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
-          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170) ; ou une ligne qui
-          laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
+          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position
+          (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs
+          (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`) ; ou une ligne qui laisserait sa tâche
+          sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
+              out_of_range: { $ref: ../../../fixtures/api/node_create_out_of_range.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
   delete:
@@ -811,10 +814,14 @@
           dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
           `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
           catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`,
-          `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020).
+          `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ;
+          ou un délai de paiement négatif : `fields` sur `/payment_delay_days`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              payment_delay_out_of_range: { $ref: ../../../fixtures/api/estimate_line_payment_delay_out_of_range.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
   put:
@@ -1016,10 +1023,13 @@
           change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
-          (WF-PLA-0010).
+          (WF-PLA-0010). Ou une position négative : `fields` sur `/position`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              position_out_of_range: { $ref: ../../../fixtures/api/nodes_move_position_out_of_range.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
   post:

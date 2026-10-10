@@ -252,10 +252,11 @@ describe("a share", () => {
   });
 
   it("says a share the server gives nil while its amount is not one too small to show, on the side of the amount", () => {
-    // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64.
+    // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64, which the
+    // contract no longer gives nil but to its first significant digit (EP-14/L42o, #694).
     const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
     const item = indicators.by_order_item?.[0];
-    expect(item?.share?.value).toBe("0");
+    expect(item?.share?.value).toBe("0.00003");
     expect(share(item?.share?.value ?? "", "fr", item?.amount.value ?? "")).toBe(
       `<${NO_BREAK}0,01${NO_BREAK}%`,
     );

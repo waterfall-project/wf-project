@@ -145,6 +145,35 @@ def test_a_threshold_that_is_no_decimal_fails_the_form_first(value: str) -> None
     assert not _pattern(API / "components" / "common.yaml", "Decimal").fullmatch(value)
 
 
+def _motive(threshold: str) -> str | None:
+    """Return the motive a threshold is refused by, the form judged first; none if admitted."""
+    if not _pattern(API / "components" / "common.yaml", "Decimal").fullmatch(threshold):
+        return "NUMBER_INVALID"
+    return None if _threshold_pattern().fullmatch(threshold) else OUTSIDE
+
+
+@pytest.mark.parametrize(
+    ("value", "motive"),
+    [
+        ("0.", "NUMBER_INVALID"),
+        (".5", "NUMBER_INVALID"),
+        ("0,9", "NUMBER_INVALID"),
+        ("0", OUTSIDE),
+        ("1", OUTSIDE),
+        ("1.5", OUTSIDE),
+        ("00.5", None),
+        ("000.875", None),
+        ("0.875", None),
+    ],
+)
+def test_each_threshold_is_refused_by_its_one_motive_or_admitted(
+    value: str, motive: str | None
+) -> None:
+    # #683, point 2: the form first, then the range, each by its pattern — `0.` is no decimal, and
+    # `00.5`, written with zeros ahead, is a half, admitted (EP-14/L42m, review 3).
+    assert _motive(value) == motive
+
+
 def test_the_refusal_says_the_form_of_a_threshold_before_its_range() -> None:
     refusals = _operation().split("'422':", 1)[1].split("content:", 1)[0]
     form = refusals.index("NUMBER_INVALID")

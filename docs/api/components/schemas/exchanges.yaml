@@ -8,7 +8,9 @@ FileUpload:
   required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at, backup_taken_at]
   description: >-
     Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué,
-    abandonné ou expiré (WF-DAT-0120, WF-ARC-0100).
+    abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). Une sauvegarde déposée qu'une restauration
+    acceptée désigne est gardée jusqu'à la fin de sa tâche, même au-delà de `expires_at`
+    (`startRestore`).
   properties:
     upload_id: { $ref: ../common.yaml#/Uuid }
     purpose: { $ref: '#/FileUploadPurpose' }

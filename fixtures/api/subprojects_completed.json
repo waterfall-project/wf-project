@@ -1,0 +1,83 @@
+{
+  "summary": "Les deux sous-projets du projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05 (project_completed) : les mêmes que ceux du projet en cours (subprojects), chacun avec ses commandes, toutes indisponibles — le projet clos ne se modifie plus (WF-CYC-0100). La modification ne manque que de la clôture ; la suppression manque encore de la citation par la référence marquée et des coûts réels imputés, les conditions du sous-projet d'abord, celle du projet en dernier, comme le projet range les siennes (§4.4.1, WF-PRJ-0050, WF-IHM-0090).",
+  "value": [
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+      "code": "SP-CMD",
+      "label": "Poste de commande",
+      "has_actual_costs": true,
+      "available_commands": [
+        {
+          "command": "update",
+          "is_available": false,
+          "missing_conditions": [
+            "project_not_terminal"
+          ]
+        },
+        {
+          "command": "delete",
+          "is_available": false,
+          "missing_conditions": [
+            "subproject_not_cited",
+            "subproject_without_actual_costs",
+            "project_not_terminal"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000802",
+      "code": "SP-ESS",
+      "label": "Essais et mise en service",
+      "has_actual_costs": true,
+      "available_commands": [
+        {
+          "command": "update",
+          "is_available": false,
+          "missing_conditions": [
+            "project_not_terminal"
+          ]
+        },
+        {
+          "command": "delete",
+          "is_available": false,
+          "missing_conditions": [
+            "subproject_not_cited",
+            "subproject_without_actual_costs",
+            "project_not_terminal"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}

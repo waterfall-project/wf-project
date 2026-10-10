@@ -233,7 +233,9 @@ BackupSchedule:
       description: >-
         Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le
         dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
-        sauvegarde quotidienne.
+        sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif
+        `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la
+        seule borne franchie.
     retained_count:
       type: integer
       minimum: 1

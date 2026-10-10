@@ -1,0 +1,8 @@
+{
+  "summary": "La restauration demandée aujourd'hui à 11 h 30 sur la copie de Lyon déposée hier, 2 juin 2026, à 11 h : le dépôt a expiré à 11 h, au terme de son jour, et n'existe plus (WF-DAT-0120) — refusée comme un dépôt inconnu ou une sauvegarde que la liste n'a pas, sans les distinguer ni rien nommer ; rien n'est mis en file. La copie se dépose de nouveau : c'est le dépôt de 13 h 50 (file_upload_external_backup, WF-ADM-0160).",
+  "value": {
+    "code": "NOT_FOUND",
+    "status": 404,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001096"
+  }
+}

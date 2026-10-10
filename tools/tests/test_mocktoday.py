@@ -61,6 +61,82 @@ def _series(curve: Node, name: str) -> list[Node]:
     return next(each["points"] for each in curve["series"] if each["name"] == name)
 
 
+@pytest.mark.parametrize(
+    ("quotient", "given"),
+    [
+        ("0.12345", "0.1235"),
+        ("-0.12345", "-0.1235"),
+        ("0.33333", "0.3333"),
+        ("0.0000309", "0.00003"),
+        ("-0.0000309", "-0.00003"),
+        ("0.0000096", "0.00001"),
+        ("0.99996", "1"),
+        ("1.23456", "1.2346"),
+        ("0", "0"),
+    ],
+)
+def test_a_ratio_is_given_to_four_places_and_never_nil_when_it_is_not(
+    quotient: str, given: str
+) -> None:
+    # EP-14/L42o (#694; README, « Une part… »): half rounded away from zero; a ratio the four
+    # places would round to nil is given to its first significant digit (#626); near one, the
+    # ordinary rounding holds.
+    assert mockstructure.share(Decimal(quotient)) == Decimal(given)
+
+
+@pytest.mark.parametrize(
+    ("amounts", "given"),
+    [
+        (("1", "1", "1"), ("0.3334", "0.3333", "0.3333")),
+        (("3", "99999997"), ("0.00000003", "0.99999997")),
+        (("1368", "8632"), ("0.1368", "0.8632")),
+        (("0", "5"), ("0", "1")),
+    ],
+)
+def test_the_shares_of_a_partition_sum_to_one_on_the_largest_part(
+    amounts: tuple[str, ...], given: tuple[str, ...]
+) -> None:
+    # Review 1 of EP-14/L42o (WF-DEV-0060, WF-PTF-0080): each part its share, its floor held, and
+    # what the rounding leaves on the largest, which may bear more than four places.
+    parts = [Decimal(amount) for amount in amounts]
+    found = mockstructure.partition(parts, sum(parts, Decimal(0)))
+    assert found == [Decimal(each) for each in given]
+    assert sum(found) == 1
+
+
+def test_no_share_of_an_amount_not_nil_is_given_nil() -> None:
+    # Every example on disk, the volumes included: the estimate of the witness, its remaining, the
+    # cost structure of the portfolio.
+    found = 0
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        name = path.relative_to(mockwitness.FIXTURES).as_posix()
+        for part in _parts(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            amount, part_share = _given(part["amount"]), _given(part["share"])
+            if amount is None or part_share is None:
+                continue
+            found += 1
+            assert (part_share == 0) == (amount == 0), (name, part["key"])
+    assert found > 0
+
+
+def _given(value: str | Node) -> Decimal | None:
+    """Return a decimal as an example writes it, bare or computable; none if not computable."""
+    if isinstance(value, str):
+        return Decimal(value)
+    return Decimal(value["value"]) if value["is_computable"] else None
+
+
+def _parts(value: Any) -> list[Node]:
+    """Return each part of a total a value read from JSON carries: its amount and its share."""
+    if isinstance(value, list):
+        return [part for item in cast("list[Any]", value) for part in _parts(item)]
+    if not isinstance(value, dict):
+        return []
+    fields = cast("Node", value)
+    own = [fields] if {"key", "amount", "share"} <= fields.keys() else []
+    return own + [part for item in fields.values() for part in _parts(item)]
+
+
 def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[str, Any]) -> None:
     # EP-14/L45a: the estimate of the witness is that of its thousand tasks, the core's 621,034.56
     # among them — the provision of 751 at the scale of the structure (EP-14/L45b).

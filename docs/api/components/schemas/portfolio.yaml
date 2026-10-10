@@ -84,7 +84,9 @@ PortfolioValue:
     pipeline_gross: { $ref: ../common.yaml#/Money }
     pipeline_weighted: { $ref: ../common.yaml#/Money }
     delivered: { $ref: ../common.yaml#/Money }
-    conversion_rate: { $ref: indicators.yaml#/Computable }
+    conversion_rate:
+      allOf: [{ $ref: indicators.yaml#/Computable }]
+      description: À quatre décimales (README, « Une part… »).
 
 PortfolioWorkload:
   type: object
@@ -125,7 +127,10 @@ PortfolioWorkload:
               properties:
                 month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
                 hours: { $ref: ../common.yaml#/Hours }
-                load_ratio: { $ref: indicators.yaml#/Computable }
+                load_ratio:
+                  allOf: [{ $ref: indicators.yaml#/Computable }]
+                  description: >-
+                    La charge sur la capacité, à quatre décimales (README, « Une part… »).
                 zone: { $ref: reference.yaml#/AlertZone }
 
 PortfolioPerformance:

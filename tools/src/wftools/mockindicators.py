@@ -41,7 +41,6 @@ from wftools.mockstructure import (
     CENT,
     LABOUR_RATES,
     REFERENCE_YEAR,
-    SHARE,
     JsonObject,
     JsonValue,
     computable,
@@ -50,6 +49,8 @@ from wftools.mockstructure import (
     inflated,
     labels,
     money,
+    partition,
+    share,
 )
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
@@ -426,10 +427,10 @@ def not_computable(reason: str, params: JsonObject | None = None) -> JsonObject:
 
 
 def ratio(numerator: Decimal, denominator: Decimal, reason: str) -> JsonObject:
-    """Return a ratio to four places, not computable when its denominator is nil."""
+    """Return a ratio as the contract gives it (``share``), not computable without denominator."""
     if denominator == 0:
         return not_computable(reason)
-    return computable(decimal((numerator / denominator).quantize(SHARE)))
+    return computable(decimal(share(numerator / denominator)))
 
 
 def index(numerator: Decimal, denominator: Decimal, reason: str, axis: str) -> JsonObject:
@@ -448,17 +449,6 @@ def index(numerator: Decimal, denominator: Decimal, reason: str, axis: str) -> J
     if found < Decimal(thresholds[f"{axis}_alert"]):
         zone = "alert"
     return {"value": value, "zone": zone}
-
-
-def shares(amounts: Sequence[Decimal], total: Decimal) -> list[Decimal]:
-    """Return the shares of parts of a total to four places, summing to one exactly.
-
-    What the rounding leaves goes to the largest part (``mockstructure.breakdown``).
-    """
-    found = [(amount / total).quantize(SHARE) for amount in amounts]
-    largest = max(range(len(amounts)), key=lambda rank: amounts[rank])
-    found[largest] += 1 - sum(found)
-    return found
 
 
 # --- The indicators of the estimate -------------------------------------------------------------
@@ -502,23 +492,20 @@ def _parts(
     groups: list[Group],
     missing: frozenset[str],
     *,
-    partition: bool = True,
+    whole: bool = True,
 ) -> list[JsonValue]:
     """Return the amounts of some groups and their shares of the total (WF-DEV-0060).
 
-    The shares of a partition of the total sum to one; those of the order items, which hold a
-    part of the lines only, are each the amount over the total. No share is computable when the
-    total is not, nor without its amount.
+    The shares of a partition of the total sum to one (``partition``); those of the order items,
+    which hold a part of the lines only, are each the amount over the total (``share``). No share
+    is computable when the total is not, nor without its amount.
     """
     absent = missing_rates(reading, reading.lines, missing)
     total = _base(reading.lines)
     amounts = [_base(group.lines) for group in groups]
-    if partition:
-        found = shares(amounts, total)
-    else:
-        found = [(amount / total).quantize(SHARE) for amount in amounts]
+    found = partition(amounts, total) if whole else [share(each / total) for each in amounts]
     parts: list[JsonValue] = []
-    for group, share in zip(groups, found, strict=True):
+    for group, part_share in zip(groups, found, strict=True):
         part: JsonObject = {"key": group.key}
         if group.label is not None:
             part["label"] = group.label
@@ -526,7 +513,7 @@ def _parts(
         part["amount"] = amount
         computed = not absent and amount["is_computable"] is True
         part["share"] = (
-            computable(decimal(share))
+            computable(decimal(part_share))
             if computed
             else not_computable(_MISSING, {"missing_rates": absent})
         )
@@ -600,7 +587,7 @@ def estimate(
         "total": _amount(reading, lines, missing),
         "by_cost_type": _parts(reading, natures(lines), missing),
         "by_subproject": _parts(reading, subprojects(reading, lines), missing),
-        "by_order_item": _parts(reading, items, missing, partition=False) if items else None,
+        "by_order_item": _parts(reading, items, missing, whole=False) if items else None,
         "provisions_identified": money(
             _base(line for line in lines if mockhistory.is_provision(line))
         ),
@@ -683,7 +670,7 @@ def remaining_indicators(
         for group in natures(reading.lines)
     ]
     by_nature = [(group, amount) for group, amount in by_nature if amount != 0]
-    parts = shares([amount for _, amount in by_nature], total)
+    parts = partition([amount for _, amount in by_nature], total)
     coverage = mockhistory.coverage(list(reading.rows), list(base.rows))
     return {
         "context": context(reading),

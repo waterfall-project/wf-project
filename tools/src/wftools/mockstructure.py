@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from wftools.mockids import universe
@@ -78,6 +78,7 @@ LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSI
 
 CENT = Decimal("0.01")
 SHARE = Decimal("0.0001")
+"""The places a share, a progress or a rate is given to: four, a hundredth of a percent (#694)."""
 
 INFLATION_RATE = Decimal("0.03")
 """The inflation rate of the witness project (project.json), which projects an amount on the
@@ -133,6 +134,33 @@ def inflated(amount: Decimal, year: int) -> Decimal:
     not split across the years the task spans in proportion to its hours of work.
     """
     return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
+
+
+def share(value: Decimal) -> Decimal:
+    """Return a ratio as the contract gives it (README, « Une part… », EP-14/L42o, #694).
+
+    To four places, half rounded away from zero; a ratio that is not nil is never given nil: one
+    the four places would round to nil is given to its first significant digit, rounded alike —
+    0.0000309 is 0.00003. A ratio alone — a progress, a rate — is given so; the shares of a
+    partition, by ``partition``.
+    """
+    rounded = value.quantize(SHARE, rounding=ROUND_HALF_UP)
+    if rounded or not value:
+        return rounded
+    return value.quantize(Decimal(1).scaleb(value.adjusted()), rounding=ROUND_HALF_UP)
+
+
+def partition(amounts: Sequence[Decimal], total: Decimal) -> list[Decimal]:
+    """Return the shares of the parts of a total as the contract gives them, summing to one.
+
+    Each part its ``share``, then what the rounding leaves on the largest part, so that the sum is
+    one exactly (WF-DEV-0060, WF-PTF-0080): that part may bear more than four places —
+    1 - 0.00000003 is 0.99999997 (EP-14/L42o, review 1).
+    """
+    found = [share(amount / total) for amount in amounts]
+    largest = max(range(len(amounts)), key=lambda rank: amounts[rank])
+    found[largest] += 1 - sum(found)
+    return found
 
 
 def decimal(value: Decimal) -> str:

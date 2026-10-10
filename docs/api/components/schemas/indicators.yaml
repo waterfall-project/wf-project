@@ -171,7 +171,12 @@ ComputableAmountByKey:
     key: { type: string }
     label: { type: string }
     amount: { $ref: '#/ComputableMoney' }
-    share: { $ref: '#/Computable' }
+    share:
+      allOf: [{ $ref: '#/Computable' }]
+      description: >-
+        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ;
+        les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande
+        portant le reste des arrondis, celles des postes non (README, « Une part… »).
 
 RemainingIndicators:
   type: object
@@ -243,7 +248,12 @@ AmountByKey:
     key: { type: string }
     label: { type: string }
     amount: { $ref: ../common.yaml#/Money }
-    share: { $ref: ../common.yaml#/Percent }
+    share:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: >-
+        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
+        les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis
+        (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`).
 
 ProjectIndicators:
   type: object
@@ -279,7 +289,8 @@ ProjectIndicators:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
         Rapport du coût réel à la somme du coût réel et du reste à engager ; non
-        calculable lorsque les deux sont nuls (WF-IND-0040).
+        calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la
+        consommation du budget et l'avancement physique (README, « Une part… »).
     budget_consumption: { $ref: '#/Computable' }
     physical_progress: { $ref: '#/Computable' }
     cost_index: { $ref: '#/IndexValue' }

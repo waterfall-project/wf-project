@@ -863,8 +863,9 @@ TaskFacet:
       description: >-
         Avancement physique d'une récapitulative, calculé : le rapport des montants
         budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce
-        sous-arbre (WF-IND-0060), non calculable quand ce total est nul
-        (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative.
+        sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable
+        quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui
+        n'est pas récapitulative.
     base_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-

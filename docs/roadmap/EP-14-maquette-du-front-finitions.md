@@ -611,6 +611,34 @@ rien n'arrondit — taux d'inflation, probabilités de gain et de risque, bornes
 des indicateurs et du portefeuille. Le reste à engager par sous-projet ne montre aucune part. Aucun
 texte de pourcentage des parcours de bout en bout ne change.
 
+EP-14/L42o (#698), lot de contrat ajouté le 2026-10-10, regroupe cinq constats de #507. Pour #677,
+les bornes que le constat relève ont leur refus : le jour d'une sauvegarde hebdomadaire, la position
+d'un nœud créé ou déplacé, le délai de paiement d'une ligne créée ou modifiée et le niveau d'une
+image d'arborescence sont refusés hors de leurs bornes par `VALUE_OUT_OF_RANGE`, la borne franchie,
+chacun avec son exemple — en dernier sous le 422 de `setBackupSchedule` et de `createNode`, le
+premier inchangé, et premier sous ceux de `updateEstimateLine`, `moveNodes` et `requestExport`, qui
+n'en avaient aucun. Pour #679, une sauvegarde déposée est vérifiée par sa restauration même, dans le
+worker, avant toute déconnexion, la vérification confirmant l'instant que le dépôt a lu : une
+archive qui ne la passe pas fait échouer la tâche par `STATE_FORBIDS_OPERATION`, `backup_verified`
+manquante, comme une sauvegarde de la liste non vérifiée, personne n'étant déconnecté ni rien
+remplacé ; le dépôt désigné est gardé jusqu'à la fin de la tâche — écartées, une vérification au
+dépôt, longue dans la requête ou à attendre par un état du dépôt, et `FILE_FORMAT_UNREADABLE`, qui
+n'aurait pas dit la vraie cause (relecture 1) — ; et `startRestore` déclare son 404, `NOT_FOUND`,
+pour une sauvegarde inconnue ou un dépôt inconnu ou expiré, comme `openImport`. Pour #694, une part,
+un avancement ou un taux calculé est donné à quatre décimales, arrondi au plus proche, une demie
+s'éloignant de zéro, et une valeur non nulle n'est jamais donnée nulle : celle que l'arrondi
+annulerait l'est à son premier chiffre significatif ; les parts d'une répartition somment exactement
+à 1, le reste des arrondis porté sur la plus grande, comme les Vérif de WF-DEV-0060 et WF-PTF-0080
+l'exigent (décision de l'agent de livraison à la relecture 1) — écartées, la somme libre, douze
+décimales, que l'écran aurait toutes montrées avant `formatShare` (L51), et la plus petite part pour
+toute part minuscule, qui aurait confondu 0,003 % et 0,01 %. Pour #673, `subprojects_completed` lit
+les sous-projets du témoin terminé, toutes leurs commandes indisponibles, `project_not_terminal` en
+dernier ; pour #683, le motif de chaque seuil est dit, `0.` refusé par la forme et `00.5` admis. Les
+choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front n'est touché que par le
+client régénéré et par la valeur attendue d'un test de `formatShare`, la part du poste n'étant plus
+nulle ; l'adoption — l'exemple du projet clos dans son test, la restauration depuis un
+fichier, la branche du montant de `formatShare` qui n'a plus d'objet — revient aux lots du front.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

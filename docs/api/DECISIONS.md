@@ -4292,6 +4292,130 @@ ses catalogues (`errors.UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR`, `ORG_NODE_CYCLE`,
 `enums.CommandCondition.calendar_active`, `enums.CalendarCommand`) et envoie la version lue à la
 désignation.
 
+## Les bornes sans refus, la restauration depuis un dépôt, la précision d'une part, les sous-projets d'un projet clos (EP-14/L42o)
+
+Cinq constats de #507 relevés pendant L42m, L43d, L44e et L51, regroupés dans un lot de contrat
+(#698) : #677, #679, #694, le point 2 de #683 et le point 1 de #673. Les décisions sont de l'agent
+de réalisation du lot, chacune avec sa raison, et, à la relecture 1, de l'agent de livraison pour la
+somme des parts.
+
+**Les bornes de #677 ont leur refus.** `setBackupSchedule` (`/weekday`, de 1 à 7), `createNode`
+(`/position`, `/estimate_line/payment_delay_days`, au moins 0), `updateEstimateLine`
+(`/payment_delay_days`), `moveNodes` (`/position`) et `requestExport` (`/depth`, au moins 1)
+publiaient leurs bornes sans que leur 422 dise le refus : 422 `VALIDATION_FAILED`,
+`VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie, comme la
+rétention des sauvegardes (EP-14/L42m) et les taux d'un projet (EP-14/L42i). `lock_version` reste à
+part : un compteur, dont la version périmée se dit par 412. Les autres corps du contrat ne sont pas
+parcourus ici : la largeur d'une colonne des préférences de grille (`GridPreferences.column_widths`,
+au moins 20), que `updateMyPreferences` publie sans 422, part à une issue de l'agent de livraison.
+Écarté : un motif propre à la position (`POSITION_INVALID`), qui ne nommerait pas la borne.
+Exemples, écrits à la main aux corrélations 1091 à 1095 : `backup_schedule_weekday_out_of_range` (le
+dimanche numéroté 0, à l'américaine), `node_create_out_of_range` (une ligne placée à -1 et payée
+d'avance, -30 jours), `estimate_line_payment_delay_out_of_range` (les « Borniers », délai -30),
+`nodes_move_position_out_of_range` (les « Borniers » déplacés à -1) et `export_depth_out_of_range`
+(l'arborescence au niveau 0). Sous `setBackupSchedule` et `createNode`, le nouvel exemple vient en
+dernier, le premier inchangé ; `updateEstimateLine`, `moveNodes` et `requestExport` n'avaient aucun
+exemple sous leur 422 : le nouveau est le premier, celui que le faux back sert.
+`tools/tests/test_mockbounds.py` lit chaque borne dans le schéma du corps, confronte l'exemple à la
+borne du côté franchi, et vérifie qu'aucune autre borne de ces cinq corps — hors `lock_version` et
+les rétentions de L42m — n'est publiée sans refus.
+
+**Une sauvegarde déposée est vérifiée par sa restauration, avant toute déconnexion** (#679 ;
+WF-ADM-0150, WF-ADM-0160, WF-ARC-0090). Une sauvegarde de la liste ne se restaure que vérifiée
+après sa production (`backup_verified`, EP-14/L42h) ; une archive déposée n'avait aucune
+vérification dite, et une archive altérée aurait échoué après la déconnexion des utilisateurs. La
+restauration la vérifie d'abord, dans le worker, de la même vérification, qui confirme aussi
+l'instant que le dépôt a lu (`backup_taken_at`) ; la déconnexion ne vient qu'après. Une archive qui
+ne la passe pas fait échouer la tâche (`failed`), son `problem` à `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `backup_verified` — la condition qui manque à une sauvegarde de la
+liste non vérifiée (`restore_unverified_refused`), avec sa phrase au catalogue : aucun utilisateur
+n'a été déconnecté, aucune base remplacée, et l'écran qui a lancé la restauration le lit sur la
+tâche (`getBackgroundTask`, WF-IHM-0080). Le dépôt, lui, ne lit que l'instant de l'archive ; celui
+qu'une restauration acceptée désigne est gardé jusqu'à la fin de sa tâche, même au-delà de son jour,
+pour que la purge (WF-DAT-0120) ne le retire pas en route. Écartés :
+
+- la vérification au dépôt, dans la requête : une archive de plusieurs gigaoctets vérifiée hors du
+  worker, une opération longue qui ne rendrait pas la main, contre WF-ARC-0090 ;
+- une vérification au dépôt confiée au worker, dont `FileUpload` dirait l'état et que la
+  confirmation attendrait : un état, une condition et une relecture du dépôt de plus — L42m a déjà
+  écarté `getFileUpload` —, pour avancer de quelques secondes un échec que la restauration dit
+  aussi avant de déconnecter quiconque ;
+- `FILE_FORMAT_UNREADABLE`, que la première rédaction du lot retenait : l'archive est reconnue — le
+  dépôt en a lu l'instant —, mais altérée, et le format illisible n'aurait pas dit la vraie cause
+  (relecture 1) ;
+- un code propre (`BACKUP_VERIFICATION_FAILED`), là où la condition de la commande `restore` dit
+  déjà ce qui manque.
+
+**`startRestore` déclare son 404**, sur le modèle d'`openImport` : une sauvegarde que la liste n'a
+pas, un dépôt inconnu ou expiré — un dépôt ne vit qu'un jour (WF-DAT-0120) —, `NOT_FOUND`, sans
+paramètre ni `fields`, sans distinguer l'objet inconnu de l'objet disparu (WF-ADM-0110) ; l'écran
+sait lequel il a désigné. Écartés : un 410 pour le dépôt expiré, que rien d'autre dans le contrat
+n'emploie et qui révélerait qu'il a existé ; un 422 `UNKNOWN_*` au champ, la forme d'une référence
+inconnue d'un formulaire, quand l'objet que la restauration désigne est le sujet de l'opération,
+comme le dépôt d'un import. Exemples, écrits à la main : `restore_not_found` (corrélation 1096, la
+copie de Lyon déposée la veille à 11 h, restaurée ce matin à 11 h 30, son dépôt expiré : c'est elle
+que le dépôt de 13 h 50 redépose) et `task_restore_verification_failed` (tâche …0938, une variante
+déclarée : la même copie altérée sur l'emplacement, sa restauration échouée à la vérification à
+14 h 03 min 40 s). `test_mockuniverse.py` les tient contre le dépôt et l'opération.
+
+**Une part, un avancement ou un taux calculé est donné à quatre décimales, jamais nul quand il ne
+l'est pas, et les parts d'une répartition somment à un** (#694 ; README, « Une part… » ;
+WF-DAT-0100, WF-DEV-0060, WF-PTF-0080, #626). Le contrat ne disait pas la précision d'un rapport
+calculé : la part d'une répartition (`share` d'`AmountByKey` et de `ComputableAmountByKey`), les
+avancements, la consommation du budget, le taux de charge et le taux de transformation. Il la dit
+désormais une fois, dans les conventions du README, et chaque champ y renvoie : quatre décimales, le
+centième de pour cent qu'un écran montre, arrondi au plus proche, une demie s'éloignant de zéro,
+comme l'arrondi d'`Intl` qui la montre ; une valeur non nulle que quatre décimales rendraient nulle
+est donnée à son premier chiffre significatif — `0.00003` pour 0,0000309 —, ce que l'auteur a
+décidé pour l'écran (#626) : une part non nulle ne se lit pas « 0 % », et le front dit « < 0,01 % »
+d'après la part seule. Près de 1, l'arrondi ordinaire demeure (0,99996 est donnée `1`) : #626 n'a
+tranché que le côté de zéro. Les parts d'une répartition du total — par nature, par sous-projet, par
+nœud — somment exactement à 1 : le reste de leurs arrondis, plancher compris, est porté sur la plus
+grande, qui peut alors porter plus de quatre décimales (`0.99999997` à côté de `0.00000003`). Les
+Vérif de WF-DEV-0060 (« la somme de leurs pourcentages vaut cent ») et de WF-PTF-0080 (« la somme des
+parts par nature vaut cent pour cent ») l'exigent — décision de l'agent de livraison à la relecture
+1, qui renverse la première rédaction. Les parts des postes, qui ne portent qu'une partie des lignes,
+et une valeur isolée — un avancement, la consommation du budget, le taux de charge, le taux de
+transformation — ne sont pas des répartitions : quatre décimales et le plancher, sans report.
+WF-DAT-0100 n'est pas contredit : il veut des pourcentages conservés exacts, non arrondis *avant* les
+calculs ; un quotient, souvent sans écriture décimale finie, ne s'arrondit qu'à la valeur rendue, le
+serveur calculant sur les montants exacts. `AmountByKey.share` quitte `Percent` pour `Decimal` : un
+quotient calculé, non un pourcentage conservé. Écartés :
+
+- la somme libre, chaque part son propre quotient, que la première rédaction retenait : contraire
+  aux Vérif de WF-DEV-0060 et de WF-PTF-0080 ;
+- douze décimales ou plus, que #694 proposait : toutes les parts des exemples auraient changé, et
+  l'écran, qui montre chaque décimale qu'il reçoit (`formatPercent`) tant que `formatShare` (L51)
+  n'a pas pris sa place, les aurait toutes montrées ;
+- quatre décimales et la plus petite part, `0.0001`, pour une part non nulle que l'arrondi
+  annulerait : l'écran n'aurait pas su distinguer 0,003 % de 0,01 % ;
+- le pont du front de L51 officialisé — une part donnée nulle à côté d'un montant non nul dite
+  « < 0,01 % » — : le plancher le rend inutile, une part donnée nulle l'étant.
+
+Les indices (`IndexValue`), que le faux back donne aussi à quatre décimales, ne sont pas traités :
+#694 ne les nomme pas, et leur zone est classée par le serveur. `wftools.mockstructure.share`
+arrondit ainsi chaque rapport des exemples engendrés, et `wftools.mockstructure.partition` les parts
+d'une répartition — du devis, du reste à engager, de la structure des coûts du portefeuille — ;
+`make mock-data` les réécrit. `tools/tests/test_mocktoday.py` tient la règle, la somme des
+répartitions à un et qu'aucune part d'un montant non nul n'est nulle dans les exemples ;
+`test_mockdata.py`, la somme des répartitions du devis et du portefeuille.
+
+**Les sous-projets d'un projet clos ont leur exemple** (#673, point 1 ; WF-CYC-0100) :
+`subprojects_completed`, les deux sous-projets du témoin terminé (`project_completed`), la
+modification indisponible faute de `project_not_terminal`, la suppression faute de
+`subproject_not_cited`, `subproject_without_actual_costs`, puis `project_not_terminal`, dans l'ordre
+de L42l. Écrit à la main comme `project_completed`, variante qu'il suit, et cité sous
+`listSubprojects` après `subprojects`, qui reste le premier. `test_mockproject.py` lui applique la
+règle `_listed` d'un projet clos, et vérifie que ce sont les sous-projets du projet en cours, leurs
+commandes à part. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
+refusé par la forme (`NUMBER_INVALID`), `00.5` admis.
+
+Le client est régénéré. Le front n'est touché que par le client régénéré et par la valeur attendue
+d'un test de `formatShare`, la part du poste n'étant plus nulle ; il adoptera
+`subprojects_completed` dans le test d'un projet clos (#673), lira l'échec de la vérification d'une
+restauration depuis un fichier et son 404 quand cet écran se construira, et `formatShare` (L51)
+pourra retirer la branche du montant : une part donnée nulle l'est.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

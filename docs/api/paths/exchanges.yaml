@@ -20,7 +20,9 @@
       celui de la sauvegarde dont elle est la copie, et le rend (`backup_taken_at`) : c'est la
       date que la confirmation de la restauration énonce et que `startRestore` compare à la
       date confirmée (WF-ADM-0160) ; une archive dont l'instant ne se lit pas n'est pas une
-      sauvegarde de Waterfall, et le dépôt est refusé.
+      sauvegarde de Waterfall, et le dépôt est refusé. Le dépôt ne vérifie pas l'archive au-delà
+      de son instant : la restauration la vérifie, avant de déconnecter quiconque
+      (`startRestore`).
     requestBody:
       required: true
       content:
@@ -263,7 +265,11 @@
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422':
         description: >-
-          Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`.
+          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision,
+          `/revision_id` ; un niveau d'arborescence sous le premier, `/depth`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `1` (WF-PLA-0120).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              depth_out_of_range: { $ref: ../../../fixtures/api/export_depth_out_of_range.json }
