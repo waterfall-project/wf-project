@@ -5,8 +5,10 @@
 An access token is validated by the public keys of the realm — signature, issuer, audience,
 expiry — and gives nothing but its subject (WF-ARC-0030). The keys are kept, read again when a
 token names a key that is not among them — the realm has added one — and when they have been
-kept for the life of an access token: a key the realm has removed stops serving within it. The
-administration API is ``keycloak_admin``'s.
+kept for the life of an access token: a key the realm has removed stops serving within it. While
+Keycloak fails to give them, the keys held serve, and a request whose key is held does not wait
+for those being read; a token whose key is not held is refused as Keycloak's failure, never as a
+session missing. The administration API is ``keycloak_admin``'s.
 
 Keycloak is reached on its back channel, the issuer of the tokens being the address the browser
 knows it by. A Keycloak that does not answer is a component unavailable (503); an answer that
@@ -17,6 +19,7 @@ import math
 import threading
 import time
 from collections.abc import Callable, Mapping
+from functools import partial
 from http import HTTPStatus
 from typing import Any, cast
 from urllib.parse import quote
@@ -34,9 +37,10 @@ AUDIENCE = "waterfall-api"
 # The algorithm the keys of the realm sign with; a token that says another one is refused.
 ALGORITHMS = ("RS256",)
 TIMEOUT_SECONDS = 10.0
-# A token naming a key that is not known makes the keys read again, but not more often than
-# this: a token naming a key the realm never had would otherwise send every request to Keycloak.
-# A key the realm has just added is thus taken within this delay at worst.
+# The keys are not read again before this delay has passed since the end of the last attempt: a
+# token naming a key the realm never had, a Keycloak that does not answer, would otherwise send
+# every request to Keycloak. A key the realm has just added is thus taken within this delay at
+# worst; a failure to read them is given again until it has passed.
 KEYS_REREAD_SECONDS = 10.0
 # The keys are read again once they have been kept this long, the life of an access token of the
 # realm: a key it has removed, a key it has stopped trusting, stops serving within this delay.
@@ -72,20 +76,28 @@ class Keycloak:
     """The realm of Waterfall, as the API and the worker reach it."""
 
     def __init__(
-        self, settings: ServiceSettings, clock: Callable[[], float] = time.monotonic
+        self,
+        settings: ServiceSettings,
+        clock: Callable[[], float] = time.monotonic,
+        *,
+        timeout: float = TIMEOUT_SECONDS,
+        keys_reread: float = KEYS_REREAD_SECONDS,
     ) -> None:
         """Prepare the client; nothing is asked of Keycloak before a token is to be validated."""
         realm = quote(settings.keycloak_realm, safe="")
         self.issuer = f"{settings.keycloak_address.rstrip('/')}/realms/{realm}"
         backchannel = (settings.keycloak_backchannel or settings.keycloak_address).rstrip("/")
-        self._http = httpx2.Client(base_url=backchannel, timeout=TIMEOUT_SECONDS)
+        self._http = httpx2.Client(base_url=backchannel, timeout=timeout)
         # Where the realm serves its keys and its tokens, on the back channel.
         self.protocol = f"/realms/{realm}/protocol/openid-connect"
         self._clock = clock
+        self._keys_reread = keys_reread
         self._keys: Mapping[str, PyJWK] = {}
-        # When the keys were last asked for, and until when those read are kept.
-        self._keys_asked_at: float | None = None
+        # Until when the keys read are kept, and when they may be asked for again.
         self._keys_kept_until = -math.inf
+        self._keys_reread_at = -math.inf
+        # How the last attempt failed, given again until they may be asked for again.
+        self._keys_failure: Callable[[], Exception] | None = None
         self._keys_lock = threading.Lock()
 
     def close(self) -> None:
@@ -143,27 +155,46 @@ class Keycloak:
         key = self._keys.get(key_id)
         if key is not None and self._clock() < self._keys_kept_until:
             return key
-        with self._keys_lock:
-            # Another request may have read them while this one waited.
-            now = self._clock()
-            key = self._keys.get(key_id)
-            if key is not None and now < self._keys_kept_until:
-                return key
-            asked_at = self._keys_asked_at
-            if asked_at is not None and now - asked_at < KEYS_REREAD_SECONDS:
-                return key
-            self._keys_asked_at = now
-            try:
-                self._keys = self._read_keys()
-            except UnavailableError:
-                if not self._keys:
-                    raise
-                # The keys of a few minutes ago rather than a 503 at every request, while
-                # Keycloak does not answer; they are asked for again in a while.
-                logger.warning("identity_provider.keys_kept")
-                return key
-            self._keys_kept_until = now + KEYS_MAX_AGE_SECONDS
-            return self._keys.get(key_id)
+        # A request whose key is held, even old, does not wait for the keys another one reads:
+        # while Keycloak does not answer, that one alone waits.
+        if not self._keys_lock.acquire(blocking=key is None):
+            return key
+        try:
+            return self._key_held(key_id)
+        finally:
+            self._keys_lock.release()
+
+    def _key_held(self, key_id: str) -> PyJWK | None:
+        """Give the key of ``key_id``, reading the keys again if they may be; the lock is held."""
+        # Another request may have read them while this one waited.
+        now = self._clock()
+        key = self._keys.get(key_id)
+        if key is not None and now < self._keys_kept_until:
+            return key
+        if now < self._keys_reread_at:
+            # Not a session missing while Keycloak has just failed to give the keys.
+            if key is None and self._keys_failure is not None:
+                raise self._keys_failure()
+            return key
+        try:
+            keys = self._read_keys()
+        except UnavailableError:
+            self._keys_failure = unavailable
+            if key is None:
+                raise
+            # The keys of a few minutes ago rather than a 503 at every request, while
+            # Keycloak does not answer; they are asked for again in a while.
+            logger.warning("identity_provider.keys_kept")
+            return key
+        except IdentityProviderError as error:
+            self._keys_failure = partial(IdentityProviderError, str(error))
+            raise
+        finally:
+            self._keys_reread_at = self._clock() + self._keys_reread
+        self._keys = keys
+        self._keys_kept_until = now + KEYS_MAX_AGE_SECONDS
+        self._keys_failure = None
+        return keys.get(key_id)
 
     def _read_keys(self) -> Mapping[str, PyJWK]:
         response = expect(self.send("GET", f"{self.protocol}/certs"), HTTPStatus.OK)

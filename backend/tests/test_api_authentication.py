@@ -10,6 +10,7 @@ unknown to Waterfall, and closing sessions, need Keycloak itself:
 
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
@@ -342,6 +343,93 @@ def test_keys_keycloak_fails_to_serve_are_a_component_unavailable(
         "COMPONENT_UNAVAILABLE",
         {"component": "identity_provider"},
     )
+
+
+@pytest.mark.parametrize(
+    ("status", "failure", "message"),
+    [
+        (HTTPStatus.SERVICE_UNAVAILABLE, UnavailableError, "COMPONENT_UNAVAILABLE"),
+        (HTTPStatus.NOT_FOUND, IdentityProviderError, "certs answered 404"),
+    ],
+    ids=["unavailable", "not served"],
+)
+def test_a_failure_to_read_the_keys_is_given_again_until_they_are_read_again(
+    status: HTTPStatus,
+    failure: type[Exception],
+    message: str,
+    realm_settings: ServiceSettings,
+    realm: TestRealm,
+) -> None:
+    now = [1000.0]
+    keycloak = Keycloak(realm_settings, clock=lambda: now[0])
+    signed = realm.token(SUBJECT, KEY)
+    realm.status = status
+    with pytest.raises(failure, match=message):
+        keycloak.subject_of(signed)
+    # A second later, the failure of Keycloak again, not a session missing; it is not asked.
+    now[0] += 1
+    with pytest.raises(failure, match=message):
+        keycloak.subject_of(signed)
+    assert realm.reads == 1
+    # Keycloak back, the token is taken once the keys may be read again.
+    realm.status = HTTPStatus.OK
+    now[0] += KEYS_REREAD_SECONDS
+    assert keycloak.subject_of(signed) == SUBJECT
+    assert realm.reads == 2
+    keycloak.close()
+
+
+def test_a_token_whose_key_is_not_held_while_keycloak_fails_is_a_component_unavailable(
+    realm_settings: ServiceSettings, realm: TestRealm
+) -> None:
+    now = [1000.0]
+    keycloak = Keycloak(realm_settings, clock=lambda: now[0])
+    signed = realm.token(SUBJECT, KEY)
+    assert keycloak.subject_of(signed) == SUBJECT
+    # The realm adds a key while Keycloak fails: a token it signs is not one without a session.
+    rotated = realm.token(SUBJECT, "key-2", key=realm.add_key("key-2"))
+    realm.status = HTTPStatus.SERVICE_UNAVAILABLE
+    now[0] += KEYS_REREAD_SECONDS
+    for _ in range(2):
+        with pytest.raises(UnavailableError):
+            keycloak.subject_of(rotated)
+        now[0] += 1
+    assert keycloak.subject_of(signed) == SUBJECT
+    assert realm.reads == 2
+    realm.status = HTTPStatus.OK
+    now[0] += KEYS_REREAD_SECONDS
+    assert keycloak.subject_of(rotated) == SUBJECT
+    keycloak.close()
+
+
+def test_a_request_whose_key_is_held_does_not_wait_for_the_keys_being_read(
+    realm_settings: ServiceSettings, realm: TestRealm
+) -> None:
+    # Keycloak answers later than the client waits; the delays are shortened, that between two
+    # readings below the time a reading takes.
+    later = [0.0]
+    keycloak = Keycloak(
+        realm_settings, clock=lambda: time.monotonic() + later[0], timeout=0.5, keys_reread=0.4
+    )
+    signed = realm.token(SUBJECT, KEY)
+    assert keycloak.subject_of(signed) == SUBJECT
+    realm.delay = 5.0
+    later[0] += KEYS_MAX_AGE_SECONDS
+    with ThreadPoolExecutor(1) as reader:
+        reading = reader.submit(keycloak.subject_of, signed)
+        while realm.reads < 2:
+            time.sleep(0.01)
+        assert keycloak.subject_of(signed) == SUBJECT
+        assert not reading.done()
+        assert reading.result() == SUBJECT
+    # The delay between two readings counts from the end of the one that failed.
+    assert keycloak.subject_of(signed) == SUBJECT
+    assert realm.reads == 2
+    realm.delay = 0.0
+    later[0] += 0.4
+    assert keycloak.subject_of(signed) == SUBJECT
+    assert realm.reads == 3
+    keycloak.close()
 
 
 def test_keys_keycloak_does_not_serve_are_a_defect_of_the_platform(

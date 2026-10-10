@@ -41,6 +41,10 @@ class TestRealm:
         self.reads = 0
         # The status the keys are served with: another one plays a Keycloak that fails.
         self.status = HTTPStatus.OK
+        # How long the keys take to be served: a longer delay than the client waits plays a
+        # Keycloak that does not answer.
+        self.delay = 0.0
+        self._stopping = threading.Event()
         self._encryption = new_key()
         realm = self
 
@@ -50,6 +54,7 @@ class TestRealm:
                     self.send_error(404)
                     return
                 realm.reads += 1
+                realm._stopping.wait(realm.delay)
                 if realm.status != HTTPStatus.OK:
                     self.send_error(realm.status)
                     return
@@ -117,6 +122,7 @@ class TestRealm:
 
     def stop(self) -> None:
         """Stop answering: the realm is unreachable from now on."""
+        self._stopping.set()
         self._server.shutdown()
         self._server.server_close()
         self._thread.join()
