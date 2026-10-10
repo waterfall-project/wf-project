@@ -17,6 +17,11 @@ Risk:
     - provision_amount
     - state
     - structure_id
+    - provision_cost_category_id
+    - provision_cost_category_label
+    - provision_cost_category_is_active
+    - provision_subproject_id
+    - provision_subproject_label
     - computed_fields
     - available_commands
     - audit
@@ -52,6 +57,43 @@ Risk:
     provision_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Ligne de provision portée par la structure principale (WF-RIS-0010).
+    provision_cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La catégorie de type provision pour risques que le risque a désignée pour sa provision —
+        à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision
+        tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu
+        identifié, sa ligne la reprend si elle est encore active, et sinon la catégorie est
+        demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que
+        `provision_cost_category_is_active` dit d'avance.
+    provision_cost_category_label:
+      type: string
+      description: >-
+        Le libellé de cette catégorie, résolu à la lecture, active ou désactivée, que le registre
+        et le formulaire présentent sans lire le référentiel (WF-ARC-0020, WF-REF-0150).
+    provision_cost_category_is_active:
+      type: boolean
+      description: >-
+        Calculé à la lecture : vrai quand cette catégorie est active et que sa nature l'est aussi
+        — la définition d'une catégorie active de type provision pour risques jusqu'à C-291
+        (#728). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie
+        (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans
+        comparer la catégorie aux listes du référentiel.
+    provision_subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le sous-projet que le risque a désigné, facultativement, pour sa provision, et auquel
+        appartient sa ligne de provision ; nul, elle compte dans l'ensemble « hors sous-projet »
+        (WF-RIS-0010, WF-RAE-0020, WF-IND-0020). La suppression du sous-projet passe à nul la
+        désignation de tout risque qui n'est pas identifié : redevenu identifié, sa provision
+        compte hors sous-projet — l'auteur l'a tranché le 2026-10-10 (décision de l'auteur, #732).
+        Le risque touché voit alors son `lock_version` avancer et son audit nommer l'auteur de la
+        suppression (WF-DAT-0070, WF-IHM-0110).
+    provision_subproject_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le libellé de ce sous-projet, résolu à la lecture ; nul pour une provision hors
+        sous-projet.
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
@@ -84,14 +126,21 @@ RiskCommand:
   type: string
   enum:
     - update
+    - update_provision
     - review
     - declare_occurrence
     - delete
   description: >-
-    Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), le réexaminer
-    — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer
-    survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). Les trois saisies relèvent
-    de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
+    Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), et parmi ses
+    attributs changer la catégorie ou le sous-projet de sa provision (`updateRisk`,
+    `provision_cost_category_id`, `provision_subproject_id`), le réexaminer — l'écarter ou le
+    réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu
+    (`declareRiskOccurrence`), le supprimer (`deleteRisk`). `update_provision`, toujours listée
+    avec `update`, dit d'avance que la catégorie et le sous-projet de la provision ne changent que
+    tant que le risque est identifié, `risk_identified` manquante sinon (WF-RIS-0010 ;
+    EP-14/L42p), comme `update_win_probability` le dit de la probabilité de gain d'un projet ;
+    elle ne nomme que `risk_identified`, pour un risque survenu comme pour un risque écarté.
+    Les saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
     `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
     suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La
     déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle
@@ -129,6 +178,13 @@ RiskComputedField:
 RiskWrite:
   type: object
   required: [label, probability]
+  description: >-
+    Déclaration d'un risque (WF-RIS-0010). La catégorie de sa provision se désigne parmi les
+    catégories actives de type provision pour risques — jusqu'à C-291 (#728), une catégorie
+    active sous une nature active de ce type ; quand il n'en existe qu'une, elle est retenue sans
+    être demandée, et le champ peut être omis. Sans aucune, la déclaration est refusée par 409,
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`. Le
+    sous-projet de la provision est facultatif.
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -136,11 +192,37 @@ RiskWrite:
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
     probability: { $ref: ../common.yaml#/Percent }
+    provision_cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La catégorie que porte la ligne de provision (WF-RIS-0010, WF-REF-0030). Omise à la
+        déclaration, elle est la seule catégorie active de type provision pour risques ; omise
+        quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue,
+        `UNKNOWN_COST_CATEGORY` ; désactivée, ou sous une nature désactivée,
+        `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010) ; d'une nature d'un autre type,
+        `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ;
+        `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa
+        catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la
+        catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`) ; une autre, envoyée pour un
+        risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`,
+        `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit
+        d'avance.
+    provision_subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le sous-projet auquel appartient la ligne de provision, facultatif ; nul ou omis à la
+        déclaration, elle compte hors sous-projet (WF-RIS-0010, WF-RAE-0020). Un sous-projet que
+        le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. À la modification, omis, il
+        reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé
+        pour un risque qui n'est pas identifié, est refusé comme la catégorie, par
+        `risk_identified`.
 
 RiskUpdate:
   description: >-
     Modification d'un risque : porte le compteur lu,
-    qu'une création n'a pas.
+    qu'une création n'a pas. La catégorie et le sous-projet de la provision, omis, restent ceux
+    du risque ; changés, ils ne le sont que tant que le risque est identifié (WF-RIS-0010,
+    `update_provision`).
   allOf:
     - $ref: '#/RiskWrite'
     - type: object
@@ -164,12 +246,31 @@ RiskReview:
 RiskReviewWrite:
   type: object
   required: [probability, state, lock_version]
-  description: La confirmation sans modification produit un réexamen daté (WF-RIS-0010).
+  description: >-
+    La confirmation sans modification produit un réexamen daté (WF-RIS-0010). Un risque écarté
+    qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle
+    est encore active ; sinon la catégorie est demandée, comme à la déclaration
+    (`provision_cost_category_id`), ce que `Risk.provision_cost_category_is_active` dit d'avance.
+    Sans aucune catégorie active de type provision pour risques, ce retour est refusé par 409,
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`
+    (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été
+    supprimé depuis, la désignation passée à nul (décision de l'auteur, #732). Son annulation rend
+    au risque son état précédent et la catégorie qu'il désignait avant ce retour, la catégorie
+    choisie au retour comprise (WF-IHM-0110, WF-RIS-0020).
   properties:
     probability: { $ref: ../common.yaml#/Percent }
     state:
       type: string
       enum: [identified, dismissed]
+    provision_cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle
+        qu'il désignait n'est plus active (`Risk.provision_cost_category_is_active` faux) :
+        omise, elle est la seule catégorie active de type
+        provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe
+        plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la
+        catégorie désignée est encore active, ou quand le risque ne redevient pas identifié.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskOccurrence:

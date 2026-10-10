@@ -710,6 +710,37 @@ indicateurs qui la montrent sont éprouvés un par un, et les tests qui disaient
 sont réécrits. Pour #714, point 2, `OutcomeNotice` nomme le porteur d'un code pris par le libellé que
 le refus donne quand l'écran ne le montre pas ; le point 1 attend #684.
 
+EP-14/L42p (#712), lot de contrat ajouté le 2026-10-10, fait suivre au contrat la spécification de
+#708, reprise par #710, et remplace la part de #579 que portait L42k, dont l'option (a) est devenue
+sans objet :
+- une catégorie de coût active de type provision pour risques est un prérequis de la création d'un
+  projet (`ReferenceReadiness.missing`, `active_provision_category`), et la règle de #578 — la
+  dernière nature ou catégorie de provision gardée — disparaît avec ses deux conditions, ses 409 et
+  ses exemples ;
+- le risque désigne la catégorie de sa provision, retenue sans être demandée quand il n'y en a
+  qu'une, et facultativement son sous-projet (C-299) ; il les change tant qu'il est identifié, ce que
+  sa commande `update_provision` dit d'avance ; redevenu identifié, il reprend sa catégorie si elle
+  est encore active (C-261) ; sans catégorie active de ce type, la déclaration et ce retour sont
+  refusés par `active_provision_category` ;
+- le type « provision » se dit « provision pour risques » (C-258) dans le contrat et les catalogues.
+
+La revue 1 a ajouté : le sous-projet d'une ligne de provision, celui que son risque désigne, est
+calculé, la grille et le collage ne l'écrivant plus ; jusqu'à C-291 (#728), une catégorie active de
+type provision pour risques est une catégorie active sous une nature active ; la suppression d'un
+sous-projet passe à nul la désignation des risques non identifiés (décision de l'auteur, #732) ; le
+risque dit si sa catégorie est encore active (`provision_cost_category_is_active`). La revue 2 :
+une catégorie dit si sa nature est active (`cost_type_is_active`) ; un risque dont la désignation
+passe à nul avance, son audit nommant l'auteur de la suppression ; l'annulation d'une modification de
+risque qui rendrait un sous-projet supprimé depuis est refusée (`restored_subproject_exists`, #732).
+
+Les points 3 et 5 de son périmètre — la suppression d'un sous-projet que portent des lignes de devis
+de la révision en cours (C-273) et le collage partiellement invalide (WF-IHM-0050) — sont partis dans
+EP-14/L42q (#727), le lot ayant atteint deux fois son estimation. Les choix et les options écartées
+sont dans `docs/api/DECISIONS.md`. Le front ne change que pour compiler et tenir ses catalogues — le
+libellé du type, la condition et la commande nouvelles, la désactivation de la provision désormais
+disponible ; l'adoption suit dans un lot du front : le prérequis à l'accueil, la catégorie et le
+sous-projet au formulaire du risque.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

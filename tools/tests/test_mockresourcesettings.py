@@ -211,6 +211,20 @@ def test_each_category_says_the_kind_of_its_nature_and_a_role_bears_one_of_labou
     assert {role["cost_category_id"] for role in fixture("resource_roles")["items"]} <= labour
 
 
+def test_each_category_says_whether_its_nature_is_active_as_the_universe_reads_it() -> None:
+    # `cost_type_is_active`, resolved at the reading (EP-14/L42p, revue 2): the natures of the
+    # universe, never those of `cost_types_with_inactive`, where the disbursements are deactivated.
+    natures = {n["cost_type_id"]: n for n in fixture("cost_types")["items"]}
+    categories = [
+        *fixture("volume/cost_categories")["items"],
+        *(fixture(n) for n in ("cost_category_created", "cost_category_updated")),
+        fixture("cost_category_deactivated"),
+    ]
+    for category in categories:
+        nature = natures[category["cost_type_id"]]
+        assert category["cost_type_is_active"] == nature["is_active"], category["code"]
+
+
 def test_the_parent_is_required_to_modify_a_node() -> None:
     # An absent parent would read neither as the root nor as the parent read: the body is whole, a
     # root sends `null`, and « keeps its parent » is judged on the value sent (revue 2 of L42j).

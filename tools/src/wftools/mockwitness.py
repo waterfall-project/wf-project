@@ -632,7 +632,10 @@ class Risk:
     ``own_structure`` its own cost structure in the current revision, of an identifier of its
     own, apart from the one the reference bore (``structures``, ``structures_amendments``;
     WF-DAT-0030, #461);
-    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060).
+    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060);
+    ``provision_category`` and ``provision_subproject`` the category of provision for risks and
+    the subproject it designated for its provision, which its line of provision bears while it is
+    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010).
     """
 
     number: int
@@ -644,6 +647,8 @@ class Risk:
     reference_provision_line: int | None = None
     provision_line: int | None = None
     merged: int | None = None
+    provision_category: str = PROVISIONS
+    provision_subproject: str | None = None
 
     @property
     def last(self) -> Review:

@@ -3562,6 +3562,10 @@ l'emploi et les taux que lisent les exemples, et tient que seules les catégorie
 
 ## La dernière nature provision et sa dernière catégorie (EP-02/L42g, #578)
 
+*Remplacée par EP-14/L42p (#579) : la règle est retirée, ses deux conditions et ses exemples avec
+elle — section « La catégorie et le sous-projet de la provision d'un risque, la provision pour
+risques (EP-14/L42p) ». Le texte qui suit est gardé pour l'histoire.*
+
 **Il reste toujours au moins une nature de type provision active, qui porte au moins une catégorie
 active** (décision de l'auteur du 2026-10-09, option (b) de #578 ; WF-REF-0030). L'exigence crée à
 l'amorçage une nature provision et sa catégorie, « c'est cette catégorie que portent les lignes de
@@ -4415,6 +4419,182 @@ d'un test de `formatShare`, la part du poste n'étant plus nulle ; il adoptera
 `subprojects_completed` dans le test d'un projet clos (#673), lira l'échec de la vérification d'une
 restauration depuis un fichier et son 404 quand cet écran se construira, et `formatShare` (L51)
 pourra retirer la branche du montant : une part donnée nulle l'est.
+
+## La catégorie et le sous-projet de la provision d'un risque, la provision pour risques (EP-14/L42p)
+
+Le contrat suit la spécification révisée par #708 et reprise dans `epic/EP-14` par #710 : #579
+(C-257, avec C-261, qui en complète la règle dans le même corps de WF-RIS-0010), C-299 et C-258. Les
+points 3 et 5 de #712 — C-273, la suppression d'un sous-projet que portent des lignes de devis de la
+révision en cours, et le collage partiellement invalide de WF-IHM-0050 — sont partis dans EP-14/L42q
+(#727), coupé de ce lot pour tenir sa taille. Les décisions sont de l'agent de réalisation du lot
+(#712), chacune avec sa raison. Le lot ne touche au front que pour compiler sur le client régénéré et
+tenir ses catalogues ; l'adoption par les écrans revient à un lot du front.
+
+**Une catégorie de provision pour risques active est un prérequis de la création d'un projet**
+(WF-CYC-0120 : « au moins une catégorie de coût active dont la nature est de type provision pour
+risques » ; Vérif : « Sur un référentiel dont aucune catégorie de type provision pour risques n'est
+active, la création est refusée en nommant ce prérequis. »). `ReferenceReadiness.missing` gagne
+`active_provision_category`, entre la catégorie de main-d'œuvre et le rôle — l'ordre de l'exigence,
+que l'énumération et les listes suivent désormais —, et le 409 `REFERENCE_INCOMPLETE` de
+`createProject` le nomme dans `params.missing_prerequisites` comme les autres. Exemples, chacun en
+dernier sous son statut : `reference_readiness_without_provision` et
+`project_reference_without_provision` (corrélation 1100), variantes contrefactuelles — PRV-001, seule
+catégorie de ce type du témoin, désactivée. Écarté : renommer `active_cost_category` en une valeur
+qui dise la main-d'œuvre — la description le dit, et le changement aurait cassé le client pour un
+nom ; le libellé « une catégorie de coût active » des catalogues reste au lot du front.
+
+**La règle « dernière nature ou catégorie de provision » de #578 disparaît** (WF-REF-0030, Vérif :
+« La désactivation de la dernière catégorie active de type provision pour risques est acceptée ; la
+création d'un projet (WF-CYC-0120), la déclaration d'un risque et le retour d'un risque écarté à
+l'état identifié (WF-RIS-0010) sont alors refusés. »). Elle remplace la section « La dernière nature
+provision et sa dernière catégorie (EP-02/L42g, #578) », gardée pour l'histoire. Les conditions
+`cost_type_not_last_provision` et `cost_category_not_last_provision` quittent le catalogue, les
+commandes des natures et des catégories, et les descriptions ; la désactivation d'une nature ou
+d'une catégorie redevient toujours disponible, et `setCostTypeActivation` et
+`setCostCategoryActivation` perdent le 409 qu'elles n'avaient que pour ce cas ; `updateCostType`
+nomme `cost_type_unused` seule, `updateCostCategory` `cost_category_unused` puis
+`cost_category_unrated`. Les exemples `cost_type_last_provision_refused` et
+`cost_category_last_provision_refused` (corrélations 1033 et 1034) sont retirés ; `cost_types`,
+`cost_types_with_inactive` et les catégories engendrées (`mockreference`, qui perd
+`last_provision`) disent la désactivation de PRV et de PRV-001 disponible. `createCostCategory`,
+`updateCostType`, `setCostTypeActivation` et `setCostCategoryActivation` ne changent plus les
+commandes d'autres objets et ne disent plus « relit » ; `updateCostCategory` et `setHourlyRate` le
+disent encore (#577). Le verrou de l'ensemble des natures et des catégories provision que la section
+de #578 demandait à EP-03 tombe avec la règle. Écarté : garder les conditions jusqu'au lot du front,
+qui aurait présenté indisponible ce que le Vérif accepte.
+
+**Le risque désigne la catégorie de sa provision** (WF-RIS-0010 : « La ligne de provision porte la
+catégorie que le risque désigne à sa déclaration parmi les catégories actives de type provision pour
+risques (WF-REF-0030) ; lorsqu'il n'en existe qu'une, elle est retenue sans être demandée. Tant que le
+risque est identifié, cette catégorie peut être changée pour une autre catégorie active de ce
+type. »). `RiskWrite.provision_cost_category_id`, facultative : omise, la seule catégorie active de
+ce type ; omise quand il y en a plusieurs, 422 `VALUE_REQUIRED` ; inconnue, `UNKNOWN_COST_CATEGORY` ;
+désactivée, `INACTIVE_REFERENCE_OBJECT` ; d'une autre nature, `PROVISION_CATEGORY_REQUIRED`, nouveau,
+le pendant de `LABOUR_CATEGORY_REQUIRED` — écarté : `PROVISION_CATEGORY_RESERVED`, qui dit le
+contraire, une catégorie de provision donnée à une ligne saisie. `Risk` dit la catégorie et le
+sous-projet de sa provision par leur identifiant et leur libellé, résolus à la lecture
+(`provision_cost_category_id`, `_label`, `provision_subproject_id`, `_label`), comme une ligne de
+devis (WF-ARC-0020) ; un risque écarté garde la sienne. Le changement se fait par `updateRisk`, la
+valeur omise restant celle du risque, et se dit d'avance par une commande, `update_provision`,
+toujours listée après `update` et indisponible, `risk_identified` manquante, pour un risque qui n'est
+pas identifié — comme `update_win_probability` pour la probabilité de gain d'un projet (L42i) ;
+envoyé malgré elle, le changement est refusé par 409 `STATE_FORBIDS_OPERATION`, la même condition.
+Écarté : laisser le front déduire de l'état du risque ce qu'il peut changer, que la conception
+d'EP-02 interdit.
+
+**Le retour d'un risque écarté à l'état identifié** suit le même corps (C-261 : « Lorsqu'un risque
+écarté redevient identifié, sa ligne de provision reprend la catégorie qu'il désignait si elle est
+encore active. Sinon, la catégorie est demandée, comme à la déclaration. ») :
+`RiskReviewWrite.provision_cost_category_id`, lue seulement quand la catégorie désignée n'est plus
+active, aux refus de la déclaration. Sans aucune catégorie active de ce type, la
+déclaration et ce retour sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `active_provision_category`, nouvelle au catalogue, du même nom que le
+prérequis. **Aucune commande ne la liste** : la saisie des risques (`edit_risks`) couvre aussi la
+modification, le réexamen et la suppression, qui n'en dépendent pas, et le formulaire de la
+déclaration la sait d'avance par les catégories qu'il lit pour proposer le choix, dont il retient
+les actives dont la nature est active et de type provision pour risques (`listCostCategories`,
+lisible de qui consulte un projet, `cost_type_is_active`, `cost_type_kind`) ; celle d'un risque
+écarté, par `provision_cost_category_is_active` (revue 1). `CostCategoryImage.cost_type_is_active`,
+résolu à la lecture comme le type de la nature, est ajouté pour cela (revue 2) : écarté, laisser le
+formulaire relire les natures, ou ne lire que l'état de la catégorie, qui aurait proposé une
+catégorie active sous une nature désactivée que la déclaration refuse. Écartés : la condition
+sur `edit_risks`, qui aurait fermé toute la saisie des risques ; une commande `declare_risk` de plus
+sur le projet et la révision, qui aurait doublé `edit_risks` pour un cas que la création d'un projet
+exclut déjà et qu'une désactivation seule ramène.
+
+**Le risque désigne aussi, facultativement, le sous-projet de sa provision** (C-299, WF-RIS-0010 :
+« La ligne de provision appartient au sous-projet que le risque désigne, facultativement, à sa
+déclaration, et qui peut être changé tant qu'il est identifié ; à défaut, elle compte dans l'ensemble
+« hors sous-projet » (WF-RAE-0020). »). `RiskWrite.provision_subproject_id`, nul ou omis à la
+déclaration pour une provision hors sous-projet, `null` à la modification pour l'y remettre ; un
+sous-projet que le projet n'a pas, 422 `UNKNOWN_SUBPROJECT` ; le changement suit `update_provision`.
+Les trois risques du témoin désignent PRV-001 et aucun sous-projet : la ligne de provision de 751 est
+déjà hors sous-projet, ce que C-047 supposait. `mockhistory` écrit les quatre champs ; exemples, à
+la main : `risk_provision_refused` (corrélation 1102, l'ingénierie électrique et un sous-projet
+inconnu), `risk_without_provision_category` (1103, contrefactuel), `risk_provision_frozen` (1104,
+753, écarté, dont la provision passerait aux essais).
+
+**Le type « provision » s'appelle « provision pour risques »** (C-258) : la description de
+`CostTypeKind`, qui dit aussi qu'une provision saisie et non pondérée relève d'une nature hors
+main-d'œuvre, et chaque description du contrat qui nommait une « nature provision » ; les catalogues
+du front (`enums.CostTypeKind.provision` : « Provision pour risques », « Provision for risks »).
+Écartés : renommer la valeur `provision` de l'énumération, un changement du client et du back sans
+gain de sens, le code n'étant pas lu ; renommer la nature PRV du témoin, « Provision », un libellé
+saisi, modifiable comme tout libellé (WF-EXP-0020).
+
+**La définition provisoire d'une catégorie active de type provision pour risques** (revue 1).
+C-291 — désactiver une nature désactive ses catégories — n'est pas au contrat (#728) : sans lui,
+désactiver la dernière nature de type provision pour risques laisserait sa catégorie active, et rien
+ne manquerait. Jusqu'à C-291, `active_provision_category` signifie donc « une catégorie active sous
+une nature active de type provision pour risques », dans `ReferenceReadiness.missing`, dans
+`CommandCondition`, dans les descriptions de `CostTypeCommand` et de `setCostTypeActivation` ; une
+catégorie désignée sous une nature désactivée est refusée par `INACTIVE_REFERENCE_OBJECT`. Écarté :
+attendre C-291, le contrat affirmant entre-temps un refus que rien ne produit.
+
+**Une catégorie inchangée, désactivée depuis, se garde** (revue 1). À la modification d'un risque,
+`INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la
+catégorie, comme le parent d'un nœud ou la catégorie d'un rôle (L42j) : un risque se modifie sans
+avoir à changer une catégorie désactivée après sa désignation.
+
+**Le sous-projet d'une ligne de provision est celui que son risque désigne, calculé** (revue 1). La
+grille et le collage écrivaient aussi `estimate_line.subproject_id` de la ligne de provision, un
+second chemin qui contournait `update_provision` : il quitte les `editable_fields` de la ligne et
+rejoint ses champs calculés (`computed_fields`, dépendance `risk`) ; envoyé, il est refusé par 422
+`COMPUTED_VALUE`, comme ses grandeurs, et un collage refuse la cellule de même. `nodes_estimate` et
+les lectures du nœud 555 sont engendrés en conséquence. Écarté : laisser l'écriture de la ligne
+réécrire la désignation du risque, qui contournerait `risk_identified`. Le délai de paiement de la
+même ligne, antérieur au lot, est suivi par #733.
+
+**Un sous-projet supprimé ôte sa désignation aux risques non identifiés** (revue 1 ; tranché par
+l'auteur le 2026-10-10, décision de l'auteur, #732). Un risque écarté ou survenu peut désigner un
+sous-projet sans ligne de provision pour le porter : sa suppression passe cette désignation à nul,
+et le risque redevenu identifié porte sa provision hors sous-projet. `deleteSubproject`,
+`Risk.provision_subproject_id` et `RiskReviewWrite` le disent. Écarté : une condition « aucun risque
+ne le désigne », qui aurait gardé indéfiniment un sous-projet pour un risque écarté.
+
+**Ce que la lecture et la commande disent** (revue 1). `Risk.provision_cost_category_is_active`,
+résolu à la lecture — la catégorie et sa nature actives —, dit d'avance qu'un retour à l'état
+identifié demandera une catégorie : le front ne compare rien aux listes du référentiel, ce qui suit
+la raison même d'`update_provision`. `update_provision` ne nomme que `risk_identified`, pour un risque
+survenu comme pour un écarté. Une seule commande pour la catégorie et le sous-projet : ils suivent la
+même règle, « tant qu'il est identifié ». Écartés pour C-299 : deux commandes, qui diraient deux fois
+la même condition ; un sous-projet porté par la seule ligne de provision, qui disparaît avec la ligne
+quand le risque est écarté et ne laisserait rien à reprendre au retour. Les refus de `createRisk` se
+jugent dans l'ordre `at_least_one_task` — dont le 409 attend #728 — puis
+`active_provision_category`, et ce 409 précède le 422 : sans catégorie active, aucune désignation ne
+serait valable. L'annulation d'`updateRisk` rend la catégorie et le sous-projet d'avant ; celle de
+`reviewRisk`, la catégorie désignée avant un retour à l'état identifié (WF-IHM-0110).
+
+**Ce qu'une désignation passée à nul fait au risque, et ce que l'annulation ne rend pas** (revue 2 ;
+#732). Une désignation passée à nul par la suppression d'un sous-projet est une écriture du risque :
+son `lock_version` avance, et son audit nomme l'auteur de la suppression. Toute annulation et tout
+rétablissement qui rendraient un sous-projet supprimé depuis — la création, la modification ou la
+suppression d'un risque, toute écriture de la grille, la suppression d'une ligne ou d'une tâche et
+de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `restored_subproject_exists`, nouvelle au catalogue — aucune condition
+existante ne disait un objet que l'annulation rendrait —, et ne défont ni ne rétablissent rien
+(revue 3 : la règle vaut sur tous les chemins frères, et `redoLastUndo` a son propre 409). Le texte
+est le même dans L42q, qui l'écrit aussi dans `UndoResult`. Écartés : rendre le risque hors sous-projet en silence, une annulation qui ne
+rendrait pas ce qu'elle annonce ; recréer le sous-projet, que l'annulation d'une saisie de risque ne
+peut pas faire. L42q prend la même condition pour une ligne de devis passée par la grille à un
+sous-projet supprimé depuis.
+
+**Corrélations** 1100 et 1102 à 1104 — 1101 est à L42q ; la plage des corrélations écrites à la main,
+pleine jusqu'à 1099, va désormais jusqu'à 1199 (`mockids`). `tools/tests/test_mockprovision.py` tient
+le prérequis, les refus du risque et sa commande ; `test_mockproject.py` l'ordre des prérequis ;
+`test_mockhistory.py` la catégorie et le sous-projet de chaque risque contre sa ligne de provision ;
+`test_mockcostsettings.py` et `test_mockreference.py` le retrait de #578. Les catalogues reçoivent
+`active_provision_category`, `update_provision` et `PROVISION_CATEGORY_REQUIRED`, et perdent les deux
+conditions retirées.
+
+**Hors du lot, relevés pour la suite** — ouverts en #728, sous-issue de #712. C-291 — la
+désactivation d'une nature désactive ses catégories, et une catégorie ne se réactive que sous une
+nature active — n'est pas au contrat : `setCostCategoryActivation` dit encore qu'une catégorie se
+réactive sous une nature désactivée. Le résumé de `reference_readiness_incomplete` décrit une
+installation neuve sans calendrier par défaut, quand WF-EXP-0020 en crée un et que le Vérif de
+WF-CYC-0120 nomme la catégorie de main-d'œuvre et le rôle manquants. La déclaration d'un risque sur
+une structure principale sans tâche, refusée « en nommant la condition manquante » (WF-RIS-0010), n'a
+pas de 409 décrit à `createRisk`.
 
 ## Collage et annulation
 

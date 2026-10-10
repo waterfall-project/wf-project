@@ -31,7 +31,8 @@ CHANGE_KIND = "change_kind"
 UNUSED = "cost_type_unused"
 CHANGE_COST_TYPE = "change_cost_type"
 CATEGORY_UNUSED, CATEGORY_UNRATED = "cost_category_unused", "cost_category_unrated"
-NATURE_LAST, CATEGORY_LAST = "cost_type_not_last_provision", "cost_category_not_last_provision"
+WITHDRAWN = ("cost_type_not_last_provision", "cost_category_not_last_provision")
+"""The conditions of the rule of #578, withdrawn with it (EP-14/L42p, #579)."""
 
 TEXTS = {"/code", "/label", "/accounting_code"}
 """The fields of a nature or a category that hold a text the schema bounds."""
@@ -110,16 +111,10 @@ SAID = {
 }
 """What the summary of each refusal says of the value sent, by the fields and motives it tells."""
 
-RELIT = (
-    "setCostTypeActivation",
-    "setCostCategoryActivation",
-    "updateCostType",
-    "updateCostCategory",
-    "createCostCategory",
-    "setHourlyRate",
-)
+RELIT = ("updateCostCategory", "setHourlyRate")
 """The writes of the cost settings that change the commands of other objects than the one written,
-which the answer does not bear (#577, #578): each says the client reads the lists anew."""
+which the answer does not bear (#577): each says the client reads the lists anew. Those #578 named
+change none since its rule was withdrawn (EP-14/L42p)."""
 
 TOO_LONG = {
     "cost_type_creation_refused": ("CostTypeWrite", "code", 36, "trente-six"),
@@ -174,38 +169,14 @@ def _employed(examples: dict[str, Any]) -> set[str]:
     }
 
 
-def _provisions() -> tuple[set[str], set[str]]:
-    """Return the last active nature of provision with an active category, and that category.
-
-    Each set holds one, or none when two or more remain: the last may not go (#578).
-    """
-    natures = {
-        nature["cost_type_id"]
-        for nature in fixture("cost_types")["items"]
-        if nature["kind"] == "provision" and nature["is_active"]
-    }
-    kept = [c for c in _categories().values() if c["is_active"] and c["cost_type_id"] in natures]
-    bearing = {category["cost_type_id"] for category in kept}
-    return (
-        bearing if len(bearing) == 1 else set(),
-        {kept[0]["cost_category_id"]} if len(kept) == 1 else set(),
-    )
-
-
 def _nature_commands(nature: Entry, employed: set[str]) -> list[Entry]:
-    """Return the commands a nature bears: its state's, then the change of its kind."""
-    last = nature["cost_type_id"] in _provisions()[0]
-    frozen = [
-        condition
-        for condition, held in ((UNUSED, nature["cost_type_id"] in employed), (NATURE_LAST, last))
-        if held
-    ]
-    kept = [NATURE_LAST] if last and nature["is_active"] else []
+    """Return the commands a nature bears: its state's, always available, then its kind's."""
+    frozen = [UNUSED] if nature["cost_type_id"] in employed else []
     return [
         {
             "command": "deactivate" if nature["is_active"] else "reactivate",
-            "is_available": not kept,
-            "missing_conditions": kept,
+            "is_available": True,
+            "missing_conditions": [],
         },
         {"command": CHANGE_KIND, "is_available": not frozen, "missing_conditions": frozen},
     ]
@@ -301,7 +272,6 @@ def test_a_category_changes_kind_only_unemployed_and_without_rates(
     examples: dict[str, Any],
 ) -> None:
     lined, rated = _lined(examples), _rated(examples)
-    last = _provisions()[1]
     listed = list(_categories().values())
     written = [
         fixture(name)
@@ -315,17 +285,15 @@ def test_a_category_changes_kind_only_unemployed_and_without_rates(
             for condition, held in (
                 (CATEGORY_UNUSED, identifier in lined),
                 (CATEGORY_UNRATED, identifier in rated),
-                (CATEGORY_LAST, identifier in last),
             )
             if held
         ]
         seen.add(tuple(missing))
-        kept = [CATEGORY_LAST] if identifier in last and category["is_active"] else []
         assert category["available_commands"] == [
             {
                 "command": "deactivate" if category["is_active"] else "reactivate",
-                "is_available": not kept,
-                "missing_conditions": kept,
+                "is_available": True,
+                "missing_conditions": [],
             },
             {
                 "command": CHANGE_COST_TYPE,
@@ -333,59 +301,47 @@ def test_a_category_changes_kind_only_unemployed_and_without_rates(
                 "missing_conditions": missing,
             },
         ], category["code"]
-    # Every case is told: free, employed, bearing rates, both, and the last of provision.
+    # Every case is told: free, employed, bearing rates, and both.
     assert seen == {
         (),
         (CATEGORY_UNUSED,),
         (CATEGORY_UNRATED,),
         (CATEGORY_UNUSED, CATEGORY_UNRATED),
-        (CATEGORY_UNUSED, CATEGORY_LAST),
     }
 
 
-# --- The last nature of provision and its last category: they remain (#578) -------------------
+# --- The last of provision for risks goes as any other: #578 withdrawn (EP-14/L42p) --------------
 
 
-def test_the_witness_keeps_one_nature_of_provision_whose_one_category_is_the_last() -> None:
-    natures, categories = _provisions()
-    assert natures == {universe(463)}
-    assert categories == {universe(404)}
-    [provision] = [n for n in fixture("cost_types")["items"] if n["cost_type_id"] == universe(463)]
-    assert provision["available_commands"][0] == {
-        "command": "deactivate",
-        "is_available": False,
-        "missing_conditions": [NATURE_LAST],
-    }
-
-
-@pytest.mark.parametrize(
-    ("name", "listed", "condition"),
-    [
-        ("cost_type_last_provision_refused", "cost_types", NATURE_LAST),
-        ("cost_category_last_provision_refused", "volume/cost_categories", CATEGORY_LAST),
-    ],
-)
-def test_the_refused_deactivation_of_the_last_of_provision_names_what_its_command_misses(
-    examples: dict[str, Any], name: str, listed: str, condition: str
+def test_the_one_nature_of_provision_and_its_one_category_deactivate_as_any_other(
+    examples: dict[str, Any],
 ) -> None:
-    example = examples[name]
-    refused = example["value"]
-    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
-    assert set(refused) == {"code", "status", "params", "correlation_id"}
-    assert refused["params"] == {"missing_condition": condition}
-    natures, categories = _provisions()
-    last = natures if listed == "cost_types" else categories
-    # The object the summary names first, by its label, is the last, whose deactivation misses the
-    # condition.
-    summary = example["summary"].lower()
-    named = [
-        (summary.find(stem), e)
-        for e in fixture(listed)["items"]
-        if (stem := e["label"].lower().rstrip("s")) in summary
-    ]
-    [_, entry] = min(named, key=lambda pair: pair[0])
-    assert next(v for k, v in entry.items() if k.endswith("_id")) in last
-    assert entry["available_commands"][0]["missing_conditions"] == [condition]
+    # The witness has one nature of provision for risks, PRV (463), and one category of it, PRV-001
+    # (404): their deactivation is available, the creation of a project and the declaration of a
+    # risk naming what they then miss (WF-CYC-0120, WF-RIS-0010; #579).
+    [nature] = [n for n in fixture("cost_types")["items"] if n["kind"] == "provision"]
+    assert nature["cost_type_id"] == universe(463)
+    assert nature["available_commands"][0] == {
+        "command": "deactivate",
+        "is_available": True,
+        "missing_conditions": [],
+    }
+    [category] = [c for c in _categories().values() if c["cost_type_id"] == universe(463)]
+    assert category["cost_category_id"] == universe(404)
+    assert category["available_commands"][0]["is_available"] is True
+    assert "cost_type_last_provision_refused" not in examples
+    assert "cost_category_last_provision_refused" not in examples
+
+
+def test_no_file_of_the_contract_names_the_conditions_of_the_withdrawn_rule() -> None:
+    for path in CONTRACT:
+        text = path.read_text(encoding="utf-8")
+        for condition in WITHDRAWN:
+            assert condition not in text, (path.name, condition)
+    for name in ("setCostTypeActivation", "setCostCategoryActivation"):
+        text = (API / "paths" / "reference.yaml").read_text(encoding="utf-8")
+        block = text.split(f"operationId: {name}\n", 1)[1].split("operationId:", 1)[0]
+        assert "\n      '409':" not in block, name
 
 
 @pytest.mark.parametrize(
@@ -545,14 +501,12 @@ def test_each_write_that_changes_other_commands_says_the_client_reads_the_lists_
     assert unsaid_reading(probe, ("a", "b")) == ["b"]
 
 
-def test_the_categories_say_the_deactivation_of_the_last_of_provision_unavailable(
+def test_the_categories_say_the_last_of_provision_deactivates_as_the_others(
     examples: dict[str, Any],
 ) -> None:
     summary = examples["volume/cost_categories"]["summary"]
-    [last] = _provisions()[1]
-    code = _categories()[last]["code"]
-    assert f"la désactivation de {code} " in summary
-    assert CATEGORY_LAST in summary
+    assert "la dernière de type provision pour risques comme les autres" in summary
+    assert all(condition not in summary for condition in WITHDRAWN)
 
 
 def max_length(text: str, schema: str, field: str) -> int:

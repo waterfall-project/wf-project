@@ -479,7 +479,8 @@ def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
     history: dict[str, Any],
 ) -> None:
     # WF-RIS-0020: a risk that occurred is neither updated, reviewed nor deleted; only an
-    # identified one occurs; one a marked revision cites — all three, identified before the
+    # identified one occurs, or changes the category or the subproject of its provision
+    # (WF-RIS-0010, EP-14/L42p); one a marked revision cites — all three, identified before the
     # reference was marked — is not deleted.
     available = {
         item["risk_id"]: {
@@ -489,17 +490,21 @@ def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
     }
     assert available[universe(751)] == {
         "update": [],
+        "update_provision": [],
         "review": [],
         "declare_occurrence": [],
         "delete": ["risk_not_cited"],
     }
     assert available[universe(752)] == {
         "update": ["risk_not_occurred"],
+        "update_provision": ["risk_identified"],
         "review": ["risk_not_occurred"],
         "declare_occurrence": ["risk_identified"],
         "delete": ["risk_not_occurred", "risk_not_cited"],
     }
     assert available[universe(753)]["declare_occurrence"] == ["risk_identified"]
+    assert available[universe(753)]["update_provision"] == ["risk_identified"]
+    assert available[universe(753)]["update"] == []
     assert all(mockhistory.is_cited(risk) for risk in REGISTER)
     late = mockwitness.Risk(
         799,
@@ -510,11 +515,54 @@ def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
         (mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
     )
     assert not mockhistory.is_cited(late)
-    assert mockhistory.commands(late)[3] == {
+    assert mockhistory.commands(late)[4] == {
         "command": "delete",
         "is_available": True,
         "missing_conditions": [],
     }
+
+
+def test_each_risk_names_the_category_and_the_subproject_its_line_of_provision_bears(
+    history: dict[str, Any],
+) -> None:
+    # WF-RIS-0010: the line of provision bears the category the risk designates and belongs to
+    # the subproject it designates, if any. The one line of provision of the current revision, that
+    # of 751, bears PRV-001 and no subproject; 752 and 753 keep the category they designated.
+    lines = {
+        node["node_id"]: node["estimate_line"]
+        for node in mockwitness.fixture("nodes_estimate")["items"]
+        if node["kind"] == "estimate_line"
+    }
+    categories = {
+        each["cost_category_id"]: each
+        for each in mockwitness.fixture("volume/cost_categories")["items"]
+    }
+    kinds = {
+        each["cost_type_id"]: each["kind"] for each in mockwitness.fixture("cost_types")["items"]
+    }
+    items = history["risks"]["items"]
+    for item in items:
+        category = categories[item["provision_cost_category_id"]]
+        assert kinds[category["cost_type_id"]] == "provision", item["label"]
+        assert item["provision_cost_category_label"] == category["label"]
+        assert item["provision_subproject_id"] is None
+        assert item["provision_subproject_label"] is None
+    assert all(item["provision_cost_category_is_active"] is True for item in items)
+    [identified] = [item for item in items if item["provision_node_id"] is not None]
+    line = lines[identified["provision_node_id"]]
+    assert line["is_computed"] is True
+    # The subproject of a line of provision is the one its risk designates, computed: the grid and
+    # the paste do not write it (revue 1 of EP-14/L42p).
+    nodes = {node["node_id"]: node for node in mockwitness.fixture("nodes_estimate")["items"]}
+    for node in nodes.values():
+        if node["kind"] == "estimate_line" and node["estimate_line"]["is_computed"]:
+            assert "estimate_line.subproject_id" not in node["editable_fields"]
+            assert "estimate_line.subproject_id" in node["computed_fields"]
+    assert line["cost_category_id"] == identified["provision_cost_category_id"]
+    assert line["subproject_id"] == identified["provision_subproject_id"]
+    assert history["risk"] == items[0]
+    summary = json.loads((mockwitness.FIXTURES / "risk.json").read_text(encoding="utf-8"))
+    assert "« Provisions pour risques », hors sous-projet" in summary["summary"]
 
 
 def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(

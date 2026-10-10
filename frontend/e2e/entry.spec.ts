@@ -170,17 +170,15 @@ test("traverses the computed cells of a line entered along its row, without ente
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
   await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();
-  // From its label, Tab goes past its quantity and its unit disbursement, which the server
-  // computes, past its category, its role and its effort, which its node does not accept (#219),
-  // to its sub-project and its payment delay, which it accepts (#349), then past its amounts, to
-  // the next row.
-  await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, PROVISION, at.subproject)).toBeFocused();
+  // From its label, Tab goes past its quantity, its unit disbursement and its sub-project — the
+  // one its risk designates (EP-14/L42p) —, which the server computes, past its category, its role
+  // and its effort, which its node does not accept (#219), to its payment delay, which it accepts
+  // (#349), then past its amounts, to the next row.
   await press(page, "Enter", "Tab");
   await expect(cellAt(grid, PROVISION, at.delay)).toBeFocused();
   await press(page, "Enter", "Tab");
   await expect(cellAt(grid, PROVISION + 1, at.label)).toBeFocused();
-  for (const column of [at.category, at.role, at.quantity, at.hours]) {
+  for (const column of [at.category, at.role, at.quantity, at.hours, at.subproject]) {
     await expect(cellAt(grid, PROVISION, column)).toHaveAttribute("aria-readonly", "true");
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);

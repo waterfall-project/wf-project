@@ -480,13 +480,12 @@ describe("the keyboard of a grid", () => {
   it("traverses the computed cells of a provision, and those it does not accept, to the next row [WF-IHM-0040-A]", async () => {
     const client = serve();
     render(grid());
-    // Along the row of the provision: its quantity and its unit disbursement are computed, and it
-    // accepts neither category, nor role, nor effort: its label, its sub-project and its payment
-    // delay alone are entered.
+    // Along the row of the provision: its quantity, its unit disbursement and its sub-project — the
+    // one its risk designates (EP-14/L42p) — are computed, and it accepts neither category, nor
+    // role, nor effort: its label and its payment delay alone are entered.
     cell(PROVISION, "label").focus();
     await userEvent.keyboard("{Enter}{Tab}");
-    expect(cell(PROVISION, "subproject")).toHaveFocus();
-    await userEvent.keyboard("{Enter}{Tab}");
+    expect(cell(PROVISION, "subproject")).toHaveAttribute("aria-readonly", "true");
     expect(cell(PROVISION, "payment_delay_days")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.

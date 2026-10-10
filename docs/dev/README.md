@@ -725,10 +725,11 @@ leurs (EP-02/L43b, plus bas), par les mêmes pièces. À une session qui porte `
 (`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
 titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
 ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
-`StateCell`), indisponible avec ses conditions comme la réactivation — la dernière nature provision
-et sa dernière catégorie active, PRV et PRV-001 dans le témoin (#578) ; aucune commande ne
-supprime (WF-REF-0010, WF-DAT-0080). Une autre session n'en voit aucune. La création et la
-modification ouvrent un dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
+`StateCell`), et la présente indisponible avec ses conditions quand elle l'est — la dernière
+nature de type provision pour risques et sa dernière catégorie se désactivent comme les autres
+depuis EP-14/L42p, qui retire la règle de #578 ; aucune commande ne supprime (WF-REF-0010,
+WF-DAT-0080). Une autre session n'en voit aucune. La création et la modification ouvrent un
+dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
 de sa nature (`CostDialog`, `useListForm`) : le code, le libellé et le type
 d'une nature, choisi parmi les trois du contrat ; le code, le libellé, la nature — parmi les actives,
 et celle de la catégorie modifiée, marquée désactivée — et le code comptable d'une catégorie, exigé,
@@ -736,11 +737,10 @@ d'un à vingt caractères (WF-REF-0040, décision de l'auteur du 2026-10-09). Ce
 change suit les commandes de l'objet (EP-02/L42g, WF-IHM-0090) : le type d'une nature n'est offert
 que si elle liste `change_kind` disponible, et se présente sinon figé, en lecture seule
 (`control: "fixed"` d'un `FormField`), ses conditions dites sous lui (`note`) — une catégorie
-employée (`cost_type_unused`), la dernière nature provision (`cost_type_not_last_provision`) —, la
-description du dialogue le disant aussi ; une catégorie ne se voit proposer une nature d'un autre
-type que si elle liste `change_cost_type` disponible, et sinon les natures de son type seules, ses
-conditions dites sous le choix — employée, porteuse de taux, dernière catégorie provision (#577,
-#578). Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
+employée (`cost_type_unused`) —, la description du dialogue le disant aussi ; une catégorie ne se
+voit proposer une nature d'un autre type que si elle liste `change_cost_type` disponible, et sinon
+les natures de son type seules, ses conditions dites sous le choix — employée, porteuse de taux
+(#577). Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
 qui écrit, la page lit toutes les natures avec `include_inactive=true` (`every` de `CostDialog`),
 une lecture entière distincte des choix du filtre, qu'elle ne fait pas quand ceux-ci comprennent déjà
 les désactivées ; une catégorie sous une nature désactivée se voit ainsi proposer les natures
@@ -774,8 +774,7 @@ la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). To
 relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
 les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
 nature désactivée serait une commande que le serveur refuserait (WF-REF-0010) ; une écriture change
-aussi les commandes d'autres objets — la désactivation d'une nature provision celles des autres
-natures et catégories provision (#578), le rattachement d'une catégorie le type de l'ancienne et de
+aussi les commandes d'autres objets — le rattachement d'une catégorie le type de l'ancienne et de
 la nouvelle nature (#577) —, que sa réponse ne porte pas. Un taux ne relit la page qu'à sa première
 saisie : la catégorie qui porte des taux ne se rattache plus à une nature d'un autre type
 (`cost_category_unrated`) ; une première saisie refusée comme un second taux de l'année (409

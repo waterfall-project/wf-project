@@ -1,5 +1,5 @@
 {
-  "summary": "Les natures de coût lues avec les désactivées (include_inactive) : les débours désactivés, qui offrent leur réactivation, la modification de leur type indisponible, leurs catégories étant employées par le devis du projet témoin ; la main-d'œuvre et la provision actives, comme les lit la liste du témoin, la provision gardant sa désactivation indisponible. L'univers témoin n'a aucune nature désactivée : l'exemple ne vaut que pour cette lecture, celle qu'un formulaire de catégorie fait pour connaître le type de chaque nature (WF-REF-0030, WF-REF-0150, EP-02/L42g).",
+  "summary": "Les natures de coût lues avec les désactivées (include_inactive) : les débours désactivés, qui offrent leur réactivation, la modification de leur type indisponible, leurs catégories étant employées par le devis du projet témoin ; la main-d'œuvre et la provision actives, comme les lit la liste du témoin, chacune avec sa désactivation disponible. L'univers témoin n'a aucune nature désactivée : l'exemple ne vaut que pour cette lecture, celle qu'un formulaire de catégorie fait pour connaître le type de chaque nature (WF-REF-0030, WF-REF-0150, EP-02/L42g).",
   "value": {
     "items": [
       {
@@ -83,17 +83,14 @@
         "available_commands": [
           {
             "command": "deactivate",
-            "is_available": false,
-            "missing_conditions": [
-              "cost_type_not_last_provision"
-            ]
+            "is_available": true,
+            "missing_conditions": []
           },
           {
             "command": "change_kind",
             "is_available": false,
             "missing_conditions": [
-              "cost_type_unused",
-              "cost_type_not_last_provision"
+              "cost_type_unused"
             ]
           }
         ],

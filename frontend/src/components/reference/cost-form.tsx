@@ -11,14 +11,13 @@
  *
  * What a modification may change follows the commands the object lists (WF-IHM-0090, EP-02/L42g):
  * the type of a nature is offered only when it lists `change_kind` available, shown fixed otherwise,
- * the conditions it lacks said under it — a category of it employed, the last nature of provision
- * (#578) —, and the description of the dialog says so; a category is offered a nature of another type
- * only when it lists `change_cost_type` available, and otherwise the natures of its own type alone,
- * the conditions said under the choice — employed, bearing rates (#577), the last category of
- * provision (#578). The type of a nature is that of every nature the page reads for a session that
- * writes, deactivated ones included (`every`); a nature not among them leaves the category its own
- * alone. A code or an accounting code already held names
- * the object that holds it, as the list shows it (`names`).
+ * the conditions it lacks said under it — a category of it employed —, and the description of the
+ * dialog says so; a category is offered a nature of another type only when it lists
+ * `change_cost_type` available, and otherwise the natures of its own type alone, the conditions said
+ * under the choice — employed, bearing rates (#577). The type of a nature is that of every nature
+ * the page reads for a session that writes, deactivated ones included (`every`); a nature not among
+ * them leaves the category its own alone. A code or an accounting code already held names the
+ * object that holds it, as the list shows it (`names`).
  */
 "use client";
 

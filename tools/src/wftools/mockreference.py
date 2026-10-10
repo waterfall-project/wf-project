@@ -38,7 +38,6 @@ from wftools.mockwitness import TODAY, fixture
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from collections.abc import Set as AbstractSet
 
     from wftools.mockstructure import JsonObject, JsonValue
 
@@ -65,10 +64,6 @@ CHANGE_COST_TYPE = "change_cost_type"
 UNUSED, UNRATED = "cost_category_unused", "cost_category_unrated"
 """The conditions the move misses: a category a line bears, a category that bears hourly rates."""
 
-LAST_PROVISION = "cost_category_not_last_provision"
-"""The condition the deactivation and the move miss: the one active category of the active natures
-of provision, which the lines of provision of the risks take (#578)."""
-
 _count, _amount, _example = mocktext.count, mocktext.amount, mocktext.example
 
 
@@ -86,52 +81,22 @@ def commands(command: str, missing: Sequence[str] = ()) -> list[JsonValue]:
     ]
 
 
-def category_commands(
-    category: JsonObject, employed: set[str], rated: set[str], last: AbstractSet[str] = frozenset()
-) -> list[JsonValue]:
+def category_commands(category: JsonObject, employed: set[str], rated: set[str]) -> list[JsonValue]:
     """Return the commands of a category: the one that changes its state, then its move.
 
     The move under a nature of another kind misses `cost_category_unused` while a line bears the
     category, and `cost_category_unrated` while it bears hourly rates (WF-REF-0040, WF-REF-0050).
-    The last active category of the active natures of provision misses
-    `cost_category_not_last_provision` for its deactivation and its move (#578).
+    Its state always changes: the last active category of provision for risks goes as any other,
+    the rule of #578 withdrawn (WF-REF-0030, WF-CYC-0120, WF-RIS-0010; EP-14/L42p).
     """
     identifier = cast("str", category["cost_category_id"])
-    final = identifier in last
     missing = [
         condition
-        for condition, held in (
-            (UNUSED, identifier in employed),
-            (UNRATED, identifier in rated),
-            (LAST_PROVISION, final),
-        )
+        for condition, held in ((UNUSED, identifier in employed), (UNRATED, identifier in rated))
         if held
     ]
-    if category["is_active"] is True:
-        state = commands("deactivate", [LAST_PROVISION] if final else [])
-    else:
-        state = commands("reactivate")
+    state = commands("deactivate" if category["is_active"] is True else "reactivate")
     return [*state, *commands(CHANGE_COST_TYPE, missing)]
-
-
-def last_provision(categories: Sequence[JsonValue]) -> set[str]:
-    """Return the active category of the active natures of provision, when there is but one.
-
-    There always remains one (WF-REF-0030, #578): it may be neither deactivated nor moved under a
-    nature of another kind. Two or more, and none is the last.
-    """
-    natures = cast("list[JsonObject]", fixture("cost_types")["items"])
-    provisions = {
-        cast("str", nature["cost_type_id"])
-        for nature in natures
-        if nature["kind"] == "provision" and nature["is_active"] is True
-    }
-    kept = {
-        cast("str", category["cost_category_id"])
-        for category in cast("list[JsonObject]", categories)
-        if category["cost_type_id"] in provisions and category["is_active"] is True
-    }
-    return kept if len(kept) == 1 else set()
 
 
 def employed() -> set[str]:
@@ -241,21 +206,6 @@ def grid_page(grid: JsonObject, rows: Sequence[JsonValue], limit: int, offset: i
     return {"years": grid["years"], "rows": paged["items"], "meta": paged["meta"]}
 
 
-def last_said(listed: Sequence[JsonValue], last: AbstractSet[str]) -> str:
-    """Say the last active category of provision, whose deactivation is unavailable (#578)."""
-    named = [
-        f"{entry['code']} ({str(entry['label']).lower()})"
-        for entry in cast("list[JsonObject]", listed)
-        if entry["cost_category_id"] in last
-    ]
-    if not named:
-        return "aucune n'est la dernière catégorie active des natures provision"
-    return (
-        f"la désactivation de {mocktext.listed(named)}, seule catégorie active des natures "
-        f"provision, est indisponible (cost_category_not_last_provision)"
-    )
-
-
 def _said(row: JsonObject, years: Sequence[int], year: int) -> str:
     """Say a row of the grid by its label and its rate of a year."""
     found = rate(row, years, year)
@@ -265,10 +215,9 @@ def _said(row: JsonObject, years: Sequence[int], year: int) -> str:
 
 def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObject]:
     """Return the examples of the categories and of the grid of rates, by file name."""
-    lines, bearing, last = employed(), rated(grid), last_provision(categories)
+    lines, bearing = employed(), rated(grid)
     listed: list[JsonValue] = [
-        commanded(entry, category_commands(entry, lines, bearing, last))
-        for entry in by_code(categories)
+        commanded(entry, category_commands(entry, lines, bearing)) for entry in by_code(categories)
     ]
     years = cast("list[int]", grid["years"])
     rows = cast("list[JsonValue]", grid["rows"])
@@ -289,7 +238,8 @@ def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObj
             f"avec la commande qui la désactive et celle qui la rattache à une nature d'un autre "
             f"type, indisponible pour les {_count(len(lines))} que le devis du projet témoin "
             f"emploie et pour les {_count(len(bearing))} qui portent des taux horaires ; "
-            f"{last_said(listed, last)} (WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-IHM-0090).",
+            f"chacune se désactive, la dernière de type provision pour risques comme les autres "
+            f"(WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-IHM-0090).",
             page(listed, MAX_LIMIT, 0),
         ),
         "cost_categories_page.json": _example(

@@ -422,28 +422,16 @@ def test_the_grid_and_the_calendars_refuse_bounds_inverted_or_a_bound_without_it
     assert missing["fields"] == [{"pointer": "/query/rate_year", "code": "VALUE_REQUIRED"}]
 
 
-def test_the_last_category_of_provision_is_the_one_left_and_none_when_two_remain() -> None:
-    # PRV, 463, is the one active nature of provision (#578): its last active category may not go;
-    # two active categories, and neither is the last.
-    def category(number: int, *, active: bool = True) -> Entry:
-        return {
-            "cost_category_id": universe(number),
-            "cost_type_id": universe(463),
-            "is_active": active,
-        }
-
-    alone = [category(404), category(406, active=False), {**category(401), "cost_type_id": "x"}]
-    assert mockreference.last_provision(alone) == {universe(404)}
-    assert mockreference.last_provision([category(404), category(406)]) == set()
-    commands = mockreference.category_commands(category(404), set(), set(), {universe(404)})
-    assert commands[0] == {
-        "command": "deactivate",
-        "is_available": False,
-        "missing_conditions": ["cost_category_not_last_provision"],
+def test_the_last_category_of_provision_goes_as_any_other() -> None:
+    # The rule of #578 is withdrawn (EP-14/L42p, #579): the last active category of provision for
+    # risks has its deactivation available, the creation of a project and the declaration of a
+    # risk naming what they then miss (WF-CYC-0120, WF-RIS-0010).
+    category: Entry = {
+        "cost_category_id": universe(404),
+        "cost_type_id": universe(463),
+        "is_active": True,
     }
-
-
-def test_the_categories_say_none_is_the_last_of_provision_when_none_is() -> None:
-    entry: Entry = {"cost_category_id": universe(404), "code": "PRV-001", "label": "Provisions"}
-    assert "aucune" in mockreference.last_said([entry], set())
-    assert "PRV-001 (provisions)" in mockreference.last_said([entry], {universe(404)})
+    assert mockreference.category_commands(category, set(), set()) == [
+        {"command": "deactivate", "is_available": True, "missing_conditions": []},
+        {"command": "change_cost_type", "is_available": True, "missing_conditions": []},
+    ]

@@ -7,7 +7,10 @@
     operationId: getReferenceReadiness
     tags: [reference]
     summary: Référentiel minimal exigé pour créer un projet
-    description: Nomme chaque prérequis manquant (WF-CYC-0120).
+    description: >-
+      Nomme chaque prérequis manquant (WF-CYC-0120), dont la catégorie de coût active de type
+      provision pour risques, sans laquelle aucun risque ne peut être déclaré (WF-RIS-0010 ;
+      EP-14/L42p, #579).
     responses:
       '200':
         description: État du référentiel minimal.
@@ -17,6 +20,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/reference_readiness.json }
               incomplete: { $ref: ../../../fixtures/api/reference_readiness_incomplete.json }
+              without_provision: { $ref: ../../../fixtures/api/reference_readiness_without_provision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /reference/settings:
@@ -1208,10 +1212,7 @@
       rattachée est employée — portée par une ligne d'une révision, marquée ou non
       (WF-REF-0030) —, ce que la commande `change_kind` de la nature dit d'avance
       (`available_commands`) ; le code et le libellé se modifient toujours. Un code déjà porté
-      par une autre nature est refusé par 409, `ALREADY_EXISTS`. Un type changé vers ou depuis la
-      provision change la disponibilité des commandes d'autres objets — la désactivation et le
-      changement de type des autres natures provision, la désactivation et le rattachement des
-      catégories provision —, que la réponse ne porte pas : le client relit les listes.
+      par une autre nature est refusé par 409, `ALREADY_EXISTS`.
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
     requestBody:
@@ -1232,11 +1233,9 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Un autre type pour une nature dont une catégorie est employée (WF-REF-0030), ou pour la
-          dernière nature provision active à porter une catégorie active (#578) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la
-          commande `change_kind` dit manquantes, `cost_type_unused` avant
-          `cost_type_not_last_provision`. Un code déjà porté par une autre nature,
+          Un autre type pour une nature dont une catégorie est employée (WF-REF-0030) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `cost_type_unused`, la condition
+          que la commande `change_kind` dit manquante. Un code déjà porté par une autre nature,
           active ou désactivée : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit.
         content:
@@ -1262,15 +1261,13 @@
     summary: Désactiver ou réactiver une nature de coût
     description: >-
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
-      (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible. La désactivation l'est
-      aussi, sauf pour la dernière nature provision active à porter une catégorie active : il en
-      reste toujours une, dont les lignes de provision des risques prennent la catégorie
-      (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que la commande `deactivate` de
-      la nature dit d'avance (`available_commands`). Relève de la permission de modification des
-      paramètres de coûts (WF-ADM-0100). L'écriture d'une nature provision change la
-      disponibilité des commandes d'autres objets — la désactivation et le changement de type des
-      autres natures provision, la désactivation et le rattachement de leurs catégories —, que la
-      réponse ne porte pas : le client relit les listes.
+      (WF-REF-0010, WF-REF-0020). La désactivation et la réactivation sont toujours disponibles,
+      celle de la dernière nature de type provision pour risques comprise. Ses catégories restent
+      actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie active sous
+      une nature désactivée ne compte pas pour `active_provision_category` : la création d'un
+      projet et la déclaration d'un risque nomment alors ce qui leur manque (WF-REF-0030,
+      WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Relève de la permission de
+      modification des paramètres de coûts (WF-ADM-0100).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
@@ -1295,17 +1292,6 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409':
-        description: >-
-          La désactivation de la dernière nature provision active à porter une catégorie active
-          (#578) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
-          `cost_type_not_last_provision`, la condition que sa commande `deactivate` dit manquante ;
-          rien n'est écrit.
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
-            examples:
-              last_provision: { $ref: ../../../fixtures/api/cost_type_last_provision_refused.json }
       '412':
         description: >-
           La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa
@@ -1384,10 +1370,7 @@
       La catégorie se rattache à une nature de coût, active, et porte un code comptable unique
       (WF-REF-0040). Son code et son code comptable sont uniques parmi les catégories, actives ou
       désactivées : une valeur déjà portée est refusée par 409, `ALREADY_EXISTS`, qui dit
-      lequel des deux champs la porte. Créée sous une nature provision, elle change la
-      disponibilité des commandes d'autres objets — la désactivation et le rattachement des autres
-      catégories provision, la désactivation et le changement de type des natures provision, la
-      dernière ne l'étant plus —, que la réponse ne porte pas : le client relit les listes.
+      lequel des deux champs la porte.
     tags: [reference]
     requestBody:
       required: true
@@ -1444,10 +1427,8 @@
       la main-d'œuvre (décision de l'auteur du 2026-10-09, #577 ; WF-REF-0030, WF-REF-0050) : sa
       commande `change_cost_type` le dit d'avance (`available_commands`). Vers une nature du même
       type, le rattachement est toujours permis. Un changement de nature change la disponibilité
-      des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle nature,
-      et, vers ou depuis une nature provision, la désactivation et le rattachement des autres
-      catégories provision, la désactivation et le changement de type des natures provision —, que
-      la réponse ne porte pas : le client relit les listes.
+      des commandes d'autres objets — le changement de type de l'ancienne et de la nouvelle
+      nature —, que la réponse ne porte pas : le client relit les listes.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -1472,11 +1453,11 @@
           Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée
           (WF-REF-0040), comme à la création : `ALREADY_EXISTS`, `fields` désignant chaque champ
           dont la valeur est prise, `/code` ou `/accounting_code`,
-          `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre type pour une catégorie employée, qui porte des taux (#577),
-          ou seule catégorie active des natures provision actives (#578) :
+          `fields[].params.conflicting_object_id` la catégorie qui la porte. Une nature d'un autre
+          type pour une catégorie employée, ou qui porte des taux (#577) :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première des conditions que la
-          commande `change_cost_type` dit manquantes, dans l'ordre `cost_category_unused`,
-          `cost_category_unrated`, `cost_category_not_last_provision`. Rien n'est écrit.
+          commande `change_cost_type` dit manquantes, `cost_category_unused` avant
+          `cost_category_unrated`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1507,14 +1488,10 @@
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
       (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se
       réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La
-      désactivation l'est aussi, sauf pour la seule catégorie active des natures provision
-      actives : il en reste toujours une, que portent les lignes de provision des risques
-      (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578), ce que sa commande `deactivate`
-      dit d'avance (`available_commands`). Relève de la permission de modification des
-      paramètres de coûts (WF-ADM-0100). L'écriture d'une catégorie d'une nature provision change
-      la disponibilité des commandes d'autres objets — la désactivation et le rattachement des
-      autres catégories provision, la désactivation et le changement de type des natures
-      provision —, que la réponse ne porte pas : le client relit les listes.
+      désactivation l'est aussi, celle de la dernière catégorie active de type provision pour
+      risques comprise : la création d'un projet et la déclaration d'un risque nomment alors ce qui
+      leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de
+      #578). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -1539,17 +1516,6 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409':
-        description: >-
-          La désactivation de la seule catégorie active des natures provision actives (#578) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
-          `cost_category_not_last_provision`, la condition que sa commande `deactivate` dit
-          manquante ; rien n'est écrit.
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
-            examples:
-              last_provision: { $ref: ../../../fixtures/api/cost_category_last_provision_refused.json }
       '412':
         description: >-
           La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa

@@ -60,7 +60,12 @@
       identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la
       révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule
       `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks`
-      (`RevisionCommand`).
+      (`RevisionCommand`). La ligne de provision porte la catégorie que le risque désigne parmi
+      les catégories actives de type provision pour risques, retenue sans être demandée quand il
+      n'en existe qu'une, et appartient au sous-projet qu'il désigne, facultativement
+      (WF-RIS-0010 ; EP-14/L42p, #579, C-299) : le formulaire lit les catégories actives
+      (`listCostCategories`, `cost_type_kind`) et les sous-projets du projet (`listSubprojects`)
+      pour en proposer le choix.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -77,7 +82,37 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '409':
+        description: >-
+          Aucune catégorie de coût active n'est de type provision pour risques — jusqu'à C-291
+          (#728), aucune catégorie active sous une nature active de ce type : la provision n'a pas
+          de catégorie où se ranger (WF-RIS-0010). `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `active_provision_category`, que la création d'un projet
+          exige aussi (WF-CYC-0120). Les conditions se jugent dans cet ordre, et le refus nomme la
+          première qui manque : `at_least_one_task` — une structure principale sans tâche
+          (WF-RIS-0010), dont le 409 reste à décrire (#728) —, puis `active_provision_category`.
+          Ce 409 précède le 422 : sans catégorie active, aucune désignation ne serait valable, et
+          les champs ne sont pas jugés. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              without_provision_category: { $ref: ../../../fixtures/api/risk_without_provision_category.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou
+          plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/provision_cost_category_id`
+          omise quand plusieurs catégories actives sont de type provision pour risques,
+          `VALUE_REQUIRED`, inconnue, `UNKNOWN_COST_CATEGORY`, désactivée,
+          `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ou sous une nature désactivée —,
+          ou d'une nature d'un autre type,
+          `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas,
+          `UNKNOWN_SUBPROJECT` (WF-RIS-0010). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              provision_refused: { $ref: ../../../fixtures/api/risk_provision_refused.json }
 
 /projects/{project_id}/risks/{risk_id}:
   get:
@@ -110,9 +145,14 @@
       La gravité et la provision ne sont pas saisissables : elles suivent la structure
       propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au
       long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et
-      annulable (WF-RIS-0020, WF-IHM-0110) ; refusée sur un risque survenu, par 409
+      annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet
+      de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis
+      (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision
+      de l'auteur, #732) ; refusée sur un risque survenu, par 409
       `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la
-      commande `update` du risque le disait déjà indisponible.
+      commande `update` du risque le disait déjà indisponible. La catégorie et le sous-projet de
+      la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la commande
+      `update_provision` dit d'avance ; omis, ils restent ceux du risque.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -130,8 +170,28 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
+          risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified`
+          pour une autre catégorie ou un autre sous-projet de provision envoyés pour un risque
+          écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              provision_frozen: { $ref: ../../../fixtures/api/risk_provision_frozen.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration
+          (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur
+          `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa
+          catégorie inchangée, désactivée depuis, est acceptée. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
   delete:
     operationId: deleteRisk
     tags: [risks]
@@ -147,8 +207,10 @@
       `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le
       réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques
       (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et
-      s'annule (WF-RIS-0020, WF-IHM-0110) ; la commande `delete` du risque dit d'avance
-      s'il se supprime.
+      s'annule (WF-RIS-0020, WF-IHM-0110) — une annulation refusée par 409, `params.missing_condition`
+      à `restored_subproject_exists`, quand elle rendrait à sa provision un sous-projet supprimé
+      depuis (décision de l'auteur, #732) ; la commande `delete` du risque dit d'avance s'il se
+      supprime.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -205,9 +267,13 @@
       peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
       WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ;
       la réserve pour risques de la révision de référence et le budget de référence
-      restent inchangés (WF-RIS-0050). Une saisie de la révision en cours, créée au besoin :
-      son annulation rend au risque sa probabilité et son état précédents (WF-RIS-0020,
-      WF-IHM-0110).
+      restent inchangés (WF-RIS-0050). Un risque écarté qui redevient identifié recrée sa ligne
+      de provision avec la catégorie qu'il désignait si elle est encore active, et sinon avec
+      celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors
+      sous-projet si le sous-projet qu'il désignait a été supprimé (#732). Une saisie de la
+      révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son
+      état précédents, et la catégorie qu'il désignait avant un retour à l'état identifié
+      (WF-RIS-0020, WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -228,11 +294,22 @@
       '409':
         description: >-
           Le risque est survenu : aucune transition n'en part (WF-RIS-0020).
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. Ou un
+          risque écarté qui redeviendrait identifié alors qu'aucune catégorie de coût active n'est
+          de type provision pour risques (WF-RIS-0010) : `params.missing_condition` à
+          `active_provision_category`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque
+          écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, par les
+          motifs de la déclaration (`createRisk`). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:
   post:

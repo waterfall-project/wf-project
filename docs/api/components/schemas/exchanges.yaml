@@ -226,7 +226,7 @@ ImportRejection:
     une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
     (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du
     sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-    WF-PLA-0170), une ligne de devis d'une catégorie de nature provision, que seule la
+    WF-PLA-0170), une ligne de devis d'une catégorie de type provision pour risques, que seule la
     déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les
     paramètres qu'il porte dans un refus.
   properties:

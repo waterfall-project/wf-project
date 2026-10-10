@@ -1630,6 +1630,7 @@
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
+    "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
@@ -1935,13 +1936,14 @@
       "missing": {
         "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",
         "active_cost_category": "une catégorie de coût active",
+        "active_provision_category": "une catégorie de provision pour risques active",
         "active_resource_role": "un rôle de ressource actif"
       }
     },
     "CostTypeKind": {
       "labor": "Main-d’œuvre",
       "non_labor": "Hors main-d’œuvre",
-      "provision": "Provision"
+      "provision": "Provision pour risques"
     },
     "StateEnumeration": {
       "ProjectState": "État du projet"
@@ -1989,9 +1991,11 @@
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
+      "restored_subproject_exists": "sous-projet rendu par l’annulation encore existant",
       "risk_not_cited": "risque cité par aucune révision marquée",
       "risk_not_occurred": "risque non survenu",
       "risk_identified": "risque identifié",
+      "active_provision_category": "une catégorie de provision pour risques active",
       "org_node_parent_active": "nœud parent actif",
       "org_node_active": "nœud d’organisation actif",
       "calendar_not_default": "calendrier autre que celui par défaut",
@@ -1999,8 +2003,6 @@
       "cost_type_unused": "aucune catégorie de la nature employée",
       "cost_category_unused": "catégorie employée par aucune ligne",
       "cost_category_unrated": "catégorie sans taux horaire",
-      "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
-      "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "backup_verified": "sauvegarde vérifiée",
       "no_backup_running": "aucune sauvegarde en cours",
@@ -2149,7 +2151,8 @@
       "estimate_line": {
         "quantity": "Quantité",
         "hours": "Heures",
-        "unit_disbursement": "Débours unitaire"
+        "unit_disbursement": "Débours unitaire",
+        "subproject_id": "Sous-projet"
       }
     },
     "EditableField": {
@@ -2222,6 +2225,7 @@
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "subproject_id": "Sous-projet de la ligne",
         "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
@@ -2304,6 +2308,7 @@
     },
     "RiskCommand": {
       "update": "Modifier le risque",
+      "update_provision": "Changer la catégorie ou le sous-projet de la provision",
       "review": "Réexaminer le risque",
       "declare_occurrence": "Déclarer le risque survenu",
       "delete": "Supprimer le risque"

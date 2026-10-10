@@ -371,8 +371,12 @@ CostTypeKind:
   type: string
   enum: [labor, non_labor, provision]
   description: >-
-    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée
-    est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
+    Type d'une nature de coût (WF-REF-0030) : main-d'œuvre, hors main-d'œuvre, provision pour
+    risques — `provision`, qui ne porte que les lignes que Waterfall calcule à partir d'un risque,
+    jamais saisies (WF-DEV-0020, WF-RIS-0010) ; une provision saisie et non pondérée, pour aléas
+    par exemple, relève d'une nature hors main-d'œuvre (§3.4.4.1.1). Il ne change plus dès qu'une
+    catégorie rattachée est employée : la commande `change_kind` de la nature le dit d'avance
+    (`CostTypeCommand`).
 
 CostTypeCommand:
   type: string
@@ -384,11 +388,13 @@ CostTypeCommand:
     autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused`
     manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne
     d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé,
-    se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie
-    active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa
-    désactivation et la modification de son type indisponibles, `cost_type_not_last_provision`
-    manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de
-    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+    se modifie toujours. La désactivation et la réactivation sont toujours disponibles : la
+    dernière nature de type provision pour risques se désactive comme une autre ; ses catégories
+    restent actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie
+    active sous une nature désactivée ne compte pas pour `active_provision_category`, et la
+    création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque
+    (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Toutes relèvent de la
+    permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
 
 CostTypeCommandAvailability:
   type: object
@@ -478,11 +484,11 @@ CostCategoryCommand:
     dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et,
     `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors
     main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
-    #577). Il reste toujours une catégorie active rattachée à une nature provision active
-    (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son
-    rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision`
-    manquante ; un rattachement à une autre nature provision active la laisse provision, et reste
-    permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend
+    #577). La désactivation et la réactivation sont toujours disponibles : la dernière catégorie
+    active de type provision pour risques se désactive comme une autre, la création d'un projet et
+    la déclaration d'un risque nommant alors ce qui leur manque (WF-REF-0030, WF-CYC-0120,
+    WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Le rattachement à une autre nature du
+    même type n'est pas une commande : rien ne le rend
     indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la
     catégorie. Toutes relèvent de la permission de modification des paramètres de coûts
     (`cost_settings.write`, WF-ADM-0100).
@@ -521,6 +527,7 @@ CostCategoryImage:
     - cost_type_id
     - cost_type_label
     - cost_type_kind
+    - cost_type_is_active
     - accounting_code
     - is_active
     - audit
@@ -550,6 +557,14 @@ CostCategoryImage:
         Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de
         main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un
         formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020).
+    cost_type_is_active:
+      type: boolean
+      description: >-
+        Si la nature est active, résolu à la lecture comme son type. Jusqu'à C-291 (#728), une
+        catégorie active ne compte comme catégorie de provision pour risques que sous une nature
+        active de ce type (`active_provision_category`) : le formulaire qui déclare un risque ne
+        retient que les catégories actives dont la nature est active et de type provision pour
+        risques, sans relire les natures (WF-RIS-0010, WF-ARC-0020).
     accounting_code:
       type: string
       minLength: 1
@@ -873,6 +888,20 @@ ReferenceReadiness:
     is_complete: { type: boolean }
     missing:
       type: array
+      description: >-
+        Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier
+        par défaut actif dont au moins un jour de la semaine compte des heures travaillées
+        (`default_calendar_with_hours`) ; une catégorie de coût active dont la nature relève de la
+        main-d'œuvre (`active_cost_category`) ; une catégorie de coût active dont la nature est de
+        type provision pour risques (`active_provision_category`) — jusqu'à C-291 (#728), une
+        catégorie active sous une nature active de ce type : une catégorie active d'une nature
+        désactivée ne compte pas —, sans laquelle aucun risque ne peut être déclaré (EP-14/L42p,
+        #579) ; un rôle de ressource actif
+        (`active_resource_role`). Vide quand `is_complete` est vrai.
       items:
         type: string
-        enum: [default_calendar_with_hours, active_cost_category, active_resource_role]
+        enum:
+          - default_calendar_with_hours
+          - active_cost_category
+          - active_provision_category
+          - active_resource_role

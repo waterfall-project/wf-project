@@ -113,8 +113,9 @@ CommandCondition:
     risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
     l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
     manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
-    transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est
-    pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
+    transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la
+    catégorie ou du sous-projet de la provision d'un risque qui n'est pas identifié (WF-RIS-0010,
+    `update_provision`) ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
     cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son
     409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme
     (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation
@@ -129,13 +130,15 @@ CommandCondition:
     (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une
     nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des
     taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409.
-    Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de
-    provision des risques prennent la catégorie (WF-REF-0030, #578) :
-    `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la
-    dernière nature provision active à porter une catégorie active, et
-    `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un
-    autre type de la seule catégorie active des natures provision actives ; les opérations
-    d'activation et de modification les nomment dans leur 409.
+    `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
+    écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
+    risques — jusqu'à C-291 (#728), quand aucune catégorie active n'est rattachée à une nature
+    active de ce type (WF-RIS-0010 ; EP-14/L42p, #579) : aucune commande ne la liste — la saisie des risques
+    (`edit_risks`) modifie, réexamine et supprime sans elle —, et `createRisk` et `reviewRisk` la
+    nomment dans leur 409 ; le formulaire qui déclare un risque la sait d'avance par les catégories
+    qu'il lit pour en proposer le choix, dont il retient les actives dont la nature est active et
+    de type provision pour risques (`listCostCategories`, `cost_type_is_active`, `cost_type_kind`),
+    et la création d'un projet l'exige (`ReferenceReadiness.missing`, WF-CYC-0120).
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
@@ -152,6 +155,12 @@ CommandCondition:
     utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
     (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
     dans leur 409.
+    `restored_subproject_exists` manque à toute annulation et à tout rétablissement
+    (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision
+    d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une
+    ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de
+    ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
+    de l'auteur, #732).
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
@@ -181,9 +190,11 @@ CommandCondition:
     - hourly_rates_set
     - no_background_task_running
     - may_create_revision
+    - restored_subproject_exists
     - risk_not_cited
     - risk_not_occurred
     - risk_identified
+    - active_provision_category
     - org_node_parent_active
     - org_node_active
     - calendar_not_default
@@ -191,8 +202,6 @@ CommandCondition:
     - cost_type_unused
     - cost_category_unused
     - cost_category_unrated
-    - cost_type_not_last_provision
-    - cost_category_not_last_provision
     - last_administrator
     - backup_verified
     - no_backup_running

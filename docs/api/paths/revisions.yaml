@@ -612,7 +612,7 @@
       '422':
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
-          nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
+          type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
           rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position
           (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs
           (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`) ; ou une ligne qui laisserait sa tâche
@@ -813,7 +813,7 @@
           recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée
           dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
           `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
-          catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`,
+          catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`,
           `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ;
           ou un délai de paiement négatif : `fields` sur `/payment_delay_days`,
           `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100).
@@ -1139,7 +1139,12 @@
       '409':
         description: >-
           Une modification postérieure porte sur le même objet, ou l'historique de la
-          session est vide (WF-IHM-0110).
+          session est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé
+          depuis — à la provision d'un risque dont elle défait la création, la modification ou la
+          suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
+          suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
+          rien n'est défait (décision de l'auteur, #732).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1163,7 +1168,18 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Une modification postérieure porte sur le même objet, ou rien n'est à rétablir
+          (WF-IHM-0110). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
+          provision d'un risque dont il rétablit la création, la modification ou la suppression, ou
+          à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une
+          ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli
+          (décision de l'auteur, #732).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/revisions/{revision_id}/skeleton:
   post:

@@ -92,7 +92,8 @@
     summary: Créer un projet
     description: >-
       Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque
-      prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet
+      prérequis manquant (WF-CYC-0120) — parmi eux, depuis EP-14/L42p, une catégorie de coût active
+      de type provision pour risques (#579). Le créateur est inscrit chef de projet
       (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
     requestBody:
       required: true
@@ -113,7 +114,7 @@
         description: >-
           Référentiel minimal incomplet (WF-CYC-0120) : `REFERENCE_INCOMPLETE`,
           `params.missing_prerequisites` nommant chaque prérequis manquant, une valeur de
-          `ReferenceReadiness.missing` chacun. Ou un code projet déjà employé (WF-PRJ-0010) :
+          `ReferenceReadiness.missing` chacun, dans son ordre. Ou un code projet déjà employé (WF-PRJ-0010) :
           `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` le projet qui le porte et
           `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ.
@@ -124,6 +125,7 @@
             examples:
               reference_incomplete: { $ref: ../../../fixtures/api/project_reference_incomplete.json }
               code_taken: { $ref: ../../../fixtures/api/project_code_taken.json }
+              without_provision: { $ref: ../../../fixtures/api/project_reference_without_provision.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`
@@ -561,7 +563,12 @@
       sous-projets déterminent la courbe de la valeur acquise, et sa suppression y aurait des
       effets que rien ne maîtrise ; la décision contredit le Vérif de WF-DAT-0080, dont la
       correction est en attente. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun
-      coût réel ne charge est retiré de la base.
+      coût réel ne charge est retiré de la base. Sa suppression passe à nul la désignation de tout
+      risque qui n'est pas identifié et le désignait pour sa provision
+      (`Risk.provision_subproject_id`) : redevenu identifié, ce risque porte sa provision hors
+      sous-projet (WF-RIS-0010 ; EP-14/L42p ; tranché par l'auteur le 2026-10-10, décision de
+      l'auteur, #732). Chaque risque touché voit son `lock_version` avancer et son audit nommer
+      l'auteur de la suppression (`updated_by`, `updated_at`, WF-DAT-0070, WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/SubprojectId

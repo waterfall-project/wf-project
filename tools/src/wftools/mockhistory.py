@@ -355,11 +355,13 @@ def commands(risk: Risk) -> list[JsonValue]:
     """Return the commands of a risk, in the order of `RiskCommand`, for a caller who may all.
 
     A risk that occurred is neither updated, reviewed nor deleted (`risk_not_occurred`); only an
-    identified one occurs (`risk_identified`); one a marked revision cites is not deleted
+    identified one occurs, or changes the category or the subproject of its provision
+    (`risk_identified`, WF-RIS-0010); one a marked revision cites is not deleted
     (`risk_not_cited`). The project has a current revision: the occurrence creates none.
     """
     state = risk.last.state
     entries = (("update", ["risk_not_occurred"] if state == OCCURRED else []),)
+    entries += (("update_provision", [] if state == IDENTIFIED else ["risk_identified"]),)
     entries += (("review", ["risk_not_occurred"] if state == OCCURRED else []),)
     entries += (("declare_occurrence", [] if state == IDENTIFIED else ["risk_identified"]),)
     deleted = (["risk_not_occurred"] if state == OCCURRED else []) + (
@@ -376,15 +378,33 @@ def commands(risk: Risk) -> list[JsonValue]:
     ]
 
 
+def is_active_provision(category: str) -> bool:
+    """Whether a category is active under an active nature: active of provision for risks.
+
+    The definition of `active_provision_category` until C-291 makes the deactivation of a
+    nature deactivate its categories (#728).
+    """
+    categories = cast("list[JsonObject]", fixture("volume/cost_categories")["items"])
+    natures = cast("list[JsonObject]", fixture("cost_types")["items"])
+    [entry] = [each for each in categories if each["cost_category_id"] == category]
+    [nature] = [each for each in natures if each["cost_type_id"] == entry["cost_type_id"]]
+    return entry["is_active"] is True and nature["is_active"] is True
+
+
 def _actor() -> JsonObject:
     """Return the user the witness's own examples name: the one who created the project."""
     return cast("JsonObject", fixture("project")["audit"]["created_by"])
 
 
 def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
-    """Return a risk as the register reads it in the current revision (`Risk`)."""
+    """Return a risk as the register reads it in the current revision (`Risk`).
+
+    The category and the subproject of its provision are named by their labels, resolved at the
+    reading (WF-RIS-0010, WF-ARC-0020).
+    """
     last = risk.last
     actor = _actor()
+    named = labels()
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
@@ -398,6 +418,13 @@ def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
         "provision_node_id": None
         if risk.provision_line is None or last.state != IDENTIFIED
         else universe(risk.provision_line),
+        "provision_cost_category_id": risk.provision_category,
+        "provision_cost_category_label": named[risk.provision_category],
+        "provision_cost_category_is_active": is_active_provision(risk.provision_category),
+        "provision_subproject_id": risk.provision_subproject,
+        "provision_subproject_label": None
+        if risk.provision_subproject is None
+        else named[risk.provision_subproject],
         "matrix_cell": matrix_cell(risk, budget),
         "last_review_on": last.at.date().isoformat(),
         "computed_fields": _COMPUTED,
@@ -552,6 +579,11 @@ def _share(value: Decimal, budget: Decimal) -> str:
 
 _VERBS = {
     "update": ("se modifie", "se modifient", "ne se modifie pas"),
+    "update_provision": (
+        "change la catégorie ou le sous-projet de sa provision",
+        "changent la catégorie ou le sous-projet de leur provision",
+        "ne change ni la catégorie ni le sous-projet de sa provision",
+    ),
     "review": ("se réexamine", "se réexaminent", "ne se réexamine pas"),
     "declare_occurrence": (
         "se déclare survenu",
@@ -608,6 +640,14 @@ def _risk_commands_text(item: JsonObject) -> str:
     if refused:
         said += (" ; il " if taken else " ") + ", ".join(refused)
     return said + " (WF-IHM-0090, WF-RIS-0020)."
+
+
+def _subproject_text(item: JsonObject) -> str:
+    """Say the subproject the provision of a risk belongs to, or that it has none."""
+    label = item["provision_subproject_label"]
+    if label is None:
+        return "hors sous-projet, aucun n'étant désigné"
+    return f"au sous-projet « {label} »"
 
 
 def _percents(bounds: list[str]) -> str:
@@ -727,6 +767,9 @@ def examples() -> dict[str, JsonObject]:
             f"gravité de {_amount(rework.last.severity)}, total de son devis propre, et sa "
             f"provision de {_amount(provision(rework))}, la gravité à "
             f"{_percent(rework.last.probability)} — ni l'une ni l'autre saisies (WF-RIS-0010). "
+            f"Sa ligne de provision porte la catégorie qu'il a désignée, "
+            f"« {items[0]['provision_cost_category_label']} », "
+            f"{_subproject_text(items[0])} (WF-RIS-0010). "
             f"{_risk_commands_text(items[0])}",
             items[0],
         ),
