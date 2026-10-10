@@ -1396,6 +1396,7 @@
       "retained": "Marquée à conserver",
       "none": "Aucune sauvegarde.",
       "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}",
+      "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée.",
       "start": "Sauvegarder maintenant",
       "started": "Sauvegarde lancée : son avancement se suit dans les tâches de fond.",
       "retain": "Conserver",
@@ -1409,7 +1410,19 @@
       "restore": "Restaurer",
       "restoreNamed": "Restaurer la plateforme depuis la sauvegarde du {date}",
       "downloadRefused": "Le téléchargement d’une sauvegarde n’a pas pu se faire.",
-      "downloadRefusedNamed": "Le téléchargement de la sauvegarde du {date} n’a pas pu se faire."
+      "downloadRefusedNamed": "Le téléchargement de la sauvegarde du {date} n’a pas pu se faire.",
+      "unavailable": "{command} : indisponible. {unmet}",
+      "period": "Période des sauvegardes",
+      "originFilter": "Filtrer par déclenchement",
+      "everyOrigin": "Tous les déclenchements",
+      "verificationFilter": "Filtrer par vérification",
+      "everyVerification": "Toutes les vérifications",
+      "retentionFilter": "Conservation",
+      "everyRetention": "Toutes les sauvegardes",
+      "retainedOnes": "Marquées à conserver",
+      "rotatingOnes": "Soumises à la rotation",
+      "bounds": "Bornes des sauvegardes",
+      "sizeBytes": "Taille (octets)"
     },
     "restore": {
       "title": "Restaurer la plateforme",

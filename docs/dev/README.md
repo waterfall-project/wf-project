@@ -870,42 +870,64 @@ règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigati
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
 heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
 
-L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519) présente leur planification en
-lecture — son formulaire vient avec L43d — et une page de leur liste sur la grille dense
-(`backup-grid.tsx`, préférences sous la clé `backups`) : la date, en heure locale, la taille, la
-vérification, le déclenchement et la conservation, dans l'ordre du serveur, la ligne des totaux
-disant combien il en retient (`meta.total`). Le contrat ne trie, ne cherche ni ne filtre les
-sauvegardes : la grille n'offre que le choix et la largeur de ses colonnes, et aucun filtre n'est
-simulé (WF-IHM-0090). Les commandes suivent les permissions du catalogue (WF-ADM-0100,
-`platformOffer`), chacune offerte sur toute sauvegarde, aucune ne supprimant
-(`backup-commands.tsx`) : à une session qui porte `backups.write`, « Sauvegarder maintenant » dans
-la tête de la liste, liste vide comprise — une tâche de fond remise au suivi avec sa commande —, et
-« Conserver » ou « Ne plus conserver » sur chaque ligne ; à une session qui porte `platform_restore`,
-« Télécharger » et « Restaurer » — le téléchargement est gardé par la permission de la restauration
-(décision de l'auteur du 2026-10-09, #588). La tête de la liste dit ce que la dernière commande a
-fait dès que la session en exerce une. Une sauvegarde n'ayant pas de compteur, la réponse d'un
-marquage reste montrée tant que chaque relecture lit la sauvegarde comme la précédente ; une
-relecture qui l'a changée l'emporte pour de bon, et une démarque par un tiers que la relecture ne
-montre pas reste invisible (#588). Le téléchargement est un lien vers la route
-`/admin/backups/[backupId]/content`, qui relaie `downloadBackup` en flux comme le résultat d'une
-tâche (`src/api/relay.ts`, commun aux deux routes) : des octets, seul type que le contrat déclare —
-tout autre renvoie l'erreur d'une mauvaise passerelle (502) —, sous le nom que l'API donne, à défaut
-`backup-<identifiant>`, avec sa longueur quand le corps arrive sans `Content-Encoding`. Un refus —
-403, 404 sans distinction (WF-ADM-0110), 502, l'API injoignable — renvoie à l'écran des sauvegardes,
-sa page gardée, l'adresse nommant la sauvegarde et le refus (`refused_backup`, `refusal`, les noms
-paramétrés de `result-refusal.ts`) : l'écran le dit au-dessus de la liste jusqu'à ce qu'on ferme
-son avis — le téléchargement nommé, la sauvegarde par sa date quand la page la porte —, et l'avis,
-rendu avec la page, prend le focus au montage, sans quoi aucun lecteur d'écran ne l'annoncerait ;
-l'adresse est rendue sans le refus une fois la page révélée (`afterReveal`), l'avis fermé ou non. « Restaurer » ouvre un
-dialogue (`restore-dialog.tsx`) qui énonce la date de la sauvegarde et sa vérification, la perte sans
-retour de ce qui a été saisi depuis, la déconnexion des utilisateurs et l'inscription au journal
-d'audit (WF-ADM-0160, WF-SEC-0030) ; le bouton ne s'active qu'une fois l'identifiant de la
-sauvegarde saisi, sans égard à la casse, et la demande énonce la date dite
-(`acknowledged_backup_taken_at`). Pendant la demande, ni Échap, ni un clic au-dehors, ni « Annuler »
-ne ferment le dialogue : un refus s'y dit, et rien ne part qu'on croie abandonné. La tâche va au
+L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f) présente leur
+planification en lecture — son formulaire vient avec EP-14/L43d — et une page de leur liste sur la
+grille dense (`backup-columns.tsx`, `backup-grid.tsx`, préférences sous la clé `backups`) : la date,
+en heure locale, la taille, la vérification, le déclenchement et la conservation, dans l'ordre du
+serveur, la ligne des totaux disant combien il en retient (`meta.total`). Le serveur trie chaque
+colonne dans les deux sens (WF-IHM-0060), les plus récentes d'abord quand l'adresse et le compte ne
+disent rien, et le tri ne se lève jamais, comme celui du journal ; il filtre sur chaque colonne
+(WF-IHM-0130, `backup-address.ts`), sous les noms du contrat : la période de la prise, deux jours du
+lecteur tirés en instants, `from` compris et `to` exclu, comme l'accueil (`PeriodFilter`, `day`) ;
+le déclenchement et la vérification, par leurs valeurs (`origins`, `verifications`,
+`ValuesFilter`) ; la conservation, par un choix (`is_retained`, `ChoiceFilter`) ; la taille, par ses
+deux bornes en octets, incluses (`size_bytes_min`, `size_bytes_max`, `RangeFilter`, sorte `bytes` :
+un entier qui a plus de chiffres qu'un compte). Une liste filtrée ne se dit jamais vide, et une
+borne que le serveur refuse (422) — une fin avant le début, un maximum sous le minimum — laisse la
+liste non lue, les filtres gardés, la borne dite à son champ. « Sauvegarder maintenant », dans la
+tête de la liste, liste vide comprise — une tâche de fond remise au suivi avec sa commande —, suit
+la permission `backups.write` (WF-ADM-0100, `platformOffer`) ; les autres commandes sont celles que
+chaque sauvegarde liste (`Backup.available_commands`, WF-IHM-0090, `backup-commands.tsx`), le front
+n'en déduisant rien de la session ni de l'état de la sauvegarde : « Conserver » ou « Ne plus
+conserver », celle des deux qui change son marquage, dans la colonne de la conservation ;
+« Télécharger » et « Restaurer », chacune dans sa colonne dès qu'une sauvegarde de la page la
+liste — le serveur ne liste le marquage que sous `backups.write`, le téléchargement et la
+restauration que sous `platform_restore` (décision de l'auteur du 2026-10-09, #588) —, et aucune ne
+supprime. Une commande absente n'est pas présentée ; une indisponible l'est, `aria-disabled` et
+décrite par la condition qui lui manque (`enums.CommandCondition`) — `backup_verified` au
+téléchargement et à la restauration d'une sauvegarde non vérifiée, `no_backup_running` à la
+restauration pendant qu'une sauvegarde court, `no_restore_running` au marquage et à la restauration
+pendant qu'une restauration court —, et un clic la dit dans la tête de la liste sans rien demander,
+comme les activations du référentiel. La tête de la liste dit ce que la dernière commande a fait dès
+qu'une commande est offerte. Une sauvegarde n'ayant pas de compteur, la réponse d'un marquage reste
+montrée tant que chaque relecture lit la sauvegarde comme la précédente ; une relecture qui l'a
+changée l'emporte pour de bon, et une démarque par un tiers que la relecture ne montre pas reste
+invisible (#588). Le téléchargement est un lien vers la route `/admin/backups/[backupId]/content`,
+qui relaie `downloadBackup` en flux comme le résultat d'une tâche (`src/api/relay.ts`, commun aux
+deux routes) : des octets, seul type que le contrat déclare, sous le nom que l'API donne
+(`Content-Disposition`, que le contrat exige : `waterfall-backup-`, l'instant de la sauvegarde et
+l'extension de son archive), avec sa longueur quand le corps arrive sans `Content-Encoding` — tout
+autre type, ou un fichier sans nom, renvoie l'erreur d'une mauvaise passerelle (502). Un refus —
+403, 404 sans distinction (WF-ADM-0110), 409 d'une sauvegarde non vérifiée, 502, l'API
+injoignable — renvoie à l'écran des sauvegardes, sa page et ses filtres gardés, l'adresse nommant la
+sauvegarde et le refus (`refused_backup`, `refusal`, les noms paramétrés de `result-refusal.ts`) :
+l'écran le dit au-dessus de la liste jusqu'à ce qu'on ferme son avis — le téléchargement nommé, la
+sauvegarde par sa date quand la page la porte —, et l'avis, rendu avec la page, prend le focus au
+montage, sans quoi aucun lecteur d'écran ne l'annoncerait ; l'adresse est rendue sans le refus une
+fois la page révélée (`afterReveal`), l'avis fermé ou non. « Restaurer » ouvre un dialogue
+(`restore-dialog.tsx`) qui énonce la date de la sauvegarde et sa vérification, la perte sans retour
+de ce qui a été saisi depuis, la déconnexion des utilisateurs et l'inscription au journal d'audit
+(WF-ADM-0160, WF-SEC-0030) ; le bouton ne s'active qu'une fois l'identifiant de la sauvegarde
+saisi, sans égard à la casse, et la demande énonce la date dite (`acknowledged_backup_taken_at`).
+Pendant la demande, ni Échap, ni un clic au-dehors, ni « Annuler » ne ferment le dialogue : un
+refus s'y dit — un état qui l'interdit (409), la condition nommée comme tout refus ; une date
+confirmée qui n'est pas celle de la sauvegarde (422, `BACKUP_DATE_MISMATCH` sur
+`/acknowledged_backup_taken_at`), dite à la date que le dialogue énonce, la liste lue n'étant plus
+celle de la sauvegarde, et la page relue —, et rien ne part qu'on croie abandonné. La tâche va au
 suivi sans sa commande : une restauration ne se relance que depuis cette confirmation. Le refus
-d'une commande se dit au-dessus de la liste (`Reactivations`) ; l'écran dit que le faux back ne
-garde rien (`MockupNotice`). La restauration depuis un fichier attend #350 (EP-03).
+d'une commande de la liste se dit au-dessus d'elle (`Reactivations`), la condition nommée pour un
+409 ; l'écran dit que le faux back ne garde rien (`MockupNotice`) dès qu'une commande est offerte.
+La restauration depuis un fichier attend #350 (EP-03).
 
 Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
 #517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du
@@ -1134,8 +1156,9 @@ en cours d'élaboration —, ses exports laissés à l'écran des imports et exp
 (`ExportForm`) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
 l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
-`platform` (`PlatformFunction`) dans `Session.permissions`, `platform_restore` pour la
-restauration, ou `project_create` pour la création d'un projet, qu'aucun projet ne liste. Griser n'est qu'une
+`platform` (`PlatformFunction`) dans `Session.permissions`, ou `project_create` pour la création
+d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont celles qu'elle liste
+(`Backup.available_commands`, EP-14/L43f), le téléchargement et la restauration comprises. Griser n'est qu'une
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
 

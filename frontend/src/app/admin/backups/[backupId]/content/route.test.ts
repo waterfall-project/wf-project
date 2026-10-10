@@ -3,7 +3,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
-import { type FakeAnswers, type FakeClient, fakeClient, unreachable } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+  unreachable,
+} from "@/test/fixtures";
 
 import { GET } from "./route";
 
@@ -85,7 +92,10 @@ describe("a backup, downloaded", () => {
         controller.enqueue(new TextEncoder().encode("PGDMP"));
       },
     });
-    answering(upstream, { "content-type": "application/octet-stream" });
+    answering(upstream, {
+      "content-type": "application/octet-stream",
+      "content-disposition": `attachment; filename="${NAMED}"`,
+    });
     const response = await download();
     expect(response.status).toBe(200);
     const reader = response.body?.getReader();
@@ -112,6 +122,7 @@ describe("a backup, downloaded", () => {
       "content-type": "application/octet-stream",
       "content-length": "4",
       "content-encoding": "gzip",
+      "content-disposition": `attachment; filename="${NAMED}"`,
     });
     expect((await download()).headers.get("content-length")).toBeNull();
   });
@@ -146,11 +157,37 @@ describe("a backup, downloaded", () => {
   });
 
   it("takes an answer that says no type for bytes, the one type the contract declares", async () => {
-    answering(new TextEncoder().encode("sauvegarde"));
+    answering(new TextEncoder().encode("sauvegarde"), {
+      "content-disposition": `attachment; filename="${NAMED}"`,
+    });
     const response = await download();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/octet-stream");
     expect(await response.text()).toBe("sauvegarde");
+  });
+
+  it("sends the browser back with the unexpected error of a bad gateway when the API names no file, which the contract requires, its body let go", async () => {
+    const cancel = vi.fn();
+    const upstream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("PGDMP"));
+      },
+      cancel,
+    });
+    answering(upstream, { "content-type": "application/octet-stream" });
+    expect(sentBackTo(await download())).toBe(
+      `/admin/backups?offset=50&refused_backup=${BACKUP}&refusal=502%3AINTERNAL_ERROR`,
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("sends the browser back saying a backup not yet verified, the condition named as its command said it (409) [WF-IHM-0090-A]", async () => {
+    serve({
+      [CONTENT]: { problem: example("backup_download_refused") as Problem & { status: 409 } },
+    });
+    expect(sentBackTo(await download())).toBe(
+      `/admin/backups?offset=50&refused_backup=${BACKUP}&refusal=409%3ASTATE_FORBIDS_OPERATION%3Abackup_verified`,
+    );
   });
 
   it("sends the browser back saying the API out of reach", async () => {

@@ -160,6 +160,50 @@ test("starts a backup, marks one to be kept, downloads one and restores the plat
   await expect(tasks.getByRole("progressbar", { name: /^Restauration «/ })).toBeVisible();
 });
 
+test("sorts and filters the backups by the server, under the names of the contract, back to their first page [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups?offset=5");
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  // The most recent first unless asked (EP-14/L43f); a header asks the server for its sort, back
+  // to the first page.
+  await expect(backups.getByRole("columnheader", { name: /^Date/ })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
+  await sortUntilAddress(
+    backups.getByRole("columnheader", { name: /^Taille/ }),
+    backups,
+    "/admin/backups?sort_by=size_bytes&sort_order=asc",
+  );
+  // An origin and a marking chosen keep the sort, under the names of the contract.
+  const origins = page.getByRole("group", { name: "Filtrer par déclenchement" });
+  await origins.getByRole("button", { name: "Planifiée" }).click();
+  await expect(page).toHaveURL(
+    "/admin/backups?sort_by=size_bytes&sort_order=asc&origins=scheduled",
+    {
+      timeout: WORKING,
+    },
+  );
+  await expect(origins.getByRole("button", { name: "Planifiée" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const retention = page.getByRole("combobox", { name: "Conservation" });
+  await retention.selectOption({ label: "Marquées à conserver" });
+  await expect(retention).toHaveValue("true");
+  await expect(page).toHaveURL(/origins=scheduled&is_retained=true$/, { timeout: WORKING });
+  // A bound of the size, in bytes, as the contract counts it.
+  const bounds = page.getByRole("form", { name: "Bornes des sauvegardes" });
+  await bounds.getByRole("textbox", { name: "Taille (octets), max." }).fill("2000000000");
+  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  await expect(page).toHaveURL(/is_retained=true&size_bytes_max=2000000000$/, {
+    timeout: WORKING,
+  });
+  // The fake back answers its example whatever is asked: what the screen asks is what this proves.
+  await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
+});
+
 test("sorts, searches and filters the accounts by the server, under the names of the contract, back to their first page [WF-IHM-0060-A]", async ({
   page,
 }) => {

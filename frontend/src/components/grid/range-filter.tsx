@@ -92,7 +92,7 @@ export interface RangeFilterProps {
   /** The name of the form: the bounds of which list. */
   readonly label: string;
   readonly columns: readonly RangeColumn[];
-  /** The figure each bound is: an exact decimal, an amount, or a depth. */
+  /** The figure each bound is: an exact decimal, an amount, a depth, a count, a size in bytes. */
   readonly kind: FigureKind;
   readonly scope?: RangeScope | undefined;
   /** The parameter of the page of a list the server pages, which a filter takes back to its first. */
@@ -141,7 +141,7 @@ function readText(text: string, kind: FigureKind, locale: Locale): Read {
   const figure = parseDecimal(trimmed, locale);
   if (
     figure === undefined ||
-    ((kind === "level" || kind === "count") && !FIGURES[kind].test(figure))
+    ((kind === "level" || kind === "count" || kind === "bytes") && !FIGURES[kind].test(figure))
   ) {
     return { fault: "number" };
   }

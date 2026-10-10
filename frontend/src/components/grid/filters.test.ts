@@ -90,6 +90,15 @@ describe("the bounds of a column of figures in the address", () => {
     });
   });
 
+  it("read a size in bytes from nought, of more digits than a count — a backup weighs gigabytes —, and no figure that is none", () => {
+    const sizes = new URLSearchParams("size_bytes_min=0&size_bytes_max=1313656012");
+    expect(readBounds(sizes, "size_bytes", "bytes")).toEqual({ min: "0", max: "1313656012" });
+    expect(readBounds(new URLSearchParams("a_min=-1&a_max=1.5"), "a", "bytes")).toEqual({
+      min: undefined,
+      max: undefined,
+    });
+  });
+
   it("write the bounds of several columns, a side empty lifted, back to the first page, the rest kept", () => {
     const query = new URLSearchParams("sort_by=label&offset=50&a_max=9");
     const href = boundsHref(

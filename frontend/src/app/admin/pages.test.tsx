@@ -41,9 +41,9 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => shown.path,
   useSearchParams: () => new URLSearchParams(),
 }));
-// The session of the contract, some of its permissions withdrawn for a test: no example grants the
-// modification of the backups without the restoration of the platform, and one would ripple through
-// the accounts, the roles and the journal of the witness.
+// The session of the contract, some of its permissions withdrawn for a test: no example lacks the
+// modification of the backups alone, and one would ripple through the accounts, the roles and the
+// journal of the witness.
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -559,13 +559,20 @@ describe("the state of the system", () => {
   });
 });
 
+/** The sort the server gives the backups unasked, which the page asks when the address says nothing. */
+const NEWEST_BACKUPS = { sort_by: "taken_at", sort_order: "desc" };
+
 describe("the backups", () => {
   it("title the tab with the function", async () => {
     expect((await backupsMetadata()).title).toBe("Sauvegarde et restauration — Waterfall");
   });
 
   it("present each backup with its date, its size and its verification [WF-ADM-0150-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = {
+      ...server.answers,
+      "GET /session": "session_estimator",
+      "GET /backups": "backups_reader",
+    };
     const page = rendered(await BackupsPage(searched()));
     const backups = rows(page, "Sauvegardes");
     expect(backups).toHaveLength(10);
@@ -579,59 +586,139 @@ describe("the backups", () => {
     expect(instants(page)[0]).toBe("2026-06-03T01:00:00Z");
   });
 
-  it("offer neither a sort, a search nor a filter the contract does not carry, and ask the list unsorted and unfiltered [WF-IHM-0090-A]", async () => {
-    const page = rendered(await BackupsPage(searched({ sort_by: "taken_at", origins: "manual" })));
-    expect(sortable(page, "Sauvegardes")).toEqual([]);
-    expect(page).not.toContain('type="search"');
-    expect(page).not.toContain("<select");
-    expect(page).not.toContain("aria-pressed");
-    expect(queriesOf("GET /backups")).toEqual([{}]);
-  });
-
-  it("offer a session that may modify the backups to start one and mark each, neither to download nor to restore one without the restoration's permission [WF-ADM-0100-A]", async () => {
-    withdrawn.permissions = ["platform_restore"];
-    shown.path = "/admin/backups";
+  it("ask the most recent first unasked, and the column of the contract the address sorts by, each both ways [WF-IHM-0060-A]", async () => {
     const page = rendered(await BackupsPage(searched()));
-    expect(rows(page, "Sauvegardes")[0]).toBe(
-      "Date Taille Vérification Déclenchement Conservation",
-    );
-    expect(buttons(page).filter((name) => name === "Sauvegarder maintenant")).toHaveLength(1);
-    expect(buttons(page).filter((name) => name === "Conserver")).toHaveLength(7);
-    expect(buttons(page).filter((name) => name === "Restaurer")).toEqual([]);
-    expect(links(page)).toEqual([]);
+    expect(sortable(page, "Sauvegardes")).toEqual([
+      "Date",
+      "Taille",
+      "Vérification",
+      "Déclenchement",
+      "Conservation",
+    ]);
+    expect(page).toContain('aria-sort="descending"');
+    expect(queriesOf("GET /backups")).toEqual([NEWEST_BACKUPS]);
+    server.clients = [];
+    server.answers = { ...server.answers, "GET /backups": "backups_by_size" };
+    const bySize = rendered(await BackupsPage(searched({ sort_by: "size_bytes" })));
+    expect(queriesOf("GET /backups")).toEqual([{ sort_by: "size_bytes", sort_order: "asc" }]);
+    // The rows as the server ordered them: the lightest, the manual one of January, first.
+    expect(rows(bySize, "Sauvegardes")[1]).toContain("900 mégaoctets Vérifiée Manuelle");
+    server.clients = [];
+    await BackupsPage(searched({ sort_by: "verification", sort_order: "desc" }));
+    await BackupsPage(searched({ sort_by: "origin" }));
+    await BackupsPage(searched({ sort_by: "is_retained", sort_order: "desc" }));
+    await BackupsPage(searched({ sort_by: "label" }));
+    expect(queriesOf("GET /backups")).toEqual([
+      { sort_by: "verification", sort_order: "desc" },
+      { sort_by: "origin", sort_order: "asc" },
+      { sort_by: "is_retained", sort_order: "desc" },
+      NEWEST_BACKUPS,
+    ]);
   });
 
-  it("offer a session that may restore the platform alone to download and restore each, neither to start nor to mark one [WF-ADM-0100-A]", async () => {
-    withdrawn.permissions = ["backups.write"];
-    shown.path = "/admin/backups";
-    const page = rendered(await BackupsPage(searched()));
-    expect(rows(page, "Sauvegardes")[0]).toBe(
-      "Date Taille Vérification Déclenchement Conservation Téléchargement Restauration",
-    );
-    expect(buttons(page).filter((name) => /^(Sauvegarder|Conserver|Ne plus)/.test(name))).toEqual(
-      [],
-    );
-    expect(buttons(page).filter((name) => name === "Restaurer")).toHaveLength(8);
-    expect(links(page)).toHaveLength(8);
-    expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
-  });
-
-  it("say above the list the refusal of a download the route came back with", async () => {
-    shown.path = "/admin/backups";
+  it("ask the server for the filters and the page the address names, under the names of the contract, and offer each filter [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, "GET /backups": "backups_period" };
     const page = rendered(
       await BackupsPage(
         searched({
-          refused_backup: "01926f3a-7c00-7000-8000-000000000907",
-          refusal: "403:PERMISSION_MISSING",
+          from: "2026-05-31T22:00:00Z",
+          to: "2026-06-30T22:00:00Z",
+          origins: "scheduled,manual,nothing",
+          verifications: "failed,passed",
+          is_retained: "false",
+          size_bytes_min: "1000000000",
+          size_bytes_max: "1300000000",
+          offset: "50",
         }),
       ),
     );
-    expect(page).toContain('role="alert"');
-    expect(text(page)).toContain("Vous n’avez pas la permission nécessaire. Fermer l’avis");
-    expect(queriesOf("GET /backups")).toEqual([{}]);
+    expect(queriesOf("GET /backups")).toEqual([
+      {
+        ...NEWEST_BACKUPS,
+        offset: "50",
+        from: "2026-05-31T22:00:00Z",
+        to: "2026-06-30T22:00:00Z",
+        origins: "manual,scheduled",
+        verifications: "passed,failed",
+        is_retained: "false",
+        size_bytes_min: "1000000000",
+        size_bytes_max: "1300000000",
+      },
+    ]);
+    // The totals row counts what the server retained of the filtered list.
+    expect(rows(page, "Sauvegardes").at(-1)).toBe("3 sauvegardes");
+    expect(page).toContain('aria-label="Période des sauvegardes"');
+    expect(page).toContain('aria-label="Filtrer par déclenchement"');
+    expect(page).toContain('aria-label="Filtrer par vérification"');
+    expect(page).toContain('aria-label="Bornes des sauvegardes"');
+    expect(page).toContain('<option value="false" selected="">Soumises à la rotation</option>');
+    expect(text(page)).toContain("Conservation Toutes les sauvegardes Marquées à conserver");
   });
 
-  it("offer a session that may modify the backups and restore the platform to start one, mark, download and restore each, saying the fake back keeps nothing — none deletes one [WF-ADM-0100-A]", async () => {
+  it("ask nothing of an address whose values no server could take", async () => {
+    await BackupsPage(
+      searched({
+        from: "yesterday",
+        to: "2026-13-45T25:00Z",
+        origins: "cloud",
+        verifications: "maybe",
+        is_retained: "1",
+        size_bytes_min: "-1",
+        size_bytes_max: "1.5",
+        offset: "-3",
+      }),
+    );
+    expect(queriesOf("GET /backups")).toEqual([NEWEST_BACKUPS]);
+  });
+
+  it("say a period the API refuses at the field of its end, the list unread and the filters kept to be changed [WF-IHM-0130-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /backups": {
+        problem: example("backups_period_inverted") as Problem & { status: 422 },
+      },
+    };
+    const page = rendered(
+      await BackupsPage(searched({ from: "2026-06-03T14:00:00Z", to: "2026-06-01T00:00:00Z" })),
+    );
+    expect(text(page)).toContain("La liste n’est pas lue : le serveur refuse la période demandée.");
+    expect(page).not.toContain("<table");
+    expect(page).toContain('aria-label="Période des sauvegardes"');
+    const fields = page.match(/<input[^>]*type="date"[^>]*>/g) ?? [];
+    expect(fields.map((field) => field.includes('aria-invalid="true"'))).toEqual([false, true]);
+    expect(text(page)).toContain("La fin de la période ne peut précéder son début.");
+    // The command that starts a backup is offered all the same; the pages of a list unread are not.
+    expect(buttons(page)).toContain("Sauvegarder maintenant");
+    expect(text(page)).not.toContain("Page précédente");
+  });
+
+  it("say a size at most below the least the API refuses at its field, the least named [WF-IHM-0130-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /backups": {
+        problem: example("backups_bounds_inverted") as Problem & { status: 422 },
+      },
+    };
+    const page = rendered(
+      await BackupsPage(searched({ size_bytes_min: "1300000000", size_bytes_max: "1000000000" })),
+    );
+    expect(text(page)).toContain(
+      "La liste n’est pas lue : le serveur refuse les bornes demandées.",
+    );
+    expect(page).not.toContain("<table");
+    const fields = page.match(/<input[^>]*inputMode="decimal"[^>]*>/g) ?? [];
+    expect(fields.map((field) => field.includes('aria-invalid="true"'))).toEqual([false, true]);
+    // Both bounds keep what was asked, to be changed where the API refused them.
+    expect(fields.map((field) => /value="(\d*)"/.exec(field)?.[1])).toEqual([
+      "1300000000",
+      "1000000000",
+    ]);
+    expect(text(page)).toContain(
+      "La borne supérieure ne peut précéder la borne inférieure, 1 300 000 000.",
+    );
+  });
+
+  it("offer a session that may modify the backups to start one, and on each backup the commands it lists, none that deletes [WF-ADM-0100-A]", async () => {
     shown.path = "/admin/backups";
     const page = rendered(await BackupsPage(searched()));
     expect(rows(page, "Sauvegardes")[0]).toBe(
@@ -648,20 +735,68 @@ describe("the backups", () => {
     expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
   });
 
-  it("offer no command of the backups to a session that may neither modify them nor restore the platform, nor say the fake back keeps nothing [WF-IHM-0090-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+  it("offer no command of the backups to a session whose backups list none, nor say the fake back keeps nothing, and no start to one that may not modify them [WF-IHM-0090-A]", async () => {
+    withdrawn.permissions = ["backups.write"];
+    server.answers = { ...server.answers, "GET /backups": "backups_reader" };
     const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation",
+    );
     expect(text(page)).toContain(
       "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
     );
-    // The choice of the columns alone: a preference of display, which writes nothing of the backups.
-    expect(buttons(page)).toEqual(["Colonnes"]);
+    // The filters and the choice of the columns alone: readings, which write nothing of the
+    // backups — no start, no marking, no restoration.
+    expect(buttons(page)).toEqual([
+      "Filtrer",
+      "Tous les déclenchements",
+      "Manuelle",
+      "Planifiée",
+      "Toutes les vérifications",
+      "Vérification en attente",
+      "Vérifiée",
+      "Vérification échouée",
+      "Filtrer",
+      "Colonnes",
+      "Date",
+      "Taille",
+      "Vérification",
+      "Déclenchement",
+      "Conservation",
+    ]);
     expect(links(page)).toEqual([]);
     expect(text(page)).not.toContain("Maquette");
   });
 
+  it("present the restoration unavailable on each backup while a backup runs, as the backups list it [WF-IHM-0090-A]", async () => {
+    server.answers = { ...server.answers, "GET /backups": "backups_during_backup" };
+    const page = rendered(await BackupsPage(searched()));
+    const restores = [...page.matchAll(/<button[^>]*aria-label="Restaurer[^"]*"[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    expect(restores).toHaveLength(8);
+    expect(restores.every((button) => button.includes('aria-disabled="true"'))).toBe(true);
+    expect(text(page)).toContain("Condition non remplie : aucune sauvegarde en cours.");
+    expect(links(page)).toHaveLength(8);
+  });
+
+  it("say above the list the refusal of a download the route came back with", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(
+      await BackupsPage(
+        searched({
+          refused_backup: "01926f3a-7c00-7000-8000-000000000907",
+          refusal: "403:PERMISSION_MISSING",
+        }),
+      ),
+    );
+    expect(page).toContain('role="alert"');
+    expect(text(page)).toContain("Vous n’avez pas la permission nécessaire. Fermer l’avis");
+    expect(queriesOf("GET /backups")).toEqual([NEWEST_BACKUPS]);
+  });
+
   it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
-    // The screen reads the copy the schedule sets; the form comes with the commands (#519).
+    // The screen reads the copy the schedule sets; the form comes with EP-14/L43d.
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
       "Copie externe Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées",
@@ -676,19 +811,23 @@ describe("the backups", () => {
     );
   });
 
-  it("say there is none yet, once, and offer to start one all the same", async () => {
+  it("say there is none yet, once, and offer to start one all the same; a filter that retains none keeps the filters", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toMatch(/Sauvegardes Sauvegarder maintenant Aucune sauvegarde\.$/);
     expect(page).not.toContain('aria-label="Sauvegardes" role="grid"');
     expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
+    const narrowed = rendered(await BackupsPage(searched({ origins: "manual" })));
+    expect(text(narrowed)).not.toContain("Aucune sauvegarde.");
+    expect(narrowed).toContain('aria-label="Filtrer par déclenchement"');
+    expect(text(narrowed)).toMatch(/Taille \(octets\) min\. max\. Filtrer Aucune sauvegarde$/);
   });
 
   it("say a page asked beyond the end of the list is no empty list, and lead back to its last page", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_beyond" };
     shown.path = "/admin/backups";
     const page = rendered(await BackupsPage(searched({ offset: "50" })));
-    expect(queriesOf("GET /backups")).toEqual([{ offset: "50" }]);
+    expect(queriesOf("GET /backups")).toEqual([{ ...NEWEST_BACKUPS, offset: "50" }]);
     expect(text(page)).not.toContain("Aucune sauvegarde.");
     expect(page).not.toContain('role="grid"');
     expect(text(page)).toContain(

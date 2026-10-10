@@ -91,16 +91,18 @@ export function valuesHref<Value extends string>(
 
 /**
  * A figure of the contract a bound takes: an exact decimal, an amount of two decimals at most, a
- * depth of a tree, a whole number from 1, or a count, a whole number from 0 — the holders of a role.
+ * depth of a tree, a whole number from 1, a count, a whole number from 0 — the holders of a role —,
+ * or a size in bytes, a whole number from 0 of more digits than a count — a backup weighs gigabytes.
  */
-export type FigureKind = "decimal" | "money" | "level" | "count";
+export type FigureKind = "decimal" | "money" | "level" | "count" | "bytes";
 
-/** The pattern of the contract of each kind of bound: `Decimal`, `Money`, a depth, a count. */
+/** The pattern of the contract of each kind of bound: `Decimal`, `Money`, a depth, a count, a size. */
 export const FIGURES: Readonly<Record<FigureKind, RegExp>> = {
   decimal: /^-?\d+(\.\d+)?$/,
   money: /^-?\d+(\.\d{1,2})?$/,
   level: /^[1-9]\d{0,2}$/,
   count: /^(0|[1-9]\d{0,8})$/,
+  bytes: /^(0|[1-9]\d{0,14})$/,
 };
 
 /** The two bounds of a column the address carries; none, no bound on that side. */

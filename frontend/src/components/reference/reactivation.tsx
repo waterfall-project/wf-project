@@ -27,7 +27,6 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -35,11 +34,11 @@ import {
 
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
-import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
+import type { CommandOffer } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { readingOf } from "@/navigation/pages";
 
-import { CellCommand } from "./cell-command";
+import { UnavailableCellCommand } from "./cell-command";
 
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
@@ -196,8 +195,8 @@ export function Reactivations({
 }
 
 /**
- * The activation of an object the server lists unavailable, with the conditions it lacks: marked
- * `aria-disabled`, described by them, and, pressed, saying them in the region of the list.
+ * The activation of an object the server lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list.
  */
 export function UnavailableActivation({
   command,
@@ -210,27 +209,16 @@ export function UnavailableActivation({
 }) {
   const t = useTranslations("reference.state");
   const list = useContext(Report);
-  const unmet = useUnmet()(offer);
-  const described = `${useId()}-unmet`;
   return (
-    <>
-      <CellCommand
-        aria-label={t(command, { name })}
-        aria-disabled
-        aria-describedby={described}
-        title={unmet}
-        className={UNAVAILABLE}
-        onClick={() => {
-          // An unavailable command never runs: the press says the conditions it lacks.
-          list?.tell(name, offer, command);
-        }}
-      >
-        {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
-        {t(`${command}Short`)}
-      </CellCommand>
-      <span id={described} className="sr-only">
-        {unmet}
-      </span>
-    </>
+    <UnavailableCellCommand
+      name={t(command, { name })}
+      offer={offer}
+      onPress={() => {
+        list?.tell(name, offer, command);
+      }}
+    >
+      {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
+      {t(`${command}Short`)}
+    </UnavailableCellCommand>
   );
 }

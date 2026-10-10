@@ -1396,6 +1396,7 @@
       "retained": "Marked to keep",
       "none": "No backup.",
       "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}",
+      "periodRefused": "The list is not read: the server refuses the period asked.",
       "start": "Back up now",
       "started": "Backup started: follow its progress in the background tasks.",
       "retain": "Keep",
@@ -1409,7 +1410,19 @@
       "restore": "Restore",
       "restoreNamed": "Restore the platform from the backup of {date}",
       "downloadRefused": "A backup could not be downloaded.",
-      "downloadRefusedNamed": "The backup of {date} could not be downloaded."
+      "downloadRefusedNamed": "The backup of {date} could not be downloaded.",
+      "unavailable": "{command}: unavailable. {unmet}",
+      "period": "Period of the backups",
+      "originFilter": "Filter by trigger",
+      "everyOrigin": "Every trigger",
+      "verificationFilter": "Filter by verification",
+      "everyVerification": "Every verification",
+      "retentionFilter": "Retention",
+      "everyRetention": "Every backup",
+      "retainedOnes": "Marked to keep",
+      "rotatingOnes": "Subject to rotation",
+      "bounds": "Bounds of the backups",
+      "sizeBytes": "Size (bytes)"
     },
     "restore": {
       "title": "Restore the platform",

@@ -162,7 +162,7 @@ modifier le contrat en passant, contre la règle « le contrat d'abord ».
 
 | Partie | Ce qu'elle ferme | Contenu | Consommateur |
 |---|---|---|---|
-| L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e |
+| L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e, L43f |
 | L42i — projet, sous-projets, contributeurs | #590, #592 | Le déclencheur du prochain état énuméré, et ce que `getProjectNextState` rend d'un projet en cours ou terminal ; la probabilité de gain annoncée figée, le statut et le pointeur de son refus ; le code pris nommant le projet qui le porte, par son libellé, comme L42g l'a décidé pour le référentiel ; les bornes des deux taux. Un sous-projet liste ses commandes (modifier, supprimer), la suppression indisponible avec sa condition quand des coûts réels lui sont imputés ou qu'une révision marquée le cite, son 409 nommé ; le code pris nommant le sous-projet qui le porte ; le refus par champ d'un compte inconnu ou désactivé dans `setContributors` ; une proposition nomme son nœud et ses rôles, dit si le compte est actif, et `listContributorSuggestions` s'appuie sur les lignes de devis comme WF-PRJ-0070. Les écrans de L44a et L44b l'adoptent dans le lot. | écrans L44a, L44b |
 | L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans le lot. | écrans L43b |
 | L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 marque supprimée une chronologie qu'une révision marquée cite, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
@@ -261,8 +261,8 @@ version majeure précédente, qui restent à la recette d'EP-13 (écarts d'US-02
 2. En parallèle : US-0200 et US-0290, dont le harnais garde ensuite chaque lot d'écran ; les
    quatre parties du contrat, L42h à L42k ; l'univers témoin, L45a puis L45b, avant que les lots
    d'écran n'assertent d'autres valeurs.
-3. Les écrans, chacun après sa partie de contrat : L43d et L43e après L42h ; L44c puis L44d après
-   L42k.
+3. Les écrans, chacun après sa partie de contrat : L43d, L43e et L43f après L42h ; L44c puis L44d
+   après L42k.
 4. La clôture : la définition de fini constatée, chaque constat de #507 appliqué dans `docs/api`
    ou écarté dans `DECISIONS.md`.
 
@@ -379,6 +379,29 @@ est refusée au champ ; le téléchargement nomme son fichier ; `updateReference
 par sous-objet, chaque champ sous la permission de sa fonction, et `default_language` sort du
 schéma d'écriture jusqu'à ce qu'EP-03 décide où la langue de l'installation s'écrit. Le lot ne
 touche au front que pour compiler sur le client régénéré ; l'adoption par la grille est L43f.
+
+EP-14/L43f (#627), lot technique ajouté au cadrage après L42h, fait adopter par la grille des
+sauvegardes de L43c ce que L42h a écrit au contrat ; les formulaires restent à L43d et L43e. Les
+commandes : les colonnes des commandes suivent ce que les sauvegardes de la page listent
+(`Backup.available_commands`, `backup-columns.tsx`), et non plus les permissions de la session —
+« Sauvegarder maintenant » seul reste gardé par `backups.write`, le contrat n'ayant pas de commande
+de liste —, une commande indisponible est présentée `aria-disabled`, décrite par sa condition
+(`enums.CommandCondition`), et dite dans la tête de la liste quand on la presse, par
+l'`UnavailableCellCommand` que partagent les sauvegardes et les activations du référentiel ; un 409
+nommé se dit comme tout refus, le refus d'un téléchargement portant sa condition dans l'adresse de
+retour (`409:STATE_FORBIDS_OPERATION:backup_verified`), et le dialogue de la restauration dit
+`BACKUP_DATE_MISMATCH` à la date qu'il énonce, agissant sur la sauvegarde telle que la page relue la
+montre. La route du téléchargement n'invente plus de nom : un fichier que l'API ne nomme pas est une
+mauvaise passerelle, et le parcours de bout en bout attend le nom que le contrat donne au fichier ;
+elle relaie la longueur quand l'API la donne, et rien sinon, le faux back ne la servant pas. Le tri
+et les filtres : la grille trie chaque colonne par le serveur, les plus récentes d'abord sans tri,
+jamais levé comme celui du journal, et filtre par période — les jours du lecteur en instants, fin
+exclue, comme l'accueil —, par déclenchement, par vérification, par conservation et par bornes de
+taille en octets, une sorte de borne `bytes` ajoutée aux filtres partagés ; une borne refusée (422,
+`/query/to`, `/query/size_bytes_max`) est dite à son champ, la liste non lue et les filtres gardés ;
+une lecture filtrée compte ce que le serveur retient et ne se dit jamais vide, et les écritures
+partent de la ligne lue. La mention « le contrat ne trie, ne cherche ni ne filtre » disparaît du
+guide et des tests.
 
 ## US-0200 — Accessibilité minimale
 

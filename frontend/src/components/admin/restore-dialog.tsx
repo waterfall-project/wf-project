@@ -6,13 +6,18 @@
  * restoration is recorded in the journal of audit (WF-SEC-0030); it restores only once the
  * identifier of the backup is typed — a backup has no label —, whatever its case. While the request
  * is on its way, the dialog stays: neither Escape, a click outside nor « Annuler » closes it, so that
- * a refusal is told in it and nothing restores that the user believes abandoned. The task goes to the
- * tracker without its command: a restoration starts again from this confirmation alone.
+ * a refusal is told in it and nothing restores that the user believes abandoned — a state that
+ * forbids the restoration (409), the condition named, as any outcome; a date confirmed that is not
+ * that of the backup named (422, `BACKUP_DATE_MISMATCH` on `/acknowledged_backup_taken_at`,
+ * EP-14/L42h) at the date the dialog states, which the list gave: the list read is no longer that of
+ * the backup, and the page reads anew. The task goes to the tracker without its command: a
+ * restoration starts again from this confirmation alone.
  */
 "use client";
 
 import { History, X } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState, useTransition } from "react";
 
 import { startRestore } from "@/api/actions/backups";
@@ -33,8 +38,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatTimestamp } from "@/i18n/format";
+import { problemMessage } from "@/i18n/problem";
 
 type Backup = components["schemas"]["Backup"];
+type FieldProblem = components["schemas"]["FieldProblem"];
+
+/** The pointer of the contract to the date the confirmation states (`RestoreRequest`). */
+const DATE_POINTER = "/acknowledged_backup_taken_at";
+
+/**
+ * A refusal as the dialog tells it: the refusal of the date stated, said at the date; the rest —
+ * the envelope with its other fields, if any — told as any outcome.
+ */
+function placed(answer: Outcome<unknown>): {
+  readonly date: FieldProblem | undefined;
+  readonly told: Outcome<unknown> | undefined;
+} {
+  if (!("problem" in answer) || answer.problem.fields === undefined) {
+    return { date: undefined, told: answer };
+  }
+  const date = answer.problem.fields.find((field) => field.pointer === DATE_POINTER);
+  const rest = answer.problem.fields.filter((field) => field !== date);
+  if (date === undefined) {
+    return { date, told: answer };
+  }
+  return {
+    date,
+    told:
+      rest.length === 0 ? undefined : { ...answer, problem: { ...answer.problem, fields: rest } },
+  };
+}
 
 /**
  * Confirm the restoration of the platform from a backup, by its identifier typed, then restore and
@@ -55,10 +88,13 @@ export function RestoreDialog({
 }) {
   const t = useTranslations("admin.restore");
   const locale = useLocale();
+  const messages = useMessages();
+  const router = useRouter();
   const track = useTrackTask();
   const id = useId();
   const [typed, setTyped] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  const [dateRefused, setDateRefused] = useState<FieldProblem>();
   const [pending, startTransition] = useTransition();
   // Shown in the browser alone, which knows its time zone: the dialog opens on a press.
   const date = formatTimestamp(backup.taken_at, locale);
@@ -70,14 +106,21 @@ export function RestoreDialog({
       return;
     }
     setOutcome(undefined);
+    setDateRefused(undefined);
     startTransition(async () => {
       const answer = await startRestore(backup.backup_id, backup.taken_at).catch(rejected);
       if (answer.kind === "done") {
         track(answer.data, { subject: date });
         onStarted(t("started", { date }));
         onClose();
-      } else {
-        setOutcome(answer);
+        return;
+      }
+      const refusal = placed(answer);
+      setDateRefused(refusal.date);
+      setOutcome(refusal.told);
+      if (refusal.date !== undefined) {
+        // The date stated is the list's: the list is no longer that of the backup, and reads anew.
+        router.refresh();
       }
     });
   };
@@ -104,6 +147,11 @@ export function RestoreDialog({
           <DialogDescription>
             {t("warning", { date, verification: backup.verification })}
           </DialogDescription>
+          {dateRefused === undefined ? null : (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {problemMessage(dateRefused, { locale, messages })}
+            </p>
+          )}
         </DialogHeader>
         <form aria-label={t("title")} noValidate onSubmit={submit} className="grid gap-3">
           <div className="grid gap-1">
