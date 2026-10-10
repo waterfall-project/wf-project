@@ -9,6 +9,7 @@ sequenceDiagram
 
     U->>A: marque la révision
     A->>B: vérifie le nom de version et les permissions
+    A->>B: inscrit la tâche
     A->>F: met en file la tâche de marquage
     A-->>U: tâche créée
     W->>F: prend la tâche
@@ -19,4 +20,4 @@ sequenceDiagram
     end
     W->>C: invalide les entrées du projet
     W-->>U: révision marquée
-    Note over U,B: la révision suivante n'est créée qu'à la demande,<br/>ou par le premier import : c'est alors qu'a lieu la copie
+    Note over U,B: la révision suivante n'est créée qu'à la demande,<br/>ou par la première saisie qui l'exige : c'est alors qu'a lieu la copie
