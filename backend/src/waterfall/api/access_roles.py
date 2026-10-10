@@ -9,11 +9,12 @@ asks for with US-0390: until then, any account the API knows may read them.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 
 from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Transaction, caller
 from waterfall.api.contract.models import AccessRole, Permission, SortOrder
+from waterfall.api.queries import Search
 from waterfall.core.access_roles.interface import (
     RoleFilters,
     RoleSort,
@@ -30,6 +31,8 @@ router = APIRouter(tags=["access"])
 VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
+# The greatest integer PostgreSQL represents (``bigint``).
+GREATEST_COUNT = 2**63 - 1
 
 # The reads need the caller known and active, but nothing of it.
 AUTHENTICATED = [Depends(caller)]
@@ -68,7 +71,7 @@ def get_permissions(session: Transaction) -> list[Permission]:
 
 def role_filters(
     *,
-    search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    search: Search = None,
     is_predefined: bool | None = None,
     holder_count_min: int | None = None,
     holder_count_max: int | None = None,
@@ -76,7 +79,9 @@ def role_filters(
     """Read the filters of the table; a bound that is negative, or inverted, is refused (422).
 
     The contract calls a negative bound a malformed number (``NUMBER_INVALID``), and an upper
-    bound under the lower one out of its range, the lower one as its minimum.
+    bound under the lower one out of its range, the lower one as its minimum. It sets no maximum:
+    a bound beyond the integers of PostgreSQL, which no count reaches, is brought back to the
+    greatest of them, and keeps what it would have kept.
     """
     faults = [
         FieldError(f"/query/{name}", NUMBER_INVALID)
@@ -97,7 +102,12 @@ def role_filters(
         )
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
-    return RoleFilters(search, is_predefined, holder_count_min, holder_count_max)
+    return RoleFilters(
+        search,
+        is_predefined,
+        None if holder_count_min is None else min(holder_count_min, GREATEST_COUNT),
+        None if holder_count_max is None else min(holder_count_max, GREATEST_COUNT),
+    )
 
 
 # The platform as an author has no account: its absent fields stay absent, not null.

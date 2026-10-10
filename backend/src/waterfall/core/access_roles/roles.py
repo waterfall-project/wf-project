@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, Text, func, literal, select
+from sqlalchemy import BigInteger, ColumnElement, Select, Text, func, literal, select
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from waterfall.core.access_roles.tables import (
@@ -94,7 +94,8 @@ def _holder_counts() -> Select[UUID, int]:
 def _roles() -> tuple[Select[AccessRole, int], ColumnElement[int]]:
     """Select the roles not deleted, each with the number of accounts that hold it."""
     counts = _holder_counts().subquery()
-    holder_count = func.coalesce(counts.c.holder_count, 0)
+    # A count is a ``bigint``: a bound compared with it is one too, not an ``integer``.
+    holder_count = func.coalesce(counts.c.holder_count, 0, type_=BigInteger)
     query = (
         select(AccessRole, holder_count)
         .outerjoin(counts, counts.c.access_role_id == AccessRole.id)

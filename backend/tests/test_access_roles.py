@@ -6,8 +6,12 @@ The roles are written around the service, as the lot that writes them will: thes
 Every answer is checked against the contract (``ContractClient``).
 """
 
+import inspect
+import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -17,11 +21,11 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, bearer, operations, raw_account
+from support import CONTRACT, ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.api.contract import models
+from waterfall.core.access_roles import interface, roles
 from waterfall.core.access_roles.tables import (
     AccessRole,
     AccessRolePermission,
@@ -35,6 +39,8 @@ PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
 DAY = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+# The example of the contract that gives the catalogue as it is delivered.
+WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
 
 
 @pytest.fixture
@@ -117,21 +123,8 @@ def test_the_catalogue_is_the_enumeration_of_the_contract_in_its_order(
 ) -> None:
     response = api.get(PERMISSIONS, headers=headers)
     assert response.status_code == 200
-    catalogue = response.json()
-    assert [entry["code"] for entry in catalogue] == [code.value for code in models.PermissionCode]
-    by_code = {entry["code"]: entry for entry in catalogue}
-    assert by_code["users.read"] == {
-        "code": "users.read",
-        "kind": "function_read",
-        "fbs_code": "FBS-1.1",
-    }
-    assert by_code["planning.write"]["kind"] == "function_write"
-    assert by_code["revision_mark"] == {
-        "code": "revision_mark",
-        "kind": "irreversible",
-        "fbs_code": None,
-    }
-    assert by_code["all_projects_read"]["kind"] == "structuring"
+    # Every entry, its kind and its function included, as the example of the contract gives it.
+    assert response.json() == json.loads(WITNESS.read_text(encoding="utf-8"))["value"]
 
 
 def test_the_journal_of_audit_has_the_permission_to_read_alone(
@@ -216,7 +209,6 @@ def test_an_unknown_role_is_not_found(
     assert (response.status_code, response.json()["code"]) == (404, "NOT_FOUND")
 
 
-@pytest.mark.requirement("WF-DAT-0080-A")
 def test_a_deleted_role_is_no_longer_read_and_its_row_is_kept(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
@@ -230,6 +222,29 @@ def test_a_deleted_role_is_no_longer_read_and_its_row_is_kept(
     assert tuple(kept) == ("Auditeur",)
 
 
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_service_may_not_remove_a_role_from_the_database(database: Database) -> None:
+    role(database, "Chiffreur")
+    with pytest.raises(ProgrammingError) as raised, database.engine.begin() as connection:
+        connection.execute(text("DELETE FROM access_role"))
+    assert isinstance(raised.value.orig, psycopg.errors.InsufficientPrivilege)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_module_of_the_roles_has_no_command_that_deletes_one() -> None:
+    names = [
+        name
+        for module in (roles, interface)
+        for name, _ in inspect.getmembers(module, inspect.isfunction)
+    ]
+    assert names
+    assert not [name for name in names if name.startswith(("delete", "remove", "purge", "drop"))]
+    module = Path(roles.__file__).parent
+    sources = "\n".join(path.read_text(encoding="utf-8") for path in module.glob("*.py"))
+    assert not re.search(r"delete\(\s*AccessRole\b", sources)
+    assert not re.search(r"DELETE\s+FROM\s+access_role\b", sources, re.IGNORECASE)
+
+
 @pytest.fixture
 def table(database: Database) -> dict[str, UUID]:
     """Write a table of roles whose orders differ on each column; give their identifiers."""
@@ -240,7 +255,15 @@ def table(database: Database) -> dict[str, UUID]:
         "Émile": role(database, "Émile", holders=(one,)),
         "Beta": role(database, "Beta", is_predefined=True, holders=(two,)),
         "Alpha": role(database, "Alpha", holders=(one,)),
+        # The search lowers every letter, not only the ASCII ones, and folds the ligatures.
+        "БЮРО": role(database, "БЮРО"),
+        "Straße": role(database, "Straße"),
+        "Main-d'œuvre": role(database, "Main-d'œuvre"),
     }
+
+
+# The table in the order of the code points, case and accents included.
+IN_CODE_POINT_ORDER = ["Alpha", "Beta", "Main-d'œuvre", "Straße", "Zeta", "alpha", "Émile", "БЮРО"]
 
 
 @pytest.mark.requirement("WF-IHM-0060-A")
@@ -248,8 +271,8 @@ def test_the_roles_are_sorted_by_label_in_the_order_of_the_code_points_by_defaul
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
     assert set(table) == set(labels(api, headers))
-    assert labels(api, headers) == ["Alpha", "Beta", "Zeta", "alpha", "Émile"]
-    assert labels(api, headers, "?sort_order=desc") == ["Émile", "alpha", "Zeta", "Beta", "Alpha"]
+    assert labels(api, headers) == IN_CODE_POINT_ORDER
+    assert labels(api, headers, "?sort_order=desc") == IN_CODE_POINT_ORDER[::-1]
 
 
 def by_identifier(
@@ -263,7 +286,8 @@ def by_identifier(
 def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_identifier(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
-    predefined, composed = ["Zeta", "Beta"], ["alpha", "Émile", "Alpha"]
+    predefined = ["Zeta", "Beta"]
+    composed = ["alpha", "Émile", "Alpha", "БЮРО", "Straße", "Main-d'œuvre"]
     assert labels(api, headers, "?sort_by=is_predefined") == (
         by_identifier(table, predefined) + by_identifier(table, composed)
     )
@@ -277,12 +301,13 @@ def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_identifie
 def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_identifier(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
+    never = by_identifier(table, ["alpha", "БЮРО", "Straße", "Main-d'œuvre"])
     once = by_identifier(table, ["Émile", "Beta", "Alpha"])
-    assert labels(api, headers, "?sort_by=holder_count") == ["alpha", *once, "Zeta"]
+    assert labels(api, headers, "?sort_by=holder_count") == [*never, *once, "Zeta"]
     assert labels(api, headers, "?sort_by=holder_count&sort_order=desc") == [
         "Zeta",
         *reversed(once),
-        "alpha",
+        *reversed(never),
     ]
 
 
@@ -293,11 +318,17 @@ def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_identifier(
         ("?search=EMILE", ["Émile"]),
         ("?search=alph", ["Alpha", "alpha"]),
         ("?search=%25", []),
+        ("?search=бюро", ["БЮРО"]),
+        ("?search=strasse", ["Straße"]),
+        ("?search=main-d'oeuvre", ["Main-d'œuvre"]),
         ("?is_predefined=true", ["Beta", "Zeta"]),
-        ("?is_predefined=false", ["Alpha", "alpha", "Émile"]),
+        ("?is_predefined=false", ["Alpha", "Main-d'œuvre", "Straße", "alpha", "Émile", "БЮРО"]),
         ("?holder_count_min=1&holder_count_max=1", ["Alpha", "Beta", "Émile"]),
-        ("?holder_count_max=0", ["alpha"]),
+        ("?holder_count_max=0", ["Main-d'œuvre", "Straße", "alpha", "БЮРО"]),
         ("?holder_count_min=2", ["Zeta"]),
+        # A bound beyond the integers of the database is well formed, and kept as it is said.
+        (f"?holder_count_min={10**30}", []),
+        (f"?holder_count_max={10**30}", IN_CODE_POINT_ORDER),
         # The filters combine, and combine with the sort.
         ("?is_predefined=false&holder_count_min=1&sort_order=desc", ["Émile", "Alpha"]),
     ],
@@ -348,9 +379,11 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
             "?holder_count_max=many",
             [{"pointer": "/query/holder_count_max", "code": "NUMBER_INVALID"}],
         ),
+        # The database refuses a text that holds a NUL: the field refuses it first.
+        ("?search=%00", [{"pointer": "/query/search", "code": "VALIDATION_FAILED"}]),
     ],
 )
-def test_a_bound_of_holders_that_is_malformed_or_inverted_is_refused(
+def test_a_filter_that_is_malformed_or_inverted_is_refused(
     api: ContractClient, headers: dict[str, str], query: str, fields: list[dict[str, Any]]
 ) -> None:
     assert problem(api.get(f"{ROLES}{query}", headers=headers)) == (
