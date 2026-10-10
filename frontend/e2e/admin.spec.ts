@@ -160,6 +160,36 @@ test("starts a backup, marks one to be kept, downloads one and restores the plat
   await expect(tasks.getByRole("progressbar", { name: /^Restauration «/ })).toBeVisible();
 });
 
+test("sets the schedule of the backups whole, its time in universal time, after testing the external location of its copy", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups");
+  // A command names its backup by its date once the browser has written it: the page is hydrated.
+  await expect(
+    page.getByRole("button", { name: /^Conserver la sauvegarde du \d/ }).first(),
+  ).toBeVisible();
+  const schedule = page.getByRole("region", { name: "Planification" });
+  await schedule.getByRole("button", { name: "Modifier la planification" }).click();
+  const form = page.getByRole("dialog", { name: "Modifier la planification" });
+  // The time in universal time, as the contract gives it, the local time it stands for beside.
+  await expect(form.getByLabel("Heure (UTC)")).toHaveValue("01:00");
+  await expect(form.getByLabel("Heure (UTC)")).toHaveAccessibleDescription(
+    /^Soit \d\d:\d\d à l’heure de ce poste\.$/,
+  );
+  // The location the installation declares, tested in the folder of the copies.
+  await expect(form.getByLabel("Copie externe vers")).toHaveValue("secours-lyon");
+  await form.getByRole("button", { name: "Tester l’emplacement" }).click();
+  await expect(form.getByRole("status")).toHaveText(
+    /^«\ssecours-lyon\s» éprouvé le .+, dossier waterfall\/sauvegardes\s: le fichier témoin a été écrit puis effacé\.$/,
+  );
+  // Fourteen kept on the platform, the thirty copies outside it at least as many (WF-EXP-0050).
+  await form.getByRole("textbox", { name: "Sauvegardes conservées" }).fill("14");
+  await form.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(form).toBeHidden();
+  await expect(schedule.getByRole("status")).toHaveText("Planification enregistrée.");
+  await expect(schedule).toContainText("14 sauvegardes conservées");
+});
+
 test("sorts and filters the backups by the server, under the names of the contract, back to their first page [WF-IHM-0130-A]", async ({
   page,
 }) => {

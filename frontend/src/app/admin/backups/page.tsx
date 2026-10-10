@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The backups of the platform (FBS-1.4, US-0250, EP-02/L43c, EP-14/L42h), outside any project:
- * their schedule and retention (WF-ADM-0170), read only, and a page of their list the server pages,
+ * their schedule, their retention and their external copy (WF-ADM-0170), set whole by a form to a
+ * session that may modify the backups, from the locations the installation declares (EP-14/L43d),
+ * and a page of their list the server pages,
  * on the dense grid, each dated, sized and verified (WF-ADM-0150), sorted, filtered and paged by the
  * server as the address asks under the names of the contract (`sort_by`, `sort_order`, `from`,
  * `to`, `origins`, `verifications`, `is_retained`, `size_bytes_min`, `size_bytes_max`, `offset`;
@@ -32,11 +34,8 @@ import {
   readDownloadRefusal,
 } from "@/components/admin/backup-address";
 import { BACKUP_SORTS } from "@/components/admin/backup-columns";
-import {
-  BackupList,
-  BackupScheduleFacts,
-  type BackupsRead,
-} from "@/components/admin/platform-lists";
+import { BackupScheduleSection } from "@/components/admin/backup-schedule";
+import { BackupList, type BackupsRead } from "@/components/admin/platform-lists";
 import { platformOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
@@ -101,8 +100,14 @@ export default async function BackupsPage({
   const query = readGridQuery(search, BACKUP_SORTS, preferences?.sort ?? NEWEST_FIRST);
   const filters = readBackupFilters(search);
   const startable = platformOffer(session?.permissions, "backups") !== undefined;
-  const [schedule, backups] = await Promise.all([
+  const [schedule, locations, backups] = await Promise.all([
     readOrFail("getBackupSchedule", () => serverClient().GET("/backup-schedule")),
+    // The locations a copy may go to, for the form of the schedule: read for who may set it alone.
+    startable
+      ? readOrFail("listExternalBackupLocations", () =>
+          serverClient().GET("/external-backup-locations"),
+        )
+      : undefined,
     readBackups(filters, query, offsetOf(search.get(OFFSET_PARAMETER))),
   ]);
   // Who writes: who may start a backup, or whose backups list a command.
@@ -115,7 +120,7 @@ export default async function BackupsPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <BackupsHeader writes={writes} />
-        <BackupScheduleFacts schedule={schedule} />
+        <BackupScheduleSection schedule={schedule} locations={locations} />
         <BackupList
           read={backups}
           filters={filters}

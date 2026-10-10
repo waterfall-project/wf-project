@@ -909,10 +909,14 @@ les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montr
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
-heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
+heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été. Son formulaire la
+saisit de même, et dit à côté l'heure du poste qu'elle donne la semaine où il est ouvert — l'heure seule
+pour une planification quotidienne, le jour local aussi pour une hebdomadaire, qui peut être la veille
+ou le lendemain du jour universel (`localTimeOfDay` de `format.ts`, dans le navigateur) : rien n'est
+converti à l'envoi.
 
-L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f) présente leur
-planification en lecture — son formulaire vient avec EP-14/L43d — et une page de leur liste sur la
+L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f, EP-14/L43d)
+présente leur planification (`backup-schedule.tsx`) et une page de leur liste sur la
 grille dense (`backup-columns.tsx`, `backup-grid.tsx`, préférences sous la clé `backups`) : la date,
 en heure locale, la taille, la vérification, le déclenchement et la conservation, dans l'ordre du
 serveur, la ligne des totaux disant combien il en retient (`meta.total`). Le serveur trie chaque
@@ -969,6 +973,35 @@ suivi sans sa commande : une restauration ne se relance que depuis cette confirm
 d'une commande de la liste se dit au-dessus d'elle (`Reactivations`), la condition nommée pour un
 409 ; l'écran dit que le faux back ne garde rien (`MockupNotice`) dès qu'une commande est offerte.
 La restauration depuis un fichier attend #350 (EP-03).
+
+La planification se modifie, à une session qui porte `backups.write` (`platformOffer`), dans le
+formulaire du référentiel (`ReferenceForm`), qui la renvoie **entière** depuis la version où il s'est
+ouvert (`setBackupSchedule` est un `PUT`) : activée ou suspendue, la fréquence et l'heure en UTC (un
+champ `time` : une heure à moitié saisie, que son champ rend vide, `validity.badInput`, est refusée
+avant tout appel par la phrase propre à son champ, `invalid`, jamais envoyée comme « aucune heure ») —
+exigées d'une planification activée seulement, le contrat ne les exigeant pas d'une
+suspendue —, le jour — exigé d'une planification hebdomadaire, nul d'une quotidienne —, le nombre de
+sauvegardes conservées, un nombre entier dont le serveur juge les bornes ; puis la copie externe, offerte quand l'installation déclare un emplacement
+ou que la planification en règle une : l'emplacement, choisi parmi ceux que la page lit pour cette
+seule session (`listExternalBackupLocations`) par son nom et sa nature, sa description sous le champ,
+jamais un secret ni une adresse — un emplacement réglé que l'installation ne déclare plus reste offert
+par son nom, refusé au champ avant l'envoi (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`) plutôt que retiré en
+silence —, « Aucune copie » la retirant ; le dossier
+relatif ; le nombre de copies, au moins celui des sauvegardes conservées (WF-EXP-0050), vérifié avant
+l'envoi et dit au champ avec ce minimum, comme le serveur le dirait ; la copie active ou suspendue.
+Les règles entre champs passent par `rules` du formulaire, une note qui suit la saisie par une
+fonction du brouillon (`note`), et ce qui suit les champs sans en être un par `after` : « Tester
+l'emplacement » (`testExternalBackupLocation`), offert pour un emplacement que l'installation
+déclare, qui dit l'emplacement éprouvé, l'instant du test en
+heure locale, le dossier ou la racine, et la réussite ou le motif de l'échec
+(`enums.ExternalBackupFailure`) dans une région annoncée ; un dossier refusé (422, `/path`) se dit sous
+le bouton par la phrase de son propre code ; seule la réponse du dernier test demandé est dite, tant
+que le dossier saisi est celui qu'il a éprouvé, et un autre emplacement choisi fait tomber le test en
+route. La réponse d'un enregistrement remplace la planification affichée tant que son `lock_version`
+est plus récent que la lecture, la page relue, et ne ferme que le dialogue ouvert d'où elle est partie
+(compteur d'ouvertures, comme les paramètres du référentiel) ; un refus par champ (422 : emplacement inconnu, chemin
+invalide, rétention trop courte) se dit au champ, tout autre sous le formulaire, la version périmée
+(412) avec l'offre de relire.
 
 Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
 #517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du

@@ -360,3 +360,52 @@ export function formatTimestamp(value: Timestamp, locale: Locale, timeZone?: str
       : dateFormat(locale, { ...options, timeZone });
   return format.format(new Date(value));
 }
+
+// A time of day of the contract, on 24 hours: `BackupSchedule.at_time`.
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** The local time a time of day in universal time stands for, and the day it falls on. */
+export interface LocalTimeOfDay {
+  /** The time of day in the zone, `HH:MM` on 24 hours, as both languages write it. */
+  readonly time: string;
+  /** How many days the local date lies from the universal one: -1, 0 or 1. */
+  readonly shift: number;
+}
+
+/**
+ * The time of day of the zone of the workstation — or of the zone named — that a time of day in
+ * universal time stands for, on the universal date of a given day: `01:00` UTC is `03:00` in Paris in
+ * June, `02:00` in January — a time of day alone has no offset, which only a day gives it, and a
+ * change of summer time moves it. The day it falls on matters only where the universal day does — the
+ * day of a weekly schedule, which the local day then names. `undefined` for what is no time of day.
+ * It runs in the browser, which alone knows its zone; nothing is ever sent from it.
+ */
+export function localTimeOfDay(
+  time: string,
+  day: Date,
+  timeZone?: string,
+): LocalTimeOfDay | undefined {
+  if (!TIME_OF_DAY.test(time)) {
+    return undefined;
+  }
+  const date = day.toISOString().slice(0, 10);
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    ...(timeZone === undefined ? {} : { timeZone }),
+  };
+  const parts = new Intl.DateTimeFormat("en-GB", options).formatToParts(
+    new Date(`${date}T${time}:00Z`),
+  );
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  const local = Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day")));
+  return {
+    time: `${part("hour")}:${part("minute")}`,
+    shift: Math.round((local - Date.parse(`${date}T00:00:00Z`)) / 86_400_000),
+  };
+}

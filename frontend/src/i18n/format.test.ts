@@ -17,6 +17,7 @@ import {
   formatMonth,
   formatPlanningDate,
   formatTimestamp,
+  localTimeOfDay,
   parseDecimal,
   percentRatio,
   ratioPercent,
@@ -370,5 +371,64 @@ describe("the formatters of Intl", () => {
     } finally {
       restoreZone(original);
     }
+  });
+});
+
+describe("a time of day in universal time", () => {
+  const original = process.env.TZ;
+
+  afterEach(() => {
+    restoreZone(original);
+  });
+
+  it("stands for the local time of the workstation on the day given, which summer time moves", () => {
+    process.env.TZ = "Europe/Paris";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "03:00",
+      shift: 0,
+    });
+    expect(localTimeOfDay("01:00", new Date("2026-01-15T14:05:00Z"))).toEqual({
+      time: "02:00",
+      shift: 0,
+    });
+    expect(localTimeOfDay("23:30", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "01:30",
+      shift: 1,
+    });
+  });
+
+  it("falls the day before west of Greenwich, or in the zone named", () => {
+    process.env.TZ = "America/Los_Angeles";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "18:00",
+      shift: -1,
+    });
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"), "Asia/Tokyo")).toEqual({
+      time: "10:00",
+      shift: 0,
+    });
+  });
+
+  it("keeps the half hour of a zone that has one", () => {
+    process.env.TZ = "Asia/Kolkata";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "06:30",
+      shift: 0,
+    });
+  });
+
+  it("takes the offset of the very day summer time begins, on either side of the change", () => {
+    // In Paris, on 29 March 2026, the clocks go from 02:00 to 03:00, at 01:00 in universal time.
+    process.env.TZ = "Europe/Paris";
+    const change = new Date("2026-03-29T12:00:00Z");
+    expect(localTimeOfDay("00:30", change)).toEqual({ time: "01:30", shift: 0 });
+    expect(localTimeOfDay("01:00", change)).toEqual({ time: "03:00", shift: 0 });
+  });
+
+  it("is none for what is no time of day of the contract", () => {
+    const day = new Date("2026-06-03T14:05:00Z");
+    expect(localTimeOfDay("", day)).toBeUndefined();
+    expect(localTimeOfDay("24:00", day)).toBeUndefined();
+    expect(localTimeOfDay("1:00", day)).toBeUndefined();
   });
 });

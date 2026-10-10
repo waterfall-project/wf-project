@@ -511,6 +511,32 @@ la suppression éprouvée part du sous-projet créé, non cité, déchargé (`su
 variantes contrefactuelles de `subprojects`, déclarées dans le test, éprouvent une ligne sans commande
 et les commandes indisponibles d'un projet clos.
 
+EP-14/L43d (#615), lot technique, donne à l'écran des sauvegardes le formulaire de leur planification
+et de leur copie externe, et ferme #519 : à une session qui porte `backups.write`, « Modifier la
+planification » ouvre le formulaire du référentiel (`ReferenceForm`), qui envoie la planification
+entière depuis la version où il s'est ouvert (`setBackupSchedule`) — activée ou suspendue, fréquence,
+jour, heure, rétention, et la copie : un emplacement parmi ceux que l'installation déclare
+(`listExternalBackupLocations`, lu pour cette seule session), un dossier relatif, un nombre de copies
+au moins égal à la rétention, vérifié avant l'envoi. « Tester l'emplacement » dit l'issue de
+`testExternalBackupLocation`. Le succès remplace la planification affichée tant qu'il est plus récent
+que la lecture ; les trois refus de copie du contrat se disent au champ, la version périmée avec
+l'offre de relire ; l'avis de la maquette était déjà dit à cette session. L'heure se saisit en UTC et
+l'heure du poste qu'elle donne se dit à côté — le jour local aussi pour une planification
+hebdomadaire —, sans conversion à l'envoi. Les bornes d'un nombre de sauvegardes ou de copies (1 à 365)
+ne sont pas vérifiées au front, comme pour les paramètres de L43e : le refus de `retained_count` hors
+bornes n'est pas décrit au contrat, et part à EP-14/L42m ; seule la règle « copies au moins égales à la
+rétention », que la conception demande et que le contrat décrit avec son minimum, l'est, avec le jour
+d'une planification hebdomadaire, la fréquence et l'heure d'une planification activée. Choix :
+le formulaire du référentiel plutôt qu'un formulaire propre à l'écran, au prix de trois ajouts qu'il
+partage — un champ `time`, une note tirée du brouillon, ce qui suit les champs (`after`) — et des règles
+entre champs et des nombres entiers que L43e lui ajoute aussi, repris ici sous les mêmes noms (`rules`,
+`whole`) pour que les deux lots se rejoignent ; le refus d'un dossier par le test se dit sous le bouton
+du test, non au champ, le test n'écrivant rien de la planification ; un jour hebdomadaire laissé vide
+est refusé avant l'envoi, un jour quotidien part nul. Une planification déjà réglée vers un emplacement
+que l'installation ne déclare plus le garde offert, par son nom, refusé au champ avant l'envoi, plutôt
+que de retirer la copie en silence. Une réponse tardive ne ferme que le dialogue d'où elle est partie
+(revue 1, #660). L'état suspendu se dit « Suspendue » et non plus « Désactivée », comme le contrat le nomme.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire
