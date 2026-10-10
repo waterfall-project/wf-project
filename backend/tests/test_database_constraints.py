@@ -16,6 +16,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Executable
 from support import raw_account
 
+from waterfall.core.access_roles.tables import (
+    AccessRole,
+    AccessRolePermission,
+    Permission,
+    UserAccessRole,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
@@ -242,3 +248,119 @@ def test_an_inscription_outlives_the_account_and_the_project_it_names(database: 
             )
         ).scalar_one()
     assert foreign_keys == 0
+
+
+def write_permission(**overrides: object) -> Executable:
+    """Give the insertion of a permission by hand, as only a migration writes one."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "code": "reports.read",
+        "kind": "function_read",
+        "fbs_code": "FBS-5.1",
+        "position": 1000,
+    }
+    return insert(Permission).values(**{**columns, **overrides})
+
+
+def owner_refusal(owner: Engine, statement: Executable) -> str:
+    """Run as the owner a statement the database must refuse, and give the refusing constraint."""
+    with pytest.raises(IntegrityError) as raised, owner.begin() as connection:
+        connection.execute(statement)
+    return constraint_of(raised.value)
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"kind": "function_manage"}, "ck_permission_kind_known"),
+        ({"fbs_code": None}, "ck_permission_fbs_code_of_a_function"),
+        ({"kind": "irreversible"}, "ck_permission_fbs_code_of_a_function"),
+        ({"fbs_code": "FBS-5"}, "ck_permission_fbs_code_form"),
+        ({"position": -1}, "ck_permission_position_not_negative"),
+        ({"code": "users.read"}, "uq_permission_code"),
+        ({"position": 0}, "uq_permission_position"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_permission_that_breaks_a_rule_of_the_catalogue(
+    owner: Engine, overrides: dict[str, object], constraint: str
+) -> None:
+    assert owner_refusal(owner, write_permission(**overrides)) == constraint
+
+
+def write_role(**overrides: object) -> Executable:
+    """Give the insertion of a role by hand, with the changes a test asks for."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "label": "Chiffreur",
+        "is_predefined": False,
+        "created_at": datetime(2026, 10, 1, tzinfo=UTC),
+        "updated_at": datetime(2026, 10, 1, tzinfo=UTC),
+    }
+    return insert(AccessRole).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"label": ""}, "ck_access_role_label_length"),
+        ({"label": "x" * 101}, "ck_access_role_label_length"),
+        ({"lock_version": -1}, "ck_access_role_lock_version_not_negative"),
+        ({"created_by": uuid4()}, "fk_access_role_created_by_user_account"),
+        ({"updated_by": uuid4()}, "fk_access_role_updated_by_user_account"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_role_that_breaks_a_check(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    assert refusal(database, write_role(**overrides)) == constraint
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_a_role_grants_and_an_account_holds_only_what_exists_and_once(
+    database: Database, owner: Engine
+) -> None:
+    account = insert_account(database)["id"]
+    role_id = uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(write_role(id=role_id))
+        permission = connection.execute(
+            text("SELECT id FROM permission WHERE code = 'users.read'")
+        ).scalar_one()
+        connection.execute(
+            insert(AccessRolePermission).values(access_role_id=role_id, permission_id=permission)
+        )
+        connection.execute(
+            insert(UserAccessRole).values(user_account_id=account, access_role_id=role_id)
+        )
+    grant = insert(AccessRolePermission)
+    hold = insert(UserAccessRole)
+    assert refusal(database, grant.values(access_role_id=role_id, permission_id=uuid4())) == (
+        "fk_access_role_permission_permission_id_permission"
+    )
+    assert refusal(database, grant.values(access_role_id=uuid4(), permission_id=permission)) == (
+        "fk_access_role_permission_access_role_id_access_role"
+    )
+    assert refusal(database, grant.values(access_role_id=role_id, permission_id=permission)) == (
+        "pk_access_role_permission"
+    )
+    assert refusal(database, hold.values(user_account_id=uuid4(), access_role_id=role_id)) == (
+        "fk_user_access_role_user_account_id_user_account"
+    )
+    assert refusal(database, hold.values(user_account_id=account, access_role_id=uuid4())) == (
+        "fk_user_access_role_access_role_id_access_role"
+    )
+    assert refusal(database, hold.values(user_account_id=account, access_role_id=role_id)) == (
+        "pk_user_access_role"
+    )
+    # What a role grants, and a role that is held, cannot disappear under it.
+    assert owner_refusal(owner, delete(Permission).where(Permission.id == permission)) == (
+        "fk_access_role_permission_permission_id_permission"
+    )
+    assert owner_refusal(owner, delete(AccessRole).where(AccessRole.id == role_id)) in {
+        "fk_access_role_permission_access_role_id_access_role",
+        "fk_user_access_role_access_role_id_access_role",
+    }

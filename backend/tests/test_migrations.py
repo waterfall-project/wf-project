@@ -17,6 +17,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
 from support import service_role
 
+from waterfall.core.access_roles.tables import (
+    AccessRole,
+    AccessRolePermission,
+    Permission,
+    UserAccessRole,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -199,6 +205,10 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Installation.__tablename__,
         UserAccount.__tablename__,
         AuditEntry.__tablename__,
+        Permission.__tablename__,
+        AccessRole.__tablename__,
+        AccessRolePermission.__tablename__,
+        UserAccessRole.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:

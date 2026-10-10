@@ -131,6 +131,11 @@ class ContractClient:
         return self.request("DELETE", path, **kwargs)
 
 
+def bearer(token: str) -> dict[str, str]:
+    """Give the header that carries an access token."""
+    return {"Authorization": f"Bearer {token}"}
+
+
 def raw_account(**overrides: object) -> dict[str, object]:
     """Give the columns of an account written by hand, with the changes a test asks for."""
     return {

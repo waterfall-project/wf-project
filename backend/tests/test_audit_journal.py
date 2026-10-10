@@ -217,6 +217,13 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "user_account": {"SELECT", "INSERT", "UPDATE"},
     # Inscribed and read; neither changed nor deleted (WF-SEC-0030).
     "audit_entry": {"SELECT", "INSERT"},
+    # The catalogue, written by the migrations alone and read by the service (WF-ADM-0100).
+    "permission": {"SELECT"},
+    # Created, read, changed, marked deleted; never removed (WF-DAT-0080).
+    "access_role": {"SELECT", "INSERT", "UPDATE"},
+    # Two associations of two keys: a row is added or removed, never changed.
+    "access_role_permission": {"SELECT", "INSERT", "DELETE"},
+    "user_access_role": {"SELECT", "INSERT", "DELETE"},
 }
 
 

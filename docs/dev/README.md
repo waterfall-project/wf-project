@@ -1668,7 +1668,9 @@ supprime à la fin, avec le rôle du service que les migrations lui ont créé. 
 rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
 supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
 propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
-qui coupe les déclencheurs ; `session` rend une session que le test défait.
+qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
+que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
+test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans

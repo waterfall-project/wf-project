@@ -23,6 +23,8 @@ from jwt.algorithms import RSAAlgorithm
 REALM = "waterfall"
 KEYS_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/certs"
 AUDIENCE = "waterfall-api"
+# The key the realm of test signs its tokens with, unless a test asks for another.
+KEY = "key-1"
 
 
 def new_key() -> rsa.RSAPrivateKey:

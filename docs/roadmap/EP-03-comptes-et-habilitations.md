@@ -1017,7 +1017,7 @@ imports (EP-06, EP-07, EP-09) et la sauvegarde planifiée (EP-13) : le genre d'u
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0010-A`, `WF-ADM-0020-A`, `WF-ADM-0090-A`, `WF-ADM-0100-A`,
   `WF-ADM-0120-A`, `WF-INTF-0030-A`
 - **opérations** : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
