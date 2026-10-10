@@ -1495,8 +1495,7 @@
       "write": "Modifier les rôles d’habilitation"
     },
     "system_status": {
-      "read": "Consulter l’état du système",
-      "write": "Modifier l’état du système"
+      "read": "Consulter l’état du système"
     },
     "backups": {
       "read": "Consulter les sauvegardes",
@@ -1506,32 +1505,25 @@
       "read": "Consulter le journal d’audit"
     },
     "portfolio_projects": {
-      "read": "Consulter le portefeuille de projets",
-      "write": "Modifier le portefeuille de projets"
+      "read": "Consulter le portefeuille de projets"
     },
     "portfolio_workload": {
-      "read": "Consulter le plan de charge agrégé",
-      "write": "Modifier le plan de charge agrégé"
+      "read": "Consulter le plan de charge agrégé"
     },
     "portfolio_performance": {
-      "read": "Consulter la performance du portefeuille",
-      "write": "Modifier la performance du portefeuille"
+      "read": "Consulter la performance du portefeuille"
     },
     "portfolio_cost_structure": {
-      "read": "Consulter la structure des coûts du portefeuille",
-      "write": "Modifier la structure des coûts du portefeuille"
+      "read": "Consulter la structure des coûts du portefeuille"
     },
     "portfolio_risks": {
-      "read": "Consulter les risques du portefeuille",
-      "write": "Modifier les risques du portefeuille"
+      "read": "Consulter les risques du portefeuille"
     },
     "portfolio_cost_curve": {
-      "read": "Consulter la courbe en S du portefeuille",
-      "write": "Modifier la courbe en S du portefeuille"
+      "read": "Consulter la courbe en S du portefeuille"
     },
     "portfolio_pilot_health": {
-      "read": "Consulter la santé du pilotage",
-      "write": "Modifier la santé du pilotage"
+      "read": "Consulter la santé du pilotage"
     },
     "cost_settings": {
       "read": "Consulter les paramètres de coûts",

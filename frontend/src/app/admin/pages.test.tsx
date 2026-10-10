@@ -402,9 +402,9 @@ describe("the access roles", () => {
 
   it("present the permissions of the catalogue in its order, under the function of the second level each covers, and whether each role holds it", async () => {
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
-    // A header, forty-eight permissions of the functions, the consultation of the journal of
-    // audit, eight irreversible and two structuring.
-    expect(matrix).toHaveLength(60);
+    // A header, forty permissions of the functions — the functions in reading alone read only
+    // (#739) —, the consultation of the journal of audit, eight irreversible and two structuring.
+    expect(matrix).toHaveLength(52);
     // Named by the catalogue, never by a code of the FBS (#518).
     expect(matrix).toContain(
       "Journal d’audit Consulter le journal d’audit Accordée Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
