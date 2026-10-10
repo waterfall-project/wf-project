@@ -9,6 +9,7 @@ sequenceDiagram
 
     U->>A: dépose le fichier
     A->>S: écrit le fichier
+    A->>B: inscrit la tâche
     A->>F: met en file la tâche d'analyse
     A-->>U: tâche créée
     W->>F: prend la tâche
@@ -18,6 +19,7 @@ sequenceDiagram
     W-->>U: compte rendu disponible
     alt L'utilisateur confirme
         U->>A: demande l'application
+        A->>B: inscrit la tâche
         A->>F: met en file la tâche d'application
         W->>F: prend la tâche
         W->>B: revérifie permission, contributeur et état du projet
@@ -31,6 +33,7 @@ sequenceDiagram
         end
     else L'utilisateur abandonne ou laisse expirer
         U->>A: abandonne l'import
+        A->>B: inscrit la tâche
         A->>F: met en file la suppression
         Note over F: ou, sans réponse, au terme de vingt-quatre heures (WF-ARC-0100)
         W->>S: supprime le fichier
