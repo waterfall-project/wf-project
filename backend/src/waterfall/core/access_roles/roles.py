@@ -15,7 +15,18 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, Text, delete, func, insert, literal, select, update
+from sqlalchemy import (
+    BigInteger,
+    ColumnElement,
+    Select,
+    Text,
+    delete,
+    func,
+    insert,
+    literal,
+    select,
+    update,
+)
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from waterfall.core.access_roles.administrators import guard_last_administrator
@@ -130,7 +141,8 @@ def _holder_counts() -> Select[UUID, int]:
 def _roles() -> tuple[Select[AccessRole, int], ColumnElement[int]]:
     """Select the roles not deleted, each with the number of accounts that hold it."""
     counts = _holder_counts().subquery()
-    holder_count = func.coalesce(counts.c.holder_count, 0)
+    # A count is a ``bigint``: a bound compared with it is one too, not an ``integer``.
+    holder_count = func.coalesce(counts.c.holder_count, 0, type_=BigInteger)
     query = (
         select(AccessRole, holder_count)
         .outerjoin(counts, counts.c.access_role_id == AccessRole.id)
@@ -163,13 +175,13 @@ def list_roles(session: Session, filters: RoleFilters, sort: RoleSort) -> list[R
     }
     key = keys[sort.column]
     order = (key.desc(), AccessRole.id.desc()) if sort.descending else (key, AccessRole.id)
-    return _views(session, session.execute(query.order_by(*order)).tuples().all())
+    return _views(session, session.execute(query.order_by(*order)).all())
 
 
 def read_role(session: Session, role_id: UUID) -> RoleView:
     """Read a role that is not deleted, or refuse (404)."""
     query, _ = _roles()
-    rows = session.execute(query.where(AccessRole.id == role_id)).tuples().all()
+    rows = session.execute(query.where(AccessRole.id == role_id)).all()
     if not rows:
         raise NotFoundError(NOT_FOUND)
     return _views(session, rows)[0]
