@@ -817,7 +817,7 @@ plateforme — EP-13.
 
 ## US-0340 — Réponses conformes au contrat, parcours contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0060-A`
 - **opérations** : aucune en propre — toutes celles que sert le service
 - **issue** : #429

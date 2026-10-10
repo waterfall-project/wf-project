@@ -220,7 +220,9 @@ défaut ; `WATERFALL_FRONT_ADDRESS`, l'adresse du front, sous laquelle est l'adr
 `WATERFALL_FRONT_CLIENT_SECRET`, le secret du client `waterfall-front` ; `WATERFALL_REDIS_URL`,
 le Redis des sessions. Une variable qui manque fait échouer la première connexion, en la nommant ;
 `next build` et le mode `mock` n'en lisent aucune. `openid-client` refuse toute adresse de
-Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise.
+Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise : sur la plateforme de
+service, Keycloak est servi en HTTPS par un frontal à autorité locale, à laquelle le front se fie
+par `NODE_EXTRA_CA_CERTS` (« Commandes », #680).
 
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
@@ -1293,9 +1295,11 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases et son annuaire |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
+| `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
+| `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
@@ -1315,9 +1319,29 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
 
 Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
-exemple. Keycloak répond sur `http://localhost:8080/auth`, sa console d'administration sous
-`/auth/admin` ; son adresse, `WATERFALL_KEYCLOAK_ADDRESS`, suit son port,
-`WATERFALL_KEYCLOAK_PORT` (`http://localhost:<port>/auth`), sauf à la poser elle-même. Mailpit
+exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration
+sous `/auth/admin`, par un frontal Caddy (`deploy/compose/Caddyfile.service`) que le navigateur
+et le serveur de Next joignent tous deux, et qui le sert aussi sur `https://127.0.0.1:8443/auth`,
+une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
+`WATERFALL_KEYCLOAK_ADDRESS`, est `https://localhost:<port>/auth` : le frontal ne sert que les
+hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT`.
+Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
+dans le volume du frontal, est copiée à chaque démarrage dans
+`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, qui l'ajoute
+aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
+leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
+`SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
+les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner où
+Python n'est pas encore en cache, uv ne se fierait plus à GitHub pour le télécharger (#737).
+L'API, dans le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
+Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
+(#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
+fermeture des sessions à ce front par le canal de retour, à l'adresse
+`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` par défaut, l'hôte vu de son
+conteneur), distincte de `WATERFALL_FRONT_ADDRESS`, celle du navigateur : le front écoute alors
+sur toutes les interfaces du poste, pas sur la seule boucle locale. Les deux adresses s'écrivent
+dans le royaume quand il s'applique, et `make e2e-service` les remplace par celles du front de ses
+parcours, jusqu'au `service-up` suivant. Mailpit
 montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
 OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
 et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
@@ -1351,7 +1375,14 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
   royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
   réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur
-  ses tests et sur tout le code du back, dont ses tests servent l'API ; en échec, le travail imprime les journaux de Keycloak (`make service-logs`).
+  ses tests, sur tout le code du back, dont ses tests servent l'API, et sur le contrat, auquel
+  ils confrontent ses réponses (#671) ; en échec, le travail imprime les journaux de Keycloak
+  (`make service-logs`). `service.yml` joue les parcours contre le vrai service, au palier
+  complet seulement (`make check-service`, soit `make e2e-service`) : la famille `service` se
+  réveille sur le front, le back, le contrat et les fichiers de la plateforme. Il tourne sur le
+  runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
+  que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
+  installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -1403,13 +1434,12 @@ Le back suit le même modèle (#492, levier 5) :
 - la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
   (`full-else` du Makefile).
 
-Reste à écrire, quand la durée l'exige ou avec les parcours contre le service (US-0340) :
+Reste à écrire, quand la durée l'exige :
 
 - les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist) : chaque
   processus crée déjà sa propre base, de nom unique (`database_url`, `tests/conftest.py`) ;
-- les parcours de bout en bout contre le vrai service — les mêmes, `WATERFALL_API_ADDRESS`
-  posée — sont répartis par la même matrice qu'`e2e.yml`, le service et sa base démarrés dans
-  chaque morceau.
+- les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
+  courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
 
 Règles des workflows :
 
@@ -1611,14 +1641,17 @@ couvre aucune exigence — un outil, un détail de réalisation — n'en cite au
 *Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
+bout en bout contre le service (`frontend/e2e/service/**`, qui prime sur les autres parcours),
 bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
-keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
+keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé
+du travail de la chaîne ; une citation d'un identifiant inconnu, ou
 d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
 citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
 une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir
 `front` pour seule famille — d'après la table « Exigences réalisées » de la roadmap et le
 champ `famille` de son front matter —, est comptée à part, « couverte par le front seul »,
-et ne compte pas comme couverte. `make requirements-release` échoue en plus sur toute exigence F0
+et ne compte pas comme couverte. Un parcours joué contre le service, lui, traverse le back : il
+prouve ce que le back clôt, comme ses propres tests (US-0340). `make requirements-release` échoue en plus sur toute exigence F0
 non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
 publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
 attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
@@ -1668,7 +1701,8 @@ au serveur de Next comme le royaume `waterfall` — code à usage unique pour so
 de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui.
 `make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
 refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
-reste — le jeton de déconnexion que Keycloak poste au front, `refresh_expires_in` — revient aux
+jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
+(`frontend/e2e/service/session.spec.ts`) ; le reste — `refresh_expires_in` — revient aux
 parcours contre le service d'US-0350/L5.
 
 ### Un parcours de bout en bout
@@ -1706,9 +1740,56 @@ du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port d�
 `E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
 port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
-chacun des runners de la chaîne (« Chaîne »). À partir d'EP-03, les mêmes parcours se jouent
-contre le vrai service en posant `WATERFALL_API_ADDRESS` : le harnais ne démarre alors aucun
-faux back.
+chacun des runners de la chaîne (« Chaîne »). Avec `WATERFALL_API_ADDRESS`, le harnais joue
+contre l'API qu'elle nomme et ne démarre aucun faux back.
+
+`make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
+(`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
+plateforme de service (`make service-up`), son royaume appliqué avec l'adresse du front des
+parcours, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
+celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.internal:3100`
+(`WATERFALL_FRONT_BACKCHANNEL`), quelles que soient celles que l'environnement exporte ; puis
+Prism en mandataire entre le front et l'API
+(`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
+`WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
+`docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
+(`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors
+du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n'y exige aucun
+jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
+Playwright avec, dans son environnement — jamais en ligne de commande, où le mot de passe de
+Redis se lirait —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
+`E2E_CONTRACT_PROXY` (son conteneur), `WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
+`WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
+l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur
+de Keycloak, viennent de l'environnement. La plateforme reste démarrée : `make service-down`
+l'arrête. Tant que l'amorçage (US-0420) n'existe pas, le compte qui se connecte est la personne
+de l'annuaire de test, `dominique.annuaire@waterfall.test` (`deploy/keycloak/development/`), que
+l'API admet sans rôle à sa première requête (WF-ADM-0180).
+
+Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
+le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
+royaume —, et à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
+retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
+(`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
+l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
+l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
+(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
+toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
+mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
+réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : le fichier
+lit chaque ligne une fois, à partir de son début ; un parcours échoue sur les erreurs écrites
+jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, et celles d'après le dernier
+parcours font échouer le fichier, une fois ses pages fermées et le mandataire tu — rien d'autre
+que le contrôle de santé pendant deux secondes. Un parcours le montre, qui échoue
+(`contract.spec.ts`, `test.fail()`) : une adresse hors du contrat. Un statut que
+l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+`sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
+aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
+tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
+(#726). Le parcours de la connexion s'y joue (`session.spec.ts`) : se connecter, se déconnecter,
+aucun jeton dans le navigateur, et la fermeture des sessions par le royaume, que le canal de retour
+porte au front sur chacun des postes ; ce dernier ferme les sessions par l'API d'administration de
+Keycloak, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
@@ -1765,7 +1846,9 @@ démarre que le faux back et le front construit — le harnais n'en réutilise a
 l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
 `make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
 la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
-seule, sans le serveur de développement, que pose `make e2e-measure` ; absente, le tout. Sans
+seule, sans le serveur de développement, que pose `make e2e-measure` ; `service`, les parcours
+contre le service seuls, que pose `make e2e-service` et qui exige `WATERFALL_API_ADDRESS` ;
+absente, le tout, sans les parcours contre le service. Sans
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 

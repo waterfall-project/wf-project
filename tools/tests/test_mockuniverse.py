@@ -172,16 +172,22 @@ def test_the_paste_follows_the_label_entered_and_the_reestimate_the_hours_entere
 # --- The accounts and their permissions (C6) ---------------------------------------------------
 
 
-def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_holds(
-    examples: dict[str, Any],
-) -> None:
+def examples_of_getme() -> list[str]:
+    """Name the fixtures the contract gives as the examples of getMe, in its order (#606)."""
+    text = (REPOSITORY / "docs" / "api" / "paths" / "me.yaml").read_text(encoding="utf-8")
+    operation = text[text.index("operationId: getMe") : text.index("'401'")]
+    return re.findall(r"fixtures/api/(\w+)\.json", operation)
+
+
+def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_holds() -> None:
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     contributors = {each["user_id"] for each in fixture("contributors")["items"]}
-    for name, value in examples.items():
-        if not (name.startswith("me") and isinstance(value, dict) and "permissions" in value):
-            continue
-        user = cast("Node", value)
+    names = examples_of_getme()
+    # Each example of the contract is tried: none passes for want of being found.
+    assert len(names) == 12
+    for name in names:
+        user = cast("Node", fixture(name))
         listed = users[user["user_id"]]
         assert listed["access_role_ids"] == user["access_role_ids"], name
         assert (listed["last_name"], listed["first_name"]) == (

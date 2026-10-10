@@ -38,4 +38,4 @@ jobs:
       - run: make check-keycloak
       # What the platform said, when it failed to start or to apply the realm.
       - if: failure()
-        run: make service-logs SERVICES="keycloak keycloak-database openldap"
+        run: make service-logs SERVICES="keycloak keycloak-front-end keycloak-database openldap"

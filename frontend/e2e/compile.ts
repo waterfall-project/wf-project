@@ -19,3 +19,20 @@ export async function compile(request: APIRequestContext, ...routes: string[]): 
     expect(response.ok(), routes[index]).toBe(true);
   });
 }
+
+/**
+ * Have the development server compile routes that answer a request without a session otherwise
+ * than a page: a redirect not followed, a method refused, a screen that asks for a session. Any
+ * answer but an error of the server.
+ */
+export async function compileAnswered(
+  request: APIRequestContext,
+  ...routes: string[]
+): Promise<void> {
+  const responses = await Promise.all(
+    routes.map((route) => request.get(route, { maxRedirects: 0 })),
+  );
+  responses.forEach((response, index) => {
+    expect(response.status(), routes[index]).toBeLessThan(500);
+  });
+}

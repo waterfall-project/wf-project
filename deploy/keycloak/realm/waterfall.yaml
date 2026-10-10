@@ -7,9 +7,12 @@
 # console (WF-ADM-0180), are kinds of resources this file does not declare: they are neither
 # overwritten nor removed.
 #
-# The secrets of the clients and the address of the front are variables of the environment of
+# The secrets of the clients and the addresses of the front are variables of the environment of
 # keycloak-config-cli, which it substitutes by their name (comments included: none is written
-# here); the image holds none of them (WF-SEC-0010). A missing one stops the application.
+# here); the image holds none of them (WF-SEC-0010). A missing one stops the application. The front
+# has two addresses: the one the browser opens it at, and the one Keycloak reaches it at on the
+# back channel to tell it of a closed session — the same on an installation where Keycloak reaches
+# the front by its public address, another one where it does not (#681).
 realm: waterfall
 enabled: true
 displayName: Waterfall
@@ -112,7 +115,7 @@ clients:
     attributes:
       pkce.code.challenge.method: S256
       post.logout.redirect.uris: $(env:WATERFALL_FRONT_ADDRESS)/*
-      backchannel.logout.url: $(env:WATERFALL_FRONT_ADDRESS)/auth/backchannel-logout
+      backchannel.logout.url: $(env:WATERFALL_FRONT_BACKCHANNEL)/auth/backchannel-logout
       backchannel.logout.session.required: "true"
       backchannel.logout.revoke.offline.tokens: "false"
     protocolMappers:
