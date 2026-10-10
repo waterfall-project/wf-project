@@ -299,7 +299,7 @@ le refus.
 WF-RIS-0020, corps : « Un risque qu’aucune révision marquée ne cite encore peut être supprimé ; au-delà,
 sa suppression est refusée, et un risque identifié qu’on cesse de suivre s’écarte. »
 
-*Relevé aussi par* C-262, C-262 (même passage).
+*Relevé aussi par les relectures des tranches A et D (relevés A-10, D-20), fusionné ici.*
 
 **Point 2 — C-258 : « ligne de nature provision » a échappé au renommage.** Citation : « La création à la main d’une ligne de nature provision est refusée. »
 
@@ -311,7 +311,7 @@ hors main-d'œuvre qu'on peut appeler « Provision » : sa création à la main 
 *Proposition.* « La création à la main d’une ligne dont la catégorie relève d’une nature de type
 provision pour risques est refusée. »
 
-*Relevé aussi par* C-262, C-262 (même passage).
+*Relevé aussi par les relectures des tranches D et A (relevés D-21, A-06), fusionné ici.*
 
 **Point 3 — « La déclaration d'un risque aboutit sans autre saisie du référentiel » contredit WF-CYC-0120 et WF-EXP-0020.** Citation : « Sur une installation neuve, la nature de type provision pour risques et sa catégorie existent, et la déclaration d’un risque aboutit sans autre saisie du référentiel. » (WF-REF-0030) ; « La création d’un projet est refusée et nomme les prérequis manquants, jusqu’à ce qu’une catégorie de coût de main-d’œuvre et un rôle de ressource aient été saisis. » (WF-EXP-0020)
 
@@ -327,7 +327,7 @@ provision pour risques et sa catégorie existent. Une fois saisis la catégorie 
 rôle de ressource qu’exige WF-CYC-0120, un projet se crée, et la déclaration d’un risque y aboutit
 sans qu’aucune catégorie de provision ait été saisie. »
 
-*Relevé aussi par* C-262, C-262 (même passage).
+*Relevé aussi par les relectures des tranches D et E (relevés D-22, E-23), fusionné ici.*
 
 **Point 4 — « Une provision de 50 », « la part des provisions » : ni C-257 (plusieurs natures) ni C-258 (provision pour aléas) n'y sont passés.** Citation : « Une offre incluse dont le devis porte une provision de 50 n’ajoute rien à la part des provisions du budget agrégé, et 50 pondérés à celle du reste à engager agrégé. »
 
@@ -1215,7 +1215,7 @@ référence ») n'a de sens que hors provisions, puisque le budget de référenc
 de son devis courant ; la désignation de la révision de référence ne change pas son niveau si ce
 total égale le budget de référence. »
 
-*Relevé aussi par* C-287 (même passage).
+*Relevé aussi par la relecture de la tranche A (relevé A-12), fusionné ici.*
 
 **Point 2 — « La contribution pondérée » ignore les deux exceptions de WF-PTF-0020.** Citation : « Le même portefeuille calculé avec et sans les projets en chiffrage donne des valeurs différentes, et la différence égale la contribution pondérée de ces projets. »
 
