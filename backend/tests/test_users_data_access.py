@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 import pytest
 from openapi_core import OpenAPI
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 from support import PLATFORM_SECRETS
 
@@ -63,17 +64,24 @@ def test_two_instances_inserting_at_the_same_moment_never_draw_the_same_identifi
     database: Database,
 ) -> None:
     url = database.engine.url.render_as_string(hide_password=False)
-    start = time.time() + 3
     script = Path(__file__).parent / "insert_accounts.py"
     instances = [
         subprocess.Popen(
-            [sys.executable, str(script), str(start), name, "40"],
+            [sys.executable, str(script), name, "40"],
             env={**PLATFORM_SECRETS, "WATERFALL_DATABASE_URL": url},
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             text=True,
         )
         for name in ("one", "two")
     ]
+    for instance in instances:
+        assert instance.stdout is not None
+        assert instance.stdout.readline() == "ready\n"
+    for instance in instances:
+        assert instance.stdin is not None
+        instance.stdin.write("go\n")
+        instance.stdin.flush()
     drawn = [
         out for instance in instances for out in (instance.communicate(timeout=60)[0] or "").split()
     ]
@@ -170,6 +178,11 @@ def test_the_platform_is_the_author_of_a_row_by_a_null_author(session: Session) 
     session.expire_all()
     stored = session.get_one(UserAccount, account.id)
     assert (stored.created_by, stored.updated_by) == (None, None)
+    later = NOON + timedelta(hours=1)
+    changed = change_email(
+        session, account.id, "claire.new@example.org", account.lock_version, Stamp(None, later)
+    )
+    assert (changed.updated_by, changed.updated_at) == (None, later)
 
 
 def test_a_change_made_on_a_version_that_is_not_the_current_one_is_refused(
@@ -224,8 +237,9 @@ def test_the_moments_of_an_account_are_kept_in_universal_time_whatever_the_zone_
 @pytest.mark.requirement("WF-DAT-0100-A")
 def test_a_moment_without_a_zone_is_refused(session: Session) -> None:
     naive = Stamp(None, datetime.fromisoformat("2026-06-30T01:30:00"))
-    with pytest.raises(Exception, match="without a time zone"):
+    with pytest.raises(StatementError, match="without a time zone") as refused:
         add_account(session, NewAccount("Martin", "Claire", "c@example.org", "s-2", "local"), naive)
+    assert isinstance(refused.value.orig, ValueError)
 
 
 @pytest.mark.requirement("WF-DAT-0100-A")
@@ -273,5 +287,5 @@ def test_an_account_that_other_rows_refer_to_cannot_be_removed_from_the_database
     author = born(session, "author@example.org")
     born(session, "written@example.org", author.id)
     session.flush()
-    with pytest.raises(Exception, match="fk_user_account_created_by_user_account"):
+    with pytest.raises(IntegrityError, match="fk_user_account_created_by_user_account"):
         session.execute(text("DELETE FROM user_account WHERE id = :id"), {"id": author.id})

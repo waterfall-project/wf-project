@@ -7,7 +7,8 @@
 #
 # The secrets come from the environment of the caller, and the platform refuses to start without
 # them: nothing here has a default password. The password of PostgreSQL is written in a URL, so
-# it holds letters and digits only.
+# it holds letters and digits only. The environment of a container stays readable by
+# `docker inspect`, as for any service: what these files avoid is a secret in a command line.
 name: waterfall-service
 
 x-back: &back
@@ -41,7 +42,9 @@ services:
   redis:
     image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
-    command: ["redis-server", "--requirepass", "${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}", "--save", ""]
+    # The shell of the container reads the password from the environment (`$$` keeps Compose from
+    # expanding it): the command line `docker inspect` shows names the variable, not its value.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
     environment:
       # `redis-cli` reads its password here, so the health check does not carry it in its text.
       REDISCLI_AUTH: ${WATERFALL_REDIS_PASSWORD:?export WATERFALL_REDIS_PASSWORD}

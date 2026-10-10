@@ -12,13 +12,13 @@ import pytest
 import structlog
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from sqlalchemy import text
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 from support import CONTRACT, PLATFORM_SECRETS, ContractClient, Logs
 
 from waterfall.api.app import create_app
 from waterfall.migrations.runner import upgrade
-from waterfall.platform.database import Database, create_database_engine, engine_url
+from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.logs import configure_logging
 from waterfall.platform.settings import Settings, load_settings
 
@@ -100,11 +100,12 @@ def database_url() -> Iterator[str]:
 
 @pytest.fixture
 def database(database_url: str) -> Iterator[Database]:
-    """Give the migrated database, emptied of its accounts after the test."""
+    """Give the migrated database, emptied of the rows of every table the code declares."""
     db = Database(create_database_engine(database_url))
     yield db
     with db.engine.begin() as connection:
-        connection.execute(text("TRUNCATE user_account, installation"))
+        for table in reversed(Base.metadata.sorted_tables):
+            connection.execute(delete(table))
     db.dispose()
 
 

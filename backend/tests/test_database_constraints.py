@@ -88,6 +88,7 @@ def test_two_accounts_with_the_same_subject_of_the_identity_provider_are_rejecte
         ({"last_name": ""}, "ck_user_account_last_name_length"),
         ({"first_name": "x" * 101}, "ck_user_account_first_name_length"),
         ({"email": ""}, "ck_user_account_email_not_empty"),
+        ({"idp_subject": ""}, "ck_user_account_idp_subject_not_empty"),
     ],
     ids=lambda value: value if isinstance(value, str) else "",
 )

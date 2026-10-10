@@ -31,7 +31,11 @@ def upgrade(engine: Engine | None = None, revision: str = "head") -> None:
 
 
 def downgrade(engine: Engine, revision: str) -> None:
-    """Undo migrations down to ``revision``: for the tests of a migration, never for a service."""
+    """Undo migrations down to ``revision``: for the tests and a development database.
+
+    Never for an installation, whose rollback concerns the code and never the schema (the
+    specification, 4.5.3): ``waterfall-migrate`` only goes up.
+    """
     command.downgrade(alembic_config(engine), revision)
 
 

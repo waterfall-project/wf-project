@@ -14,8 +14,9 @@ section.
 
 | Règle | Où | Contrôle |
 |---|---|---|
-| Les contraintes portent le nom que la convention leur donne, déclarée une fois | `NAMING_CONVENTION` de `waterfall.platform.database` | le test qui compare le schéma des migrations à celui des tables du code (`tests/test_migrations.py`) |
+| Les contraintes portent le nom que la convention leur donne, déclarée une fois | `NAMING_CONVENTION` de `waterfall.platform.database` | le test de `tests/test_migrations.py` qui migre une base, en crée une seconde par `Base.metadata.create_all`, et compare dans le catalogue de PostgreSQL les contraintes (`pg_constraint`, noms et définitions), les index et les colonnes (type, nullité, défaut du serveur), puis les colonnes, clés et index par `compare_metadata` |
 | Les migrations forment une chaîne, appliquée une fois, dont chaque descente défait sa montée | `backend/src/waterfall/migrations/` | `make test-back` (`tests/test_migrations.py`) |
+| L'image de PostgreSQL des tests est celle de la plateforme de service, à la même empreinte | `back.yml`, `compose.service.yaml` | `tests/test_platform_images.py` |
 | Le SQL est du PostgreSQL : les tests tournent sur lui | `WATERFALL_TEST_DATABASE_URL` | `make test-back` ; sans base, les tests de base échouent en le disant |
 | Un SQL construit par concaténation ou par gabarit de chaîne | règle `S608` de Ruff | `make lint-back` |
 
@@ -121,7 +122,11 @@ d'une mise à jour. Donc :
    la chaîne est l'histoire de la base de chaque installation.
 5. **Chaque migration a sa descente**, miroir de la montée, qui défait ce que la montée a
    fait tant que rien d'écrit depuis n'en dépend ; une migration qui perd des données le dit
-   dans la docstring de sa descente.
+   dans la docstring de sa descente. La descente sert aux tests (celui qui la rejoue) et au
+   poste de développement, jamais à une installation : la spécification veut que « le retour
+   arrière porte sur le code, jamais sur le schéma : une migration ne se défait pas »
+   (`docs/spec/waterfall-spec.md`, §4.5.3), et le retour arrière d'une installation ne touche
+   que le code.
 6. **Un verrou long se prévoit** : un index sur une grande table se crée `CONCURRENTLY`, hors
    de la transaction d'une migration ; une contrainte se pose `NOT VALID` puis se valide à part.
 7. **Une migration écrite à la main**, relue comme le code ; l'autogénération d'Alembic

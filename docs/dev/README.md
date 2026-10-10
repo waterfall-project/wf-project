@@ -1315,7 +1315,8 @@ Le back suit le même modèle (#492, levier 5) :
 - PostgreSQL tourne en service du travail (`services:` de `back.yml`), dans l'image de la
   version que vise la plateforme — celle de `compose.service.yaml` —, épinglée par son
   empreinte, avec sa sonde de santé : les tests d'intégration le joignent sur `localhost`, sans
-  Compose, par `WATERFALL_TEST_DATABASE_URL` ;
+  Compose, par `WATERFALL_TEST_DATABASE_URL` ; l'empreinte est écrite dans `back.yml` et dans
+  `compose.service.yaml`, et `tests/test_platform_images.py` échoue si elles divergent ;
 - la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
   (`full-else` du Makefile).
 
@@ -1544,11 +1545,14 @@ Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre
 rôle qui peut créer des bases (`postgresql://rôle@hôte:5432/postgres`) : à chaque session de
 tests, la fixture `database_url` (`backend/tests/conftest.py`) y crée une base de nom unique,
 y applique les migrations, et la supprime à la fin. La fixture `database` rend une base dont les
-comptes sont vidés après chaque test, `session` une session que le test défait.
+lignes — de toutes les tables que la `Base` déclare — sont supprimées après chaque test,
+`session` une session que le test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, deux façons : `make service-up` (avec les deux mots de passe de la plateforme
-  dans l'environnement), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable vaut alors
+  dans l'environnement ; `WATERFALL_POSTGRES_PASSWORD` ne tient qu'en lettres et en chiffres,
+  puisqu'il s'écrit dans une URL), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
+  vaut alors
   `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
   créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
 - **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
@@ -2028,8 +2032,9 @@ contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section 
    et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
    ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
    `ruff format` (dans `backend/`) le mettent aux règles du dépôt.
-4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare le schéma des
-   migrations à celui des tables du code échoue tant que les deux ne disent pas la même chose, et
+4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare une base migrée
+   à une base créée par les tables du code (contraintes, index, colonnes et défauts, lus dans le
+   catalogue de PostgreSQL) échoue tant que les deux ne disent pas la même chose, et
    un test de `tests/test_database_constraints.py` éprouve chaque contrainte nouvelle.
 5. Appliquer : `make migrate` sur la base de `WATERFALL_DATABASE_URL`, ou
    `make service-up`, dont le service `migrate` applique les migrations avant l'API.
@@ -2054,8 +2059,9 @@ lot, et seules les révisions qu'un outil engendre seul seraient déclarées dan
 `tools/paths.toml`.
 
 *Contrôles* : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
-appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma est celui des
-tables du code, deux instances ensemble), contre PostgreSQL (voir « Tests ») ; la compatibilité
+appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
+vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
+contre PostgreSQL (voir « Tests ») ; la compatibilité
 avec le code voisin, la revue.
 
 ## Agents
