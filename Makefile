@@ -219,7 +219,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-roadmap check-keycloak ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front check-roadmap check-keycloak check-service ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
@@ -342,11 +342,13 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # API (`--errors`): an answer outside its schema, or an operation outside the contract, fails the
 # path (WF-ARC-0060). The front is the harness's, on the workstation, with the real authentication:
 # it trusts the authority of Keycloak's front end and keeps its sessions in the Redis of the
-# platform. The platform stays up afterwards: make service-down stops it.
+# platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
+# are the harness's, whatever the environment exports; the variables of the front go through the
+# environment, never the command line, which would show the password of Redis to anyone.
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
-e2e-service: export WATERFALL_FRONT_ADDRESS ?= http://127.0.0.1:$(E2E_FRONT_PORT)
-e2e-service: export WATERFALL_FRONT_BACKCHANNEL ?= http://host.docker.internal:$(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_FRONT_BACKCHANNEL := http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_FRONT_PORT := $(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
 e2e-service: export E2E_PART = service
@@ -354,13 +356,13 @@ e2e-service: install-front ## End-to-end paths of the project `service` against 
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@proxy=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
-		$(PNPM) exec env WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) \
-		E2E_CONTRACT_PROXY=$$proxy \
-		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
-		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 \
-		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) \
-		playwright test
+	@E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		export E2E_CONTRACT_PROXY WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		$(PNPM) exec playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)

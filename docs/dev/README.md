@@ -1323,12 +1323,13 @@ exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console
 sous `/auth/admin`, par un frontal Caddy (`deploy/compose/Caddyfile.service`) que le navigateur
 et le serveur de Next joignent tous deux, et qui le sert aussi sur `https://127.0.0.1:8443/auth`,
 une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
-`WATERFALL_KEYCLOAK_ADDRESS`, suit le port du frontal, `WATERFALL_KEYCLOAK_PORT`
-(`https://localhost:<port>/auth`), sauf à la poser elle-même. Les certificats viennent de
-l'autorité propre de Caddy (`tls internal`) : sa racine, gardée dans le volume du frontal, est
-copiée à chaque démarrage dans `deploy/compose/.authority/root.crt` ; le front s'y fie par
-`NODE_EXTRA_CA_CERTS`, les tests de `make test-keycloak` par `SSL_CERT_FILE`, un navigateur en
-l'important, ou en acceptant l'avertissement. L'API, dans le réseau de la plateforme, joint
+`WATERFALL_KEYCLOAK_ADDRESS`, est `https://localhost:<port>/auth` : le frontal ne sert que les
+hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT`.
+Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
+dans le volume du frontal, est copiée à chaque démarrage dans
+`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, les tests de
+`make test-keycloak` par `SSL_CERT_FILE`, un navigateur en l'important, ou en acceptant
+l'avertissement. L'API, dans le réseau de la plateforme, joint
 Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
 Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
 (#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
@@ -1744,14 +1745,16 @@ contre l'API qu'elle nomme et ne démarre aucun faux back.
 plateforme de service (`make service-up`), son royaume appliqué avec l'adresse du front des
 parcours, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
 celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.internal:3100`
-(`WATERFALL_FRONT_BACKCHANNEL`) ; puis Prism en mandataire entre le front et l'API
+(`WATERFALL_FRONT_BACKCHANNEL`), quelles que soient celles que l'environnement exporte ; puis
+Prism en mandataire entre le front et l'API
 (`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
 `WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
 `docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
 (`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors
 du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n'y exige aucun
 jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
-Playwright avec `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
+Playwright avec, dans son environnement — jamais en ligne de commande, où le mot de passe de
+Redis se lirait —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
 `E2E_CONTRACT_PROXY` (son conteneur), `WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
 `WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
 l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur

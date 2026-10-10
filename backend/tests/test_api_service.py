@@ -16,7 +16,9 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from openapi_core.exceptions import OpenAPIError
+from openapi_core.templating.paths.exceptions import PathNotFound
+from openapi_core.templating.responses.exceptions import ResponseNotFound
+from openapi_core.validation.response.exceptions import InvalidData
 from support import (
     BEARER_JWT,
     PLATFORM_SECRETS,
@@ -65,13 +67,18 @@ def test_every_route_of_the_application_is_an_operation_of_the_contract(
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")
-@pytest.mark.parametrize(
-    "path", ["/docs", "/redoc", "/openapi.json", "/api/v1/openapi.json", "/api/v1/unknown"]
-)
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json", "/api/v1/openapi.json"])
 def test_no_page_of_documentation_and_no_openapi_document_is_served(
     path: str, client: ContractClient
 ) -> None:
     response = client.client.get(path)
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+def test_an_address_outside_the_contract_is_not_found(client: ContractClient) -> None:
+    response = client.client.get("/api/v1/unknown")
     assert response.status_code == 404
     assert response.json()["code"] == "NOT_FOUND"
 
@@ -121,12 +128,16 @@ def test_what_a_request_carries_is_not_written_to_the_logs(logs: Logs, services:
 
 @pytest.mark.requirement("WF-ARC-0060-A")
 @pytest.mark.parametrize(
-    ("status", "body"),
-    [(200, {"status": 3}), (200, {}), (418, {"status": "ok"})],
+    ("status", "body", "rejection"),
+    [
+        (200, {"status": 3}, InvalidData),
+        (200, {}, InvalidData),
+        (418, {"status": "ok"}, ResponseNotFound),
+    ],
     ids=["a value outside its schema", "a field missing", "a status not declared"],
 )
 def test_a_response_that_the_contract_does_not_describe_is_rejected(
-    contract: OpenAPI, status: int, body: dict[str, object]
+    contract: OpenAPI, status: int, body: dict[str, object], rejection: type[Exception]
 ) -> None:
     app = FastAPI()
 
@@ -134,7 +145,7 @@ def test_a_response_that_the_contract_does_not_describe_is_rejected(
     def health() -> JSONResponse:
         return JSONResponse(body, status_code=status)
 
-    with pytest.raises(OpenAPIError):
+    with pytest.raises(rejection):
         ContractClient(TestClient(app), contract).get("/api/v1/health")
 
 
@@ -148,7 +159,7 @@ def test_an_answer_to_an_operation_the_contract_does_not_declare_is_rejected(
     def version() -> dict[str, str]:
         return {"version": "1"}
 
-    with pytest.raises(OpenAPIError):
+    with pytest.raises(PathNotFound):
         ContractClient(TestClient(app), contract).get("/api/v1/version")
 
 
