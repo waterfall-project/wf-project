@@ -132,21 +132,24 @@ def test_the_effective_permissions_change_at_the_next_request_once_a_role_is_cha
 
 
 @pytest.mark.requirement("WF-ADM-0110-A")
-def test_a_permission_withdrawn_from_a_role_is_refused_at_the_next_request(
+def test_a_permission_withdrawn_from_a_role_is_no_longer_effective_at_the_next_request(
     api: ContractClient, database: Database, person: Person
 ) -> None:
-    # « … elle change immédiatement lorsqu'un de ses rôles est modifié. » : and so does the
-    # decision — the same token, the next request, no sign-in between. A second administrator
-    # keeps the change clear of the guard of the last one.
+    # « … et elle change immédiatement lorsqu'un de ses rôles est modifié. » : a permission
+    # withdrawn leaves the list at the next request — the same token, no sign-in between. The
+    # refusal of the operation it opened follows: the request is evaluated against that list. A
+    # second administrator keeps the change clear of the guard of the last one.
     first = person(role(database, "Administration", permissions=(CONSULT, *ADMINISTRATION)))
     held = role(database, "Habilitations", permissions=(CONSULT, *ADMINISTRATION))
     headers = person(held)
+    assert me(api, headers)["permissions"] == ["users.write", CONSULT, CHANGE]
     withdrawn: dict[str, object] = {
         "label": "Habilitations",
         "permissions": [CONSULT, "users.write"],
         "lock_version": 0,
     }
     assert api.patch(f"{ROLES}/{held}", headers=first, json=withdrawn).status_code == 200
+    assert me(api, headers)["permissions"] == ["users.write", CONSULT]
     response = api.patch(f"{ROLES}/{held}", headers=headers, json={**CHANGED, "lock_version": 1})
     assert refusal(response) == (403, PERMISSION_MISSING, {"missing_permission": CHANGE})
 
