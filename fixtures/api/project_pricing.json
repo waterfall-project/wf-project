@@ -18,6 +18,11 @@
         "missing_conditions": []
       },
       {
+        "command": "update_win_probability",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "manage_contributors",
         "is_available": true,
         "missing_conditions": []

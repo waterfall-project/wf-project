@@ -1550,10 +1550,8 @@
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
     "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
     "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
-    "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
     "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
     "TASK_COMPLETED": "La tâche est terminée.",
-    "WIN_PROBABILITY_FROZEN": "La probabilité de gain ne se modifie plus une fois le projet en cours.",
     "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
     "PASSWORD_RESET_TOKEN_INVALID": "Ce lien de réinitialisation n’est plus valable.",
     "ACCOUNT_LOCKED": "Compte verrouillé après trop d’échecs ; réessayez dans quinze minutes.",
@@ -1580,6 +1578,8 @@
     "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
     "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
+    "UNKNOWN_USER": "Compte inconnu.",
+    "USER_INACTIVE": "Ce compte est désactivé.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
@@ -1908,6 +1908,7 @@
     },
     "ProjectCommand": {
       "update": "Modifier le projet",
+      "update_win_probability": "Modifier la probabilité de gain",
       "manage_contributors": "Gérer les contributeurs",
       "create_revision": "Créer une révision",
       "complete": "Terminer le projet",
@@ -1954,7 +1955,9 @@
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "backup_verified": "sauvegarde vérifiée",
       "no_backup_running": "aucune sauvegarde en cours",
-      "no_restore_running": "aucune restauration en cours"
+      "no_restore_running": "aucune restauration en cours",
+      "project_before_in_progress": "projet non encore en cours",
+      "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet"
     },
     "ProjectExit": {
       "to_state": {
@@ -1962,6 +1965,14 @@
         "lost": "Perdu",
         "abandoned": "Abandonné"
       }
+    },
+    "LifecycleTrigger": {
+      "first_revision_created": "Première révision créée",
+      "reference_designated_and_code_set": "Révision de référence désignée et code projet renseigné"
+    },
+    "SubprojectCommand": {
+      "update": "Modifier le sous-projet",
+      "delete": "Supprimer le sous-projet"
     },
     "ContributorKind": {
       "project_manager": "Chef de projet",

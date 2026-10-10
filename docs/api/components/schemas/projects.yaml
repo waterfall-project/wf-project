@@ -32,12 +32,19 @@ Project:
     state: { $ref: '#/ProjectState' }
     inflation_rate:
       allOf: [{ $ref: ../common.yaml#/Percent }]
-      description: Taux d'inflation annuel, 0 par défaut (WF-PRJ-0040).
+      description: >-
+        Taux d'inflation annuel, 0 par défaut, modifiable à tout moment (WF-PRJ-0040) : un
+        rapport, de `0` à `1` inclus — `0.03` pour 3 % —, hors duquel `updateProject` refuse la
+        valeur (`VALUE_OUT_OF_RANGE`).
     win_probability:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: >-
-        Probabilité de gain, 0 par défaut, figée à partir de En cours et sans effet
-        sur aucun calcul du projet (WF-PRJ-0090).
+        Probabilité de gain, 0 par défaut, sans effet sur aucun calcul du projet (WF-PRJ-0090) :
+        un rapport, de `0` à `1` inclus, hors duquel `updateProject` refuse la valeur
+        (`VALUE_OUT_OF_RANGE`). Modifiable aux états Créé et Chiffrage, figée à partir de En
+        cours : la commande `update_win_probability` le dit d'avance, et la valeur envoyée malgré
+        elle est refusée par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+        `project_before_in_progress`.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
     reference_revision_id:
@@ -144,6 +151,15 @@ CommandCondition:
     utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
     (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
     dans leur 409.
+    `project_before_in_progress` manque à la modification de la probabilité de gain
+    (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
+    terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
+    la commande, `updateProject` la nomme dans son 409. Une tient à un sous-projet, et le
+    sous-projet la nomme (`Subproject.available_commands`) : `subproject_without_actual_costs`
+    manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) ;
+    `deleteSubproject` la nomme dans son 409. Aucune condition ne tient à la citation d'un
+    sous-projet par une révision marquée : sa suppression aboutit, et le marque supprimé
+    (WF-DAT-0080).
   enum:
     - is_contributor
     - is_project_manager
@@ -178,11 +194,14 @@ CommandCondition:
     - backup_verified
     - no_backup_running
     - no_restore_running
+    - project_before_in_progress
+    - subproject_without_actual_costs
 
 ProjectCommand:
   type: string
   enum:
     - update
+    - update_win_probability
     - manage_contributors
     - create_revision
     - complete
@@ -196,7 +215,12 @@ ProjectCommand:
     - import_estimate
     - import_remaining
   description: >-
-    Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
+    Commandes portées par le projet : modifier ses paramètres — `update` couvre le paramétrage
+    du projet, réservé à ses chefs de projet (WF-PRJ-0060) : ses attributs (WF-PRJ-0080), son
+    lotissement (WF-PRJ-0020) et ses sous-projets (WF-PRJ-0050), que chaque sous-projet détaille
+    (`Subproject.available_commands`) —, et parmi eux la probabilité de gain, dont
+    `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à
+    partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090) ; ses contributeurs,
     ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
     survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
     fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
@@ -255,8 +279,15 @@ ProjectUpdate:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
       anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
-    inflation_rate: { $ref: ../common.yaml#/Percent }
-    win_probability: { $ref: ../common.yaml#/Percent }
+    inflation_rate:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: De `0` à `1` inclus, un rapport (WF-PRJ-0040).
+    win_probability:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        De `0` à `1` inclus, un rapport ; refusée dès En cours, 409 `STATE_FORBIDS_OPERATION`,
+        `params.missing_condition` à `project_before_in_progress` (WF-PRJ-0090). Absente, la valeur
+        ne change pas.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -279,19 +310,33 @@ StateTransition:
         Motif donné à la sortie manuelle qui a produit la transition (WF-CYC-0090) ; nul
         pour une transition automatique ou une sortie confirmée sans motif.
 
+LifecycleTrigger:
+  type: string
+  enum: [first_revision_created, reference_designated_and_code_set]
+  description: >-
+    Les deux faits déclencheurs des transitions automatiques du cycle de vie, et aucun autre
+    (WF-CYC-0020) : la création de la première révision mène de Créé à Chiffrage ; la
+    désignation de la révision de référence et la saisie du code projet, dans n'importe quel
+    ordre, mènent de Chiffrage à En cours (WF-CYC-0030). Rendus par le front dans la langue du
+    lecteur (WF-ARC-0110).
+
 NextState:
   type: object
   required: [current_state, next_state, trigger, missing_conditions]
   description: >-
     Prochain état, son fait déclencheur et les conditions restantes, consultables
-    à tout moment avant En cours (WF-CYC-0050).
+    à tout moment avant En cours (WF-CYC-0050). D'un projet en cours ou dans un état terminal,
+    qu'aucun fait ne mène plus loin : le prochain état et le déclencheur nuls, aucune condition
+    — les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060), pas un prochain
+    état.
   properties:
     current_state: { $ref: '#/ProjectState' }
     next_state:
       anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
     trigger:
-      anyOf: [{ type: string }, { type: 'null' }]
-      description: Code du fait déclencheur, rendu par le front (WF-ARC-0110).
+      anyOf: [{ $ref: '#/LifecycleTrigger' }, { type: 'null' }]
+      description: >-
+        Le fait qui mènera au prochain état, nul avec lui (WF-CYC-0050).
     missing_conditions:
       type: array
       description: Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050).
@@ -388,17 +433,54 @@ WorkBreakdownKind:
 
 Subproject:
   type: object
-  required: [subproject_id, code, label, has_actual_costs, audit, lock_version]
+  required: [subproject_id, code, label, has_actual_costs, available_commands, audit, lock_version]
   description: >-
     Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans
-    le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050).
+    le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050), ni dès qu'une
+    révision marquée le cite (WF-DAT-0080) : ses commandes le disent d'avance.
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string, minLength: 1, maxLength: 50 }
     label: { type: string, minLength: 1, maxLength: 300 }
-    has_actual_costs: { type: boolean }
+    has_actual_costs:
+      type: boolean
+      description: >-
+        Vrai dès qu'une ligne de coût réel lui est imputée, exclue du périmètre suivi ou non
+        (WF-CRE-0020) : la création d'un sous-projet dont des lignes portaient déjà le code le
+        rend vrai aussitôt.
+    available_commands:
+      type: array
+      maxItems: 2
+      description: >-
+        Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou
+        non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
+        `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour
+        qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos
+        (WF-CYC-0100). Un appel envoyé malgré la liste est refusé par son code d'erreur.
+      items: { $ref: '#/SubprojectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+SubprojectCommand:
+  type: string
+  enum: [update, delete]
+  description: >-
+    Commandes portées par un sous-projet (WF-IHM-0090) : le modifier, par `updateSubproject`, et
+    le supprimer, par `deleteSubproject`. La suppression est indisponible dès que des coûts réels
+    lui sont imputés, `subproject_without_actual_costs` manquante (WF-PRJ-0050) ; qu'une révision
+    marquée le cite ne l'empêche pas : il est alors conservé et marqué supprimé (WF-DAT-0080). Un
+    sous-projet se crée par la commande `update` du projet.
+
+SubprojectCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/SubprojectCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: '#/CommandCondition' }
 
 SubprojectWrite:
   type: object
@@ -489,14 +571,38 @@ ContributorsWrite:
 
 ContributorSuggestion:
   type: object
-  required: [user_id, display_name, org_node_id, resource_role_ids]
+  required:
+    - user_id
+    - display_name
+    - is_active
+    - org_node_id
+    - org_node_label
+    - resource_role_ids
+    - resource_role_labels
   description: >-
-    Proposition fondée sur les nœuds d'organisation des rôles employés par le
-    planning ; jamais appliquée sans confirmation (WF-PRJ-0070).
+    Un compte proposé comme contributeur : rattaché à un nœud d'organisation dont un rôle de
+    ressources est employé par une ligne de devis du projet, et que la liste des contributeurs ne
+    compte pas encore ; jamais inscrit sans confirmation (WF-PRJ-0070). Nomme son nœud et les
+    rôles de ce nœud que le devis emploie, par leur identifiant et leur libellé, pour que l'écran
+    dise pourquoi il est proposé sans relire le référentiel (WF-ARC-0020).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name: { type: string }
+    is_active:
+      type: boolean
+      description: >-
+        Toujours vrai : un compte désactivé n'est plus proposé (WF-ADM-0060), et l'inscrire
+        serait refusé (`USER_INACTIVE`). Rendu, comme `Contributor.is_active`, pour que la
+        proposition confirmée prenne place dans la liste telle quelle, sans que l'écran devine
+        rien.
     org_node_id: { $ref: ../common.yaml#/Uuid }
+    org_node_label: { type: string }
     resource_role_ids:
       type: array
+      minItems: 1
       items: { $ref: ../common.yaml#/Uuid }
+    resource_role_labels:
+      type: array
+      minItems: 1
+      description: Les libellés des rôles, dans l'ordre de `resource_role_ids`.
+      items: { type: string }

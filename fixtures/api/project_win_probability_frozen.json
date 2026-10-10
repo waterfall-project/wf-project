@@ -1,0 +1,11 @@
+{
+  "summary": "La probabilité de gain du projet témoin, en cours, ramenée à 0,8 : refusée, figée depuis le passage à En cours, comme sa commande update_win_probability le disait d'avance, et le 409 nomme la condition qui lui manque ; rien n'est écrit (WF-PRJ-0090, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "project_before_in_progress"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001063"
+  }
+}

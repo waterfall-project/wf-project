@@ -403,6 +403,24 @@ une lecture filtrée compte ce que le serveur retient et ne se dit jamais vide, 
 partent de la ligne lue. La mention « le contrat ne trie, ne cherche ni ne filtre » disparaît du
 guide et des tests.
 
+EP-14/L42i (#612) écrit au contrat ce que les écrans de L44a et L44b attendaient (#590, #592) : le
+déclencheur du prochain état est énuméré (`LifecycleTrigger`) et `getProjectNextState` répond 200,
+sans prochain état, d'un projet en cours ou clos ; le projet dit d'avance que sa probabilité de gain
+est figée (`update_win_probability`, `project_before_in_progress`) et la refuse par cette condition
+(409 `STATE_FORBIDS_OPERATION`, comme le `kind` figé d'une nature ; `WIN_PROBABILITY_FROZEN` retiré) ;
+ses deux taux sont bornés de 0 à 1 (422 `VALUE_OUT_OF_RANGE`, la borne franchie) ; le code pris d'un
+projet ou d'un sous-projet nomme son porteur par son libellé (`conflicting_object_label`) ; chaque
+sous-projet liste ses commandes (`update`, `delete`), la suppression indisponible par
+`subproject_without_actual_costs` seule — un sous-projet qu'une révision marquée cite se supprime,
+marqué supprimé (WF-DAT-0080), comme une chronologie (L42k) —, son 409 nommé par la condition, et
+`update` du projet couvre ses sous-projets ; `setContributors` refuse à sa ligne un compte inconnu
+(`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) ; une proposition nomme son nœud et ses rôles, et
+`listContributorSuggestions` s'appuie sur les lignes de devis ; `subproject_created` porte déjà la
+facture importée sous son code (#625). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`. Le lot ne touche au front que pour compiler sur le client régénéré :
+l'adoption par les écrans de L44a et L44b, que la conception plaçait dans le lot, revient à l'agent
+TypeScript dans un lot propre, L44e (#636), pour tenir le plafond.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

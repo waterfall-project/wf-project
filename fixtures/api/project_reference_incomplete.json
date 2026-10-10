@@ -1,0 +1,14 @@
+{
+  "summary": "Un projet créé dans une installation dont le référentiel minimal est incomplet — aucune catégorie de coût active de nature main-d'œuvre, aucun rôle de ressources actif : refusé, chaque prérequis manquant nommé ; rien n'est écrit. Une variante contrefactuelle : le référentiel de l'univers témoin est complet (WF-CYC-0120).",
+  "value": {
+    "code": "REFERENCE_INCOMPLETE",
+    "status": 409,
+    "params": {
+      "missing_prerequisites": [
+        "active_cost_category",
+        "active_resource_role"
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001061"
+  }
+}

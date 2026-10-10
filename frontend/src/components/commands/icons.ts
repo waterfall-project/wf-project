@@ -22,6 +22,7 @@ import {
   ListX,
   type LucideIcon,
   Pencil,
+  Percent,
   ShieldAlert,
   Stamp,
   Star,
@@ -37,6 +38,8 @@ export const PROJECT_COMMAND_ICONS: Readonly<
   Record<components["schemas"]["ProjectCommand"], LucideIcon>
 > = {
   update: Pencil,
+  // The win probability, a rate the project freezes from in progress (EP-14/L42i).
+  update_win_probability: Percent,
   manage_contributors: UserPlus,
   create_revision: GitBranchPlus,
   complete: CircleCheckBig,

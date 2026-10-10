@@ -290,25 +290,38 @@ def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> No
 # --- The actual costs (C3) ----------------------------------------------------------------------
 
 
-def test_a_subproject_has_actual_costs_when_a_line_is_imputed_to_it() -> None:
+CHARGED = (
+    "subprojects",
+    "subprojects_by_label",
+    "subproject_updated",
+    "subprojects_with_actual_costs",
+    "subproject_created",
+)
+"""The examples that render a subproject, each confronted to the lines imputed to it: the lists
+read today, the one a rename answers, and the subproject created today under a code lines already
+bore (#625). Otherwise the row read anew would become deletable in the mockup."""
+
+
+def test_both_subprojects_of_the_witness_are_charged() -> None:
     # The screens of the control station, and the invoices of the drawn tasks of the lots « Ligne
     # d'essais » completed: both subprojects are charged (EP-14/L45a).
     imputed = {mockcosts.imputed(line) for line in mockcosts.lines()}
     assert imputed == {None, universe(801), universe(802)}
-    # Every example that renders a `Subproject` of the witness by its identifier says so, the one
-    # a rename answers included: otherwise the row read anew would become deletable in the mockup.
-    # Not `subproject_created`, whose sub-project is new and charged by no line (#625, L42i).
-    for name in (
-        "subprojects",
-        "subprojects_by_label",
-        "subproject_updated",
-        "subprojects_with_actual_costs",
-    ):
-        value = fixture(name)
-        subprojects = cast("list[Node]", value if isinstance(value, list) else [value])
-        for subproject in subprojects:
-            assert subproject["subproject_id"] in imputed, name
-            assert subproject["has_actual_costs"] is True, (name, subproject["code"])
+
+
+@pytest.mark.parametrize("name", CHARGED)
+def test_a_subproject_has_actual_costs_when_a_line_is_imputed_to_it(name: str) -> None:
+    # A line is imputed to the subproject of its code the day it is created (WF-CRE-0020).
+    lines = mockcosts.lines()
+    codes = {line.code for line in lines}
+    imputed = {mockcosts.imputed(line) for line in lines}
+    value = fixture(name)
+    subprojects = cast("list[Node]", value if isinstance(value, list) else [value])
+    for subproject in subprojects:
+        charged = subproject["code"] in codes
+        assert subproject["has_actual_costs"] is charged, (name, subproject["code"])
+        if name != "subproject_created":
+            assert (subproject["subproject_id"] in imputed) is charged, (name, subproject["code"])
 
 
 def test_each_line_is_dated_in_the_period_of_each_import_that_brought_it_and_before_it() -> None:

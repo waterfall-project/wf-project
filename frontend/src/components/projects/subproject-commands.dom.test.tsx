@@ -41,9 +41,20 @@ const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 const SUBPROJECTS = example("subprojects") as Subproject[];
 // The example charges both sub-projects with actual costs, since the tasks drawn around the core
 // received their invoices (EP-14/L45a): the one a test deletes is a counterfactual variant of it,
-// « SP-ESS » relieved of its costs, the rest of the example kept.
+// « SP-ESS » relieved of its costs, its deletion listed available as the server would then list
+// it (EP-14/L42i), the rest of the example kept.
 const UNCHARGED: Subproject[] = SUBPROJECTS.map((row) =>
-  row.code === "SP-ESS" ? { ...row, has_actual_costs: false } : row,
+  row.code === "SP-ESS"
+    ? {
+        ...row,
+        has_actual_costs: false,
+        available_commands: row.available_commands.map((each) =>
+          each.command === "delete"
+            ? { ...each, is_available: true, missing_conditions: [] }
+            : each,
+        ),
+      }
+    : row,
 );
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -263,13 +274,14 @@ describe("the deletion of a sub-project", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("tells above the list a deletion the server refuses, naming the sub-project", async () => {
+  it("tells above the list a deletion the server refuses, naming the condition it misses", async () => {
+    // The refusal of EP-14/L42i: the command `delete` unavailable, its condition named.
     serve({
       [DELETE]: {
         problem: {
-          code: "HAS_ACTUAL_COSTS",
+          code: "STATE_FORBIDS_OPERATION",
           status: 409,
-          params: { conflicting_object_id: "01926f3a-7c00-7000-8000-000000000802" },
+          params: { missing_condition: "subproject_without_actual_costs" },
         },
       },
     });
@@ -279,8 +291,9 @@ describe("the deletion of a sub-project", () => {
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
     const refusal = await screen.findByRole("alert");
-    expect(refusal).toHaveTextContent("Des coûts réels y sont imputés.");
-    expect(refusal).toHaveTextContent(/Objet en conflit\s:\sSP-ESS\./);
+    expect(refusal).toHaveTextContent(
+      "Condition non remplie : aucun coût réel imputé au sous-projet.",
+    );
     expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toBeInTheDocument();
   });
 });
