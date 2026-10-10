@@ -6,7 +6,6 @@ The roles are written around the service, as the lot that writes them will: thes
 Every answer is checked against the contract (``ContractClient``).
 """
 
-import inspect
 import json
 import re
 from dataclasses import dataclass
@@ -23,9 +22,10 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.exc import ProgrammingError
 from support import CONTRACT, ContractClient, bearer, operations, raw_account
 
+import waterfall
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.access_roles import interface, roles
+from waterfall.core.access_roles import roles
 from waterfall.core.access_roles.tables import (
     AccessRole,
     AccessRolePermission,
@@ -231,16 +231,13 @@ def test_the_service_may_not_remove_a_role_from_the_database(database: Database)
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")
-def test_the_module_of_the_roles_has_no_command_that_deletes_one() -> None:
-    names = [
-        name
-        for module in (roles, interface)
-        for name, _ in inspect.getmembers(module, inspect.isfunction)
-    ]
-    assert names
-    assert not [name for name in names if name.startswith(("delete", "remove", "purge", "drop"))]
-    module = Path(roles.__file__).parent
-    sources = "\n".join(path.read_text(encoding="utf-8") for path in module.glob("*.py"))
+def test_no_query_of_the_service_deletes_a_role_physically() -> None:
+    # The sources of the whole service, so that a query written outside the module is seen too.
+    # A function may be named for deleting a role: it marks it deleted, it does not remove it.
+    paths = sorted(Path(waterfall.__file__).parent.rglob("*.py"))
+    assert Path(roles.__file__) in paths
+    sources = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+    # ``\b`` spares ``AccessRolePermission`` and ``access_role_permission``, whose rows may go.
     assert not re.search(r"delete\(\s*AccessRole\b", sources)
     assert not re.search(r"DELETE\s+FROM\s+access_role\b", sources, re.IGNORECASE)
 
