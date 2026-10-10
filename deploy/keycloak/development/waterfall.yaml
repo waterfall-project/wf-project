@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the development platform adds to the realm of Waterfall, and nothing else: the directory
+# of test it federates, the external provider it relays to — the realm `external` of this same
+# Keycloak — and Mailpit, which receives the mails. This is what lets the Definition of done of
+# EP-03 be seen on a workstation (WF-ADM-0180, WF-ADM-0140). An installation connects its own in
+# the console; this file never reaches the image (deploy/keycloak/.dockerignore).
+#
+# The secrets here are development values, visible, named as such: they protect nothing but test
+# accounts on a workstation. WATERFALL_KEYCLOAK_ADDRESS is where the browser reaches Keycloak;
+# Keycloak reaches itself at localhost:8080, inside its container.
+realm: waterfall
+
+smtpServer:
+  host: mailpit
+  port: "1025"
+  from: waterfall@waterfall.test
+  fromDisplayName: Waterfall (development)
+
+identityProviders:
+  - alias: external
+    displayName: External provider (development)
+    providerId: oidc
+    enabled: true
+    trustEmail: true
+    # The first sign-in of an unknown person creates the account (WF-ADM-0180).
+    firstBrokerLoginFlowAlias: first broker login
+    config:
+      syncMode: IMPORT
+      clientId: waterfall
+      clientSecret: development-only-external-client-secret
+      clientAuthMethod: client_secret_post
+      issuer: $(env:WATERFALL_KEYCLOAK_ADDRESS)/realms/external
+      authorizationUrl: $(env:WATERFALL_KEYCLOAK_ADDRESS)/realms/external/protocol/openid-connect/auth
+      tokenUrl: http://localhost:8080/auth/realms/external/protocol/openid-connect/token
+      userInfoUrl: http://localhost:8080/auth/realms/external/protocol/openid-connect/userinfo
+      jwksUrl: http://localhost:8080/auth/realms/external/protocol/openid-connect/certs
+      logoutUrl: $(env:WATERFALL_KEYCLOAK_ADDRESS)/realms/external/protocol/openid-connect/logout
+      useJwksUrl: "true"
+      validateSignature: "true"
+      pkceEnabled: "true"
+      pkceMethod: S256
+      defaultScope: openid profile email
+
+components:
+  org.keycloak.storage.UserStorageProvider:
+    - name: directory
+      providerId: ldap
+      config:
+        enabled: ["true"]
+        priority: ["0"]
+        vendor: ["other"]
+        connectionUrl: ["ldap://openldap:389"]
+        bindDn: ["cn=admin,dc=waterfall,dc=test"]
+        bindCredential: ["development-only-directory-admin"]
+        usersDn: ["ou=people,dc=waterfall,dc=test"]
+        userObjectClasses: ["inetOrgPerson"]
+        usernameLDAPAttribute: ["uid"]
+        rdnLDAPAttribute: ["uid"]
+        uuidLDAPAttribute: ["entryUUID"]
+        searchScope: ["1"]
+        authType: ["simple"]
+        # The directory keeps its accounts: Keycloak reads them, never writes them.
+        editMode: ["READ_ONLY"]
+        importEnabled: ["true"]
+        syncRegistrations: ["false"]
+        pagination: ["false"]
+        trustEmail: ["true"]
+        cachePolicy: ["DEFAULT"]

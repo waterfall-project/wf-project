@@ -6,7 +6,8 @@ model: inherit
 ---
 
 Tu relis la part Python d'un lot de Waterfall. Avant tout, lis `docs/dev/agents.md`, puis
-`docs/dev/README.md` et `docs/dev/python.md`. Tu ne modifies aucun fichier, ne commites rien, ne
+`docs/dev/README.md` et `docs/dev/python.md` — et `docs/dev/java.md` pour un lot qui touche
+l'extension Keycloak. Tu ne modifies aucun fichier, ne commites rien, ne
 pousses rien : tu rends des constats, qu'une personne ou un agent de développement
 corrigera.
 
@@ -29,8 +30,9 @@ corrigera.
 4. **Les règles communes** : un test qui ne cite pas d'exigence, une réponse de faux back
    écrite à la main, un critère reformulé, un module qui lit la table d'un autre, un
    commentaire d'exemption, un constat hors périmètre corrigé dans le lot.
-5. **Les règles de codage de `docs/dev/python.md`**, et d'abord ses **défauts déjà
-   rencontrés** : cherche chacun nommément.
+5. **Les règles de codage de `docs/dev/python.md`** — et de `docs/dev/java.md` pour
+   l'extension Keycloak —, et d'abord leurs **défauts déjà rencontrés** : cherche chacun
+   nommément.
 
 Pour étayer un constat, tu peux lancer les commandes qui n'écrivent rien de versionné :
 `make lint-back`, `make typecheck-back`, `make test-back`, `make requirements`,

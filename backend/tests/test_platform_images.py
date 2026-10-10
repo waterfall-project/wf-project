@@ -18,9 +18,10 @@ def postgres_images(path: Path) -> list[str]:
 
 def test_the_postgresql_of_the_chain_is_the_image_of_the_service_platform() -> None:
     chain = postgres_images(ROOT / ".github" / "workflows" / "back.yml")
+    # The server, and the service that creates the database of Keycloak on it.
     platform = postgres_images(ROOT / "deploy" / "compose" / "compose.service.yaml")
     assert len(chain) == 1
-    assert chain == platform
+    assert platform == chain * 2
 
 
 def test_redis_runs_as_its_own_user_and_its_command_does_not_carry_the_secret() -> None:

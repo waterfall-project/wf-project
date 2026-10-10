@@ -23,7 +23,9 @@ MAX_LINES = 1000
 
 _HASH = frozenset({".py", ".sh"})
 _SLASH = frozenset({".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"})
-SOURCES = _HASH | _SLASH
+# The extension of Keycloak (docs/dev/java.md): its comments are those of TypeScript.
+_JAVA = frozenset({".java"})
+SOURCES = _HASH | _SLASH | _JAVA
 
 # A suppression is recognised in a comment only, so that a string or a document that names
 # one — this module, the guide — is not mistaken for one.
@@ -34,6 +36,11 @@ _HASH_SUPPRESSION = re.compile(
 _SLASH_SUPPRESSION = re.compile(
     r"(?://|/\*|\{/\*)\s*(?:eslint-disable|@ts-(?:ignore|expect-error|nocheck)"
     r"|prettier-ignore|(?:v8|c8|istanbul)\s+ignore)",
+)
+# Java silences javac by an annotation, not by a comment: the annotation is refused wherever it
+# stands, and so are the comments of the analysers that might come.
+_JAVA_SUPPRESSION = re.compile(
+    r"@SuppressWarnings\b|(?://|/\*)\s*(?:NOSONAR|NOPMD|CHECKSTYLE:\s*OFF)",
 )
 # Ruff holds the Python side (TD003, FIX001 to FIX004); ESLint has no equivalent, so the
 # TypeScript side is held here, the same way: a to-do cites its issue, `TODO(#12): …`, and
@@ -58,14 +65,20 @@ class Breach:
 def breaches(path: str, text: str) -> list[Breach]:
     """Return the breaches of one source file, given its path and its content."""
     suffix = Path(path).suffix
-    pattern = _HASH_SUPPRESSION if suffix in _HASH else _SLASH_SUPPRESSION
+    pattern = (
+        _HASH_SUPPRESSION
+        if suffix in _HASH
+        else _JAVA_SUPPRESSION
+        if suffix in _JAVA
+        else _SLASH_SUPPRESSION
+    )
     lines = text.splitlines()
     found = [
         Breach(path, number, f"suppression comment: {match.group(0).strip()}")
         for number, line in enumerate(lines, start=1)
         if (match := pattern.search(line))
     ]
-    if suffix in _SLASH:
+    if suffix in _SLASH | _JAVA:
         found.extend(_tags(path, lines))
     if len(lines) > MAX_LINES:
         found.append(Breach(path, len(lines), f"{len(lines)} lines, {MAX_LINES} at most"))

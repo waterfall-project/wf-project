@@ -23,3 +23,5 @@ playwright-report/
 /docs/schemas/
 # Variables d'un poste pour la plateforme de développement (WATERFALL_DEV_ORIGINS)
 deploy/compose/.env
+# Ce que la construction locale de l'extension Keycloak laisse
+deploy/keycloak/extension/target/

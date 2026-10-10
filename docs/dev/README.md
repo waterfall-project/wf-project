@@ -18,6 +18,7 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 | `fixtures/` | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent | — |
 | `tools/` | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests | PBS-5.2 |
 | `deploy/compose/`, `deploy/helm/` | l'empaquetage : Compose, puis le chart Helm en EP-13 | PBS-5.1 |
+| `deploy/keycloak/` | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`) | PBS-5.4 |
 | `.github/workflows/` | la chaîne | PBS-5.2 |
 | `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
 | `docs/dev/` | ce guide, et les règles de codage par langage | — |
@@ -1241,10 +1242,36 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak` |
 | `make changes BASE=…` | les familles qu'une modification touche |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker) ; elle exige `WATERFALL_POSTGRES_PASSWORD` et `WATERFALL_REDIS_PASSWORD` dans l'environnement, et `service-down WATERFALL_RESET_DATA=yes` supprime aussi sa base |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases et son annuaire |
+| `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
+| `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
+| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests de `backend/tests/test_keycloak_platform.py`, que les autres tests du back écartent (marqueur `keycloak`) ; mêmes secrets que `service-up` |
+| `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
+
+La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
+
+| Variable | Ce qu'elle protège |
+|---|---|
+| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
+| `WATERFALL_REDIS_PASSWORD` | Redis |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
+| `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
+| `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
+
+Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
+exemple. Keycloak répond sur `http://localhost:8080/auth`, sa console d'administration sous
+`/auth/admin` ; son adresse, `WATERFALL_KEYCLOAK_ADDRESS`, suit son port,
+`WATERFALL_KEYCLOAK_PORT` (`http://localhost:<port>/auth`), sauf à la poser elle-même. Mailpit
+montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
+OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
+et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
+L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
+personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
+supprime avec elles.
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -1269,6 +1296,10 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
   au palier complet seulement (`make e2e`, `make e2e-measure`) ; sur un poste,
   `make check-front` enchaîne les deux moitiés, `check-front-code` puis `check-front-e2e`.
+  `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
+  royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
+  réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent et sur
+  ses tests ; en échec, le travail imprime les journaux de Keycloak (`make service-logs`).
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -1488,10 +1519,11 @@ avec sa raison.
 
 ## Règles de codage
 
-Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils, et
-[TypeScript](typescript.md), pour le front. Chacun nomme d'abord les jeux de règles des
-outils, par renvoi, puis les règles de conception qu'aucun outil ne contrôle, chacune avec
-sa raison, et finit par les défauts déjà rencontrés, que la revue cherche nommément. Le
+Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils,
+[TypeScript](typescript.md), pour le front, et [Java](java.md), pour l'extension Keycloak.
+Chacun nomme d'abord les jeux de règles des outils, par renvoi, puis les règles de conception
+qu'aucun outil ne contrôle, chacune avec sa raison, et finit par les défauts déjà rencontrés,
+que la revue cherche nommément. Le
 SQL et les migrations ont le leur : [SQL](sql.md), pour les tables, les types, les contraintes,
 les migrations et les verrous.
 
@@ -1527,7 +1559,7 @@ couvre aucune exigence — un outil, un détail de réalisation — n'en cite au
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
 bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
-outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
+keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
 d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
 citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
 une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir
@@ -1549,9 +1581,8 @@ lignes — de toutes les tables que la `Base` déclare — sont supprimées apr�
 `session` une session que le test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
-- **Sur un poste**, deux façons : `make service-up` (avec les deux mots de passe de la plateforme
-  dans l'environnement ; `WATERFALL_POSTGRES_PASSWORD` ne tient qu'en lettres et en chiffres,
-  puisqu'il s'écrit dans une URL), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
+- **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
+  l'environnement, « Commandes »), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
   vaut alors
   `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
   créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.

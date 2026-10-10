@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+# What a local build of the extension leaves, and the files of the development platform alone.
+extension/target
+development

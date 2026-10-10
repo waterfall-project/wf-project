@@ -79,6 +79,9 @@ def document(
 
 
 DECLARATION = paths.read()
+# Where the sources of the extension of Keycloak live, and their package.
+EXTENSION = "deploy/keycloak/extension/src"
+PACKAGE = "io/github/waterfallproject/keycloak"
 
 
 def front(requirement: str, test: str = "frontend/src/a.test.ts:1") -> Citation:
@@ -118,6 +121,8 @@ def test_typescript_citations_come_from_titles() -> None:
         ("backend/tests/examples/test_portfolio.py", "back"),
         ("tools/tests/test_coverage.py", "tools"),
         ("fixtures/api/volume/build.py", "tools"),
+        (f"{EXTENSION}/test/java/{PACKAGE}/NotLastNamePolicyProviderTest.java", "keycloak"),
+        (f"{EXTENSION}/main/java/{PACKAGE}/NotLastNamePolicyProvider.java", None),
         ("docs/spec/tools/build.py", None),
         ("frontend/src/components/grid/grid.ts", None),
     ],

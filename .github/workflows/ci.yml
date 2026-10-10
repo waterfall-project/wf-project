@@ -45,6 +45,7 @@ jobs:
       back: ${{ steps.families.outputs.back }}
       front: ${{ steps.families.outputs.front }}
       roadmap: ${{ steps.families.outputs.roadmap }}
+      keycloak: ${{ steps.families.outputs.keycloak }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -100,10 +101,15 @@ jobs:
     if: needs.changes.outputs.roadmap == 'true'
     uses: ./.github/workflows/roadmap.yml
 
+  keycloak:
+    needs: changes
+    if: needs.changes.outputs.keycloak == 'true'
+    uses: ./.github/workflows/keycloak.yml
+
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled.
-    needs: [changes, repo, spec, contract, back, front, e2e, roadmap]
+    needs: [changes, repo, spec, contract, back, front, e2e, roadmap, keycloak]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

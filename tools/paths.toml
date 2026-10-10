@@ -60,6 +60,22 @@ paths = [
 ]
 target = "check-roadmap"
 
+[families.keycloak]
+# The image of Keycloak, built and tried on the service platform at each change of what it is made
+# of or started with (US-0350): the extension, the themes, the realm, the files of the platform,
+# and the tests that try it, with what they run on — their fixtures, the settings of Pytest and
+# the locked dependencies of the back.
+paths = [
+    "deploy/keycloak/**",
+    "deploy/compose/compose.service.yaml",
+    "deploy/compose/keycloak-database.sql",
+    "backend/tests/test_keycloak_platform.py",
+    "backend/tests/conftest.py",
+    "backend/pyproject.toml",
+    "backend/uv.lock",
+]
+target = "check-keycloak"
+
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
 # examples of the contract are what the fake back serves to the end-to-end paths, and what
@@ -235,4 +251,6 @@ by = "make mock-data"
 end-to-end = ["frontend/e2e/**"]
 front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx"]
 back = ["backend/tests/**"]
+# The unit tests of the extension of Keycloak, which its build runs (docs/dev/java.md).
+keycloak = ["deploy/keycloak/extension/src/test/**"]
 tools = ["tools/tests/**", "fixtures/**"]

@@ -45,8 +45,13 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--strict-markers", "--strict-config"]
-markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
+# The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
+# overriding the selection below.
+addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
+markers = [
+    "requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)",
+    "keycloak: runs against the Keycloak of the service platform (make test-keycloak)",
+]
 xfail_strict = true
 filterwarnings = ["error"]
 
