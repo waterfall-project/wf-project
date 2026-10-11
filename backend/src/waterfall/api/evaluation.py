@@ -13,13 +13,18 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.authentication import Caller, ServicesOf
 from waterfall.core.access_roles.interface import Actor, actor_of, require
 
 
-def acting(account: Caller, session: Transaction) -> Actor:
-    """Give the caller as an action is evaluated: its account and its effective permissions."""
-    return actor_of(session, account.user_id)
+def acting(account: Caller, services: ServicesOf) -> Actor:
+    """Give the caller as an action is evaluated: its account and its effective permissions.
+
+    They are read in a transaction of their own, as the caller is: a route that calls Keycloak
+    holds no connection meanwhile (#669).
+    """
+    with services.database.transaction() as session:
+        return actor_of(session, account.user_id)
 
 
 Acting = Annotated[Actor, Depends(acting)]

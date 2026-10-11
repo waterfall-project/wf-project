@@ -1,11 +1,18 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The accounts: the operations of the family ``users`` that read them.
+"""The accounts: the operations of the family ``users`` that read, create and change them.
 
 Each asks for the permission to consult the accounts (WF-ADM-0110): without it, an account does
-not exist for the caller (404). An account is read with the roles it holds, named by the server
-in the order it holds them, and with the commands its reader may exercise, each available or not
+not exist for the caller (404); a write asks besides for the permission to change them, the
+creation for that one alone. An account is read with the roles it holds, named by the server in
+the order it holds them, and with the commands its reader may exercise, each available or not
 (WF-IHM-0090).
+
+A local account is created in the identity provider, then in Waterfall, and its holder invited by
+the extension of Keycloak (WF-ADM-0070, WF-ADM-0140). No call to the provider is made inside a
+transaction (#669): what Waterfall would refuse is refused before the provider is asked, the
+account is written once the provider has created it, and withdrawn from the provider if Waterfall
+refuses it after all, a role deleted or an address taken meanwhile.
 """
 
 from collections.abc import Sequence
@@ -15,36 +22,65 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Transaction
+from waterfall.api.actors import actor_ref, audit_actor
+from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
-from waterfall.api.contract.models import PaginationMeta, SortOrder, User, UserOrigin
+from waterfall.api.contract.models import (
+    PaginationMeta,
+    SortOrder,
+    User,
+    UserCreate,
+    UserOrigin,
+    UserUpdate,
+)
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import Search, listed
 from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
+    give_first_roles,
     holding_one_of,
     labels_held,
     roles_held_by,
     sole_administrator,
+    unknown_roles,
 )
 from waterfall.core.users.interface import (
     Account,
     AccountColumn,
     AccountFilters,
     AccountSort,
+    Identity,
+    IdentityChange,
     Page,
     account_commands,
+    address_holder,
+    address_taken,
+    change_account,
+    create_local_account,
+    display_name,
+    identity_faults,
     list_accounts,
     read_account,
+    refuse,
 )
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
+from waterfall.platform.errors import FieldError, UnavailableError
+from waterfall.platform.keycloak import IdentityProviderError
+from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
+from waterfall.platform.logs import get_logger
 
 router = APIRouter(tags=["users"])
 
+logger = get_logger(__name__)
+
 CONSULTATION = "users.read"
 CHANGE = "users.write"
+VALIDATION_FAILED = "VALIDATION_FAILED"
 READ = [Depends(Requires(CONSULTATION))]
+CREATE = [Depends(Requires(CHANGE))]
+WRITE = [Depends(Requires(CONSULTATION, CHANGE))]
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
@@ -188,3 +224,137 @@ def get_users(
 def get_user(user_id: UUID, actor: Acting, session: Transaction) -> User:
     """Give an account, with its roles and its commands (WF-ADM-0050)."""
     return users(session, actor, [read_account(session, user_id)])[0]
+
+
+def check_new_account(
+    session: Session, identity: Identity, role_ids: Sequence[UUID] | None
+) -> None:
+    """Refuse an account Waterfall would refuse, before the provider creates it.
+
+    Each field in fault, the roles included — sent null if ``None`` —, is named (422); then an
+    address another account holds is refused (409). The roles and the address are read again when
+    the account is written.
+    """
+    roles = (
+        (FieldError("/access_role_ids", VALIDATION_FAILED),)
+        if role_ids is None
+        else unknown_roles(session, role_ids)
+    )
+    refuse((*identity_faults(identity.email, identity.org_node_id), *roles))
+    holder = address_holder(session, identity.email)
+    if holder is not None:
+        raise address_taken(holder)
+
+
+def write_new_account(
+    session: Session,
+    created: tuple[Identity, str],
+    role_ids: Sequence[UUID],
+    actor: Actor,
+    act: Act,
+) -> User:
+    """Write the local account the provider holds under its subject, with its first roles.
+
+    ``created`` is its identity and that subject. The roles are read again under the guard of the
+    last administrator, and the address by the unique index: refused, nothing is written.
+    """
+    identity, subject = created
+    account = create_local_account(session, identity, subject, act)
+    label = display_name(account.first_name, account.last_name)
+    give_first_roles(session, (account.user_id, label), role_ids, act)
+    return users(session, actor, [account])[0]
+
+
+def withdraw(admin: KeycloakAdmin, subject: str) -> None:
+    """Remove from the provider the account it created and Waterfall refused after all.
+
+    The refusal is what the caller is told; an account the provider could not remove is logged,
+    and refused at its first request as a local account Waterfall did not create.
+    """
+    try:
+        admin.remove_account(subject)
+    except (UnavailableError, IdentityProviderError):
+        logger.exception("account.withdrawal_failed", subject=subject)
+
+
+@router.post(
+    "/users",
+    operation_id="createUser",
+    dependencies=CREATE,
+    status_code=201,
+    response_model_exclude_unset=True,
+)
+def post_user(body: UserCreate, account: Caller, actor: Acting, services: ServicesOf) -> User:
+    """Create a local account in the provider and in Waterfall, and invite its holder.
+
+    A local account is born without a password: its holder sets one by the link the extension
+    mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140).
+    """
+    org_node_id = None if body.org_node_id is None else body.org_node_id.root
+    identity = Identity(body.last_name, body.first_name, body.email, org_node_id)
+    role_ids = [role_id.root for role_id in body.access_role_ids or ()]
+    sent_null = "access_role_ids" in body.model_fields_set and body.access_role_ids is None
+    with services.database.transaction() as session:
+        check_new_account(session, identity, None if sent_null else role_ids)
+    admin = services.keycloak_admin
+    subject = admin.create_account(LocalIdentity(body.last_name, body.first_name, body.email))
+    if subject is None:
+        # An account of the provider holds the address: one Waterfall holds too, created since it
+        # was checked, is named.
+        with services.database.transaction() as session:
+            raise address_taken(address_holder(session, body.email))
+    act = Act(audit_actor(account), utc_now())
+    try:
+        with services.database.transaction() as session:
+            created = write_new_account(session, (identity, subject), role_ids, actor, act)
+    except Exception:
+        withdraw(admin, subject)
+        raise
+    invite(admin, subject, created.user_id.root)
+    return created
+
+
+def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
+    """Have the extension mail the holder of an account just created the link of its password.
+
+    The account exists whether the mail leaves or not: one that does not is said in the log with
+    its reason, and the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
+    """
+    try:
+        reason = admin.send_invitation(subject)
+    except IdentityProviderError:
+        logger.exception(
+            "account.invitation_not_sent", user_id=str(user_id), reason="provider_error"
+        )
+        return
+    if reason is not None:
+        logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=reason)
+
+
+def identity_change(body: UserUpdate) -> IdentityChange:
+    """Read the change of an account; a name, a first name or an address sent null is refused."""
+    sent = body.model_fields_set
+    refuse(
+        tuple(
+            FieldError(f"/{name}", VALIDATION_FAILED)
+            for name in ("last_name", "first_name", "email")
+            if name in sent and getattr(body, name) is None
+        )
+    )
+    org_node_id = None if body.org_node_id is None else body.org_node_id.root
+    return IdentityChange(body.last_name, body.first_name, body.email, org_node_id)
+
+
+@router.patch(
+    "/users/{user_id}",
+    operation_id="updateUser",
+    dependencies=WRITE,
+    response_model_exclude_unset=True,
+)
+def patch_user(
+    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, session: Transaction
+) -> User:
+    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050)."""
+    act = Act(audit_actor(account), utc_now())
+    changed = change_account(session, user_id, identity_change(body), body.lock_version.root, act)
+    return users(session, actor, [changed])[0]

@@ -6,8 +6,9 @@ The label of an account; the author of a row, named as it is shown; which accoun
 the account the identity provider knows by a subject, as the account itself reads it; the account
 of a person the provider knows and Waterfall not yet, created without any role (WF-ADM-0180); an
 account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
-each one carries (WF-ADM-0050, WF-IHM-0090). The other operations on accounts arrive with the
-stories that need them (US-0360).
+each one carries (WF-ADM-0050, WF-IHM-0090); a local account created, and the identity of an
+account changed (``identity``). The other operations on accounts arrive with the stories that need
+them (US-0360).
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -25,11 +26,24 @@ from waterfall.core.users.accounts import (
     NewAccount,
     Stamp,
     add_account_if_absent,
+    address_holder,
+    address_taken,
     find_account,
     find_account_of_subject,
     find_active_accounts,
 )
 from waterfall.core.users.commands import CommandAvailability, account_commands
+from waterfall.core.users.identity import (
+    Identity,
+    IdentityChange,
+    change,
+    create_local,
+    display_name,
+    identity_faults,
+    inscribe,
+    is_address,
+    refuse,
+)
 from waterfall.core.users.listing import (
     AccountColumn,
     AccountExpression,
@@ -39,6 +53,7 @@ from waterfall.core.users.listing import (
     find_accounts,
 )
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import Act
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import ProviderAccount
 
@@ -52,18 +67,27 @@ __all__ = [
     "AccountSort",
     "Author",
     "CommandAvailability",
+    "Identity",
+    "IdentityChange",
     "NotAdmitted",
     "Page",
     "account_commands",
     "active_accounts",
     "add_account_of_provider",
+    "address_holder",
+    "address_taken",
+    "change_account",
+    "create_local_account",
     "display_name",
+    "identity_faults",
+    "is_address",
     "list_accounts",
     "origin_of",
     "read_account",
     "read_account_label",
     "read_account_of_subject",
     "read_author",
+    "refuse",
 ]
 
 NAME_MAX_LENGTH = 100
@@ -136,11 +160,6 @@ def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
     )
 
 
-def display_name(first_name: str, last_name: str) -> str:
-    """Name an account as it is shown: its first name, then its name."""
-    return f"{first_name} {last_name}"
-
-
 def read_author(session: Session, user_id: UUID | None) -> Author | None:
     """Name the author of a row, an account; ``None`` for the platform."""
     if user_id is None:
@@ -185,9 +204,10 @@ def add_account_of_provider(
     """Create, without any role, the account of a person the provider knows and Waterfall not yet.
 
     It takes the name, the first name and the address the provider transmits, the platform as
-    its author (WF-ADM-0180). When the provider does not admit the person (``origin_of``), when
-    she lacks a name or an address, or when her address is held by another account, it creates
-    nothing and says why.
+    its author (WF-ADM-0180), and inscribes the creation in the journal of audit, under the
+    correlation of the request (#703). When the provider does not admit the person
+    (``origin_of``), when she lacks a name or an address, or when her address is held by another
+    account, it creates nothing and says why.
     """
     origin = origin_of(provider)
     if origin is None:
@@ -203,8 +223,28 @@ def add_account_of_provider(
         idp_subject=provider.subject,
         origin=origin,
     )
-    account = add_account_if_absent(session, new, Stamp(None, at))
-    return NotAdmitted.ADDRESS_TAKEN if account is None else _account(session, account)
+    account, inserted = add_account_if_absent(session, new, Stamp(None, at))
+    if account is None:
+        return NotAdmitted.ADDRESS_TAKEN
+    # A concurrent first request of the same person created it: that one inscribed it.
+    if inserted:
+        inscribe(session, "user_create", account, Act(None, at), {"origin": origin})
+    return _account(session, account)
+
+
+def create_local_account(session: Session, identity: Identity, subject: str, act: Act) -> Account:
+    """Create the local account the provider holds under ``subject``, and inscribe it.
+
+    Refused if a field is in fault (422), or if another account holds the address (409).
+    """
+    return _account(session, create_local(session, identity, subject, act))
+
+
+def change_account(
+    session: Session, user_id: UUID, sent: IdentityChange, lock_version: int, act: Act
+) -> Account:
+    """Change the identity of an account whose version is the one read (``identity``)."""
+    return _account(session, change(session, user_id, sent, lock_version, act))
 
 
 @dataclass(frozen=True, slots=True)

@@ -1334,7 +1334,7 @@ commande.
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
+| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement (`wftools.images`, « Chaîne ») |
 
@@ -2005,8 +2005,8 @@ ses paramètres, jamais une phrase.
   (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
   dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Une adresse y est un
   simple texte (`--type-mappings email=string`) : le service la rend telle qu'il la tient, et les
-  modèles ne valident plus les adresses — ce qu'une adresse reçue doit être se tranche en #665.
-  Le noyau lève ensuite
+  modèles ne valident pas les adresses ; le noyau les valide selon la règle du contrat (#665,
+  `is_address` de `waterfall.core.users.identity`). Le noyau lève ensuite
   l'exception de `waterfall.platform.errors` qui porte le statut du contrat — `NotFoundError`
   404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
   `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
@@ -2075,7 +2075,10 @@ ses paramètres, jamais une phrase.
   `Transaction` (`waterfall.api.authentication`) : la première valide le jeton d'accès par les
   clés du royaume (`waterfall.platform.keycloak`) et lit le compte par `idp_subject` à chaque
   requête, la seconde ouvre la transaction de la requête, validée quand la route a construit sa
-  réponse et avant qu'elle parte. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
+  réponse et avant qu'elle parte. Aucun appel à Keycloak ne se fait dans une transaction (#669) :
+  l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
+  transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser` —
+  ne prend pas `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
   jeton expiré un 401 `SESSION_EXPIRED`, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un
   compte que Waterfall ne connaît pas encore est créé sans rôle s'il vient de l'annuaire ou d'un
   fournisseur externe, refusé comme un compte désactivé sinon. L'appelant devient l'auteur
@@ -2086,8 +2089,10 @@ ses paramètres, jamais une phrase.
   (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
   (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
 
-  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`), `make test-keycloak`
-  (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne `Caller`, la revue.
+  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
+  connexions prises pendant l'appel à Keycloak, `Watching` de `tests/support.py`),
+  `make test-keycloak` (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne
+  `Caller`, la revue.
 
 ## Clés de traduction
 

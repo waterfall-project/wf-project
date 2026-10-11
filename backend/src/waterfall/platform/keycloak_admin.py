@@ -2,8 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The administration API of Keycloak, reached as the service account of the realm (PBS-2.5).
 
-Through it the service reads where an account comes from and closes its sessions (WF-ADM-0070,
-WF-SEC-0020). The token of the service account is kept until shortly before it expires.
+Through it the service reads where an account comes from, creates a local account and removes one
+whose creation Waterfall could not complete, and closes the sessions of an account (WF-ADM-0070,
+WF-SEC-0020). The invitation of a local account is sent by the extension of Waterfall, with the
+link it makes: never by ``execute-actions-email``, whose links would escape its nonce (#651). The
+token of the service account is kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -15,17 +18,30 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
 import httpx2
 
+from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak, expect
 from waterfall.platform.settings import ServiceSettings
 
 SERVICE_CLIENT = "waterfall-service"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
+VALIDATION_FAILED = "VALIDATION_FAILED"
+# The field of a local identity each attribute of the realm holds, the username being its address.
+IDENTITY_POINTERS = {
+    "username": "/email",
+    "email": "/email",
+    "firstName": "/first_name",
+    "lastName": "/last_name",
+}
+
+# Why the invitation of an account did not leave: the realm has no mail server, its server did not
+# take the mail, or Keycloak does not answer.
+type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,9 +61,46 @@ class ProviderAccount:
     is_relayed: bool
 
 
+@dataclass(frozen=True, slots=True)
+class LocalIdentity:
+    """What a local account of the realm is created with: its names and its address."""
+
+    last_name: str
+    first_name: str
+    email: str
+
+
 def _text(document: Mapping[str, Any], name: str) -> str:
     value = document.get(name)
     return value if isinstance(value, str) else ""
+
+
+def _document(response: httpx2.Response) -> Mapping[str, Any]:
+    """Read the object an answer carries, or an empty one if it carries none."""
+    try:
+        read: object = response.json()
+    except ValueError:
+        return {}
+    return cast("Mapping[str, Any]", read) if isinstance(read, Mapping) else {}
+
+
+def refused_identity(response: httpx2.Response) -> UnprocessableError:
+    """Point at the fields of a local identity the user profile of the realm refuses (422).
+
+    The realm names one field, or a list of them under ``errors``; one it names that the identity
+    does not have is pointed at as the whole of it.
+    """
+    refusal = _document(response)
+    errors = refusal.get("errors")
+    named = cast("list[object]", errors) if isinstance(errors, list) and errors else [refusal]
+    pointers = dict.fromkeys(_pointer(error) for error in named)
+    faults = tuple(FieldError(pointer, VALIDATION_FAILED) for pointer in pointers)
+    return UnprocessableError(VALIDATION_FAILED, fields=faults)
+
+
+def _pointer(error: object) -> str:
+    named = _text(cast("Mapping[str, Any]", error), "field") if isinstance(error, Mapping) else ""
+    return IDENTITY_POINTERS.get(named, "")
 
 
 class KeycloakAdmin:
@@ -61,7 +114,10 @@ class KeycloakAdmin:
     ) -> None:
         """Prepare the client; no token is asked for before a request needs one."""
         self._keycloak = keycloak
-        self._admin = f"/admin/realms/{quote(settings.keycloak_realm, safe='')}"
+        realm = quote(settings.keycloak_realm, safe="")
+        self._admin = f"/admin/realms/{realm}"
+        # The entry point of the extension, under the realm (deploy/keycloak/extension/).
+        self._extension = f"/realms/{realm}/password-setup-link"
         self._secret = settings.service_client_secret
         self._clock = clock
         self._token: tuple[str, float] | None = None
@@ -89,6 +145,58 @@ class KeycloakAdmin:
             is_federated=is_federated,
             is_relayed=is_relayed,
         )
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Create a local account of the realm, without a password; give its subject.
+
+        ``None`` if the realm holds an account of that address already, whose username it is.
+        Refused if the user profile of the realm refuses a field (422).
+        """
+        response = self._as_service(
+            "POST",
+            f"{self._admin}/users",
+            json={
+                "username": identity.email,
+                "email": identity.email,
+                "firstName": identity.first_name,
+                "lastName": identity.last_name,
+                "enabled": True,
+            },
+        )
+        if response.status_code == HTTPStatus.CONFLICT:
+            return None
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise refused_identity(response)
+        location = expect(response, HTTPStatus.CREATED).headers["Location"]
+        return location.rstrip("/").rsplit("/", 1)[-1]
+
+    def remove_account(self, subject: str) -> None:
+        """Remove an account of the realm; one it no longer holds is removed already."""
+        response = self._as_service("DELETE", f"{self._admin}/users/{quote(subject, safe='')}")
+        if response.status_code != HTTPStatus.NOT_FOUND:
+            expect(response, HTTPStatus.NO_CONTENT)
+
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
+        """Have the extension mail a local account the link that sets its password (WF-ADM-0140).
+
+        The link replaces the one made before it, unless the mail does not leave. Then the reason
+        is given: the realm has no mail server — an installation without one gives the link by
+        hand (WF-CMP-0030) —, its server did not take the mail, or Keycloak does not answer. The
+        account exists all the same, and its link may be asked for again.
+        """
+        path = f"{self._extension}/users/{quote(subject, safe='')}/invitation"
+        try:
+            # The extension says by a 502 that the mail server failed; a proxy, that Keycloak did.
+            response = self._as_service("POST", path, answered={HTTPStatus.BAD_GATEWAY})
+        except UnavailableError:
+            return "provider_unavailable"
+        error = _document(response).get("error")
+        if response.status_code == HTTPStatus.BAD_GATEWAY:
+            return "not_sent" if error == "not_sent" else "provider_unavailable"
+        if response.status_code == HTTPStatus.CONFLICT and error == "no_mail_server":
+            return "no_mail_server"
+        expect(response, HTTPStatus.NO_CONTENT)
+        return None
 
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).
@@ -119,16 +227,17 @@ class KeycloakAdmin:
             self._token = (token, asked_at + lifetime - TOKEN_MARGIN_SECONDS)
             return token
 
-    def _as_service(self, method: str, path: str) -> httpx2.Response:
+    def _as_service(self, method: str, path: str, **options: Any) -> httpx2.Response:
         """Send a request of the administration API as the service account.
 
         A token refused before its time — the realm restarted, its keys rotated, the sessions
         of the service account closed — is renewed once.
         """
-        response = self._send(method, path, self._service_token())
+        response = self._send(method, path, self._service_token(), **options)
         if response.status_code == HTTPStatus.UNAUTHORIZED:
-            response = self._send(method, path, self._service_token(renew=True))
+            response = self._send(method, path, self._service_token(renew=True), **options)
         return response
 
-    def _send(self, method: str, path: str, token: str) -> httpx2.Response:
-        return self._keycloak.send(method, path, headers={"Authorization": f"Bearer {token}"})
+    def _send(self, method: str, path: str, token: str, **options: Any) -> httpx2.Response:
+        headers = {"Authorization": f"Bearer {token}"}
+        return self._keycloak.send(method, path, headers=headers, **options)
