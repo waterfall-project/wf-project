@@ -105,8 +105,8 @@ UserAccount:
     - lock_version
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
+    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     email:
       type: string
       format: email
@@ -164,8 +164,8 @@ UserCreate:
   type: object
   required: [last_name, first_name, email]
   properties:
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
+    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -181,11 +181,18 @@ UserUpdate:
     que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est
     refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050).
   properties:
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
+    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserActivationWrite:
+  type: object
+  required: [is_active, lock_version]
+  properties:
+    is_active: { type: boolean }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserRolesWrite:
@@ -352,7 +359,7 @@ AccessRole:
     toujours les permissions d'administration (WF-ADM-0120).
   properties:
     access_role_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 100 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     permissions:
       type: array
       items: { $ref: '#/PermissionCode' }
@@ -365,7 +372,7 @@ AccessRoleWrite:
   type: object
   required: [label, permissions]
   properties:
-    label: { type: string, minLength: 1, maxLength: 100 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     permissions:
       type: array
       items: { $ref: '#/PermissionCode' }

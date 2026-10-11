@@ -26,19 +26,18 @@ from waterfall.core.users.accounts import (
     NewAccount,
     Stamp,
     add_account,
-    change_identity,
-    lock_account,
+    change_columns,
+    lock_account_at,
     unique_address,
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
-from waterfall.platform.errors import FieldError, PreconditionFailedError, UnprocessableError
+from waterfall.platform.errors import FieldError, UnprocessableError
 
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 FIELD_READ_ONLY = "FIELD_READ_ONLY"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ADDRESS_MAX_LENGTH = 254
 LOCAL = "local"
 
@@ -108,7 +107,7 @@ def refuse(faults: tuple[FieldError, ...]) -> None:
 
 def inscribe(
     session: Session,
-    action: Literal["user_create", "user_update"],
+    action: Literal["user_create", "user_update", "user_deactivate", "user_reactivate"],
     account: UserAccount,
     act: Act,
     params: dict[str, AuditValue],
@@ -142,11 +141,7 @@ def change(
     changed included (422) —, or if another account holds the new address (409). A change that
     changes nothing writes nothing.
     """
-    account = lock_account(session, user_id)
-    if account.lock_version != lock_version:
-        raise PreconditionFailedError(
-            STALE_LOCK_VERSION, {"expected_lock_version": account.lock_version}
-        )
+    account = lock_account_at(session, user_id, lock_version)
     changed = {
         name: value
         for name in IDENTITY_FIELDS
@@ -162,8 +157,6 @@ def change(
     if not changed:
         return account
     with unique_address(session, changed.get("email", account.email)):
-        account = change_identity(
-            session, user_id, changed, lock_version, Stamp(act.author, act.at)
-        )
+        account = change_columns(session, user_id, changed, lock_version, Stamp(act.author, act.at))
     inscribe(session, "user_update", account, act, {"fields": list(changed)})
     return account

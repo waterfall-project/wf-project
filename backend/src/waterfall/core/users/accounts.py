@@ -148,6 +148,16 @@ def lock_account(session: Session, user_id: UUID) -> UserAccount:
     return account
 
 
+def lock_account_at(session: Session, user_id: UUID, lock_version: int) -> UserAccount:
+    """Lock an account and read it under the lock, at the version read; or refuse (404, 412)."""
+    account = lock_account(session, user_id)
+    if account.lock_version != lock_version:
+        raise PreconditionFailedError(
+            STALE_LOCK_VERSION, {"expected_lock_version": account.lock_version}
+        )
+    return account
+
+
 def find_account(session: Session, user_id: UUID) -> UserAccount | None:
     """Read an account, or ``None`` if there is none."""
     return session.get(UserAccount, user_id)
@@ -173,13 +183,14 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
     ).first()
 
 
-def change_identity(
+def change_columns(
     session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
 ) -> UserAccount:
-    """Change the name, first name or address of an account whose version is the one read.
+    """Change columns of an account whose version is the one read, and advance its version.
 
     The version is tested by the write itself: a write that finds another version changes
-    nothing and is refused (412), whatever happened between the reading and now.
+    nothing and is refused (412), whatever happened between the reading and now. No column
+    changed notes all the same a change of what the account holds, its roles.
     """
     changed = session.scalars(
         update(UserAccount)

@@ -608,6 +608,28 @@ def test_a_label_that_holds_a_nul_is_refused_at_its_field(
     assert (labels(api, headers), journal(database)) == (["Chiffreur"], [])
 
 
+@pytest.mark.parametrize(
+    "operation",
+    ["createAccessRole", "updateAccessRole"],
+)
+def test_a_label_made_of_blanks_alone_is_refused_at_its_field(
+    api: ContractClient, database: Database, headers: dict[str, str], operation: str
+) -> None:
+    # A label of blanks alone would give a role no visible name (#837): the field refuses it.
+    written = role(database, "Chiffreur")
+    sent: dict[str, object] = {"label": " \t ", "permissions": [], "lock_version": 0}
+    if operation == "createAccessRole":
+        response = api.post(ROLES, headers=headers, json=sent)
+    else:
+        response = api.patch(f"{ROLES}/{written}", headers=headers, json=sent)
+    assert problem(response) == (
+        422,
+        "VALIDATION_FAILED",
+        [{"pointer": "/label", "code": "VALIDATION_FAILED"}],
+    )
+    assert (labels(api, headers), journal(database)) == (["Chiffreur"], [])
+
+
 # The predefined « Administrateur » alone gives the caller what it does here.
 @pytest.mark.requirement("WF-ADM-0010-A")
 @pytest.mark.parametrize("caller_permissions", [()])
