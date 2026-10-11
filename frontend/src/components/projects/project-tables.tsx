@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { useAccountNaming } from "@/components/account/account-name";
+import { KeptName } from "@/components/account/anonymized-name";
 import { LocalTime } from "@/components/local-time";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
@@ -91,14 +91,15 @@ export function ListTable({
  */
 export function Actor({ actor }: { readonly actor: StateTransition["actor"] }) {
   const t = useTranslations("enums.ActorRef.kind");
-  const naming = useAccountNaming();
   const Icon = actor.kind === "platform" ? Bot : User;
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon aria-hidden="true" className={ICON} />
-      {actor.kind === "user" && actor.display_name !== undefined
-        ? naming.kept(actor.display_name)
-        : t(actor.kind)}
+      {actor.kind === "user" && actor.display_name !== undefined ? (
+        <KeptName name={actor.display_name} />
+      ) : (
+        t(actor.kind)
+      )}
     </span>
   );
 }

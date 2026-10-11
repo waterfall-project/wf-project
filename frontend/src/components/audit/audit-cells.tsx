@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
+import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
 
 import {
@@ -50,9 +51,8 @@ export function useObjectName(): (object: Pick<AuditEvent["object"], "label" | "
  */
 export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
   const t = useTranslations("enums.AuditActorKind");
-  const naming = useAccountNaming();
   return actor.kind === "user" && actor.display_name !== undefined ? (
-    naming.kept(actor.display_name)
+    <KeptName name={actor.display_name} />
   ) : (
     <span className="text-muted-foreground">{t(actor.kind)}</span>
   );
@@ -85,7 +85,11 @@ export function ObjectCell({
   const name = useObjectName()(object);
   const label = object.label;
   if (label === null) {
-    return <span className="text-muted-foreground">{name}</span>;
+    return object.kind === "user" ? (
+      <AnonymizedName />
+    ) : (
+      <span className="text-muted-foreground">{name}</span>
+    );
   }
   return href === undefined ? (
     label

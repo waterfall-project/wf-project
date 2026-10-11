@@ -726,6 +726,24 @@ describe("an anonymised account in the journal", () => {
     expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
   });
 
+  it("renders the neutral label alike as the author and as the object of an inscription [WF-ADM-0060-A]", () => {
+    /** The neutral label in the column of a header, in the first row of a journal shown. */
+    const neutralIn = (shown: Journal, header: string): string | undefined => {
+      const { unmount } = render(journal({ shown }));
+      const at = within(grid())
+        .getAllByRole("columnheader")
+        .findIndex((cell) => cell.textContent.startsWith(header));
+      const [, first] = within(grid()).getAllByRole("row");
+      const neutral = first?.children.item(at)?.querySelector("[data-anonymized]")?.outerHTML;
+      unmount();
+      return neutral;
+    };
+    const author = neutralIn(authored, "Auteur");
+    const object = neutralIn(designated, "Objet");
+    expect(author).toMatch(/>Compte anonymisé</);
+    expect(object).toBe(author);
+  });
+
   it("keeps an anonymised author no choice offers under the neutral label, to be cleared [WF-ADM-0060-A]", () => {
     page.search = `user_id=${ALIX}`;
     render(journal({ shown: authored, users: [], named: { ...NAMED, user: null } }));

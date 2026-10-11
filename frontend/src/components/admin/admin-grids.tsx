@@ -31,6 +31,7 @@ import { useTranslations } from "next-intl";
 
 import type { components, operations } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
+import { KeptName } from "@/components/account/anonymized-name";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
@@ -63,8 +64,7 @@ export const ACCESS_ROLE_GRID_KEY = "access_roles";
 
 /** The last name of an account, or the neutral label of an anonymised one, which has none. */
 function LastName({ user }: { readonly user: User }) {
-  const naming = useAccountNaming();
-  return user.last_name ?? <span className="text-muted-foreground">{naming.kept(null)}</span>;
+  return <KeptName name={user.last_name} />;
 }
 
 /** The origin of an account, in words. */
