@@ -14,7 +14,6 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, account, role
-from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
 from support import ContractClient, bearer
 
@@ -382,17 +381,14 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
 def test_a_parameter_the_table_refuses_is_a_value_refused(
     api: ContractClient, headers: dict[str, str], query: str, pointer: str
 ) -> None:
-    # A value outside the schema of a parameter is refused at its field (422), never a 500. The
-    # contract does not declare the 422 of listUsers yet (#799): the answer is read unchecked, and
-    # the reminder fails the day it does, when the answer is to be read through the contract.
-    status, code, fields = problem(api.client.get(f"{USERS}{query}", headers=headers))
+    # A value outside the schema of a parameter is refused at its field (422), never a 500, and
+    # the contract declares that 422 (#799): the answer is read through it.
+    status, code, fields = problem(api.get(f"{USERS}{query}", headers=headers))
     assert (status, code, [field["pointer"] for field in fields]) == (
         422,
         "VALIDATION_FAILED",
         [pointer],
     )
-    with pytest.raises(ResponseNotFound, match=r"status: 422$"):
-        api.get(f"{USERS}{query}", headers=headers)
 
 
 @pytest.mark.parametrize("path", [USERS, f"{USERS}/{uuid4()}"])

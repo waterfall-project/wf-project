@@ -3684,6 +3684,21 @@ blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contr
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
 
+## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
+
+Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma
+par 422 `VALIDATION_FAILED`, sur toute opération qui en a, et un `lock_version` périmé par 412
+`STALE_LOCK_VERSION`, sur toute écriture qui en porte. Vingt-quatre opérations à paramètres de
+requête ne déclaraient pas leur 422 (#799), et `setNodeTracking` pas son 412 (#827) : elles les
+déclarent. Deux tests du service (`backend/tests/test_contract_declarations.py`) le tiennent, en
+lisant le contrat références suivies — ce que les règles de `redocly.yaml` ne savent pas faire
+pour la place d'un paramètre ou les propriétés d'un corps.
+
+`createUser` dit deux cas que le service connaît : son 409 n'a pas de `conflicting_object_id`
+quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse aussi une adresse
+ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
+resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

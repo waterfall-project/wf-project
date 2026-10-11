@@ -317,6 +317,7 @@
               work_packages: { $ref: ../../../fixtures/api/work_breakdown_work_packages.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setWorkBreakdown
@@ -413,6 +414,7 @@
               with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createSubproject
@@ -573,6 +575,7 @@
               inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setContributors
