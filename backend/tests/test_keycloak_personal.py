@@ -16,7 +16,7 @@ import httpx2
 import pytest
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from support import ContractClient, Watching
+from support import ContractClient, Watching, nowhere
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -68,7 +68,7 @@ def api(
     contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
 ) -> ContractClient:
     """Give a client of the API on the database of the test and the Keycloak of the platform."""
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 

@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import func, insert, select, update
-from support import ContractClient, Logs, Watching, raw_account
+from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_platform import (
     ADDRESS_VARIABLE,
     BACKCHANNEL_VARIABLE,
@@ -212,7 +212,7 @@ def served_settings() -> ServiceSettings:
 def served_api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
     """Give a client of the API on ``database`` and the Keycloak of the platform, watched (#669)."""
     watching = Watching(keycloak, served_settings(), database)
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -274,7 +274,7 @@ def api(
     contract: OpenAPI, database: Database, keycloak: Keycloak, keycloak_admin: Watching
 ) -> ContractClient:
     """Give a client of the API on the database of the test and the Keycloak of the platform."""
-    app = create_app(Services(database, keycloak, keycloak_admin))
+    app = create_app(Services(database, keycloak, keycloak_admin, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -771,7 +771,7 @@ def test_the_account_that_overtook_a_creation_in_the_provider_is_named(
     administrator: dict[str, str],
 ) -> None:
     racing = Racing(keycloak, settings, database)
-    app = create_app(Services(database, keycloak, racing))
+    app = create_app(Services(database, keycloak, racing, *nowhere()))
     client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     response = client.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 409, response.text
@@ -818,7 +818,7 @@ def deleting(
 ) -> tuple[ContractClient, Deleting]:
     """Give a client of the API during whose creation of an account a role goes, and the role."""
     administration = Deleting(keycloak, settings, database, role(database, "Rôle supprimé"))
-    app = create_app(Services(database, keycloak, administration))
+    app = create_app(Services(database, keycloak, administration, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract), administration
 
 
@@ -886,7 +886,7 @@ def vanishing(
     contract: OpenAPI, database: Database, keycloak: Keycloak, settings: ServiceSettings
 ) -> ContractClient:
     """Give a client of the API whose accounts leave the realm as soon as it creates them."""
-    app = create_app(Services(database, keycloak, Vanishing(keycloak, settings)))
+    app = create_app(Services(database, keycloak, Vanishing(keycloak, settings), *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 

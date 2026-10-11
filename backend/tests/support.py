@@ -27,7 +27,9 @@ from waterfall.platform.keycloak_admin import (
     PasswordLink,
     ProviderAccount,
 )
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.storage import Bucket
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 
@@ -42,21 +44,50 @@ DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
 # The two decodings differ on this one: ``unquote`` keeps the plus, ``unquote_plus`` makes a space.
 PLUS_CREDENTIAL = "a+b%40"
 SERVICE_CREDENTIAL = "service-client-pass-6e1b0a"
+STORAGE_CREDENTIAL = "storage-secret-key-8c3d5f"
+OWNER_CREDENTIAL = "owner-pass-2a7e9b"
+KEYCLOAK_DATABASE_CREDENTIAL = "keycloak-db-pass-0d4c6a"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",
     "WATERFALL_SERVICE_CLIENT_SECRET": SERVICE_CREDENTIAL,
+    "WATERFALL_STORAGE_SECRET": STORAGE_CREDENTIAL,
+    "WATERFALL_OWNER_DATABASE_URL": f"postgresql://waterfall:{OWNER_CREDENTIAL}@db:5432/waterfall",
+    "WATERFALL_KEYCLOAK_DATABASE_URL": (
+        f"postgresql://keycloak:{KEYCLOAK_DATABASE_CREDENTIAL}@db:5432/keycloak"
+    ),
 }
-# Where a service of the test platform reaches Keycloak: an address that answers nothing.
-PLATFORM_ADDRESSES = {"WATERFALL_KEYCLOAK_ADDRESS": "http://127.0.0.1:9/auth"}
+# Where a service of the test platform reaches Keycloak and the object storage: addresses that
+# answer nothing.
+PLATFORM_ADDRESSES = {
+    "WATERFALL_KEYCLOAK_ADDRESS": "http://127.0.0.1:9/auth",
+    "WATERFALL_STORAGE_ADDRESS": "http://127.0.0.1:9",
+    "WATERFALL_STORAGE_ACCESS_KEY": "GK000000000000000000000000",
+}
 SECRETS = [
     DB_CREDENTIAL,
     REDIS_CREDENTIAL,
+    STORAGE_CREDENTIAL,
+    OWNER_CREDENTIAL,
+    KEYCLOAK_DATABASE_CREDENTIAL,
     BEARER_JWT,
     SESSION_COOKIE,
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+def nowhere() -> tuple[TaskQueue, Bucket]:
+    """Give a queue and a bucket of the backups that a test which deposits nothing never reaches."""
+    queue = TaskQueue.connect(PLATFORM_SECRETS["WATERFALL_REDIS_URL"], timeout=DEPOSIT_TIMEOUT)
+    bucket = Bucket.connect(
+        "backups",
+        PLATFORM_ADDRESSES["WATERFALL_STORAGE_ADDRESS"],
+        "us-east-1",
+        PLATFORM_ADDRESSES["WATERFALL_STORAGE_ACCESS_KEY"],
+        STORAGE_CREDENTIAL,
+    )
+    return queue, bucket
 
 
 def service_role(database: URL) -> str:

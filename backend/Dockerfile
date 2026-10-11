@@ -6,8 +6,10 @@
 # (`waterfall-worker enqueue <kind>`) and the migrations (`waterfall-migrate`) are commands of one
 # distribution, so one image runs them all (WF-ARC-0010). No secret is in it (WF-SEC-0010): each
 # command reads its settings from the environment of the container, and stops naming the one that
-# lacks. The base image is pinned by digest: a tag can be moved, a digest cannot.
-FROM python:3.13-slim-bookworm@sha256:a1165e272e578941b84abc79e4ab38a0305cd12803a5c4247979ac7655f4d641 AS python
+# lacks. The base image is pinned by digest: a tag can be moved, a digest cannot. It is Debian's
+# trixie, whose PostgreSQL client, 17, dumps and lists the server of the platform, 16: pg_dump reads
+# no server more recent than itself, and bookworm's is 15.
+FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS python
 
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
@@ -33,6 +35,12 @@ FROM python AS production
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     WATERFALL_HOST=0.0.0.0
+
+# pg_dump and pg_restore, with which the worker backs up the two databases and verifies the archive
+# (WF-ADM-0150): the client of the major version 17, the latest of its minor releases.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends "postgresql-client-17=17.*" \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/.venv /app/.venv
 USER 1000:1000

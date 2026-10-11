@@ -1300,7 +1300,7 @@ services, la mise à jour sans interruption — EP-13.
 
 ## US-0440 — Sauvegarder et restaurer la plateforme
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0150-A`, `WF-ADM-0160-A`, `WF-DAT-0120-A`
 - **opérations** : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore`,
   `uploadFile`
