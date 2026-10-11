@@ -277,6 +277,11 @@ ASKED: dict[str, tuple[str, ...]] = {
 }
 
 
+# The operations that ask for no permission and still refuse by a 404 the object their path names:
+# it is the caller's own, and the task another account asked for does not exist for the caller.
+OWN_OBJECTS = {"getBackgroundTask"}
+
+
 def asked(route: APIRoute) -> tuple[str, ...]:
     """Give the permissions a route asks for, by its dependencies."""
     return tuple(
@@ -299,7 +304,7 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
 ) -> None:
     # A permission to consult missing is a 404, any other a 403: the operation declares the
     # refusal it may give; one that declares neither asks for nothing. An operation that asks for
-    # nothing refuses nothing by a 403, and by a 404 only the object its path names.
+    # nothing refuses nothing by a 403, nor by a 404 unless it reads an object of its caller's own.
     served: list[BaseRoute] = []
     for included in create_app(services).routes:
         router = getattr(included, "original_router", None)
@@ -318,7 +323,7 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         needed = {refused_without(code) for code in permissions}
         assert needed <= responses, name
         if not permissions:
-            refused = {"403", "404"} if "{" not in relative else {"403"}
+            refused = {"403"} if name in OWN_OBJECTS else {"403", "404"}
             assert not refused & responses, name
 
 
