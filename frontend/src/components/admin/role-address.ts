@@ -13,6 +13,7 @@
  */
 import type { operations } from "@/api/generated/schema";
 import { type Bounds, boundNames } from "@/components/grid/filters";
+import { keptReading } from "@/components/grid/kept-address";
 import { asked, CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { listReads } from "@/components/reference/address";
 
@@ -25,11 +26,20 @@ export const HOLDER_COUNT = "holder_count";
 /** The longest label the contract gives a role. */
 export const LABEL_LENGTH = 100;
 
+/** The path of the screen of the access roles. */
+export const ACCESS_ROLES_PATH = "/admin/access-roles";
+
 /** The parameters of the address the screen filters the roles by, besides their search. */
 export const ROLE_FILTERS: readonly string[] = [
   PREDEFINED,
   ...Object.values(boundNames(HOLDER_COUNT)),
 ];
+
+/**
+ * What the table of the roles reads of the address and keeps with its settings — its search and its
+ * filters —, which the page finds again when the address says nothing of it (`kept-address.ts`).
+ */
+export const ROLE_KEPT = keptReading(CONTRACT_ADDRESS, ROLE_FILTERS);
 
 /** What the list of the roles reads of the address, which a refusal is told on (`Reactivations`). */
 export const ROLE_READS = listReads(CONTRACT_ADDRESS, ...ROLE_FILTERS);

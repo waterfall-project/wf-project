@@ -361,6 +361,27 @@ describe("the access roles", () => {
     expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission Administrateur");
   });
 
+  it("lead an address that says nothing of the table — the link of the navigation, from the screen too — to the filters the account keeps for it before anything is read, which reads the roles once, filtered [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await expect(AccessRolesPage(searched())).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        ";/admin/access-roles?is_predefined=false&holder_count_min=1;",
+      ) as unknown,
+    });
+    expect(queriesOf("GET /access-roles")).toEqual([]);
+    await AccessRolesPage(searched({ is_predefined: "false", holder_count_min: "1" }));
+    expect(queriesOf("GET /access-roles")).toEqual([
+      { is_predefined: "false", holder_count_min: "1" },
+    ]);
+  });
+
+  it("read the roles unfiltered at an address that says the reading lifted, or a sort alone, whatever the account keeps", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await AccessRolesPage(searched({ search: "" }));
+    await AccessRolesPage(searched({ sort_by: "label", sort_order: "desc" }));
+    expect(queriesOf("GET /access-roles")).toEqual([{}, { sort_by: "label", sort_order: "desc" }]);
+  });
+
   it("ask no bound that is no count, nor a kind that is none", async () => {
     await AccessRolesPage(
       searched({ is_predefined: "yes", holder_count_min: "-1", holder_count_max: "1.5" }),

@@ -14,6 +14,7 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
 import { MatrixWrites } from "./permission-matrix";
+import { ROLE_KEPT } from "./role-address";
 import { RoleAnswers } from "./role-answers";
 
 // The server of Next, as far as the table of the roles needs it: the fake back, the page read anew
@@ -54,7 +55,7 @@ function table(shown: readonly Schemas["AccessRole"][] = roles): ReactNode {
 function inFrench(children: ReactNode) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PendingAddress>{children}</PendingAddress>
+      <PendingAddress kept={ROLE_KEPT}>{children}</PendingAddress>
     </NextIntlClientProvider>
   );
 }

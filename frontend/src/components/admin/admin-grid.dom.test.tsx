@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { ColumnLabel } from "@/components/grid/columns";
+import type { KeptReading } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -19,6 +20,7 @@ import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtu
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
 import { CreateCommand, LaterCommands } from "./later-commands";
+import { ROLE_KEPT } from "./role-address";
 import {
   ACCESS_ROLE_SORTS,
   type AccessRole,
@@ -60,11 +62,14 @@ const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
   level: node.level,
 }));
 
-/** A part of the screen, in French, sharing the address last asked as the page does. */
-function inFrench(children: ReactNode) {
+/**
+ * A part of the screen, in French, sharing the address last asked as the page does — and, for the
+ * screen of the roles, naming what its table keeps.
+ */
+function inFrench(children: ReactNode, kept?: KeptReading) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PendingAddress>{children}</PendingAddress>
+      <PendingAddress kept={kept}>{children}</PendingAddress>
     </NextIntlClientProvider>
   );
 }
@@ -122,6 +127,7 @@ function roleList(
       filters={filters}
       editable={editable}
     />,
+    ROLE_KEPT,
   );
 }
 
@@ -686,17 +692,30 @@ describe("the grid of the access roles", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("finds the filters kept again on opening the screen at an address that says nothing of the grid, and records nothing for it", async () => {
+  it("says in the address a reading whose last filter is lifted, which empties the filters kept and is never filled in [WF-IHM-0060-A]", async () => {
     page.path = "/admin/access-roles";
-    const kept: GridPreferences = { filters: { search: "Chef", holder_count_min: "1" } };
-    render(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    page.search = "is_predefined=false";
+    const kept: GridPreferences = { filters: { is_predefined: "false" } };
+    const { rerender } = render(
+      roleList(false, NO_QUERY, { ...NO_ROLE_FILTER, predefined: false }, roles, kept),
+    );
+    // Both natures chosen: the address would say nothing of the grid, and says the search empty, so
+    // that the page does not find the filters kept again.
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Nature" }),
+      "Toutes les natures",
+    );
+    expect(lastAddress()).toBe("/admin/access-roles?search=");
+    page.search = "search=";
+    rerender(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    const client = server.client as FakeClient;
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith(
-        "/admin/access-roles?search=Chef&holder_count_min=1",
-        { scroll: false },
-      );
+      expect(client.calls).toHaveLength(1);
     });
-    expect((server.client as FakeClient).calls).toEqual([]);
+    expect(client.calls[0]?.body).toEqual({
+      grids: { access_roles: { hidden_columns: [], column_widths: {}, filters: {} } },
+    });
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("opens at the address that says the grid as it says it, and keeps a reading whose filters are lifted within the screen", async () => {
@@ -715,8 +734,8 @@ describe("the grid of the access roles", () => {
     await waitFor(() => {
       expect(client.calls).toHaveLength(2);
     });
-    // Lifted, back to an address that says nothing: kept as such, never filled in.
-    page.search = "";
+    // Lifted, the address says so: kept as such, never filled in.
+    page.search = "search=";
     rerender(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
     await waitFor(() => {
       expect(client.calls).toHaveLength(3);

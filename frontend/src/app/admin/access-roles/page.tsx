@@ -12,11 +12,14 @@
  * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
  * session that may modify the roles creates one in line, renames and deletes it in the table, and
  * writes its permissions in the matrix (US-0380/L2), the roles answered shared by both
- * (`RoleAnswers`); another, none. No screen creates
+ * (`RoleAnswers`); another, none. An address that says nothing of the table — neither sort, nor
+ * search, nor filter — leads, before anything is read, to the address of the search and the filters
+ * the account keeps for it, if it keeps any (`restoredAddress`, WF-IHM-0060). No screen creates
  * a permission. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
@@ -29,9 +32,16 @@ import {
 } from "@/components/admin/admin-grids";
 import { MatrixWrites } from "@/components/admin/permission-matrix";
 import { RoleAnswers } from "@/components/admin/role-answers";
-import { HOLDER_COUNT, PREDEFINED, rolesQuery } from "@/components/admin/role-address";
+import {
+  ACCESS_ROLES_PATH,
+  HOLDER_COUNT,
+  PREDEFINED,
+  ROLE_KEPT,
+  rolesQuery,
+} from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
 import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
+import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -93,6 +103,11 @@ export default async function AccessRolesPage({
     requestSession(),
   ]);
   const preferences = session?.display_preferences?.grids?.[ACCESS_ROLE_GRID_KEY] ?? undefined;
+  // An address that says nothing of the table: the filters kept, before anything is read.
+  const restored = restoredAddress(ACCESS_ROLES_PATH, search, ROLE_KEPT, preferences?.filters);
+  if (restored !== undefined) {
+    redirect(restored);
+  }
   const query = readGridQuery(search, ACCESS_ROLE_SORTS, preferences?.sort);
   const predefined = readBoolean(search, PREDEFINED);
   const holders = readBounds(search, HOLDER_COUNT, "count");
@@ -100,7 +115,7 @@ export default async function AccessRolesPage({
   const editable = platformOffer(session?.permissions, "access_roles") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.access_roles}>
-      <PendingAddress>
+      <PendingAddress kept={ROLE_KEPT}>
         <AccessRolesHeader />
         {editable ? (
           // The roles the server answered, one source for the table and the matrix.
