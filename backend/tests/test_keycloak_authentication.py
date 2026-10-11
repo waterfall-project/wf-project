@@ -377,17 +377,27 @@ def test_a_token_the_realm_lends_to_its_command_line_is_refused(
     assert (response.status_code, response.json()["code"]) == (401, "SESSION_REQUIRED")
 
 
+@pytest.mark.requirement("WF-SEC-0020-A")
 def test_closing_my_sessions_closes_them_on_every_device(
     api: ContractClient, database: Database, local_account: Account
 ) -> None:
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » Neither the refresh
+    # tokens of his devices, which Keycloak refuses, nor their access tokens, which the API
+    # refuses without waiting for their expiry (#668).
     known(database, local_account)
     office = tokens_of(local_account.email, PASSWORD)
     home = tokens_of(local_account.email, PASSWORD)
+    assert api.get(ME, headers=bearer(home)).status_code == 200
     response = api.delete(SESSIONS, headers=bearer(office))
     assert response.status_code == 204, response.text
     for device in (office, home):
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+        acting = api.get(ME, headers=bearer(device))
+        assert (acting.status_code, acting.json()["code"]) == (401, "SESSION_EXPIRED")
+    # Signed in again, from the next second on: the moment of issue is written to the second.
+    time.sleep(1.1)
+    assert api.get(ME, headers=bearer(tokens_of(local_account.email, PASSWORD))).status_code == 200
 
 
 def test_a_service_account_with_another_secret_is_a_defect_of_the_platform(

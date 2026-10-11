@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Who calls: the access token validated, the account read, its state checked, every request.
 
-The API takes nothing from the token but its subject (WF-ARC-0030): the account is read in the
-base by ``idp_subject``, and its state with it, so that a deactivated account is refused at its
-next request even if the closing of its sessions was lost (WF-SEC-0020). A subject Waterfall
-does not know yet is a person of the directory before the first reading of the accounts, or a
-person relayed by an external provider: her account is created without any role, after her
-origin is read from the administration API of Keycloak (WF-ADM-0180). Any other one is refused as
-an account Waterfall does not admit (#664) — not as a deactivated account, which it never was, nor
-as a missing session, to which the front would answer with a sign-in that brings back the same
-token, in a loop.
+The API takes nothing from the token but its subject and its moment of issue (WF-ARC-0030): the
+account is read in the base by ``idp_subject``, and its state with it, so that a deactivated
+account is refused at its next request even if the closing of its sessions was lost
+(WF-SEC-0020); a token issued before its holder closed her sessions is refused, whichever client
+it was lent to (#668). A subject Waterfall does not know yet is a person of the directory before
+the first reading of the accounts, or a person relayed by an external provider: her account is
+created without any role, after her origin is read from the administration API of Keycloak
+(WF-ADM-0180). Any other one is refused as an account Waterfall does not admit (#664) — not as a
+deactivated account, which it never was, nor as a missing session, to which the front would
+answer with a sign-in that brings back the same token, in a loop.
 
 No call to Keycloak is made inside a transaction (#669): the account is read, then admitted, each
 in a short transaction of its own, the origin being read between the two; a route that reads or
@@ -20,6 +21,7 @@ slow would exhaust the pool, and requests that do not need Keycloak would fail (
 
 from collections.abc import Generator
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
@@ -34,7 +36,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnauthenticatedError
-from waterfall.platform.keycloak import SESSION_REQUIRED, Keycloak
+from waterfall.platform.keycloak import SESSION_EXPIRED, SESSION_REQUIRED, Bearer, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 
@@ -82,8 +84,12 @@ def bearer_token(request: Request) -> str:
 
 
 def identify(request: Request, services: ServicesOf) -> Account:
-    """Give the account of the caller, created if the provider admits it, or refuse it (401)."""
-    subject = services.keycloak.subject_of(bearer_token(request))
+    """Give the account of the caller, created if the provider admits it, or refuse it (401).
+
+    A token issued before its holder closed her sessions is refused as an expired one (#668).
+    """
+    bearer = services.keycloak.validate(bearer_token(request))
+    subject = bearer.subject
     with services.database.transaction() as session:
         account = read_account_of_subject(session, subject)
     if account is None:
@@ -92,7 +98,19 @@ def identify(request: Request, services: ServicesOf) -> Account:
             account = admit(session, subject, provider)
     if not account.is_active:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
+    if issued_before_sign_out(bearer, account.sessions_closed_at):
+        raise UnauthenticatedError(SESSION_EXPIRED)
     return account
+
+
+def issued_before_sign_out(bearer: Bearer, sessions_closed_at: datetime | None) -> bool:
+    """Tell whether a token may have been issued before its holder last closed her sessions.
+
+    The moment of issue is written to the second: a token of the very second of the sign-out may
+    precede it, and is refused — a sign-in in that second is refused one token long, the next one
+    being issued later.
+    """
+    return sessions_closed_at is not None and bearer.issued_at <= sessions_closed_at
 
 
 def admit(session: Session, subject: str, provider: ProviderAccount | None) -> Account:

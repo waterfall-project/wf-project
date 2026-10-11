@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services, admit
+from waterfall.api.authentication import Services, admit, issued_before_sign_out
 from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
@@ -32,6 +32,7 @@ from waterfall.platform.errors import UnauthenticatedError, UnavailableError
 from waterfall.platform.keycloak import (
     KEYS_MAX_AGE_SECONDS,
     KEYS_REREAD_SECONDS,
+    Bearer,
     IdentityProviderError,
     Keycloak,
 )
@@ -165,12 +166,12 @@ def test_a_key_the_realm_adds_is_read_when_a_token_first_names_it(
 ) -> None:
     now = [1000.0]
     keycloak = Keycloak(realm_settings, clock=lambda: now[0])
-    assert keycloak.subject_of(realm.token(SUBJECT, KEY)) == SUBJECT
+    assert keycloak.validate(realm.token(SUBJECT, KEY)).subject == SUBJECT
     # The realm rotates its keys: the new one is read at the first token it signs.
     realm.add_key("key-2")
     now[0] += KEYS_REREAD_SECONDS
-    assert keycloak.subject_of(realm.token(SUBJECT, "key-2")) == SUBJECT
-    assert keycloak.subject_of(realm.token(SUBJECT, KEY)) == SUBJECT
+    assert keycloak.validate(realm.token(SUBJECT, "key-2")).subject == SUBJECT
+    assert keycloak.validate(realm.token(SUBJECT, KEY)).subject == SUBJECT
     assert realm.reads == 2
     keycloak.close()
 
@@ -199,6 +200,52 @@ def test_a_token_issued_by_a_clock_a_little_ahead_is_taken(
     account(database)
     ahead = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) + 60})
     assert api.get(ME, headers=bearer(ahead)).status_code == 200
+
+
+def test_a_token_without_a_moment_of_issue_is_refused(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # Without it, a token issued before its holder signed out could not be told (#668).
+    account(database)
+    for issued in (None, "yesterday", True):
+        token = realm.token(SUBJECT, KEY, claims={"iat": issued})
+        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REQUIRED")
+
+
+def test_a_sign_out_refuses_every_token_issued_before_it_whichever_client_holds_it(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The moment is noted before Keycloak is asked: the realm of test, which serves no
+    # administration API, fails then, and the tokens issued before are refused all the same —
+    # one lent to an application next to Waterfall's too, without waiting for its expiry (#668).
+    account(database)
+    now = int(time.time())
+    mine = realm.token(SUBJECT, KEY, claims={"iat": now - 1})
+    neighbour = realm.token(SUBJECT, KEY, claims={"iat": now - 1, "azp": "neighbour"})
+    assert api.get(ME, headers=bearer(neighbour)).status_code == 200
+    closing = api.delete(SESSIONS, headers=bearer(mine))
+    assert refusal(closing) == (503, "COMPONENT_UNAVAILABLE")
+    for token in (mine, neighbour):
+        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_EXPIRED")
+    # Signed in again, the next second.
+    again = realm.token(SUBJECT, KEY, claims={"iat": now + 1})
+    assert api.get(ME, headers=bearer(again)).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("issued", "refused"),
+    [(-1.0, True), (0.0, True), (0.999, True), (1.0, False)],
+    ids=["the second before", "its very second", "the same second", "the second after"],
+)
+def test_a_token_of_the_second_of_the_sign_out_may_precede_it_and_is_refused(
+    issued: float, refused: bool
+) -> None:
+    # The moment of issue is written to the second: 12:00:00 covers 12:00:00.000 to .999.
+    closed = datetime(2026, 10, 11, 12, 0, 0, 500_000, tzinfo=UTC)
+    second = datetime(2026, 10, 11, 12, 0, 0, tzinfo=UTC).timestamp()
+    bearer_of = Bearer(SUBJECT, datetime.fromtimestamp(int(second + issued), UTC))
+    assert issued_before_sign_out(bearer_of, closed) is refused
+    assert issued_before_sign_out(bearer_of, None) is False
 
 
 @pytest.mark.parametrize(
@@ -248,13 +295,13 @@ def test_a_key_unknown_to_the_realm_is_not_read_again_more_than_once_in_a_while(
     stranger = realm.token(SUBJECT, "no-such-key", key=new_key())
     for _ in range(3):
         with pytest.raises(UnauthenticatedError):
-            keycloak.subject_of(stranger)
+            keycloak.validate(stranger)
     assert realm.reads == 1
     now[0] += KEYS_REREAD_SECONDS
     with pytest.raises(UnauthenticatedError):
-        keycloak.subject_of(stranger)
+        keycloak.validate(stranger)
     assert realm.reads == 2
-    assert keycloak.subject_of(realm.token(SUBJECT, KEY)) == SUBJECT
+    assert keycloak.validate(realm.token(SUBJECT, KEY)).subject == SUBJECT
     assert realm.reads == 2
     keycloak.close()
 
@@ -267,7 +314,7 @@ def test_keys_the_realm_cannot_sign_with_are_a_defect_of_the_platform(
     keycloak = Keycloak(realm_settings.model_copy(update={"keycloak_address": empty.address}))
     try:
         with pytest.raises(IdentityProviderError, match="not usable"):
-            keycloak.subject_of(empty.token(SUBJECT, KEY, key=new_key()))
+            keycloak.validate(empty.token(SUBJECT, KEY, key=new_key()))
     finally:
         keycloak.close()
         empty.stop()
@@ -279,14 +326,14 @@ def test_a_key_the_realm_removes_stops_serving_once_the_keys_are_old(
     now = [1000.0]
     keycloak = Keycloak(realm_settings, clock=lambda: now[0])
     signed = realm.token(SUBJECT, KEY)
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     # The realm signs with a new key, and no longer trusts the old one: the keys are read again
     # within the life of an access token.
     realm.add_key("key-2")
     realm.remove_key(KEY)
     now[0] += KEYS_MAX_AGE_SECONDS
     with pytest.raises(UnauthenticatedError) as refused:
-        keycloak.subject_of(signed)
+        keycloak.validate(signed)
     assert refused.value.code == "SESSION_REQUIRED"
     assert realm.reads == 2
     keycloak.close()
@@ -298,12 +345,12 @@ def test_the_keys_already_read_serve_while_keycloak_does_not_answer(
     now = [1000.0]
     keycloak = Keycloak(realm_settings, clock=lambda: now[0])
     signed = realm.token(SUBJECT, KEY)
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     realm.stop()
     now[0] += KEYS_MAX_AGE_SECONDS
     # Not a 503 at every request: the keys of a moment ago, asked for again in a while.
     for _ in range(3):
-        assert keycloak.subject_of(signed) == SUBJECT
+        assert keycloak.validate(signed).subject == SUBJECT
     assert len(logs.named("identity_provider.unreachable")) == 1
     assert len(logs.named("identity_provider.keys_kept")) == 1
     keycloak.close()
@@ -314,7 +361,7 @@ def test_keys_keycloak_fails_to_serve_are_a_component_unavailable(
 ) -> None:
     realm.status = HTTPStatus.SERVICE_UNAVAILABLE
     with pytest.raises(UnavailableError) as refused:
-        keycloak.subject_of(realm.token(SUBJECT, KEY))
+        keycloak.validate(realm.token(SUBJECT, KEY))
     assert (refused.value.code, refused.value.params) == (
         "COMPONENT_UNAVAILABLE",
         {"component": "identity_provider"},
@@ -341,16 +388,16 @@ def test_a_failure_to_read_the_keys_is_given_again_until_they_are_read_again(
     signed = realm.token(SUBJECT, KEY)
     realm.status = status
     with pytest.raises(failure, match=message):
-        keycloak.subject_of(signed)
+        keycloak.validate(signed)
     # A second later, the failure of Keycloak again, not a session missing; it is not asked.
     now[0] += 1
     with pytest.raises(failure, match=message):
-        keycloak.subject_of(signed)
+        keycloak.validate(signed)
     assert realm.reads == 1
     # Keycloak back, the token is taken once the keys may be read again.
     realm.status = HTTPStatus.OK
     now[0] += KEYS_REREAD_SECONDS
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     assert realm.reads == 2
     keycloak.close()
 
@@ -361,20 +408,20 @@ def test_a_token_whose_key_is_not_held_while_keycloak_fails_is_a_component_unava
     now = [1000.0]
     keycloak = Keycloak(realm_settings, clock=lambda: now[0])
     signed = realm.token(SUBJECT, KEY)
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     # The realm adds a key while Keycloak fails: a token it signs is not one without a session.
     rotated = realm.token(SUBJECT, "key-2", key=realm.add_key("key-2"))
     realm.status = HTTPStatus.SERVICE_UNAVAILABLE
     now[0] += KEYS_REREAD_SECONDS
     for _ in range(2):
         with pytest.raises(UnavailableError):
-            keycloak.subject_of(rotated)
+            keycloak.validate(rotated)
         now[0] += 1
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     assert realm.reads == 2
     realm.status = HTTPStatus.OK
     now[0] += KEYS_REREAD_SECONDS
-    assert keycloak.subject_of(rotated) == SUBJECT
+    assert keycloak.validate(rotated).subject == SUBJECT
     keycloak.close()
 
 
@@ -397,21 +444,21 @@ def test_a_request_whose_key_is_held_does_not_wait_for_the_keys_being_read(
         realm_settings, clock=lambda: time.monotonic() + later[0], timeout=0.5, keys_reread=0.4
     )
     signed = realm.token(SUBJECT, KEY)
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     realm.delay = 5.0
     later[0] += KEYS_MAX_AGE_SECONDS
     with ThreadPoolExecutor(1) as reader:
-        reading = reader.submit(keycloak.subject_of, signed)
+        reading = reader.submit(keycloak.validate, signed)
         wait_until(lambda: realm.reads >= 2, "the second reading of the keys")
-        assert keycloak.subject_of(signed) == SUBJECT
+        assert keycloak.validate(signed).subject == SUBJECT
         assert not reading.done()
-        assert reading.result() == SUBJECT
+        assert reading.result().subject == SUBJECT
     # The delay between two readings counts from the end of the one that failed.
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     assert realm.reads == 2
     realm.delay = 0.0
     later[0] += 0.4
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     assert realm.reads == 3
     keycloak.close()
 
@@ -425,15 +472,15 @@ def test_a_request_whose_key_is_not_held_waits_a_while_for_the_keys_being_read(
     signed = realm.token(SUBJECT, KEY)
     realm.delay = 2.0
     with ThreadPoolExecutor(1) as reader:
-        reading = reader.submit(keycloak.subject_of, signed)
+        reading = reader.submit(keycloak.validate, signed)
         wait_until(lambda: realm.reads >= 1, "the reading of the keys")
         started = time.monotonic()
         with pytest.raises(UnavailableError) as refused:
-            keycloak.subject_of(signed)
+            keycloak.validate(signed)
         assert time.monotonic() - started < 1.0
         assert refused.value.code == "COMPONENT_UNAVAILABLE"
         assert not reading.done()
-        assert reading.result() == SUBJECT
+        assert reading.result().subject == SUBJECT
     assert realm.reads == 1
     keycloak.close()
 
@@ -446,16 +493,16 @@ def test_the_keys_already_read_serve_while_keycloak_serves_other_than_them(
     now = [1000.0]
     keycloak = Keycloak(realm_settings, clock=lambda: now[0])
     signed = realm.token(SUBJECT, KEY)
-    assert keycloak.subject_of(signed) == SUBJECT
+    assert keycloak.validate(signed).subject == SUBJECT
     rotated = realm.token(SUBJECT, "key-2", key=realm.add_key("key-2"))
     realm.status = HTTPStatus.NOT_FOUND
     now[0] += KEYS_MAX_AGE_SECONDS
     for _ in range(3):
-        assert keycloak.subject_of(signed) == SUBJECT
+        assert keycloak.validate(signed).subject == SUBJECT
     (kept,) = logs.named("identity_provider.keys_kept")
     assert kept["fault"] == "IdentityProviderError"
     with pytest.raises(IdentityProviderError, match="certs answered 404"):
-        keycloak.subject_of(rotated)
+        keycloak.validate(rotated)
     assert realm.reads == 2
     keycloak.close()
 
@@ -466,7 +513,7 @@ def test_keys_keycloak_does_not_serve_are_a_defect_of_the_platform(
     # The address of the keys answers, but not with them: the realm is not the one configured.
     realm.status = HTTPStatus.NOT_FOUND
     with pytest.raises(IdentityProviderError, match="certs answered 404"):
-        keycloak.subject_of(realm.token(SUBJECT, KEY))
+        keycloak.validate(realm.token(SUBJECT, KEY))
 
 
 def test_no_connection_is_held_while_keycloak_is_asked_for_a_caller_or_her_sessions(

@@ -9,7 +9,8 @@ account read, and the table of the accounts, filtered, sorted and read by pages,
 each one carries and the condition the deactivation of the last administrator lacks (WF-ADM-0050,
 WF-IHM-0090); a local account created, and the identity of an
 account changed (``identity``); an account deactivated or reactivated, and an account locked at the
-version read for a write of the roles it holds, which notes the change (``states``).
+version read for a write of the roles it holds, which notes the change (``states``); the moment its
+holder closed its sessions, which refuses the tokens issued before (#668).
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -34,6 +35,7 @@ from waterfall.core.users.accounts import (
     find_account_of_subject,
     find_active_accounts,
     lock_account_at,
+    note_sessions_closed,
 )
 from waterfall.core.users.commands import LAST_ADMINISTRATOR, CommandAvailability, account_commands
 from waterfall.core.users.identity import (
@@ -89,6 +91,7 @@ __all__ = [
     "list_accounts",
     "lock_account_for_change",
     "note_account_change",
+    "note_sessions_closed",
     "origin_of",
     "read_account",
     "read_account_label",
@@ -152,6 +155,8 @@ class Account:
     updated_at: datetime
     updated_by: Author | None
     lock_version: int
+    # When its holder last closed its sessions, ``None`` until she first does (#668).
+    sessions_closed_at: datetime | None
 
 
 def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
@@ -350,6 +355,7 @@ def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
             updated_at=account.updated_at,
             updated_by=None if account.updated_by is None else authors[account.updated_by],
             lock_version=account.lock_version,
+            sessions_closed_at=account.sessions_closed_at,
         )
         for account in accounts
     ]

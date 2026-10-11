@@ -86,6 +86,10 @@ class UserAccount(Base):
     avatar: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
     avatar_media_type: Mapped[str | None] = mapped_column(Text)
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
+    # When its holder last closed its sessions, null until she first does: a token issued before
+    # is refused (WF-SEC-0020, #668). Not a change of the account: neither its version nor its
+    # audit columns move.
+    sessions_closed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
