@@ -358,10 +358,19 @@
     "noSummary": "This plan has no summary task: the tree comes down to the project."
   },
   "timelines": {
-    "summary": "The tasks and milestones inscribed to each timeline of the project — read only.",
+    "summary": "The tasks and milestones inscribed to each timeline of the project, inscribed from the planning.",
     "choice": "Timeline shown",
     "none": "This project has no timeline.",
-    "empty": "No task of this revision is inscribed to this timeline."
+    "empty": "No task of this revision is inscribed to this timeline.",
+    "create": "New timeline",
+    "labelField": "Name",
+    "formHint": "A timeline bears a name, which others may share; the tasks and milestones are inscribed to it afterwards, from the planning.",
+    "created": "Timeline “{label}” created.",
+    "delete": "Delete",
+    "deleteNamed": "Delete the timeline “{label}”",
+    "deleteTitle": "Delete the timeline “{label}”?",
+    "deleteHint": "The timeline and its inscriptions will be deleted; the tasks and milestones keep their dates.",
+    "deleted": "Timeline “{label}” deleted."
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",

@@ -1182,6 +1182,21 @@ une suppression ôter sa ligne, ni un renommage changer son libellé.
 US-0200 (#798) puis L42s (#804), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
 ces notes gardent leurs apports d'abord.
 
+EP-14/L44f (#801), part détachée de L44c par la coupe du 2026-10-11, fait adopter par l'écran des
+chronologies ce que L42k a écrit au contrat : une chronologie se crée par son nom, dans le dialogue
+du formulaire du référentiel (`ReferenceForm`), et la chronologie montrée se supprime après
+confirmation, comme le projet liste `manage_timelines` (`createTimeline`, `deleteTimeline`) ; une
+chronologie supprimée quitte les liens, et ses tâches avec elle (`TimelineBody`) ; l'avis de la
+maquette le dit. Choix, faute de règle : la chronologie montrée supprimée, l'écran montre la
+première qui reste, ce que la page montre quand l'adresse n'en nomme aucune qui existe, et la
+dernière supprimée, il dit que le projet n'en a aucune ; une réponse arrivée l'écran quitté, ou une
+autre chronologie suivie, ne déplace rien ; une chronologie créée n'ajoute aucun lien, la page relue
+la range, comme un sous-projet créé ; la création et la suppression n'écrivant aucune version,
+aucune commande n'attend leur réponse, comme L54 l'a choisi pour les sous-projets. Ce que les tests
+ne prouvent pas : le contrat n'a d'exemple ni pour le refus de `createTimeline` ni pour celui de
+`deleteTimeline` (#803, reporté → EP-15) ; les tests passent par le refus avant l'envoi et par l'API
+hors d'atteinte. Le travail, fait avec L44c, est repris tel quel par cherry-pick.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : fini
