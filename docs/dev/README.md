@@ -266,7 +266,10 @@ export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent t
 navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
 appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
 la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
-l'envoi ; fermer le dialogue ne libère donc pas son écriture. Le clic se
+l'envoi ; fermer le dialogue ne libère donc pas son écriture. Tout refus retient le clic, même dit
+ailleurs que sur l'écran quitté : la relance d'une tâche refusée retient la navigation, bien que son
+refus soit dit dans le panneau des tâches de la coquille, qui survit à l'écran — une règle sans
+exception plutôt qu'une écriture à juger une à une. Le clic se
 juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
 les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
 cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
