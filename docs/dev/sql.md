@@ -123,7 +123,9 @@ Une table d'association qui ne porte que ses deux clés se supprime ligne à lig
 Le journal d'audit va plus loin : la base refuse toute mise à jour et toute suppression de ses
 inscriptions (WF-SEC-0030). Le rôle du service n'y a que `INSERT` et `SELECT`, et un déclencheur
 refuse la mise à jour, la suppression et la troncature à quiconque, propriétaire compris
-(`0003_audit_entry`). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+(`0003_audit_entry`) — à une exception : l'anonymisation d'un compte passe à NULL le libellé qui le
+désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le service n'a `UPDATE` que
+sur ces deux colonnes, et le déclencheur n'admet que cela (`0009_account_anonymization`, #702). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.
@@ -134,7 +136,7 @@ Les migrations passent par le propriétaire des tables ; l'API et le worker se c
 le rôle du service, qui ne possède rien et ne tient que ce que chaque table lui accorde. La
 migration qui crée une table lui accorde ce dont le service a besoin, au plus `SELECT`,
 `INSERT`, `UPDATE` et `DELETE`, jamais `TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT`
-seulement. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
+seulement, et `UPDATE` sur les deux libellés qu'une anonymisation efface. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
 base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
 d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
