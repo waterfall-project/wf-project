@@ -1,10 +1,10 @@
 # Règles de codage — Java
 
 Pour l'extension Keycloak de Waterfall (`deploy/keycloak/extension/`), et pour elle seule : le
-point d'entrée `password-setup-link` et la règle de politique `not-last-name` (EP-03,
-« Conception », « L'extension Keycloak »). Ce fichier complète le [guide](README.md) et les
-règles de [Python](python.md), dont il reprend la forme ; il ne recopie ni la conception
-d'EP-03, ni la documentation de Keycloak.
+point d'entrée `password-setup-link` et les règles de politique `not-last-name` et
+`local-account-only` (EP-03, « Conception », « L'extension Keycloak »). Ce fichier complète le
+[guide](README.md) et les règles de [Python](python.md), dont il reprend la forme ; il ne
+recopie ni la conception d'EP-03, ni la documentation de Keycloak.
 
 Une règle qu'un outil contrôle nomme son contrôle. Une règle que rien ne contrôle le dit :
 c'est la revue qui la tient.

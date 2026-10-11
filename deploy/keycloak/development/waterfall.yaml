@@ -18,6 +18,21 @@ smtpServer:
   from: waterfall@waterfall.test
   fromDisplayName: Waterfall (development)
 
+clients:
+  # The tokens the tests of the platform sign in for by a password (#644): a public client that
+  # serves nothing else, which the realm of an installation never has. Its tokens are not for the
+  # API — no audience waterfall-api — and carry no role of the realm.
+  - clientId: waterfall-test
+    name: Waterfall tests (development)
+    enabled: true
+    protocol: openid-connect
+    publicClient: true
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: true
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+
 identityProviders:
   - alias: external
     displayName: External provider (development)

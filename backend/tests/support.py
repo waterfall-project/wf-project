@@ -24,6 +24,7 @@ from waterfall.platform.keycloak_admin import (
     InvitationFailure,
     KeycloakAdmin,
     LocalIdentity,
+    PasswordLink,
     ProviderAccount,
 )
 from waterfall.platform.settings import ServiceSettings
@@ -235,3 +236,8 @@ class Watching(KeycloakAdmin):
         """Note, then close the sessions of an account."""
         self._note("close_sessions")
         super().close_sessions(subject)
+
+    def make_password_link(self, subject: str) -> PasswordLink | None:
+        """Note, then have the extension make the password link of an account."""
+        self._note("make_password_link")
+        return super().make_password_link(subject)

@@ -3,7 +3,8 @@
 """The client of Keycloak: the keys of the realm, and how Keycloak is reached (PBS-2.5).
 
 An access token is validated by the public keys of the realm — signature, issuer, audience,
-expiry — and gives nothing but its subject (WF-ARC-0030). The keys are kept, read again when a
+expiry — and gives nothing but its subject and the moment it was issued (WF-ARC-0030), which tells
+a token issued before its holder closed her sessions (#668). The keys are kept, read again when a
 token names a key that is not among them — the realm has added one — and when they have been
 kept for the life of an access token: a key the realm has removed stops serving within it. While
 Keycloak fails to give them — it does not answer, or answers what the realm does not serve —, the
@@ -20,9 +21,11 @@ import math
 import threading
 import time
 from collections.abc import Callable, Collection, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import partial
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, TypeIs, cast
 from urllib.parse import quote
 
 import httpx2
@@ -76,6 +79,23 @@ def expect(response: httpx2.Response, status: int) -> httpx2.Response:
     return response
 
 
+def is_moment(claim: object) -> TypeIs[int | float]:
+    """Tell whether a claim of a token is a moment, in seconds since the epoch."""
+    return isinstance(claim, int | float) and not isinstance(claim, bool)
+
+
+@dataclass(frozen=True, slots=True)
+class Bearer:
+    """What the API takes from a valid access token: whom it is lent to, and since when.
+
+    ``signed_in_at`` is the moment of the sign-in the token comes from, ``auth_time``, which a
+    refresh does not move; a token without it gives its moment of issue, ``iat`` (#835).
+    """
+
+    subject: str
+    signed_in_at: datetime
+
+
 class Keycloak:
     """The realm of Waterfall, as the API and the worker reach it."""
 
@@ -110,13 +130,13 @@ class Keycloak:
         """Close the connections to Keycloak."""
         self._http.close()
 
-    def subject_of(self, token: str) -> str:
-        """Validate an access token and give its subject, or refuse it (401).
+    def validate(self, token: str) -> Bearer:
+        """Validate an access token, give its subject and the moment of its sign-in, or refuse it.
 
-        An expired token is ``SESSION_EXPIRED``; any other fault — a key the realm does not
-        have, a signature that does not match, another issuer, another audience — is
-        ``SESSION_REQUIRED``. The signature is checked first: an expired token signed by another
-        key is not merely expired.
+        An expired token is ``SESSION_EXPIRED`` (401); any other fault — a key the realm does not
+        have, a signature that does not match, another issuer, another audience, no subject, no
+        moment of issue, or a moment of sign-in that is none — is ``SESSION_REQUIRED`` (401). The
+        signature is checked first: an expired token signed by another key is not merely expired.
         """
         try:
             key_id = jwt.get_unverified_header(token).get("kid")
@@ -132,18 +152,25 @@ class Keycloak:
                 algorithms=ALGORITHMS,
                 audience=AUDIENCE,
                 issuer=self.issuer,
-                # The moment of issue is not checked: a clock of Keycloak a second ahead of that
-                # of the API would refuse every new token. The expiry bounds the token.
-                options={"require": ["exp", "iss", "aud", "sub"], "verify_iat": False},
+                # The moment of issue is not checked against the clock: one of Keycloak a second
+                # ahead of that of the API would refuse every new token. The expiry bounds it.
+                options={"require": ["exp", "iat", "iss", "aud", "sub"], "verify_iat": False},
             )
         except jwt.ExpiredSignatureError:
             raise UnauthenticatedError(SESSION_EXPIRED) from None
         except jwt.PyJWTError:
             raise UnauthenticatedError(SESSION_REQUIRED) from None
         subject = claims["sub"]
-        if not isinstance(subject, str) or not subject:
+        issued_at = claims["iat"]
+        signed_in_at = claims.get("auth_time", issued_at)
+        if (
+            not isinstance(subject, str)
+            or not subject
+            or not is_moment(issued_at)
+            or not is_moment(signed_in_at)
+        ):
             raise UnauthenticatedError(SESSION_REQUIRED)
-        return subject
+        return Bearer(subject, datetime.fromtimestamp(signed_in_at, UTC))
 
     def send(
         self, method: str, path: str, *, answered: Collection[int] = (), **options: Any

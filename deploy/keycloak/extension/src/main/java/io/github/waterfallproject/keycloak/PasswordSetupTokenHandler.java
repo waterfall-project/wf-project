@@ -14,6 +14,7 @@ import org.keycloak.authentication.actiontoken.TokenUtils;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventType;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -21,6 +22,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
+import org.keycloak.services.util.ResolveRelative;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
@@ -30,7 +32,9 @@ import org.keycloak.sessions.AuthenticationSessionModel;
  * <p>It follows the handler of Keycloak's own "execute actions" links, with three differences: the
  * one action is to set the password, the link must be the last one made for the account, and it is
  * spent as soon as it is confirmed — its nonce leaves the account, in the database, so that neither
- * a restart of Keycloak nor a password set another way makes it valid again.
+ * a restart of Keycloak nor a password set another way makes it valid again. A spent link and a
+ * replaced one are refused each in its own words. Once the password is set, the page leads to
+ * Waterfall, the home of the front, which asks the person to sign in (#645).
  */
 public final class PasswordSetupTokenHandler
     extends AbstractActionTokenHandler<PasswordSetupToken> {
@@ -39,6 +43,9 @@ public final class PasswordSetupTokenHandler
 
   /** The message of a link a later one replaced, in the login theme of Waterfall. */
   private static final String REPLACED_MESSAGE = "waterfallPasswordLinkReplacedMessage";
+
+  /** The message of a link already used, in the login theme of Waterfall (#655). */
+  private static final String SPENT_MESSAGE = "waterfallPasswordLinkSpentMessage";
 
   /** Declares the handler of the tokens of type {@link PasswordSetupToken#TOKEN_TYPE}. */
   public PasswordSetupTokenHandler() {
@@ -57,12 +64,12 @@ public final class PasswordSetupTokenHandler
   public Predicate<? super PasswordSetupToken>[] getVerifiers(
       ActionTokenContext<PasswordSetupToken> context) {
     Predicate<DefaultActionToken> sameEmail = verifyEmail(context);
-    // A spent link is refused as Keycloak refuses a used one; a replaced link says so.
+    // A spent link says it served already; a replaced link, that a later one replaced it.
     Predicate<PasswordSetupToken> notSpent =
         TokenUtils.checkThat(
             token -> hasLink(context.getAuthenticationSession().getAuthenticatedUser()),
             Errors.EXPIRED_CODE,
-            Messages.EXPIRED_ACTION);
+            SPENT_MESSAGE);
     Predicate<PasswordSetupToken> lastLink =
         TokenUtils.checkThat(
             token -> isLastLink(token, context.getAuthenticationSession().getAuthenticatedUser()),
@@ -91,9 +98,12 @@ public final class PasswordSetupTokenHandler
       return confirmation(token, context, authSession);
     }
     UserModel user = authSession.getAuthenticatedUser();
-    // Confirmed, the link is spent: the form it opens stays open, the link no longer opens one.
+    // Confirmed, the link is spent: it no longer opens a form. The form it opened stays open
+    // unless the link is opened again in the same browser, whose refusal ends the session of the
+    // form: the person then asks for a new link (#655).
     user.removeAttribute(PasswordSetupToken.NONCE_ATTRIBUTE);
     authSession.addRequiredAction(UPDATE_PASSWORD);
+    leadToWaterfall(context.getSession(), authSession);
     // The link reached the address it was made for: the address is proved.
     user.setEmailVerified(true);
     KeycloakSession session = context.getSession();
@@ -102,6 +112,21 @@ public final class PasswordSetupTokenHandler
             session, authSession, context.getRequest(), context.getEvent());
     return AuthenticationManager.redirectToRequiredActions(
         session, context.getRealm(), authSession, context.getUriInfo(), next);
+  }
+
+  /**
+   * Has the page that ends the setting of the password lead to the home of the front, which the
+   * realm declares for its client, rather than end without a way back (#645). Set by the realm, the
+   * address is not one a link could carry: nothing is read from the token.
+   */
+  private static void leadToWaterfall(KeycloakSession session, AuthenticationSessionModel auth) {
+    ClientModel client = auth.getClient();
+    String home =
+        ResolveRelative.resolveRelativeUri(session, client.getRootUrl(), client.getBaseUrl());
+    if (home != null && !home.isBlank()) {
+      auth.setAuthNote(AuthenticationManager.SET_REDIRECT_URI_AFTER_REQUIRED_ACTIONS, "true");
+      auth.setRedirectUri(home);
+    }
   }
 
   /** Tells whether the account has a link not yet spent. */

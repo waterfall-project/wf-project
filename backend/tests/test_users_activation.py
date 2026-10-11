@@ -9,6 +9,7 @@ reaches it and fails there, which the API says in its log and answers all the sa
 itself is tried against the platform (``test_keycloak_authentication.py``).
 """
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
@@ -141,7 +142,9 @@ def test_a_deactivated_account_is_refused_and_reactivated_signs_in_with_its_role
         "ACCOUNT_DEACTIVATED",
     )
     assert activate(client, headers, jeanne_id, is_active=True, lock_version=1).status_code == 200
-    after = client.get(ME, headers=bearer(realm.token(JEANNE, KEY))).json()
+    # Signed in again, after the deactivation, which refuses every sign-in before it (#835).
+    again = realm.token(JEANNE, KEY, claims={"auth_time": int(time.time()) + 1})
+    after = client.get(ME, headers=bearer(again)).json()
     assert (after["access_role_ids"], after["permissions"]) == (
         before["access_role_ids"],
         before["permissions"],
@@ -176,6 +179,33 @@ def test_the_deactivation_of_an_account_signed_in_twice_interrupts_both_at_their
         assert problem(client.get(ME, headers=device))[:2] == (401, "ACCOUNT_DEACTIVATED")
     # Asked once the deactivation is committed, with no connection held (#669).
     assert watching.held == [("close_sessions", 0)]
+
+
+@pytest.mark.requirement("WF-SEC-0020-A")
+def test_a_token_refreshed_after_a_deactivation_then_a_reactivation_is_refused(
+    client: ContractClient,
+    database: Database,
+    realm: TestRealm,
+    headers: dict[str, str],
+    logs: Logs,
+) -> None:
+    # « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête
+    # suivante. » — and a reactivation does not resume them. The realm of test closes no session,
+    # as a Keycloak that fails: the session left open refreshes its token, issued after the
+    # reactivation, but signed in before the deactivation, which noted its moment (#835).
+    paul = account(database, "Durand", "Paul", idp_subject="kc-paul")
+    signed_in = int(time.time()) - 60
+    office = bearer(realm.token("kc-paul", KEY, claims={"auth_time": signed_in}))
+    assert client.get(ME, headers=office).status_code == 200
+    assert activate(client, headers, paul, is_active=False).status_code == 200
+    assert logs.named("account.sessions_not_closed")
+    assert activate(client, headers, paul, is_active=True, lock_version=1).status_code == 200
+    after = int(time.time()) + 1
+    refreshed = bearer(realm.token("kc-paul", KEY, claims={"auth_time": signed_in, "iat": after}))
+    assert problem(client.get(ME, headers=refreshed))[:2] == (401, "SESSION_EXPIRED")
+    # The account reactivated signs in again.
+    again = bearer(realm.token("kc-paul", KEY, claims={"auth_time": after, "iat": after}))
+    assert client.get(ME, headers=again).status_code == 200
 
 
 @pytest.mark.requirement("WF-ADM-0120-A")

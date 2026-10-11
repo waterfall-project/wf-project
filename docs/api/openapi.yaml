@@ -115,6 +115,8 @@ paths:
     $ref: ./paths/access.yaml#/~1users~1{user_id}~1anonymization
   /users/{user_id}/access-roles:
     $ref: ./paths/access.yaml#/~1users~1{user_id}~1access-roles
+  /users/{user_id}/password-link:
+    $ref: ./paths/access.yaml#/~1users~1{user_id}~1password-link
   /users/{user_id}/avatar:
     $ref: ./paths/access.yaml#/~1users~1{user_id}~1avatar
   /identity-syncs:

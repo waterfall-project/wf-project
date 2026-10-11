@@ -2,14 +2,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Who calls: the access token validated, the account read, its state checked, every request.
 
-The API takes nothing from the token but its subject (WF-ARC-0030): the account is read in the
-base by ``idp_subject``, and its state with it, so that a deactivated account is refused at its
-next request even if the closing of its sessions was lost (WF-SEC-0020). A subject Waterfall
-does not know yet is a person of the directory before the first reading of the accounts, or a
-person relayed by an external provider: her account is created without any role, after her
-origin is read from the administration API of Keycloak (WF-ADM-0180). Any other one is refused
-as a deactivated account is — and not as a missing session, to which the front would answer
-with a sign-in that brings back the same token, in a loop.
+The API takes nothing from the token but its subject and the moment of its sign-in (WF-ARC-0030):
+the account is read in the base by ``idp_subject``, and its state with it, so that a deactivated
+account is refused at its next request even if the closing of its sessions was lost
+(WF-SEC-0020); a token of a sign-in before the account last closed its sessions — signed out
+(#668) or deactivated (#835) — is refused, whichever client it was lent to, refreshed or not.
+A subject Waterfall does not know yet is a person of the directory before the first reading of
+the accounts, or a person relayed by an external provider: her account is created without any
+role, after her origin is read from the administration API of Keycloak (WF-ADM-0180). Any other
+one is refused as an account Waterfall does not admit (#664) — not as a deactivated account,
+which it never was, nor as a missing session, to which the front would answer with a sign-in that
+brings back the same token, in a loop.
 
 No call to Keycloak is made inside a transaction (#669): the account is read, then admitted, each
 in a short transaction of its own, the origin being read between the two; a route that reads or
@@ -19,6 +22,7 @@ slow would exhaust the pool, and requests that do not need Keycloak would fail (
 
 from collections.abc import Generator
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
@@ -33,11 +37,12 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnauthenticatedError
-from waterfall.platform.keycloak import SESSION_REQUIRED, Keycloak
+from waterfall.platform.keycloak import SESSION_EXPIRED, SESSION_REQUIRED, Bearer, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
+ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
 SCHEME = "bearer"
 
 logger = get_logger(__name__)
@@ -80,8 +85,13 @@ def bearer_token(request: Request) -> str:
 
 
 def identify(request: Request, services: ServicesOf) -> Account:
-    """Give the account of the caller, created if the provider admits it, or refuse it (401)."""
-    subject = services.keycloak.subject_of(bearer_token(request))
+    """Give the account of the caller, created if the provider admits it, or refuse it (401).
+
+    A token of a sign-in that precedes the last closing of the sessions of the account — its
+    holder's sign-out (#668), its deactivation (#835) — is refused as an expired one.
+    """
+    bearer = services.keycloak.validate(bearer_token(request))
+    subject = bearer.subject
     with services.database.transaction() as session:
         account = read_account_of_subject(session, subject)
     if account is None:
@@ -90,14 +100,29 @@ def identify(request: Request, services: ServicesOf) -> Account:
             account = admit(session, subject, provider)
     if not account.is_active:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
+    if signed_in_before_sessions_closed(bearer, account.sessions_closed_at):
+        raise UnauthenticatedError(SESSION_EXPIRED)
     return account
+
+
+def signed_in_before_sessions_closed(bearer: Bearer, sessions_closed_at: datetime | None) -> bool:
+    """Tell whether the sign-in of a token may precede the last closing of the account's sessions.
+
+    The sign-in, not the issue: a token refreshed since, of a session Keycloak failed to close,
+    is refused all the same, and an account deactivated then reactivated signs in again (#835).
+    The moment is written to the second: a sign-in of the very second of the closing may precede
+    it, and is refused, rather than let a session the closing missed act on — the person signs in
+    again, as after any closing.
+    """
+    return sessions_closed_at is not None and bearer.signed_in_at <= sessions_closed_at
 
 
 def admit(session: Session, subject: str, provider: ProviderAccount | None) -> Account:
     """Create the account of a person Waterfall does not know yet, or refuse her (401).
 
     ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none. The
-    creation is inscribed in the journal of audit by the platform (#703).
+    creation is inscribed in the journal of audit by the platform (#703). A refusal says
+    ``ACCOUNT_NOT_ADMITTED``; its cause is written in the log only.
     """
     admitted = (
         NotAdmitted.UNKNOWN_TO_PROVIDER
@@ -106,8 +131,7 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     )
     if isinstance(admitted, NotAdmitted):
         logger.warning("account.not_admitted", subject=subject, reason=admitted.value)
-        # TODO(#664): a code of its own; an account never created is not a deactivated one.
-        raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
+        raise UnauthenticatedError(ACCOUNT_NOT_ADMITTED)
     logger.info("account.created", user_id=str(admitted.user_id), origin=admitted.origin)
     return admitted
 
