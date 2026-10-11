@@ -253,6 +253,7 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
 });
 
@@ -603,10 +604,7 @@ describe("the grid of the planning", () => {
   const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
 
   beforeEach(() => {
-    server.answers = {
-      ...server.answers,
-      [NODES_READ]: "nodes_planning",
-    };
+    server.answers = { ...server.answers, [NODES_READ]: "nodes_planning" };
   });
 
   it("shows the tasks of the main structure, asking the server for the tasks alone, the same grid as the estimate", async () => {

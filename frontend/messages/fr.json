@@ -345,7 +345,8 @@
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
-    "notComputableReason": " — {reason}"
+    "notComputableReason": " — {reason}",
+    "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
   },
   "gantt": {
     "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
@@ -1696,7 +1697,10 @@
     "maximum": "Valeur maximale : {maximum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
-    "expected_version": "Version attendue : {version}."
+    "expected_version": "Version attendue : {version}.",
+    "order_item_task": "Tâche du poste : {task}.",
+    "work_package_tasks": "{count, plural, one {Tâche du lot en cause} other {Tâches des lots en cause}} : {tasks}.",
+    "taskName": "« {label} »"
   },
   "permissions": {
     "users": {

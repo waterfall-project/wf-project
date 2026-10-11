@@ -180,6 +180,26 @@ describe("the rates written while the page is read anew", () => {
     expect(result.current.outcome).toMatchObject({ problem: { code: "STALE_LOCK_VERSION" } });
   });
 
+  it("marks the cell refused until it is written, another cell written leaving it marked, the notice told", async () => {
+    const { result } = writes(RATES, first);
+    const { entry, answer, refuse } = held<RateRow, null>();
+    const key = entered.cost_category_id;
+    await enter(result.current, MECHANICAL, "year_2015", entry);
+    await refuse(0, {
+      kind: "refused",
+      problem: { code: "VALUE_OUT_OF_RANGE", status: 422 },
+      conflictingObjectId: null,
+    });
+    expect(result.current.refused(key, "year_2015")).toBe(true);
+    await enter(result.current, MECHANICAL, "year_2016", entry);
+    await answer(1, rate(corrected));
+    expect(result.current.refused(key, "year_2015")).toBe(true);
+    await enter(result.current, MECHANICAL, "year_2015", entry);
+    await answer(2, rate(entered));
+    expect(result.current.refused(key, "year_2015")).toBe(false);
+    expect(result.current.outcome).toMatchObject({ problem: { code: "VALUE_OUT_OF_RANGE" } });
+  });
+
   it("keeps the rate of 2015 and takes that of 2016 when a reading anew between the two carries the first alone", async () => {
     const { result, rerender } = writes(RATES, first);
     const { entry, answer } = held<RateRow, null>();

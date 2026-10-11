@@ -1182,6 +1182,59 @@ une suppression ôter sa ligne, ni un renommage changer son libellé.
 US-0200 (#798) puis L42s (#804), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
 ces notes gardent leurs apports d'abord.
 
+EP-14/L44d (#617), lot technique, fait adopter par la grille de planning ce que L42k et L42s ont écrit
+au contrat pour le squelette et le rattachement, et fait avancer #513, qui reste ouvert jusqu'à L44f
+(#801) :
+- la colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé que le
+  serveur résout ; là où la révision liste `edit_planning`, sa cellule le choisit parmi les postes et
+  les lots du lotissement lu entier (`getWorkBreakdown` sans filtre), ou rien, écrit par
+  `updateTaskFacet` — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le
+  porte, jamais les deux non nuls (WF-PLA-0170) — ; une tâche dont le lotissement lu ne connaît pas
+  l'élément n'est pas saisie ;
+- le refus est dit par le motif de son champ — un élément déjà porté, nommant la tâche qui le porte
+  (`conflicting_object_label`), les deux à la fois, une structure qui n'en porte pas, un lot hors du
+  sous-arbre de son poste, nommant la tâche du poste et celles des lots par leur libellé (L42s) — ;
+  comme tout refus de l'écriture d'une cellule, au-dessus de la grille, la cellule marquée et décrite
+  par lui (`aria-invalid`, `aria-describedby`, `DenseGrid`) ;
+- dans la grille vide, le squelette s'offre comme la révision liste `generate_skeleton` : indisponible
+  avec sa condition dès que la structure comporte une tâche (WF-PRJ-0030), absent à côté des tâches ;
+  `generatePlanningSkeleton` remplit la grille de sa réponse tant que le compteur de la structure
+  qu'elle rend est plus récent que celui de la lecture, jamais la grille d'une autre structure ; son
+  409 nomme la première condition qui manque ; l'écran dit alors, à la place de la commande, combien
+  de tâches il a engendrées, et le focus y passe ;
+- l'avis de la maquette est dit dès que la grille saisit ou offre le squelette (`MockupNotice`).
+
+Choix, faute d'une règle de la spécification ou du contrat : « dit à la cellule » est la cellule
+marquée et décrite par l'avis du refus, au-dessus de la grille, pour toute grille, plutôt qu'une bulle
+propre ; le refus d'un rattachement prend le motif de son premier champ à la place de
+`VALIDATION_FAILED`, les paramètres de chaque champ gardés (`byField`) ; un poste et un lot se nomment
+dans la liste par leur nature avant leur libellé, le lotissement par défaut leur donnant le même ; le
+squelette s'offre au-dessus de la grille vide, non dans sa ligne vide, et sa réponse reste à la
+structure où elle a été engendrée ; le lotissement n'est lu que pour une révision qui liste
+`edit_planning`, et son refus fait tomber l'écran comme toute lecture (`readOrFail`).
+
+La relecture 1 a ajouté : la région « Commandes » d'une révision ne liste plus ce que ses écrans
+offrent eux-mêmes — ses saisies, que chaque grille prend comme la révision les liste (`edit_planning`,
+`edit_estimate`, `edit_remaining`, `edit_risks`), et le squelette, que la grille de planning vide offre
+— ; restent la déclaration d'un risque, la création et la fusion d'une structure, le marquage, la
+désignation comme référence et l'abandon ; une cellule refusée, écrite ensuite avec succès, n'est plus
+marquée, l'avis restant dit jusqu'à ce qu'on le ferme ; la cellule est décrite aussi par le paragraphe
+qui nomme l'objet en conflit, la tâche qui porte déjà le poste ou le lot.
+
+Ce que les tests ne prouvent pas : le contrat n'a pas d'exemple de succès d'un rattachement — la
+réponse éprouvée est le renommage de « Câblage des armoires » (`task_renamed`), et ni le test ni le
+parcours ne voient une cellule changer de poste ou de lot ; le faux back servant la révision du témoin,
+dont la structure porte ses tâches, le parcours ne voit pas le squelette, éprouvé sur les exemples par
+les tests du composant et de la page (`revision_without_tasks`, `nodes_empty`, `skeleton_generated`) ;
+qu'il ne soit jamais proposé sur un différentiel ni sur le devis propre d'un risque tient à ce que seule
+la grille de planning l'offre, sur la structure principale, et que l'opération vise la révision :
+aucun test ne le prouve à part ; un refus qui porte deux motifs à la fois n'a pas d'exemple, et seul le
+premier se dit ; les refus s'éprouvent sur une tâche des études, quelle que soit celle que l'exemple
+nomme.
+
+L44c (#813), fusionné avant lui, a été fusionné dans le lot, sans rebase : ces notes gardent son
+apport d'abord.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : fini
