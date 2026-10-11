@@ -10,6 +10,8 @@
 import { CircleAlert, LogIn } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { loginHref, NEXT_PARAMETER } from "@/navigation/login";
 
 /** The query of the page, as Next gives it. */
@@ -21,19 +23,20 @@ interface UnavailableProps {
 function Unavailable({ href }: { readonly href: string }) {
   const t = useTranslations();
   return (
-    <main className="space-y-4 px-5 py-4">
-      <div role="alert" className="space-y-2">
-        <h1 className="flex items-center gap-2 text-lg font-semibold">
-          <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-          {t("failure.unreachable.title")}
-        </h1>
-        <p>{t("failure.signInUnreachable")}</p>
-      </div>
-      <a href={href} className="inline-flex items-center gap-1.5 font-medium underline">
-        <LogIn aria-hidden="true" className="size-4" />
+    <Screen>
+      <PageHeader
+        title={t("failure.unreachable.title")}
+        icon={CircleAlert}
+        subtitle={t("failure.signInUnreachable")}
+      />
+      <a
+        href={href}
+        className={buttonVariants({ variant: "outline", size: "sm", className: "w-fit" })}
+      >
+        <LogIn aria-hidden="true" />
         {t("outcome.signIn")}
       </a>
-    </main>
+    </Screen>
   );
 }
 

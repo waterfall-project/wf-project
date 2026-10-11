@@ -200,12 +200,9 @@ export async function forgetSession(id: string): Promise<void> {
 
 /** Close every session of an account: on all its workstations (WF-SEC-0020). */
 export async function forgetAccount(subject: string): Promise<void> {
-  await (
-    await redis()
-  ).eval(FORGET_ACCOUNT, {
-    keys: [`${ACCOUNT}${subject}`],
-    arguments: [SESSION],
-  });
+  await reaching((client) =>
+    client.eval(FORGET_ACCOUNT, { keys: [`${ACCOUNT}${subject}`], arguments: [SESSION] }),
+  );
 }
 
 /** Take the lock of the refresh of a session for a while, in milliseconds, unless another holds it. */
