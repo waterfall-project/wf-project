@@ -3,8 +3,8 @@
 /**
  * The server actions of a project — created (`createProject`), its identity and its facts modified
  * (`updateProject`), taken out of its lifecycle (`exitProject`) —, of its sub-projects
- * (`writeSubproject`, `deleteSubproject`), of its contributors (`setContributors`) and of its work
- * breakdown (`setWorkBreakdown`): the browser
+ * (`writeSubproject`, `deleteSubproject`), of its contributors (`setContributors`), of its work
+ * breakdown (`setWorkBreakdown`) and of its timelines (`createTimeline`, `deleteTimeline`): the browser
  * asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder
  * makes of its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what
  * the server now retains.
@@ -141,6 +141,37 @@ export async function setWorkBreakdown(
         params: { path: { project_id: projectId } },
         body: breakdown,
       }),
+    ),
+  );
+}
+
+/** Create a named timeline of a project, which no task is inscribed to yet (WF-PLA-0140). */
+export async function createTimeline(
+  projectId: string,
+  label: string,
+): Promise<Outcome<Schemas["Timeline"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST("/projects/{project_id}/timelines", {
+        params: { path: { project_id: projectId } },
+        body: { label },
+      }),
+    ),
+  );
+}
+
+/**
+ * Delete a timeline of a project, its inscriptions with it, the tasks keeping their dates
+ * (WF-PLA-0140, WF-DAT-0080): nothing refuses it but the project, terminal (403).
+ */
+export async function deleteTimeline(projectId: string, timelineId: string): Promise<Settled> {
+  return readAnew(
+    settled(
+      await decode(() =>
+        serverClient().DELETE("/projects/{project_id}/timelines/{timeline_id}", {
+          params: { path: { project_id: projectId, timeline_id: timelineId } },
+        }),
+      ),
     ),
   );
 }

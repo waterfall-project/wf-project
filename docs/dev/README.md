@@ -574,7 +574,8 @@ tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree`
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
 (FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt. Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
+dessinées comme le Gantt ; elles se créent par leur nom et la chronologie montrée se supprime après
+confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre

@@ -3,8 +3,8 @@
 /**
  * The form that creates or modifies an object of the reference data, in a dialog over its list
  * (EP-02/L43) — or a project, its identity and its facts (EP-02/L44a), or a sub-project of a project
- * (EP-02/L44b), the settings of the risks or of the indicators (EP-14/L43e), or the schedule of the
- * backups (EP-14/L43d) —: the fields of its kind, each by the pointer of the contract it writes
+ * (EP-02/L44b), the settings of the risks or of the indicators (EP-14/L43e), the schedule of the
+ * backups (EP-14/L43d), or a timeline of a project (EP-14/L44c) —: the fields of its kind, each by the pointer of the contract it writes
  * (`code`, `capacity/monthly_hours`), a text, a number, a whole number, a date of planning, a time of
  * day or a choice — or a value the object lists no command to change, shown fixed, read-only, and
  * sent as it is (EP-02/L42g). A field may say a note under it, which describes it: why it is fixed,
@@ -161,11 +161,12 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
   "target" | "onClose" | "onClosed"
 > {
   /**
-   * What the form writes: a kind of object of the reference data, a project, a sub-project or the
-   * settings of the installation — what names the holder of a value already taken when neither the
-   * list nor the refusal does (`takenByAnother`).
+   * What the form writes: a kind of object of the reference data, a project, a sub-project, a
+   * timeline or the settings of the installation — what names the holder of a value already taken
+   * when neither the list nor the refusal does (`takenByAnother`).
    */
-  readonly kind: ListForm["kind"] | "project" | "subproject" | "settings" | "backup_schedule";
+  readonly kind:
+    ListForm["kind"] | "project" | "subproject" | "timeline" | "settings" | "backup_schedule";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
