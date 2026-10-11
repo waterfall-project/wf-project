@@ -24,7 +24,9 @@
  * with it, the totals (`useCellWrites`). A block pasted from a spreadsheet on the active cell is
  * shown as the server would write and refuse it, and its valid rows written once confirmed, in one
  * operation, what was not written told (WF-IHM-0050, `useGridPaste`). A grid that enters a
- * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`).
+ * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`). A screen
+ * may give its rows commands, in the bar on the row of the active cell and in the menu of a cell on
+ * its row (`RowCommands`): the work breakdown edited in its grid (EP-14/L44c).
  *
  * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
  * `useGridFold`): a `treegrid`, each row telling its level, its place among its siblings and
@@ -112,7 +114,14 @@ import {
   recordedPreferences,
   useSettingsWriter,
 } from "./settings";
-import { CellMenu, UndoAnnouncer, useUndoShortcut } from "./undo-commands";
+import {
+  CellMenu,
+  hasCellMenu,
+  onRows,
+  type RowCommands,
+  UndoAnnouncer,
+  useUndoShortcut,
+} from "./undo-commands";
 
 /**
  * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
@@ -178,6 +187,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * in it, for a reading not narrowed.
    */
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
+  /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
+  readonly commands?: RowCommands<Row> | undefined;
 }
 
 /** How a cell of a column is pinned: its classes, and its offset from the start. */
@@ -659,6 +670,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   around,
   foldScope,
   narrowing,
+  commands,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -795,6 +807,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     },
   });
   const invalid = useId();
+  const screenCommands = onRows(commands, (index) => model[index]?.original);
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
     draft: keyboard.draft,
@@ -802,7 +815,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     pending: writes.pending,
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
-    menu: undoable === true || folding.menu !== undefined,
+    menu: hasCellMenu(undoable, folding.menu, screenCommands.menu),
     foldKeys: FOLD_KEYS[foldReach],
     editor: (draft, column) =>
       column.entry === undefined ? null : (
@@ -827,6 +840,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
         outline={folding.outline}
+        commands={screenCommands.bar(cursor.active.row)}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
@@ -919,6 +933,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         </TableHeader>
         <CellMenu
           offered={undoable}
+          commands={screenCommands.menu}
           folding={
             folding.menu === undefined
               ? undefined

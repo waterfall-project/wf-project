@@ -222,7 +222,15 @@ sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas e
 par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
 EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses postes et
 ses lots ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
-à `setWorkBreakdown` ; les
+à `setWorkBreakdown` ; sa ligne de totaux compte les seuls éléments retenus, par nature (`is_match`,
+#574), et il se saisit dans sa grille comme le projet liste `update_work_breakdown`, indisponible
+aussi pendant un traitement de fond (EP-14/L42s ; `breakdown-commands.tsx`, EP-14/L44c) : chaque
+geste — un élément ajouté, renommé ou supprimé, du menu d'une cellule sur sa ligne ou de la barre
+sur la ligne de la cellule active (`RowCommands` de `DenseGrid`) — envoie le lotissement entier
+depuis sa lecture entière, que la page relit quand la grille le lit filtré, l'élément ajouté sans
+identifiant ; une suppression se confirme, celle d'un poste ou d'un lot en disant que les tâches qui
+le portent restent et perdent leur rattachement (WF-PLA-0170) ; un refus par champ qui vise
+l'élément du dialogue est dit à son champ, celui qui en vise un autre le nomme ; les
 sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
 lui sur chaque colonne (`subproject_sort_by`) et filtrés sur leurs coûts réels
 (`subproject_has_actual_costs`) ; les contributeurs, cherchés par le serveur sur le nom du compte

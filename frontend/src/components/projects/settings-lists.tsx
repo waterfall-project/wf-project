@@ -15,7 +15,8 @@
  * when nothing narrows it: a search or a filter that retains nothing keeps its grid, to be changed.
  * The sub-projects are created, modified and deleted as the project lists `update`
  * (`subproject-commands.tsx`), the list of the contributors written as it lists
- * `manage_contributors` (`contributor-commands.tsx`, EP-02/L44b); the work breakdown is read only.
+ * `manage_contributors` (`contributor-commands.tsx`, EP-02/L44b), and the work breakdown edited in
+ * its grid as it lists `update_work_breakdown` (`breakdown-commands.tsx`, EP-14/L44c).
  */
 import { FolderTree, ListTree, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -28,6 +29,7 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import { listReads } from "@/components/reference/address";
 import { ListBody, ReferenceSection } from "@/components/reference/section";
 
+import { BreakdownCommands, type BreakdownEditing, BreakdownHead } from "./breakdown-commands";
 import {
   ContributorCommands,
   type ContributorEditing,
@@ -91,13 +93,14 @@ function partialNote(
  * labels and filtered on its kinds by the server. Read partial — without a counter, as the server
  * reads it filtered —, the order items and the work packages that hold an element retained show
  * without the rest they hold, which the list says; and a partial reading that retains nothing keeps
- * its grid, to be changed.
+ * its grid, to be changed — as does an empty one its commands edit, for an order item to be added.
  */
 export function WorkBreakdownList({
   breakdown,
   project,
   kinds = [],
   shown = UNASKED,
+  editing,
 }: {
   readonly breakdown: WorkBreakdown;
   /** The project whose work breakdown it is. */
@@ -105,37 +108,48 @@ export function WorkBreakdownList({
   /** The kinds the address restricts the work breakdown to; none, every one. */
   readonly kinds?: readonly BreakdownKind[];
   readonly shown?: Shown<never>;
+  /**
+   * What the work breakdown is written from, as the project lists `update_work_breakdown`; none,
+   * read only.
+   */
+  readonly editing?: BreakdownEditing | undefined;
 }) {
   const t = useTranslations("projectLists.workBreakdown");
   const named = useTranslations("enums.WorkBreakdownKind");
-  const items = breakdown.order_items.length;
   // The server says the reading partial — filtered — by giving it no counter.
   const partial = breakdown.lock_version === null;
+  const none = breakdown.order_items.length === 0 && !partial;
+  const edited = editing?.offer !== undefined;
   return (
-    <ListSection
-      title={t("title")}
-      icon={ListTree}
-      empty={items === 0 && !partial ? t("none") : undefined}
-    >
-      <ValuesFilter
-        name={BREAKDOWN_KIND_FILTER}
-        label={t("kindFilter")}
-        every={t("everyKind")}
-        values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
-        chosen={kinds}
-      />
-      {partial ? (
-        <p className="text-sm text-muted-foreground">{t(partialNote(shown.query.search, kinds))}</p>
-      ) : null}
-      <SettingsGrid
-        kind="workBreakdown"
-        rows={breakdownRows(breakdown)}
-        project={project}
-        items={items}
-        query={shown.query}
-        preferences={shown.preferences}
-      />
-    </ListSection>
+    // Keyed by the project: an answer of the server never outlives its project.
+    <BreakdownCommands key={project} editing={editing}>
+      <ListSection
+        title={t("title")}
+        icon={ListTree}
+        empty={none && !edited ? t("none") : undefined}
+      >
+        <ValuesFilter
+          name={BREAKDOWN_KIND_FILTER}
+          label={t("kindFilter")}
+          every={t("everyKind")}
+          values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+          chosen={kinds}
+        />
+        {partial || none ? (
+          <p className="text-sm text-muted-foreground">
+            {t(partial ? partialNote(shown.query.search, kinds) : "none")}
+          </p>
+        ) : null}
+        <BreakdownHead />
+        <SettingsGrid
+          kind="workBreakdown"
+          rows={breakdownRows(breakdown)}
+          project={project}
+          query={shown.query}
+          preferences={shown.preferences}
+        />
+      </ListSection>
+    </BreakdownCommands>
   );
 }
 
