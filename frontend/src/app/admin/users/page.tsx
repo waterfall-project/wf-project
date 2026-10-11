@@ -10,31 +10,35 @@
  * `include_inactive`, `offset`), the nodes offered in the order of the tree, the roles as
  * `listAccessRoles` gives them — none to a session that may not read them; the
  * deactivated accounts listed unless the address says `include_inactive=false`. Every figure as the
- * API gives it: the front sorts, filters and pages nothing. No screen offers to delete an account;
- * a session that may modify the accounts is offered the commands — create a local account in the
- * header, modify, deactivate or reactivate, attribute the roles on each account —, which EP-03
- * wires (#379); another, none. A read the API refuses, or cannot answer, is thrown for the pages
- * of the shell to say; a tree of the organisation it does not find leaves the screen standing,
- * without a node to choose.
+ * API gives it: the front sorts, filters and pages nothing. An address that says nothing of the
+ * table — neither sort, nor search, nor filter — leads, before anything is read, to the address of
+ * the search and the filters the account keeps for it, if it keeps any (`restoredAddress`,
+ * WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a session that may modify
+ * the accounts, the table is its own entry (US-0360, #379); to another, none. A read the API
+ * refuses, or cannot answer, is thrown for the pages of the shell to say; a tree of the
+ * organisation it does not find leaves the screen standing, without a node to choose.
  */
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
-import { CreateCommand, LaterCommands } from "@/components/admin/later-commands";
 import {
   ACCESS_ROLES,
   ORG_NODE,
   ORIGINS,
   readAccountState,
+  USER_KEPT,
   USER_ORIGINS,
+  USERS_PATH,
   usersQuery,
 } from "@/components/admin/user-address";
 import { platformOffer } from "@/components/commands/offer";
 import { readValues } from "@/components/grid/filters";
+import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readGridQuery } from "@/components/grid/query";
 import { identifierOf } from "@/components/reference/address";
@@ -51,16 +55,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.users");
 }
 
-/** The title of the screen, and the command that creates a local account for who may. */
-function UsersHeader({ editable }: { readonly editable: boolean }) {
+/** The title of the screen. */
+function UsersHeader() {
   const t = useTranslations("functions");
   return (
-    <PageHeader
-      title={t("users")}
-      icon={FUNCTION_ICONS.users}
-      density={FUNCTION_DENSITY.users}
-      actions={editable ? <CreateCommand /> : undefined}
-    />
+    <PageHeader title={t("users")} icon={FUNCTION_ICONS.users} density={FUNCTION_DENSITY.users} />
   );
 }
 
@@ -99,6 +98,11 @@ export default async function UsersPage({
     requestSession(),
   ]);
   const preferences = session?.display_preferences?.grids?.[USER_GRID_KEY] ?? undefined;
+  // An address that says nothing of the table: the filters kept, before anything is read.
+  const restored = restoredAddress(USERS_PATH, search, USER_KEPT, preferences?.filters);
+  if (restored !== undefined) {
+    redirect(restored);
+  }
   const query = readGridQuery(search, USER_SORTS, preferences?.sort);
   const origins = readValues(search, ORIGINS, USER_ORIGINS);
   const orgNode = identifierOf(search, ORG_NODE);
@@ -124,25 +128,22 @@ export default async function UsersPage({
   ]);
   return (
     <Screen density={FUNCTION_DENSITY.users} fill>
-      {/* The filters, the grid and the pages compose the changes they make to the address; the
-      commands share the region that says what they do. */}
-      <PendingAddress>
-        <LaterCommands>
-          <UsersHeader editable={editable} />
-          <UserList
-            users={users.items}
-            page={users.meta}
-            query={query}
-            preferences={preferences}
-            origins={origins}
-            nodes={nodes}
-            orgNode={orgNode}
-            roles={roles}
-            accessRoles={accessRoles}
-            active={active}
-            editable={editable}
-          />
-        </LaterCommands>
+      {/* The filters, the grid and the pages compose the changes they make to the address. */}
+      <PendingAddress kept={USER_KEPT}>
+        <UsersHeader />
+        <UserList
+          users={users.items}
+          page={users.meta}
+          query={query}
+          preferences={preferences}
+          origins={origins}
+          nodes={nodes}
+          orgNode={orgNode}
+          roles={roles}
+          accessRoles={accessRoles}
+          active={active}
+          editable={editable}
+        />
       </PendingAddress>
     </Screen>
   );

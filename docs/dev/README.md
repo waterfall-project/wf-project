@@ -60,7 +60,7 @@ transaction, sous la corrélation de la requête : le dépôt dans le flux suit 
 tâche dont le dépôt s'est perdu reste `queued`, que le worker redépose au démarrage puis
 périodiquement. Le worker (`waterfall.worker.runner`) exécute la tâche dans une seule transaction,
 sous un verrou consultatif qui lui est propre, par le traitement de son genre — une fonction
-`(session, tâche)` que `HANDLERS` (`waterfall.worker.main`) enregistre, et qui refuse par une
+`(session, tâche)` que `handlers(réglages)` (`waterfall.worker.main`) enregistre, et qui refuse par une
 exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
 ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
 tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Les
@@ -168,6 +168,17 @@ en US-0400/L2. L'image de l'avatar,
 servie par l'API seule, est lue par le serveur de Next en rendant la page et écrite dans la
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
+
+Un nom de compte ne s'affiche que par `useAccountNaming`
+(`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
+nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
+journal, l'auteur d'une transition, les colonnes d'audit d'un objet. L'API rend nuls les noms
+d'un compte anonymisé, sans phrase à leur place (WF-ADM-0060, WF-ARC-0110) : un nom nul se dit
+par le libellé neutre du catalogue (`accountName.anonymized`, « Compte anonymisé »), jamais par
+un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul rendu,
+`AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
+grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
+`kept(null)`.
 
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
@@ -962,21 +973,30 @@ matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier admi
 (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
 à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
 de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
-Pour les comptes, décidé par l'auteur le 2026-10-08 (#379, #515) : des boutons
-seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
-`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
-en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
-« Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
-absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; la désactivation du dernier compte actif qui porte les permissions de
-modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
-pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
-le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
-ces permissions — un refus dit comme tout autre. Un
-clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
-section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
-condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
-aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+Pour les comptes (US-0360, #379), la table est sa propre saisie, à une session qui porte
+`users.write` (`platformOffer`) : le nom et le prénom d'un compte local dans leurs cellules
+(`updateUser`), ceux d'un compte de l'annuaire ou d'un fournisseur restant en lecture (WF-ADM-0050) ;
+l'état sur un interrupteur, son mot à côté (`setUserActivation`) ; les rôles dans une liste à choix
+multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
+`user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
+commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
+sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
+comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
+ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
+retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
+Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
+(`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
+part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi pendant
+qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle a
+répondue, et l'interrupteur et les rôles de la ligne se marquent occupés et indisponibles
+(`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route. Ce que fait une écriture — un
+renommage compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur ou des
+rôles, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa
+cellule. La recherche et les
+filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
+table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
+se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -1402,7 +1422,7 @@ commande.
 | `make check-all` | toutes les familles de contrôles |
 | `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
 | `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
 | `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
@@ -1421,7 +1441,9 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
 | `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur, par lequel le worker la sauvegarde ; il s'écrit aussi dans une URL |
+| `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
+| `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
 | `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
 | `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
@@ -1791,6 +1813,7 @@ les migrations et les verrous.
 - **Un parcours de bout en bout** — voir ci-dessous.
 - **Un test contre PostgreSQL** — voir ci-dessous.
 - **Un test contre Redis** — voir ci-dessous.
+- **Un test contre le stockage objet** — voir ci-dessous.
 
 Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
 retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
@@ -1858,6 +1881,21 @@ test défait.
 - Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
   sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
   processus à la fois.
+
+### Un test contre le stockage objet
+
+Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la plateforme de service
+(PBS-3.3) : la variable `WATERFALL_TEST_STORAGE_URL` le désigne avec une clé qui peut créer un
+compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
+(`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
+supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
+Debian et d'Ubuntu, d'une version au moins égale à celle du serveur.
+
+- **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
+  reçoit pas les arguments qu'il demande — et pose la variable.
+- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
+  `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
+- **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
 
 ### Un test contre Redis
 

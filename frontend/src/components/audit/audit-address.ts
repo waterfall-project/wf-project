@@ -86,6 +86,7 @@ const EVERY_ACTION: Readonly<Record<AuditAction, null>> = {
   user_update: null,
   user_deactivate: null,
   user_reactivate: null,
+  user_anonymize: null,
   password_link_create: null,
   access_role_create: null,
   access_role_update: null,

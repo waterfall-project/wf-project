@@ -44,28 +44,55 @@ User:
       properties:
         available_commands:
           type: array
-          maxItems: 2
+          maxItems: 3
           description: >-
             Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
-            `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses
-            rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
-            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100).
+            `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est
+            désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas
+            présentée ; la liste est vide pour
+            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
+            et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
+            d'habilitation (`access_roles.write`, WF-ADM-0090).
             Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier
             administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste
             est refusé par son code d'erreur.
           items: { $ref: '#/UserCommandAvailability' }
 
+UserCreated:
+  description: >-
+    Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est
+    partie (WF-ADM-0140).
+  allOf:
+    - $ref: '#/User'
+    - type: object
+      required: [invitation_sent]
+      properties:
+        invitation_sent:
+          type: boolean
+          description: >-
+            Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien
+            de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
+            (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
+            pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
+            (`createPasswordSetupLink`).
+
 UserCommand:
   type: string
-  enum: [deactivate, reactivate, set_access_roles]
+  enum: [deactivate, reactivate, anonymize, set_access_roles]
   description: >-
     Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
-    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles
-    d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui
-    change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte
-    toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
-    (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de
+    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par
+    `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par
+    `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état :
+    `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
+    anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
+    `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est
+    pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours
+    `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
+    (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
+    d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
+    WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
     modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa
     désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est
     disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste
@@ -73,7 +100,7 @@ UserCommand:
     davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
     attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
     `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
-    disponible.
+    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
 
 UserCommandAvailability:
   type: object
@@ -96,6 +123,7 @@ UserAccount:
     - last_name
     - first_name
     - email
+    - anonymized_at
     - is_active
     - origin
     - org_node_label
@@ -105,12 +133,29 @@ UserAccount:
     - lock_version
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
-    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    last_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    first_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
     email:
-      type: string
-      format: email
-      description: Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
+      anyOf: [{ type: string, format: email }, { type: 'null' }]
+      description: >-
+        Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle
+        pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    anonymized_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un
+        compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs
+        sont nuls, et le front le présente partout sous le libellé neutre de son catalogue,
+        l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son
+        identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas.
     is_active:
       type: boolean
       description: >-
@@ -195,6 +240,13 @@ UserActivationWrite:
     is_active: { type: boolean }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+UserAnonymizationWrite:
+  type: object
+  required: [lock_version]
+  description: L'anonymisation d'un compte désactivé, à la version lue (`anonymizeUser`).
+  properties:
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
 UserRolesWrite:
   type: object
   required: [access_role_ids, lock_version]
@@ -211,6 +263,12 @@ DisplayPreferences:
     réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne
     change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme,
     chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut.
+    Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
+    (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64
+    caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus,
+    la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est
+    refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
+    défaut ; un nom trop long, au pointeur de l'objet qui le porte.
   properties:
     language:
       type: string
@@ -231,6 +289,8 @@ DisplayPreferences:
     highlight_tasks_added_after_reference: { type: boolean }
     grids:
       type: object
+      maxProperties: 100
+      propertyNames: { maxLength: 64 }
       additionalProperties:
         anyOf: [{ $ref: '#/GridPreferences' }, { type: 'null' }]
 
@@ -239,9 +299,12 @@ GridPreferences:
   properties:
     hidden_columns:
       type: array
-      items: { type: string }
+      maxItems: 64
+      items: { type: string, maxLength: 64 }
     column_widths:
       type: object
+      maxProperties: 64
+      propertyNames: { maxLength: 64 }
       additionalProperties: { type: integer, minimum: 20 }
     sort:
       anyOf:
@@ -251,12 +314,17 @@ GridPreferences:
             Le tri tel que la grille le demande au serveur : `column` est une valeur
             du `sort_by` de l'opération qui la sert.
           properties:
-            column: { type: string }
+            column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
         - type: 'null'
     filters:
       type: object
-      additionalProperties: true
+      description: >-
+        La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
+        paramètre sous son nom, avec sa valeur en texte.
+      maxProperties: 20
+      propertyNames: { maxLength: 64 }
+      additionalProperties: { type: string, maxLength: 500 }
 
 PermissionCode:
   type: string

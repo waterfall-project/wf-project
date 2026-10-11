@@ -19,7 +19,6 @@ import { refusedBounds } from "@/components/grid/filters";
 import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
-import { CreateCommand, LaterCommands } from "./later-commands";
 import { ROLE_KEPT } from "./role-address";
 import {
   ACCESS_ROLE_SORTS,
@@ -53,6 +52,10 @@ type Schemas = components["schemas"];
 const NO_QUERY = { sort: undefined, search: undefined };
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const second = example("users_page") as { items: User[]; meta: Schemas["PaginationMeta"] };
+const anonymized = example("users_anonymized") as {
+  items: User[];
+  meta: Schemas["PaginationMeta"];
+};
 const roles = example("access_roles") as AccessRole[];
 const roleChoices = roles.map((role) => ({ id: role.access_role_id, label: role.label }));
 const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
@@ -87,21 +90,19 @@ function userList(
   } = {},
 ) {
   return inFrench(
-    <LaterCommands>
-      <UserList
-        users={shown.items}
-        page={shown.meta}
-        query={query}
-        preferences={undefined}
-        origins={filters.origins ?? []}
-        nodes={nodes}
-        orgNode={filters.orgNode}
-        roles={roleChoices}
-        accessRoles={filters.accessRoles ?? []}
-        active={filters.active}
-        editable={filters.editable ?? false}
-      />
-    </LaterCommands>,
+    <UserList
+      users={shown.items}
+      page={shown.meta}
+      query={query}
+      preferences={undefined}
+      origins={filters.origins ?? []}
+      nodes={nodes}
+      orgNode={filters.orgNode}
+      roles={roleChoices}
+      accessRoles={filters.accessRoles ?? []}
+      active={filters.active}
+      editable={filters.editable ?? false}
+    />,
   );
 }
 
@@ -185,7 +186,7 @@ describe("the grid of the accounts", () => {
     render(userList());
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
     expect(within(grid).getByRole("row", { name: /^Moreau/ }).textContent).toBe(
-      "MoreauAlixalix.moreau@example.comCréé dans WaterfallChef de projetBureau d'études électricitéDésactivé",
+      "MoreauAlixalix.moreau@example.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé",
     );
     expect(grid.querySelector("tfoot tr")?.textContent).toBe("7 comptes");
     // The header of every column is grey, as that of every table (#508).
@@ -197,7 +198,7 @@ describe("the grid of the accounts", () => {
     async (column) => {
       page.search = "offset=2";
       const { rerender } = render(userList(NO_QUERY, second));
-      const heading = headingOf(userGrid(false).columns, column);
+      const heading = headingOf(userGrid().columns, column);
       const header = () =>
         within(screen.getByRole("grid", { name: "Comptes utilisateurs" })).getByRole("button", {
           name: heading,
@@ -335,115 +336,15 @@ describe("the grid of the accounts", () => {
   });
 });
 
-describe("the commands and the state of the accounts", () => {
-  it("offers to a session that may modify the accounts to modify each, to deactivate or reactivate it as it is, and to attribute its roles, each saying it is available with EP-03, and to delete none", async () => {
-    const { container } = render(userList(NO_QUERY, users, { editable: true }));
+describe("an anonymised account", () => {
+  it("presents neither its name nor its address, the neutral label in their place [WF-ADM-0060-A]", () => {
+    render(userList(NO_QUERY, anonymized));
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(7);
-    expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
-      7,
+    const row = within(grid).getAllByRole("row")[1];
+    expect(row).toHaveTextContent(
+      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé$/,
     );
-    // Alix Moreau, deactivated, is offered her reactivation; the six others their deactivation.
-    expect(within(grid).getAllByRole("button", { name: /^Désactiver «/ })).toHaveLength(6);
-    expect(
-      within(grid).getByRole("button", { name: "Réactiver «\u00a0Alix Moreau\u00a0»" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
-    const told = screen.getByRole("status");
-    await userEvent.click(
-      within(grid).getByRole("button", { name: "Désactiver «\u00a0Lucas Petit\u00a0»" }),
-    );
-    expect(told.textContent).toBe(
-      "Désactiver «\u00a0Lucas Petit\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    expect(router.push).not.toHaveBeenCalled();
-    await expectAccessible(container);
-  });
-
-  it("presents the deactivation of the last administrator unavailable, naming the condition she lacks, the attribution of her roles available, as the account lists them [WF-ADM-0120-A]", async () => {
-    render(userList(NO_QUERY, users, { editable: true }));
-    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    // Camille Martin is the one account active that holds the permissions of administration.
-    const deactivation = within(grid).getByRole("button", {
-      name: "Désactiver «\u00a0Camille Martin\u00a0»",
-    });
-    const unmet =
-      "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.";
-    expect(deactivation).toHaveAttribute("aria-disabled", "true");
-    expect(deactivation).toHaveAccessibleDescription(unmet);
-    // A press does not run it: it says the condition it lacks.
-    await userEvent.click(deactivation);
-    expect(screen.getByRole("status").textContent).toBe(
-      `Désactiver «\u00a0Camille Martin\u00a0»\u00a0: ${unmet}`,
-    );
-    // Giving her more roles takes none of her permissions away: the attribution stays available.
-    const attribution = within(grid).getByRole("button", {
-      name: "Attribuer les rôles de «\u00a0Camille Martin\u00a0»",
-    });
-    expect(attribution).not.toHaveAttribute("aria-disabled");
-    await userEvent.click(attribution);
-    expect(screen.getByRole("status").textContent).toBe(
-      "Attribuer les rôles de «\u00a0Camille Martin\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    // Another account active is no last administrator: its deactivation is available.
-    expect(
-      within(grid).getByRole("button", { name: "Désactiver «\u00a0Lucas Petit\u00a0»" }),
-    ).not.toHaveAttribute("aria-disabled");
-  });
-
-  it("presents no command an account does not list, its modification kept to a session that may modify the accounts", () => {
-    // Dominique Bernard read as a session would that the server listed none of her commands for.
-    const bare = {
-      ...users,
-      items: users.items.map((user, at) => (at === 0 ? { ...user, available_commands: [] } : user)),
-    };
-    render(userList(NO_QUERY, bare, { editable: true }));
-    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    const name = "«\u00a0Dominique Bernard\u00a0»";
-    expect(within(grid).getByRole("button", { name: `Modifier ${name}` })).toBeInTheDocument();
-    for (const command of ["Désactiver", "Réactiver", "Attribuer les rôles de"]) {
-      expect(within(grid).queryByRole("button", { name: `${command} ${name}` })).toBeNull();
-    }
-    expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
-      6,
-    );
-  });
-
-  it("tells the creation of a local account pressed in the header when the list holds no account, nothing narrowing it", async () => {
-    const none = { items: [], meta: { limit: 50, offset: 0, total: 0 } };
-    render(
-      inFrench(
-        <LaterCommands>
-          <CreateCommand />
-          <UserList
-            users={none.items}
-            page={none.meta}
-            query={NO_QUERY}
-            preferences={undefined}
-            origins={[]}
-            nodes={nodes}
-            orgNode={undefined}
-            roles={roleChoices}
-            accessRoles={[]}
-            active={undefined}
-            editable
-          />
-        </LaterCommands>,
-      ),
-    );
-    expect(screen.getByText("Aucun compte.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    expect(screen.getByRole("status").textContent).toBe(
-      "Créer un compte local\u00a0: disponible avec EP-03.",
-    );
-  });
-
-  it("presents no command of the accounts to a session that may not modify them", () => {
-    render(userList());
-    expect(
-      screen.queryByRole("button", { name: /^(Modifier|Désactiver|Réactiver|Attribuer)/ }),
-    ).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
 });
 

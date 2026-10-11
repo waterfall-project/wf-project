@@ -12,10 +12,10 @@ export interface Examples {
     200: "access_roles" | "access_roles_composed" | "access_roles_unheld";
   };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
+    200: "audit_events" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
   };
   "GET /audit-events/facets": {
-    200: "audit_facets";
+    200: "audit_facets" | "audit_facets_anonymized";
   };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
@@ -198,7 +198,7 @@ export interface Examples {
     200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
   };
   "PATCH /access-roles/{access_role_id}": {
     200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
@@ -226,6 +226,9 @@ export interface Examples {
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "PATCH /users/{user_id}": {
+    200: "user_renamed" | "user_renamed_deactivated";
   };
   "POST /access-roles": {
     201: "access_role_created";
@@ -278,6 +281,9 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
+  "POST /users/{user_id}/anonymization": {
+    200: "user_anonymized";
+  };
   "POST /users/{user_id}/password-link": {
     201: "password_setup_link";
   };
@@ -313,5 +319,11 @@ export interface Examples {
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_deactivated" | "resource_role_reactivated";
+  };
+  "PUT /users/{user_id}/access-roles": {
+    200: "user_access_roles_cleared" | "user_access_roles_set" | "user_access_roles_two";
+  };
+  "PUT /users/{user_id}/activation": {
+    200: "user_deactivated";
   };
 }

@@ -8,7 +8,7 @@
  * and a command the server lists unavailable — a node under a deactivated parent, a role under a
  * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
  * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
- * role an account holds is (`later-commands.tsx`): a press does not run it, and says in the region of
+ * role an account holds is (`role-commands.tsx`): a press does not run it, and says in the region of
  * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
  * `commands.tsx`.
  *
@@ -38,6 +38,7 @@ import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
+import { cn } from "@/components/ui/utils";
 import { readingOf } from "@/navigation/pages";
 
 import { CellCommand } from "./cell-command";
@@ -158,10 +159,13 @@ interface Kept extends Reported {
  */
 export function Reactivations({
   reads,
+  fill = false,
   children,
 }: {
   /** The parameters of the address the list reads (`listReads`). */
   readonly reads: readonly string[];
+  /** Whether the list takes the height left in its section, a grid of a screen of its own. */
+  readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
   const [reported, setReported] = useState<readonly Kept[]>([]);
@@ -216,7 +220,10 @@ export function Reactivations({
     <div
       ref={list}
       tabIndex={-1}
-      className="flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        "flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        fill && "flex-1",
+      )}
     >
       <ToldConditions told={told?.generation === generation ? told : undefined} />
       {reported

@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import func, insert, select, update
-from support import ContractClient, Logs, Watching, raw_account
+from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_platform import (
     ADDRESS_VARIABLE,
     BACKCHANNEL_VARIABLE,
@@ -197,11 +197,15 @@ def bearer(tokens: dict[str, Any]) -> dict[str, str]:
 
 def served_settings() -> ServiceSettings:
     """Give the settings of an API served on the Keycloak of the platform."""
-    # The database is the test's own, given to the application apart, and Redis serves nothing yet.
+    # The database is the test's own, given to the application apart; Redis and the object storage
+    # serve nothing here.
     return ServiceSettings.model_validate(
         {
             "database_url": "postgresql://unused@127.0.0.1/unused",
             "redis_url": "redis://unused",
+            "storage_address": "http://127.0.0.1:9",
+            "storage_access_key": "unused",
+            "storage_secret": "unused",
             "keycloak_address": required(ADDRESS_VARIABLE),
             "keycloak_backchannel": required(BACKCHANNEL_VARIABLE),
             "service_client_secret": required(SERVICE_CREDENTIAL_VARIABLE),
@@ -212,7 +216,7 @@ def served_settings() -> ServiceSettings:
 def served_api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
     """Give a client of the API on ``database`` and the Keycloak of the platform, watched (#669)."""
     watching = Watching(keycloak, served_settings(), database)
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -274,7 +278,7 @@ def api(
     contract: OpenAPI, database: Database, keycloak: Keycloak, keycloak_admin: Watching
 ) -> ContractClient:
     """Give a client of the API on the database of the test and the Keycloak of the platform."""
-    app = create_app(Services(database, keycloak, keycloak_admin))
+    app = create_app(Services(database, keycloak, keycloak_admin, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -560,13 +564,13 @@ def new_address() -> str:
 def changing_accounts(database: Database, account: Account) -> dict[str, str]:
     """Make an account of the realm one Waterfall knows, which may change the accounts.
 
-    Give the header of its token.
+    It may give roles as well. Give the header of its token.
     """
     row = known(database, account)
     role(
         database,
         "Gestion des comptes",
-        permissions=("users.read", "users.write"),
+        permissions=("users.read", "users.write", "access_roles.write"),
         holders=(row["id"],),
     )
     return bearer(tokens_of(account.email, PASSWORD))
@@ -624,8 +628,9 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     assert (held.get("federationLink"), held["enabled"]) == (None, True)
     assert admin.get(f"/users/{subject}/federated-identity").json() == []
     assert admin.get(f"/users/{subject}/credentials").json() == []
-    # Invited by the extension, with a link of its own (#651).
+    # Invited by the extension, with a link of its own (#651), which the answer says (#816).
     assert action_token(mailed_link(email.lower()))["typ"] == EXTENSION_ACTION
+    assert body["invitation_sent"] is True
     # Keycloak is asked with no connection of the database held (#669).
     assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
 
@@ -771,7 +776,7 @@ def test_the_account_that_overtook_a_creation_in_the_provider_is_named(
     administrator: dict[str, str],
 ) -> None:
     racing = Racing(keycloak, settings, database)
-    app = create_app(Services(database, keycloak, racing))
+    app = create_app(Services(database, keycloak, racing, *nowhere()))
     client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     response = client.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 409, response.text
@@ -818,7 +823,7 @@ def deleting(
 ) -> tuple[ContractClient, Deleting]:
     """Give a client of the API during whose creation of an account a role goes, and the role."""
     administration = Deleting(keycloak, settings, database, role(database, "Rôle supprimé"))
-    app = create_app(Services(database, keycloak, administration))
+    app = create_app(Services(database, keycloak, administration, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract), administration
 
 
@@ -859,6 +864,8 @@ def test_an_account_is_created_on_a_realm_without_a_mail_server_its_link_given_b
     with mail_server(server):
         response = api.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 201, response.text
+    # The answer says it, and the screen offers the link at once (#816).
+    assert response.json()["invitation_sent"] is False
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],
@@ -886,7 +893,7 @@ def vanishing(
     contract: OpenAPI, database: Database, keycloak: Keycloak, settings: ServiceSettings
 ) -> ContractClient:
     """Give a client of the API whose accounts leave the realm as soon as it creates them."""
-    app = create_app(Services(database, keycloak, Vanishing(keycloak, settings)))
+    app = create_app(Services(database, keycloak, Vanishing(keycloak, settings), *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -894,7 +901,7 @@ def test_an_account_whose_invitation_fails_is_created_all_the_same(
     vanishing: ContractClient, administrator: dict[str, str], logs: Logs
 ) -> None:
     response = vanishing.post(USERS, headers=administrator, json=jeanne(new_address()))
-    assert response.status_code == 201, response.text
+    assert (response.status_code, response.json()["invitation_sent"]) == (201, False)
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],
@@ -935,6 +942,7 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
     # closes the sessions of both devices: neither refreshes its tokens, which Keycloak notifies
     # the front of.
     user_id, devices = signed_in_twice(database, colleague, "planning.read")
+    assert [api.get(ME, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body = {"is_active": False, "lock_version": 0}
     path = f"{USERS}/{user_id}/activation"
     response = api.request("PUT", path, headers=administrator, json=body)
@@ -962,3 +970,29 @@ def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_
         assert (answer.status_code, answer.json()["code"]) == (404, "NOT_FOUND")
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+def test_a_local_account_anonymized_is_removed_from_the_realm(
+    api: ContractClient,
+    database: Database,
+    administrator: dict[str, str],
+    colleague: Account,
+    admin: httpx2.Client,
+) -> None:
+    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité »,
+    # before the anonymisation is written (#856).
+    row = known(database, colleague, state="deactivated")
+    body = {"lock_version": 0}
+    path = f"{USERS}/{row['id']}/anonymization"
+    response = api.request("POST", path, headers=administrator, json=body)
+    assert response.status_code == 200, response.text
+    assert (response.json()["anonymized_at"] is not None, response.json()["email"]) == (True, None)
+    assert admin.get(f"/users/{colleague.id}").status_code == 404
+    # One the realm no longer holds — removed by an anonymisation the write refused after all —
+    # is anonymised when asked again.
+    gone = raw_account(email="gone@example.org", state="deactivated")
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**gone))
+    path = f"{USERS}/{gone['id']}/anonymization"
+    again = api.request("POST", path, headers=administrator, json=body)
+    assert (again.status_code, again.json()["email"]) == (200, None)

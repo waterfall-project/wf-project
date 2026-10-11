@@ -1,10 +1,11 @@
 {
-  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380).",
+  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380) ; sur la table des comptes, les seuls comptes créés dans Waterfall qui sont actifs (US-0360).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000301",
     "last_name": "Martin",
     "first_name": "Camille",
     "email": "camille.martin@example.com",
+    "anonymized_at": null,
     "is_active": true,
     "origin": "local",
     "org_node_id": null,
@@ -52,6 +53,14 @@
           "filters": {
             "is_predefined": "false",
             "holder_count_min": "1"
+          }
+        },
+        "users": {
+          "hidden_columns": [],
+          "column_widths": {},
+          "filters": {
+            "origins": "local",
+            "is_active": "true"
           }
         }
       }

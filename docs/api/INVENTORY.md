@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**158 opérations sur 124 chemins, dans 13 familles.**
+**159 opérations sur 125 chemins, dans 13 familles.**
 Le contrat cite **187 des 211 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -16,7 +16,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/health` | Sonde de vivacité | — |
-| GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-INTF-0160 |
+| GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
@@ -33,12 +33,12 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/me` | Mon compte et mes préférences | WF-ADM-0040, WF-ADM-0050, WF-ADM-0060, WF-ADM-0110, WF-ADM-0180, WF-ARC-0030, WF-IHM-0090, WF-SEC-0020 |
 | DELETE | `/me/sessions` | Me déconnecter | WF-ARC-0030, WF-SEC-0020 |
 | PATCH | `/me/preferences` | Modifier mes préférences d'affichage | WF-ADM-0040, WF-INTF-0160 |
-| PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080 |
+| PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080, WF-EXP-0020 |
 | DELETE | `/me/avatar` | Retirer mon avatar | WF-ADM-0080 |
 
 ## Comptes, rôles et permissions
 
-`paths/access.yaml` — 16 opérations
+`paths/access.yaml` — 17 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -47,6 +47,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060, WF-ADM-0070 |
 | PUT | `/users/{user_id}/activation` | Désactiver ou réactiver un compte | WF-ADM-0060, WF-ADM-0120, WF-SEC-0020 |
+| POST | `/users/{user_id}/anonymization` | Anonymiser un compte désactivé | WF-ADM-0060, WF-ADM-0070, WF-ADM-0100, WF-SEC-0030 |
 | PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |
@@ -66,10 +67,10 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/backups` | Sauvegardes | WF-ADM-0150 |
-| POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0150, WF-ARC-0090 |
+| POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0100, WF-ADM-0150, WF-ARC-0090, WF-SEC-0030 |
 | GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0150 |
 | PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0170 |
-| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0150 |
+| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150 |
 | GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0170 |
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |

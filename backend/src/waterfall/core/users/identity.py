@@ -16,6 +16,7 @@ label and keeps neither its names nor its address in its data: the anonymisation
 rewrites the label alone (WF-SEC-0030, WF-ADM-0060).
 """
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
@@ -30,6 +31,7 @@ from waterfall.core.users.accounts import (
     lock_account_at,
     unique_address,
 )
+from waterfall.core.users.commands import anonymized
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
 from waterfall.platform.errors import FieldError, UnprocessableError
@@ -42,8 +44,14 @@ ADDRESS_MAX_LENGTH = 254
 LOCAL = "local"
 
 
-def display_name(first_name: str, last_name: str) -> str:
-    """Name an account as it is shown: its first name, then its name."""
+def display_name(first_name: str | None, last_name: str | None) -> str | None:
+    """Name an account as it is shown: its first name, then its name.
+
+    ``None`` for an anonymised account, which has neither: the front shows the neutral label of its
+    catalogue (WF-ADM-0060, WF-ARC-0110).
+    """
+    if first_name is None or last_name is None:
+        return None
     return f"{first_name} {last_name}"
 
 
@@ -108,7 +116,12 @@ def refuse(faults: tuple[FieldError, ...]) -> None:
 def inscribe(
     session: Session,
     action: Literal[
-        "user_create", "user_update", "user_deactivate", "user_reactivate", "password_link_create"
+        "user_create",
+        "user_update",
+        "user_deactivate",
+        "user_reactivate",
+        "user_anonymize",
+        "password_link_create",
     ],
     account: UserAccount,
     act: Act,
@@ -139,9 +152,10 @@ def change(
     """Change the identity of an account whose version is the one read, and inscribe it.
 
     The account is locked, then read under the lock: refused if unknown (404), if its version is
-    not the one read (412), if a field is in fault — the identity of an account the provider holds
-    changed included (422) —, or if another account holds the new address (409). A change that
-    changes nothing writes nothing.
+    not the one read (412), if the account is anonymised and a name or the address is sent — the
+    anonymisation is irreversible (409, WF-ADM-0060) —, if a field is in fault — the identity of an
+    account the provider holds changed included (422) —, or if another account holds the new
+    address (409). A change that changes nothing writes nothing.
     """
     account = lock_account_at(session, user_id, lock_version)
     changed = {
@@ -149,6 +163,8 @@ def change(
         for name in IDENTITY_FIELDS
         if (value := getattr(sent, name)) is not None and value != getattr(account, name)
     }
+    if changed and account.anonymized_at is not None:
+        raise anonymized()
     # An address sent unchanged is the one held, whatever form the provider gave it.
     # The address of an account the provider holds is refused as read-only, not as malformed.
     email = changed.get("email") if account.origin == LOCAL else None
@@ -158,7 +174,9 @@ def change(
     refuse(tuple(faults))
     if not changed:
         return account
-    with unique_address(session, changed.get("email", account.email)):
+    # Only a new address may be held by another account.
+    guard = unique_address(session, changed["email"]) if "email" in changed else nullcontext()
+    with guard:
         account = change_columns(session, user_id, changed, lock_version, Stamp(act.author, act.at))
     inscribe(session, "user_update", account, act, {"fields": list(changed)})
     return account
