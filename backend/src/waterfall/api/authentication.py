@@ -10,6 +10,11 @@ person relayed by an external provider: her account is created without any role,
 origin is read from the administration API of Keycloak (WF-ADM-0180). Any other one is refused
 as a deactivated account is — and not as a missing session, to which the front would answer
 with a sign-in that brings back the same token, in a loop.
+
+No call to Keycloak is made inside a transaction (#669): the account is read, then admitted, each
+in a short transaction of its own, the origin being read between the two; a route that reads or
+writes the base takes its own transaction, ``Transaction``. A connection held while Keycloak is
+slow would exhaust the pool, and requests that do not need Keycloak would fail (WF-EXP-0040).
 """
 
 from collections.abc import Generator
@@ -74,12 +79,15 @@ def bearer_token(request: Request) -> str:
     return token.strip()
 
 
-def identify(request: Request, session: Transaction, services: ServicesOf) -> Account:
+def identify(request: Request, services: ServicesOf) -> Account:
     """Give the account of the caller, created if the provider admits it, or refuse it (401)."""
     subject = services.keycloak.subject_of(bearer_token(request))
-    account = read_account_of_subject(session, subject)
+    with services.database.transaction() as session:
+        account = read_account_of_subject(session, subject)
     if account is None:
-        account = admit(session, subject, services.keycloak_admin.read_account(subject))
+        provider = services.keycloak_admin.read_account(subject)
+        with services.database.transaction() as session:
+            account = admit(session, subject, provider)
     if not account.is_active:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
     return account
@@ -88,7 +96,8 @@ def identify(request: Request, session: Transaction, services: ServicesOf) -> Ac
 def admit(session: Session, subject: str, provider: ProviderAccount | None) -> Account:
     """Create the account of a person Waterfall does not know yet, or refuse her (401).
 
-    ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none.
+    ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none. The
+    creation is inscribed in the journal of audit by the platform (#703).
     """
     admitted = (
         NotAdmitted.UNKNOWN_TO_PROVIDER

@@ -4,17 +4,29 @@
 
 import io
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from httpx2 import Response
 from openapi_core import OpenAPI
 from openapi_core.testing import MockRequest, MockResponse
-from sqlalchemy import URL
+from sqlalchemy import URL, QueuePool, text
+
+from waterfall.platform.database import Database
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import (
+    InvitationFailure,
+    KeycloakAdmin,
+    LocalIdentity,
+    ProviderAccount,
+)
+from waterfall.platform.settings import ServiceSettings
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 
@@ -157,3 +169,69 @@ def raw_account(**overrides: object) -> dict[str, object]:
         "updated_at": datetime(2026, 10, 1, tzinfo=UTC),
         **overrides,
     }
+
+
+# The locks a session of the database of the test waits for, but the watcher's own: a session of
+# another database of the same server, another run of the tests, waits for its own (#670). By the
+# database of the session, since a lock on a transaction names none.
+WAITING = text(
+    "SELECT count(*) FROM pg_locks AS held JOIN pg_stat_activity AS backend USING (pid) "
+    "WHERE NOT held.granted AND held.pid <> pg_backend_pid() "
+    "AND backend.datname = current_database()"
+)
+
+
+def wait_for_a_lock(database: Database) -> None:
+    """Wait until a transaction waits for a lock another one holds, in 10 seconds at most."""
+    deadline = time.monotonic() + 10
+    with database.engine.connect() as watching:
+        while time.monotonic() < deadline:
+            if watching.scalar(WAITING):
+                return
+            watching.rollback()
+            time.sleep(0.05)
+    pytest.fail("no transaction waits for a lock")
+
+
+class Watching(KeycloakAdmin):
+    """The administration client of the service, noting what the database lends at each call.
+
+    Before calling Keycloak, each call notes the connections taken out of the pool of the
+    database: none may be while Keycloak is asked (#669). It calls Keycloak itself: no stand-in.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Watch the pool of ``database``; nothing is noted yet."""
+        super().__init__(keycloak, settings)
+        pool = database.engine.pool
+        assert isinstance(pool, QueuePool)
+        self.pool = pool
+        self.held: list[tuple[str, int]] = []
+
+    def _note(self, call: str) -> None:
+        self.held.append((call, self.pool.checkedout()))
+
+    def read_account(self, subject: str) -> ProviderAccount | None:
+        """Note, then read an account of the realm."""
+        self._note("read_account")
+        return super().read_account(subject)
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Note, then create a local account of the realm."""
+        self._note("create_account")
+        return super().create_account(identity)
+
+    def remove_account(self, subject: str) -> None:
+        """Note, then remove an account of the realm."""
+        self._note("remove_account")
+        super().remove_account(subject)
+
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
+        """Note, then have the extension mail an account its invitation."""
+        self._note("send_invitation")
+        return super().send_invitation(subject)
+
+    def close_sessions(self, subject: str) -> None:
+        """Note, then close the sessions of an account."""
+        self._note("close_sessions")
+        super().close_sessions(subject)

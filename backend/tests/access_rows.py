@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Accounts and roles written around the service, for the tests of the roles to read or change."""
+"""Accounts and roles written around the service, for the tests that read or change them."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -30,6 +30,28 @@ def holder(database: Database, *, active: bool = True) -> UUID:
     row = raw_account(email=f"{uuid4().hex}@example.org", state=state)
     with database.transaction() as session:
         session.execute(insert(UserAccount).values(**row))
+    return UUID(str(row["id"]))
+
+
+def account(
+    database: Database,
+    last_name: str,
+    first_name: str,
+    *,
+    roles: tuple[UUID, ...] = (),
+    **columns: object,
+) -> UUID:
+    """Write an account around the service, with the roles it holds; give its identifier."""
+    email = f"{first_name}.{last_name}@example.org".lower().replace(" ", "")
+    row = raw_account(
+        **{"last_name": last_name, "first_name": first_name, "email": email, **columns}
+    )
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**row))
+        for held in roles:
+            session.execute(
+                insert(UserAccessRole).values(user_account_id=row["id"], access_role_id=held)
+            )
     return UUID(str(row["id"]))
 
 

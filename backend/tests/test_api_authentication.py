@@ -9,18 +9,22 @@ unknown to Waterfall, and closing sessions, need Keycloak itself:
 """
 
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
+from openapi_core import OpenAPI
 from realm import KEY, TestRealm, new_key
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, bearer, raw_account
+from support import ContractClient, Logs, Watching, bearer, raw_account
 
-from waterfall.api.authentication import admit
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services, admit
 from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
@@ -32,6 +36,7 @@ from waterfall.platform.keycloak import (
     Keycloak,
 )
 from waterfall.platform.keycloak_admin import ProviderAccount
+from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
@@ -373,6 +378,15 @@ def test_a_token_whose_key_is_not_held_while_keycloak_fails_is_a_component_unava
     keycloak.close()
 
 
+def wait_until(condition: Callable[[], bool], what: str) -> None:
+    """Wait until ``condition`` holds, ten seconds at most, or fail saying ``what`` (#674)."""
+    deadline = time.monotonic() + 10
+    while not condition():
+        if time.monotonic() > deadline:
+            pytest.fail(f"{what} did not happen within ten seconds")
+        time.sleep(0.01)
+
+
 def test_a_request_whose_key_is_held_does_not_wait_for_the_keys_being_read(
     realm_settings: ServiceSettings, realm: TestRealm
 ) -> None:
@@ -388,8 +402,7 @@ def test_a_request_whose_key_is_held_does_not_wait_for_the_keys_being_read(
     later[0] += KEYS_MAX_AGE_SECONDS
     with ThreadPoolExecutor(1) as reader:
         reading = reader.submit(keycloak.subject_of, signed)
-        while realm.reads < 2:
-            time.sleep(0.01)
+        wait_until(lambda: realm.reads >= 2, "the second reading of the keys")
         assert keycloak.subject_of(signed) == SUBJECT
         assert not reading.done()
         assert reading.result() == SUBJECT
@@ -403,6 +416,50 @@ def test_a_request_whose_key_is_held_does_not_wait_for_the_keys_being_read(
     keycloak.close()
 
 
+def test_a_request_whose_key_is_not_held_waits_a_while_for_the_keys_being_read(
+    realm_settings: ServiceSettings, realm: TestRealm
+) -> None:
+    # Keycloak accepts the connection and answers late: the request that reads the keys holds
+    # the lock; another one, whose key is not held, is refused before it ends (#674).
+    keycloak = Keycloak(realm_settings, timeout=5.0, keys_wait=0.2)
+    signed = realm.token(SUBJECT, KEY)
+    realm.delay = 2.0
+    with ThreadPoolExecutor(1) as reader:
+        reading = reader.submit(keycloak.subject_of, signed)
+        wait_until(lambda: realm.reads >= 1, "the reading of the keys")
+        started = time.monotonic()
+        with pytest.raises(UnavailableError) as refused:
+            keycloak.subject_of(signed)
+        assert time.monotonic() - started < 1.0
+        assert refused.value.code == "COMPONENT_UNAVAILABLE"
+        assert not reading.done()
+        assert reading.result() == SUBJECT
+    assert realm.reads == 1
+    keycloak.close()
+
+
+def test_the_keys_already_read_serve_while_keycloak_serves_other_than_them(
+    realm_settings: ServiceSettings, realm: TestRealm, logs: Logs
+) -> None:
+    # A defect of the platform has the fate of a failure (#674): the keys held serve, a token
+    # whose key is not held is refused as the defect, until the keys may be read again.
+    now = [1000.0]
+    keycloak = Keycloak(realm_settings, clock=lambda: now[0])
+    signed = realm.token(SUBJECT, KEY)
+    assert keycloak.subject_of(signed) == SUBJECT
+    rotated = realm.token(SUBJECT, "key-2", key=realm.add_key("key-2"))
+    realm.status = HTTPStatus.NOT_FOUND
+    now[0] += KEYS_MAX_AGE_SECONDS
+    for _ in range(3):
+        assert keycloak.subject_of(signed) == SUBJECT
+    (kept,) = logs.named("identity_provider.keys_kept")
+    assert kept["fault"] == "IdentityProviderError"
+    with pytest.raises(IdentityProviderError, match="certs answered 404"):
+        keycloak.subject_of(rotated)
+    assert realm.reads == 2
+    keycloak.close()
+
+
 def test_keys_keycloak_does_not_serve_are_a_defect_of_the_platform(
     keycloak: Keycloak, realm: TestRealm
 ) -> None:
@@ -410,6 +467,25 @@ def test_keys_keycloak_does_not_serve_are_a_defect_of_the_platform(
     realm.status = HTTPStatus.NOT_FOUND
     with pytest.raises(IdentityProviderError, match="certs answered 404"):
         keycloak.subject_of(realm.token(SUBJECT, KEY))
+
+
+def test_no_connection_is_held_while_keycloak_is_asked_for_a_caller_or_her_sessions(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    realm: TestRealm,
+) -> None:
+    # The realm of test serves no administration API: Keycloak fails, after it is asked (#669).
+    watching = Watching(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, watching))
+    client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    unknown = client.get(ME, headers=bearer(realm.token("a-person-of-the-directory", KEY)))
+    assert refusal(unknown) == (503, "COMPONENT_UNAVAILABLE")
+    account(database)
+    closing = client.delete(SESSIONS, headers=bearer(realm.token(SUBJECT, KEY)))
+    assert refusal(closing) == (503, "COMPONENT_UNAVAILABLE")
+    assert watching.held == [("read_account", 0), ("close_sessions", 0)]
 
 
 def provider_account(**overrides: Any) -> ProviderAccount:
@@ -427,7 +503,8 @@ def provider_account(**overrides: Any) -> ProviderAccount:
 
 
 def test_a_person_the_provider_admits_is_given_an_account(session: Session, logs: Logs) -> None:
-    admitted = admit(session, SUBJECT, provider_account())
+    with logging_context(correlation_id="admission"):
+        admitted = admit(session, SUBJECT, provider_account())
     assert (admitted.subject, admitted.origin, admitted.email) == (
         SUBJECT,
         "directory",

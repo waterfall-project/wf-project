@@ -1,16 +1,20 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A person the identity provider knows and Waterfall not yet: admitted by her origin, no role."""
+"""A person the identity provider knows and Waterfall not yet: admitted by her origin, no role.
+
+Her creation is inscribed in the journal of audit by the platform, under the correlation of the
+request that admits her (#703): the tests run under one.
+"""
 
 import threading
-import time
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
-from support import raw_account
+from support import raw_account, wait_for_a_lock
 
 from waterfall.core.users.interface import (
     NAME_MAX_LENGTH,
@@ -21,11 +25,38 @@ from waterfall.core.users.interface import (
     read_account_of_subject,
 )
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak_admin import ProviderAccount
+from waterfall.platform.logs import logging_context
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 SUBJECT = "0f6a3b2c-1d4e-4f5a-8b9c-7d6e5f4a3b2c"
+CORRELATION = "admission-of-a-person"
+
+
+@pytest.fixture(autouse=True)
+def correlation() -> Iterator[None]:
+    """Run the test under the correlation of a request, as an admission always is."""
+    with logging_context(correlation_id=CORRELATION):
+        yield
+
+
+def inscriptions(session: Session) -> list[tuple[Any, ...]]:
+    """Read the inscriptions of the journal: action, author, object, label, data, correlation."""
+    return [
+        tuple(row)
+        for row in session.execute(
+            select(
+                AuditEntry.action,
+                AuditEntry.actor_user_id,
+                AuditEntry.object_id,
+                AuditEntry.object_label,
+                AuditEntry.params,
+                AuditEntry.correlation_id,
+            ).order_by(AuditEntry.id)
+        )
+    ]
 
 
 def person(**overrides: Any) -> ProviderAccount:
@@ -72,6 +103,25 @@ def test_a_person_of_the_directory_is_created_active_by_the_platform(session: Se
     assert read_account_of_subject(session, SUBJECT) == created
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_creation_of_a_person_admitted_is_inscribed_by_the_platform(session: Session) -> None:
+    # Dated, attributed to the platform, under the correlation of the request (#703); the journal
+    # names the account by its label alone, which its anonymisation rewrites.
+    created = add_account_of_provider(session, person(), NOON)
+    assert isinstance(created, Account)
+    assert inscriptions(session) == [
+        (
+            "user_create",
+            None,
+            created.user_id,
+            "Dominique Annuaire",
+            {"origin": "directory"},
+            CORRELATION,
+        )
+    ]
+    assert session.scalars(select(AuditEntry.occurred_at)).one() == NOON
+
+
 def test_a_person_relayed_by_an_external_provider_is_created_as_such(session: Session) -> None:
     created = add_account_of_provider(session, person(is_federated=False, is_relayed=True), NOON)
     assert isinstance(created, Account)
@@ -115,18 +165,8 @@ def test_a_person_created_twice_is_one_account(session: Session) -> None:
     assert isinstance(first, Account)
     assert second == first
     assert session.scalar(select(func.count()).select_from(UserAccount)) == 1
-
-
-def wait_for_a_lock(database: Database) -> None:
-    """Wait until a transaction waits for a lock another one holds, in 10 seconds at most."""
-    deadline = time.monotonic() + 10
-    with database.engine.connect() as watching:
-        while time.monotonic() < deadline:
-            if watching.scalar(text("SELECT count(*) FROM pg_locks WHERE NOT granted")):
-                return
-            watching.rollback()
-            time.sleep(0.05)
-    pytest.fail("no transaction waits for a lock")
+    # Found, not created: the second inscribes nothing.
+    assert [action for action, *_ in inscriptions(session)] == ["user_create"]
 
 
 def test_two_first_requests_at_once_give_one_account(database: Database) -> None:

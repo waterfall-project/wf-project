@@ -9,9 +9,11 @@ These tests run against the Keycloak of the service platform, its realm applied
 HTTPS, through its front end, whose authority ``SSL_CERT_FILE`` names, the only one they trust
 (#680) —, ``WATERFALL_SERVICE_CLIENT_SECRET`` the secret its realm was applied with, and
 ``WATERFALL_KEYCLOAK_ADMIN_PASSWORD`` the administrator that applied it. Without them they
-fail and say so. They try the platform and cite no requirement: what the requirements ask of
-Keycloak — the lockout, a link used or expired, the sign-in of each kind of account through
-the front — is proved by the tests of the lot that closes those criteria (US-0350/L5).
+fail and say so. The mails Keycloak sends are read in the Mailpit of the platform, on the port
+``WATERFALL_MAILPIT_PORT`` publishes, 8025 unless it says another, as Compose does. They try the
+platform and cite no requirement: what the requirements ask of Keycloak — the lockout, a link used
+or expired, the sign-in of each kind of account through the front — is proved by the tests of the
+lot that closes those criteria (US-0350/L5).
 """
 
 import base64
@@ -21,10 +23,12 @@ import os
 import re
 import secrets
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import httpx2
@@ -46,6 +50,11 @@ EXTERNAL_PROVIDER = "external"
 PASSWORD = secrets.token_urlsafe(24)
 # The page of a replaced link, in the login theme of Waterfall, in French by default.
 REPLACED = "Ce lien a été remplacé par un plus récent"
+MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
+# The type of the action token of a link the extension makes (PasswordSetupToken).
+EXTENSION_ACTION = "waterfall-password-setup"
+# A mail server on a port of the container of Keycloak where nothing listens.
+UNREACHABLE_MAIL_SERVER = {"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}
 
 
 def required(variable: str) -> str:
@@ -99,14 +108,14 @@ def admin(keycloak: httpx2.Client, service_token: str) -> Iterator[httpx2.Client
         yield client
 
 
-@pytest.fixture(scope="module")
-def realm_admin(keycloak: httpx2.Client) -> Iterator[httpx2.Client]:
+@contextmanager
+def administering() -> Generator[httpx2.Client]:
     """Reach the administration API of the realm as the administrator who applies it.
 
     The service account may not read the settings of the realm nor its clients.
     """
     address = required(ADDRESS_VARIABLE).rstrip("/")
-    response = keycloak.post(
+    response = httpx2.post(
         f"{address}/realms/master/protocol/openid-connect/token",
         data={
             "grant_type": "password",
@@ -114,12 +123,37 @@ def realm_admin(keycloak: httpx2.Client) -> Iterator[httpx2.Client]:
             "username": "admin",
             "password": required(ADMIN_CREDENTIAL_VARIABLE),
         },
+        timeout=30,
     )
     assert response.status_code == 200, response.text
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     base = f"{address}/admin/realms/{REALM}"
     with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
         yield client
+
+
+@pytest.fixture(scope="module")
+def realm_admin() -> Iterator[httpx2.Client]:
+    """Reach the administration API of the realm as the administrator who applies it."""
+    with administering() as client:
+        yield client
+
+
+@contextmanager
+def mail_server(settings: dict[str, str]) -> Generator[None]:
+    """Give the realm the mail server ``settings`` describe for a while, then the one it had."""
+    with administering() as realm:
+
+        def configure(server: dict[str, str]) -> None:
+            response = realm.put("", json={"smtpServer": server})
+            assert response.status_code == 204, response.text
+
+        kept = realm.get("").json().get("smtpServer", {})
+        configure(settings)
+        try:
+            yield
+        finally:
+            configure(kept)
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +252,35 @@ def confirmation_target(page: httpx2.Response) -> str:
     return html.unescape(target.group(1))
 
 
+def invite(backchannel: httpx2.Client, user_id: str, token: str | None) -> httpx2.Response:
+    """Ask the extension to mail an account its invitation, as the service does."""
+    headers = {} if token is None else {"Authorization": f"Bearer {token}"}
+    return backchannel.post(f"/password-setup-link/users/{user_id}/invitation", headers=headers)
+
+
+def mailed_link(address: str) -> str:
+    """Wait for the mail Keycloak sent to an address, ten seconds at most; give its link."""
+    port = os.environ.get(MAILPIT_PORT_VARIABLE) or "8025"
+    deadline = time.monotonic() + 10
+    with httpx2.Client(base_url=f"http://127.0.0.1:{port}", timeout=10) as mailpit:
+        while time.monotonic() < deadline:
+            found = mailpit.get("/api/v1/search", params={"query": f'to:"{address}"'}).json()
+            if found["messages"]:
+                message = mailpit.get(f"/api/v1/message/{found['messages'][0]['ID']}").json()
+                link = re.search(
+                    r"https://\S+/login-actions/action-token\?key=[\w.-]+", message["Text"]
+                )
+                assert link is not None, message["Text"]
+                return link.group(0)
+            time.sleep(0.2)
+    pytest.fail(f"no mail reached {address} within ten seconds")
+
+
+def action_token(url: str) -> dict[str, Any]:
+    """Read the claims of the action token a link carries."""
+    return claims(parse_qs(urlsplit(url).query)["key"][0])
+
+
 def claims(token: str) -> dict[str, Any]:
     """Read the claims of a token the test was just given by Keycloak, without checking it."""
     payload = token.split(".")[1]
@@ -305,7 +368,7 @@ def test_a_caller_without_a_token_of_the_realm_gets_no_link(
         assert (response.status_code, response.json()) == (401, {"error": "not_authenticated"})
 
 
-def test_a_token_without_the_role_of_the_extension_gets_no_link(
+def test_a_token_without_the_role_of_the_extension_gets_no_link_nor_invitation(
     keycloak: httpx2.Client,
     backchannel: httpx2.Client,
     admin: httpx2.Client,
@@ -314,8 +377,11 @@ def test_a_token_without_the_role_of_the_extension_gets_no_link(
     set_password(admin, local_account.id, PASSWORD)
     signed_in = password_grant(keycloak, local_account, PASSWORD)
     assert signed_in.status_code == 200, signed_in.text
-    response = link_of(backchannel, local_account.id, signed_in.json()["access_token"])
+    token = signed_in.json()["access_token"]
+    response = link_of(backchannel, local_account.id, token)
     assert (response.status_code, response.json()) == (403, {"error": "not_allowed"})
+    invitation = invite(backchannel, local_account.id, token)
+    assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
 
 
 def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
@@ -430,3 +496,49 @@ def test_an_account_relayed_by_an_external_provider_has_no_link(
     assert relayed.status_code == 204, relayed.text
     response = link_of(backchannel, local_account.id, service_token)
     assert (response.status_code, response.json()) == (409, {"error": "not_local"})
+
+
+def test_an_invitation_mails_a_link_of_the_extension_that_a_later_link_replaces(
+    keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    # The link of the mail is the extension's, under its nonce: the link obtained afterwards for
+    # the same account invalidates it (#651).
+    sent = invite(backchannel, local_account.id, service_token)
+    assert (sent.status_code, sent.content) == (204, b"")
+    url = mailed_link(local_account.email)
+    assert url.startswith(f"{str(keycloak.base_url).rstrip('/')}/login-actions/action-token?key=")
+    assert action_token(url)["typ"] == EXTENSION_ACTION
+    later = link_of(backchannel, local_account.id, service_token)
+    assert later.status_code == 200, later.text
+    replaced = Browser().get(url)
+    assert replaced.status_code == 400
+    assert REPLACED in html.unescape(replaced.text)
+
+
+def test_an_invitation_is_refused_as_a_link_is(
+    backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    for token in (None, "not-a-token"):
+        response = invite(backchannel, local_account.id, token)
+        assert (response.status_code, response.json()) == (401, {"error": "not_authenticated"})
+    unknown = invite(backchannel, str(uuid4()), service_token)
+    assert (unknown.status_code, unknown.json()) == (404, {"error": "unknown_user"})
+    service = invite(backchannel, claims(service_token)["sub"], service_token)
+    assert (service.status_code, service.json()) == (409, {"error": "not_local"})
+
+
+def test_a_realm_without_a_mail_server_or_whose_server_fails_sends_no_invitation(
+    backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    made = link_of(backchannel, local_account.id, service_token)
+    assert made.status_code == 200, made.text
+    # An installation without a mail server gives the link by hand (WF-CMP-0030).
+    with mail_server({}):
+        none = invite(backchannel, local_account.id, service_token)
+    assert (none.status_code, none.json()) == (409, {"error": "no_mail_server"})
+    with mail_server(UNREACHABLE_MAIL_SERVER):
+        failing = invite(backchannel, local_account.id, service_token)
+    assert (failing.status_code, failing.json()) == (502, {"error": "not_sent"})
+    # The invitation that did not leave replaced nothing: the link obtained before still serves.
+    kept = Browser().get(made.json()["url"])
+    assert kept.status_code == 200, kept.text

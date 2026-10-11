@@ -13,14 +13,11 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import ADMINISTRATION, role
+from access_rows import ADMINISTRATION, account, role
 from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
-from sqlalchemy import insert
-from support import ContractClient, bearer, raw_account
+from support import ContractClient, bearer
 
-from waterfall.core.access_roles.tables import UserAccessRole
-from waterfall.core.users.tables import UserAccount
 from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database
 
@@ -28,28 +25,6 @@ USERS = "/api/v1/users"
 SUBJECT = "4b7c1d2e-8f3a-4c6b-9e1d-2a5f7c9b0e13"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 CONSULT = "users.read"
-
-
-def account(
-    database: Database,
-    last_name: str,
-    first_name: str,
-    *,
-    roles: tuple[UUID, ...] = (),
-    **columns: object,
-) -> UUID:
-    """Write an account around the service, with the roles it holds; give its identifier."""
-    email = f"{first_name}.{last_name}@example.org".lower().replace(" ", "")
-    row = raw_account(
-        **{"last_name": last_name, "first_name": first_name, "email": email, **columns}
-    )
-    with database.transaction() as session:
-        session.execute(insert(UserAccount).values(**row))
-        for held in roles:
-            session.execute(
-                insert(UserAccessRole).values(user_account_id=row["id"], access_role_id=held)
-            )
-    return UUID(str(row["id"]))
 
 
 @pytest.fixture

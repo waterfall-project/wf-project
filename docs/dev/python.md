@@ -18,7 +18,7 @@ Ces règles ne se recopient pas ici : leur texte fait foi, et il suffit de le li
 | Typage strict, `# type: ignore` non honoré | `[tool.pyright]` de `backend/pyproject.toml` et `tools/pyproject.toml` | `make typecheck-back`, `make typecheck-tools` |
 | Frontières du noyau | `[tool.importlinter]` de `backend/pyproject.toml` | `make imports-back` |
 | Aucun commentaire d'exemption ; 1 000 lignes au plus | `tools/src/wftools/sources.py` | `make sources` |
-| Couverture du code : 90 % des lignes, 85 % des branches | seuils dans `tools/src/wftools/codecoverage.py` ; mesure réglée par `[tool.coverage]` de `backend/pyproject.toml` | `make coverage-back` |
+| Couverture du code : 90 % des lignes, 85 % des branches | seuils dans `tools/src/wftools/codecoverage.py` ; mesure réglée par `[tool.coverage]` de `backend/pyproject.toml`, et pour le client de l'API d'administration de Keycloak (`waterfall.platform.keycloak_admin`), que cette mesure écarte, par `backend/coverage-keycloak.toml` | `make coverage-back` ; `make test-keycloak` pour le client de Keycloak |
 
 Une règle qui gêne se discute et se retire du jeu, avec sa raison ; elle ne se contourne
 jamais dans le code.

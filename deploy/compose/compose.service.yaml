@@ -209,6 +209,10 @@ services:
     depends_on:
       keycloak-database:
         condition: service_completed_successfully
+      # The realm of this platform sends its mails there (deploy/keycloak/development/): the
+      # invitation of a local account, which its tests read (#651).
+      mailpit:
+        condition: service_started
     healthcheck:
       # The image has neither curl nor wget: bash asks the management interface itself.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
