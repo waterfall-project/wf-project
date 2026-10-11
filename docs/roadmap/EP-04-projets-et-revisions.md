@@ -151,3 +151,11 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   qualité de contributeur à l'évaluation, décide la consultation d'un projet par une règle
   propre, et la règle 404/403 par une propriété déclarée de la permission plutôt que par son
   suffixe. Reporté d'EP-03 le 2026-10-11.
+- #870 [EP-03] le nom d'un contributeur anonymisé — relevé par la revue d'US-0360/L2b :
+  `Contributor.display_name` et `ContributorSuggestion.display_name` sont des chaînes non nulles
+  au contrat, et un compte désactivé reste listé comme contributeur ; anonymisé, le contrat
+  obligerait le service à rendre son nom (contre WF-ADM-0060-A) ou une phrase (contre
+  WF-ARC-0110). EP-04, qui sert les contributeurs, rend ces deux champs nullables comme
+  `ActorRef.display_name`, et le front les nomme par `useAccountNaming`, avec un exemple de
+  contributeur anonymisé et le test de la branche nulle d'`Actor` (`project-tables.tsx`).
+  Reporté d'EP-03 le 2026-10-11.

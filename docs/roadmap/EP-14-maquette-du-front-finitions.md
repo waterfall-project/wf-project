@@ -95,6 +95,41 @@ et EP-02/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46,
 `DenseGrid` ne mémorise ni ses lignes ni ses cellules, si bien que chaque déplacement de la cellule
 active les rend toutes ; aucun défaut n'est démontré en production.
 
+Reportés d'EP-03 le 2026-10-11 :
+
+- #846 [EP-03] le guide dit encore à venir la confirmation de #836 — relevé par la revue
+  d'US-0380/L2 : `docs/dev/README.md`, à la règle des préférences d'une grille, écrit
+  « (#836, confirmation de l'auteur à venir) », alors que #836 est tranchée : les filtres d'une
+  grille qui les déclare sont gardés en préférence. EP-14 écrit « (#836, confirmée par l'auteur
+  le 2026-10-11) ». Reporté d'EP-03 le 2026-10-11.
+- #847 [EP-03] la source commune des rôles répondus n'est éprouvée que dans un sens, et le test
+  d'axe de la matrice en fait deux — relevé par la revue d'US-0380/L2 : seul « renommage puis case
+  cochée » est éprouvé sous `RoleAnswers` ; l'inverse, que `role-answers.tsx` et le guide
+  annoncent, n'a pas de test, et retirer `answers?.latest(shown)` de `renaming` ne casse rien ;
+  le contrôle d'axe de la matrice fait la lecture et l'écriture dans un seul `it`. EP-14 ajoute
+  le test du second sens — une case cochée, puis un renommage dont le corps porte la
+  `lock_version` et les `permissions` de la réponse — et coupe le contrôle d'axe en deux `it`.
+  Reporté d'EP-03 le 2026-10-11.
+- #872 [EP-03] un import refusé après la fermeture de son formulaire n'est dit nulle part —
+  relevé par la revue d'US-0350/L5b : `FileForm` (`import-commands.tsx`), fermé pendant
+  l'envoi, ne dit son refus ni dans le formulaire démonté, ni sur l'écran qui l'a ouvert. EP-14
+  rapporte le refus à l'écran porteur, comme `reference-form` le fait vers la liste, avec un
+  test « fermer pendant l'envoi, refus dit ». Reporté d'EP-03 le 2026-10-11.
+- #888 [EP-03] trois mineurs du front — relevés par la revue d'US-0350/L5b, tour 3 : le test
+  « nothing armed » de `session.test.ts` n'affirme que l'adresse rendue, et non qu'aucune clé
+  `wf:sign-out:*` n'a été écrite dans Redis ; `own` est créé sans condition dans
+  `reference-form.tsx` et `commands.tsx`, sans le commentaire qui dirait pourquoi ; la directive
+  `"use client"` de l'utilitaire de test `held-link.ts` n'a d'effet que sur les gardes d'import,
+  ce que le guide (`typescript.md`, « Où s'exécute un composant ») ne dit pas. EP-14 reprend les
+  trois. Reporté d'EP-03 le 2026-10-11.
+- #889 [EP-03] les écritures des rôles et de la matrice ne retiennent pas la navigation —
+  relevé par la revue d'US-0350/L5b, tour 4 : `permission-matrix.tsx` et `role-commands.tsx`
+  appellent leurs actions sans `list.held` ni `useHeldCommand` ; refusée pendant qu'on quitte
+  l'écran, une telle écriture n'est dite nulle part, contre l'invariant que #688 pose pour les
+  autres. EP-14 fait passer ces trois appels par la retenue, avec un test « refus pendant la
+  navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Reporté d'EP-03 le
+  2026-10-11.
+
 ## Conception
 
 Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, composants partagés,
