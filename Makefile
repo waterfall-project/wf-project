@@ -72,6 +72,9 @@ PLAYWRIGHT_INSTALL ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
 # runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
 SHARD ?=
+# How many workers `make e2e` plays the paths on (playwright test --workers): fewer than Playwright
+# takes by itself on a loaded workstation, where paths fail by a timeout (#736). Empty, its own.
+WORKERS ?=
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -355,8 +358,8 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # With SHARD, the paths alone (E2E_PART, frontend/playwright.config.ts): the measure, which
 # waits for all of them, would bring every path into each part; e2e-measure plays it apart.
 e2e: export E2E_PART = $(if $(SHARD),paths)
-e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure
-	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD))
+e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers
+	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS))
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)

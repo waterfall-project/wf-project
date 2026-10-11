@@ -211,3 +211,19 @@ def change_columns(
             raise NotFoundError(NOT_FOUND)
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": current})
     return session.get_one(UserAccount, user_id, populate_existing=True)
+
+
+def note_sessions_closed(session: Session, user_id: UUID, at: datetime) -> None:
+    """Note that the sessions of an account were closed at ``at``, unless later already.
+
+    By its holder's sign-out, or by its deactivation (#835). Not a change of the account: neither
+    its version nor its audit columns move, and a form opened on it stays valid. Two closings at
+    once keep the later moment, whichever writes last.
+    """
+    # GREATEST passes over a null: the first sign-out writes its moment.
+    moment = literal(at, UserAccount.sessions_closed_at.type)
+    session.execute(
+        update(UserAccount)
+        .where(UserAccount.id == user_id)
+        .values(sessions_closed_at=func.greatest(UserAccount.sessions_closed_at, moment))
+    )

@@ -9,7 +9,8 @@ the order it holds them, and with the commands its reader may exercise, each ava
 (WF-IHM-0090).
 
 A local account is created in the identity provider, then in Waterfall, and its holder invited by
-the extension of Keycloak (WF-ADM-0070, WF-ADM-0140). No call to the provider is made inside a
+the extension of Keycloak (WF-ADM-0070, WF-ADM-0140), which also makes the link that sets its
+password for an authorized user to hand over. No call to the provider is made inside a
 transaction (#669): what Waterfall would refuse is refused before the provider is asked, the
 account is written once the provider has created it, and withdrawn from the provider if Waterfall
 refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
@@ -29,6 +30,7 @@ from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
+    PasswordSetupLink,
     SortOrder,
     User,
     UserActivationWrite,
@@ -66,7 +68,11 @@ from waterfall.core.users.interface import (
     create_local_account,
     display_name,
     identity_faults,
+    inscribe_password_link,
     list_accounts,
+    note_sessions_closed,
+    password_link_holder,
+    password_link_not_local,
     read_account,
     refuse,
     set_account_activation,
@@ -395,7 +401,9 @@ def put_user_activation(
 
     The deactivation of the last administrator is refused, as its command says in advance
     (WF-ADM-0120). A deactivation closes the sessions of the account, even of one deactivated
-    already: asking again closes those a failure of the provider left open.
+    already: asking again closes those a failure of the provider left open. It notes the moment
+    first, with the deactivation: from then on the API refuses every token of a sign-in before
+    it, refreshed or not, and a failure of the provider does not outlive a reactivation (#835).
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
@@ -407,6 +415,8 @@ def put_user_activation(
                 lock_version=body.lock_version.root,
                 act=act,
             )
+        if not body.is_active:
+            note_sessions_closed(session, user_id, utc_now())
         described = users(session, actor, [changed])[0]
     if not body.is_active:
         close_sessions(services.keycloak_admin, changed)
@@ -436,3 +446,32 @@ def put_user_access_roles(
     if attribution.withdraws_all:
         close_sessions(services.keycloak_admin, changed)
     return described
+
+
+@router.post(
+    "/users/{user_id}/password-link",
+    operation_id="createPasswordSetupLink",
+    dependencies=WRITE,
+    status_code=201,
+)
+def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> PasswordSetupLink:
+    """Give the link that sets the password of a local account, to hand it over (WF-ADM-0140).
+
+    Made by the extension of Keycloak, valid one hour and once, the link made before it ceasing to
+    be valid; an account that is not local, or deactivated, has none (409). The request is
+    inscribed in the journal of audit once the link is made, without its token (WF-SEC-0030): a
+    link the journal does not keep is never given. The account is read, the link made outside of
+    any transaction (#669), then the account read again under a lock: one deactivated meanwhile is
+    refused, and its link not given.
+    """
+    with services.database.transaction() as session:
+        holder = password_link_holder(session, user_id)
+    link = services.keycloak_admin.make_password_link(holder.subject)
+    if link is None:
+        raise password_link_not_local()
+    act = Act(audit_actor(account), utc_now())
+    given = PasswordSetupLink.model_validate({"url": link.url, "expires_at": link.expires_at})
+    with services.database.transaction() as session:
+        inscribe_password_link(session, user_id, act)
+    logger.info("account.password_link_made", user_id=str(user_id))
+    return given

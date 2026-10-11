@@ -8,7 +8,8 @@ from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import UserSelf
 from waterfall.api.users import account_fields
 from waterfall.core.access_roles.interface import HeldRole, granted_permissions, roles_held
-from waterfall.core.users.interface import Account
+from waterfall.core.users.interface import Account, note_sessions_closed
+from waterfall.platform.database import utc_now
 from waterfall.platform.logs import get_logger
 
 router = APIRouter(tags=["me"])
@@ -47,8 +48,15 @@ def get_me(account: Caller, session: Transaction) -> UserSelf:
 def close_my_sessions(account: Caller, services: ServicesOf) -> Response:
     """Close every session of the caller, on every device: its tokens no longer serve.
 
-    Any account the API knows closes its own: the operation asks for no permission.
+    Any account the API knows closes its own: the operation asks for no permission. The moment is
+    noted first, in a transaction of its own: from then on the API refuses every access token of a
+    sign-in before it, whichever client holds it, without waiting for its expiry (#668), and
+    refreshed or not (#835). Keycloak then closes the sessions, outside of any transaction (#669),
+    so that no refresh token gets a new one; while it does not answer, the sign-out is refused as
+    a component unavailable, the tokens of the sessions begun until then refused all the same.
     """
+    with services.database.transaction() as session:
+        note_sessions_closed(session, account.user_id, utc_now())
     services.keycloak_admin.close_sessions(account.subject)
     logger.info("sessions.closed")
     return Response(status_code=204)

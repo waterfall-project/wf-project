@@ -349,6 +349,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "updateUser": ("users.read", "users.write"),
     "setUserActivation": ("users.read", "users.write"),
     "setUserAccessRoles": ("users.read", "users.write"),
+    "createPasswordSetupLink": ("users.read", "users.write"),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),
