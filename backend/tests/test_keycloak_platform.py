@@ -50,8 +50,10 @@ DIRECTORY_EMAIL = "dominique.annuaire@waterfall.test"
 EXTERNAL_PROVIDER = "external"
 # A password the policy of the realm accepts: long enough, neither an address nor a name.
 PASSWORD = secrets.token_urlsafe(24)
-# The page of a replaced link, in the login theme of Waterfall, in French by default.
+# The pages of a replaced link and of a spent one, in the login theme of Waterfall, in French by
+# default: two refusals told apart (#655).
 REPLACED = "Ce lien a été remplacé par un plus récent"
+SPENT = "Ce lien a déjà servi"
 # The refusal of a password to an account of a directory or of a provider, in its theme (#650).
 LOCAL_ACCOUNT_ONLY = "ce compte se connecte par son annuaire ou par son fournisseur"
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
@@ -261,6 +263,18 @@ def confirmation_target(page: httpx2.Response) -> str:
     return html.unescape(target.group(1))
 
 
+def set_by_link(url: str, password: str) -> tuple[Browser, httpx2.Response]:
+    """Open a link in a new browser, confirm it, and set a password in the form it opens.
+
+    Give the browser and the page that answers the form.
+    """
+    browser = Browser()
+    form = browser.get(confirmation_target(browser.get(url)))
+    assert 'name="password-new"' in form.text, form.text
+    fields = {"password-new": password, "password-confirm": password}
+    return browser, browser.submit(form, fields)
+
+
 def invite(backchannel: httpx2.Client, user_id: str, token: str | None) -> httpx2.Response:
     """Ask the extension to mail an account its invitation, as the service does."""
     headers = {} if token is None else {"Authorization": f"Bearer {token}"}
@@ -427,47 +441,68 @@ def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
     assert second.json()["url"] != link["url"]
     # The page of Keycloak refuses the first link, saying it was replaced, and asks to confirm
     # the second.
-    replaced = Browser().get(link["url"])
-    assert replaced.status_code == 400
-    assert REPLACED in html.unescape(replaced.text)
+    assert refused_as(Browser().get(link["url"])) == "replaced"
     page = Browser().get(second.json()["url"])
     assert page.status_code == 200
     assert confirmation_target(page).startswith(f"{realm}/login-actions/action-token?key=")
 
 
-def test_a_link_sets_the_password_once(
+def refused_as(page: httpx2.Response) -> str:
+    """Say how the page of a link refuses it: spent, or replaced; it says one, never both."""
+    assert page.status_code == 400, page.text
+    text = html.unescape(page.text)
+    said = [name for name, words in (("spent", SPENT), ("replaced", REPLACED)) if words in text]
+    assert len(said) == 1, text
+    return said[0]
+
+
+def test_a_link_sets_the_password_once_then_leads_to_waterfall(
     keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     url = made.json()["url"]
-    browser = Browser()
-    form = browser.get(confirmation_target(browser.get(url)))
-    assert form.status_code == 200
-    assert 'name="password-new"' in form.text
-    done = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
+    browser, done = set_by_link(url, PASSWORD)
     assert done.status_code == 200, done.text
+    # The page that ends it leads to the home of the front, which asks to sign in (#645).
+    home = f"{required(FRONT_ADDRESS_VARIABLE).rstrip('/')}/"
+    assert f'href="{home}"' in done.text, done.text
     assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
-    # Opened again, in the same browser or another one, the link is spent.
-    assert browser.get(url).status_code == 400
-    assert Browser().get(url).status_code == 400
+    # Opened again, in the same browser or another one, the link says it served already (#655).
+    assert refused_as(browser.get(url)) == refused_as(Browser().get(url)) == "spent"
 
 
-def test_a_link_is_spent_once_confirmed_and_its_form_stays_open(
+def test_a_link_is_spent_once_confirmed_and_its_form_stays_open_in_its_browser(
     keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     # Spent in the base of Keycloak, not in its memory alone: neither a restart nor a password
-    # set another way makes the link valid again.
+    # set another way makes the link valid again. Opened again in another browser, it leaves the
+    # form it opened open.
     made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     url = made.json()["url"]
     browser = Browser()
     form = browser.get(confirmation_target(browser.get(url)))
     assert 'name="password-new"' in form.text
-    assert Browser().get(url).status_code == 400
+    assert refused_as(Browser().get(url)) == "spent"
     done = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
     assert done.status_code == 200, done.text
     assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
+
+
+def test_a_link_confirmed_then_reopened_in_its_own_browser_says_it_served(
+    backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    # Reopened in the same browser, the refusal ends the session of the form already open, which
+    # Keycloak keeps one per browser: the page says the link served, and a new one is to be asked
+    # for (#655).
+    made = link_of(backchannel, local_account.id, service_token)
+    assert made.status_code == 200, made.text
+    url = made.json()["url"]
+    browser = Browser()
+    form = browser.get(confirmation_target(browser.get(url)))
+    assert 'name="password-new"' in form.text
+    assert refused_as(browser.get(url)) == "spent"
 
 
 def test_a_link_outlives_an_update_of_its_account(
@@ -539,9 +574,7 @@ def test_an_invitation_mails_a_link_of_the_extension_that_a_later_link_replaces(
     assert action_token(url)["typ"] == EXTENSION_ACTION
     later = link_of(backchannel, local_account.id, service_token)
     assert later.status_code == 200, later.text
-    replaced = Browser().get(url)
-    assert replaced.status_code == 400
-    assert REPLACED in html.unescape(replaced.text)
+    assert refused_as(Browser().get(url)) == "replaced"
 
 
 def test_an_invitation_is_refused_as_a_link_is(

@@ -32,8 +32,8 @@ import org.keycloak.urls.UrlType;
  * account that holds the realm role {@link #ROLE} — the service account of Waterfall. It answers
  * the link and when it stops being valid: {@code {"url": …, "expires_at": …}}, the shape of the
  * contract's {@code PasswordSetupLink}. The link is valid for the lifespan of the action tokens
- * an administrator makes, one hour in the realm of Waterfall, and once: it is spent as soon as it is
- * confirmed. Making it invalidates the link made before it for the same account.
+ * an administrator makes, one hour in the realm of Waterfall, and once: it is spent as soon as it
+ * is confirmed. Making it invalidates the link made before it for the same account.
  *
  * <p>{@code POST /realms/{realm}/password-setup-link/users/{id}/invitation}, under the same token,
  * mails the account a link made the same way, with the invitation of the email theme, and answers
