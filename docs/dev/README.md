@@ -2065,8 +2065,10 @@ ses paramètres, jamais une phrase.
   requête, la seconde ouvre la transaction de la requête, validée quand la route a construit sa
   réponse et avant qu'elle parte. Aucun appel à Keycloak ne se fait dans une transaction (#669) :
   l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
-  transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser` —
-  ne prend pas `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
+  transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
+  `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
+  privé de tous ses rôles une fois l'écriture validée — ne prend pas `Transaction`, mais ouvre les
+  siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
   jeton expiré un 401 `SESSION_EXPIRED`, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un
   compte que Waterfall ne connaît pas encore est créé sans rôle s'il vient de l'annuaire ou d'un
   fournisseur externe, refusé comme un compte désactivé sinon. L'appelant devient l'auteur

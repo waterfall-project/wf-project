@@ -28,6 +28,7 @@ from waterfall.core.access_roles.interface import (
     granted_permissions,
     require,
 )
+from waterfall.core.access_roles.predefined import ADMINISTRATOR
 from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
 
 ME = "/api/v1/me"
 ROLES = "/api/v1/access-roles"
+USERS = "/api/v1/users"
 CONSULT = "access_roles.read"
 CHANGE = "access_roles.write"
 # A change of a role, as the front sends it.
@@ -152,6 +154,82 @@ def test_a_permission_withdrawn_from_a_role_is_no_longer_effective_at_the_next_r
     assert me(api, headers)["permissions"] == ["users.write", CONSULT]
     response = api.patch(f"{ROLES}/{held}", headers=headers, json={**CHANGED, "lock_version": 1})
     assert refusal(response) == (403, PERMISSION_MISSING, {"missing_permission": CHANGE})
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+def test_an_account_given_two_roles_holds_the_permissions_of_both(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # « Un utilisateur portant deux rôles dispose des permissions des deux. » : given by the
+    # attribution of its roles, each opens its operation at the next request of the account.
+    administrator = person(role(database, "Comptes", permissions=("users.read", "users.write")))
+    accounts = role(database, "Lecture des comptes", permissions=("users.read",))
+    roles = role(database, "Lecture des rôles", permissions=(CONSULT,))
+    headers = person()
+    assert [api.get(path, headers=headers).status_code for path in (USERS, ROLES)] == [404, 404]
+    sent = {"access_role_ids": [str(accounts), str(roles)], "lock_version": 0}
+    path = f"{USERS}/{me(api, headers)['user_id']}/access-roles"
+    assert api.request("PUT", path, headers=administrator, json=sent).status_code == 200
+    assert me(api, headers)["permissions"] == ["users.read", CONSULT]
+    assert [api.get(path, headers=headers).status_code for path in (USERS, ROLES)] == [200, 200]
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+def test_a_permission_withdrawn_from_a_role_deprives_each_of_its_holders_at_once(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # « Le retrait d'une permission à un rôle en prive tous ses porteurs sans qu'ils aient à se
+    # reconnecter. » Each holder sends the same request with the same token, before and after:
+    # before, it passes the evaluation and is refused for its version alone, writing nothing;
+    # after, it is refused for the permission. An evaluation kept per account or per token would
+    # let it pass (#761).
+    administrator = person(role(database, "Administration", permissions=(CONSULT, CHANGE)))
+    held = role(database, "Comptes", permissions=("users.read", "users.write"))
+    holders = [person(held), person(held)]
+
+    def change_own_account(headers: dict[str, str]) -> tuple[int, str, dict[str, Any]]:
+        own = f"{USERS}/{me(api, headers)['user_id']}"
+        return refusal(api.patch(own, headers=headers, json={"lock_version": 9}))
+
+    stale = (412, "STALE_LOCK_VERSION", {"expected_lock_version": 0})
+    assert [change_own_account(headers) for headers in holders] == [stale, stale]
+    withdrawn = {"label": "Comptes", "permissions": ["users.read"], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{held}", headers=administrator, json=withdrawn).status_code == 200
+    missing = (403, PERMISSION_MISSING, {"missing_permission": "users.write"})
+    assert [change_own_account(headers) for headers in holders] == [missing, missing]
+
+
+# A permission of the administrator, and an action it opens: on the caller's own account, or on
+# the roles; the body sent, with the version 0 besides.
+DEPRIVED: list[tuple[str, tuple[str, str | None, dict[str, object]]]] = [
+    ("users.write", ("PUT", "activation", {"is_active": False})),
+    ("users.write", ("PUT", "access-roles", {"access_role_ids": []})),
+    ("access_roles.write", ("POST", None, {"label": "Pilote", "permissions": []})),
+]
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+@pytest.mark.parametrize(("withdrawn", "asked_for"), DEPRIVED)
+def test_an_administrator_deprived_of_a_permission_is_refused_its_action(
+    api: ContractClient,
+    database: Database,
+    person: Person,
+    withdrawn: str,
+    asked_for: tuple[str, str | None, dict[str, object]],
+) -> None:
+    # « Réciproquement, un rôle privé d'une permission empêche l'action correspondante, quel que
+    # soit l'acteur auquel l'utilisateur ressemble. » : the delivered administrator, deprived of
+    # one permission, is refused the action it opens, the others staying hers.
+    kept = tuple(code for code in ADMINISTRATOR if code != withdrawn)
+    headers = person(role(database, "Administrateur", permissions=kept, is_predefined=True))
+    method, operation, sent = asked_for
+    path = ROLES if operation is None else f"{USERS}/{me(api, headers)['user_id']}/{operation}"
+    response = api.request(method, path, headers=headers, json={**sent, "lock_version": 0})
+    assert refusal(response) == (403, PERMISSION_MISSING, {"missing_permission": withdrawn})
+    assert journal(database) == []
+    # What she was not deprived of, she does.
+    assert api.get(USERS, headers=headers).status_code == 200
+    assert api.get(ROLES, headers=headers).status_code == 200
 
 
 @pytest.mark.parametrize("headed", [False, True])
@@ -269,6 +347,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "getUser": ("users.read",),
     "createUser": ("users.write",),
     "updateUser": ("users.read", "users.write"),
+    "setUserActivation": ("users.read", "users.write"),
+    "setUserAccessRoles": ("users.read", "users.write"),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),

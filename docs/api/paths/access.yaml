@@ -232,12 +232,7 @@
       required: true
       content:
         application/json:
-          schema:
-            type: object
-            required: [is_active, lock_version]
-            properties:
-              is_active: { type: boolean }
-              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+          schema: { $ref: ../components/schemas/access.yaml#/UserActivationWrite }
     responses:
       '200':
         description: Compte activé ou désactivé.
@@ -259,6 +254,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

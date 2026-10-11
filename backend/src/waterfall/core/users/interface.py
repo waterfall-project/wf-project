@@ -7,8 +7,8 @@ the account the identity provider knows by a subject, as the account itself read
 of a person the provider knows and Waterfall not yet, created without any role (WF-ADM-0180); an
 account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
 each one carries (WF-ADM-0050, WF-IHM-0090); a local account created, and the identity of an
-account changed (``identity``). The other operations on accounts arrive with the stories that need
-them (US-0360).
+account changed (``identity``); an account deactivated or reactivated, and an account locked at the
+version read for a write of the roles it holds, which notes the change (``states``).
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -28,9 +28,11 @@ from waterfall.core.users.accounts import (
     add_account_if_absent,
     address_holder,
     address_taken,
+    change_columns,
     find_account,
     find_account_of_subject,
     find_active_accounts,
+    lock_account_at,
 )
 from waterfall.core.users.commands import CommandAvailability, account_commands
 from waterfall.core.users.identity import (
@@ -52,6 +54,7 @@ from waterfall.core.users.listing import (
     Page,
     find_accounts,
 )
+from waterfall.core.users.states import set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.errors import NotFoundError
@@ -82,12 +85,15 @@ __all__ = [
     "identity_faults",
     "is_address",
     "list_accounts",
+    "lock_account_for_change",
+    "note_account_change",
     "origin_of",
     "read_account",
     "read_account_label",
     "read_account_of_subject",
     "read_author",
     "refuse",
+    "set_account_activation",
 ]
 
 NAME_MAX_LENGTH = 100
@@ -149,8 +155,10 @@ class Account:
 def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
     """Read the label of an account, or ``None`` if there is none."""
     account = find_account(session, user_id)
-    if account is None:
-        return None
+    return None if account is None else _label(account)
+
+
+def _label(account: UserAccount) -> AccountLabel:
     return AccountLabel(
         user_id=account.id,
         last_name=account.last_name,
@@ -245,6 +253,36 @@ def change_account(
 ) -> Account:
     """Change the identity of an account whose version is the one read (``identity``)."""
     return _account(session, change(session, user_id, sent, lock_version, act))
+
+
+def set_account_activation(
+    session: Session, user_id: UUID, *, is_active: bool, lock_version: int, act: Act
+) -> Account:
+    """Activate or deactivate an account whose version is the one read (``states``).
+
+    Refused if unknown (404) or at another version (412). A deactivation that leaves the
+    installation no administrator is refused by the guard its caller runs it under (WF-ADM-0120).
+    """
+    return _account(
+        session,
+        set_state(session, user_id, is_active=is_active, lock_version=lock_version, act=act),
+    )
+
+
+def lock_account_for_change(session: Session, user_id: UUID, lock_version: int) -> AccountLabel:
+    """Lock an account at the version read, for a write of the roles it holds; or refuse (404, 412).
+
+    Taken under the guard of the last administrator, after its lock: never the reverse.
+    """
+    return _label(lock_account_at(session, user_id, lock_version))
+
+
+def note_account_change(session: Session, user_id: UUID, lock_version: int, act: Act) -> None:
+    """Note on an account locked at the version read a change of its roles: its version advances.
+
+    With the author and the moment of the change, as for any write of the account.
+    """
+    change_columns(session, user_id, {}, lock_version, Stamp(act.author, act.at))
 
 
 @dataclass(frozen=True, slots=True)

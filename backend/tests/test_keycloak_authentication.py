@@ -54,8 +54,9 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database, utc_now
+from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
+from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, refused_identity
 from waterfall.platform.settings import ServiceSettings
 
 pytestmark = pytest.mark.keycloak
@@ -232,25 +233,31 @@ def admin(settings: ServiceSettings) -> Iterator[httpx2.Client]:
         yield client
 
 
-@pytest.fixture
-def local_account(admin: httpx2.Client) -> Iterator[Account]:
-    """Make a local account of the realm with a password, and remove it after."""
+def with_password(admin: httpx2.Client, first_name: str, last_name: str) -> Account:
+    """Make a local account of the realm with a password, which its test removes."""
     email = f"test-{secrets.token_hex(6)}@example.org"
     response = admin.post(
         "/users",
         json={
             "username": email,
             "email": email,
-            "firstName": "Claude",
-            "lastName": "Locale",
+            "firstName": first_name,
+            "lastName": last_name,
             "enabled": True,
         },
     )
     assert response.status_code == 201, response.text
     user_id = response.headers["Location"].rsplit("/", 1)[-1]
     set_password(admin, user_id, PASSWORD)
-    yield Account(user_id, email)
-    admin.delete(f"/users/{user_id}")
+    return Account(user_id, email)
+
+
+@pytest.fixture
+def local_account(admin: httpx2.Client) -> Iterator[Account]:
+    """Make a local account of the realm with a password, and remove it after."""
+    made = with_password(admin, "Claude", "Locale")
+    yield made
+    admin.delete(f"/users/{made.id}")
 
 
 def known(database: Database, account: Account, **overrides: object) -> dict[str, Any]:
@@ -548,32 +555,98 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
 
 
 @pytest.mark.parametrize(
-    ("sent", "pointer"),
+    ("sent", "pointers"),
     [
-        ({"email": "jeanne..x@mairie.test"}, "/email"),
-        ({"last_name": "Montgolfier (Durand)"}, "/last_name"),
+        ({"email": "jeanne..x@mairie.test"}, ["/email"]),
+        ({"last_name": "Montgolfier (Durand)"}, ["/last_name"]),
+        (
+            {"last_name": "Montgolfier (Durand)", "first_name": "Jeanne (J.)"},
+            ["/last_name", "/first_name"],
+        ),
     ],
-    ids=["an address", "a name"],
+    ids=["an address", "a name", "both names"],
 )
 def test_a_value_the_user_profile_of_the_provider_refuses_is_refused_on_its_field(
     api: ContractClient,
     admin: httpx2.Client,
     administrator: dict[str, str],
     sent: dict[str, str],
-    pointer: str,
+    pointers: list[str],
 ) -> None:
-    # Waterfall receives the address and the name; the user profile of the realm does not.
+    # Waterfall receives the address and the names; the user profile of the realm does not. Two
+    # fields refused at once are each named, in the order the realm names them (#822).
     body = {**jeanne(new_address()), **sent}
     response = api.post(USERS, headers=administrator, json=body)
     assert response.status_code == 422, response.text
     assert (response.json()["code"], response.json()["fields"]) == (
         "VALIDATION_FAILED",
-        [{"pointer": pointer, "code": "VALIDATION_FAILED"}],
+        [{"pointer": pointer, "code": "VALIDATION_FAILED"} for pointer in pointers],
     )
     # Neither in Waterfall, where the administrator is alone, nor in the realm.
     assert api.get(USERS, headers=administrator).json()["meta"]["total"] == 1
     address = str(body["email"]).lower()
     assert admin.get("/users", params={"email": address, "exact": "true"}).json() == []
+
+
+def refusal_of_the_realm(document: dict[str, object]) -> httpx2.Response:
+    """Give the 400 the realm answers a creation of an account with, as it words it."""
+    request = httpx2.Request("POST", f"{realm_address()}/users")
+    return httpx2.Response(400, json=document, request=request)
+
+
+def test_the_username_and_the_address_refused_together_are_one_field() -> None:
+    refused = refused_identity(
+        refusal_of_the_realm(
+            {"errors": [{"field": "username"}, {"field": "email"}, {"field": "lastName"}]}
+        )
+    )
+    assert isinstance(refused, UnprocessableError)
+    assert [(fault.pointer, fault.code) for fault in refused.fields] == [
+        ("/email", "VALIDATION_FAILED"),
+        ("/last_name", "VALIDATION_FAILED"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        {"field": "department", "errorMessage": "error-user-attribute-required"},
+        {"errors": [{"field": "department"}, {"field": "phone"}]},
+        {"errorMessage": "Could not create user"},
+    ],
+    ids=["an attribute required besides", "two of them", "no field"],
+)
+def test_a_refusal_of_the_realm_that_names_no_field_of_the_identity_is_a_defect(
+    document: dict[str, object],
+) -> None:
+    # No value the user could correct: an attribute the profile of the realm requires, which the
+    # identity does not carry, is a defect of the platform, never a 422 on the whole body (#822).
+    refused = refused_identity(refusal_of_the_realm(document))
+    assert isinstance(refused, IdentityProviderError)
+    assert "answered 400 on no field of the identity" in str(refused)
+
+
+class Proxied(Keycloak):
+    """The client of the realm behind a proxy that answers 502 for the extension of Waterfall."""
+
+    def send(self, method: str, path: str, **options: Any) -> httpx2.Response:
+        """Answer the invitation as a proxy whose Keycloak failed; send any other request."""
+        if path.endswith("/invitation"):
+            request = httpx2.Request(method, f"{realm_address()}{path}")
+            return httpx2.Response(502, text="Bad Gateway", request=request)
+        return super().send(method, path, **options)
+
+
+def test_a_proxy_that_answers_the_invitation_by_a_502_is_said_as_keycloak_failing(
+    settings: ServiceSettings, logs: Logs
+) -> None:
+    # The extension says by a 502 that the mail server failed, with its own error; a proxy before
+    # Keycloak says by one that Keycloak did, which is logged with its status (#822).
+    proxied = Proxied(settings)
+    assert KeycloakAdmin(proxied, settings).send_invitation(NOBODY) == "provider_unavailable"
+    proxied.close()
+    (record,) = logs.named("identity_provider.failed")
+    assert (record["status"], record["level"]) == (502, "warning")
 
 
 @pytest.mark.requirement("WF-ADM-0050-A")
@@ -752,3 +825,48 @@ def test_an_account_whose_invitation_fails_is_created_all_the_same(
         "provider_error",
         "error",
     )
+
+
+# --- An account deactivated, or withdrawn all its roles (US-0360) --------------------------------
+
+
+@pytest.fixture
+def colleague(admin: httpx2.Client) -> Iterator[Account]:
+    """Make a second local account of the realm with a password, and remove it after."""
+    made = with_password(admin, "Paul", "Durand")
+    yield made
+    admin.delete(f"/users/{made.id}")
+
+
+# A write that leaves an account without access, and what the API answers the account after it.
+INTERRUPTING: list[tuple[str, dict[str, object], tuple[int, str | None]]] = [
+    ("activation", {"is_active": False}, (401, "ACCOUNT_DEACTIVATED")),
+    ("access-roles", {"access_role_ids": []}, (200, None)),
+]
+
+
+@pytest.mark.requirement("WF-SEC-0020-A")
+@pytest.mark.parametrize("case", INTERRUPTING, ids=["deactivated", "withdrawn all its roles"])
+def test_an_account_signed_in_on_two_devices_is_interrupted_on_both(
+    api: ContractClient,
+    database: Database,
+    administrator: dict[str, str],
+    colleague: Account,
+    case: tuple[str, dict[str, object], tuple[int, str | None]],
+) -> None:
+    # « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête
+    # suivante » ; so does the withdrawal of all its roles. The realm closes the sessions of both
+    # devices: neither refreshes its tokens, which Keycloak notifies the front of; and the API,
+    # which reads the account at each request, refuses the deactivated one at once.
+    write, sent, next_answer = case
+    row = known(database, colleague)
+    role(database, "Pilote", permissions=("planning.read",), holders=(row["id"],))
+    office, home = (tokens_of(colleague.email, PASSWORD) for _ in range(2))
+    path = f"{USERS}/{row['id']}/{write}"
+    response = api.request("PUT", path, headers=administrator, json={**sent, "lock_version": 0})
+    assert response.status_code == 200, response.text
+    for device in (office, home):
+        answer = api.get(ME, headers=bearer(device))
+        assert (answer.status_code, answer.json().get("code")) == next_answer
+        again = refreshed(device["refresh_token"])
+        assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")

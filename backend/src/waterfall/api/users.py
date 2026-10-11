@@ -12,7 +12,9 @@ A local account is created in the identity provider, then in Waterfall, and its 
 the extension of Keycloak (WF-ADM-0070, WF-ADM-0140). No call to the provider is made inside a
 transaction (#669): what Waterfall would refuse is refused before the provider is asked, the
 account is written once the provider has created it, and withdrawn from the provider if Waterfall
-refuses it after all, a role deleted or an address taken meanwhile.
+refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
+withdrawn all its roles, has its sessions closed by the provider once the write is committed
+(WF-SEC-0020).
 """
 
 from collections.abc import Sequence
@@ -29,8 +31,10 @@ from waterfall.api.contract.models import (
     PaginationMeta,
     SortOrder,
     User,
+    UserActivationWrite,
     UserCreate,
     UserOrigin,
+    UserRolesWrite,
     UserUpdate,
 )
 from waterfall.api.evaluation import Acting, Requires
@@ -39,9 +43,11 @@ from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
     give_first_roles,
+    guard_last_administrator,
     holding_one_of,
     labels_held,
     roles_held_by,
+    set_access_roles,
     sole_administrator,
     unknown_roles,
 )
@@ -63,6 +69,7 @@ from waterfall.core.users.interface import (
     list_accounts,
     read_account,
     refuse,
+    set_account_activation,
 )
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -75,6 +82,9 @@ router = APIRouter(tags=["users"])
 
 logger = get_logger(__name__)
 
+# The refusal of the deactivation of the last administrator, which its command says in advance.
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+LAST_ADMINISTRATOR_LACKING = {"missing_condition": "last_administrator"}
 CONSULTATION = "users.read"
 CHANGE = "users.write"
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -358,3 +368,74 @@ def patch_user(
     act = Act(audit_actor(account), utc_now())
     changed = change_account(session, user_id, identity_change(body), body.lock_version.root, act)
     return users(session, actor, [changed])[0]
+
+
+def close_sessions(admin: KeycloakAdmin, account: Account) -> None:
+    """Have the provider close every session of an account a write leaves without access.
+
+    On every device (WF-SEC-0020), once the write is committed: Keycloak notifies the front, which
+    forgets them. A failure of Keycloak is said in the log and refuses nothing — the account is
+    deactivated or holds no permission all the same, which the API reads at each request.
+    """
+    try:
+        admin.close_sessions(account.subject)
+    except (UnavailableError, IdentityProviderError):
+        logger.exception("account.sessions_not_closed", user_id=str(account.user_id))
+        return
+    logger.info("account.sessions_closed", user_id=str(account.user_id))
+
+
+@router.put(
+    "/users/{user_id}/activation",
+    operation_id="setUserActivation",
+    dependencies=WRITE,
+    response_model_exclude_unset=True,
+)
+def put_user_activation(
+    user_id: UUID, body: UserActivationWrite, account: Caller, actor: Acting, services: ServicesOf
+) -> User:
+    """Deactivate or reactivate an account, which keeps its roles (WF-ADM-0060).
+
+    The deactivation of the last administrator is refused, as its command says in advance
+    (WF-ADM-0120). A deactivation closes the sessions of the account, even of one deactivated
+    already: asking again closes those a failure of the provider left open.
+    """
+    act = Act(audit_actor(account), utc_now())
+    with services.database.transaction() as session:
+        with guard_last_administrator(session, STATE_FORBIDS_OPERATION, LAST_ADMINISTRATOR_LACKING):
+            changed = set_account_activation(
+                session,
+                user_id,
+                is_active=body.is_active,
+                lock_version=body.lock_version.root,
+                act=act,
+            )
+        described = users(session, actor, [changed])[0]
+    if not body.is_active:
+        close_sessions(services.keycloak_admin, changed)
+    return described
+
+
+@router.put(
+    "/users/{user_id}/access-roles",
+    operation_id="setUserAccessRoles",
+    dependencies=WRITE,
+    response_model_exclude_unset=True,
+)
+def put_user_access_roles(
+    user_id: UUID, body: UserRolesWrite, account: Caller, actor: Acting, services: ServicesOf
+) -> User:
+    """Set the roles of an account, which hold at its next request (WF-ADM-0050, WF-ADM-0090).
+
+    Roles that take the administration from the last administrator are refused (WF-ADM-0120). An
+    account withdrawn all its roles has its sessions closed (WF-SEC-0020).
+    """
+    act = Act(audit_actor(account), utc_now())
+    role_ids = [role_id.root for role_id in body.access_role_ids]
+    with services.database.transaction() as session:
+        attribution = set_access_roles(session, user_id, role_ids, body.lock_version.root, act)
+        changed = read_account(session, user_id)
+        described = users(session, actor, [changed])[0]
+    if attribution.withdraws_all:
+        close_sessions(services.keycloak_admin, changed)
+    return described
