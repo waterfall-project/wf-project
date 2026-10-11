@@ -1362,9 +1362,10 @@ dans le volume du frontal, est copiée à chaque démarrage dans
 aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
 leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
 `SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
-les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner où
-Python n'est pas encore en cache, uv ne se fierait plus à GitHub pour le télécharger (#737).
-L'API, dans le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
+les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner sans
+cache, uv ne se fierait plus à GitHub pour télécharger Python ou les paquets (#737). L'API, dans
+le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce
+lien relève d'EP-13 (WF-SEC-0010).
 Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
 (#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
 fermeture des sessions à ce front par le canal de retour, à l'adresse
@@ -1786,7 +1787,9 @@ du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port d�
 `E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
 port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
-chacun des runners de la chaîne (« Chaîne »). Avec `WATERFALL_API_ADDRESS`, le harnais joue
+chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
+(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
+des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
