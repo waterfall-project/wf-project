@@ -14,10 +14,9 @@
  * table — neither sort, nor search, nor filter — leads, before anything is read, to the address of
  * the search and the filters the account keeps for it, if it keeps any (`restoredAddress`,
  * WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a session that may modify
- * the accounts, the table is its own entry, « Créer un compte local » at its head (US-0360, #379);
- * to another, none. A read the API refuses, or cannot answer, is thrown for the pages of the shell
- * to say; a tree of the organisation it does not find leaves the screen standing, without a node to
- * choose.
+ * the accounts, the table is its own entry (US-0360, #379); to another, none. A read the API
+ * refuses, or cannot answer, is thrown for the pages of the shell to say; a tree of the
+ * organisation it does not find leaves the screen standing, without a node to choose.
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

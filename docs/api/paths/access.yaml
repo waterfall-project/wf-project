@@ -123,8 +123,6 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
-            examples:
-              witness: { $ref: ../../../fixtures/api/user_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

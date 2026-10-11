@@ -928,15 +928,10 @@ sans la lancer. La désactivation du dernier compte actif qui porte les permissi
 comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
 ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
 disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
-retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
-(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
-cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
-d'un compte qui n'est pas local. « Créer un compte local », en tête de la table, ouvre le dialogue du
-nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
-appel, l'adresse déjà portée dite à son champ. Aucune suppression (WF-ADM-0060). Comme pour les
-rôles, une seule source du compte répondu le plus récent par sa `lock_version` (`UserCommands`,
-`user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule, part de sa
-version. Ce que fait une écriture se dit dans la région « Commandes des comptes » ; un refus,
+retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
+Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
+(`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
+part de sa version. Ce que fait une écriture se dit dans la région « Commandes des comptes » ; un refus,
 au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`). La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne

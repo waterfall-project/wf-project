@@ -12,25 +12,21 @@
  *   the account is attached to (WF-ADM-0030): each role checked or unchecked writes the roles of the
  *   account (`setUserAccessRoles`), none, one or more (WF-ADM-0050) — the server judges the roles
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
- *   administrator (WF-ADM-0120);
- * - the link by which the holder of a local account sets its password (`createPasswordSetupLink`),
- *   offered to a local account alone — another sets none in Waterfall —, unavailable while it is
- *   deactivated, as the server would refuse it (`is_active_account`).
+ *   administrator (WF-ADM-0120).
  *
  * In a dense grid, each is out of the order of tabulation, the grid being one stop: Enter on its cell
  * presses it (`CELL_COMMAND`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
-import { ChevronDown, KeyRound } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
 import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
 import { useUnmet } from "@/components/commands/command";
-import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
-import { CellCommand } from "@/components/reference/cell-command";
 import { useListReport } from "@/components/reference/reactivation";
 import { ActiveState } from "@/components/reference/section";
 import { Badge } from "@/components/ui/badge";
@@ -236,61 +232,5 @@ export function RolesCell({
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** A link asked of a deactivated account: the server would refuse it (`is_active_account`). */
-const DEACTIVATED: CommandOffer = {
-  is_available: false,
-  missing_conditions: ["is_active_account"],
-};
-
-/**
- * The command that asks the link of a local account, named after it — unavailable while the account
- * is deactivated, as the server would refuse it —; none for another account, which sets no password
- * in Waterfall.
- */
-export function SetupLinkCommand({ user }: { readonly user: User }) {
-  const t = useTranslations("admin.users");
-  const told = useTranslations("admin.commands");
-  const writes = useUserWrites();
-  const unmet = useUnmet();
-  const name = useNamed()(user);
-  const described = `${useId()}-unmet`;
-  if (user.origin !== "local" || writes === undefined) {
-    return null;
-  }
-  const command = t("linkOf", { name });
-  const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
-  const pending = writes.linking.has(user.user_id);
-  return (
-    <>
-      <CellCommand
-        aria-label={command}
-        aria-busy={pending}
-        aria-disabled={lacking === undefined ? undefined : true}
-        aria-describedby={lacking === undefined ? undefined : described}
-        title={lacking}
-        className={UNAVAILABLE}
-        onClick={(event) => {
-          if (lacking !== undefined) {
-            // An unavailable command never runs: the press says the condition it lacks.
-            writes.say(told("unmet", { command, condition: lacking }));
-            return;
-          }
-          if (!pending) {
-            writes.giveLink(user, name, event.currentTarget);
-          }
-        }}
-      >
-        <KeyRound aria-hidden="true" />
-        {t("link")}
-      </CellCommand>
-      {lacking === undefined ? null : (
-        <span id={described} className="sr-only">
-          {lacking}
-        </span>
-      )}
-    </>
   );
 }

@@ -3,9 +3,8 @@
 /**
  * The commands of the table of the accounts (US-0360, #379), for a session that may modify them
  * (`users.write`): the table is its own entry — the names of a local account in their cells
- * (`admin-grids.tsx`), its state on a switch, its access roles in a list of several choices, the link
- * by which its holder sets a password (`user-cells.tsx`) —, and « Créer un compte local » heads it
- * (`user-dialogs.tsx`). No command deletes an account (WF-ADM-0060).
+ * (`admin-grids.tsx`), its state on a switch, its access roles in a list of several choices
+ * (`user-cells.tsx`). No command deletes an account (WF-ADM-0060).
  *
  * The accounts the server answered a write with are kept here until the page read anew holds them,
  * one source for every cell of a row: the account answered prevails over the same account read while
@@ -18,7 +17,6 @@
  */
 "use client";
 
-import { UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -30,19 +28,12 @@ import {
   useState,
 } from "react";
 
-import { createPasswordSetupLink } from "@/api/actions/users";
-import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { rejected } from "@/components/commands/rejection";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
-import { Button } from "@/components/ui/button";
 
 import type { User } from "./admin-grids";
-import { SetupLinkDialog, UserCreation } from "./user-dialogs";
 import { USER_READS } from "./user-address";
-
-/** A link to set a password, as the contract gives it. */
-type SetupLink = components["schemas"]["PasswordSetupLink"];
 
 /** What a write of an account asked, shown until the server answers: its state, or its roles. */
 export interface Asked {
@@ -73,14 +64,6 @@ export interface UserWrites {
   readonly record: (answered: User) => void;
   /** Write an account, unless a write of it is under way. */
   readonly run: (shown: User, write: UserWrite) => void;
-  /** Open the creation of a local account, from the command pressed. */
-  readonly create: (trigger: HTMLElement) => void;
-  /** Ask the link of an account, from the command pressed, and show it once given. */
-  readonly giveLink: (user: User, name: string, trigger: HTMLElement) => void;
-  /** The accounts whose link is asked. */
-  readonly linking: ReadonlySet<string>;
-  /** Say in the region of the table what a command did, or the condition it lacks. */
-  readonly say: (text: string) => void;
 }
 
 const WritesContext = createContext<UserWrites | undefined>(undefined);
@@ -104,26 +87,9 @@ export function UserCommands({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/** A link given, the account it is for, and the command that asked it. */
-interface Given {
-  readonly link: SetupLink;
-  readonly name: string;
-  readonly trigger: HTMLElement;
-}
-
-/** Give the focus back to a command, or to its cell in the grid; to the list when it is gone. */
-function focusBack(trigger: HTMLElement, list: (() => void) | undefined) {
-  if (!trigger.isConnected) {
-    list?.();
-    return;
-  }
-  (trigger.closest<HTMLElement>("td") ?? trigger).focus();
-}
-
 /**
- * The accounts answered and asked, the region that says what the last write did — rendered from the
- * start, so that a reader of the screen hears what is put in it —, the creation of an account and the
- * link given.
+ * The accounts answered and asked, and the region that says what the last write did — rendered
+ * from the start, so that a reader of the screen hears what is put in it.
  */
 function Writes({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.users");
@@ -137,9 +103,6 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const latestAnswers = useRef<ReadonlyMap<string, User>>(answered);
   const [asked, setAsked] = useState<ReadonlyMap<string, Asked>>(() => new Map());
   const asking = useRef(new Set<string>());
-  const [creating, setCreating] = useState<HTMLElement>();
-  const [given, setGiven] = useState<Given>();
-  const [linking, setLinking] = useState<ReadonlySet<string>>(() => new Set());
 
   const record = useCallback((user: User) => {
     const kept = latestAnswers.current.get(user.user_id);
@@ -185,31 +148,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
     },
     [latest, list, record, say],
   );
-  const giveLink = useCallback(
-    (user: User, name: string, trigger: HTMLElement) => {
-      const id = user.user_id;
-      const reading = list?.reading ?? "";
-      setLinking((before) => new Set(before).add(id));
-      void createPasswordSetupLink(id)
-        .catch(rejected)
-        .then((outcome) => {
-          setLinking((before) => {
-            const after = new Set(before);
-            after.delete(id);
-            return after;
-          });
-          if (outcome.kind === "done") {
-            setGiven({ link: outcome.data, name, trigger });
-          } else {
-            list?.report({ outcome, reading, names: {}, target: `link ${id}`, back: trigger });
-          }
-        });
-    },
-    [list],
-  );
   const writes = useMemo<UserWrites>(
-    () => ({ answered, asked, latest, record, run, create: setCreating, giveLink, linking, say }),
-    [answered, asked, latest, record, run, giveLink, linking, say],
+    () => ({ answered, asked, latest, record, run }),
+    [answered, asked, latest, record, run],
   );
   return (
     <WritesContext value={writes}>
@@ -222,55 +163,6 @@ function Writes({ children }: { readonly children: ReactNode }) {
         {said === undefined ? null : <span key={said.count}>{said.text}</span>}
       </p>
       {children}
-      {creating === undefined ? null : (
-        <UserCreation
-          onCreated={(user) => {
-            say(
-              t("created", {
-                name: t("named", { firstName: user.first_name, lastName: user.last_name }),
-              }),
-            );
-          }}
-          onClose={() => {
-            setCreating(undefined);
-          }}
-          onClosed={() => {
-            focusBack(creating, list?.refocus);
-          }}
-        />
-      )}
-      {given === undefined ? null : (
-        <SetupLinkDialog
-          link={given.link}
-          name={given.name}
-          onClose={() => {
-            setGiven(undefined);
-          }}
-          onClosed={() => {
-            focusBack(given.trigger, list?.refocus);
-          }}
-        />
-      )}
     </WritesContext>
-  );
-}
-
-/** The command that opens the creation of a local account, at the head of the table. */
-export function CreateUser() {
-  const t = useTranslations("admin.users");
-  const writes = useUserWrites();
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="self-start"
-      onClick={(event) => {
-        writes?.create(event.currentTarget);
-      }}
-    >
-      <UserPlus aria-hidden="true" />
-      {t("create")}
-    </Button>
   );
 }

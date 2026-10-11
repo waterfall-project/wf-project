@@ -194,8 +194,7 @@
       "auditObject": "Object",
       "objectHistory": "History of the object",
       "project": "Project",
-      "correlation": "Correlation",
-      "passwordLink": "Password link"
+      "correlation": "Correlation"
     },
     "computed": "Computed",
     "entry": {
@@ -1224,7 +1223,6 @@
       "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}",
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
-      "create": "Create a local account",
       "named": "{firstName} {lastName}",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
@@ -1233,22 +1231,11 @@
       "activeAccounts": "Active accounts",
       "inactiveAccounts": "Deactivated accounts",
       "told": "Commands of the accounts",
-      "created": "Account “{name}” created.",
-      "creationHint": "The account is born without a password: its holder sets one through the link the table hands over. Its roles are then attributed in the table.",
       "deactivated": "“{name}” deactivated.",
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
       "rolesOf": "Roles of “{name}”",
-      "rolesAttributed": "Roles of “{name}” attributed.",
-      "link": "Link",
-      "linkOf": "Link to set the password of “{name}”",
-      "linkTitle": "Link to set the password of “{name}”",
-      "linkHint": "To hand over to its holder by another channel: they set their password on the page of the identity provider. The link serves once and will not be shown again; asking another makes this one void.",
-      "linkExpiry": "Valid until <expiry></expiry>.",
-      "copyLink": "Copy the link",
-      "closeLink": "Close",
-      "linkCopied": "Link copied.",
-      "linkSelected": "Link selected: copy it with the keyboard."
+      "rolesAttributed": "Roles of “{name}” attributed."
     },
     "accessRoles": {
       "title": "Access roles",

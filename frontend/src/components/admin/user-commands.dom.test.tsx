@@ -120,30 +120,22 @@ afterEach(() => {
 });
 
 describe("the table of the accounts, its own entry", () => {
-  it("offers to delete no account [WF-ADM-0060-A]; to a session that may modify them, a switch of the state, the roles and the link of a local account on each row, and breaks no rule of accessibility", async () => {
+  it("offers to delete no account [WF-ADM-0060-A]; to a session that may modify them, a switch of the state and the roles on each row, and breaks no rule of accessibility", async () => {
     const { container } = render(accounts());
     expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
     expect(screen.queryByText(/Supprimer/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Créer un compte local" })).toBeInTheDocument();
     expect(within(grid()).getAllByRole("switch")).toHaveLength(7);
     expect(
       within(grid()).getByRole("switch", { name: "Compte de « Alix Moreau » actif" }),
     ).not.toBeChecked();
     expect(within(grid()).getAllByRole("button", { name: /^Rôles de «/ })).toHaveLength(7);
-    // The five local accounts have a link; those of the directory and of the provider, none.
-    expect(within(grid()).getAllByRole("button", { name: /^Lien de fixation/ })).toHaveLength(5);
-    expect(
-      within(grid()).queryByRole("button", {
-        name: "Lien de fixation du mot de passe de « Dominique Bernard »",
-      }),
-    ).toBeNull();
     await expectAccessible(container);
   });
 
-  it("offers nothing to write to a session that may not modify the accounts: the state and the roles read only, and no creation", () => {
+  it("offers nothing to write to a session that may not modify the accounts: the state and the roles read only", () => {
     render(accounts(false));
     expect(screen.queryByRole("switch")).toBeNull();
-    expect(screen.queryByRole("button", { name: /^(Créer|Rôles de|Lien)/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Rôles de/ })).toBeNull();
     expect(screen.queryByRole("status", { name: "Commandes des comptes" })).toBeNull();
   });
 
@@ -318,126 +310,6 @@ describe("the access roles of an account, cell by cell", () => {
     await waitFor(() => {
       expect(cell).toHaveFocus();
     });
-  });
-});
-
-describe("the creation of a local account", () => {
-  it("creates an account from its names and its address, trimmed, says so, and reads the page anew", async () => {
-    const client = serve({ "POST /users": { status: 201, example: "user_created" } });
-    render(accounts());
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    const form = await screen.findByRole("form", { name: "Créer un compte local" });
-    await userEvent.type(within(form).getByLabelText("Nom"), " Garnier ");
-    await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
-    await userEvent.type(
-      within(form).getByLabelText("Adresse électronique"),
-      "lea.garnier@example.com",
-    );
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await waitFor(() => {
-      expect(told().textContent).toBe("Compte « Léa Garnier » créé.");
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: "Créer un compte local" })).toHaveFocus();
-    expect(writes(client)).toEqual([
-      [
-        "POST /users",
-        "/users",
-        { last_name: "Garnier", first_name: "Léa", email: "lea.garnier@example.com" },
-      ],
-    ]);
-    expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it("refuses at their fields a name left blank and an address left empty, and asks nothing [WF-ADM-0050-A]", async () => {
-    const client = serve({});
-    render(accounts());
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    const form = await screen.findByRole("form", { name: "Créer un compte local" });
-    await userEvent.type(within(form).getByLabelText("Nom"), "   ");
-    await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    const last = within(form).getByLabelText("Nom");
-    expect(last).toHaveFocus();
-    expect(last).toHaveAttribute("aria-invalid", "true");
-    expect(last).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
-    expect(within(form).getByLabelText("Adresse électronique")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(within(form).getByLabelText("Prénom")).not.toHaveAttribute("aria-invalid");
-    expect(writes(client)).toEqual([]);
-  });
-
-  it("says at its field the address another account holds, the dialog open to correct it [WF-ADM-0050-A]", async () => {
-    serve({
-      "POST /users": {
-        problem: {
-          code: "ALREADY_EXISTS",
-          status: 409,
-          fields: [{ pointer: "/email", code: "ALREADY_EXISTS" }],
-        },
-      },
-    });
-    render(accounts());
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    const form = await screen.findByRole("form", { name: "Créer un compte local" });
-    await userEvent.type(within(form).getByLabelText("Nom"), "Petit");
-    await userEvent.type(within(form).getByLabelText("Prénom"), "Lucas");
-    await userEvent.type(
-      within(form).getByLabelText("Adresse électronique"),
-      "lucas.petit@example.com",
-    );
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    const email = within(form).getByLabelText("Adresse électronique");
-    await waitFor(() => {
-      expect(email).toHaveFocus();
-    });
-    expect(email).toHaveAccessibleDescription(CATALOGUES.fr.errors.ALREADY_EXISTS);
-    expect(within(form).queryByRole("alert")).toBeNull();
-  });
-});
-
-describe("the link to set the password", () => {
-  it("gives the link of a local account in a dialog, whole and selected, with the instant it ceases to be valid; the focus back on its cell once closed", async () => {
-    const client = serve({
-      "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" },
-    });
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
-    });
-    await userEvent.click(command);
-    const dialog = await screen.findByRole("dialog", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
-    });
-    const link = (example("password_setup_link") as Schemas["PasswordSetupLink"]).url;
-    const field = within(dialog).getByRole("textbox", { name: "Lien" });
-    expect(field).toHaveValue(link);
-    expect(field).toHaveAttribute("readonly");
-    expect(dialog.querySelector("time")).toHaveAttribute("datetime", "2026-06-03T15:05:00Z");
-    expect(writes(client).map(([, path]) => path)).toEqual([
-      `/users/${account("Martin").user_id}/password-link`,
-    ]);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
-    await waitFor(() => {
-      expect(command.closest("td")).toHaveFocus();
-    });
-  });
-
-  it("presents the link of a deactivated local account unavailable, naming the condition it lacks, and asks nothing", async () => {
-    const client = serve({});
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Alix Moreau »",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie : compte actif.");
-    await userEvent.click(command);
-    expect(told().textContent).toBe(
-      "Lien de fixation du mot de passe de « Alix Moreau » : Condition non remplie : compte actif.",
-    );
-    expect(writes(client)).toEqual([]);
   });
 });
 
