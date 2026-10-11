@@ -290,12 +290,14 @@ def test_a_link_for_a_forgotten_password_after_its_hour_is_refused(local_account
     # is the lifespan of the links the realm mails a person who asks for one: a second here.
     browser = Browser()
     with realm_set(actionTokenGeneratedByUserLifespan=1):
-        asked = time.monotonic()
         ask_forgotten(browser, local_account)
     url = mailed_link(local_account.email, whole=True)
     lifespan = action_token(url)
     assert lifespan["exp"] - lifespan["iat"] == 1
-    time.sleep(max(0.0, asked + 2.1 - time.monotonic()))
+    # Keycloak refuses a token once its whole-second clock is past "exp": wait from the token's
+    # own hour, not from the request, which the mail it sends makes last. Host and container
+    # share the clock.
+    time.sleep(max(0.0, lifespan["exp"] + 1.1 - time.time()))
     expired = Browser().get(url)
     assert expired.status_code == 400, expired.text
     said = html.unescape(expired.text)
