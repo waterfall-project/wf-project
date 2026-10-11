@@ -46,6 +46,8 @@ CHUNK = 1 << 20
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 # The databases of the platform, by their name in the archive: Waterfall's, the identity provider's.
 DATABASES = ("waterfall", "identity_provider")
+# The connection service a dump reaches its database by.
+SERVICE = "backup"
 
 logger = get_logger(__name__)
 
@@ -69,17 +71,32 @@ def digest(path: Path) -> str:
     return hashed.hexdigest()
 
 
-def connection_environment(address: str) -> dict[str, str]:
-    """Give the tools of PostgreSQL a database by their variables: no secret on a command line."""
+def connection(address: str, service_file: Path) -> dict[str, str]:
+    """Give the tools of PostgreSQL a database by their environment: nothing on a command line.
+
+    The address goes whole, its query included — ``sslmode``, ``sslrootcert``, a ``host`` that
+    names a socket —, to a file of connection services that the environment names; the password,
+    in the address or in its query, goes by ``PGPASSWORD``. A listing of the processes shows
+    neither, and the command the worker runs is its own, never a value it was given.
+    """
     url = engine_url(address)
-    named = {
-        "PGHOST": url.host,
-        "PGPORT": None if url.port is None else str(url.port),
-        "PGUSER": url.username,
-        "PGPASSWORD": url.password if isinstance(url.password, str) else None,
-        "PGDATABASE": url.database,
+    given = url.password if url.password is not None else url.query.get("password")
+    named = {"host": url.host, "port": url.port, "dbname": url.database, "user": url.username}
+    keywords = {key: str(value) for key, value in named.items() if value is not None}
+    # A keyword given twice takes its last value, as libpq does.
+    for key, values in url.normalized_query.items():
+        if key != "password":
+            keywords[key] = values[-1]
+    lines = [f"[{SERVICE}]", *(f"{key}={value}" for key, value in keywords.items())]
+    service_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    environment = {
+        "PATH": os.environ.get("PATH", ""),
+        "PGSERVICEFILE": str(service_file),
+        "PGSERVICE": SERVICE,
     }
-    return {"PATH": os.environ.get("PATH", ""), **{k: v for k, v in named.items() if v}}
+    if isinstance(given, str) and given:
+        environment["PGPASSWORD"] = given
+    return environment
 
 
 def unavailable_database() -> UnavailableError:
@@ -93,12 +110,13 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
     The tools of PostgreSQL are those of the system, which Debian and Ubuntu put in ``/usr/bin``.
     """
     path = folder / f"{name}.dump"
+    environment = connection(address, folder / f"{name}.service")
     with path.open("wb") as written:
         done = subprocess.run(
             ["/usr/bin/pg_dump", "--format=custom", "--no-password"],
             stdout=written,
             stderr=subprocess.PIPE,
-            env=connection_environment(address),
+            env=environment,
             check=False,
         )
     if done.returncode != 0:

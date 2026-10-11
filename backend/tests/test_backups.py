@@ -41,7 +41,7 @@ from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
-from waterfall.worker.backup import MANIFEST, BackupTask, dump, verified
+from waterfall.worker.backup import MANIFEST, BackupTask, connection, dump, verified
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
@@ -359,6 +359,41 @@ def test_the_role_of_the_service_cannot_dump_the_database_which_a_backup_dumps_a
     with pytest.raises(UnavailableError):
         dump("waterfall", service_database_url, tmp_path)
     assert dump("waterfall", database_url, tmp_path).size_bytes > 0
+
+
+def test_a_dump_reaches_its_database_by_its_whole_address_and_its_password_apart(
+    tmp_path: Path,
+) -> None:
+    # The address of a database may say how to reach it — its encryption, its certificate, a socket
+    # — in its query, which the dump keeps; its password, in the address or in its query, never goes
+    # on a command line, which any listing of the processes shows, but by PGPASSWORD.
+    service = tmp_path / "waterfall.service"
+    query = "sslmode=disable&application_name=x"
+    for address in (
+        f"postgresql://owner:s3cret@db.example:5433/waterfall?{query}",
+        f"postgresql://owner@db.example:5433/waterfall?{query}&password=s3cret",
+    ):
+        environment = connection(address, service)
+        assert service.read_text(encoding="utf-8").splitlines() == [
+            "[backup]",
+            "host=db.example",
+            "port=5433",
+            "dbname=waterfall",
+            "user=owner",
+            "sslmode=disable",
+            "application_name=x",
+        ]
+        assert (environment["PGSERVICEFILE"], environment["PGSERVICE"]) == (str(service), "backup")
+        assert environment["PGPASSWORD"] == "s3cret"
+    socket = "postgresql://owner@/waterfall?host=/tmp&host=/run/postgresql"
+    environment = connection(socket, service)
+    assert service.read_text(encoding="utf-8").splitlines() == [
+        "[backup]",
+        "dbname=waterfall",
+        "user=owner",
+        "host=/run/postgresql",
+    ]
+    assert "PGPASSWORD" not in environment
 
 
 def test_the_worker_backs_up_as_the_owners_of_the_databases_and_connects_as_the_service(
