@@ -11,6 +11,7 @@ provider's, and is not asked for. A local account removed indeed is tried agains
 (``test_keycloak_authentication``).
 """
 
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -20,7 +21,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
-from support import ContractClient, Watching, bearer
+from support import ContractClient, Logs, Watching, bearer
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -365,3 +366,31 @@ def test_a_reactivation_slipped_before_the_write_leaves_the_account_active_until
     assert slipping.removed == ["kc-ines", "kc-ines"]
     assert slipping.held.count(("remove_account", 0)) == 2
     assert row(database, local)["anonymized_at"] is not None
+
+
+@pytest.fixture
+def anonymized(
+    client: ContractClient, database: Database, headers: dict[str, str], paul: UUID
+) -> tuple[UUID, Callable[[], dict[str, Any]]]:
+    """Anonymise Paul Durand by the API; give his identifier and his row then, to read again."""
+    assert anonymize(client, headers, paul, 0).status_code == 200
+    return paul, lambda: row(database, paul)
+
+
+def test_the_deactivation_of_an_anonymized_account_asked_again_closes_no_session(
+    client: ContractClient,
+    headers: dict[str, str],
+    watching: Watching,
+    logs: Logs,
+    anonymized: tuple[UUID, Callable[[], dict[str, Any]]],
+) -> None:
+    # A call made by hand: the account is deactivated already, which answers 200; its sessions
+    # were closed with its deactivation, and the provider is not asked again.
+    paul, read = anonymized
+    before = read()
+    deactivation = {"is_active": False, "lock_version": 1}
+    path = f"{USERS}/{paul}/activation"
+    assert client.request("PUT", path, headers=headers, json=deactivation).status_code == 200
+    assert read() == before
+    assert watching.held == []
+    assert logs.named("account.sessions_not_closed") == []

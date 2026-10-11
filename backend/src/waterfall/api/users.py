@@ -426,6 +426,8 @@ def put_user_activation(
     already: asking again closes those a failure of the provider left open. It notes the moment
     first, with the deactivation: from then on the API refuses every token of a sign-in before
     it, refreshed or not, and a failure of the provider does not outlive a reactivation (#835).
+    An anonymised account had its sessions closed when it was deactivated, and a local one is no
+    longer in the provider: its deactivation asked again closes nothing.
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
@@ -437,10 +439,11 @@ def put_user_activation(
                 lock_version=body.lock_version.root,
                 act=act,
             )
-        if not body.is_active:
+        is_closing = not body.is_active and changed.anonymized_at is None
+        if is_closing:
             note_sessions_closed(session, user_id, utc_now())
         described = users(session, actor, [changed])[0]
-    if not body.is_active:
+    if is_closing:
         close_sessions(services.keycloak_admin, changed)
     return described
 
