@@ -23,7 +23,7 @@ from task_handlers import REQUEST, deposit
 from waterfall.api.contract.models import BackgroundTaskStatus, Kind
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import ConflictError, FieldError, UnprocessableError
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.tasks import KINDS, STATUSES, BackgroundTask, Task
 from waterfall.worker.runner import Timing, Worker
@@ -100,6 +100,35 @@ def test_a_caller_follows_its_task_from_its_queue_to_its_failure_and_why(
     assert failed["problem"] == {
         "code": "STATE_FORBIDS_OPERATION",
         "status": 409,
+        "correlation_id": REQUEST,
+    }
+
+
+def test_a_task_refused_by_field_is_read_with_its_fields(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # A refusal by field says which field, and why, as the envelope of an answer does: the
+    # requester reads it as the handler raised it.
+    def refused_by_field(_session: Session, _task: Task) -> None:
+        short = FieldError("/retention_days", "VALUE_OUT_OF_RANGE", {"minimum": 7})
+        unknown = FieldError("/external_copy/location", "UNKNOWN_EXTERNAL_BACKUP_LOCATION")
+        code = "VALIDATION_FAILED"
+        raise UnprocessableError(code, fields=(short, unknown))
+
+    user_id, headers = person()
+    task_id = deposit(database, queue, requested_by=user_id)
+    queue.prepare()
+    taker = Worker(database, queue, {"identity_sync": refused_by_field}, "worker", Timing(0, 0.01))
+    assert taker.step()
+    response = api.get(f"{TASKS}/{task_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["problem"] == {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {"pointer": "/retention_days", "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": 7}},
+            {"pointer": "/external_copy/location", "code": "UNKNOWN_EXTERNAL_BACKUP_LOCATION"},
+        ],
         "correlation_id": REQUEST,
     }
 

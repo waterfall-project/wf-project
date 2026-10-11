@@ -22,7 +22,7 @@ from sqlalchemy import Integer, cast, func, select, update
 from sqlalchemy.orm import Session
 
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.errors import ServiceError
+from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
 from waterfall.platform.queue import Entry, TaskQueue
 from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
@@ -37,13 +37,30 @@ logger = get_logger(__name__)
 
 
 def failure(
-    code: str, status: int, correlation_id: str, params: Mapping[str, Any] | None = None
+    code: str,
+    status: int,
+    correlation_id: str,
+    params: Mapping[str, Any] | None = None,
+    fields: tuple[FieldError, ...] = (),
 ) -> dict[str, Any]:
-    """Say why a task failed, as the contract does (``Problem``), under the task's correlation."""
+    """Say why a task failed, as the contract does (``Problem``), under the task's correlation.
+
+    A refusal by field keeps its fields, as the envelope of an answer does.
+    """
     described: dict[str, Any] = {"code": code, "status": status}
     if params:
         described["params"] = to_jsonable_python(params)
+    if fields:
+        described["fields"] = [field_problem(field) for field in fields]
     return {**described, "correlation_id": correlation_id}
+
+
+def field_problem(field: FieldError) -> dict[str, Any]:
+    """Describe the refusal of one field as the contract does (``FieldProblem``)."""
+    described: dict[str, Any] = {"pointer": field.pointer, "code": field.code}
+    if field.params:
+        described["params"] = to_jsonable_python(field.params)
+    return described
 
 
 def lock_run(session: Session, task_id: UUID) -> bool:
@@ -192,7 +209,9 @@ class Worker:
                 result = self.handlers[task.kind](session, task)
         except ServiceError as refusal:
             logger.info("task.failed", reason="refused", code=refusal.code)
-            refused = failure(refusal.code, refusal.status, task.correlation_id, refusal.params)
+            refused = failure(
+                refusal.code, refusal.status, task.correlation_id, refusal.params, refusal.fields
+            )
             end(session, task.task_id, problem=refused)
         except Exception:
             logger.exception("task.failed", reason="error")
