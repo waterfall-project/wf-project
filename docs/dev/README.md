@@ -1336,7 +1336,7 @@ commande.
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
 | `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
-| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement (`wftools.images`, « Chaîne ») |
+| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -1423,9 +1423,34 @@ distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien d
 `deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
 PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
 registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
-`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes. L'étiquette de
-version ne se pose que depuis `main` : une branche d'EPIC, qui porte la même version, écraserait
-celle de la publication.
+`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes.
+
+- **Les trois d'abord.** Les trois images sont construites avant toute poussée, et rien n'est
+  poussé si l'une échoue ; puis toutes les étiquettes du commit, et seulement ensuite celles qui
+  bougent — la branche, la version —, pour qu'une étiquette mobile ne désigne jamais des images
+  de deux commits.
+- **L'étiquette de version est immuable.** Elle ne se pose que depuis `main`, et une seule fois :
+  avant de la poser, l'outil demande au registre s'il a déjà `<image>:<version>`
+  (`docker buildx imagetools inspect`) ; s'il l'a, ou s'il ne répond pas clairement qu'il ne l'a
+  pas, elle n'est pas posée, l'outil le dit, et les étiquettes du commit et de la branche se
+  publient quand même. Une fusion dans `main` qui ne monte pas la version ne republie donc pas
+  la version ; c'est en montant `version` de `backend/pyproject.toml` (et du front) qu'une
+  publication en pose une nouvelle. Une branche d'EPIC, qui porte la même version, ne la pose
+  jamais ; le label `org.opencontainers.image.version` d'une image construite hors de `main` le
+  dit (`0.1.0+epic-EP-03`). Chaque image porte aussi son propre `title` et son `url`, qui
+  remplacent ceux de son image de base.
+- **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
+  commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
+  images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
+  dont le système de fichiers (`docker export`) contient une valeur de développement connue — la
+  marque `development-only`, que portent toutes celles de `deploy/keycloak/development/`, et les
+  secrets de poste de `.github/workflows/keycloak.yml`. L'outil nomme alors la valeur trouvée,
+  jamais la valeur elle-même. La fouille lit l'archive du conteneur telle quelle : une valeur
+  dans un fichier compressé lui échappe.
+- **La dernière fusion gagne.** Une publication attend celle de la fusion précédente sur sa
+  branche, sans l'annuler ; mais GitHub ne garde qu'une exécution en attente par groupe, et une
+  troisième fusion annule celle qui attend : l'étiquette de la branche finit sur la dernière, et
+  un commit intermédiaire peut ne pas avoir d'image.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le

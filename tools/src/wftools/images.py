@@ -9,14 +9,20 @@ the worker, its schedule and the migrations, commands of one distribution — an
 the extension and the realm. Each is tagged by the full hash of the commit it is built from and by
 its branch, made a valid tag (``epic/EP-03`` gives ``epic-EP-03``); on ``main``, by the version of
 the distribution of the back besides, which the API and the worker report and a backup will carry.
-An epic branch does not take it: the version moves with ``main`` alone, and a demonstration would
-overwrite the tag of the release.
+The tag of a version is immutable: once in the registry it is never posed again, and a merge into
+main that does not raise the version publishes the tags of its commit and of its branch alone. An
+epic branch never takes it — a demonstration would pass for the release —, and the label of the
+version of an image built outside main says so (``0.1.0+epic-EP-03``).
 
 The branch and the commit are those of the checkout, unless ``IMAGE_BRANCH`` and ``IMAGE_COMMIT``
 name them, as the chain does. Nothing is passed to a build but its context: no build argument, no
 build secret — the images read every secret from the environment of their container (WF-SEC-0010).
-``--push`` publishes them, from ``main`` or a branch ``epic/…`` alone: never from a lot or a pull
-request.
+
+``--push`` publishes them: from ``main`` or a branch ``epic/…`` alone, never from a lot or a pull
+request; from a checkout that is the commit named and is clean in the contexts of the images. The
+three images are built first, then searched for the known values of the development, and pushed
+only if all three were built and none holds one: every tag of the commit first, then the tags that
+move, so that a tag of a branch or of a version never names images of two commits.
 """
 
 import argparse
@@ -25,7 +31,7 @@ import re
 import subprocess
 import sys
 import tomllib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
 from wftools import REPOSITORY
@@ -45,6 +51,20 @@ COMMIT = re.compile(r"[0-9a-f]{40}")
 # A tag of the registry: a word character first, 128 characters at most.
 TAG = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}")
 NOT_IN_TAG = re.compile(r"[^A-Za-z0-9_.-]")
+
+DEVELOPMENT_MARK = "development-only"
+"""What every value of the development platform carries (``deploy/keycloak/development/``)."""
+
+WORKSTATION_SECRETS = REPOSITORY / ".github" / "workflows" / "keycloak.yml"
+"""The workflow whose secrets, values of a workstation, the chain starts the platform with."""
+
+# A secret of the platform the workflow sets, one per line: `WATERFALL_…_PASSWORD: value`.
+WORKSTATION_SECRET = re.compile(
+    r"^\s+(WATERFALL_[A-Z_]*(?:PASSWORD|SECRET)):\s*(\S+)\s*$", re.MULTILINE
+)
+# What the registry answers for a tag it does not hold.
+UNKNOWN_TAG = re.compile(r"not found|manifest unknown", re.IGNORECASE)
+CHUNK = 1 << 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,26 +121,163 @@ def publishable(branch: str) -> bool:
     return branch == RELEASE_BRANCH or EPIC_BRANCH.fullmatch(branch) is not None
 
 
-def commands(branch: str, commit: str, release: str, *, push: bool) -> list[list[str]]:
-    """Return the commands that build the images, and push every tag of each if asked."""
-    if push and not publishable(branch):
+def check_branch(branch: str) -> None:
+    """Refuse to publish images built from a branch other than main or an epic branch."""
+    if not publishable(branch):
         message = f"the images are published from main or epic/… alone, not from {branch!r}"
         raise ImageError(message)
-    found: list[list[str]] = []
-    labels = {
+
+
+def reference(image: Image, tag: str) -> str:
+    """Return the reference of an image under a tag, in the registry."""
+    return f"{REGISTRY}/{image.name}:{tag}"
+
+
+def labels(image: Image, branch: str, commit: str, release: str) -> dict[str, str]:
+    """Return the labels of an image: what it is, where it comes from, which version it is.
+
+    They replace those of the base image, which name its own project — that of Keycloak does.
+    Outside main, the version is that of the release to come, built from a branch, which it says.
+    """
+    return {
+        "org.opencontainers.image.title": image.name,
         "org.opencontainers.image.source": SOURCE,
+        "org.opencontainers.image.url": SOURCE,
         "org.opencontainers.image.revision": commit,
-        "org.opencontainers.image.version": release,
+        "org.opencontainers.image.version": (
+            release if branch == RELEASE_BRANCH else f"{release}+{branch_tag(branch)}"
+        ),
     }
+
+
+def image_tags(
+    image: Image, branch: str, commit: str, release: str, published: Collection[str]
+) -> list[str]:
+    """Return the tags of one image: without that of the version, if it is published already."""
+    found = tags(branch, commit, release)
+    return found[:2] if image.name in published else found
+
+
+def builds(
+    branch: str, commit: str, release: str, published: Collection[str] = ()
+) -> list[list[str]]:
+    """Return the command that builds each image, under every tag it takes."""
+    found: list[list[str]] = []
     for image in IMAGES:
-        references = [f"{REGISTRY}/{image.name}:{tag}" for tag in tags(branch, commit, release)]
         build = ["docker", "build", "--target", STAGE]
-        build += [word for key, value in labels.items() for word in ("--label", f"{key}={value}")]
-        build += [option for reference in references for option in ("--tag", reference)]
+        for key, value in labels(image, branch, commit, release).items():
+            build += ["--label", f"{key}={value}"]
+        for tag in image_tags(image, branch, commit, release, published):
+            build += ["--tag", reference(image, tag)]
         found.append([*build, image.context])
-        if push:
-            found.extend(["docker", "push", reference] for reference in references)
     return found
+
+
+def pushes(
+    branch: str, commit: str, release: str, published: Collection[str] = ()
+) -> list[list[str]]:
+    """Return the pushes of every tag: those of the commit first, then those that move."""
+    check_branch(branch)
+    by_image = [image_tags(image, branch, commit, release, published) for image in IMAGES]
+    return [
+        ["docker", "push", reference(image, found[position])]
+        for position in range(max(len(found) for found in by_image))
+        for image, found in zip(IMAGES, by_image, strict=True)
+        if position < len(found)
+    ]
+
+
+def commands(
+    branch: str, commit: str, release: str, *, push: bool, published: Collection[str] = ()
+) -> list[list[str]]:
+    """Return the commands that build the three images, then push every tag of each if asked."""
+    planned = pushes(branch, commit, release, published) if push else []
+    return builds(branch, commit, release, published) + planned
+
+
+def development_values() -> dict[str, str]:
+    """Return, by name, the values of the development that no image may hold.
+
+    The mark every value of ``deploy/keycloak/development/`` carries, and the secrets the chain
+    starts the service platform with, which a workstation reuses.
+    """
+    found = {f"{DEVELOPMENT_MARK} (deploy/keycloak/development/)": DEVELOPMENT_MARK}
+    source = WORKSTATION_SECRETS.relative_to(REPOSITORY)
+    for name, value in WORKSTATION_SECRET.findall(WORKSTATION_SECRETS.read_text(encoding="utf-8")):
+        found[f"{name} ({source})"] = value
+    return found
+
+
+def held(contents: Iterable[bytes], values: Mapping[str, str]) -> list[str]:
+    """Return the names of the values the contents hold, read in chunks, one across two too."""
+    needles = {name: value.encode() for name, value in values.items()}
+    overlap = max((len(needle) for needle in needles.values()), default=1) - 1
+    found: set[str] = set()
+    tail = b""
+    for chunk in contents:
+        window = tail + chunk
+        found |= {name for name, needle in needles.items() if needle in window}
+        tail = window[-overlap:] if overlap else b""
+    return sorted(found)
+
+
+def published_versions(release: str, read: Callable[[list[str]], tuple[int, str]]) -> list[str]:
+    """Return the images whose tag of this version the registry holds, or may hold.
+
+    A version is posed once: what the registry does not say it lacks is taken as held, and left.
+    """
+    found: list[str] = []
+    for image in IMAGES:
+        tagged = reference(image, release)
+        code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
+        if code == 0:
+            print(f"wftools.images: {tagged} is published already: it is not posed again")
+        elif not UNKNOWN_TAG.search(answer):
+            said = (answer.strip().splitlines() or ["nothing"])[-1]
+            print(f"wftools.images: the registry did not say whether it holds {tagged} ({said}):")
+            print(f"wftools.images: {tagged} is not posed")
+        else:
+            continue
+        found.append(image.name)
+    return found
+
+
+def check_checkout(commit: str) -> None:
+    """Refuse a push from a checkout that is not the commit named, or not clean where it builds."""
+    head = _git("rev-parse", "HEAD")
+    if commit != head:
+        message = f"the commit named, {commit}, is not the checkout's, {head}: nothing is pushed"
+        raise ImageError(message)
+    if dirty := _git("status", "--porcelain", "--", *(image.context for image in IMAGES)):
+        changed = ", ".join(line.split(maxsplit=1)[-1] for line in dirty.splitlines())
+        message = f"the contexts of the images are not clean ({changed}): nothing is pushed"
+        raise ImageError(message)
+
+
+def check_contents(commit: str, contents: Callable[[str], Iterable[bytes]]) -> None:
+    """Refuse a push if a built image holds a known value of the development, naming it."""
+    values = development_values()
+    for image in IMAGES:
+        if found := held(contents(reference(image, commit)), values):
+            message = f"the image {image.name} holds {', '.join(found)}: nothing is pushed"
+            raise ImageError(message)
+
+
+def _contents(image: str) -> Iterator[bytes]:
+    """Read the file system of an image, as the archive Docker exports of a container of it."""
+    container = subprocess.run(
+        ["docker", "create", image], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    try:
+        with subprocess.Popen(["docker", "export", container], stdout=subprocess.PIPE) as export:
+            stream = export.stdout
+            while stream is not None and (chunk := stream.read(CHUNK)):
+                yield chunk
+        if export.returncode != 0:
+            message = f"the file system of {image} could not be read"
+            raise ImageError(message)
+    finally:
+        subprocess.run(["docker", "rm", container], capture_output=True, check=False)
 
 
 def _git(*arguments: str) -> str:
@@ -134,27 +291,60 @@ def _run(command: list[str]) -> int:
     return subprocess.run(command, cwd=REPOSITORY, check=False).returncode
 
 
+def _read(command: list[str]) -> tuple[int, str]:
+    result = subprocess.run(command, cwd=REPOSITORY, capture_output=True, text=True, check=False)
+    return result.returncode, f"{result.stdout}{result.stderr}"
+
+
+def _execute(commands: list[list[str]], run: Callable[[list[str]], int]) -> int:
+    """Run commands in order, each shown first; stop at the first that fails."""
+    for command in commands:
+        print(f"  {' '.join(command)}", flush=True)
+        if (code := run(command)) != 0:
+            return code
+    return 0
+
+
+def _failure(error: OSError | subprocess.CalledProcessError) -> str:
+    """Say which command could not run, or failed, and why."""
+    if isinstance(error, subprocess.CalledProcessError):
+        command = " ".join(map(str, error.cmd))
+        return f"{command} failed: {str(error.stderr or '').strip() or f'exit {error.returncode}'}"
+    return f"{error.filename or 'a command'} could not run: {error.strerror or error}"
+
+
 def main(
     arguments: Sequence[str],
     environment: Mapping[str, str] = os.environ,
     run: Callable[[list[str]], int] = _run,
+    read: Callable[[list[str]], tuple[int, str]] = _read,
+    contents: Callable[[str], Iterable[bytes]] = _contents,
 ) -> int:
     """Build the images, and push them with ``--push``; stop at the first command that fails."""
     parser = argparse.ArgumentParser(prog="wftools.images", description="Build the images.")
     parser.add_argument("--push", action="store_true", help="publish every tag of each image")
     options = parser.parse_args(arguments)
-    branch = environment.get("IMAGE_BRANCH") or _git("rev-parse", "--abbrev-ref", "HEAD")
-    commit = environment.get("IMAGE_COMMIT") or _git("rev-parse", "HEAD")
     try:
-        planned = commands(branch, commit, version(), push=options.push)
+        branch = environment.get("IMAGE_BRANCH") or _git("rev-parse", "--abbrev-ref", "HEAD")
+        commit = environment.get("IMAGE_COMMIT") or _git("rev-parse", "HEAD")
+        release = version()
+        published: list[str] = []
+        if options.push:
+            check_branch(branch)
+            check_checkout(commit)
+            if branch == RELEASE_BRANCH:
+                published = published_versions(release, read)
+        if code := _execute(builds(branch, commit, release, published), run):
+            return code
+        if not options.push:
+            return 0
+        check_contents(commit, contents)
+        return _execute(pushes(branch, commit, release, published), run)
     except ImageError as error:
         print(f"wftools.images: {error}", file=sys.stderr)
-        return 2
-    for command in planned:
-        print(f"  {' '.join(command)}", flush=True)
-        if (code := run(command)) != 0:
-            return code
-    return 0
+    except (OSError, subprocess.CalledProcessError) as error:
+        print(f"wftools.images: {_failure(error)}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

@@ -193,10 +193,12 @@ build-keycloak: ## Build the image of Keycloak: the extension compiled and teste
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
-# version of the back's distribution on main (wftools.images). The branch and the commit are the
-# checkout's unless IMAGE_BRANCH and IMAGE_COMMIT name them, read by the tool from its environment;
-# PUSH=yes publishes them, from main or an epic branch alone (.github/workflows/images.yml).
-images: ## Build the images front, waterfall and keycloak, tagged by commit, by branch, and by version on main; PUSH=yes publishes them
+# version of the back's distribution on main, unless the registry holds it already: the tag of a
+# version is immutable (wftools.images). The branch and the commit are the checkout's unless
+# IMAGE_BRANCH and IMAGE_COMMIT name them, read by the tool from its environment. PUSH=yes publishes
+# them, from main or an epic branch alone, from a clean checkout at the commit named, once the three
+# are built and none holds a value of the development (.github/workflows/images.yml).
+images: ## Build the images front, waterfall and keycloak, tagged by commit, by branch, and by version on main once; PUSH=yes publishes them
 	@$(WFTOOLS).images $(if $(filter yes,$(PUSH)),--push)
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the

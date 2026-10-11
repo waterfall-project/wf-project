@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import tomllib
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
 
@@ -29,6 +30,11 @@ SECRET_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|CREDENTIAL|KEY", re.IGNORECASE)
 # The keys of the realm that hold a secret, whose value must come from the environment.
 SECRET_KEYS = frozenset({"secret", "clientSecret", "bindCredential", "password", "value"})
 SUBSTITUTED = re.compile(r"\$\(env:[A-Z0-9_]+\)")
+# The options of a build that would hand it a value, in either form: `--build-arg X=…`,
+# `--build-arg=X=…`.
+SECRET_OPTIONS = ("--build-arg", "--secret", "--ssh", "--env")
+NAMES = ("front", "waterfall", "keycloak")
+NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/front:0.1.0: not found")
 
 
 def workflow() -> dict[Any, Any]:
@@ -108,12 +114,19 @@ def test_an_epic_branch_publishes_them_by_commit_and_by_branch_never_by_version(
         assert tags == [COMMIT, "epic-EP-03"]
 
 
-def test_every_tag_of_every_image_is_pushed_after_its_build() -> None:
+def test_every_build_comes_before_any_push() -> None:
+    planned = images.commands("main", COMMIT, VERSION, push=True)
+    kinds = [command[1] for command in planned]
+    assert kinds == ["build"] * 3 + ["push"] * 9
+
+
+def test_the_tags_of_the_commit_are_pushed_before_those_that_move() -> None:
     planned = images.commands("main", COMMIT, VERSION, push=True)
     pushed = [command[2] for command in planned if command[:2] == ["docker", "push"]]
-    assert pushed == [tag for references in built("main").values() for tag in references]
-    assert planned[0][:2] == ["docker", "build"]
-    assert planned[1][:2] == ["docker", "push"]
+    assert sorted(pushed) == sorted(tag for tags in built("main").values() for tag in tags)
+    assert [reference.rsplit(":", 1)[1] for reference in pushed] == [COMMIT] * 3 + ["main"] * 3 + [
+        VERSION
+    ] * 3
 
 
 @pytest.mark.parametrize("branch", ["lot/US-0430/L1", "feature", "mainline", "epic/"])
@@ -123,17 +136,55 @@ def test_nothing_is_published_from_a_branch_other_than_main_or_an_epic(branch: s
     assert images.commands(branch, COMMIT, VERSION, push=False)
 
 
+def secret_options(command: list[str]) -> list[str]:
+    """Return the words of a command that would hand a build a value."""
+    return [word for word in command if word.startswith(SECRET_OPTIONS)]
+
+
+def environment_names(instruction: str) -> list[str]:
+    """Return the names an instruction ENV sets, in its two forms: `ENV A=1 B=2`, `ENV A 1`."""
+    words = instruction.split()[1:]
+    if words and "=" not in words[0]:
+        return [words[0]]
+    return re.findall(r"([A-Za-z_][A-Za-z0-9_]*)=", " ".join(words))
+
+
 def test_no_image_receives_a_secret_at_its_build() -> None:
     for command in images.commands("main", COMMIT, VERSION, push=True):
-        assert not {"--build-arg", "--secret", "--ssh", "--env"} & set(command)
+        assert not secret_options(command)
     for dockerfile in dockerfiles():
         for stage in stages(dockerfile):
             for instruction in stage:
-                keyword, _, rest = instruction.partition(" ")
-                assert keyword.upper() != "ARG", f"{dockerfile}: {instruction}"
-                if keyword.upper() == "ENV":
-                    names = re.findall(r"([A-Za-z_][A-Za-z0-9_]*)=", rest)
-                    assert not [name for name in names if SECRET_NAME.search(name)]
+                keyword = instruction.split()[0].upper()
+                assert keyword != "ARG", f"{dockerfile}: {instruction}"
+                if keyword == "ENV":
+                    names = environment_names(instruction)
+                    assert not [name for name in names if SECRET_NAME.search(name)], instruction
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["docker", "build", "--build-arg", "X=1", "."],
+        ["docker", "build", "--build-arg=X=1", "."],
+        ["docker", "build", "--secret=id=x,src=y", "."],
+        ["docker", "build", "--ssh=default", "."],
+    ],
+)
+def test_a_build_handed_a_value_is_seen_in_either_form(command: list[str]) -> None:
+    assert secret_options(command)
+
+
+@pytest.mark.parametrize(
+    ("instruction", "names"),
+    [
+        ("ENV API_TOKEN abc", ["API_TOKEN"]),
+        ("ENV A=1 API_TOKEN=abc", ["A", "API_TOKEN"]),
+        ('ENV PATH="/app/.venv/bin:${PATH}"', ["PATH"]),
+    ],
+)
+def test_the_names_an_env_sets_are_read_in_both_forms(instruction: str, names: list[str]) -> None:
+    assert environment_names(instruction) == names
 
 
 def test_the_token_that_publishes_is_given_to_the_login_alone() -> None:
@@ -230,37 +281,230 @@ def test_a_version_that_makes_no_tag_is_refused() -> None:
         images.tags("main", COMMIT, "1.0.0+local")
 
 
+def test_each_image_is_labelled_by_its_own_name_its_source_its_commit_and_its_version() -> None:
+    for branch, label in (("main", VERSION), ("epic/EP-03", f"{VERSION}+epic-EP-03")):
+        builds = images.commands(branch, COMMIT, VERSION, push=False)
+        for name, command in zip(NAMES, builds, strict=True):
+            labels = dict(
+                command[i + 1].split("=", 1) for i, word in enumerate(command) if word == "--label"
+            )
+            assert labels == {
+                "org.opencontainers.image.title": name,
+                "org.opencontainers.image.source": images.SOURCE,
+                "org.opencontainers.image.url": images.SOURCE,
+                "org.opencontainers.image.revision": COMMIT,
+                "org.opencontainers.image.version": label,
+            }
+
+
+class Docker:
+    """A Docker that records what it is asked, and answers as a test tells it.
+
+    A build fails if its context is the one named; the registry answers as told for a tag of a
+    version; the image of Keycloak holds the bytes given.
+    """
+
+    def __init__(
+        self,
+        *,
+        failing: str = "",
+        registry: tuple[int, str] = NOT_FOUND,
+        holding: bytes = b"",
+    ) -> None:
+        self.ran: list[list[str]] = []
+        self.read_: list[list[str]] = []
+        self.failing = failing
+        self.registry = registry
+        self.holding = holding
+
+    def run(self, command: list[str]) -> int:
+        self.ran.append(command)
+        return 1 if self.failing and command[-1] == self.failing else 0
+
+    def read(self, command: list[str]) -> tuple[int, str]:
+        self.read_.append(command)
+        return self.registry
+
+    def contents(self, image: str) -> Iterable[bytes]:
+        yield b"usr/bin/" + (self.holding if "/keycloak:" in image else b"")
+
+    def pushed(self) -> list[str]:
+        return [command[2] for command in self.ran if command[:2] == ["docker", "push"]]
+
+    def main(self, branch: str = "epic/EP-03", *arguments: str) -> int:
+        environment = {"IMAGE_BRANCH": branch, "IMAGE_COMMIT": COMMIT}
+        return images.main(arguments, environment, self.run, self.read, self.contents)
+
+
+@pytest.fixture
+def checkout(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    """Stand for a checkout at COMMIT, clean unless a test says otherwise."""
+    answers = {"rev-parse": COMMIT, "status": ""}
+
+    def git(*arguments: str) -> str:
+        return answers[arguments[0]]
+
+    monkeypatch.setattr(images, "_git", git)
+    return answers
+
+
+@pytest.mark.usefixtures("checkout")
 def test_the_images_are_built_from_the_branch_and_the_commit_the_chain_names(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    run: list[list[str]] = []
-    environment = {"IMAGE_BRANCH": "epic/EP-03", "IMAGE_COMMIT": COMMIT}
-    assert images.main(["--push"], environment, lambda command: run.append(command) or 0) == 0
-    assert run == images.commands("epic/EP-03", COMMIT, VERSION, push=True)
+    docker = Docker()
+    assert docker.main("epic/EP-03", "--push") == 0
+    assert docker.ran == images.commands("epic/EP-03", COMMIT, VERSION, push=True)
+    assert docker.read_ == []
     assert f"--tag ghcr.io/waterfall-project/front:{COMMIT}" in capsys.readouterr().out
 
 
+@pytest.mark.usefixtures("checkout")
+def test_an_image_that_fails_to_build_stops_everything_before_any_push() -> None:
+    docker = Docker(failing="deploy/keycloak")
+    assert docker.main("main", "--push") == 1
+    assert [command[-1] for command in docker.ran] == ["frontend", "backend", "deploy/keycloak"]
+    assert docker.pushed() == []
+
+
+@pytest.mark.usefixtures("checkout")
+def test_a_new_version_is_posed_on_main() -> None:
+    docker = Docker(registry=NOT_FOUND)
+    assert docker.main("main", "--push") == 0
+    assert [command[-1] for command in docker.read_] == [
+        f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
+    ]
+    assert [f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES] == docker.pushed()[-3:]
+
+
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize(
+    ("registry", "said"),
+    [
+        ((0, "Name: ghcr.io/waterfall-project/front:0.1.0"), "is published already"),
+        ((1, "ERROR: unexpected status: 403 Forbidden"), "did not say whether it holds"),
+    ],
+)
+def test_a_version_published_already_is_never_posed_again(
+    registry: tuple[int, str], said: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    docker = Docker(registry=registry)
+    assert docker.main("main", "--push") == 0
+    references = [word for command in docker.ran for word in command if word.startswith("ghcr.io")]
+    assert not [reference for reference in references if reference.endswith(f":{VERSION}")]
+    assert [reference.rsplit(":", 1)[1] for reference in docker.pushed()] == [COMMIT] * 3 + [
+        "main"
+    ] * 3
+    assert said in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("checkout")
+def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_named(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    docker = Docker(holding=b"WATERFALL_REDIS_PASSWORD=chain-only-redis\n")
+    assert docker.main("epic/EP-03", "--push") == 2
+    assert docker.pushed() == []
+    error = capsys.readouterr().err
+    assert "keycloak holds WATERFALL_REDIS_PASSWORD (.github/workflows/keycloak.yml)" in error
+    assert "chain-only-redis" not in error
+
+
+def test_a_value_is_found_across_two_chunks_of_an_image() -> None:
+    values = {"mark": "development-only"}
+    assert images.held([b"xx develop", b"ment-only yy"], values) == ["mark"]
+    assert images.held([b"xx develop", b"ment yy"], values) == []
+
+
+def test_the_values_searched_are_the_secrets_of_the_chain_and_the_mark_of_the_development() -> None:
+    values = images.development_values()
+    job = yaml.safe_load(images.WORKSTATION_SECRETS.read_text(encoding="utf-8"))["jobs"]["check"]
+    secrets = {value for name, value in job["env"].items() if SECRET_NAME.search(name)}
+    assert len(secrets) == 7
+    assert set(values.values()) == secrets | {images.DEVELOPMENT_MARK}
+
+
+def test_every_value_of_the_development_platform_carries_the_mark_searched() -> None:
+    development = REPOSITORY / "deploy" / "keycloak" / "development"
+    values = [
+        value
+        for path in sorted(development.glob("*.yaml"))
+        for value in secrets_of(yaml.safe_load(path.read_text(encoding="utf-8")))
+    ]
+    ldif = (development / "directory.ldif").read_text(encoding="utf-8")
+    values += re.findall(r"^userPassword:\s*(\S+)", ldif, re.MULTILINE)
+    assert len(values) >= 4
+    assert all(images.DEVELOPMENT_MARK in str(value) for value in values), values
+
+
+@pytest.mark.parametrize(
+    ("answers", "said"),
+    [
+        ({"rev-parse": "f" * 40, "status": ""}, "is not the checkout's"),
+        ({"rev-parse": COMMIT, "status": "M frontend/Dockerfile\n?? backend/x.py"}, "not clean"),
+    ],
+)
+def test_a_checkout_other_than_the_commit_named_or_not_clean_pushes_nothing(
+    checkout: dict[str, str],
+    answers: dict[str, str],
+    said: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    checkout.update(answers)
+    docker = Docker()
+    assert docker.main("main", "--push") == 2
+    assert docker.ran == []
+    error = capsys.readouterr().err
+    assert said in error
+    if "clean" in said:
+        assert "frontend/Dockerfile, backend/x.py" in error
+
+
+@pytest.mark.parametrize(
+    ("failure", "said"),
+    [
+        (
+            subprocess.CalledProcessError(128, ["git", "rev-parse"], stderr="not a git repository"),
+            "git rev-parse failed: not a git repository",
+        ),
+        (FileNotFoundError(2, "No such file or directory", "git"), "git could not run"),
+    ],
+)
+def test_a_git_that_fails_or_is_missing_is_said_without_a_trace(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    said: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def git(*_arguments: str) -> str:
+        raise failure
+
+    monkeypatch.setattr(images, "_git", git)
+    docker = Docker()
+    assert images.main([], {}, docker.run, docker.read, docker.contents) == 2
+    assert docker.ran == []
+    assert f"wftools.images: {said}" in capsys.readouterr().err
+
+
 def test_the_first_command_that_fails_stops_the_rest() -> None:
-    run: list[list[str]] = []
-    environment = {"IMAGE_BRANCH": "main", "IMAGE_COMMIT": COMMIT}
-    assert images.main([], environment, lambda command: run.append(command) or 3) == 3
-    assert len(run) == 1
+    docker = Docker(failing="frontend")
+    assert docker.main("main") == 1
+    assert len(docker.ran) == 1
 
 
 def test_a_push_refused_says_why_and_runs_nothing(capsys: pytest.CaptureFixture[str]) -> None:
-    run: list[list[str]] = []
-    environment = {"IMAGE_BRANCH": "lot/US-0430/L1", "IMAGE_COMMIT": COMMIT}
-    assert images.main(["--push"], environment, lambda command: run.append(command) or 0) == 2
-    assert run == []
+    docker = Docker()
+    assert docker.main("lot/US-0430/L1", "--push") == 2
+    assert docker.ran == []
     assert "not from 'lot/US-0430/L1'" in capsys.readouterr().err
 
 
 def test_without_the_chain_the_branch_and_the_commit_are_those_of_the_checkout() -> None:
-    run: list[list[str]] = []
-    assert images.main([], {}, lambda command: run.append(command) or 0) == 0
+    docker = Docker()
+    assert images.main([], {}, docker.run, docker.read, docker.contents) == 0
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, text=True, check=True
     ).stdout.strip()
-    assert len(run) == len(images.IMAGES)
-    for command in run:
+    assert len(docker.ran) == len(images.IMAGES)
+    for command in docker.ran:
         assert command[command.index("--tag") + 1].endswith(f":{head}")

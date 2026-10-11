@@ -4,9 +4,9 @@
 # The images of Waterfall (US-0430): front, waterfall — the API, the worker, its schedule and the
 # migrations — and keycloak, built at each push to main or to an epic branch, that is at each merge,
 # which the merge queue has already held to the chain, and published on ghcr.io/waterfall-project,
-# tagged by commit, by branch, and by version on main (make images). Nothing is published from a
-# pull request: none triggers this workflow. No secret enters a build (WF-SEC-0010); the token that
-# publishes is given to the login alone.
+# tagged by commit, by branch, and on main by version, once: the tag of a version is immutable
+# (make images). Nothing is published from a pull request: none triggers this workflow. No secret
+# enters a build (WF-SEC-0010); the token that publishes is given to the login alone.
 name: images
 
 on:
@@ -16,7 +16,9 @@ on:
 permissions:
   contents: read
 
-# Two merges in a row on a branch publish in their order: the tag of the branch ends on the last.
+# A merge waits for the publication of the one before it on its branch, never cancels it. GitHub
+# keeps one run waiting by group, though: a third merge cancels the one that waits. The last merge
+# wins — the tag of the branch ends on it —, and a commit between two may have no image.
 concurrency:
   group: images-${{ github.ref }}
   cancel-in-progress: false
