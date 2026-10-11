@@ -6,9 +6,16 @@
 #   the fake back first (US-0030), the real service from EP-03;
 # - `production`, the last stage, built when none is named: the front built by `next build`,
 #   served by Node alone from the standalone output of Next, which the chain publishes (US-0430).
-#   No secret is in it (WF-SEC-0010): the addresses of the API, of Keycloak and of Redis, and the
-#   secret of the client of the front, are read from the environment of the container when a
-#   request needs them, never while building.
+#   The addresses of the API, of Keycloak and of Redis, and the secret of the client of the front,
+#   are read from the environment of the container when a request needs them, never while
+#   building (WF-SEC-0010). `next build` does write keys of its own into its output, and so into
+#   the image: the key of the closures of the server actions (`encryptionKey`,
+#   `.next/server/server-reference-manifest.*`) and those of the draft mode (`previewMode*`,
+#   `.next/prerender-manifest.json`). They protect nothing as long as the front has no closure for
+#   Next to encrypt and no draft mode — no server action written inline in a function, no
+#   `draftMode` —, which `src/next-config.test.ts` holds; the key of the server actions is to be
+#   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
+#   build (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
 FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node
 
@@ -30,7 +37,8 @@ EXPOSE 3000
 CMD ["pnpm", "dev", "--hostname", "0.0.0.0"]
 
 # The build of production, traced by Next into a server that needs only the modules it imports
-# (`next.config.ts`). No variable of the platform is set here: no page reads one while built.
+# (`next.config.ts`). No variable of the platform, nor any key, is set here: the keys the build
+# writes are its own, said above.
 FROM development AS build
 
 ENV WATERFALL_STANDALONE=1
