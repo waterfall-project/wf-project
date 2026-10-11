@@ -72,12 +72,19 @@ def _started[Kind: Settings](load: Callable[[], Kind], run: Callable[[Kind], int
 
 
 def serve(worker: Worker) -> int:
-    """Run a worker until it is stopped: ``SIGTERM`` stops it where it stands, its task undone."""
+    """Run a worker until it is stopped: ``SIGTERM`` stops it where it stands, its task undone.
+
+    An error it does not expect — Redis or the database out of reach — ends it (1), said in the
+    structured logs, its secrets masked, and not as a bare trace.
+    """
     signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
         worker.run()
     except KeyboardInterrupt:
         logger.info("worker.stopped")
+    except Exception:
+        logger.exception("worker.failed")
+        return 1
     return 0
 
 
@@ -98,15 +105,27 @@ def _enqueue(settings: Settings, kind: TaskKind) -> int:
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
-            with database.transaction() as session:
-                session.execute(select(func.pg_advisory_xact_lock(SCHEDULE_LOCK)))
-                pending = pending_task(session, kind)
-                deposited = submit(session, queue, kind, None) if pending is None else None
-            event = "task.already_pending" if deposited is None else "task.enqueued"
-            logger.info(event, kind=kind, task_id=str(pending or deposited))
+            return _schedule(database, queue, kind)
     finally:
         queue.close()
         database.dispose()
+
+
+def _schedule(database: Database, queue: TaskQueue, kind: TaskKind) -> int:
+    """Deposit a task of ``kind``, unless one is pending; the lock keeps two schedules apart.
+
+    An error it does not expect ends it (1), said in the structured logs, as the worker's does.
+    """
+    try:
+        with database.transaction() as session:
+            session.execute(select(func.pg_advisory_xact_lock(SCHEDULE_LOCK)))
+            pending = pending_task(session, kind)
+            deposited = submit(session, queue, kind, None) if pending is None else None
+    except Exception:
+        logger.exception("task.enqueue_failed", kind=kind)
+        return 1
+    event = "task.already_pending" if deposited is None else "task.enqueued"
+    logger.info(event, kind=kind, task_id=str(pending or deposited))
     return 0
 
 

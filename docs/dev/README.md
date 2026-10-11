@@ -69,7 +69,9 @@ quand une tâche du même genre est en file ou en cours : le service `scheduler`
 l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut.
 Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
 `TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
-retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures.
+retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
+erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
+dite dans ses journaux par `worker.failed`, secrets masqués.
 
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la

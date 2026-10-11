@@ -7,6 +7,7 @@ import os
 import signal
 
 import pytest
+import redis
 from sqlalchemy import update
 from support import Logs
 from task_handlers import task
@@ -15,6 +16,7 @@ import waterfall
 from waterfall.platform.correlation import FORM
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
+from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import main as worker_main
 from waterfall.worker.runner import Worker
@@ -98,6 +100,57 @@ def test_a_stop_of_the_platform_stops_the_worker_where_it_stands(
     finally:
         signal.signal(signal.SIGTERM, before)
     assert len(logs.named("worker.stopped")) == 1
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_worker_that_loses_redis_ends_in_failure_said_in_its_logs_without_its_secrets(
+    database: Database,
+    queue: TaskQueue,
+    logs: Logs,
+    platform_settings: ServiceSettings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » : an
+    # error the worker does not expect is a record of its logs, masked as they are, never a bare
+    # trace; the worker ends in failure, for the platform to start it again.
+    address = platform_settings.redis_url.get_secret_value()
+    worker = Worker(database, queue, {})
+
+    def run() -> None:
+        message = f"Error 111 connecting to {address}. Connection refused."
+        raise redis.ConnectionError(message)
+
+    monkeypatch.setattr(worker, "run", run)
+    before = signal.getsignal(signal.SIGTERM)
+    try:
+        assert worker_main.serve(worker) == 1
+    finally:
+        signal.signal(signal.SIGTERM, before)
+    (failed,) = logs.named("worker.failed")
+    assert "redis.exceptions.ConnectionError: Error 111 connecting to" in failed["exception"]
+    assert logs.named("worker.stopped") == []
+    assert all(secret not in logs.text for secret in platform_settings.secret_values())
+
+
+def test_a_schedule_that_cannot_reach_the_database_ends_in_failure_said_in_its_logs(
+    service_environment: dict[str, str],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unreachable = "postgresql+psycopg://waterfall:s3cret-of-the-schedule@127.0.0.1:9/waterfall"
+    for name, value in {**service_environment, "WATERFALL_DATABASE_URL": unreachable}.items():
+        monkeypatch.setenv(name, value)
+    assert worker_main.main(SCHEDULE) == 1
+    err = capsys.readouterr().err
+    (failed,) = records(err)
+    assert (failed["event"], failed["kind"], failed["actor"]) == (
+        "task.enqueue_failed",
+        "identity_sync",
+        "platform",
+    )
+    assert FORM.fullmatch(str(failed["correlation_id"]))
+    assert "OperationalError" in str(failed["exception"])
+    assert "s3cret-of-the-schedule" not in err
 
 
 @pytest.mark.usefixtures("logs")
