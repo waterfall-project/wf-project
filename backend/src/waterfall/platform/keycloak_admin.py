@@ -6,8 +6,10 @@ Through it the service reads where an account comes from, creates a local accoun
 whose creation Waterfall could not complete, and closes the sessions of an account (WF-ADM-0070,
 WF-SEC-0020). The link that sets the password of a local account is made by the extension of
 Waterfall, which also mails it as the invitation of the account: never by
-``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The token of the
-service account is kept until shortly before it expires.
+``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The bootstrap
+finds the account of an address, tells whether it has a password, and asks the extension, as the
+client of the bootstrap, for the link of the installation, valid until it is used (WF-EXP-0020,
+#652). The token of the client is kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -24,6 +26,7 @@ from typing import Any, Literal, cast
 from urllib.parse import quote
 
 import httpx2
+from pydantic import SecretStr
 
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
@@ -31,6 +34,8 @@ from waterfall.platform.logs import get_logger
 from waterfall.platform.settings import ServiceSettings
 
 SERVICE_CLIENT = "waterfall-service"
+# The client of the bootstrap: the only one whose links are valid until they are used (#652).
+INSTALLATION_CLIENT = "waterfall-installation"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -124,6 +129,14 @@ def refused_identity(response: httpx2.Response) -> UnprocessableError | Identity
     return UnprocessableError(VALIDATION_FAILED, fields=faults)
 
 
+def _not_local(response: httpx2.Response) -> bool:
+    """Tell whether the extension refused a link to an account the realm holds as no local one."""
+    return (
+        response.status_code == HTTPStatus.CONFLICT
+        and _document(response).get("error") == "not_local"
+    )
+
+
 def _pointer(error: object) -> str | None:
     named = _text(cast("Mapping[str, Any]", error), "field") if isinstance(error, Mapping) else ""
     return IDENTITY_POINTERS.get(named)
@@ -137,14 +150,20 @@ class KeycloakAdmin:
         keycloak: Keycloak,
         settings: ServiceSettings,
         clock: Callable[[], float] = time.monotonic,
+        *,
+        client: tuple[str, SecretStr] | None = None,
     ) -> None:
-        """Prepare the client; no token is asked for before a request needs one."""
+        """Prepare the client; no token is asked for before a request needs one.
+
+        It acts as the service account of Waterfall, unless ``client`` names another client of the
+        realm and its secret: that of the bootstrap, for the link of the installation.
+        """
         self._keycloak = keycloak
         realm = quote(settings.keycloak_realm, safe="")
         self._admin = f"/admin/realms/{realm}"
         # The entry point of the extension, under the realm (deploy/keycloak/extension/).
         self._extension = f"/realms/{realm}/password-setup-link"
-        self._secret = settings.service_client_secret
+        self._client, self._secret = client or (SERVICE_CLIENT, settings.service_client_secret)
         self._clock = clock
         self._token: tuple[str, float] | None = None
         self._token_lock = threading.Lock()
@@ -237,10 +256,7 @@ class KeycloakAdmin:
         """
         path = f"{self._extension}/users/{quote(subject, safe='')}"
         response = self._as_service("POST", path)
-        if (
-            response.status_code == HTTPStatus.CONFLICT
-            and _document(response).get("error") == "not_local"
-        ):
+        if _not_local(response):
             return None
         made = _document(expect(response, HTTPStatus.OK))
         url, expires_at = _text(made, "url"), _text(made, "expires_at")
@@ -252,6 +268,42 @@ class KeycloakAdmin:
             message = f"POST {response.request.url.path} answered no link"
             raise IdentityProviderError(message)
         return PasswordLink(url, moment)
+
+    def find_account(self, email: str) -> str | None:
+        """Give the subject of the account of the realm that holds ``email``, or ``None``."""
+        response = self._as_service(
+            "GET", f"{self._admin}/users", params={"email": email, "exact": "true"}
+        )
+        found = cast("list[Mapping[str, Any]]", expect(response, HTTPStatus.OK).json())
+        for user in found:
+            if _text(user, "email").lower() == email.lower():
+                return _text(user, "id") or None
+        return None
+
+    def has_password(self, subject: str) -> bool:
+        """Tell whether an account of the realm has a password; one it does not hold is a defect."""
+        path = f"{self._admin}/users/{quote(subject, safe='')}/credentials"
+        held = cast(
+            "list[Mapping[str, Any]]", expect(self._as_service("GET", path), HTTPStatus.OK).json()
+        )
+        return any(_text(credential, "type") == "password" for credential in held)
+
+    def make_installation_link(self, subject: str) -> str | None:
+        """Have the extension make the link of the installation, valid until it is used.
+
+        Asked as the client of the bootstrap, which alone may (WF-EXP-0020, #652); the link replaces
+        the one made before it, as any link does. ``None`` if the realm holds the account as no
+        local one.
+        """
+        path = f"{self._extension}/users/{quote(subject, safe='')}"
+        response = self._as_service("POST", path)
+        if _not_local(response):
+            return None
+        url = _text(_document(expect(response, HTTPStatus.OK)), "url")
+        if not url:
+            message = f"POST {response.request.url.path} answered no link"
+            raise IdentityProviderError(message)
+        return url
 
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).
@@ -272,7 +324,7 @@ class KeycloakAdmin:
                 f"{self._keycloak.protocol}/token",
                 data={
                     "grant_type": "client_credentials",
-                    "client_id": SERVICE_CLIENT,
+                    "client_id": self._client,
                     "client_secret": self._secret.get_secret_value(),
                 },
             )

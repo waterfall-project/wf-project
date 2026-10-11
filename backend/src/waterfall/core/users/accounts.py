@@ -183,6 +183,20 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
     ).first()
 
 
+def find_first_local_account_of_platform(session: Session) -> UserAccount | None:
+    """Read the first local account the platform created, or ``None`` if it created none.
+
+    The platform creates no other local account than the administrator of the bootstrap: an
+    authorized user creates the others, and the provider admits none (WF-ADM-0070).
+    """
+    return session.scalars(
+        select(UserAccount)
+        .where(UserAccount.origin == "local", UserAccount.created_by.is_(None))
+        .order_by(UserAccount.created_at, UserAccount.id)
+        .limit(1)
+    ).first()
+
+
 def change_columns(
     session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
 ) -> UserAccount:

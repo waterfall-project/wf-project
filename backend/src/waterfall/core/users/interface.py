@@ -10,7 +10,8 @@ each one carries and the condition the deactivation of the last administrator la
 WF-IHM-0090); a local account created, and the identity of an
 account changed (``identity``); an account deactivated or reactivated, and an account locked at the
 version read for a write of the roles it holds, which notes the change (``states``); the moment its
-holder closed its sessions, which refuses the tokens issued before (#668).
+sessions were last closed — by its holder, or by its deactivation —, which refuses a token whose
+sign-in comes before it (#668, #835); and the administrator the bootstrap created (WF-EXP-0020).
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -34,6 +35,7 @@ from waterfall.core.users.accounts import (
     find_account,
     find_account_of_subject,
     find_active_accounts,
+    find_first_local_account_of_platform,
     lock_account_at,
     note_sessions_closed,
 )
@@ -101,6 +103,7 @@ __all__ = [
     "read_account_label",
     "read_account_of_subject",
     "read_author",
+    "read_installation_administrator",
     "refuse",
     "set_account_activation",
 ]
@@ -185,6 +188,12 @@ def read_author(session: Session, user_id: UUID | None) -> Author | None:
         return None
     author = session.get_one(UserAccount, user_id)
     return Author(user_id, display_name(author.first_name, author.last_name))
+
+
+def read_installation_administrator(session: Session) -> Account | None:
+    """Read the administrator the bootstrap created, or ``None`` before it did (WF-EXP-0020)."""
+    account = find_first_local_account_of_platform(session)
+    return None if account is None else _account(session, account)
 
 
 def active_accounts(session: Session, user_ids: Collection[UUID]) -> frozenset[UUID]:

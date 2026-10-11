@@ -8,7 +8,7 @@ shows no value.
 """
 
 from contextlib import suppress
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import unquote, unquote_plus, urlsplit
 
 from pydantic import Field, SecretStr, ValidationError
@@ -89,6 +89,21 @@ class ServiceSettings(Settings):
     service_client_secret: SecretStr = Field(min_length=1)
 
 
+class InstallationSettings(ServiceSettings):
+    """What the bootstrap of an installation reads besides, ``waterfall-api install`` (US-0420).
+
+    ``database_url`` designates the owner of the tables, who applies the migrations (#701);
+    ``installation_client_secret`` is the secret of the client of the bootstrap, the only one that
+    makes a link valid until it is used, which neither the API nor the worker holds (#652);
+    ``admin_email`` the address of the first administrator, and ``default_language`` the language
+    of the installation (WF-EXP-0020, WF-INTF-0160).
+    """
+
+    installation_client_secret: SecretStr = Field(min_length=1)
+    admin_email: str = Field(min_length=1)
+    default_language: Literal["fr", "en"]
+
+
 def load_settings() -> Settings:
     """Read the settings from the environment, or raise a ``SettingsError`` that names each fault.
 
@@ -100,6 +115,11 @@ def load_settings() -> Settings:
 def load_service_settings() -> ServiceSettings:
     """Read the settings of a process that reaches Keycloak, as ``load_settings`` does."""
     return _load(ServiceSettings)
+
+
+def load_installation_settings() -> InstallationSettings:
+    """Read the settings of the bootstrap, as ``load_settings`` does."""
+    return _load(InstallationSettings)
 
 
 def _load[Kind: Settings](kind: type[Kind]) -> Kind:
