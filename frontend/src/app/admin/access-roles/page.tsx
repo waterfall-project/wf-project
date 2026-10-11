@@ -9,13 +9,17 @@
  * said at their field —; the volumes of §4.6.2
  * count no roles, three of them predefined: the list holds in one page, which the contract does not
  * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
- * gives the catalogue, a column for each role (WF-ADM-0100), every role in the order the server
- * gives them, whatever the grid asks. A session that may modify the roles is offered the commands
- * to create, modify and delete one, which EP-03 wires (US-0380/L2); another, none. No screen creates
+ * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
+ * session that may modify the roles creates one in line, renames and deletes it in the table, and
+ * writes its permissions in the matrix (US-0380/L2), the roles answered shared by both
+ * (`RoleAnswers`); another, none. An address that says nothing of the table — neither sort, nor
+ * search, nor filter — leads, before anything is read, to the address of the search and the filters
+ * the account keeps for it, if it keeps any (`restoredAddress`, WF-IHM-0060). No screen creates
  * a permission. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
@@ -26,9 +30,18 @@ import {
   ACCESS_ROLE_SORTS,
   type AccessRoleSort,
 } from "@/components/admin/admin-grids";
-import { HOLDER_COUNT, PREDEFINED, rolesQuery } from "@/components/admin/role-address";
+import { MatrixWrites } from "@/components/admin/permission-matrix";
+import { RoleAnswers } from "@/components/admin/role-answers";
+import {
+  ACCESS_ROLES_PATH,
+  HOLDER_COUNT,
+  PREDEFINED,
+  ROLE_KEPT,
+  rolesQuery,
+} from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
 import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
+import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -59,9 +72,8 @@ function AccessRolesHeader() {
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * Read the roles as the grid asks them — or the bounds the API refuses —, every role for the matrix
- * — the same reading when the grid asks nothing of the server —, and the catalogue of the
- * permissions.
+ * Read the roles as the grid asks them — or the bounds the API refuses —, which the matrix shows
+ * too, and the catalogue of the permissions.
  */
 async function readRoles(filters: {
   readonly query: GridQuery<AccessRoleSort>;
@@ -69,22 +81,15 @@ async function readRoles(filters: {
   readonly holders: Bounds;
 }) {
   const client = serverClient();
-  const asked = rolesQuery(filters);
-  const narrowed = Object.keys(asked).length > 0;
-  const [listed, every, permissions] = await Promise.all([
+  const [listed, permissions] = await Promise.all([
     readOrRefused("listAccessRoles", BOUNDS_REFUSED, () =>
-      client.GET("/access-roles", { params: { query: asked } }),
+      client.GET("/access-roles", { params: { query: rolesQuery(filters) } }),
     ),
-    narrowed ? readOrFail("listAccessRoles", () => client.GET("/access-roles")) : undefined,
     readOrFail("listPermissions", () => client.GET("/permissions")),
   ]);
-  const read = listed.kind === "read" ? listed.data : undefined;
-  return {
-    listed: read ?? [],
-    refused: listed.kind === "read" ? undefined : refusedBounds(listed.problem.fields ?? []),
-    every: every ?? read ?? [],
-    permissions,
-  };
+  return listed.kind === "read"
+    ? { listed: listed.data, refused: undefined, permissions }
+    : { listed: [], refused: refusedBounds(listed.problem.fields ?? []), permissions };
 }
 
 /** Render the access roles and the matrix of their permissions. */
@@ -98,23 +103,46 @@ export default async function AccessRolesPage({
     requestSession(),
   ]);
   const preferences = session?.display_preferences?.grids?.[ACCESS_ROLE_GRID_KEY] ?? undefined;
+  // An address that says nothing of the table: the filters kept, before anything is read.
+  const restored = restoredAddress(ACCESS_ROLES_PATH, search, ROLE_KEPT, preferences?.filters);
+  if (restored !== undefined) {
+    redirect(restored);
+  }
   const query = readGridQuery(search, ACCESS_ROLE_SORTS, preferences?.sort);
   const predefined = readBoolean(search, PREDEFINED);
   const holders = readBounds(search, HOLDER_COUNT, "count");
-  const { listed, refused, every, permissions } = await readRoles({ query, predefined, holders });
+  const { listed, refused, permissions } = await readRoles({ query, predefined, holders });
   const editable = platformOffer(session?.permissions, "access_roles") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.access_roles}>
-      <PendingAddress>
+      <PendingAddress kept={ROLE_KEPT}>
         <AccessRolesHeader />
-        <AccessRoleList
-          roles={listed}
-          query={query}
-          preferences={preferences}
-          filters={{ predefined, holders, refused }}
-          editable={editable}
-        />
-        <PermissionMatrix permissions={permissions} roles={every} />
+        {editable ? (
+          // The roles the server answered, one source for the table and the matrix.
+          <RoleAnswers>
+            <AccessRoleList
+              roles={listed}
+              query={query}
+              preferences={preferences}
+              filters={{ predefined, holders, refused }}
+              editable
+            />
+            <MatrixWrites order={permissions.map(({ code }) => code)} roles={listed}>
+              <PermissionMatrix permissions={permissions} roles={listed} editable />
+            </MatrixWrites>
+          </RoleAnswers>
+        ) : (
+          <>
+            <AccessRoleList
+              roles={listed}
+              query={query}
+              preferences={preferences}
+              filters={{ predefined, holders, refused }}
+              editable={false}
+            />
+            <PermissionMatrix permissions={permissions} roles={listed} editable={false} />
+          </>
+        )}
       </PendingAddress>
     </Screen>
   );
