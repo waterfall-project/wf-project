@@ -1746,8 +1746,10 @@ de rafraîchissement tourné à chaque emploi et refusé au second, jetons sign�
 `make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
 refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
 jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
-(`frontend/e2e/service/session.spec.ts`) ; le reste — `refresh_expires_in` — revient aux
-parcours contre le service d'US-0350/L5.
+(`frontend/e2e/service/session.spec.ts`) ; `refresh_expires_in`, les deux heures d'une session
+inactive, et ce qu'US-0350 demande d'autre au royaume — chaque nature de compte, le mot de passe,
+le verrouillage, le lien —, `backend/tests/test_keycloak_sign_in.py` ; le retour à l'écran visé,
+les parcours contre le service d'US-0350/L5.
 
 ### Un parcours de bout en bout
 

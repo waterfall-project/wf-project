@@ -13,8 +13,8 @@ fail and say so. The mails Keycloak sends are read in the Mailpit of the platfor
 ``WATERFALL_MAILPIT_PORT`` publishes, 8025 unless it says another, as Compose does;
 ``WATERFALL_TEST_FRONT_ADDRESS`` is the address of the front the realm was applied with. They try
 the platform and cite no requirement: what the requirements ask of Keycloak — the lockout, a link
-used or expired, the sign-in of each kind of account through the front — is proved by the tests of
-the lot that closes those criteria (US-0350/L5).
+used or expired, the sign-in of each kind of account through the front — is proved by
+``test_keycloak_sign_in.py``.
 """
 
 import base64

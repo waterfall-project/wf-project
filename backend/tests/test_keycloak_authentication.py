@@ -13,7 +13,8 @@ import base64
 import hashlib
 import secrets
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 from typing import Any, cast
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
@@ -102,14 +103,8 @@ class FrontBrowser(Browser):
             self.jar[(paths[0].strip() if paths else "/", name.strip())] = value
         return response
 
-    def sign_in(
-        self, username: str, password: str, *, provider: str | None = None
-    ) -> tuple[str, str]:
-        """Sign in through the login page of the realm, or of the provider it relays to.
-
-        Give the code the front receives on its return address, and the verifier of PKCE that
-        goes with it.
-        """
+    def login_page(self, *, provider: str | None = None) -> tuple[httpx2.Response, str]:
+        """Open the login page the front sends a person to; give it and the verifier of PKCE."""
         verifier = secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
         query = {
@@ -125,11 +120,33 @@ class FrontBrowser(Browser):
             query["kc_idp_hint"] = provider
         page = self.get(f"{realm_address()}/protocol/openid-connect/auth?{urlencode(query)}")
         assert page.status_code == 200, page.text
+        return page, verifier
+
+    def sign_in(
+        self, username: str, password: str, *, provider: str | None = None
+    ) -> tuple[str, str]:
+        """Sign in through the login page of the realm, or of the provider it relays to.
+
+        Give the code the front receives on its return address, and the verifier of PKCE that
+        goes with it.
+        """
+        page, verifier = self.login_page(provider=provider)
         response = self.submit(page, {"username": username, "password": password})
         while not response.headers.get("Location", "").startswith(callback()):
             assert response.status_code in {302, 303}, response.text
             response = self._send("GET", response.headers["Location"])
         return parse_qs(urlsplit(response.headers["Location"]).query)["code"][0], verifier
+
+
+def refused_sign_in(username: str, password: str) -> httpx2.Response:
+    """Try to sign in through the login page of the realm; give the page that refuses it."""
+    browser = FrontBrowser()
+    page, _ = browser.login_page()
+    response = browser.submit(page, {"username": username, "password": password})
+    # The login page again, with its error, and no way back to the front.
+    assert response.status_code == 200, response.headers.get("Location")
+    assert 'name="password"' in response.text
+    return response
 
 
 def realm_address() -> str:
@@ -178,8 +195,7 @@ def bearer(tokens: dict[str, Any]) -> dict[str, str]:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-@pytest.fixture(scope="module")
-def settings() -> ServiceSettings:
+def served_settings() -> ServiceSettings:
     """Give the settings of an API served on the Keycloak of the platform."""
     # The database is the test's own, given to the application apart, and Redis serves nothing yet.
     return ServiceSettings.model_validate(
@@ -191,6 +207,52 @@ def settings() -> ServiceSettings:
             "service_client_secret": required(SERVICE_CREDENTIAL_VARIABLE),
         }
     )
+
+
+def served_api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
+    """Give a client of the API on ``database`` and the Keycloak of the platform, watched (#669)."""
+    watching = Watching(keycloak, served_settings(), database)
+    app = create_app(Services(database, keycloak, watching))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+@contextmanager
+def service_admin(settings: ServiceSettings) -> Generator[httpx2.Client]:
+    """Reach the administration API of the realm as the service account, as the API does."""
+    token = httpx2.post(
+        f"{realm_address()}/protocol/openid-connect/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "waterfall-service",
+            "client_secret": settings.service_client_secret.get_secret_value(),
+        },
+        timeout=30,
+    ).json()["access_token"]
+    base = realm_address().replace("/realms/", "/admin/realms/")
+    headers = {"Authorization": f"Bearer {token}"}
+    with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
+        yield client
+
+
+@contextmanager
+def collected(admin: httpx2.Client, database: Database) -> Generator[list[str]]:
+    """Collect the accounts a test creates in the realm, and remove them after.
+
+    Those Waterfall holds, created by an account, are removed without being collected.
+    """
+    subjects: list[str] = []
+    yield subjects
+    with database.transaction() as session:
+        created = select(UserAccount.idp_subject).where(UserAccount.created_by.is_not(None))
+        subjects.extend(session.scalars(created))
+    for subject in subjects:
+        admin.delete(f"/users/{subject}")
+
+
+@pytest.fixture(scope="module")
+def settings() -> ServiceSettings:
+    """Give the settings of an API served on the Keycloak of the platform."""
+    return served_settings()
 
 
 @pytest.fixture
@@ -219,18 +281,7 @@ def api(
 @pytest.fixture
 def admin(settings: ServiceSettings) -> Iterator[httpx2.Client]:
     """Reach the administration API of the realm as the service account, as the API does."""
-    token = httpx2.post(
-        f"{realm_address()}/protocol/openid-connect/token",
-        data={
-            "grant_type": "client_credentials",
-            "client_id": "waterfall-service",
-            "client_secret": settings.service_client_secret.get_secret_value(),
-        },
-        timeout=30,
-    ).json()["access_token"]
-    base = realm_address().replace("/realms/", "/admin/realms/")
-    headers = {"Authorization": f"Bearer {token}"}
-    with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
+    with service_admin(settings) as client:
         yield client
 
 
@@ -494,32 +545,32 @@ def new_address() -> str:
     return f"Jeanne.{secrets.token_hex(6)}@Mairie.test"
 
 
-@pytest.fixture
-def administrator(database: Database, local_account: Account) -> dict[str, str]:
-    """Make the caller an account Waterfall knows, which may change the accounts; give its token."""
-    row = known(database, local_account)
+def changing_accounts(database: Database, account: Account) -> dict[str, str]:
+    """Make an account of the realm one Waterfall knows, which may change the accounts.
+
+    Give the header of its token.
+    """
+    row = known(database, account)
     role(
         database,
         "Gestion des comptes",
         permissions=("users.read", "users.write"),
         holders=(row["id"],),
     )
-    return bearer(tokens_of(local_account.email, PASSWORD))
+    return bearer(tokens_of(account.email, PASSWORD))
+
+
+@pytest.fixture
+def administrator(database: Database, local_account: Account) -> dict[str, str]:
+    """Make the caller an account Waterfall knows, which may change the accounts; give its token."""
+    return changing_accounts(database, local_account)
 
 
 @pytest.fixture
 def in_realm(admin: httpx2.Client, database: Database) -> Iterator[list[str]]:
-    """Collect the accounts a test creates in the realm, and remove them after.
-
-    Those Waterfall holds, created by an account, are removed without being collected.
-    """
-    subjects: list[str] = []
-    yield subjects
-    with database.transaction() as session:
-        created = select(UserAccount.idp_subject).where(UserAccount.created_by.is_not(None))
-        subjects.extend(session.scalars(created))
-    for subject in subjects:
-        admin.delete(f"/users/{subject}")
+    """Collect the accounts a test creates in the realm, and remove them after."""
+    with collected(admin, database) as subjects:
+        yield subjects
 
 
 def subject_of(database: Database, user_id: str) -> str:
