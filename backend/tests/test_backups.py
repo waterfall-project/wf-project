@@ -199,6 +199,28 @@ def test_a_backup_asked_for_is_listed_with_its_date_its_size_and_a_verification_
     assert inscribed.params == {"verification": "passed", "origin": "manual"}
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_backup_that_succeeded_gives_from_its_task_where_to_read_the_backup_it_took(
+    backups_api: ContractClient,
+    database: Database,
+    queue: TaskQueue,
+    taking: BackupTask,
+    person: Person,
+) -> None:
+    # « … et l'utilisateur en voit l'aboutissement. » : queued, the task gives no result yet; ended,
+    # its result is the backup it took, which the address it gives reads.
+    _, headers = person(READ, WRITE)
+    task_id = backups_api.post(BACKUPS, headers=headers).json()["task_id"]
+    queued = backups_api.get(f"/api/v1/tasks/{task_id}", headers=headers)
+    assert (queued.status_code, queued.json()["result_url"]) == (200, None)
+    assert worker_of(database, queue, taking).step()
+    ended = backups_api.get(f"/api/v1/tasks/{task_id}", headers=headers).json()
+    (item,) = backups_api.get(BACKUPS, headers=headers).json()["items"]
+    assert ended["status"] == "succeeded"
+    assert ended["result_url"] == f"{BACKUPS}/{item['backup_id']}"
+    assert backups_api.get(ended["result_url"], headers=headers).json() == item
+
+
 @pytest.mark.requirement("WF-ADM-0150-A")
 def test_a_backup_is_downloaded_whole_as_the_bucket_of_the_backups_keeps_it(
     backups_api: ContractClient,
