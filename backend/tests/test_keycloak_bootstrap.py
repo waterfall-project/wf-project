@@ -81,7 +81,6 @@ def settings_of(database_url: str, email: str, language: str = "fr") -> Installa
     return InstallationSettings.model_validate(
         {
             "database_url": database_url,
-            "redis_url": "redis://unused",
             "keycloak_address": required(ADDRESS_VARIABLE),
             "keycloak_backchannel": required(BACKCHANNEL_VARIABLE),
             "service_client_secret": required(SERVICE_CREDENTIAL_VARIABLE),

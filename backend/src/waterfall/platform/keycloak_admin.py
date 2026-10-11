@@ -32,7 +32,7 @@ from pydantic import SecretStr
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.settings import KeycloakSettings
 
 SERVICE_CLIENT = "waterfall-service"
 # The client of the bootstrap: the only one whose links are valid until they are used (#652).
@@ -149,7 +149,7 @@ class KeycloakAdmin:
     def __init__(
         self,
         keycloak: Keycloak,
-        settings: ServiceSettings,
+        settings: KeycloakSettings,
         clock: Callable[[], float] = time.monotonic,
         *,
         client: tuple[str, SecretStr] | None = None,

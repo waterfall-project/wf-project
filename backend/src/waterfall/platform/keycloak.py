@@ -35,7 +35,7 @@ from jwt import PyJWK, PyJWKSet
 
 from waterfall.platform.errors import UnauthenticatedError, UnavailableError
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.settings import KeycloakSettings
 
 # The audience of the tokens the API accepts: a token lent to another client is not for it.
 AUDIENCE = "waterfall-api"
@@ -102,7 +102,7 @@ class Keycloak:
 
     def __init__(
         self,
-        settings: ServiceSettings,
+        settings: KeycloakSettings,
         clock: Callable[[], float] = time.monotonic,
         *,
         timeout: float = TIMEOUT_SECONDS,

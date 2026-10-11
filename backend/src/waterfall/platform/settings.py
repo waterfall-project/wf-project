@@ -52,15 +52,12 @@ def _url_secrets(value: str) -> list[str]:
     return found
 
 
-class Settings(BaseSettings):
-    """What a service of the platform reads from its environment."""
+class PlatformSettings(BaseSettings):
+    """What every process of the platform reads from its environment: its database, its logs."""
 
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
     database_url: SecretStr = Field(min_length=1)
-    redis_url: SecretStr = Field(min_length=1)
-    host: str = "127.0.0.1"
-    port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
 
     def secret_values(self) -> tuple[str, ...]:
@@ -74,8 +71,16 @@ class Settings(BaseSettings):
         return tuple(dict.fromkeys(value for value in [*held, *extra] if value))
 
 
-class ServiceSettings(Settings):
-    """What a process that reaches Keycloak reads besides: the API, and the worker after it.
+class Settings(PlatformSettings):
+    """What a service of the platform reads besides: Redis, and where the API listens."""
+
+    redis_url: SecretStr = Field(min_length=1)
+    host: str = "127.0.0.1"
+    port: int = Field(default=8000, ge=1, le=65535)
+
+
+class KeycloakSettings(PlatformSettings):
+    """What a process that reaches Keycloak reads besides.
 
     ``keycloak_address`` is where the browser reaches Keycloak, which names the issuer of every
     token whoever asks for it; ``keycloak_backchannel`` is where this process reaches it, for its
@@ -89,14 +94,19 @@ class ServiceSettings(Settings):
     service_client_secret: SecretStr = Field(min_length=1)
 
 
-class InstallationSettings(ServiceSettings):
-    """What the bootstrap of an installation reads besides, ``waterfall-api install`` (US-0420).
+class ServiceSettings(Settings, KeycloakSettings):
+    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+
+
+class InstallationSettings(KeycloakSettings):
+    """What the bootstrap of an installation reads, ``waterfall-api install`` (US-0420).
 
     ``database_url`` designates the owner of the tables, who applies the migrations (#701);
     ``installation_client_secret`` is the secret of the client of the bootstrap, the only one that
     makes a link valid until it is used, which neither the API nor the worker holds (#652);
     ``admin_email`` the address of the first administrator, and ``default_language`` the language
-    of the installation (WF-EXP-0020, WF-INTF-0160).
+    of the installation (WF-EXP-0020, WF-INTF-0160). It deposits no task and serves nothing: it
+    reads neither Redis nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
@@ -122,7 +132,7 @@ def load_installation_settings() -> InstallationSettings:
     return _load(InstallationSettings)
 
 
-def _load[Kind: Settings](kind: type[Kind]) -> Kind:
+def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:
     # The values come from the environment, which pydantic-settings reads itself.
     from_environment: dict[str, Any] = {}
     try:
