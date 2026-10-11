@@ -1,0 +1,130 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The production image of the front, built and held at a pull request that changes it (US-0430).
+
+The image itself is built and started by ``make check-front-image``; these tests hold what it
+concludes from what Docker and the server answer, and when the chain asks for it.
+"""
+
+import json
+
+import pytest
+import yaml
+
+from wftools import REPOSITORY, frontimage, paths
+
+MANIFEST = json.dumps({"routes": {"/_global-error": {}, "/icon.svg": {}}, "dynamicRoutes": {}})
+ADDRESS = "127.0.0.1:32768"
+
+
+class Docker:
+    """A Docker and a server that answer as a test tells them, and record what they are asked."""
+
+    def __init__(
+        self,
+        *,
+        manifest: str = MANIFEST,
+        statuses: tuple[int | None, int | None] = (200, 500),
+        refused: bool = True,
+    ) -> None:
+        self.manifest = manifest
+        self.statuses = statuses
+        self.refused = refused
+        self.started: list[list[str]] = []
+        self.removed: list[str] = []
+        self.ran: list[list[str]] = []
+
+    def run(self, command: list[str]) -> int:
+        self.ran.append(command)
+        return 0
+
+    def read(self, command: list[str]) -> tuple[int, str]:
+        if "--entrypoint" in command:
+            return 0, self.manifest
+        if command[:3] == ["docker", "run", "--detach"]:
+            self.started.append(command)
+            return 0, f"container-{len(self.started)}\n"
+        if command[:2] == ["docker", "port"]:
+            return 0, f"{ADDRESS}\n"
+        if command[:2] == ["docker", "logs"]:
+            mocked = "WATERFALL_AUTH=mock" in self.started[-1]
+            return 0, f"Error: {frontimage.REFUSAL}" if mocked and self.refused else "Ready"
+        if command[:3] == ["docker", "rm", "--force"]:
+            self.removed.append(command[-1])
+        return 0, ""
+
+    def fetch(self, host: str, port: int) -> int | None:
+        assert f"{host}:{port}" == ADDRESS
+        return self.statuses[len(self.started) - 1]
+
+
+def test_an_image_that_answers_refuses_the_fake_back_and_prerenders_nothing_passes(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    docker = Docker()
+    assert frontimage.main(docker.run, docker.read, docker.fetch) == 0
+    assert docker.ran == [
+        ["docker", "build", "--target", "production", "--tag", frontimage.IMAGE, "frontend"]
+    ]
+    assert [command[-2:] for command in docker.started] == [
+        ["127.0.0.1::3000", frontimage.IMAGE],
+        ["WATERFALL_AUTH=mock", frontimage.IMAGE],
+    ]
+    assert not [command for command in docker.started if "WATERFALL_E2E=1" in command]
+    assert docker.removed == ["container-1", "container-2"]
+    output = capsys.readouterr().out
+    assert "/ answers 200" in output
+    assert "WATERFALL_AUTH=mock without WATERFALL_E2E is refused" in output
+
+
+@pytest.mark.parametrize(
+    ("docker", "said"),
+    [
+        (
+            Docker(manifest=json.dumps({"routes": {"/icon.svg": {}, "/login": {}}})),
+            "next build prerendered /login",
+        ),
+        (Docker(manifest="{"), "the prerender manifest of the image does not read"),
+        (Docker(statuses=(500, 500)), "/ answered 500 without a variable of the platform"),
+        (Docker(statuses=(200, 200)), "is not refused: / answered 200"),
+        (Docker(refused=False), "is not refused: / answered 500"),
+    ],
+)
+def test_an_image_that_does_not_do_what_it_must_fails_naming_it(
+    docker: Docker, said: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert frontimage.main(docker.run, docker.read, docker.fetch) == 1
+    assert said in capsys.readouterr().err
+    assert len(docker.removed) == len(docker.started)
+
+
+def test_a_front_that_never_answers_fails_and_its_container_is_removed() -> None:
+    docker = Docker(statuses=(None, None))
+    with pytest.raises(frontimage.FrontImageError, match="did not answer"):
+        frontimage.answer(docker.read, docker.fetch, {}, wait=0)
+    assert docker.removed == ["container-1"]
+
+
+def test_a_build_that_fails_stops_the_check() -> None:
+    docker = Docker()
+    assert frontimage.main(lambda _command: 2, docker.read, docker.fetch) == 2
+    assert docker.started == []
+
+
+def test_a_change_of_what_makes_the_image_wakes_its_check_and_a_page_does_not() -> None:
+    declaration = paths.read()
+    for changed in ("frontend/Dockerfile", "frontend/next.config.ts", "frontend/pnpm-lock.yaml"):
+        assert "front-image" in {family.name for family in declaration.touched([changed])}
+    page = "frontend/src/app/(home)/page.tsx"
+    assert "front-image" not in {family.name for family in declaration.touched([page])}
+
+
+def test_the_chain_runs_the_check_and_the_gate_judges_it() -> None:
+    chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text())
+    job = chain["jobs"]["front-image"]
+    assert job["if"] == "needs.changes.outputs.front-image == 'true'"
+    assert "front-image" in chain["jobs"]["gate"]["needs"]
+    workflow = yaml.safe_load(
+        (REPOSITORY / ".github" / "workflows" / "front-image.yml").read_text()
+    )
+    assert workflow["jobs"]["check"]["steps"][-1] == {"run": "make check-front-image"}

@@ -1326,7 +1326,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak`, `service` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
 | `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
 | `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
@@ -1337,6 +1337,7 @@ commande.
 | `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
+| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond sans variable de la plateforme, que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -1415,6 +1416,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
   que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
   installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
+  `front-image.yml` construit et démarre l'image de production du front, que `images.yml` ne
+  publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
+  `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
+  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` —, et non sur le
+  code du front, que `make build-front` construit déjà dans la famille `front` ; elle coûte une
+  construction d'environ une minute et demie. Elle affirme que `/` répond sans variable de la
+  plateforme, que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans
+  `WATERFALL_E2E` — `/` répond `500`, le serveur dit pourquoi —, et que `next build` n'a prérendu
+  (`.next/prerender-manifest.json`) que `/_global-error` et `/icon.svg` : aucune page qui lirait
+  l'environnement n'est figée à la construction.
 
 Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque poussée sur `main` ou
 sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,

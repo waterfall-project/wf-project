@@ -56,7 +56,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
-	check-front-code check-front-e2e \
+	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
 	lint-docker changes gate \
@@ -232,7 +232,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-roadmap check-keycloak check-service ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
@@ -330,6 +330,11 @@ coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 %
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
 check-keycloak: build-keycloak test-keycloak ## The image of Keycloak builds, its realm applies and its extension answers (US-0350)
+
+# The production image of the front, which the chain publishes after a merge alone (images.yml),
+# built and started at a pull request that changes what makes it (wftools.frontimage, US-0430).
+check-front-image: ## The production image of the front builds, starts and answers /, refuses the fake back, and prerenders no page that reads the environment (US-0430)
+	@$(WFTOOLS).frontimage
 
 check-service: $(call full-only,e2e-service) ## The paths against the real service, in the full tier only (US-0340)
 
