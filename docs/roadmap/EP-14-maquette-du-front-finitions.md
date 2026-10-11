@@ -224,7 +224,7 @@ les arrête dans `DECISIONS.md`, avec les options écartées.
   confirmée, en disant que les tâches restent et perdent leur rattachement (WF-PLA-0170).
   Écarté : un dialogue qui éditerait tout l'arbre, qui doublerait la grille ; des opérations par
   élément, que le contrat n'a pas et dont l'écriture entière a été décidée.
-- **Les chronologies (L44c)** se créent par leur libellé dans un dialogue de l'écran des
+- **Les chronologies (L44f, détachées de L44c par la coupe du 2026-10-11)** se créent par leur libellé dans un dialogue de l'écran des
   chronologies et se suppriment après confirmation, comme le projet liste `manage_timelines`.
   Écarté : garder par la seule permission `planning.write` de la session — un objet du projet
   liste ses commandes, règle d'EP-02.
