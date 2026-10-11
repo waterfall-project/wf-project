@@ -11,14 +11,14 @@ other permission that is missing is named by the refusal (403). The quality of c
 second term of the evaluation, arrives with EP-04.
 """
 
-from collections.abc import Collection
 from dataclasses import dataclass
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
-from waterfall.core.access_roles.roles import NOT_FOUND
+from waterfall.core.access_roles.roles import NOT_FOUND, HeldRole
 from waterfall.core.access_roles.tables import (
     AccessRole,
     AccessRolePermission,
@@ -50,13 +50,40 @@ def effective_permissions(session: Session, user_id: UUID) -> tuple[str, ...]:
     return _granted(session, AccessRole.id.in_(held))
 
 
-def granted_permissions(session: Session, role_ids: Collection[UUID]) -> tuple[str, ...]:
-    """Give the permissions these roles grant, deleted roles apart, in catalogue order.
+@dataclass(frozen=True, slots=True)
+class Holding:
+    """The roles an account holds and the permissions they grant, read at once."""
 
-    For a reader that has already read the roles an account holds, and describes both from the
-    same reading.
+    # Deleted ones apart, by label then by identifier, as ``roles_held`` gives them.
+    roles: list[HeldRole]
+    # In the order of the catalogue, each once.
+    permissions: tuple[str, ...]
+
+
+def holding(session: Session, user_id: UUID) -> Holding:
+    """Read the roles an account holds and the permissions they grant, in one query.
+
+    One reading: a role deleted, or a permission withdrawn, by a write committed meanwhile never
+    leaves a role named without its permissions, nor permissions without their role (#756).
     """
-    return _granted(session, AccessRole.id.in_(role_ids))
+    rows = session.execute(
+        select(AccessRole.id, AccessRole.label, Permission.code, Permission.position)
+        .select_from(UserAccessRole)
+        .join(AccessRole, AccessRole.id == UserAccessRole.access_role_id)
+        .outerjoin(AccessRolePermission, AccessRolePermission.access_role_id == AccessRole.id)
+        .outerjoin(Permission, Permission.id == AccessRolePermission.permission_id)
+        .where(UserAccessRole.user_account_id == user_id, AccessRole.deleted_at.is_(None))
+        .order_by(AccessRole.label, AccessRole.id)
+    )
+    roles: dict[UUID, HeldRole] = {}
+    positions: dict[str, int] = {}
+    for role_id, label, code, position in rows:
+        roles.setdefault(role_id, HeldRole(role_id, label))
+        # Joined on its left: a role that grants nothing is held all the same, without permission.
+        granted = cast("str | None", code)
+        if granted is not None:
+            positions[granted] = position
+    return Holding(list(roles.values()), tuple(sorted(positions, key=positions.__getitem__)))
 
 
 def _granted(session: Session, roles: ColumnElement[bool]) -> tuple[str, ...]:

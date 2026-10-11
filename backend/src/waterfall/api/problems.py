@@ -19,7 +19,7 @@ from starlette.exceptions import HTTPException
 from waterfall.api.contract.base import NUL_FAULT
 from waterfall.api.contract.models import ErrorCode, FieldProblem, Params, Problem
 from waterfall.platform.correlation import HEADER, SCOPE_KEY
-from waterfall.platform.errors import FieldError, ServiceError
+from waterfall.platform.errors import FieldError, ServiceError, json_pointer
 from waterfall.platform.logs import get_logger
 
 MEDIA_TYPE = "application/problem+json"
@@ -101,10 +101,7 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
     if kind == NUL_FAULT:
         # The NUL is pointed at the item of the field that holds it, as any fault of an item is.
         path = [*path, *fault["ctx"]["path"]]
-    if place in {"query", "path"}:
-        pointer = f"/{place}/{path[0]}"
-    else:
-        pointer = "".join(f"/{part}" for part in path)
+    pointer = f"/{place}/{path[0]}" if place in {"query", "path"} else json_pointer(*path)
     params: dict[str, Any] = {}
     if kind == "missing":
         code = ErrorCode.VALUE_REQUIRED

@@ -14,6 +14,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+def json_pointer(*parts: str | int) -> str:
+    """Point at a place of a body, as RFC 6901 writes it: ``~`` and ``/`` of a key escaped.
+
+    ``~`` as ``~0``, then ``/`` as ``~1``: a key the client sent with a ``/`` is one place, not two
+    (#750).
+    """
+    return "".join(f"/{str(part).replace('~', '~0').replace('/', '~1')}" for part in parts)
+
+
 @dataclass(frozen=True, slots=True)
 class FieldError:
     """The refusal of one field: where it is, why, and what the reason needs to say."""
@@ -74,6 +83,12 @@ class PreconditionFailedError(ServiceError):
     """The ``lock_version`` is stale (412)."""
 
     status = 412
+
+
+class PayloadTooLargeError(ServiceError):
+    """A file beyond the size admitted (413)."""
+
+    status = 413
 
 
 class UnprocessableError(ServiceError):
