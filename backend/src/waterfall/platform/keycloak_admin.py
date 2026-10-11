@@ -281,12 +281,13 @@ class KeycloakAdmin:
                 return _text(user, "id") or None
         return None
 
-    def has_password(self, subject: str) -> bool:
-        """Tell whether an account of the realm has a password; one it does not hold is a defect."""
+    def has_password(self, subject: str) -> bool | None:
+        """Tell whether an account of the realm has a password, or ``None`` if it has no account."""
         path = f"{self._admin}/users/{quote(subject, safe='')}/credentials"
-        held = cast(
-            "list[Mapping[str, Any]]", expect(self._as_service("GET", path), HTTPStatus.OK).json()
-        )
+        response = self._as_service("GET", path)
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return None
+        held = cast("list[Mapping[str, Any]]", expect(response, HTTPStatus.OK).json())
         return any(_text(credential, "type") == "password" for credential in held)
 
     def make_installation_link(self, subject: str) -> str | None:

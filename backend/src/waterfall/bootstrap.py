@@ -68,11 +68,12 @@ INSTALL_LOCK = 4_200_420
 AVATAR_MAX_BYTES = 2 * 1024**2
 EXTERNAL_BACKUP_MAX_BYTES = 20 * 1024**3
 # Why the platform refuses a bootstrap: an installation without its administrator, an address that
-# is none, an address an account of a directory or of a provider holds, an administrator that is no
-# longer a local account.
+# is none, an address an account of a directory or of a provider holds, an administrator the realm
+# no longer holds, or no longer as a local account.
 NO_ADMINISTRATOR = "no_administrator"
 NOT_AN_ADDRESS = "admin_email_not_an_address"
 ADDRESS_NOT_LOCAL = "admin_email_held_in_identity_provider"
+ADMINISTRATOR_NOT_IN_PROVIDER = "administrator_not_in_provider"
 ADMINISTRATOR_NOT_LOCAL = "administrator_not_local"
 # The administrator is named after its role, in the language of the installation; it may rename
 # itself afterwards, as any local account.
@@ -244,10 +245,14 @@ def _link(
     """Make the link of the administrator, valid until it is used, while it has no password.
 
     ``clients`` are the service account, which reads the account, and the client of the bootstrap,
-    which alone makes such a link. A deactivated account, or one no longer local, has none (409).
+    which alone makes such a link. A deactivated account, or one no longer local, has none (409);
+    nor has one the realm no longer holds — removed in its console.
     """
     admin, installer = clients
-    if admin.has_password(administrator.subject):
+    has_password = admin.has_password(administrator.subject)
+    if has_password is None:
+        raise InstallationRefusedError(ADMINISTRATOR_NOT_IN_PROVIDER)
+    if has_password:
         return None
     with database.transaction() as session:
         password_link_holder(session, administrator.user_id)

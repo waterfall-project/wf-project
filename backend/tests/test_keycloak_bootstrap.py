@@ -454,6 +454,20 @@ def test_an_administrator_the_realm_relays_since_is_given_no_link(
     assert refused(settings, logs) == "administrator_not_local"
 
 
+def test_an_administrator_the_realm_no_longer_holds_is_refused(
+    admin: httpx2.Client, owner: Engine, database_url: str, address: str, logs: Logs
+) -> None:
+    # Removed from the realm in its console since the installation: said by its reason, not
+    # traced as a failure.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    with owner.connect() as connection:
+        subject = connection.scalar(select(UserAccount.idp_subject))
+    assert admin.delete(f"/users/{subject}").status_code == 204
+    assert refused(settings, logs) == "administrator_not_in_provider"
+    assert logs.named("installation.failed") == []
+
+
 def test_a_keycloak_that_does_not_answer_stops_the_installation(
     database_url: str, address: str, logs: Logs
 ) -> None:
