@@ -2082,9 +2082,10 @@ ses paramètres, jamais une phrase.
   privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
   lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait — ne prend pas
   `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est
-  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton émis
-  avant que le compte ait fermé ses sessions — `closeMySessions` en note l'heure,
-  `sessions_closed_at`, avant d'appeler Keycloak (#668) —, un compte désactivé un 401
+  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton dont la
+  connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
+  tombe dans sa seconde — `closeMySessions` et la désactivation en notent l'heure,
+  `sessions_closed_at`, avant d'appeler Keycloak (#668, #835) —, un compte désactivé un 401
   `ACCOUNT_DEACTIVATED` ; un compte que Waterfall ne connaît pas encore est créé sans rôle s'il
   vient de l'annuaire ou d'un fournisseur externe, refusé sinon par un 401
   `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au seul journal. L'appelant devient l'auteur
