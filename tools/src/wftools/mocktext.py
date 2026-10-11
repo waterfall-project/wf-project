@@ -96,8 +96,13 @@ def span(task: JsonObject) -> str:
     return f"du {day(date.fromisoformat(start))} au {day(date.fromisoformat(finish))}"
 
 
-_COLUMNS = (("not_started", "non démarrées"), ("started", "démarrées"), ("completed", "terminées"))
-"""The columns of the Kanban, by their key in the answer, and how a summary says each."""
+_COLUMNS = (("not_started", "non démarrée"), ("started", "démarrée"), ("completed", "terminée"))
+"""The columns of the Kanban, by their key in the answer, and how a summary says each, singular."""
+
+
+def _agreed(number: int, word: str) -> str:
+    """Write a count and its word, which French puts in the plural from two: 1 tirée, 2 tirées."""
+    return f"{count(number)} {word}{'s' if number > 1 else ''}"
 
 
 def kanban(answer: JsonObject, core: Collection[str]) -> str:
@@ -105,6 +110,7 @@ def kanban(answer: JsonObject, core: Collection[str]) -> str:
 
     The tasks drawn about the core are counted, never named; the tasks not started whose
     predecessors are all completed — the milestones the Kanban invites to complete — are named.
+    Each count agrees with its word, a column of one task as its one drawn task (#653).
     """
 
     def label(node: JsonObject) -> str:
@@ -116,8 +122,8 @@ def kanban(answer: JsonObject, core: Collection[str]) -> str:
         named = [label(node) for node in nodes if node["node_id"] in core]
         drawn = len(nodes) - len(named)
         parts.append(
-            f"{count(len(nodes))} {said} — dans le cœur, {listed(named) or 'aucune'} ; "
-            f"{count(drawn)} tirées autour de lui —"
+            f"{_agreed(len(nodes), said)} — dans le cœur, {listed(named) or 'aucune'} ; "
+            f"{_agreed(drawn, 'tirée')} autour de lui —"
         )
     waiting = cast("list[JsonObject]", answer["not_started"])
     ready = [label(node) for node in waiting if node["predecessors_completed"]]

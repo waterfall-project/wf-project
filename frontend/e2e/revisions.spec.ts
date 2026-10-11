@@ -13,6 +13,17 @@ import { openHydrated, WORKING } from "./hydration";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
+// The comparison renders its 2 770 changed nodes in a plain table (#624), which development pays
+// for between the click and the address: some five megabytes of payload, four seconds for the
+// server to render — up to ten while another path loads it —, three or four for the browser; the
+// fake back answers in tens of milliseconds. The snapshots of the DOM a trace takes added two
+// seconds or so within the bound, measured: up to eleven of its fifteen on an idle workstation,
+// and the chain overran it once (#729). Without them the trace loses the DOM, the network, the
+// tree of accessibility and the screenshot of each action — it keeps the actions, their sources
+// and the screencast —, so the time of the comparison is told below, as an annotation. This only
+// mitigates: the rest is the screen's, which #624 is to decide.
+test.use({ trace: { mode: "retain-on-failure", snapshots: false } });
+
 test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed [WF-ARC-0020-A]", async ({
   page,
 }) => {
@@ -39,9 +50,28 @@ test("the revisions of a project, their comparison as the API renders it, its st
 
   // The comparison asked of the server: what it answers is shown, nothing paired by the front —
   // the 2 770 nodes of the structure the reference re-estimated among them (EP-14/L45a), a
-  // reading of the whole structure given the time of a screen of one (`WORKING`).
+  // reading of the whole structure given the time of a screen of one (`WORKING`). The answer of
+  // the server, awaited from before the click, and the address are timed in the report.
+  const start = Date.now();
+  const answered = page
+    .waitForResponse(
+      (response) =>
+        response.request().headers().rsc === "1" && response.url().includes("to_revision_id="),
+      { timeout: WORKING },
+    )
+    .then(async (response) => {
+      await response.finished();
+      return Date.now() - start;
+    });
   await main.getByRole("button", { name: "Comparer" }).click();
-  await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
+  const [server] = await Promise.all([
+    answered,
+    expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING }),
+  ]);
+  test.info().annotations.push({
+    type: "comparison",
+    description: `answered by the server in ${String(server)} ms, the address in ${String(Date.now() - start)} ms, of ${String(WORKING)}`,
+  });
   await expect(main.getByRole("table", { name: "Ajouts" }).getByRole("row")).toHaveCount(6);
   await expect(main.getByRole("table", { name: "Retraits" })).toContainText(
     "Essais préliminaires sur site",

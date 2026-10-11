@@ -150,13 +150,18 @@ def share(value: Decimal) -> Decimal:
     return value.quantize(Decimal(1).scaleb(value.adjusted()), rounding=ROUND_HALF_UP)
 
 
-def partition(amounts: Sequence[Decimal], total: Decimal) -> list[Decimal]:
+def partition(amounts: Sequence[Decimal], total: Decimal) -> Sequence[Decimal | None]:
     """Return the shares of the parts of a total as the contract gives them, summing to one.
 
     Each part its ``share``, then what the rounding leaves on the largest part, so that the sum is
     one exactly (WF-DEV-0060, WF-PTF-0080): that part may bear more than four places —
-    1 - 0.00000003 is 0.99999997 (EP-14/L42o, review 1).
+    1 - 0.00000003 is 0.99999997 (EP-14/L42o, review 1). A partition without a part has no share;
+    the parts of a nil total have none either, ``None`` each, so that the tool no longer raises
+    (EP-14/L55, #718). Provisional: no example has a nil total, and what the contract gives for it,
+    which WF-IND-0010 wants not computable, is for L42t to say (#774).
     """
+    if not amounts or not total:
+        return [None for _ in amounts]
     found = [share(amount / total) for amount in amounts]
     largest = max(range(len(amounts)), key=lambda rank: amounts[rank])
     found[largest] += 1 - sum(found)

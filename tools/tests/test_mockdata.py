@@ -625,11 +625,16 @@ def test_the_missing_rates_are_those_the_estimate_indicators_name() -> None:
 def test_two_runs_write_the_same_bytes(
     universe_computed: tuple[dict[str, Any], dict[str, Any]],
 ) -> None:
+    # What is compared is how the examples are assembled, not the whole computation: a run reads
+    # again what an earlier one of the process left in its caches (`functools.cache`) — the dated
+    # structure and its readings, the drawn invoices, the witness and the rates of the portfolio:
+    # `mockcore._schedule` and `_core`, `mockindicators._read`, `mockcosts.drawn`,
+    # `mockportfolio._witness`, `mockportfoliotime._rates`. Clearing them would cost some thirty
+    # seconds a run, for little (#653).
     first = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
     second = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
     assert first == second
-    # The named examples too, computed anew against the computation the session shares: the one
-    # test that confronts two computations of the universe, since the others share one.
+    # The named examples too, assembled anew against those the session shares.
     _, named = universe_computed
     anew = {name: mockdata.render(example) for name, example in mockdata.named().items()}
     assert anew == {name: mockdata.render(example) for name, example in named.items()}

@@ -225,9 +225,11 @@ by = "make mock-data"
 [tests]
 # One family per key, in the order the coverage report lists them. A path belongs to the
 # first family that matches it: the end-to-end paths live under frontend/, so they come
-# before the front's. The fixtures are the data every family reads; a script among them is
-# a tool. Nothing under docs/*/tools/ is a test.
+# before the front's. The kit of the front's tests (frontend/src/test/) — their fake client,
+# their fixtures, their harness —, which the coverage of the code leaves out, is theirs. The
+# fixtures are the data every family reads; a script among them is a tool. Nothing under
+# docs/*/tools/ is a test.
 end-to-end = ["frontend/e2e/**"]
-front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx"]
+front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/src/test/**"]
 back = ["backend/tests/**"]
 tools = ["tools/tests/**", "fixtures/**"]
