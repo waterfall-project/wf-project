@@ -188,6 +188,19 @@ class Inscription:
     params: Mapping[str, AuditValue] = field(default_factory=dict[str, AuditValue])
 
 
+@dataclass(frozen=True, slots=True)
+class Act:
+    """Who acts — an account, or ``None`` for the platform — and when."""
+
+    actor: AuditActor | None
+    at: datetime
+
+    @property
+    def author(self) -> UUID | None:
+        """The account that writes the row, ``None`` for the platform."""
+        return None if self.actor is None else self.actor.user_id
+
+
 class AuditError(Exception):
     """An inscription that would break a rule of the journal: a defect of its caller."""
 

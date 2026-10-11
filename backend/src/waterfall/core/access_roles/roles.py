@@ -12,7 +12,7 @@ is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argu
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -40,7 +40,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.users.interface import AccountExpression, Author, read_author
-from waterfall.platform.audit import AuditActor, AuditObject, AuditValue, Inscription, record
+from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
@@ -113,19 +113,6 @@ class RoleWrite:
     label: str
     permissions: Sequence[str]
     is_predefined: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class Act:
-    """Who acts — an account, or ``None`` for the platform — and when."""
-
-    actor: AuditActor | None
-    at: datetime
-
-    @property
-    def author(self) -> UUID | None:
-        """The account that writes the row, ``None`` for the platform."""
-        return None if self.actor is None else self.actor.user_id
 
 
 def list_permissions(session: Session) -> list[CataloguePermission]:
@@ -230,7 +217,7 @@ def holding_one_of(role_ids: Collection[UUID]) -> AccountExpression[bool]:
     return holds
 
 
-def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[str]]:
+def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[str] | None]:
     """Give the labels of the roles an account holds, in the order it holds them (``roles_held``).
 
     Compared in the order of the code points of their collation, item by item: a sort of the
@@ -244,7 +231,9 @@ def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[st
         .order_by(AccessRole.label, AccessRole.id)
     )
     held = func.array(labels.scalar_subquery(), type_=ARRAY(Text))
-    return func.nullif(held, literal([], ARRAY(Text)), type_=ARRAY(Text))
+    # ``nullif`` gives the type of its first argument, null included: the type says it.
+    nulled = func.nullif(held, literal([], ARRAY(Text)), type_=ARRAY(Text))
+    return cast("ColumnElement[Sequence[str] | None]", nulled)
 
 
 def _views(session: Session, rows: Sequence[tuple[AccessRole, int]]) -> list[RoleView]:

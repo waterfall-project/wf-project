@@ -4,7 +4,8 @@
 
 The catalogue, delivered and not modifiable (WF-ADM-0100); the roles, composed, read, changed and
 deleted (WF-ADM-0090); the roles an account holds, its effective permissions and the evaluation
-of an action against them (WF-ADM-0110); the description of the three predefined roles, for the
+of an action against them (WF-ADM-0110); the first roles of an account created, under the guard
+(``attributions``); the description of the three predefined roles, for the
 bootstrap (WF-ADM-0010); the guard of the last administrator, which every write that may take the
 administration from an account runs under, and that account read (WF-ADM-0120); and what the table
 of the accounts filters and sorts of the roles each one holds (``listUsers``).
@@ -14,6 +15,11 @@ from waterfall.core.access_roles.administrators import (
     LAST_ADMINISTRATOR,
     guard_last_administrator,
     sole_administrator,
+)
+from waterfall.core.access_roles.attributions import (
+    UNKNOWN_ACCESS_ROLE,
+    give_first_roles,
+    unknown_roles,
 )
 from waterfall.core.access_roles.evaluation import (
     PERMISSION_MISSING,
@@ -26,7 +32,6 @@ from waterfall.core.access_roles.evaluation import (
 from waterfall.core.access_roles.predefined import PredefinedRole, predefined_roles
 from waterfall.core.access_roles.roles import (
     ACCESS_ROLE_IN_USE,
-    Act,
     CataloguePermission,
     HeldRole,
     RoleFilters,
@@ -45,11 +50,13 @@ from waterfall.core.access_roles.roles import (
     roles_held_by,
     update_role,
 )
+from waterfall.platform.audit import Act
 
 __all__ = [
     "ACCESS_ROLE_IN_USE",
     "LAST_ADMINISTRATOR",
     "PERMISSION_MISSING",
+    "UNKNOWN_ACCESS_ROLE",
     "Act",
     "Actor",
     "CataloguePermission",
@@ -64,6 +71,7 @@ __all__ = [
     "create_role",
     "delete_role",
     "effective_permissions",
+    "give_first_roles",
     "granted_permissions",
     "guard_last_administrator",
     "holding_one_of",
@@ -76,5 +84,6 @@ __all__ = [
     "roles_held",
     "roles_held_by",
     "sole_administrator",
+    "unknown_roles",
     "update_role",
 ]

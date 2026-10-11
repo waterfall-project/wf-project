@@ -7,21 +7,30 @@ write is the identifier of an account, or ``None`` for the platform itself (WF-D
 moment is an argument, never read here.
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Generator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import Text, func, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from waterfall.core.users.tables import UserAccount
-from waterfall.platform.errors import NotFoundError, PreconditionFailedError
+from waterfall.core.users.tables import ADDRESS_INDEX, UserAccount
+from waterfall.platform.database import EVERY_LETTER, unique_violated
+from waterfall.platform.errors import (
+    ConflictError,
+    FieldError,
+    NotFoundError,
+    PreconditionFailedError,
+)
 from waterfall.platform.identifiers import new_id
 
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
+ALREADY_EXISTS = "ALREADY_EXISTS"
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,14 +72,16 @@ def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
     return account
 
 
-def add_account_if_absent(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount | None:
+def add_account_if_absent(
+    session: Session, new: NewAccount, stamp: Stamp
+) -> tuple[UserAccount | None, bool]:
     """Insert an active account unless its subject or address is taken; give that of its subject.
 
     Two first requests of one person at once insert her once: the second waits for the first,
     then finds its row. An address another account holds inserts nothing, and the subject then
-    has no account (``None``).
+    has no account (``None``). The flag says whether this call inserted the account.
     """
-    session.execute(
+    inserted = session.scalars(
         insert(UserAccount)
         .values(
             id=new_id(),
@@ -85,8 +96,56 @@ def add_account_if_absent(session: Session, new: NewAccount, stamp: Stamp) -> Us
             updated_by=stamp.author,
         )
         .on_conflict_do_nothing()
-    )
-    return find_account_of_subject(session, new.idp_subject)
+        .returning(UserAccount.id)
+    ).first()
+    return find_account_of_subject(session, new.idp_subject), inserted is not None
+
+
+def address_holder(session: Session, email: str) -> UUID | None:
+    """Give the account that holds an address, whatever its case (WF-ADM-0050), if one does.
+
+    The address is lowered as the unique index lowers it, in every letter: the index serves it.
+    """
+    lowered = func.lower(literal(email, Text).collate(EVERY_LETTER))
+    return session.scalars(
+        select(UserAccount.id).where(func.lower(UserAccount.email.collate(EVERY_LETTER)) == lowered)
+    ).first()
+
+
+def address_taken(holder: UUID | None) -> ConflictError:
+    """Refuse an address another account holds, naming that account when Waterfall has it (409)."""
+    params = {} if holder is None else {"conflicting_object_id": str(holder)}
+    return ConflictError(ALREADY_EXISTS, fields=(FieldError("/email", ALREADY_EXISTS, params),))
+
+
+@contextmanager
+def unique_address(session: Session, email: str) -> Generator[None]:
+    """Run a write that gives an account ``email``, refused if another account holds it (409).
+
+    The unique index decides, whatever wrote first: a write that breaks it is undone alone, in a
+    savepoint, and refused with the account that holds the address — by then committed, since the
+    index made the write wait for it.
+    """
+    try:
+        with session.begin_nested():
+            yield
+    except IntegrityError as error:
+        if unique_violated(error) != ADDRESS_INDEX:
+            raise
+        raise address_taken(address_holder(session, email)) from None
+
+
+def lock_account(session: Session, user_id: UUID) -> UserAccount:
+    """Lock an account, then read it under the lock; or refuse (404)."""
+    account = session.scalars(
+        select(UserAccount)
+        .where(UserAccount.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).first()
+    if account is None:
+        raise NotFoundError(NOT_FOUND)
+    return account
 
 
 def find_account(session: Session, user_id: UUID) -> UserAccount | None:
@@ -117,7 +176,14 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
 def change_email(
     session: Session, user_id: UUID, email: str, lock_version: int, stamp: Stamp
 ) -> UserAccount:
-    """Change the address of an account whose version is the one read, and return it.
+    """Change the address of an account whose version is the one read, and return it."""
+    return change_identity(session, user_id, {"email": email}, lock_version, stamp)
+
+
+def change_identity(
+    session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
+) -> UserAccount:
+    """Change the name, first name or address of an account whose version is the one read.
 
     The version is tested by the write itself: a write that finds another version changes
     nothing and is refused (412), whatever happened between the reading and now.
@@ -126,7 +192,7 @@ def change_email(
         update(UserAccount)
         .where(UserAccount.id == user_id, UserAccount.lock_version == lock_version)
         .values(
-            email=email,
+            **values,
             lock_version=UserAccount.lock_version + 1,
             updated_at=stamp.at,
             updated_by=stamp.author,

@@ -6,9 +6,10 @@ An access token is validated by the public keys of the realm — signature, issu
 expiry — and gives nothing but its subject (WF-ARC-0030). The keys are kept, read again when a
 token names a key that is not among them — the realm has added one — and when they have been
 kept for the life of an access token: a key the realm has removed stops serving within it. While
-Keycloak fails to give them, the keys held serve, and a request whose key is held does not wait
-for those being read; a token whose key is not held is refused as Keycloak's failure, never as a
-session missing. The administration API is ``keycloak_admin``'s.
+Keycloak fails to give them — it does not answer, or answers what the realm does not serve —, the
+keys held serve, and a request whose key is held does not wait for those being read; a token whose
+key is not held is refused as Keycloak's failure, never as a session missing, and waits a second at
+most for the keys another request reads (#674). The administration API is ``keycloak_admin``'s.
 
 Keycloak is reached on its back channel, the issuer of the tokens being the address the browser
 knows it by. A Keycloak that does not answer is a component unavailable (503); an answer that
@@ -45,6 +46,9 @@ KEYS_REREAD_SECONDS = 10.0
 # The keys are read again once they have been kept this long, the life of an access token of the
 # realm: a key it has removed, a key it has stopped trusting, stops serving within this delay.
 KEYS_MAX_AGE_SECONDS = 300.0
+# How long a request whose key is not held waits for the keys another one reads: past it, it is
+# refused as Keycloak's failure rather than hold a thread of the API while Keycloak is silent.
+KEYS_WAIT_SECONDS = 1.0
 
 SESSION_REQUIRED = "SESSION_REQUIRED"
 SESSION_EXPIRED = "SESSION_EXPIRED"
@@ -82,6 +86,7 @@ class Keycloak:
         *,
         timeout: float = TIMEOUT_SECONDS,
         keys_reread: float = KEYS_REREAD_SECONDS,
+        keys_wait: float = KEYS_WAIT_SECONDS,
     ) -> None:
         """Prepare the client; nothing is asked of Keycloak before a token is to be validated."""
         realm = quote(settings.keycloak_realm, safe="")
@@ -92,6 +97,7 @@ class Keycloak:
         self.protocol = f"/realms/{realm}/protocol/openid-connect"
         self._clock = clock
         self._keys_reread = keys_reread
+        self._keys_wait = keys_wait
         self._keys: Mapping[str, PyJWK] = {}
         # Until when the keys read are kept, and when they may be asked for again.
         self._keys_kept_until = -math.inf
@@ -156,9 +162,14 @@ class Keycloak:
         if key is not None and self._clock() < self._keys_kept_until:
             return key
         # A request whose key is held, even old, does not wait for the keys another one reads:
-        # while Keycloak does not answer, that one alone waits.
-        if not self._keys_lock.acquire(blocking=key is None):
-            return key
+        # while Keycloak does not answer, that one alone waits; one whose key is not held waits
+        # for it a while, then is refused as the last failure, or as Keycloak unavailable.
+        if key is not None:
+            if not self._keys_lock.acquire(blocking=False):
+                return key
+        elif not self._keys_lock.acquire(timeout=self._keys_wait):
+            failure = self._keys_failure
+            raise unavailable() if failure is None else failure()
         try:
             return self._key_held(key_id)
         finally:
@@ -178,17 +189,18 @@ class Keycloak:
             return key
         try:
             keys = self._read_keys()
-        except UnavailableError:
-            self._keys_failure = unavailable
+        except (UnavailableError, IdentityProviderError) as error:
+            self._keys_failure = (
+                unavailable
+                if isinstance(error, UnavailableError)
+                else partial(IdentityProviderError, str(error))
+            )
             if key is None:
                 raise
-            # The keys of a few minutes ago rather than a 503 at every request, while
-            # Keycloak does not answer; they are asked for again in a while.
-            logger.warning("identity_provider.keys_kept")
+            # The keys of a few minutes ago rather than a refusal at every request, whatever
+            # Keycloak fails by; they are asked for again in a while.
+            logger.warning("identity_provider.keys_kept", fault=type(error).__name__)
             return key
-        except IdentityProviderError as error:
-            self._keys_failure = partial(IdentityProviderError, str(error))
-            raise
         finally:
             self._keys_reread_at = self._clock() + self._keys_reread
         self._keys = keys

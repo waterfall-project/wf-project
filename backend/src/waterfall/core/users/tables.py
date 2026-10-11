@@ -32,6 +32,8 @@ from waterfall.platform.installation import AVATAR_MAX_BYTES
 ORIGINS = ("local", "directory", "identity_provider")
 STATES = ("active", "deactivated")
 AVATAR_MEDIA_TYPES = ("image/png", "image/jpeg")
+# The unique index of the addresses, whatever their case: what refuses an address taken.
+ADDRESS_INDEX = "uq_user_account_email_lower"
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -62,7 +64,7 @@ class UserAccount(Base):
         # One address per person, whatever its case (WF-ADM-0050), declared here and not
         # left to a rule of the services; lowered in every letter, which ``C`` does not.
         Index(
-            "uq_user_account_email_lower",
+            ADDRESS_INDEX,
             func.lower(text(f'email COLLATE "{EVERY_LETTER}"')),
             unique=True,
         ),

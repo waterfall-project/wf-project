@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
+from psycopg.errors import UniqueViolation
 from sqlalchemy import (
     ColumnElement,
     DateTime,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     literal,
 )
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
@@ -57,6 +59,12 @@ def contains(text: SQLColumnExpression[str], searched: str) -> ColumnElement[boo
     By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another.
     """
     return func.strpos(folded(text), folded(literal(searched, Text))) > 0
+
+
+def unique_violated(error: IntegrityError) -> str | None:
+    """Name the unique constraint or index a write broke, ``None`` if it broke another rule."""
+    cause = error.orig
+    return cause.diag.constraint_name if isinstance(cause, UniqueViolation) else None
 
 
 class Base(DeclarativeBase):
