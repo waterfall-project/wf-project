@@ -22,9 +22,11 @@ import { rejected } from "./rejection";
 
 /**
  * Hold the navigations of the page while the writes of the screen answer — each a promise of
- * whether it was applied —, until the screen goes.
+ * whether it was applied —, until the screen goes, or until what tells their refusal changes
+ * (`scope`): a list that tells a refusal on the reading it was asked from alone releases its writes
+ * once it is read otherwise, their refusal told nowhere.
  */
-export function useHeldWrites(): (write: Promise<boolean>) => void {
+export function useHeldWrites(scope?: string): (write: Promise<boolean>) => void {
   const releases = useRef(new Set<() => void>());
   useEffect(() => {
     const held = releases.current;
@@ -34,12 +36,12 @@ export function useHeldWrites(): (write: Promise<boolean>) => void {
       }
       held.clear();
     };
-  }, []);
+  }, [scope]);
   return useCallback((write: Promise<boolean>) => {
     const release = holdNavigation(write);
     releases.current.add(release);
     // An applied write holds nothing more; a refused one holds the click of its gesture, as long
-    // as the screen that tells it stays.
+    // as the screen tells it.
     void write.then(
       (applied) => {
         if (applied) {
@@ -53,10 +55,13 @@ export function useHeldWrites(): (write: Promise<boolean>) => void {
 
 /**
  * The outcome of the server action of a command, a rejection read as the outcome it stands for
- * (`rejected`), the navigations of the page held until it is known.
+ * (`rejected`), the navigations of the page held until it is known — released as `useHeldWrites`
+ * releases them, `scope` changed among them.
  */
-export function useHeldCommand(): <T>(command: Promise<Outcome<T>>) => Promise<Outcome<T>> {
-  const hold = useHeldWrites();
+export function useHeldCommand(
+  scope?: string,
+): <T>(command: Promise<Outcome<T>>) => Promise<Outcome<T>> {
+  const hold = useHeldWrites(scope);
   return useCallback(
     <T>(command: Promise<Outcome<T>>) => {
       const outcome = command.catch(rejected);

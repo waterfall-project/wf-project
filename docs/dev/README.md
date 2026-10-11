@@ -266,7 +266,9 @@ export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent t
 navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
 appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
 la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
-l'envoi ; fermer le dialogue ne libère donc pas son écriture. Tout refus retient le clic, même dit
+l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
+lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
+écritures, dont le refus n'est plus dit nulle part (`useHeldCommand(reading)`). Tout refus retient le clic, même dit
 ailleurs que sur l'écran quitté : la relance d'une tâche refusée retient la navigation, bien que son
 refus soit dit dans le panneau des tâches de la coquille, qui survit à l'écran — une règle sans
 exception plutôt qu'une écriture à juger une à une. Le clic se

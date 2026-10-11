@@ -30,6 +30,8 @@ import { CostCategoryList, CostTypeList } from "./cost-lists";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+/** The query of the address the lists read, none save where a test reads them otherwise. */
+const address = vi.hoisted(() => ({ query: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -37,7 +39,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/reference/costs",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(address.query),
 }));
 
 const TYPES = "POST /reference/cost-types";
@@ -161,6 +163,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  address.query = "";
   refresh.mockClear();
   router.refresh.mockClear();
 });
@@ -528,6 +531,40 @@ describe("a write whose dialog is closed, and the focus", () => {
       const alert = await screen.findByRole("alert");
       expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
       expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told nowhere (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden: the list reads otherwise.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
     } finally {
       link.remove();
     }
