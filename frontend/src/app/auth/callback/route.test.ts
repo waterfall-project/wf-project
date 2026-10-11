@@ -200,18 +200,21 @@ describe("the return of the sign-in", () => {
     ]);
   });
 
-  it("says the sign-in could not be made when the realm cannot be reached, offering it again for the screen aimed at (#687)", async () => {
+  it("says the sign-in could not be made when the realm cannot be reached, offering it again for the screen aimed at, the cookie of the session held forgotten (#687)", async () => {
     const { address, cookie } = await start("/account?tab=1");
     const query = realm.signIn(address, "camille");
     state.provider = createIdentityProvider(TEST_SETTINGS, () =>
       Promise.reject(new TypeError("fetch failed")),
     );
-    const response = await back(query, cookie);
+    const response = await back(query, { ...cookie, [SESSION_COOKIE]: "held" });
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe(
       `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
     );
     expect(sessionCookieOf(response)).toBeUndefined();
+    expect(response.headers.getSetCookie()).toContain(
+      `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+    );
   });
 
   it("answers nothing on the fake back, which signs nobody in", async () => {

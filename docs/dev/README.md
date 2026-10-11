@@ -218,7 +218,8 @@ donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son ad
 `state` inconnu, déjà employé ou trop vieux recommence la connexion ; une connexion que le
 royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
 session, jamais à `/login`, que la session de Keycloak bouclerait. Keycloak ou Redis injoignable,
-ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable`, qui
+ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable` en
+oubliant le témoin `wf_session` — la page relirait sinon Redis pour lui —, qui
 dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur 500 nue
 (#687). `/login` efface aussi le témoin `wf_session` : la déconnexion y mène sans y toucher (#724).
 `serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à

@@ -19,8 +19,8 @@ vi.mock("@/session/provider", async (original) => ({
 withTestRedis();
 
 /** Ask for the sign-in route, with the query a refusal for want of a session writes. */
-function login(query = ""): Promise<Response> {
-  return GET(new Request(`http://front.example/login${query}`));
+function login(query = "", headers: HeadersInit = {}): Promise<Response> {
+  return GET(new Request(`http://front.example/login${query}`, { headers }));
 }
 
 /** What Redis keeps of a sign-in under way, and for how long. */
@@ -118,17 +118,21 @@ describe("the sign-in route on the identity provider", () => {
     },
   );
 
-  it("says the sign-in could not be made when Redis is out of reach, rather than fail bare (#687)", async () => {
+  it("says the sign-in could not be made when Redis is out of reach, rather than fail bare, and forgets the cookie of the session, which the page would read Redis for (#687)", async () => {
     // A Redis nobody serves: the connection is refused.
     await closeStore();
     vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
     try {
-      const response = await login(`?next=${encodeURIComponent("/account?tab=1")}`);
+      const response = await login(`?next=${encodeURIComponent("/account?tab=1")}`, {
+        Cookie: "wf_session=held",
+      });
       expect(response.status).toBe(307);
       expect(response.headers.get("Location")).toBe(
         `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
       );
-      expect(response.headers.getSetCookie()).toEqual([]);
+      expect(response.headers.getSetCookie()).toEqual([
+        "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+      ]);
     } finally {
       await closeStore();
     }

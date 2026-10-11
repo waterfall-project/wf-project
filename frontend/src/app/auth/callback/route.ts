@@ -119,6 +119,11 @@ export async function GET(request: Request): Promise<Response> {
       throw error;
     }
     console.error("A sign-in could not be made", error);
-    return redirect(signInUnavailableHref(target), spentSignInCookie(state));
+    // The cookie forgotten too: the layout of the page would read Redis for it, out of reach.
+    return redirect(
+      signInUnavailableHref(target),
+      forgottenSessionCookie(),
+      spentSignInCookie(state),
+    );
   }
 }

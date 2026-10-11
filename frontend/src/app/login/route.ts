@@ -62,7 +62,8 @@ export async function GET(request: Request): Promise<Response> {
       throw error;
     }
     console.error("A sign-in could not be started", error);
-    return redirect(signInUnavailableHref(target));
+    // The cookie forgotten here too: the layout would read Redis for it, out of reach.
+    return redirect(signInUnavailableHref(target), forgottenSessionCookie());
   }
   const address = identityProvider().signInAddress(state, nonce, challenge, signOut);
   return redirect(address.toString(), signInCookie(state), forgottenSessionCookie());
