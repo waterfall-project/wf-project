@@ -337,9 +337,17 @@ def restart_keycloak() -> None:
         time.sleep(2)
 
 
+class StillValidAfterRestartError(AssertionError):
+    """A link for a forgotten password, used once, opens again once Keycloak restarted (#852)."""
+
+
 @pytest.mark.requirement("WF-ADM-0140-A")
 @pytest.mark.xfail(
-    reason="#852: Keycloak keeps the use of its own link in memory alone; a restart forgets it",
+    reason=(
+        "#852: Keycloak keeps the use of its own link in memory alone; a restart forgets it."
+        " Corrected by US-0420b (#879)"
+    ),
+    raises=StillValidAfterRestartError,
     strict=True,
 )
 def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart(
@@ -358,7 +366,10 @@ def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart
     restart_keycloak()
     used = Browser().get(url)
     said = html.unescape(used.text)
-    assert 'name="password-new"' not in said, said
+    # The defect alone is expected — the form of the password, offered again: any other failure,
+    # before or here, fails the test.
+    if 'name="password-new"' in said:
+        raise StillValidAfterRestartError(said)
     assert used.status_code == 400, said
 
 
