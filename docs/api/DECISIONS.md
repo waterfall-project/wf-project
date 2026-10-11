@@ -3684,6 +3684,27 @@ blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contr
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
 
+## Attribuer un rôle, et l'invitation d'un compte créé (EP-03/US-0360/L2b, #834, #816)
+
+**Attribuer un rôle exige la permission de modifier les rôles** (#834 ; décision de l'auteur du
+2026-10-11). `setUserAccessRoles` n'exigeait que `users.write` : qui la portait sans
+`access_roles.write` lisait l'identifiant du rôle administrateur dans les `access_role_ids` d'un
+compte, se le donnait, et obtenait la gestion des rôles. Le corps de WF-ADM-0090 (FBS-1.2) range
+« attribuer ou retirer des rôles aux comptes » parmi ce que fait l'utilisateur habilité aux rôles :
+l'opération exige désormais, outre `users.write`, `access_roles.write`, et refuse sans elle par 403
+`PERMISSION_MISSING`. La commande `set_access_roles` d'un compte ne se liste que pour qui porte les
+deux, ce qui amende « Toutes suivent `users.write` » (EP-02/L42d). Écartés : refuser seulement un
+rôle qui porte une permission que l'appelant n'a pas, une règle de plus à tenir à chaque
+modification d'un rôle ; assumer l'élévation par écrit, contraire à WF-ADM-0090.
+
+**`createUser` dit si l'invitation est partie** (#816 ; décision de l'auteur du 2026-10-11). Quand
+le courriel qui porte le lien de fixation ne part pas — royaume sans messagerie (WF-CMP-0030),
+serveur de courriel en échec, fournisseur injoignable —, le compte existe tout de même et `createUser`
+rendait 201 sans le dire : la personne attendait un courriel qui ne viendrait pas. La réponse est
+désormais `UserCreated`, le compte (`User`) et `invitation_sent`, un booléen exigé ; faux, l'écran
+des comptes propose aussitôt le lien de fixation (`createPasswordSetupLink`). Écarté : une règle
+d'écran qui propose toujours le lien, que l'administrateur remettrait aussi à qui l'a déjà reçu.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

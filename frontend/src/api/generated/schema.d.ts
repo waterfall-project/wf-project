@@ -327,7 +327,7 @@ export interface paths {
         get?: never;
         /**
          * Attribuer les rôles d'habilitation d'un compte
-         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés.
+         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier les comptes (`users.write`), celle de modifier les rôles d'habilitation (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que `users.write` ne se donne pas le rôle administrateur.
          */
         put: operations["setUserAccessRoles"];
         post?: never;
@@ -2848,7 +2848,7 @@ export interface components {
             permissions: components["schemas"]["PermissionCode"][];
         };
         /**
-         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
+         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2, WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
          * @enum {string}
          */
         UserCommand: "deactivate" | "reactivate" | "set_access_roles";
@@ -2865,7 +2865,7 @@ export interface components {
         };
         /** @description Un compte tel que la table des comptes le lit : le compte, et ses commandes (`available_commands`, WF-IHM-0090). */
         User: components["schemas"]["UserAccount"] & {
-            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100), et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles d'habilitation (`access_roles.write`, WF-ADM-0090). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
             available_commands: components["schemas"]["UserCommandAvailability"][];
         };
         UserCreate: {
@@ -2875,6 +2875,11 @@ export interface components {
             email: string;
             org_node_id?: components["schemas"]["Uuid"] | null;
             access_role_ids?: components["schemas"]["Uuid"][];
+        };
+        /** @description Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est partie (WF-ADM-0140). */
+        UserCreated: components["schemas"]["User"] & {
+            /** @description Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal (`createPasswordSetupLink`). */
+            invitation_sent: boolean;
         };
         /** @description Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050). */
         UserUpdate: {
@@ -5318,13 +5323,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Compte créé. */
+            /** @description Compte créé, et si l'invitation est partie (`invitation_sent`) : faux, le porteur n'attend aucun courriel, et son lien de fixation se remet à la main (`createPasswordSetupLink`). */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["UserCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];

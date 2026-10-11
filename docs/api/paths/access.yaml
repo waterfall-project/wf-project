@@ -118,10 +118,13 @@
           schema: { $ref: ../components/schemas/access.yaml#/UserCreate }
     responses:
       '201':
-        description: Compte créé.
+        description: >-
+          Compte créé, et si l'invitation est partie (`invitation_sent`) : faux, le porteur
+          n'attend aucun courriel, et son lien de fixation se remet à la main
+          (`createPasswordSetupLink`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/access.yaml#/User }
+            schema: { $ref: ../components/schemas/access.yaml#/UserCreated }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -270,7 +273,11 @@
       retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
       compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
       donner davantage reste possible, et la commande `set_access_roles` de ce compte reste
-      disponible : le serveur juge les rôles envoyés.
+      disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la
+      gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier
+      les comptes (`users.write`), celle de modifier les rôles d'habilitation
+      (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que
+      `users.write` ne se donne pas le rôle administrateur.
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:

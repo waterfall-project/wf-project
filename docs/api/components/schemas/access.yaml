@@ -50,11 +50,31 @@ User:
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
             `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses
             rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
-            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100).
+            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
+            et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
+            d'habilitation (`access_roles.write`, WF-ADM-0090).
             Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier
             administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste
             est refusé par son code d'erreur.
           items: { $ref: '#/UserCommandAvailability' }
+
+UserCreated:
+  description: >-
+    Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est
+    partie (WF-ADM-0140).
+  allOf:
+    - $ref: '#/User'
+    - type: object
+      required: [invitation_sent]
+      properties:
+        invitation_sent:
+          type: boolean
+          description: >-
+            Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien
+            de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
+            (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
+            pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
+            (`createPasswordSetupLink`).
 
 UserCommand:
   type: string
@@ -65,7 +85,9 @@ UserCommand:
     d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui
     change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte
     toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
-    (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de
+    (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
+    d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
+    WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
     modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa
     désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est
     disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste
