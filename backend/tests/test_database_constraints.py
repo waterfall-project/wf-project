@@ -168,8 +168,10 @@ def test_an_account_that_authored_another_cannot_be_deleted(
 
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_avatar(
-    database: Database, owner: Engine
+    owner: Engine,
 ) -> None:
+    # The bootstrap writes the row, as the owner of the tables (#701).
+    database = Database(owner)
     good = {
         "id": 1,
         "default_language": "fr",
