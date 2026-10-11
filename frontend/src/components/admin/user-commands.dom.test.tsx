@@ -272,7 +272,7 @@ describe("the table of the accounts, its own entry", () => {
 });
 
 describe("the state of an account, on its switch", () => {
-  it("deactivates an account from the version read, says so and reads the page anew; it stays listed [WF-ADM-0060-A]", async () => {
+  it("deactivates an account from the version read, says so and reads the page anew; it stays listed", async () => {
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" });
     render(accounts());
     const vidal = within(grid()).getByRole("switch", {
