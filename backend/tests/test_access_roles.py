@@ -47,6 +47,13 @@ CALLER_ROLE = "Habilitations de l'appelant"
 CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
 # The example of the contract that gives the catalogue as it is delivered.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
+# The projection of the specification, whose figures draw the tree of the functions (§3.4.1).
+PROJECTION = CONTRACT.parents[2] / "docs" / "spec" / "waterfall-spec.md"
+# A function of the second level, as a box of a figure names it:
+# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]``.
+SECOND_LEVEL = re.compile(r'\["(FBS-\d+\.\d+)<br>')
+# The functions that have only the permission to consult, as WF-ADM-0100 names them.
+READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
 
 
 @pytest.fixture
@@ -101,6 +108,30 @@ def test_the_journal_of_audit_has_the_permission_to_read_alone(
     assert [entry["code"] for entry in catalogue if entry["fbs_code"] == "FBS-1.5"] == [
         "audit_log.read"
     ]
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult(
+    api: ContractClient, headers: dict[str, str]
+) -> None:
+    # « Chaque fonction de second niveau de l'arborescence est représentée par ses deux
+    # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
+    # FBS-2.7. » : the tree is the one the specification draws, not a list written here.
+    tree = set(SECOND_LEVEL.findall(PROJECTION.read_text(encoding="utf-8")))
+    # The reading found the tree: the functions the requirement names, and others beside them.
+    assert tree > READ_ONLY
+    expected = {
+        code: ["function_read"] if code in READ_ONLY else ["function_read", "function_write"]
+        for code in tree
+    }
+    response = api.get(PERMISSIONS, headers=headers)
+    assert response.status_code == 200
+    served: dict[str, list[str]] = {}
+    for entry in response.json():
+        if entry["kind"] in {"function_read", "function_write"}:
+            served.setdefault(entry["fbs_code"], []).append(entry["kind"])
+    # No function of the tree missing, none outside it, and each with exactly its permissions.
+    assert {code: sorted(kinds) for code, kinds in served.items()} == expected
 
 
 @pytest.mark.requirement("WF-ADM-0100-A")
