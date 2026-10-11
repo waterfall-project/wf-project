@@ -138,14 +138,14 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
-      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État",
-      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Manager Aucun Actif",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun rôle Aucun Actif",
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
-      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Chiffreur Aucun Actif",
-      "Roux Inès ines.roux@example.com Créé dans Waterfall Pilotage de projet Aucun Actif",
-      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Auditeur Aucun Actif",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État",
+      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif",
+      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun Aucun rôle Actif",
+      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif",
+      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé",
+      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif",
+      "Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif",
+      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif",
       "7 comptes",
     ]);
     expect(sortable(page, "Comptes utilisateurs")).toEqual([
@@ -153,8 +153,8 @@ describe("the accounts", () => {
       "Prénom",
       "Adresse électronique",
       "Origine",
-      "Rôles d’habilitation",
       "Rattachement",
+      "Rôles d’habilitation",
       "État",
     ]);
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
@@ -250,26 +250,37 @@ describe("the accounts", () => {
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
-  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, offer to create a local account, and to modify, deactivate or reactivate each and attribute its roles", async () => {
+  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry", async () => {
     const page = rendered(await UsersPage(searched()));
     expect(text(page)).not.toMatch(/Supprimer/);
-    expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État Modifier Activation Attribution des rôles",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État",
     );
-    expect(page).toContain('aria-label="Réactiver «\u00a0Alix Moreau\u00a0»"');
-    expect(page).toContain('aria-label="Désactiver «\u00a0Camille Martin\u00a0»"');
-    expect(page).toContain('aria-label="Attribuer les rôles de «\u00a0Inès Roux\u00a0»"');
+    expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
+    expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0»"');
+  });
+
+  it("lead an address that says nothing of the table to the search and the filters the account keeps for it, before anything is read [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await expect(UsersPage(searched())).rejects.toMatchObject({
+      digest: expect.stringContaining(";/admin/users?origins=local&is_active=true;") as unknown,
+    });
+    expect(queriesOf("GET /users")).toEqual([]);
+    // A reading lifted, or a sort alone, reads the accounts as the address says.
+    await UsersPage(searched({ search: "" }));
+    await UsersPage(searched({ sort_by: "email", sort_order: "asc" }));
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true" },
+      { include_inactive: "true", sort_by: "email", sort_order: "asc" },
+    ]);
   });
 
   it("offer no command of the accounts to a session that may not modify them", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
-    expect(
-      buttons(page).filter((name) =>
-        /Supprimer|Désactiver|Réactiver|Créer|Modifier|Attribuer/.test(name),
-      ),
-    ).toEqual([]);
+    expect(buttons(page).filter((name) => /Supprimer|Créer/.test(name))).toEqual([]);
+    expect(page).not.toContain('role="switch"');
+    expect(page).not.toMatch(/aria-label="Rôles de/);
   });
 
   it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {
@@ -293,8 +304,8 @@ describe("the accounts", () => {
     const page = rendered(await UsersPage(searched({ offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
     expect(rows(page, "Comptes utilisateurs").slice(1)).toEqual([
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
+      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif",
+      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé",
       "7 comptes",
     ]);
     // The pages before and after: the state of the accounts is a choice, no link.
