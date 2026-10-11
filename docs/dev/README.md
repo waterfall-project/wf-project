@@ -169,6 +169,17 @@ servie par l'API seule, est lue par le serveur de Next en rendant la page et éc
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
 
+Un nom de compte ne s'affiche que par `useAccountNaming`
+(`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
+nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
+journal, l'auteur d'une transition, les colonnes d'audit d'un objet. L'API rend nuls les noms
+d'un compte anonymisé, sans phrase à leur place (WF-ADM-0060, WF-ARC-0110) : un nom nul se dit
+par le libellé neutre du catalogue (`accountName.anonymized`, « Compte anonymisé »), jamais par
+un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul rendu,
+`AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
+grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
+`kept(null)`.
+
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
 groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la liste des projets et
