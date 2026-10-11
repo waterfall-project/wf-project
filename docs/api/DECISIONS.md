@@ -3675,6 +3675,13 @@ désactivation écraserait alors une modification que l'administrateur n'a pas v
 Son corps devient un schéma nommé, `UserActivationWrite`, comme `UserRolesWrite` : le service en
 engendre le modèle, que le générateur ne tire pas d'un corps décrit en place.
 
+## Le lien de fixation, enfin au contrat (EP-03/US-0350/L5)
+
+`createPasswordSetupLink` (`POST /users/{user_id}/password-link`) était décrit dans
+`paths/access.yaml` depuis EP-02/L29 (#388), mais la racine du contrat ne le référençait pas :
+il manquait au contrat assemblé, donc au client du front, aux modèles du service et au faux back.
+La racine le référence, sans rien changer à sa description, au moment où le service le sert.
+
 ## Aucun libellé fait seulement de blancs (EP-03, #837)
 
 Décision de l'auteur du 2026-10-11. Le libellé d'un rôle n'exigeait qu'un caractère : « ␣␣␣ » était
