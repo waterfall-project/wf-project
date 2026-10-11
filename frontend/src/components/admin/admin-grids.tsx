@@ -10,9 +10,12 @@
  * - The accounts: each with its origin, its access roles and the node it is attached to — named
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
- *   the commands to modify each, to deactivate or reactivate it, and to attribute its roles, which
- *   EP-03 wires (`UserCommand`) — none deletes an account —, the last two as the account lists them
- *   (`available_commands`): the deactivation of the last administrator unavailable (WF-ADM-0120).
+ *   the commands to modify each, to deactivate or reactivate it, to anonymise it and to attribute
+ *   its roles, which EP-03 wires (`UserCommand`) — none deletes an account —, the last three as the
+ *   account lists them (`available_commands`): the deactivation of the last administrator
+ *   unavailable (WF-ADM-0120); the anonymisation offered to a deactivated account only, and the
+ *   reactivation of an anonymised one unavailable (WF-ADM-0060). An anonymised account has neither
+ *   name nor address: it shows the neutral label in place of its last name, nothing for the rest.
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, the commands to modify and to delete
  *   each, which EP-03 wires (`RoleCommand`) — the deletion unavailable while an account holds it.
@@ -27,6 +30,7 @@
 import { useTranslations } from "next-intl";
 
 import type { components, operations } from "@/api/generated/schema";
+import { useAccountNaming } from "@/components/account/account-name";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
@@ -56,6 +60,12 @@ export type AccessRoleSort = NonNullable<
 /** The keys of the settings of the two grids in the account: stable. */
 export const USER_GRID_KEY = "users";
 export const ACCESS_ROLE_GRID_KEY = "access_roles";
+
+/** The last name of an account, or the neutral label of an anonymised one, which has none. */
+function LastName({ user }: { readonly user: User }) {
+  const naming = useAccountNaming();
+  return user.last_name ?? <span className="text-muted-foreground">{naming.kept(null)}</span>;
+}
 
 /** The origin of an account, in words. */
 function Origin({ user }: { readonly user: User }) {
@@ -96,13 +106,9 @@ function UserCommandCell({
   readonly user: User;
   readonly command: UserCommandName;
 }) {
-  const t = useTranslations("admin.users");
+  const naming = useAccountNaming();
   return (
-    <UserCommand
-      command={command}
-      name={t("named", { firstName: user.first_name, lastName: user.last_name })}
-      offers={user.available_commands}
-    />
+    <UserCommand command={command} name={naming.person(user)} offers={user.available_commands} />
   );
 }
 
@@ -112,6 +118,7 @@ function userCommandColumns(): GridColumn<User, UserSort, UserPage>[] {
     [
       ["modify", "modify", COMMAND_WIDTH],
       ["activation", "activation", COMMAND_WIDTH],
+      ["anonymize", "anonymize", COMMAND_WIDTH],
       ["assignRoles", "assignRoles", 170],
     ] as const
   ).map(([command, label, width]) => ({
@@ -145,6 +152,7 @@ export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage
         pinned: true,
         contract: "last_name",
         value: (user) => user.last_name,
+        render: (user) => <LastName user={user} />,
       },
       {
         key: "first_name",

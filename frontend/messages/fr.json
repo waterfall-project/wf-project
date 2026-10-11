@@ -43,11 +43,14 @@
   },
   "accountMenu": {
     "label": "Compte de {name}",
-    "name": "{first} {last}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
+  },
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Compte anonymisé"
   },
   "account": {
     "details": "Informations du compte",
@@ -169,6 +172,7 @@
       "modify": "Modifier",
       "delete": "Supprimer",
       "activation": "Activation",
+      "anonymize": "Anonymisation",
       "assignRoles": "Attribution des rôles",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
@@ -1230,11 +1234,12 @@
       "modify": "Modifier",
       "deactivate": "Désactiver",
       "reactivate": "Réactiver",
+      "anonymize": "Anonymiser",
       "assignRoles": "Attribuer les rôles",
-      "named": "{firstName} {lastName}",
       "modifyUser": "Modifier « {name} »",
       "deactivateUser": "Désactiver « {name} »",
       "reactivateUser": "Réactiver « {name} »",
+      "anonymizeUser": "Anonymiser « {name} »",
       "assignRolesUser": "Attribuer les rôles de « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
@@ -1717,6 +1722,7 @@
       "user_update": "Modification d’un compte",
       "user_deactivate": "Désactivation d’un compte",
       "user_reactivate": "Réactivation d’un compte",
+      "user_anonymize": "Anonymisation d’un compte",
       "password_link_create": "Lien de mot de passe engendré",
       "access_role_create": "Création d’un rôle",
       "access_role_update": "Modification d’un rôle",
@@ -1811,7 +1817,8 @@
       "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "is_local_account": "compte créé dans Waterfall",
-      "is_active_account": "compte actif"
+      "is_active_account": "compte actif",
+      "is_not_anonymized": "compte non anonymisé"
     },
     "ProjectExit": {
       "to_state": {
@@ -2121,6 +2128,7 @@
     "UserCommand": {
       "deactivate": "Désactiver le compte",
       "reactivate": "Réactiver le compte",
+      "anonymize": "Anonymiser le compte",
       "set_access_roles": "Attribuer les rôles du compte"
     },
     "RiskComputedField": {

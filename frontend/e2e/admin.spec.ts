@@ -160,7 +160,7 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("offers the commands of the accounts, each available with EP-03 or unavailable as the account lists it, and the deletion of none [WF-ADM-0120-A]", async ({
+test("offers the commands of the accounts, each available with EP-03 or unavailable as the account lists it, the anonymisation of a deactivated one, and the deletion of none [WF-ADM-0120-A]", async ({
   page,
 }) => {
   await page.goto("/admin/users");
@@ -179,6 +179,12 @@ test("offers the commands of the accounts, each available with EP-03 or unavaila
   }).toPass({ timeout: WORKING });
   await page.getByRole("button", { name: "Créer un compte local" }).click();
   await expect(told).toHaveText("Créer un compte local\u00a0: disponible avec EP-03.");
+  // A deactivated account lists its anonymisation; the active ones do not (WF-ADM-0060).
+  await expect(accounts.getByRole("button", { name: /^Anonymiser «/ })).toHaveCount(1);
+  await accounts.getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }).click();
+  await expect(told).toHaveText(
+    "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
+  );
   await expect(page.getByRole("main").getByRole("button", { name: /Supprimer/ })).toHaveCount(0);
 
   // The last administrator, as the account lists its commands: her deactivation unavailable,

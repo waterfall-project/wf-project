@@ -43,11 +43,14 @@
   },
   "accountMenu": {
     "label": "Account of {name}",
-    "name": "{first} {last}",
     "preferences": "Preferences",
     "account": "My account",
     "avatar": "Change avatar",
     "signOut": "Sign out"
+  },
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Anonymised account"
   },
   "account": {
     "details": "Account details",
@@ -169,6 +172,7 @@
       "modify": "Modify",
       "delete": "Delete",
       "activation": "Activation",
+      "anonymize": "Anonymisation",
       "assignRoles": "Role assignment",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
@@ -1230,11 +1234,12 @@
       "modify": "Modify",
       "deactivate": "Deactivate",
       "reactivate": "Reactivate",
+      "anonymize": "Anonymise",
       "assignRoles": "Assign the roles",
-      "named": "{firstName} {lastName}",
       "modifyUser": "Modify “{name}”",
       "deactivateUser": "Deactivate “{name}”",
       "reactivateUser": "Reactivate “{name}”",
+      "anonymizeUser": "Anonymise “{name}”",
       "assignRolesUser": "Assign the roles of “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
@@ -1717,6 +1722,7 @@
       "user_update": "Account edited",
       "user_deactivate": "Account deactivated",
       "user_reactivate": "Account reactivated",
+      "user_anonymize": "Account anonymised",
       "password_link_create": "Password link generated",
       "access_role_create": "Role created",
       "access_role_update": "Role edited",
@@ -1811,7 +1817,8 @@
       "cost_category_not_last_provision": "another active category under an active provision nature",
       "last_administrator": "another active account holding the administration permissions",
       "is_local_account": "account created in Waterfall",
-      "is_active_account": "active account"
+      "is_active_account": "active account",
+      "is_not_anonymized": "account not anonymised"
     },
     "ProjectExit": {
       "to_state": {
@@ -2121,6 +2128,7 @@
     "UserCommand": {
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
+      "anonymize": "Anonymise the account",
       "set_access_roles": "Assign the roles of the account"
     },
     "RiskComputedField": {

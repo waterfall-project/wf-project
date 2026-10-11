@@ -238,6 +238,18 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
+  it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation unavailable [WF-ADM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /users": "users_anonymized" };
+    const page = rendered(await UsersPage(searched({ is_active: "false" })));
+    expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
+      "Compte anonymisé Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé Modifier Réactiver Condition non remplie : compte non anonymisé. Attribuer les rôles",
+    ]);
+    expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
+    expect(page).toMatch(
+      /aria-label="Réactiver «\u00a0Compte anonymisé\u00a0»" aria-disabled="true"/,
+    );
+  });
+
   it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
     server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
     const page = text(
@@ -250,14 +262,15 @@ describe("the accounts", () => {
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
-  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, offer to create a local account, and to modify, deactivate or reactivate each and attribute its roles", async () => {
+  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, offer to create a local account, and to modify, deactivate or reactivate each, anonymise a deactivated one and attribute its roles", async () => {
     const page = rendered(await UsersPage(searched()));
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État Modifier Activation Attribution des rôles",
+      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État Modifier Activation Anonymisation Attribution des rôles",
     );
     expect(page).toContain('aria-label="Réactiver «\u00a0Alix Moreau\u00a0»"');
+    expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Désactiver «\u00a0Camille Martin\u00a0»"');
     expect(page).toContain('aria-label="Attribuer les rôles de «\u00a0Inès Roux\u00a0»"');
   });
@@ -267,7 +280,7 @@ describe("the accounts", () => {
     const page = rendered(await UsersPage(searched()));
     expect(
       buttons(page).filter((name) =>
-        /Supprimer|Désactiver|Réactiver|Créer|Modifier|Attribuer/.test(name),
+        /Supprimer|Désactiver|Réactiver|Anonymiser|Créer|Modifier|Attribuer/.test(name),
       ),
     ).toEqual([]);
   });

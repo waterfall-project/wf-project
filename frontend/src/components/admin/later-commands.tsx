@@ -3,16 +3,17 @@
 /**
  * The commands of the accounts and of the access roles (FBS-1.1, FBS-1.2, #379, #515), placed
  * before EP-03 wires them (US-0360/L3, US-0380/L2): create a local account, modify one, deactivate
- * or reactivate it, attribute its roles — no account is deleted (WF-ADM-0060) —; create a role,
- * modify one, delete one — a logical deletion, decided by the framing of EP-03 (#456): the role is
- * no longer read nor attributable. They are offered only to a session that may modify the function
- * — `users.write`, `access_roles.write` (`platformOffer`) —, and none to another: the screen
- * presents only what the user may do (WF-IHM-0090). An account lists its own commands besides
- * (`User.available_commands`): its deactivation or its reactivation, and the attribution of its
- * roles, each presented as the server lists it — absent, not presented; unavailable, with the
- * condition it lacks: the last account active that holds the permissions of administration is not
- * deactivated (WF-ADM-0120), which the front could not find itself, the list being paged. Pressed,
- * a command says it is available with EP-03, in one region announced — each press, the same one
+ * or reactivate it, anonymise it, attribute its roles — no account is deleted (WF-ADM-0060) —;
+ * create a role, modify one, delete one — a logical deletion, decided by the framing of EP-03
+ * (#456): the role is no longer read nor attributable. They are offered only to a session that may
+ * modify the function — `users.write`, `access_roles.write` (`platformOffer`) —, and none to
+ * another: the screen presents only what the user may do (WF-IHM-0090). An account lists its own
+ * commands besides (`User.available_commands`): its deactivation or its reactivation, its
+ * anonymisation, and the attribution of its roles, each presented as the server lists it — absent,
+ * not presented; unavailable, with the condition it lacks: the last account active that holds the
+ * permissions of administration is not deactivated (WF-ADM-0120), which the front could not find
+ * itself, the list being paged; an anonymised account is not reactivated (WF-ADM-0060). Pressed, a
+ * command says it is available with EP-03, in one region announced — each press, the same one
  * pressed again too —; nothing is asked of the server.
  *
  * A command the server declares it would refuse is presented unavailable, as `Command` does: a
@@ -34,6 +35,7 @@ import {
   RotateCcw,
   Trash2,
   UserPlus,
+  UserRoundX,
   UserX,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -194,15 +196,16 @@ export function RoleCommand({
 }
 
 /** A command of an account: none deletes it (WF-ADM-0060). */
-export type UserCommandName = "modify" | "activation" | "assignRoles";
+export type UserCommandName = "modify" | "activation" | "anonymize" | "assignRoles";
 
 /** The commands an account lists, each available or naming what it lacks (`available_commands`). */
 type UserCommandOffers = components["schemas"]["User"]["available_commands"];
 
 /**
  * A command of an account, named after it: its modification; its deactivation or its reactivation,
- * whichever the account lists; the attribution of its roles, if it lists it — each unavailable with
- * the condition it lacks as the server says, and none the account does not list.
+ * whichever the account lists; its anonymisation and the attribution of its roles, if it lists them
+ * — each unavailable with the condition it lacks as the server says, and none the account does not
+ * list.
  */
 export function UserCommand({
   command,
@@ -245,6 +248,18 @@ export function UserCommand({
           named={t("reactivateUser", { name })}
           cell
           unavailable={lacking(reactivation)}
+        />
+      );
+    }
+    case "anonymize": {
+      const anonymization = findOffer(offers, "anonymize");
+      return anonymization === undefined ? null : (
+        <LaterButton
+          icon={UserRoundX}
+          text={t("anonymize")}
+          named={t("anonymizeUser", { name })}
+          cell
+          unavailable={lacking(anonymization)}
         />
       );
     }

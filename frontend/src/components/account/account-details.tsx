@@ -9,11 +9,13 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { useAccountNaming } from "./account-name";
 import type { Me } from "./me";
 
 /** Render the details of the account. */
 export function AccountDetails({ account }: { readonly account: Me }) {
   const t = useTranslations();
+  const naming = useAccountNaming();
   return (
     <Card>
       <CardHeader>
@@ -22,7 +24,7 @@ export function AccountDetails({ account }: { readonly account: Me }) {
       <CardContent>
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t("account.name")}</dt>
-          <dd>{t("accountMenu.name", { first: account.first_name, last: account.last_name })}</dd>
+          <dd>{naming.person(account)}</dd>
           <dt className="text-muted-foreground">{t("account.email")}</dt>
           <dd>{account.email}</dd>
           <dt className="text-muted-foreground">{t("account.origin")}</dt>
