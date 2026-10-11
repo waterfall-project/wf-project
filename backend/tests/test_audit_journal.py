@@ -31,6 +31,7 @@ from waterfall.platform.audit import (
     AuditProject,
     AuditRevision,
     Inscription,
+    forget_account,
     record,
 )
 from waterfall.platform.database import Base, Database
@@ -227,6 +228,57 @@ def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of
         connection.execute(text(statement))
     assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
     assert read_labels(database) == ["Auditeur"]
+
+
+def rows(database: Database) -> list[dict[str, Any]]:
+    """Read every inscription whole, in the order of the journal."""
+    with database.engine.connect() as connection:
+        query = text("SELECT to_jsonb(audit_entry) FROM audit_entry ORDER BY id")
+        return list(connection.execute(query).scalars())
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and_actions_stay(
+    database: Database,
+) -> None:
+    # « Après anonymisation d'un compte, aucune inscription ne porte plus son nom ; leur nombre,
+    # leurs dates et leurs actions sont inchangés. » Claire acted, and was acted upon; Paul's own
+    # name, and the label of the role, stay.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    claire_as_object = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created())
+    inscribe(database, role_created(action="user_update", actor=paul, audited=claire_as_object))
+    inscribe(database, role_created(actor=paul, occurred_at=NOON.replace(hour=13)))
+    before = rows(database)
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        forget_account(session, CLAIRE.user_id)
+    after = rows(database)
+    assert not [row for row in after if "Claire Martin" in str(row)]
+    assert [
+        (row["occurred_at"], row["action"], row["actor_user_id"], row["object_id"]) for row in after
+    ] == [
+        (row["occurred_at"], row["action"], row["actor_user_id"], row["object_id"])
+        for row in before
+    ]
+    forgotten = [
+        {**row, "actor_display_name": None}
+        if row["actor_user_id"] == str(CLAIRE.user_id)
+        else {**row, "object_label": None}
+        if row["object_id"] == str(CLAIRE.user_id)
+        else row
+        for row in before
+    ]
+    assert after == forgotten
+    assert [row["actor_display_name"] for row in after] == [None, "Paul Durand", "Paul Durand"]
+
+
+def test_an_account_forgotten_twice_is_forgotten_once(database: Database) -> None:
+    inscribe(database, role_created())
+    for _ in range(2):
+        with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+            forget_account(session, CLAIRE.user_id)
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == (None, "Auditeur")
 
 
 def read_labels(database: Database) -> list[str | None]:

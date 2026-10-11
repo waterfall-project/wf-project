@@ -13,7 +13,11 @@ without joining the tables of the other modules and stays readable when what it 
 exists: none of these identifiers is a foreign key (WF-SEC-0030, WF-DAT-0090). The database
 refuses to update or delete an inscription: the role of the service has only ``INSERT`` and
 ``SELECT`` on the table, and a trigger refuses any update, deletion or truncation whoever asks
-(migration ``0003``).
+(migration ``0003``) — but one. The anonymisation of an account makes null the label that names
+it in every inscription, as its author or as its object, and nothing else: their number, their
+dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0060). The role of
+the service may update those two columns alone, and the trigger admits that update alone
+(migration ``0009``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them
@@ -26,7 +30,7 @@ from datetime import datetime
 from typing import Any, Literal, get_args
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Text, insert
+from sqlalchemy import CheckConstraint, Text, func, insert, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -140,10 +144,13 @@ class AuditEntry(Base):
 
 @dataclass(frozen=True, slots=True)
 class AuditActor:
-    """The account that acts, by its identifier and the name it is shown by at that moment."""
+    """The account that acts, by its identifier and the name it is shown by at that moment.
+
+    The name is null for an anonymised account, which has none.
+    """
 
     user_id: UUID
-    display_name: str
+    display_name: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -263,3 +270,32 @@ def _secret_field(value: AuditValue) -> str | None:
             if found is not None:
                 return found
     return None
+
+
+# The key of the advisory lock that orders the anonymisations, distinct from the other ones.
+FORGETTING_LOCK = 1_200_060
+
+
+def forget_account(session: Session, user_id: UUID) -> None:
+    """Make null, in the transaction of ``session``, the label of an account the journal names.
+
+    In every inscription that names it, as its author or as its object, and nothing else
+    (WF-SEC-0030): its caller anonymises the account in the same transaction. Two anonymisations
+    wait for each other: an inscription may name both accounts, and each would hold the row the
+    other waits for.
+    """
+    session.execute(select(func.pg_advisory_xact_lock(FORGETTING_LOCK)))
+    session.execute(
+        update(AuditEntry)
+        .where(AuditEntry.actor_user_id == user_id, AuditEntry.actor_display_name.is_not(None))
+        .values(actor_display_name=None)
+    )
+    session.execute(
+        update(AuditEntry)
+        .where(
+            AuditEntry.object_kind == "user",
+            AuditEntry.object_id == user_id,
+            AuditEntry.object_label.is_not(None),
+        )
+        .values(object_label=None)
+    )
