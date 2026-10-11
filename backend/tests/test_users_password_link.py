@@ -5,7 +5,7 @@
 The caller, Camille Martin, may consult and change the accounts. Keycloak is the realm of test,
 which serves keys and nothing of the administration API: what the API refuses before asking the
 extension for a link is tried here; the link itself, made by the extension, and its inscription in
-the journal, against the platform (``test_keycloak_authentication.py``).
+the journal, against the platform (``test_keycloak_sign_in.py``).
 """
 
 from collections.abc import Callable
