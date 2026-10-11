@@ -265,6 +265,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "getMe": (),
     "closeMySessions": (),
     "listPermissions": (),
+    "listUsers": ("users.read",),
+    "getUser": ("users.read",),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),

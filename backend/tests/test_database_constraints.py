@@ -56,14 +56,19 @@ def insert_account(database: Database, **overrides: object) -> dict[str, object]
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("held", "written"),
+    [
+        ("Claire.Martin@example.org", "claire.martin@EXAMPLE.org"),
+        # Every letter is lowered, not only the ASCII ones that the collation of the column knows.
+        ("Élodie.Faure@example.org", "élodie.faure@example.org"),
+    ],
+)
 def test_two_accounts_with_the_same_address_are_rejected_by_the_database(
-    database: Database,
+    database: Database, held: str, written: str
 ) -> None:
-    insert_account(database, email="Claire.Martin@example.org")
-    assert (
-        refusal(database, write_account(email="claire.martin@EXAMPLE.org"))
-        == "uq_user_account_email_lower"
-    )
+    insert_account(database, email=held)
+    assert refusal(database, write_account(email=written)) == "uq_user_account_email_lower"
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")

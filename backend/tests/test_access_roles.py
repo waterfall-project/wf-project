@@ -48,9 +48,14 @@ CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
 # The projection of the specification, whose figures draw the tree of the functions (§3.4.1).
 PROJECTION = CONTRACT.parents[2] / "docs" / "spec" / "waterfall-spec.md"
-# A function of the second level, as a box of a figure names it:
-# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]``.
-SECOND_LEVEL = re.compile(r'\["(FBS-\d+\.\d+)<br>')
+# A function of the second level, as a box of a figure names it —
+# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]`` —, and as the heading
+# of its paragraph does — ``#### 3.4.2.1. FBS-1.1 : Gestion des utilisateurs`` —, as the tools of
+# the repository read them (``wftools.projection``), which the back does not import (#794).
+SECOND_LEVEL = (
+    re.compile(r'^\s*\w+\["(FBS-\d+\.\d+)<br>', re.MULTILINE),
+    re.compile(r"^#+ [\d.]+ (FBS-\d+\.\d+)\s*:", re.MULTILINE),
+)
 # The functions that have only the permission to consult, as WF-ADM-0100 names them.
 READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
 
@@ -109,6 +114,27 @@ def test_the_journal_of_audit_has_the_permission_to_read_alone(
     ]
 
 
+def second_level(projection: str) -> set[str]:
+    """Read the functions of the second level a projection names, in a figure or a heading."""
+    return {code for form in SECOND_LEVEL for code in form.findall(projection)}
+
+
+@pytest.mark.parametrize(
+    ("projection", "named"),
+    [
+        ('    FBS_9_1_Nouvelle["FBS-9.1<br>Nouvelle"]\n', {"FBS-9.1"}),
+        # A function whose paragraph has no box in a figure is a function all the same.
+        ("#### 3.4.9.1. FBS-9.1\u00a0: Nouvelle\n", {"FBS-9.1"}),
+        # Neither a function of the third level, nor a code cited in a sentence.
+        ("##### 3.4.9.1.1. FBS-9.1.1 : Détail\nVoir FBS-9.2 : rien.\n", set[str]()),
+    ],
+)
+def test_the_functions_of_the_second_level_are_read_in_the_figures_and_the_headings(
+    projection: str, named: set[str]
+) -> None:
+    assert second_level(projection) == named
+
+
 @pytest.mark.requirement("WF-ADM-0100-A")
 def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult(
     api: ContractClient, headers: dict[str, str]
@@ -116,7 +142,7 @@ def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to
     # « Chaque fonction de second niveau de l'arborescence est représentée par ses deux
     # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
     # FBS-2.7. » : the tree is the one the specification draws, not a list written here.
-    tree = set(SECOND_LEVEL.findall(PROJECTION.read_text(encoding="utf-8")))
+    tree = second_level(PROJECTION.read_text(encoding="utf-8"))
     # The reading found the tree: the functions the requirement names, and others beside them.
     assert tree > READ_ONLY
     expected = {
@@ -361,40 +387,46 @@ def test_the_roles_are_sorted_by_label_in_the_order_of_the_code_points_by_defaul
     assert labels(api, headers, "?sort_order=desc") == IN_CODE_POINT_ORDER[::-1]
 
 
-def by_identifier(
-    table: dict[str, UUID], names: list[str], *, descending: bool = False
-) -> list[str]:
-    """Order roles that are equal on the column of the sort by their identifier."""
-    return sorted(names, key=lambda name: table[name], reverse=descending)
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_label(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    predefined = ["Beta", "Zeta"]
+    composed = ["Alpha", "Main-d'œuvre", "Straße", "alpha", "Émile", "БЮРО"]
+    assert set(table) == {*predefined, *composed}
+    assert labels(api, headers, "?sort_by=is_predefined") == predefined + composed
+    # Equals keep the order of the table unsorted, whatever the direction (#741).
+    assert labels(api, headers, "?sort_by=is_predefined&sort_order=desc") == composed + predefined
 
 
 @pytest.mark.requirement("WF-IHM-0060-A")
-def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_identifier(
+def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_label(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
-    predefined = ["Zeta", "Beta"]
-    composed = ["alpha", "Émile", "Alpha", "БЮРО", "Straße", "Main-d'œuvre"]
-    assert labels(api, headers, "?sort_by=is_predefined") == (
-        by_identifier(table, predefined) + by_identifier(table, composed)
-    )
-    assert labels(api, headers, "?sort_by=is_predefined&sort_order=desc") == (
-        by_identifier(table, composed, descending=True)
-        + by_identifier(table, predefined, descending=True)
-    )
-
-
-@pytest.mark.requirement("WF-IHM-0060-A")
-def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_identifier(
-    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
-) -> None:
-    never = by_identifier(table, ["alpha", "БЮРО", "Straße", "Main-d'œuvre"])
-    once = by_identifier(table, ["Émile", "Beta", "Alpha"])
+    never = ["Main-d'œuvre", "Straße", "alpha", "БЮРО"]
+    once = ["Alpha", "Beta", "Émile"]
+    assert set(table) == {*never, *once, "Zeta"}
     assert labels(api, headers, "?sort_by=holder_count") == [*never, *once, "Zeta"]
     assert labels(api, headers, "?sort_by=holder_count&sort_order=desc") == [
         "Zeta",
-        *reversed(once),
-        *reversed(never),
+        *once,
+        *never,
     ]
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["", "?sort_order=desc", "?sort_by=is_predefined&sort_order=desc", "?sort_by=holder_count"],
+)
+def test_roles_equal_on_the_sort_and_on_the_label_come_by_identifier_ascending(
+    api: ContractClient, database: Database, headers: dict[str, str], query: str
+) -> None:
+    # Two readings give the same order: the identifier ends every tie, ascending (#741).
+    twins = sorted(role(database, "Jumeau") for _ in range(3))
+    response = api.get(f"{ROLES}{query}", headers=headers)
+    assert response.status_code == 200
+    read = [entry["access_role_id"] for entry in response.json() if entry["label"] == "Jumeau"]
+    assert read == [str(twin) for twin in twins]
 
 
 @pytest.mark.parametrize(

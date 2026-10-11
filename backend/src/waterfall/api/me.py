@@ -4,9 +4,9 @@
 
 from fastapi import APIRouter, Response
 
-from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import UserSelf
+from waterfall.api.users import account_fields
 from waterfall.core.access_roles.interface import HeldRole, granted_permissions, roles_held
 from waterfall.core.users.interface import Account
 from waterfall.platform.logs import get_logger
@@ -20,29 +20,11 @@ def user_self(account: Account, roles: list[HeldRole], permissions: tuple[str, .
     """Describe the account to the person who holds it, with its roles and their permissions.
 
     The permissions are the effective ones, those a request is evaluated against, so that the
-    front presents nothing the API would refuse (WF-ADM-0110). The attachment to the organisation
-    arrives with EP-05.
+    front presents nothing the API would refuse (WF-ADM-0110).
     """
     return UserSelf.model_validate(
         {
-            "user_id": account.user_id,
-            "last_name": account.last_name,
-            "first_name": account.first_name,
-            "email": account.email,
-            "is_active": account.is_active,
-            "origin": account.origin,
-            "org_node_id": None,
-            "org_node_label": None,
-            "access_role_ids": [held.access_role_id for held in roles],
-            "access_role_labels": [held.label for held in roles],
-            "has_avatar": account.has_avatar,
-            "audit": {
-                "created_at": account.created_at,
-                "created_by": actor_ref(account.created_by),
-                "updated_at": account.updated_at,
-                "updated_by": actor_ref(account.updated_by),
-            },
-            "lock_version": account.lock_version,
+            **account_fields(account, roles),
             "display_preferences": account.display_preferences,
             "permissions": list(permissions),
         }
