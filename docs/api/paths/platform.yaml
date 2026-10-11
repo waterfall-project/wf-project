@@ -26,6 +26,7 @@
               beyond: { $ref: ../../../fixtures/api/backups_beyond.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: startBackup
