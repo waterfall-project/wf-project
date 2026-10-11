@@ -166,7 +166,8 @@ def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> N
 @pytest.mark.parametrize(
     "statement",
     [
-        "UPDATE audit_entry SET object_label = 'Administrateur'",
+        "UPDATE audit_entry SET action = 'restore'",
+        "UPDATE audit_entry SET object_label = NULL, occurred_at = now()",
         "DELETE FROM audit_entry",
         "TRUNCATE audit_entry",
     ],
@@ -186,6 +187,11 @@ def test_the_service_may_neither_update_nor_delete_an_inscription(
     ("statement", "operation"),
     [
         ("UPDATE audit_entry SET object_label = 'Administrateur'", "UPDATE"),
+        # The label of an object that is no account, made null.
+        ("UPDATE audit_entry SET object_label = NULL", "UPDATE"),
+        # The name of the author made null, and something else changed with it.
+        ("UPDATE audit_entry SET actor_display_name = NULL, action = 'restore'", "UPDATE"),
+        ("UPDATE audit_entry SET actor_display_name = NULL, params = '{}'", "UPDATE"),
         ("DELETE FROM audit_entry", "DELETE"),
         ("TRUNCATE audit_entry", "TRUNCATE"),
     ],
@@ -198,6 +204,28 @@ def test_the_database_refuses_an_update_or_a_deletion_even_to_the_owner_of_the_t
         connection.execute(text(statement))
     assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
     assert f"audit_entry is never updated nor deleted: {operation} refused" in str(raised.value)
+    assert read_labels(database) == ["Auditeur"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_entry SET actor_display_name = 'Administrateur'",
+        "UPDATE audit_entry SET object_label = 'Administrateur'",
+        # A role is no account: its label stays.
+        "UPDATE audit_entry SET object_label = NULL",
+    ],
+)
+def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of_an_account(
+    database: Database, statement: str
+) -> None:
+    # The service may update the two labels that name an account, and the trigger admits no other
+    # change of them than making null the name of an account (migration 0009).
+    inscribe(database, role_created())
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(text(statement))
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
     assert read_labels(database) == ["Auditeur"]
 
 
@@ -251,6 +279,16 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
             ),
             {"role": service},
         ).one()
+        journal_columns_updated = set(
+            connection.execute(
+                text(
+                    "SELECT column_name FROM information_schema.column_privileges "
+                    "WHERE grantee = :role AND table_name = 'audit_entry' "
+                    "AND privilege_type = 'UPDATE'"
+                ),
+                {"role": service},
+            ).scalars()
+        )
         connected_as = connection.execute(
             text(
                 "SELECT pg_has_role(current_user, :role, 'USAGE'), rolsuper FROM pg_roles "
@@ -266,6 +304,8 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
     assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
     assert held == {name: SERVICE_RIGHTS[name] for name in tables}
     assert tuple(role) == (False, False, False, 0)
+    # And the update of the two labels that name an account, which an anonymisation makes null.
+    assert journal_columns_updated == {"actor_display_name", "object_label"}
     assert tuple(connected_as) == (True, False)
 
 

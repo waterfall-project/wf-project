@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The table of the accounts, private to the module (§4.4.1, regime "platform").
 
-An account is never deleted: its state says whether it may sign in. Its address does not
+An account is never deleted: its state says whether it may sign in, and an anonymised one keeps its
+row, without its names, its address nor its avatar (WF-ADM-0060). Its address does not
 identify it for the rest of the database, its identifier does: every row that refers to an
 account holds the identifier, so changing the address changes nothing else (WF-DAT-0060). The
 table of the accounts sorts on the name, the first name and the address, in the order of the code
@@ -36,6 +37,7 @@ STATES = ("active", "deactivated")
 AVATAR_MEDIA_TYPES = ("image/png", "image/jpeg")
 # The unique index of the addresses, whatever their case: what refuses an address taken.
 ADDRESS_INDEX = "uq_user_account_email_lower"
+IDENTITY = ("last_name", "first_name", "email")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -63,6 +65,16 @@ class UserAccount(Base):
             "(avatar IS NULL) = (avatar_media_type IS NULL)", name="avatar_with_its_media_type"
         ),
         CheckConstraint("lock_version >= 0", name="lock_version_not_negative"),
+        # The names and the address are null for an anonymised account, and for it alone; it stays
+        # deactivated, without its avatar (WF-ADM-0060).
+        CheckConstraint(
+            " AND ".join(f"(anonymized_at IS NULL) = ({name} IS NOT NULL)" for name in IDENTITY),
+            name="identity_unless_anonymized",
+        ),
+        CheckConstraint(
+            "anonymized_at IS NULL OR (state = 'deactivated' AND avatar IS NULL)",
+            name="anonymized_deactivated",
+        ),
         # One address per person, whatever its case (WF-ADM-0050), declared here and not
         # left to a rule of the services; lowered in every letter, which ``C`` does not.
         Index(
@@ -73,9 +85,12 @@ class UserAccount(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    last_name: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
-    first_name: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
-    email: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
+    # Null for an anonymised account alone, as its address: the index admits several null ones.
+    last_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    first_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    email: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    # When the account was anonymised; null while it is not (WF-ADM-0060).
+    anonymized_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     idp_subject: Mapped[str] = mapped_column(Text, unique=True)
     origin: Mapped[str] = mapped_column(Text)
     state: Mapped[str] = mapped_column(Text, server_default="active")

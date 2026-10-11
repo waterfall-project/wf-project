@@ -50,6 +50,7 @@ type AuditAction = Literal[
     "user_update",
     "user_deactivate",
     "user_reactivate",
+    "user_anonymize",
     "password_link_create",
     "access_role_create",
     "access_role_update",
@@ -88,8 +89,9 @@ class AuditEntry(Base):
     __table_args__ = (
         CheckConstraint(_in("action", ACTIONS), name="action_known"),
         CheckConstraint(_in("object_kind", OBJECT_KINDS), name="object_kind_known"),
+        # The platform has no name; an account lost its own if it was anonymised.
         CheckConstraint(
-            "(actor_user_id IS NULL) = (actor_display_name IS NULL)", name="actor_named"
+            "actor_user_id IS NOT NULL OR actor_display_name IS NULL", name="actor_named"
         ),
         CheckConstraint(
             "(project_id IS NULL) = (project_code IS NULL) "
@@ -97,7 +99,7 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
-            "object_label IS NOT NULL OR object_kind = 'backup'", name="object_labeled"
+            "object_label IS NOT NULL OR object_kind IN ('backup', 'user')", name="object_labeled"
         ),
         CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
