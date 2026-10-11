@@ -10,6 +10,7 @@
  * Neither server nor client: a page of the server and a component of the browser name alike.
  */
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import type { NamedAccount } from "./initials";
 
@@ -21,13 +22,18 @@ export interface AccountNaming {
   readonly kept: (name: string | null) => string;
 }
 
-/** Name the accounts in the language of the screen. */
+/**
+ * Name the accounts in the language of the screen — the same naming from one render to the next, so
+ * that a configuration that names an account in its callbacks is not built anew at each.
+ */
 export function useAccountNaming(): AccountNaming {
   const t = useTranslations();
-  const neutral = () => t("accountName.anonymized");
-  return {
-    person: ({ first_name: first, last_name: last }) =>
-      first === null || last === null ? neutral() : t("accountName.full", { first, last }),
-    kept: (name) => name ?? neutral(),
-  };
+  return useMemo(() => {
+    const neutral = () => t("accountName.anonymized");
+    return {
+      person: ({ first_name: first, last_name: last }) =>
+        first === null || last === null ? neutral() : t("accountName.full", { first, last }),
+      kept: (name) => name ?? neutral(),
+    };
+  }, [t]);
 }
