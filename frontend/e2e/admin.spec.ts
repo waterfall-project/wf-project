@@ -72,16 +72,28 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(
     matrix.getByRole("rowheader", { name: "Journal d’audit", exact: true }),
   ).toBeVisible();
-  const restore = matrix.getByRole("row", { name: /^Restaurer la plateforme/ });
-  await expect(restore.getByRole("cell")).toHaveText([
-    "Accordée",
-    "Non accordée",
-    "Non accordée",
-    "Non accordée",
-    "Accordée",
-    "Non accordée",
-    "Non accordée",
-  ]);
+  // The session may modify the roles: each cell is the checkbox of a permission for a role,
+  // checked when the role holds it.
+  const restore = matrix.getByRole("row").filter({
+    has: page.getByRole("rowheader", { name: "Restaurer la plateforme", exact: true }),
+  });
+  await expect(restore.getByRole("checkbox")).toHaveCount(7);
+  for (const [role, held] of [
+    ["Administrateur", true],
+    ["Auditeur", false],
+    ["Chef de projet", false],
+    ["Chiffreur", false],
+    ["Direction de projet", true],
+    ["Manager", false],
+    ["Pilotage de projet", false],
+  ] as const) {
+    await expect(
+      matrix.getByRole("checkbox", {
+        name: `«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0${role}\u00a0»`,
+        exact: true,
+      }),
+    ).toBeChecked({ checked: held });
+  }
   await expect(
     matrix.getByRole("rowheader", { name: "Sauvegarde et restauration", exact: true }),
   ).toBeVisible();
