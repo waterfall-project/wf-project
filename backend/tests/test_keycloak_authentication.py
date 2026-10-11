@@ -35,6 +35,7 @@ from test_keycloak_platform import (
     PASSWORD,
     REALM,
     SERVICE_CREDENTIAL_VARIABLE,
+    TEST_CLIENT,
     UNREACHABLE_MAIL_SERVER,
     Account,
     Browser,
@@ -357,16 +358,17 @@ def test_a_local_account_of_the_realm_unknown_to_waterfall_is_refused(
     assert (response.status_code, response.json()["code"]) == (401, "ACCOUNT_NOT_ADMITTED")
 
 
-def test_a_token_the_realm_lends_to_its_command_line_is_refused(
+def test_a_token_the_realm_lends_to_another_client_than_the_front_is_refused(
     api: ContractClient, database: Database, local_account: Account
 ) -> None:
-    # The client every realm has, which a password signs in to (#644): not the audience of the API.
+    # The client of test of the development platform, which a password signs in to (#644): its
+    # tokens are not for the API, whose audience they do not name.
     known(database, local_account)
     lent = httpx2.post(
         f"{realm_address()}/protocol/openid-connect/token",
         data={
             "grant_type": "password",
-            "client_id": "admin-cli",
+            "client_id": TEST_CLIENT,
             "username": local_account.email,
             "password": PASSWORD,
         },

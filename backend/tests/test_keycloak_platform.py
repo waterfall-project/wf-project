@@ -53,6 +53,9 @@ REPLACED = "Ce lien a été remplacé par un plus récent"
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
 # The type of the action token of a link the extension makes (PasswordSetupToken).
 EXTENSION_ACTION = "waterfall-password-setup"
+# The client the development platform declares for the tokens its tests sign in for by a password
+# (deploy/keycloak/development/waterfall.yaml, #644).
+TEST_CLIENT = "waterfall-test"
 # A mail server on a port of the container of Keycloak where nothing listens.
 UNREACHABLE_MAIL_SERVER = {"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}
 
@@ -199,13 +202,15 @@ def set_password(admin: httpx2.Client, user_id: str, password: str) -> None:
     assert response.status_code == 204, response.text
 
 
-def password_grant(keycloak: httpx2.Client, account: Account, password: str) -> httpx2.Response:
-    """Sign in with a password through the client every realm has for its command line."""
+def password_grant(
+    keycloak: httpx2.Client, account: Account, password: str, *, client: str = TEST_CLIENT
+) -> httpx2.Response:
+    """Sign in with a password, through the client of test of the development platform."""
     return keycloak.post(
         "/protocol/openid-connect/token",
         data={
             "grant_type": "password",
-            "client_id": "admin-cli",
+            "client_id": client,
             "username": account.email,
             "password": password,
         },
@@ -294,6 +299,17 @@ def test_the_realm_lends_tokens_of_five_minutes_to_the_service_account(
     read = claims(service_token)
     assert read["exp"] - read["iat"] == 300
     assert read["azp"] == "waterfall-service"
+
+
+def test_the_command_line_client_of_the_realm_takes_no_password(
+    keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
+) -> None:
+    # No second way of signing in around the page of the realm (#644): the client every realm has
+    # for its command line refuses a password the client of test takes.
+    set_password(admin, local_account.id, PASSWORD)
+    refused = password_grant(keycloak, local_account, PASSWORD, client="admin-cli")
+    assert (refused.status_code, refused.json()["error"]) == (400, "unauthorized_client")
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
 
 
 def test_the_lockout_is_ten_failures_fifteen_minutes_and_does_not_outlive_its_lock(

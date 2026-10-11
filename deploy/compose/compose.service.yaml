@@ -241,17 +241,22 @@ services:
       timeout: 5s
       retries: 30
 
-  # Applies the realm of Waterfall and what the development platform adds to it, then stops:
-  # `make service-up` runs it once Keycloak answers.
+  # Applies the realm of Waterfall, then what the development platform adds to it, then stops:
+  # `make service-up` runs it once Keycloak answers. Each under a remote state of its own:
+  # keycloak-config-cli deletes the clients its state names that the files it applies do not
+  # declare, and the development files declare a client of test the realm does not (#644).
   keycloak-realm:
     <<: *keycloak
-    entrypoint: ["/opt/keycloak/bin/apply-realm"]
-    command: []
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        /opt/keycloak/bin/apply-realm
+        && WATERFALL_REALM_FILES=file:/opt/keycloak/realm/development/*.yaml
+        exec /opt/keycloak/bin/apply-realm --import.cache.key=development
     environment:
       KEYCLOAK_URL: http://keycloak:8080/auth
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?export WATERFALL_KEYCLOAK_ADMIN_PASSWORD}
-      WATERFALL_REALM_FILES: file:/opt/keycloak/realm/*.yaml,file:/opt/keycloak/realm/development/*.yaml
       WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       WATERFALL_FRONT_ADDRESS: ${WATERFALL_FRONT_ADDRESS:-http://localhost:3000}
       # Where Keycloak reaches that front, on the back channel (#681): from its container, the

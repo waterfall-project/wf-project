@@ -1375,7 +1375,14 @@ dans le royaume quand il s'applique, et `make e2e-service` les remplace par cell
 parcours, jusqu'au `service-up` suivant. Mailpit
 montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
 OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
-et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
+et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`. Il
+ajoute aussi `waterfall-test`, un client public qui accepte un mot de passe hors de la page du
+royaume, pour les jetons dont les tests de la plateforme ont besoin : `admin-cli`, que Keycloak
+crée dans chaque royaume, n'en accepte plus (#644), et ses jetons ne sont pas pour l'API, faute de
+l'audience `waterfall-api`. Ces fichiers s'appliquent après le royaume, sous un état distant à eux
+(`--import.cache.key=development`, service `keycloak-realm`) : keycloak-config-cli supprime les
+clients que son état nomme et que les fichiers qu'il applique ne déclarent pas, et sans cela le
+client de test emporterait ceux du royaume.
 L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
 personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
 supprime avec elles.
