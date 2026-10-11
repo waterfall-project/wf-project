@@ -1743,6 +1743,11 @@
       "backup": "Backup",
       "external_backup_upload": "Uploaded backup"
     },
+    "AuditUserField": {
+      "last_name": "Last name",
+      "first_name": "First name",
+      "email": "Email address"
+    },
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "a default calendar with working hours",

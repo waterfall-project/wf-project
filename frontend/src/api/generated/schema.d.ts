@@ -3082,6 +3082,35 @@ export interface components {
             code: string;
             label: string;
         };
+        /**
+         * @description Un champ de l'identité d'un compte qu'une modification change (`user_update`), nommé comme la colonne de la table des comptes, que le front rend par son catalogue (WF-ARC-0110).
+         * @enum {string}
+         */
+        AuditUserField: "last_name" | "first_name" | "email";
+        /** @description Un rôle d'habilitation donné ou retiré à un compte, par son identifiant et son libellé au moment de l'action : un rôle supprimé depuis se nomme toujours (WF-ADM-0090). */
+        AuditAccessRole: {
+            access_role_id: components["schemas"]["Uuid"];
+            label: string;
+        };
+        /** @description Ce que l'action a fait à son objet, propre à chaque action, en codes, en identifiants et en libellés gardés au moment de l'action, jamais en phrase : le front le rend dans la langue du lecteur (WF-ARC-0110), et le journal dit ainsi qui a donné quel droit (WF-SEC-0030, #706). Un objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation et la réactivation d'un compte, le lien qui fixe un mot de passe, la suppression d'un rôle — et, jusqu'à l'EPIC qui les réalise, pour les actions d'un projet, de la sauvegarde et de la restauration. Un paramètre nouveau est une modification du contrat. */
+        AuditParams: {
+            /** @description `user_create` : l'origine du compte créé — par un administrateur (`local`), par la lecture du fournisseur d'identité (`directory`), à la première connexion d'une personne relayée par un fournisseur externe (`identity_provider`). */
+            origin?: components["schemas"]["UserOrigin"];
+            /** @description `user_update` : les champs de l'identité que la modification a changés, dans l'ordre du compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après. */
+            fields?: components["schemas"]["AuditUserField"][];
+            /** @description `access_role_create` : les permissions du rôle créé, dans l'ordre du catalogue. */
+            permissions?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : les permissions que la modification a données au rôle, dans l'ordre du catalogue ; vide si elle n'en a donné aucune. */
+            permissions_granted?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : les permissions que la modification a retirées au rôle, dans l'ordre du catalogue ; vide si elle n'en a retiré aucune. */
+            permissions_withdrawn?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : le libellé du rôle avant la modification, quand elle l'a changé ; absent sinon. Le libellé d'après est celui de l'objet (`AuditObject.label`). */
+            previous_label?: string;
+            /** @description `user_access_roles_set` : les rôles que l'attribution a donnés au compte, dans l'ordre où il les tient ; vide si elle n'en a donné aucun. À la création d'un compte, ses premiers rôles. */
+            access_roles_granted?: components["schemas"]["AuditAccessRole"][];
+            /** @description `user_access_roles_set` : les rôles que l'attribution a retirés au compte ; vide si elle n'en a retiré aucun. */
+            access_roles_withdrawn?: components["schemas"]["AuditAccessRole"][];
+        };
         /** @description Une inscription du journal d'audit : la date, l'auteur, l'action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030), et l'identifiant de corrélation de la requête ou de la tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son inscription `restore` s'écrit une fois la restauration faite (WF-ADM-0160, #539). Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même corrélation : la fusion d'un avenant inscrit `amendment_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050). */
         AuditEvent: {
             audit_event_id: components["schemas"]["Uuid"];
@@ -3093,6 +3122,7 @@ export interface components {
             object: components["schemas"]["AuditObject"];
             /** @description Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde. */
             project: components["schemas"]["AuditProject"] | null;
+            params: components["schemas"]["AuditParams"];
             /** @description L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme. */
             correlation_id: string;
         };

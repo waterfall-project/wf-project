@@ -3720,6 +3720,21 @@ quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse au
 ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
 resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
 
+## Le journal d'audit rend les paramètres de l'action (EP-03/US-0410/L2, #706)
+
+Décision de l'auteur du 2026-10-10. `AuditEvent` disait qui avait changé les rôles de qui, mais
+pas lesquels : l'« afin de » d'US-0410, dire après coup qui a donné quel droit, ne se lisait pas,
+quand l'inscription garde ces données depuis US-0410/L1. Il rend `params`, un `AuditParams` : un
+seul objet fermé, dont chaque propriété dit l'action qui la porte — l'origine d'un compte créé,
+les champs d'une identité modifiée, les permissions d'un rôle créé, données ou retirées par sa
+modification et son libellé d'avant, les rôles donnés ou retirés à un compte, chacun par son
+identifiant et son libellé du moment —, en codes, en identifiants et en libellés, jamais en
+phrase (WF-ARC-0110). Une action qui n'a rien à dire de plus que son objet rend un objet vide.
+Écarté : un schéma par action, choisi par `action` (`oneOf` à discriminant), que le discriminant
+d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
+dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
+qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
