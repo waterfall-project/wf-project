@@ -25,6 +25,7 @@ import {
   REFRESH_MARGIN,
   requestBearer,
   SESSION_COOKIE,
+  sessionIdOf,
 } from "./tokens";
 
 const state = vi.hoisted(() => ({
@@ -232,6 +233,19 @@ describe("the token of a request", () => {
     expect(await failureOfRead(client)).toMatchObject({ digest: SESSION_REQUIRED_DIGEST });
     const { accessToken } = await living(id);
     expect(client.calls.map((call) => call.authorization)).toEqual([`Bearer ${accessToken}`]);
+  });
+});
+
+describe("the session a request to a route holds", () => {
+  it.each([
+    ["wf_session=abc", "abc"],
+    ["wf_sign_in_s=1; wf_session=abc; wf_last_project=p", "abc"],
+    ["not_wf_session=abc", undefined],
+    ["wf_session=", undefined],
+    ["", undefined],
+  ])("is read from its cookies, none without the cookie of the session: %j", (cookie, id) => {
+    const headers: HeadersInit = cookie === "" ? {} : { Cookie: cookie };
+    expect(sessionIdOf(new Request("https://front.test/login", { headers }))).toBe(id);
   });
 });
 
