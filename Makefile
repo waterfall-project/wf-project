@@ -161,8 +161,8 @@ lint-docker: ## Lint the Dockerfiles
 
 # Keycloak answers before its realm is applied: the application runs once it does, and stops. The
 # root of the authority of its front end is copied out first: a new volume makes a new one.
-service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api keycloak keycloak-front-end openldap mailpit
+service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
 

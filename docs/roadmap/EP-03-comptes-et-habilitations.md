@@ -981,7 +981,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
 - **opérations** : `startIdentitySync`, `getLatestIdentitySync`, `getBackgroundTask`,
   `listBackgroundTasks`

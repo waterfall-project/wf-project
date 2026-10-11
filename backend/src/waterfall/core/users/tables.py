@@ -16,6 +16,7 @@ from uuid import UUID
 from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     LargeBinary,
@@ -28,6 +29,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from waterfall.platform.database import CODE_POINTS, EVERY_LETTER, Base, UtcDateTime
 from waterfall.platform.installation import AVATAR_MAX_BYTES
+from waterfall.platform.tasks import BackgroundTask
 
 ORIGINS = ("local", "directory", "identity_provider")
 STATES = ("active", "deactivated")
@@ -90,3 +92,10 @@ class UserAccount(Base):
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
+
+
+# The requester of a background task is an account (WF-DAT-0090): the platform knows no table of the
+# core, and the reference is declared with the accounts, in each process that has them.
+Base.metadata.tables[BackgroundTask.__tablename__].append_constraint(
+    ForeignKeyConstraint(["requested_by"], [UserAccount.id], ondelete="RESTRICT")
+)
