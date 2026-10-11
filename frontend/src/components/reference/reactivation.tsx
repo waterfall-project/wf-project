@@ -35,6 +35,7 @@ import {
 
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { readingOf } from "@/navigation/pages";
@@ -80,6 +81,12 @@ interface ListReport {
   readonly reading: string;
   /** Give the focus to the active cell of the grid of the list, or to the list. */
   readonly refocus: () => void;
+  /**
+   * Hold the navigations of the page while a command whose refusal the list may tell answers
+   * (`useHeldCommand`), for as long as the list stays: the dialog or the row that sent it may be
+   * gone when it is refused, and the list tells it all the same (#688).
+   */
+  readonly held: ReturnType<typeof useHeldCommand>;
 }
 
 /** Where a reactivation tells its refusal or the conditions it lacks; none outside a list. */
@@ -146,6 +153,7 @@ export function Reactivations({
   const reading = readingOf(useSearchParams(), reads);
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
+  const held = useHeldCommand();
   const report = useCallback((refusal: Reported) => {
     counted.current += 1;
     const key = counted.current;
@@ -166,8 +174,9 @@ export function Reactivations({
       },
       reading,
       refocus,
+      held,
     }),
-    [reading, report, refocus],
+    [reading, report, refocus, held],
   );
   return (
     <div

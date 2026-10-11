@@ -275,7 +275,10 @@ export function useRowCommand(
   const list = useListReport();
   const commands = useContext(ListCommands);
   const [pending, startTransition] = useTransition();
-  const held = useHeldCommand();
+  // The list, which tells the refusal, holds the navigations while the command answers: the row
+  // may be gone meanwhile (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const run = (
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,

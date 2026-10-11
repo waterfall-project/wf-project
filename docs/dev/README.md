@@ -262,7 +262,10 @@ Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien 
 appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
 référentiel, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
 `useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
-navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). Le clic se
+navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
+appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
+la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
+l'envoi ; fermer le dialogue ne libère donc pas son écriture. Le clic se
 juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
 les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
 cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
