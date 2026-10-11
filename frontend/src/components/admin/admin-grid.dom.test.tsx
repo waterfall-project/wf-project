@@ -129,13 +129,20 @@ const ROLES = "POST /access-roles";
 const ROLE = "DELETE /access-roles/{access_role_id}";
 const RENAMED = "PATCH /access-roles/{access_role_id}";
 
-/** The region of the table of the roles that says what its last command did. */
+/** The region of the table of the roles that says what its last command did, by its name. */
 function told(): HTMLElement {
-  const region = screen.getAllByRole("status").find((each) => each.classList.contains("min-h-5"));
-  if (region === undefined) {
-    throw new Error("the table of the roles says nothing");
-  }
-  return region;
+  return screen.getByRole("status", { name: "Commandes des rôles d’habilitation" });
+}
+
+/** Confirm the deletion the table asks to confirm, which names the role. */
+async function confirmDeletion(label: string) {
+  const confirmation = await screen.findByRole("alertdialog", {
+    name: `Supprimer «\u00a0${label}\u00a0»\u00a0?`,
+  });
+  expect(confirmation).toHaveAccessibleDescription(
+    `La suppression de «\u00a0${label}\u00a0» est définitive\u00a0: rien ne restaure le rôle.`,
+  );
+  await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
 }
 
 /** The address of the last navigation the screen asked. */
@@ -519,7 +526,7 @@ describe("the grid of the access roles", () => {
     );
   });
 
-  it("deletes a role no account holds, says so, and reads the page anew", async () => {
+  it("deletes a role no account holds once its deletion is confirmed, says so, and reads the page anew", async () => {
     page.path = "/admin/access-roles";
     const client = fakeClient({ [ROLE]: { status: 204 } });
     server.client = client;
@@ -528,6 +535,9 @@ describe("the grid of the access roles", () => {
     await userEvent.click(
       within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
     );
+    // Final, a predefined role included: nothing is asked before it is confirmed.
+    expect(client.calls).toEqual([]);
+    await confirmDeletion("Administrateur");
     await waitFor(() => {
       expect(told().textContent).toBe("«\u00a0Administrateur\u00a0» supprimé.");
     });
@@ -548,6 +558,7 @@ describe("the grid of the access roles", () => {
     await userEvent.click(
       within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
     );
+    await confirmDeletion("Administrateur");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.ACCESS_ROLE_IN_USE,
     );
@@ -576,7 +587,7 @@ describe("the grid of the access roles", () => {
     expect(told().firstElementChild).not.toBe(said);
   });
 
-  it("presses the command of the active cell on Enter, the grid one stop of the tabulation", async () => {
+  it("presses the command of the active cell on Enter, the grid one stop of the tabulation, which opens the confirmation of the deletion: Escape gives it up, nothing deleted, the focus back on the cell", async () => {
     page.path = "/admin/access-roles";
     const client = fakeClient({ [ROLE]: { status: 204 } });
     server.client = client;
@@ -588,11 +599,23 @@ describe("the grid of the access roles", () => {
     expect(deletion).toHaveAttribute("tabindex", "-1");
     const cell = deletion.closest("td");
     expect(cell).not.toBeNull();
-    // The cell made active, its command not pressed; Enter presses it.
+    // The cell made active, its command not pressed; Enter presses it, and asks to confirm.
     await userEvent.click(cell as HTMLElement);
     expect(cell).toHaveFocus();
     expect(client.calls).toEqual([]);
     await userEvent.keyboard("{Enter}");
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(within(confirmation).getByRole("button", { name: "Conserver" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+    expect(cell).toHaveFocus();
+    expect(client.calls).toEqual([]);
+    expect(told().textContent).toBe("");
+    // Asked again and confirmed, the deletion is sent.
+    await userEvent.keyboard("{Enter}");
+    await confirmDeletion("Administrateur");
     await waitFor(() => {
       expect(client.calls.map(({ route }) => route)).toEqual([ROLE]);
     });

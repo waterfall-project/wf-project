@@ -195,7 +195,7 @@ test("offers the commands of the accounts, each available with EP-03 or unavaila
   ).not.toHaveAttribute("aria-disabled");
 });
 
-test("deletes an access role from its row, its deletion unavailable while an account holds it, and sorts the roles by the server", async ({
+test("deletes an access role from its row once confirmed, its deletion unavailable while an account holds it, and sorts the roles by the server", async ({
   page,
 }) => {
   await page.goto("/admin/access-roles");
@@ -209,14 +209,17 @@ test("deletes an access role from its row, its deletion unavailable while an acc
   await expect(
     roles.getByRole("button", { name: "Supprimer «\u00a0Chiffreur\u00a0»" }),
   ).toHaveAttribute("aria-disabled", "true");
-  // The fake back answers the deletion, and keeps nothing: the page read anew lists the role still.
+  // Final, the deletion is confirmed first. The fake back answers it, and keeps nothing: the page
+  // read anew lists the role still.
   await roles.getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }).click();
-  await expect(
-    page
-      .getByRole("main")
-      .getByRole("status")
-      .filter({ hasText: /supprimé/ }),
-  ).toHaveText("«\u00a0Administrateur\u00a0» supprimé.");
+  const confirmation = page.getByRole("alertdialog", {
+    name: "Supprimer «\u00a0Administrateur\u00a0»\u00a0?",
+  });
+  await expect(confirmation).toContainText("est définitive");
+  await confirmation.getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByRole("status", { name: "Commandes des rôles d’habilitation" })).toHaveText(
+    "«\u00a0Administrateur\u00a0» supprimé.",
+  );
   await expect(page.getByRole("form", { name: "Création d’un rôle" })).toBeVisible();
   // A column of the matrix for each role the table retains, each cell a checkbox.
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
