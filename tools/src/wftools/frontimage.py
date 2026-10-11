@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Build the production image of the front, start it, and hold what it must do (US-0430).
 
-Usage: ``python -m wftools.frontimage``.
+Usage: ``python -m wftools.frontimage [--manifest PATH]``.
 
 The chain publishes the stage ``production`` of ``frontend/Dockerfile`` after a merge alone
 (``images.yml``); a pull request that changes what makes it — the Dockerfile, the configuration of
@@ -13,14 +13,22 @@ Next, the dependencies — builds it here first, and holds that:
 - the image starts without a variable of the platform, and ``/`` answers;
 - the fake back of the mock-up (``WATERFALL_AUTH=mock``) is refused without ``WATERFALL_E2E``: ``/``
   answers ``500``, and the server says why.
+
+What is prerendered is decided by the code of the pages — a layout that stops reading the cookies,
+a page that reads no dynamic value —, which the image is not rebuilt for: ``--manifest`` holds the
+first point alone, without Docker, on the manifest a build of the front on the checkout wrote
+(``make prerendered-front``). That build prerenders as the image's: the standalone output of the
+image changes how the server is packed, not which routes are prerendered.
 """
 
+import argparse
 import http.client
 import json
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 
 from wftools import REPOSITORY
 
@@ -50,11 +58,22 @@ def check_prerendered(manifest: str) -> None:
     try:
         routes: dict[str, object] = json.loads(manifest)["routes"]
     except (ValueError, KeyError, TypeError) as error:
-        message = f"the prerender manifest of the image does not read: {error}"
+        message = f"the prerender manifest does not read: {error}"
         raise FrontImageError(message) from error
     if fixed := sorted(set(routes) - PRERENDERED):
         message = f"next build prerendered {', '.join(fixed)}: a page would be fixed at the build"
         raise FrontImageError(message)
+
+
+def check_built(manifest: Path) -> None:
+    """Hold the prerender manifest a build of the front wrote on the checkout, without Docker."""
+    try:
+        text = manifest.read_text(encoding="utf-8")
+    except OSError as error:
+        reason = error.strerror or error
+        message = f"{manifest} does not read ({reason}): build the front first (make build-front)"
+        raise FrontImageError(message) from error
+    check_prerendered(text)
 
 
 def _output(read: Read, command: list[str]) -> str:
@@ -125,11 +144,27 @@ def _fetch(host: str, port: int) -> int | None:
         connection.close()
 
 
-def main(run: Run = _run, read: Read = _read, fetch: Fetch = _fetch) -> int:
-    """Build the image of the front, then hold it; fail naming what it does not do."""
+def main(
+    arguments: Sequence[str] = (), run: Run = _run, read: Read = _read, fetch: Fetch = _fetch
+) -> int:
+    """Build the image of the front, then hold it; fail naming what it does not do.
+
+    With ``--manifest``, hold the routes a build of the front on the checkout prerendered alone.
+    """
+    parser = argparse.ArgumentParser(prog="wftools.frontimage", description="Hold the front.")
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="the prerender manifest of a build of the front, held without building the image",
+    )
+    options = parser.parse_args(arguments)
     build = ["docker", "build", "--target", "production", "--tag", IMAGE, "frontend"]
-    print(f"  {' '.join(build)}", flush=True)
     try:
+        if options.manifest is not None:
+            check_built(options.manifest)
+            print(f"  prerendered: {', '.join(sorted(PRERENDERED))} alone ({options.manifest})")
+            return 0
+        print(f"  {' '.join(build)}", flush=True)
         if code := run(build):
             return code
         check(read, fetch)
@@ -140,4 +175,4 @@ def main(run: Run = _run, read: Read = _read, fetch: Fetch = _fetch) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

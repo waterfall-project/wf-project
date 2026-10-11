@@ -10,9 +10,13 @@ the extension and the realm. Each is tagged by the full hash of the commit it is
 its branch, made a valid tag (``epic/EP-03`` gives ``epic-EP-03``); on ``main``, by the version of
 the distribution of the back besides, which the API and the worker report and a backup will carry.
 The tag of a version is immutable: once in the registry it is never posed again, and a merge into
-main that does not raise the version publishes the tags of its commit and of its branch alone. An
-epic branch never takes it — a demonstration would pass for the release —, and the label of the
-version of an image built outside main says so (``0.1.0+epic-EP-03``).
+main that does not raise the version publishes the tags of its commit and of its branch alone. It
+is decided for the three images together, so that a version never gathers images of two commits:
+the three take it if the registry holds it for none, none takes it if it holds it for all three;
+anything else — some hold it, or the registry does not say — publishes the tags of the commit and
+of the branch, poses the version on none, and fails naming the images. An epic branch never takes
+it — a demonstration would pass for the release —, and the label of the version of an image that
+does not take it says so (``0.1.0+epic-EP-03``, ``0.1.0+main``).
 
 The branch and the commit are those of the checkout, unless ``IMAGE_BRANCH`` and ``IMAGE_COMMIT``
 name them, as the chain does. Nothing is passed to a build but its context: no build argument, no
@@ -26,12 +30,13 @@ move, so that a tag of a branch or of a version never names images of two commit
 """
 
 import argparse
+import enum
 import os
 import re
 import subprocess
 import sys
 import tomllib
-from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
 from wftools import REPOSITORY
@@ -86,6 +91,14 @@ class ImageError(Exception):
     """A branch, a commit or a version that cannot tag an image, or a push refused."""
 
 
+class Holding(enum.Enum):
+    """What the registry says of the tag of a version, for one image."""
+
+    HELD = "held by"
+    LACKING = "lacking on"
+    UNCLEAR = "unclear for"
+
+
 def version() -> str:
     """Return the version of the distribution of the back, which tags a release."""
     with (REPOSITORY / "backend" / "pyproject.toml").open("rb") as file:
@@ -102,8 +115,8 @@ def branch_tag(branch: str) -> str:
     return tag
 
 
-def tags(branch: str, commit: str, release: str) -> list[str]:
-    """Return the tags of an image built from a commit of a branch, the release's on main."""
+def tags(branch: str, commit: str, release: str, *, posed: bool = True) -> list[str]:
+    """Return the tags of an image built from a commit of a branch; the release's, if posed."""
     if not COMMIT.fullmatch(commit):
         message = f"not the full hash of a commit: {commit!r}"
         raise ImageError(message)
@@ -111,9 +124,14 @@ def tags(branch: str, commit: str, release: str) -> list[str]:
         message = f"the version {release!r} makes no tag"
         raise ImageError(message)
     found = [commit, branch_tag(branch)]
-    if branch == RELEASE_BRANCH:
+    if takes_version(branch, posed=posed):
         found.append(release)
     return found
+
+
+def takes_version(branch: str, *, posed: bool) -> bool:
+    """Tell whether the images of a branch take the tag of the version: on main, if posed."""
+    return branch == RELEASE_BRANCH and posed
 
 
 def publishable(branch: str) -> bool:
@@ -133,11 +151,14 @@ def reference(image: Image, tag: str) -> str:
     return f"{REGISTRY}/{image.name}:{tag}"
 
 
-def labels(image: Image, branch: str, commit: str, release: str) -> dict[str, str]:
+def labels(
+    image: Image, branch: str, commit: str, release: str, *, posed: bool = True
+) -> dict[str, str]:
     """Return the labels of an image: what it is, where it comes from, which version it is.
 
     They replace those of the base image, which name its own project — that of Keycloak does.
-    Outside main, the version is that of the release to come, built from a branch, which it says.
+    The version is bare on an image that takes its tag alone; on any other — outside main, or on
+    main once the version is published —, it says the branch the image is built from.
     """
     return {
         "org.opencontainers.image.title": image.name,
@@ -145,54 +166,40 @@ def labels(image: Image, branch: str, commit: str, release: str) -> dict[str, st
         "org.opencontainers.image.url": SOURCE,
         "org.opencontainers.image.revision": commit,
         "org.opencontainers.image.version": (
-            release if branch == RELEASE_BRANCH else f"{release}+{branch_tag(branch)}"
+            release if takes_version(branch, posed=posed) else f"{release}+{branch_tag(branch)}"
         ),
     }
 
 
-def image_tags(
-    image: Image, branch: str, commit: str, release: str, published: Collection[str]
-) -> list[str]:
-    """Return the tags of one image: without that of the version, if it is published already."""
-    found = tags(branch, commit, release)
-    return found[:2] if image.name in published else found
-
-
-def builds(
-    branch: str, commit: str, release: str, published: Collection[str] = ()
-) -> list[list[str]]:
+def builds(branch: str, commit: str, release: str, *, posed: bool = True) -> list[list[str]]:
     """Return the command that builds each image, under every tag it takes."""
     found: list[list[str]] = []
     for image in IMAGES:
         build = ["docker", "build", "--target", STAGE]
-        for key, value in labels(image, branch, commit, release).items():
+        for key, value in labels(image, branch, commit, release, posed=posed).items():
             build += ["--label", f"{key}={value}"]
-        for tag in image_tags(image, branch, commit, release, published):
+        for tag in tags(branch, commit, release, posed=posed):
             build += ["--tag", reference(image, tag)]
         found.append([*build, image.context])
     return found
 
 
-def pushes(
-    branch: str, commit: str, release: str, published: Collection[str] = ()
-) -> list[list[str]]:
+def pushes(branch: str, commit: str, release: str, *, posed: bool = True) -> list[list[str]]:
     """Return the pushes of every tag: those of the commit first, then those that move."""
     check_branch(branch)
-    by_image = [image_tags(image, branch, commit, release, published) for image in IMAGES]
     return [
-        ["docker", "push", reference(image, found[position])]
-        for position in range(max(len(found) for found in by_image))
-        for image, found in zip(IMAGES, by_image, strict=True)
-        if position < len(found)
+        ["docker", "push", reference(image, tag)]
+        for tag in tags(branch, commit, release, posed=posed)
+        for image in IMAGES
     ]
 
 
 def commands(
-    branch: str, commit: str, release: str, *, push: bool, published: Collection[str] = ()
+    branch: str, commit: str, release: str, *, push: bool, posed: bool = True
 ) -> list[list[str]]:
     """Return the commands that build the three images, then push every tag of each if asked."""
-    planned = pushes(branch, commit, release, published) if push else []
-    return builds(branch, commit, release, published) + planned
+    planned = pushes(branch, commit, release, posed=posed) if push else []
+    return builds(branch, commit, release, posed=posed) + planned
 
 
 def development_values() -> dict[str, str]:
@@ -221,25 +228,45 @@ def held(contents: Iterable[bytes], values: Mapping[str, str]) -> list[str]:
     return sorted(found)
 
 
-def published_versions(release: str, read: Callable[[list[str]], tuple[int, str]]) -> list[str]:
-    """Return the images whose tag of this version the registry holds, or may hold.
-
-    A version is posed once: what the registry does not say it lacks is taken as held, and left.
-    """
-    found: list[str] = []
+def registry_answers(
+    release: str, read: Callable[[list[str]], tuple[int, str]]
+) -> dict[str, Holding]:
+    """Ask the registry, image by image, whether it holds the tag of this version."""
+    found: dict[str, Holding] = {}
     for image in IMAGES:
         tagged = reference(image, release)
         code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
         if code == 0:
-            print(f"wftools.images: {tagged} is published already: it is not posed again")
-        elif not UNKNOWN_TAG.search(answer):
-            said = (answer.strip().splitlines() or ["nothing"])[-1]
-            print(f"wftools.images: the registry did not say whether it holds {tagged} ({said}):")
-            print(f"wftools.images: {tagged} is not posed")
+            found[image.name] = Holding.HELD
+        elif UNKNOWN_TAG.search(answer):
+            found[image.name] = Holding.LACKING
         else:
-            continue
-        found.append(image.name)
+            said = (answer.strip().splitlines() or ["nothing"])[-1]
+            print(f"wftools.images: the registry did not say whether it holds {tagged} ({said})")
+            found[image.name] = Holding.UNCLEAR
     return found
+
+
+def version_decision(release: str, answers: Mapping[str, Holding]) -> tuple[bool, str]:
+    """Decide the version for the three images together: whether they take it, and what fails.
+
+    None holds it: the three take it. All three do: none takes it again, the case of a merge that
+    does not raise the version. Anything else poses it on none, and fails the publication once the
+    tags of the commit and of the branch are pushed, naming the images: a version is posed once,
+    on the images of one commit.
+    """
+    holdings = set(answers.values())
+    if holdings == {Holding.LACKING}:
+        return True, ""
+    if holdings == {Holding.HELD}:
+        print(f"wftools.images: the three images hold {release} already: it is not posed again")
+        return False, ""
+    said = "; ".join(
+        f"{holding.value} {', '.join(name for name, found in answers.items() if found is holding)}"
+        for holding in Holding
+        if holding in holdings
+    )
+    return False, f"the version {release} is posed on no image ({said})"
 
 
 def check_checkout(commit: str) -> None:
@@ -328,18 +355,21 @@ def main(
         branch = environment.get("IMAGE_BRANCH") or _git("rev-parse", "--abbrev-ref", "HEAD")
         commit = environment.get("IMAGE_COMMIT") or _git("rev-parse", "HEAD")
         release = version()
-        published: list[str] = []
+        posed, failed = True, ""
         if options.push:
             check_branch(branch)
             check_checkout(commit)
             if branch == RELEASE_BRANCH:
-                published = published_versions(release, read)
-        if code := _execute(builds(branch, commit, release, published), run):
+                posed, failed = version_decision(release, registry_answers(release, read))
+        if code := _execute(builds(branch, commit, release, posed=posed), run):
             return code
         if not options.push:
             return 0
         check_contents(commit, contents)
-        return _execute(pushes(branch, commit, release, published), run)
+        code = _execute(pushes(branch, commit, release, posed=posed), run)
+        if code or not failed:
+            return code
+        print(f"wftools.images: {failed}", file=sys.stderr)
     except ImageError as error:
         print(f"wftools.images: {error}", file=sys.stderr)
     except (OSError, subprocess.CalledProcessError) as error:

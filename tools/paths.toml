@@ -124,8 +124,9 @@ target = "check-front"
 # The production image of the front (US-0430), which the chain publishes after a merge alone
 # (images.yml): a pull request that changes what makes it builds it and starts it first — its
 # Dockerfile and what it leaves out of its context, the configuration of Next, the dependencies.
-# A change of the code of the front alone is built by the front family (make build-front), not
-# into the image: the build of the image is paid where the image itself changes.
+# A change of the code of the front alone is built by the front family, not into the image, which
+# holds what that build prerendered (make prerendered-front): the code of the pages decides it, and
+# the build of the image is paid where the image itself changes.
 paths = [
     "frontend/Dockerfile",
     "frontend/.dockerignore",

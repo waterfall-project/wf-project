@@ -13,7 +13,7 @@ import json
 import re
 import subprocess
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -35,6 +35,8 @@ SUBSTITUTED = re.compile(r"\$\(env:[A-Z0-9_]+\)")
 SECRET_OPTIONS = ("--build-arg", "--secret", "--ssh", "--env")
 NAMES = ("front", "waterfall", "keycloak")
 NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/front:0.1.0: not found")
+FOUND = (0, "Name: ghcr.io/waterfall-project/front:0.1.0")
+FORBIDDEN = (1, "ERROR: unexpected status: 403 Forbidden")
 
 
 def workflow() -> dict[Any, Any]:
@@ -281,40 +283,55 @@ def test_a_version_that_makes_no_tag_is_refused() -> None:
         images.tags("main", COMMIT, "1.0.0+local")
 
 
-def test_each_image_is_labelled_by_its_own_name_its_source_its_commit_and_its_version() -> None:
-    for branch, label in (("main", VERSION), ("epic/EP-03", f"{VERSION}+epic-EP-03")):
-        builds = images.commands(branch, COMMIT, VERSION, push=False)
-        for name, command in zip(NAMES, builds, strict=True):
-            labels = dict(
-                command[i + 1].split("=", 1) for i, word in enumerate(command) if word == "--label"
-            )
-            assert labels == {
-                "org.opencontainers.image.title": name,
-                "org.opencontainers.image.source": images.SOURCE,
-                "org.opencontainers.image.url": images.SOURCE,
-                "org.opencontainers.image.revision": COMMIT,
-                "org.opencontainers.image.version": label,
-            }
+@pytest.mark.parametrize(
+    ("branch", "posed", "label"),
+    [
+        ("main", True, VERSION),
+        # On main once the version is published, an image that does not take its tag says so.
+        ("main", False, f"{VERSION}+main"),
+        ("epic/EP-03", True, f"{VERSION}+epic-EP-03"),
+    ],
+)
+def test_each_image_is_labelled_by_its_own_name_its_source_its_commit_and_its_version(
+    branch: str, *, posed: bool, label: str
+) -> None:
+    builds = images.commands(branch, COMMIT, VERSION, push=False, posed=posed)
+    for name, command in zip(NAMES, builds, strict=True):
+        tags = [
+            command[i + 1].rsplit(":", 1)[1] for i, word in enumerate(command) if word == "--tag"
+        ]
+        assert (VERSION in tags) == (label == VERSION)
+        labels = dict(
+            command[i + 1].split("=", 1) for i, word in enumerate(command) if word == "--label"
+        )
+        assert labels == {
+            "org.opencontainers.image.title": name,
+            "org.opencontainers.image.source": images.SOURCE,
+            "org.opencontainers.image.url": images.SOURCE,
+            "org.opencontainers.image.revision": COMMIT,
+            "org.opencontainers.image.version": label,
+        }
 
 
 class Docker:
     """A Docker that records what it is asked, and answers as a test tells it.
 
-    A build fails if its context is the one named; the registry answers as told for a tag of a
-    version; the image of Keycloak holds the bytes given.
+    A build fails if its context is the one named; the registry answers image by image as told
+    for the tag of a version, that it lacks for an image not named; the image of Keycloak holds the
+    bytes given.
     """
 
     def __init__(
         self,
         *,
         failing: str = "",
-        registry: tuple[int, str] = NOT_FOUND,
+        registry: Mapping[str, tuple[int, str]] | None = None,
         holding: bytes = b"",
     ) -> None:
         self.ran: list[list[str]] = []
         self.read_: list[list[str]] = []
         self.failing = failing
-        self.registry = registry
+        self.registry = dict(registry or {})
         self.holding = holding
 
     def run(self, command: list[str]) -> int:
@@ -323,7 +340,8 @@ class Docker:
 
     def read(self, command: list[str]) -> tuple[int, str]:
         self.read_.append(command)
-        return self.registry
+        name = command[-1].rsplit("/", 1)[1].split(":", 1)[0]
+        return self.registry.get(name, NOT_FOUND)
 
     def contents(self, image: str) -> Iterable[bytes]:
         yield b"usr/bin/" + (self.holding if "/keycloak:" in image else b"")
@@ -369,7 +387,7 @@ def test_an_image_that_fails_to_build_stops_everything_before_any_push() -> None
 
 @pytest.mark.usefixtures("checkout")
 def test_a_new_version_is_posed_on_main() -> None:
-    docker = Docker(registry=NOT_FOUND)
+    docker = Docker()
     assert docker.main("main", "--push") == 0
     assert [command[-1] for command in docker.read_] == [
         f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
@@ -379,23 +397,63 @@ def test_a_new_version_is_posed_on_main() -> None:
 
 @pytest.mark.usefixtures("checkout")
 @pytest.mark.parametrize(
-    ("registry", "said"),
+    ("answer", "code", "said"),
     [
-        ((0, "Name: ghcr.io/waterfall-project/front:0.1.0"), "is published already"),
-        ((1, "ERROR: unexpected status: 403 Forbidden"), "did not say whether it holds"),
+        (FOUND, 0, "the three images hold"),
+        # ghcr answers 403 for a package it lacks or cannot read: it says nothing of the tag.
+        (FORBIDDEN, 2, "did not say whether it holds"),
     ],
 )
 def test_a_version_published_already_is_never_posed_again(
-    registry: tuple[int, str], said: str, capsys: pytest.CaptureFixture[str]
+    answer: tuple[int, str], code: int, said: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    docker = Docker(registry=registry)
-    assert docker.main("main", "--push") == 0
+    docker = Docker(registry=dict.fromkeys(NAMES, answer))
+    assert docker.main("main", "--push") == code
+    assert_no_version_and_the_tags_of_the_commit_and_the_branch_pushed(docker)
+    assert said in capsys.readouterr().out
+
+
+def assert_no_version_and_the_tags_of_the_commit_and_the_branch_pushed(docker: Docker) -> None:
+    """Hold that no image took the tag of the version, and that every other tag was pushed."""
     references = [word for command in docker.ran for word in command if word.startswith("ghcr.io")]
     assert not [reference for reference in references if reference.endswith(f":{VERSION}")]
     assert [reference.rsplit(":", 1)[1] for reference in docker.pushed()] == [COMMIT] * 3 + [
         "main"
     ] * 3
-    assert said in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize(
+    ("registry", "said"),
+    [
+        # A publication that failed after two images took the version: the next merge, of another
+        # commit, must not complete it.
+        ({"front": FOUND, "waterfall": FOUND}, "held by front, waterfall; lacking on keycloak"),
+        ({"waterfall": FORBIDDEN}, "lacking on front, keycloak; unclear for waterfall"),
+        (
+            {"keycloak": FOUND, "front": FORBIDDEN},
+            "held by keycloak; lacking on waterfall; unclear for front",
+        ),
+    ],
+)
+def test_a_version_the_registry_holds_for_some_images_alone_is_posed_on_none_and_fails(
+    registry: dict[str, tuple[int, str]], said: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    docker = Docker(registry=registry)
+    assert docker.main("main", "--push") == 2
+    assert [command[-1] for command in docker.read_] == [
+        f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
+    ]
+    assert_no_version_and_the_tags_of_the_commit_and_the_branch_pushed(docker)
+    error = capsys.readouterr().err
+    assert f"wftools.images: the version {VERSION} is posed on no image ({said})" in error
+
+
+@pytest.mark.usefixtures("checkout")
+def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
+    docker = Docker(registry={"front": FOUND}, failing=f"ghcr.io/waterfall-project/front:{COMMIT}")
+    assert docker.main("main", "--push") == 1
+    assert docker.pushed() == [f"ghcr.io/waterfall-project/front:{COMMIT}"]
 
 
 @pytest.mark.usefixtures("checkout")

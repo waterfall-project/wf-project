@@ -57,7 +57,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
-	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
+	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
@@ -267,9 +267,11 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 # workstation, check-front runs both.
 check-front: check-front-code check-front-e2e ## The front: check-front-code, then check-front-e2e
 
-check-front-code: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front,build-front test-front) ## The front but its end-to-end paths: client, lint, types, catalogues, production build and tests; coverage replaces the build and the plain tests in the full tier
+check-front-code: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front,build-front prerendered-front test-front) ## The front but its end-to-end paths: client, lint, types, catalogues, production build, what it prerendered, and tests; coverage replaces the build and the plain tests in the full tier
 
-check-front-e2e: $(call full-only,e2e-browsers e2e) ## The end-to-end paths of the front, which build it for production, in the full tier only
+# The whole harness builds the front for production for its measure, whose manifest
+# prerendered-front then reads; a part of the paths alone (SHARD) builds nothing to hold.
+check-front-e2e: $(call full-only,e2e-browsers e2e $(if $(SHARD),,prerendered-front)) ## The end-to-end paths of the front, which build it for production, and what that build prerendered, in the full tier only
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -322,6 +324,12 @@ test-front: install-front ## Unit tests of the front
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
 	@$(PNPM) build
+
+# What the last production build of the front prerendered, read from the manifest it wrote, without
+# Docker: build-front's in the fast tier, that of the measure of the paths in the full one, which
+# prerender as the image does (wftools.frontimage, US-0430).
+prerendered-front: ## The production build of the front prerendered no page that reads the environment, as its image would not (US-0430)
+	@$(WFTOOLS).frontimage --manifest $(FRONT)/.next/prerender-manifest.json
 
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)
 	@$(PNPM) exec vitest run --coverage --silent
