@@ -7,9 +7,10 @@ base by ``idp_subject``, and its state with it, so that a deactivated account is
 next request even if the closing of its sessions was lost (WF-SEC-0020). A subject Waterfall
 does not know yet is a person of the directory before the first reading of the accounts, or a
 person relayed by an external provider: her account is created without any role, after her
-origin is read from the administration API of Keycloak (WF-ADM-0180). Any other one is refused
-as a deactivated account is — and not as a missing session, to which the front would answer
-with a sign-in that brings back the same token, in a loop.
+origin is read from the administration API of Keycloak (WF-ADM-0180). Any other one is refused as
+an account Waterfall does not admit (#664) — not as a deactivated account, which it never was, nor
+as a missing session, to which the front would answer with a sign-in that brings back the same
+token, in a loop.
 
 No call to Keycloak is made inside a transaction (#669): the account is read, then admitted, each
 in a short transaction of its own, the origin being read between the two; a route that reads or
@@ -38,6 +39,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
+ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
 SCHEME = "bearer"
 
 logger = get_logger(__name__)
@@ -97,7 +99,8 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     """Create the account of a person Waterfall does not know yet, or refuse her (401).
 
     ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none. The
-    creation is inscribed in the journal of audit by the platform (#703).
+    creation is inscribed in the journal of audit by the platform (#703). A refusal says
+    ``ACCOUNT_NOT_ADMITTED``; its cause is written in the log only.
     """
     admitted = (
         NotAdmitted.UNKNOWN_TO_PROVIDER
@@ -106,8 +109,7 @@ def admit(session: Session, subject: str, provider: ProviderAccount | None) -> A
     )
     if isinstance(admitted, NotAdmitted):
         logger.warning("account.not_admitted", subject=subject, reason=admitted.value)
-        # TODO(#664): a code of its own; an account never created is not a deactivated one.
-        raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
+        raise UnauthenticatedError(ACCOUNT_NOT_ADMITTED)
     logger.info("account.created", user_id=str(admitted.user_id), origin=admitted.origin)
     return admitted
 

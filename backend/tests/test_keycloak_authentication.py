@@ -351,9 +351,10 @@ def test_a_person_relayed_by_an_external_provider_is_created_without_any_role(
 def test_a_local_account_of_the_realm_unknown_to_waterfall_is_refused(
     api: ContractClient, local_account: Account
 ) -> None:
-    # A local account is created from Waterfall, never at its first request (WF-ADM-0070).
+    # A local account is created from Waterfall, never at its first request (WF-ADM-0070): one
+    # Waterfall did not create is not admitted, and was never deactivated (#664).
     response = api.get(ME, headers=bearer(tokens_of(local_account.email, PASSWORD)))
-    assert (response.status_code, response.json()["code"]) == (401, "ACCOUNT_DEACTIVATED")
+    assert (response.status_code, response.json()["code"]) == (401, "ACCOUNT_NOT_ADMITTED")
 
 
 def test_a_token_the_realm_lends_to_its_command_line_is_refused(

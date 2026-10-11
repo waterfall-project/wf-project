@@ -2071,7 +2071,8 @@ ses paramètres, jamais une phrase.
   siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
   jeton expiré un 401 `SESSION_EXPIRED`, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un
   compte que Waterfall ne connaît pas encore est créé sans rôle s'il vient de l'annuaire ou d'un
-  fournisseur externe, refusé comme un compte désactivé sinon. L'appelant devient l'auteur
+  fournisseur externe, refusé sinon par un 401 `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au
+  seul journal. L'appelant devient l'auteur
   (`actor`) de chaque journal de la requête. L'API lit `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse
   du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
   joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test

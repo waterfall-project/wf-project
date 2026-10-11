@@ -528,6 +528,7 @@ def test_a_person_refused_at_her_first_request_is_refused_with_its_cause_in_the_
 ) -> None:
     with pytest.raises(UnauthenticatedError) as refused:
         admit(session, SUBJECT, provider)
-    assert refused.value.code == "ACCOUNT_DEACTIVATED"
+    # Not a deactivated account, which it never was (#664).
+    assert refused.value.code == "ACCOUNT_NOT_ADMITTED"
     (record,) = logs.named("account.not_admitted")
     assert (record["subject"], record["reason"]) == (SUBJECT, reason.value)
