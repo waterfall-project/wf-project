@@ -133,6 +133,8 @@
               by_object_label: { $ref: ../../../fixtures/api/audit_events_by_object_label.json }
               correlation: { $ref: ../../../fixtures/api/audit_events_correlation.json }
               search: { $ref: ../../../fixtures/api/audit_events_search.json }
+              anonymized_object: { $ref: ../../../fixtures/api/audit_events_anonymized_object.json }
+              anonymized_actor: { $ref: ../../../fixtures/api/audit_events_anonymized_actor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -176,6 +178,7 @@
             schema: { $ref: ../components/schemas/audit.yaml#/AuditFacets }
             examples:
               witness: { $ref: ../../../fixtures/api/audit_facets.json }
+              anonymized: { $ref: ../../../fixtures/api/audit_facets_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

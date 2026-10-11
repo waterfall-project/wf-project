@@ -97,6 +97,7 @@
               by_access_role: { $ref: ../../../fixtures/api/users_by_access_role.json }
               search: { $ref: ../../../fixtures/api/users_search.json }
               inactive: { $ref: ../../../fixtures/api/users_inactive.json }
+              anonymized: { $ref: ../../../fixtures/api/users_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
