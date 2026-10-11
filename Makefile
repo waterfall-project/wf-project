@@ -50,7 +50,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-logs service-down migrate \
-	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service \
+	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
 	lint-shell check \
@@ -190,6 +190,14 @@ lint-compose: ## Validate the Compose files
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+
+# The images the chain publishes (US-0430): front, waterfall and keycloak, under
+# ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
+# version of the back's distribution on main (wftools.images). The branch and the commit are the
+# checkout's unless IMAGE_BRANCH and IMAGE_COMMIT name them, read by the tool from its environment;
+# PUSH=yes publishes them, from main or an epic branch alone (.github/workflows/images.yml).
+images: ## Build the images front, waterfall and keycloak, tagged by commit, by branch, and by version on main; PUSH=yes publishes them
+	@$(WFTOOLS).images $(if $(filter yes,$(PUSH)),--push)
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
 # service platform, its realm applied, through its front end in HTTPS, whose authority alone they

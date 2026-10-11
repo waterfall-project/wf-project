@@ -1336,6 +1336,7 @@ commande.
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
 | `make test-keycloak` | démarre Keycloak sur la plateforme, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
+| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement (`wftools.images`, « Chaîne ») |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -1414,6 +1415,17 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
   que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
   installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
+
+Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque poussée sur `main` ou
+sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,
+`waterfall` (l'API, le worker, sa planification et les migrations, commandes d'une même
+distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien de
+`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
+PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
+registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
+`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes. L'étiquette de
+version ne se pose que depuis `main` : une branche d'EPIC, qui porte la même version, écraserait
+celle de la publication.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
