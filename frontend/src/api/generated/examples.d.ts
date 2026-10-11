@@ -200,6 +200,9 @@ export interface Examples {
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
   };
+  "PATCH /access-roles/{access_role_id}": {
+    200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
+  };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
   };
@@ -223,6 +226,9 @@ export interface Examples {
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "POST /access-roles": {
+    201: "access_role_created";
   };
   "POST /chunked-uploads": {
     201: "chunked_upload";

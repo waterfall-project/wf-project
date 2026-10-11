@@ -1,5 +1,5 @@
 {
-  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun.",
+  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000301",
     "last_name": "Martin",
@@ -45,6 +45,14 @@
           "sort": {
             "column": "budgeted_amount",
             "order": "desc"
+          }
+        },
+        "access_roles": {
+          "hidden_columns": [],
+          "column_widths": {},
+          "filters": {
+            "is_predefined": "false",
+            "holder_count_min": "1"
           }
         }
       }

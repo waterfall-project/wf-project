@@ -1,24 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The commands of the accounts and of the access roles (FBS-1.1, FBS-1.2, #379, #515), placed
- * before EP-03 wires them (US-0360/L3, US-0380/L2): create a local account, modify one, deactivate
- * or reactivate it, anonymise it, attribute its roles — no account is deleted (WF-ADM-0060) —;
- * create a role, modify one, delete one — a logical deletion, decided by the framing of EP-03
- * (#456): the role is no longer read nor attributable. They are offered only to a session that may
- * modify the function — `users.write`, `access_roles.write` (`platformOffer`) —, and none to
- * another: the screen presents only what the user may do (WF-IHM-0090). An account lists its own
- * commands besides (`User.available_commands`): its deactivation or its reactivation, its
- * anonymisation, and the attribution of its roles, each presented as the server lists it — absent,
- * not presented; unavailable, with the condition it lacks: the last account active that holds the
- * permissions of administration is not deactivated (WF-ADM-0120), which the front could not find
- * itself, the list being paged; an anonymised account is neither reactivated nor anonymised again
- * (WF-ADM-0060). Pressed, a command says it is available with EP-03, in one region announced —
- * each press, the same one pressed again too —; nothing is asked of the server.
+ * The commands of the accounts (FBS-1.1, #379, #515), placed before EP-03 wires them (US-0360/L3):
+ * create a local account, modify one, deactivate or reactivate it, anonymise it, attribute its
+ * roles — no account is deleted (WF-ADM-0060). They are offered only to a session that may modify
+ * the accounts — `users.write` (`platformOffer`) —, and none to another: the screen presents only
+ * what the user may do (WF-IHM-0090). An account lists its own commands besides
+ * (`User.available_commands`): its deactivation or its reactivation, its anonymisation, and the
+ * attribution of its roles, each presented as the server lists it — absent, not presented;
+ * unavailable, with the condition it lacks: the last account active that holds the permissions of
+ * administration is not deactivated (WF-ADM-0120), which the front could not find itself, the list
+ * being paged; an anonymised account is neither reactivated nor anonymised again (WF-ADM-0060).
+ * Pressed, a command says it is available with EP-03, in one region announced — each press, the
+ * same one pressed again too —; nothing is asked of the server.
  *
- * A command the server declares it would refuse is presented unavailable, as `Command` does: a
- * role an account holds is not deleted (`deleteAccessRole`, 409, WF-ADM-0090), the last
- * administrator is not deactivated — its command is marked `aria-disabled`, described by the
+ * A command the server declares it would refuse is presented unavailable, as `Command` does: the
+ * last administrator is not deactivated — its command is marked `aria-disabled`, described by the
  * condition it lacks; a press does not run it, and says in the region the condition it lacks.
  *
  * Every prop is data — the command, the name of the object —, never a function: a server component
@@ -31,9 +28,7 @@ import {
   KeyRound,
   type LucideIcon,
   PencilLine,
-  Plus,
   RotateCcw,
-  Trash2,
   UserPlus,
   UserRoundX,
   UserX,
@@ -153,46 +148,10 @@ function LaterButton({
   );
 }
 
-/** The command that creates a role, or a local account. */
-export function CreateCommand({ kind }: { readonly kind: "role" | "localAccount" }) {
-  const t = useTranslations("admin");
-  return kind === "role" ? (
-    <LaterButton icon={Plus} text={t("accessRoles.create")} cell={false} />
-  ) : (
-    <LaterButton icon={UserPlus} text={t("users.create")} cell={false} />
-  );
-}
-
-/** A command of a role. */
-export type RoleCommandName = "modify" | "delete";
-
-/**
- * A command of a role, named after it; its deletion unavailable while an account holds it, as the
- * server would refuse it.
- */
-export function RoleCommand({
-  command,
-  name,
-  holders,
-}: {
-  readonly command: RoleCommandName;
-  /** The label of the role, as the list shows it. */
-  readonly name: string;
-  /** How many accounts hold the role, as the server counts them. */
-  readonly holders: number;
-}) {
-  const t = useTranslations("admin.accessRoles");
-  return command === "modify" ? (
-    <LaterButton icon={PencilLine} text={t("modify")} named={t("modifyRole", { name })} cell />
-  ) : (
-    <LaterButton
-      icon={Trash2}
-      text={t("delete")}
-      named={t("deleteRole", { name })}
-      cell
-      unavailable={holders > 0 ? t("heldBy", { count: holders }) : undefined}
-    />
-  );
+/** The command that creates a local account. */
+export function CreateCommand() {
+  const t = useTranslations("admin.users");
+  return <LaterButton icon={UserPlus} text={t("create")} cell={false} />;
 }
 
 /** A command of an account: none deletes it (WF-ADM-0060). */

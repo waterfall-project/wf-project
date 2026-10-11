@@ -618,6 +618,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_role_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -661,6 +663,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_role_updated.json }
+              marking_granted: { $ref: ../../../fixtures/api/access_role_marking_granted.json }
+              renamed: { $ref: ../../../fixtures/api/access_role_renamed.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
