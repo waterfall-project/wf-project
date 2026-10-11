@@ -923,7 +923,10 @@ appliqué de façon idempotente par keycloak-config-cli ; la base de Keycloak di
 même serveur PostgreSQL. La plateforme de développement porte un annuaire et un fournisseur
 externe de test, pour que la Définition de fini se constate. Cette US ferme #152 et #155,
 sans objet : la page de connexion n'a plus de liste de fournisseurs à présenter, et les
-règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
+règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Ses lots L1 à L5b
+faits, deux phrases de `WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis
+la réactivation après une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du
+fournisseur (US-0370/L2) : l'US reste `en cours` tant que #844 n'a pas tranché où elles s'éprouvent.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 
