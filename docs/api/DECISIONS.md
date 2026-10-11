@@ -3735,6 +3735,18 @@ d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engend
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
 qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
 
+## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
+
+Décision de l'auteur du 2026-10-10 (#705), suivant WF-SEC-0030 révisée : le journal d'audit est
+sauvegardé avec la base de Waterfall. `Backup`, `Backup.scope` et `startBackup` le disent, à la
+place de « à l'exception du journal d'audit » qu'écrivait la décision 9 d'US-0350/L1 ; la
+restauration, qui relit les inscriptions postérieures à la sauvegarde et les réinscrit, reste à
+dire par son lot (US-0440/L2). `startBackup` est sous `backups.write`, comme toute écriture de la
+fonction ; `downloadBackup` demande `backups.read` puis `backups.write` : l'archive porte les deux
+bases entières, comptes et réglages du fournisseur d'identité compris, et son 403 déclaré n'avait
+pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
+plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -22,7 +22,7 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, bearer, wait_for_a_lock
+from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -85,7 +85,7 @@ def client(
     contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
 ) -> ContractClient:
     """Give a client of the API whose administration client is watched."""
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 

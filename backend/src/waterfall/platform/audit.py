@@ -127,7 +127,7 @@ class AuditEntry(Base):
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
     # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
     # which share their collation — the name of the author, the label, the code of the project,
-    # the correlation —, and on the ranks of the action and of the nature (migration ``0010``).
+    # the correlation —, and on the ranks of the action and of the nature (migration ``0011``).
     # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
     # no index serves: a B-tree does not find a text inside another, and a trigram index serves
     # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the

@@ -40,6 +40,8 @@ from waterfall.platform.errors import UnauthenticatedError
 from waterfall.platform.keycloak import SESSION_EXPIRED, SESSION_REQUIRED, Bearer, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
+from waterfall.platform.queue import TaskQueue
+from waterfall.platform.storage import Bucket
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
 ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
@@ -50,11 +52,16 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Services:
-    """What the routes of a process reach: its database, Keycloak and its administration API."""
+    """What the routes of a process reach: its database, Keycloak and its administration API.
+
+    And the queue its tasks are deposited in, and the bucket of the backups.
+    """
 
     database: Database
     keycloak: Keycloak
     keycloak_admin: KeycloakAdmin
+    queue: TaskQueue
+    backups: Bucket
 
 
 def services_of(request: Request) -> Services:

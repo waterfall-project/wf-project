@@ -23,6 +23,7 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
+from waterfall.core.backups.tables import Backup
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -211,6 +212,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         AccessRolePermission.__tablename__,
         UserAccessRole.__tablename__,
         BackgroundTask.__tablename__,
+        Backup.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -284,6 +286,8 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # Submitted, followed, run and ended; never deleted by the service until a rule of retention
     # comes (§4.4.1).
     "background_task": {"SELECT", "INSERT", "UPDATE"},
+    # Recorded by the worker and read; neither marked nor deleted until EP-13 (WF-ADM-0170).
+    "backup": {"SELECT", "INSERT"},
 }
 
 

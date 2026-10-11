@@ -22,17 +22,23 @@ from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
     Settings,
     SettingsError,
-    load_service_settings,
+    WorkerSettings,
     load_settings,
+    load_worker_settings,
 )
 from waterfall.platform.tasks import TaskHandler, TaskKind, pending_task, submit
+from waterfall.worker.backup import BackupTask
 from waterfall.worker.runner import Worker
 
 NAME = "waterfall-worker"
 USAGE = f"usage: {NAME} [--version | enqueue <kind>]\n"
 
-# What the worker runs, by kind of task: the reading of the accounts comes with US-0370/L2.
-HANDLERS: dict[str, TaskHandler] = {}
+
+def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
+    """Give what the worker runs, by kind of task: the reading of the accounts is US-0370/L2's."""
+    return {"backup": BackupTask.of(settings)}
+
+
 # The kinds the platform schedules (PBS-5.3); the scheduled backup comes with EP-13.
 SCHEDULED: tuple[TaskKind, ...] = ("identity_sync",)
 # The key of the advisory lock under which a schedule looks for a pending task, then deposits.
@@ -48,7 +54,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(f"{NAME} {__version__}\n")
         return 0
     if not arguments:
-        return _started(load_service_settings, _work)
+        return _started(load_worker_settings, _work)
     match arguments:
         case ["enqueue", kind] if kind in SCHEDULED:
             return _started(load_settings, lambda settings: _enqueue(settings, kind))
@@ -88,12 +94,12 @@ def serve(worker: Worker) -> int:
     return 0
 
 
-def _work(settings: Settings) -> int:
+def _work(settings: WorkerSettings) -> int:
     logger.info("worker.starting", version=__version__)
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     try:
-        return serve(Worker(database, queue, HANDLERS))
+        return serve(Worker(database, queue, handlers(settings)))
     finally:
         queue.close()
         database.dispose()

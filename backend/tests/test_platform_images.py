@@ -43,3 +43,17 @@ def test_redis_runs_as_its_own_user_and_its_command_does_not_carry_the_secret() 
     command = " ".join(redis["command"])
     assert "$$REDISCLI_AUTH" in command
     assert "${WATERFALL_REDIS_PASSWORD" not in command
+
+
+def test_the_object_storage_of_the_chain_is_the_image_of_the_service_platform() -> None:
+    # Garage, by the same digest and the same settings, its memory bounded on the platform.
+    garage = re.compile(r"(dxflrs/garage:\S+@sha256:[0-9a-f]{64})")
+    compose = ROOT / "deploy" / "compose" / "compose.service.yaml"
+    chain = (ROOT / ".github" / "workflows" / "back.yml").read_text(encoding="utf-8")
+    platform = garage.findall(compose.read_text(encoding="utf-8"))
+    assert len(platform) == 1
+    assert garage.findall(chain) == platform
+    assert "deploy/compose/garage.toml:/etc/garage.toml:ro" in chain
+    storage = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["storage"]
+    assert "./garage.toml:/etc/garage.toml:ro" in storage["volumes"]
+    assert storage["mem_limit"] == "256m"
