@@ -271,23 +271,51 @@ def test_an_administrator_given_a_password_another_way_is_given_no_link_and_its_
 
 
 def test_two_installations_run_at_once_make_one(
-    admin: httpx2.Client, database: Database, database_url: str, address: str
+    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
 ) -> None:
     # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
     # for the first, finds the installation made, and replaces its link. Without it, both would
-    # find none and install, and the second would fail on the row of the first.
+    # find none and install, and the second would fail on the row of the first. The test holds
+    # the lock itself until both wait on it, so that they do run at once: without a lock in the
+    # code, none ever waits, and the test fails at the end of its delay.
     command = [
         sys.executable,
         "-c",
         "import sys; from waterfall.bootstrap import main; sys.exit(main(['install']))",
     ]
     environment = os.environ | variables_of(settings_of(database_url, address))
-    runs = [
-        subprocess.Popen(
-            command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        for _ in range(2)
-    ]
+    # A key of 64 bits is held as two halves of 32: the high one is 0 for this one.
+    waiting = text(
+        "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
+        "AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) "
+        "AND classid = 0 AND objid = :key AND objsubid = 1"
+    ).bindparams(key=bootstrap.INSTALL_LOCK)
+    with owner.connect() as holder:
+        holder.execute(select(func.pg_advisory_lock(bootstrap.INSTALL_LOCK)))
+        holder.commit()
+        runs = [
+            subprocess.Popen(
+                command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            for _ in range(2)
+        ]
+        try:
+            deadline = time.monotonic() + 60
+            with owner.connect() as watcher:
+                while watcher.execute(waiting).scalar_one() < 2:
+                    watcher.rollback()
+                    assert time.monotonic() < deadline, "the bootstraps never waited on the lock"
+                    assert all(run.poll() is None for run in runs), "a bootstrap ended unlocked"
+                    time.sleep(0.1)
+        except BaseException:
+            for run in runs:
+                run.kill()
+                run.communicate()
+            raise
+        finally:
+            holder.rollback()
+            holder.execute(select(func.pg_advisory_unlock(bootstrap.INSTALL_LOCK)))
+            holder.commit()
     written = [run.communicate(timeout=180) for run in runs]
     assert [run.returncode for run in runs] == [0, 0], [err for _, err in written]
     links = [out.removesuffix("\n") for out, _ in written]
