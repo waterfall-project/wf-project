@@ -7,19 +7,22 @@
  * whose every column the server sorts both ways (WF-IHM-0060), and which it searches — the roles on
  * their label, the accounts on their last name, first name, address and display name.
  *
- * - The accounts: each with its origin, its access roles and the node it is attached to — named
+ * - The accounts: each with its origin, the node it is attached to and its access roles — named
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
- *   the commands to modify each, to deactivate or reactivate it, and to attribute its roles, which
- *   EP-03 wires (`UserCommand`) — none deletes an account —, the last two as the account lists them
- *   (`available_commands`): the deactivation of the last administrator unavailable (WF-ADM-0120).
+ *   the table is its own entry (US-0360, #379): the names of a local account in their cells, its
+ *   state on a switch, its roles in a list of several choices (`user-cells.tsx`) — none deletes
+ *   an account —, the state and the roles as the account lists
+ *   their commands (`available_commands`): the deactivation of the last administrator unavailable
+ *   (WF-ADM-0120).
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
  *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
  *
  * The server filters each on its columns (WF-IHM-0130, EP-02/L42f): the accounts by their origin,
  * their node, their access roles — one at least of those chosen — and their state; the roles by
- * their kind and between bounds of their holders, deactivated accounts counted, and kept (US-0380).
+ * their kind and between bounds of their holders, deactivated accounts counted; the filters of both
+ * kept with the settings of their grid (US-0360, US-0380).
  *
  * Neither server nor client: the page reads the keys and the columns sorted; the grids, in the
  * browser, the rest — the functions that read a row never cross to the server.
@@ -27,6 +30,7 @@
 import { useTranslations } from "next-intl";
 
 import { updateAccessRole } from "@/api/actions/access-roles";
+import { updateUser } from "@/api/actions/users";
 import type { components, operations } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import {
@@ -38,11 +42,11 @@ import {
 } from "@/components/grid/columns";
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
-import { Badge } from "@/components/ui/badge";
 
-import { UserCommand, type UserCommandName } from "./later-commands";
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
+import { HeldRoles, RolesCell, StateSwitch } from "./user-cells";
+import { NAME_LENGTH, USER_FILTERS } from "./user-address";
 
 /** An account, as the contract gives it. */
 export type User = components["schemas"]["User"];
@@ -78,26 +82,26 @@ export type AccessRoleSort = NonNullable<
 export const USER_GRID_KEY = "users";
 export const ACCESS_ROLE_GRID_KEY = "access_roles";
 
+/** An access role an account may hold or be filtered by, by its identifier and its label. */
+export interface RoleChoice {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * The writing of a name entered, within the writes of its row (`UserWrites.queue`): sent once those
+ * under way are answered, from the version they left, its answer kept and said in the region of the
+ * table.
+ */
+export type Renaming = (
+  shown: User,
+  send: (user: User) => Promise<Outcome<User>>,
+) => Promise<Outcome<User>>;
+
 /** The origin of an account, in words. */
 function Origin({ user }: { readonly user: User }) {
   const t = useTranslations("enums.UserOrigin");
   return t(user.origin);
-}
-
-/** The access roles of an account, as the server names them, or that it holds none. */
-function HeldRoles({ user }: { readonly user: User }) {
-  const t = useTranslations("admin.users");
-  return user.access_role_labels.length === 0 ? (
-    <span className="text-muted-foreground">{t("noRole")}</span>
-  ) : (
-    <span className="flex gap-1">
-      {user.access_role_labels.map((label, at) => (
-        <Badge key={user.access_role_ids[at] ?? label} variant="secondary">
-          {label}
-        </Badge>
-      ))}
-    </span>
-  );
 }
 
 /** The node an account is attached to, as the server names it, or that it is attached to none. */
@@ -109,54 +113,68 @@ function Attachment({ user }: { readonly user: User }) {
 /** The width of a column of a command, its button. */
 const COMMAND_WIDTH = 120;
 
-/** A command of an account, which names it as the list does. */
-function UserCommandCell({
-  user,
-  command,
-}: {
-  readonly user: User;
-  readonly command: UserCommandName;
-}) {
-  const t = useTranslations("admin.users");
-  return (
-    <UserCommand
-      command={command}
-      name={t("named", { firstName: user.first_name, lastName: user.last_name })}
-      offers={user.available_commands}
-    />
-  );
+/**
+ * The entry of a name of a local account in its cell — the last name or the first name, never blank
+ * —, written after the writes of its row under way, from the version they leave of the account
+ * (`updateUser`, `Renaming`): the name of an account of the directory or of an identity provider is
+ * theirs, and is not entered (WF-ADM-0050).
+ */
+function naming(
+  field: "last_name" | "first_name",
+  rename: Renaming | undefined,
+): CellEntry<User, UserPage> {
+  let answered = 0;
+  return {
+    kind: { type: "text", maxLength: NAME_LENGTH },
+    in: (user) => user.origin === "local",
+    value: (user) => user[field],
+    write: async (shown, name): Promise<Outcome<RowsWritten<User, UserPage>>> => {
+      if (name === null) {
+        // A text entered is never emptied (`cell-values.ts`): a defect of the front.
+        throw new Error("an account is never left without a name");
+      }
+      const send = (user: User) =>
+        updateUser(user.user_id, { [field]: name, lock_version: user.lock_version });
+      const outcome = await (rename === undefined ? send(shown) : rename(shown, send));
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      answered += 1;
+      const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
+      return { kind: "done", data: { ...written, order: answered } };
+    },
+  };
 }
 
-/** The columns of the commands of an account, for a session that may modify the accounts. */
-function userCommandColumns(): GridColumn<User, UserSort, UserPage>[] {
-  return (
-    [
-      ["modify", "modify", COMMAND_WIDTH],
-      ["activation", "activation", COMMAND_WIDTH],
-      ["assignRoles", "assignRoles", 170],
-    ] as const
-  ).map(([command, label, width]) => ({
-    key: command,
-    label,
-    format: "text",
-    width,
-    value: () => null,
-    render: (user) => <UserCommandCell user={user} command={command} />,
-  }));
+/** What the grid of the accounts writes with, for a session that may modify them. */
+export interface UserEntry {
+  /** The roles of the installation an account may be given, read by the cell alone (défaut n° 14). */
+  readonly roles: () => readonly RoleChoice[];
+  /** The writing of a name entered within the writes of its row (`UserWrites.queue`). */
+  readonly rename: Renaming | undefined;
 }
 
 /**
  * The grid of the accounts — searched by the server on the last name, the first name, the address
- * and the display name, its search named after it, the accounts having no label — and, for a
- * session that may modify the accounts, their commands.
+ * and the first name followed by the last name, its search named after it, the accounts having no
+ * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
+ * state. For a session that may modify the accounts, it is its own entry (`entry`): the names of a
+ * local account in their cells, the state on a switch, the roles in a list of several choices — none
+ * deletes an account (WF-ADM-0060).
  */
-export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage> {
+export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {
     key: USER_GRID_KEY,
     name: "users",
     address: CONTRACT_ADDRESS,
     searched: true,
     rowKey: (user) => user.user_id,
+    filters: USER_FILTERS,
+    // An account answered prevails over the same account read while it is newer, by its counter.
+    fresher: (answered, read) =>
+      answered.lock_version === read.lock_version
+        ? undefined
+        : answered.lock_version > read.lock_version,
     columns: [
       {
         key: "last_name",
@@ -166,6 +184,7 @@ export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage
         pinned: true,
         contract: "last_name",
         value: (user) => user.last_name,
+        entry: entry === undefined ? undefined : naming("last_name", entry.rename),
       },
       {
         key: "first_name",
@@ -174,6 +193,7 @@ export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage
         width: 140,
         contract: "first_name",
         value: (user) => user.first_name,
+        entry: entry === undefined ? undefined : naming("first_name", entry.rename),
       },
       {
         key: "email",
@@ -193,15 +213,6 @@ export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage
         render: (user) => <Origin user={user} />,
       },
       {
-        key: "access_roles",
-        label: "accessRoles",
-        format: "text",
-        width: 220,
-        contract: "access_roles",
-        value: (user) => user.access_role_labels[0],
-        render: (user) => <HeldRoles user={user} />,
-      },
-      {
         key: "org_node",
         label: "attachment",
         format: "text",
@@ -211,15 +222,33 @@ export function userGrid(editable: boolean): GridConfig<User, UserSort, UserPage
         render: (user) => <Attachment user={user} />,
       },
       {
+        key: "access_roles",
+        label: "accessRoles",
+        format: "text",
+        width: 240,
+        contract: "access_roles",
+        value: (user) => user.access_role_labels[0],
+        render: (user) =>
+          entry === undefined ? (
+            <HeldRoles labels={user.access_role_labels} />
+          ) : (
+            <RolesCell user={user} roles={entry.roles()} />
+          ),
+      },
+      {
         key: "is_active",
         label: "state",
         format: "text",
-        width: 120,
+        width: 140,
         contract: "is_active",
         value: (user) => (user.is_active ? "active" : "inactive"),
-        render: (user) => <ActiveState active={user.is_active} />,
+        render: (user) =>
+          entry === undefined ? (
+            <ActiveState active={user.is_active} />
+          ) : (
+            <StateSwitch user={user} />
+          ),
       },
-      ...(editable ? userCommandColumns() : []),
     ],
   };
 }
@@ -329,5 +358,5 @@ export function accessRoleGrid(
 }
 
 /** The columns of the contract the server sorts the accounts and the roles by. */
-export const USER_SORTS = sortColumns(userGrid(false));
+export const USER_SORTS = sortColumns(userGrid());
 export const ACCESS_ROLE_SORTS = sortColumns(accessRoleGrid(false));

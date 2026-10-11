@@ -3691,6 +3691,20 @@ blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contr
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
 
+## Les préférences d'affichage ont une taille bornée (EP-03, #874)
+
+Décision de l'auteur du 2026-10-11. `DisplayPreferences` ne bornait ni le nombre de grilles, ni la
+taille de leurs filtres, ni la longueur des noms : chaque `updateMyPreferences` pouvait ajouter des
+grilles, et les préférences sont relues avec le compte à chaque requête de son titulaire et dans la
+liste des comptes. Bornes : cent grilles ; un nom de grille, de colonne ou de filtre de 64
+caractères ; par grille, 64 colonnes masquées et 64 largeurs ; 20 filtres, chacun un texte de 500
+caractères au plus. Les noms d'aujourd'hui en ont moins de vingt, et la recherche elle-même s'arrête
+à 200 caractères. Un filtre devient un texte, ce que le front écrit déjà : la valeur du paramètre de
+l'adresse qui le porte. Le service, dont les modèles sont engendrés du contrat, refuse une borne
+passée par 422 `VALUE_TOO_LONG` ; un nom trop long l'est au pointeur de l'objet qui le porte, comme
+un NUL dans un nom, une clé n'étant pas un champ. Écarté : une borne sur la taille du document
+entier, que le contrat ne sait pas dire et qu'un code d'erreur par champ ne pointerait pas.
+
 ## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
 
 Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma

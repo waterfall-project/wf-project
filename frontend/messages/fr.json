@@ -168,8 +168,6 @@
       "holders": "Comptes porteurs",
       "modify": "Modifier",
       "delete": "Supprimer",
-      "activation": "Activation",
-      "assignRoles": "Attribution des rôles",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -1215,7 +1213,6 @@
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
     "commands": {
-      "later": "{command} : disponible avec EP-03.",
       "unmet": "{command} : {condition}"
     },
     "users": {
@@ -1226,22 +1223,20 @@
       "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
-      "create": "Créer un compte local",
-      "modify": "Modifier",
-      "deactivate": "Désactiver",
-      "reactivate": "Réactiver",
-      "assignRoles": "Attribuer les rôles",
       "named": "{firstName} {lastName}",
-      "modifyUser": "Modifier « {name} »",
-      "deactivateUser": "Désactiver « {name} »",
-      "reactivateUser": "Réactiver « {name} »",
-      "assignRolesUser": "Attribuer les rôles de « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
       "stateFilter": "État du compte",
       "everyState": "Tous les états",
       "activeAccounts": "Comptes actifs",
-      "inactiveAccounts": "Comptes désactivés"
+      "inactiveAccounts": "Comptes désactivés",
+      "told": "Commandes des comptes",
+      "deactivated": "« {name} » désactivé.",
+      "reactivated": "« {name} » réactivé.",
+      "activeUser": "Compte de « {name} » actif",
+      "rolesOf": "Rôles de « {name} »",
+      "rolesAttributed": "Rôles de « {name} » attribués.",
+      "renamed": "« {name} » renommé."
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",

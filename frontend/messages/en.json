@@ -168,8 +168,6 @@
       "holders": "Holding accounts",
       "modify": "Modify",
       "delete": "Delete",
-      "activation": "Activation",
-      "assignRoles": "Role assignment",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -1215,7 +1213,6 @@
       "beyond": "This page is beyond the end of the list."
     },
     "commands": {
-      "later": "{command}: available with EP-03.",
       "unmet": "{command}: {condition}"
     },
     "users": {
@@ -1226,22 +1223,20 @@
       "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}",
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
-      "create": "Create a local account",
-      "modify": "Modify",
-      "deactivate": "Deactivate",
-      "reactivate": "Reactivate",
-      "assignRoles": "Assign the roles",
       "named": "{firstName} {lastName}",
-      "modifyUser": "Modify “{name}”",
-      "deactivateUser": "Deactivate “{name}”",
-      "reactivateUser": "Reactivate “{name}”",
-      "assignRolesUser": "Assign the roles of “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
       "stateFilter": "Account state",
       "everyState": "Every state",
       "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts"
+      "inactiveAccounts": "Deactivated accounts",
+      "told": "Commands of the accounts",
+      "deactivated": "“{name}” deactivated.",
+      "reactivated": "“{name}” reactivated.",
+      "activeUser": "Account of “{name}” active",
+      "rolesOf": "Roles of “{name}”",
+      "rolesAttributed": "Roles of “{name}” attributed.",
+      "renamed": "“{name}” renamed."
     },
     "accessRoles": {
       "title": "Access roles",

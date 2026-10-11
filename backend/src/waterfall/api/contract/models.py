@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, constr
 
 from waterfall.api.contract.base import ContractModel
 
@@ -415,19 +415,34 @@ class SortOrder(StrEnum):
     desc = "desc"
 
 
+class HiddenColumn(RootModel[str]):
+    root: Annotated[str, Field(max_length=64)]
+
+
 type ColumnWidthsAdditionalProperty = Annotated[int, Field(ge=20)]
 
 
 class Sort(ContractModel):
-    column: str
+    column: Annotated[str, Field(max_length=64)]
     order: SortOrder
 
 
+type FiltersAdditionalProperty = Annotated[str, Field(max_length=500)]
+
+
 class GridPreferences(ContractModel):
-    hidden_columns: list[str] | None = None
-    column_widths: dict[str, ColumnWidthsAdditionalProperty] | None = None
+    hidden_columns: Annotated[list[HiddenColumn] | None, Field(max_length=64)] = None
+    column_widths: Annotated[
+        dict[constr(max_length=64), ColumnWidthsAdditionalProperty] | None, Field(max_length=64)
+    ] = None
     sort: Sort | None = None
-    filters: dict[str, Any] | None = None
+    filters: Annotated[
+        dict[constr(max_length=64), FiltersAdditionalProperty] | None,
+        Field(
+            description="La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte.",
+            max_length=20,
+        ),
+    ] = None
 
 
 class Language1(StrEnum):
@@ -456,7 +471,9 @@ class DisplayPreferences(ContractModel):
         ),
     ] = None
     highlight_tasks_added_after_reference: bool | None = None
-    grids: dict[str, GridPreferences | None] | None = None
+    grids: Annotated[
+        dict[constr(max_length=64), GridPreferences | None] | None, Field(max_length=100)
+    ] = None
 
 
 class PermissionCode(StrEnum):

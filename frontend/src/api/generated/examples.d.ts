@@ -227,6 +227,9 @@ export interface Examples {
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
   };
+  "PATCH /users/{user_id}": {
+    200: "user_renamed" | "user_renamed_deactivated";
+  };
   "POST /access-roles": {
     201: "access_role_created";
   };
@@ -313,5 +316,11 @@ export interface Examples {
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_deactivated" | "resource_role_reactivated";
+  };
+  "PUT /users/{user_id}/access-roles": {
+    200: "user_access_roles_cleared" | "user_access_roles_set" | "user_access_roles_two";
+  };
+  "PUT /users/{user_id}/activation": {
+    200: "user_deactivated";
   };
 }

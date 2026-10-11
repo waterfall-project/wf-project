@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Ce que le front doit savoir de l'installation avant toute session
-         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion.
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion. Avant l'amorçage de l'installation (WF-EXP-0020), qui en crée la ligne, l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         get: operations["getInstallation"];
         put?: never;
@@ -234,7 +234,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio.
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio. Un type annoncé (`Content-Type`) autre que `image/png` ou `image/jpeg`, ou un corps vide, est refusé par 400 `MALFORMED_REQUEST` ; un contenu qui n'est ni un PNG ni un JPEG, par 422 `VALIDATION_FAILED` au pointeur `""`, le corps entier. Seule la signature du contenu fait le type gardé : un JPEG annoncé PNG est enregistré en `image/jpeg`. Avant l'amorçage de l'installation (WF-EXP-0020), l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -2835,11 +2835,12 @@ export interface components {
                 column: string;
                 order: components["schemas"]["SortOrder"];
             } | null;
+            /** @description La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte. */
             filters?: {
-                [key: string]: unknown;
+                [key: string]: string;
             };
         };
-        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. */
+        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. Les préférences sont relues avec le compte à chaque requête : leur taille est bornée (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64 caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en défaut ; un nom trop long, au pointeur de l'objet qui le porte. */
         DisplayPreferences: {
             /**
              * @description Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du compte : le front résout la langue à chaque requête, l'API n'en localise aucune réponse (WF-ARC-0110).
