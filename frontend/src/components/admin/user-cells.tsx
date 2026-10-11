@@ -202,6 +202,7 @@ export function RolesCell({
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        aria-labelledby={group}
         className="w-64"
         onCloseAutoFocus={(event) => {
           // The grid is one stop: the focus goes back to the cell, never to its command.
