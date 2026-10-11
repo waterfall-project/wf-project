@@ -250,14 +250,18 @@ describe("the accounts", () => {
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
-  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry", async () => {
+  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry, « Créer un compte local » at its head", async () => {
     const page = rendered(await UsersPage(searched()));
     expect(text(page)).not.toMatch(/Supprimer/);
+    expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Lien de fixation",
     );
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
     expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0»"');
+    expect(page).toContain(
+      'aria-label="Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»"',
+    );
   });
 
   it("lead an address that says nothing of the table to the search and the filters the account keeps for it, before anything is read [WF-IHM-0060-A]", async () => {
@@ -278,9 +282,9 @@ describe("the accounts", () => {
   it("offer no command of the accounts to a session that may not modify them", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
-    expect(buttons(page).filter((name) => /Supprimer|Créer/.test(name))).toEqual([]);
+    expect(buttons(page).filter((name) => /Supprimer|Créer|Lien/.test(name))).toEqual([]);
     expect(page).not.toContain('role="switch"');
-    expect(page).not.toMatch(/aria-label="Rôles de/);
+    expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });
 
   it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {

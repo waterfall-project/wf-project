@@ -194,7 +194,8 @@
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",
       "project": "Projet",
-      "correlation": "Corrélation"
+      "correlation": "Corrélation",
+      "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
     "entry": {
@@ -1223,6 +1224,7 @@
       "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
       "named": "{firstName} {lastName}",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
@@ -1231,11 +1233,22 @@
       "activeAccounts": "Comptes actifs",
       "inactiveAccounts": "Comptes désactivés",
       "told": "Commandes des comptes",
+      "created": "Compte « {name} » créé.",
+      "creationHint": "Le compte naît sans mot de passe : son porteur le fixe par le lien de fixation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
       "deactivated": "« {name} » désactivé.",
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
-      "rolesAttributed": "Rôles de « {name} » attribués."
+      "rolesAttributed": "Rôles de « {name} » attribués.",
+      "link": "Lien",
+      "linkOf": "Lien de fixation du mot de passe de « {name} »",
+      "linkTitle": "Lien de fixation du mot de passe de « {name} »",
+      "linkHint": "À remettre à son porteur par un autre canal : il y fixe son mot de passe, sur la page du fournisseur d’identité. Le lien ne sert qu’une fois et ne sera plus montré ; en demander un autre rend celui-ci caduc.",
+      "linkExpiry": "Valable jusqu’à <expiry></expiry>.",
+      "copyLink": "Copier le lien",
+      "closeLink": "Fermer",
+      "linkCopied": "Lien copié.",
+      "linkSelected": "Lien sélectionné : copiez-le au clavier."
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",

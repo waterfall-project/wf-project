@@ -11,7 +11,13 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { setUserAccessRoles, setUserActivation, updateUser } from "./users";
+import {
+  createPasswordSetupLink,
+  createUser,
+  setUserAccessRoles,
+  setUserActivation,
+  updateUser,
+} from "./users";
 
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
@@ -34,6 +40,34 @@ beforeEach(() => {
 });
 
 describe("the server actions of the accounts", () => {
+  it("create a local account from its names and its address, and read the page anew", async () => {
+    const client = serve({ "POST /users": { status: 201, example: "user_created" } });
+    const user = { last_name: "Garnier", first_name: "Léa", email: "lea.garnier@example.com" };
+    expect(await createUser(user)).toMatchObject({
+      kind: "done",
+      data: { last_name: "Garnier", origin: "local", lock_version: 1 },
+    });
+    expect(client.calls.map(({ route, body }) => [route, body])).toEqual([["POST /users", user]]);
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("tell the address another account holds, and read nothing anew [WF-ADM-0050-A]", async () => {
+    const taken: Problem & { status: 409 } = {
+      code: "ALREADY_EXISTS",
+      status: 409,
+      fields: [{ pointer: "/email", code: "ALREADY_EXISTS" }],
+    };
+    serve({ "POST /users": { problem: taken } });
+    expect(
+      await createUser({
+        last_name: "Petit",
+        first_name: "Lucas",
+        email: "lucas.petit@example.com",
+      }),
+    ).toMatchObject({ problem: taken });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("modify the names of an account from the version read", async () => {
     const client = serve({ "PATCH /users/{user_id}": "user_renamed" });
     const change = { last_name: "Petit-Laurent", lock_version: 1 };
@@ -90,5 +124,26 @@ describe("the server actions of the accounts", () => {
       { access_role_ids: [], lock_version: 3 },
     ]);
     expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("ask the link of a local account, given once, and read nothing anew", async () => {
+    const client = serve({
+      "POST /users/{user_id}/password-link": [
+        { status: 201, example: "password_setup_link" },
+        { problem: example("password_link_not_local") as Problem & { status: 409 } },
+      ],
+    });
+    expect(await createPasswordSetupLink(CAMILLE)).toMatchObject({
+      kind: "done",
+      data: { expires_at: "2026-06-03T15:05:00Z" },
+    });
+    expect(await createPasswordSetupLink(LUCAS)).toMatchObject({
+      problem: { params: { missing_condition: "is_local_account" } },
+    });
+    expect(client.calls.map(({ path }) => path)).toEqual([
+      `/users/${CAMILLE}/password-link`,
+      `/users/${LUCAS}/password-link`,
+    ]);
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

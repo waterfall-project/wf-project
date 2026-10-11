@@ -11,8 +11,8 @@
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
  *   the table is its own entry (US-0360, #379): the names of a local account in their cells, its
- *   state on a switch, its roles in a list of several choices (`user-cells.tsx`) — none deletes
- *   an account —, the state and the roles as the account lists
+ *   state on a switch, its roles in a list of several choices, the link of a local account
+ *   (`user-cells.tsx`) — none deletes an account —, the state and the roles as the account lists
  *   their commands (`available_commands`): the deactivation of the last administrator unavailable
  *   (WF-ADM-0120).
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
@@ -45,7 +45,7 @@ import { ActiveState } from "@/components/reference/section";
 
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
-import { HeldRoles, RolesCell, StateSwitch } from "./user-cells";
+import { HeldRoles, RolesCell, SetupLinkCommand, StateSwitch } from "./user-cells";
 import { NAME_LENGTH, USER_FILTERS } from "./user-address";
 
 /** An account, as the contract gives it. */
@@ -162,8 +162,8 @@ export interface UserEntry {
  * and the first name followed by the last name, its search named after it, the accounts having no
  * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
  * state. For a session that may modify the accounts, it is its own entry (`entry`): the names of a
- * local account in their cells, the state on a switch, the roles in a list of several choices — none
- * deletes an account (WF-ADM-0060).
+ * local account in their cells, the state on a switch, the roles in a list of several choices, and
+ * the link of a local account — none deletes an account (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {
@@ -252,6 +252,18 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
             <StateSwitch user={user} />
           ),
       },
+      ...(entry === undefined
+        ? []
+        : [
+            {
+              key: "password_link",
+              label: "passwordLink",
+              format: "text",
+              width: COMMAND_WIDTH,
+              value: () => null,
+              render: (user) => <SetupLinkCommand user={user} />,
+            } satisfies GridColumn<User, UserSort, UserPage>,
+          ]),
     ],
   };
 }
