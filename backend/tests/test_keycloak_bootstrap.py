@@ -294,9 +294,10 @@ def test_two_installations_run_at_once_make_one(
     assert all(link and "\n" not in link for link in links), links
     assert counts(admin, database, address) == (1, 3, 1, 1)
     # The link of the first is replaced by that of the second, whichever came first.
-    pages = [html.unescape(Browser().get(link).text) for link in links]
-    assert sorted(REPLACED in page for page in pages) == [False, True]
-    assert sorted('name="password-new"' in page for page in pages) == [False, True]
+    # The other opens, at the page that asks to confirm it.
+    opened = [Browser().get(link) for link in links]
+    assert sorted(REPLACED in html.unescape(page.text) for page in opened) == [False, True]
+    assert sorted(page.status_code for page in opened) == [200, 400]
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
