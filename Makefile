@@ -352,8 +352,8 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
 # are the harness's, whatever the environment exports; the variables of the front go through the
 # environment, never the command line, which would show the password of Redis to anyone. The paths
-# are named the containers of the proxy, whose log they read, and of PostgreSQL, where they give a
-# role until the bootstrap does (US-0420).
+# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give an
+# account a role until the bootstrap can (US-0420).
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
 e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
