@@ -442,3 +442,45 @@ def test_the_sorts_on_the_action_and_on_the_nature_are_served_by_their_index(
         session.execute(text("SET LOCAL enable_seqscan = off"))
         plan = session.execute(text(f"EXPLAIN {compiled}")).scalars().all()
     assert any(index in line for line in plan), plan
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_the_inscription_of_one_action_is_the_same_codes_and_data_for_every_reader(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur » : the
+    # inscription is kept as a code and data, and the API gives it alike to a reader in French
+    # and to one in English, whatever their browsers ask; the front words it in each one's
+    # language.
+    administrator = f"subject-{uuid4()}"
+    manager = role(database, "Gestion", permissions=("access_roles.read", "access_roles.write"))
+    account(database, "Martin", "Claire", roles=(manager,), idp_subject=administrator)
+    created = api.post(
+        "/api/v1/access-roles",
+        headers=bearer(realm.token(administrator, KEY)),
+        json={"label": "Auditeur", "permissions": [CONSULTATION]},
+    )
+    assert created.status_code == 201, created.text
+    auditor = created.json()["access_role_id"]
+    pages: list[Any] = []
+    for language, asked in (("fr", "en-GB,en;q=0.9"), ("en", "fr-FR,fr;q=0.9")):
+        subject = f"subject-{uuid4()}"
+        account(
+            database,
+            language,
+            "Lecteur",
+            roles=(UUID(auditor),),
+            idp_subject=subject,
+            display_preferences={"language": language},
+        )
+        headers = {**bearer(realm.token(subject, KEY)), "Accept-Language": asked}
+        pages.append(read(api, headers, actions="access_role_create")["items"])
+    french, english = pages
+    assert french == english
+    [event] = french
+    assert (event["action"], event["object"]["kind"], event["object"]["label"]) == (
+        "access_role_create",
+        "access_role",
+        "Auditeur",
+    )
+    assert event["params"] == {"permissions": [CONSULTATION]}

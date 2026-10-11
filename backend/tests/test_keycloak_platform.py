@@ -291,11 +291,10 @@ def invite(backchannel: httpx2.Client, user_id: str, token: str | None) -> httpx
     return backchannel.post(f"/password-setup-link/users/{user_id}/invitation", headers=headers)
 
 
-def mailed_link(address: str, *, whole: bool = False) -> str:
-    """Wait for the mail Keycloak sent to an address, ten seconds at most; give its link.
+def mailed(address: str) -> dict[str, Any]:
+    """Wait for the latest mail Keycloak sent to an address, ten seconds at most; give it.
 
-    The link is cut after its token unless ``whole`` is asked for, with the parameters of the
-    browser it was asked from.
+    As Mailpit reads it: its ``Subject`` and its ``Text`` among the rest.
     """
     port = os.environ.get(MAILPIT_PORT_VARIABLE) or "8025"
     deadline = time.monotonic() + 10
@@ -303,15 +302,23 @@ def mailed_link(address: str, *, whole: bool = False) -> str:
         while time.monotonic() < deadline:
             found = mailpit.get("/api/v1/search", params={"query": f'to:"{address}"'}).json()
             if found["messages"]:
-                message = mailpit.get(f"/api/v1/message/{found['messages'][0]['ID']}").json()
-                ending = r"\S+" if whole else r"[\w.-]+"
-                link = re.search(
-                    rf"https://\S+/login-actions/action-token\?key={ending}", message["Text"]
-                )
-                assert link is not None, message["Text"]
-                return link.group(0)
+                message = mailpit.get(f"/api/v1/message/{found['messages'][0]['ID']}")
+                return cast("dict[str, Any]", message.json())
             time.sleep(0.2)
     pytest.fail(f"no mail reached {address} within ten seconds")
+
+
+def mailed_link(address: str, *, whole: bool = False) -> str:
+    """Wait for the mail Keycloak sent to an address, ten seconds at most; give its link.
+
+    The link is cut after its token unless ``whole`` is asked for, with the parameters of the
+    browser it was asked from.
+    """
+    text = mailed(address)["Text"]
+    ending = r"\S+" if whole else r"[\w.-]+"
+    link = re.search(rf"https://\S+/login-actions/action-token\?key={ending}", text)
+    assert link is not None, text
+    return link.group(0)
 
 
 def action_token(url: str) -> dict[str, Any]:
