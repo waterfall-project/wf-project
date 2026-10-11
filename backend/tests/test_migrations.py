@@ -28,6 +28,7 @@ from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, create_database_engine, engine_url
 from waterfall.platform.installation import Installation
+from waterfall.platform.tasks import BackgroundTask
 
 # The last revision of the chain, which a migrated database says it has applied.
 HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
@@ -209,6 +210,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         AccessRole.__tablename__,
         AccessRolePermission.__tablename__,
         UserAccessRole.__tablename__,
+        BackgroundTask.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
