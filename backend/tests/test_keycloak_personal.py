@@ -100,7 +100,6 @@ def locale_of(admin: httpx2.Client, subject: str) -> list[str] | None:
     return attributes.get("locale")
 
 
-@pytest.mark.requirement("WF-INTF-0160-A")
 def test_the_language_chosen_is_the_account_s_in_the_identity_provider(
     api: ContractClient,
     database: Database,
@@ -130,6 +129,26 @@ def test_the_language_chosen_is_the_account_s_in_the_identity_provider(
         api.patch(PREFERENCES, headers=headers, json={"grids": {"users": None}}).status_code == 200
     )
     assert watching.held == [("set_locale", 0)] * 3
+
+
+def test_the_language_shown_chosen_again_repairs_a_language_the_provider_holds_otherwise(
+    api: ContractClient, database: Database, admin: httpx2.Client, local_account: Account
+) -> None:
+    # The provider's language may part from Waterfall's — another tab, or the language picker of
+    # the realm's sign-in page, which writes ``locale`` too: choosing again the language Waterfall
+    # shows gives it back to the provider.
+    known(database, local_account)
+    headers = bearer(tokens_of(local_account.email, PASSWORD))
+    assert api.patch(PREFERENCES, headers=headers, json={"language": "en"}).status_code == 200
+    account = held(admin, local_account.id)
+    account["attributes"] = {**(account.get("attributes") or {}), "locale": ["fr"]}
+    written = admin.put(f"/users/{local_account.id}", json=account)
+    assert written.status_code == 204, written.text
+    assert locale_of(admin, local_account.id) == ["fr"]
+    response = api.patch(PREFERENCES, headers=headers, json={"language": "en"})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"language": "en"}
+    assert locale_of(admin, local_account.id) == ["en"]
 
 
 def test_the_language_chosen_by_a_person_relayed_by_an_external_provider_is_hers_in_the_realm(
