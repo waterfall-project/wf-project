@@ -129,6 +129,16 @@ Reportés d'EP-03 le 2026-10-11 :
   autres. EP-14 fait passer ces trois appels par la retenue, avec un test « refus pendant la
   navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Reporté d'EP-03 le
   2026-10-11.
+- #901 [EP-03] la liste garde les refus des lectures passées — relevé par la revue
+  d'US-0350/L5b, tour 5 : depuis que les refus sont datés par une génération de lecture,
+  `reported` (`reactivation.tsx`) garde ceux des générations passées, qui ne s'affichent plus
+  jamais mais restent en mémoire tant que la liste vit. EP-14 n'y garde que les refus de la
+  génération courante, avec un test qui le constate. Reporté d'EP-03 le 2026-10-11.
+- #902 [EP-03] un test importe `RouterContext` d'un module privé de Next — relevé par la revue
+  d'US-0350/L5b, tour 5 : `outcome-notice.dom.test.tsx` l'importe de `next/dist/shared/lib/…`,
+  qu'une montée de version de Next peut casser sans avertissement. EP-14 fournit le routeur au
+  test par une voie publique, une simulation de `next/navigation` comme les tests voisins.
+  Reporté d'EP-03 le 2026-10-11.
 
 ## Conception
 
