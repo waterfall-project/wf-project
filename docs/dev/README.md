@@ -1879,7 +1879,13 @@ l'arrête. Avant Playwright, il amorce la plateforme (`waterfall-api install`, s
 US-0420) : le premier administrateur, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), porte le
 rôle « Administrateur », et le lien qui fixe son mot de passe, valable jusqu'à son emploi, est
 dans `E2E_INSTALLATION_LINK` — vide dès qu'un parcours l'a employé, l'administrateur se
-connectant ensuite avec le mot de passe que les parcours lui ont donné. La personne de l'annuaire
+connectant ensuite avec le mot de passe que les parcours lui ont donné. Une précondition :
+`E2E_ADMIN_EMAIL` doit être l'adresse avec laquelle la plateforme a été amorcée la première fois.
+Une relance n'installe rien de nouveau et ignore une autre adresse (`installation.admin_email_ignored`
+dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
+`WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
+donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
+(`make service-down WATERFALL_RESET_DATA=yes`). La personne de l'annuaire
 de test, `dominique.annuaire@waterfall.test` (`deploy/keycloak/development/`), reste admise sans
 rôle à sa première requête (WF-ADM-0180).
 

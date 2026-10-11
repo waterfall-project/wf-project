@@ -386,7 +386,9 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # environment, never the command line, which would show the password of Redis to anyone. The
 # platform is bootstrapped (US-0420, #730): the paths read the address of its first administrator
 # in E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password — empty once
-# a path has set it, the administrator then signing in with the password the paths gave it.
+# a path has set it, the administrator then signing in with the password the paths gave it. The
+# address must be the one the platform was first bootstrapped with: a bootstrap run again ignores
+# another one (the guide, « Un parcours de bout en bout »).
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
