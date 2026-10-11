@@ -331,6 +331,18 @@ def test_a_refresh_token_already_used_is_refused(local_account: Account) -> None
     assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
 
 
+def test_a_refreshed_token_keeps_the_moment_of_the_sign_in(local_account: Account) -> None:
+    # The API dates a token by its sign-in, ``auth_time``, which the scope ``basic`` of the front
+    # gives it and a refresh does not move: a session a closing missed stays refused (#835).
+    tokens = tokens_of(local_account.email, PASSWORD)
+    time.sleep(1.1)
+    renewed = refreshed(tokens["refresh_token"])
+    assert renewed.status_code == 200, renewed.text
+    first, then = claims(tokens["access_token"]), claims(renewed.json()["access_token"])
+    assert then["iat"] > first["iat"]
+    assert then["auth_time"] == first["auth_time"] <= first["iat"]
+
+
 def test_an_access_token_of_the_realm_names_the_account_waterfall_holds(
     api: ContractClient, database: Database, local_account: Account
 ) -> None:
@@ -448,7 +460,7 @@ def test_closing_my_sessions_closes_them_on_every_device(
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
         acting = api.get(ME, headers=bearer(device))
         assert (acting.status_code, acting.json()["code"]) == (401, "SESSION_EXPIRED")
-    # Signed in again, from the next second on: the moment of issue is written to the second.
+    # Signed in again, from the next second on: the sign-in is dated to the second.
     time.sleep(1.1)
     assert api.get(ME, headers=bearer(tokens_of(local_account.email, PASSWORD))).status_code == 200
 

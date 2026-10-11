@@ -70,6 +70,7 @@ from waterfall.core.users.interface import (
     identity_faults,
     inscribe_password_link,
     list_accounts,
+    note_sessions_closed,
     password_link_holder,
     password_link_not_local,
     read_account,
@@ -400,7 +401,9 @@ def put_user_activation(
 
     The deactivation of the last administrator is refused, as its command says in advance
     (WF-ADM-0120). A deactivation closes the sessions of the account, even of one deactivated
-    already: asking again closes those a failure of the provider left open.
+    already: asking again closes those a failure of the provider left open. It notes the moment
+    first, with the deactivation: from then on the API refuses every token of a sign-in before
+    it, refreshed or not, and a failure of the provider does not outlive a reactivation (#835).
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
@@ -412,6 +415,8 @@ def put_user_activation(
                 lock_version=body.lock_version.root,
                 act=act,
             )
+        if not body.is_active:
+            note_sessions_closed(session, user_id, utc_now())
         described = users(session, actor, [changed])[0]
     if not body.is_active:
         close_sessions(services.keycloak_admin, changed)

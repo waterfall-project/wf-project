@@ -54,8 +54,18 @@ PASSWORD = secrets.token_urlsafe(24)
 # default: two refusals told apart (#655).
 REPLACED = "Ce lien a été remplacé par un plus récent"
 SPENT = "Ce lien a déjà servi"
+# The page of a link expired, or of a link of Keycloak's own already used, in the words of its base
+# theme: expiredActionTokenNoSessionMessage, expiredActionMessage.
+EXPIRED = "Action expirée"
 # The refusal of a password to an account of a directory or of a provider, in its theme (#650).
 LOCAL_ACCOUNT_ONLY = "ce compte se connecte par son annuaire ou par son fournisseur"
+# The same refusal, as the administration API says it, in the words of the admin theme.
+LOCAL_ACCOUNT_ONLY_REFUSAL = {
+    "error": "invalidPasswordLocalAccountOnlyMessage",
+    "error_description": (
+        "Invalid password: the account signs in with its directory or its identity provider."
+    ),
+}
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
 # The type of the action token of a link the extension makes (PasswordSetupToken).
 EXTENSION_ACTION = "waterfall-password-setup"
@@ -616,26 +626,47 @@ def test_an_account_of_a_provider_is_refused_a_password_by_the_console(
         json={"type": "password", "value": PASSWORD, "temporary": False},
     )
     assert response.status_code == 400, response.text
-    assert response.json() == {
-        "error": "invalidPasswordLocalAccountOnlyMessage",
-        "error_description": (
-            "Invalid password: the account signs in with its directory or its identity provider."
-        ),
-    }
+    assert response.json() == LOCAL_ACCOUNT_ONLY_REFUSAL
     assert password_grant(keycloak, local_account, PASSWORD).status_code == 401
+
+
+@contextmanager
+def directory_keeping_passwords() -> Generator[None]:
+    """Let the realm keep the passwords of the directory's accounts for a while, then read it only.
+
+    The directory of the platform is read only, which Keycloak says before any rule of the policy;
+    unsynchronized, it leaves a password to the realm, and to its policy.
+    """
+    with administering() as realm:
+        (directory,) = realm.get(
+            "/components", params={"type": "org.keycloak.storage.UserStorageProvider"}
+        ).json()
+
+        def edit_mode(mode: str) -> None:
+            config = {**directory["config"], "editMode": [mode]}
+            done = realm.put(f"/components/{directory['id']}", json={**directory, "config": config})
+            assert done.status_code == 204, done.text
+
+        edit_mode("UNSYNCED")
+        try:
+            yield
+        finally:
+            edit_mode(directory["config"]["editMode"][0])
 
 
 def test_an_account_of_the_directory_is_refused_a_password_by_the_console(
     admin: httpx2.Client,
 ) -> None:
-    # The directory of the platform is read only, which Keycloak says before the rule of the
-    # extension: the rule refuses a password to the account of a writable one as well (JUnit).
+    # The rule local-account-only of the extension (#650), not the read-only directory, refuses it.
     found = admin.get("/users", params={"email": DIRECTORY_EMAIL, "exact": "true"}).json()
-    response = admin.put(
-        f"/users/{found[0]['id']}/reset-password",
-        json={"type": "password", "value": PASSWORD, "temporary": False},
-    )
+    assert [user["email"] for user in found] == [DIRECTORY_EMAIL]
+    with directory_keeping_passwords():
+        response = admin.put(
+            f"/users/{found[0]['id']}/reset-password",
+            json={"type": "password", "value": PASSWORD, "temporary": False},
+        )
     assert response.status_code == 400, response.text
+    assert response.json() == LOCAL_ACCOUNT_ONLY_REFUSAL
 
 
 def front_login_page(browser: Browser) -> httpx2.Response:
@@ -656,6 +687,16 @@ def front_login_page(browser: Browser) -> httpx2.Response:
     return page
 
 
+def ask_forgotten(browser: Browser, account: Account) -> None:
+    """Ask the page of a forgotten password, from the login page of the front, to mail a link."""
+    login = front_login_page(browser)
+    forgotten = re.search(r'href="([^"]*login-actions/reset-credentials[^"]*)"', login.text)
+    assert forgotten is not None, login.text
+    asked = browser.get(urljoin(str(login.request.url), html.unescape(forgotten.group(1))))
+    sent = browser.submit(asked, {"username": account.email})
+    assert sent.status_code == 200, sent.text
+
+
 def test_an_account_of_a_provider_is_refused_a_password_by_a_forgotten_one(
     keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
 ) -> None:
@@ -664,12 +705,7 @@ def test_an_account_of_a_provider_is_refused_a_password_by_a_forgotten_one(
     # theme (#650).
     relay(admin, local_account)
     browser = Browser()
-    login = front_login_page(browser)
-    forgotten = re.search(r'href="([^"]*login-actions/reset-credentials[^"]*)"', login.text)
-    assert forgotten is not None, login.text
-    asked = browser.get(urljoin(str(login.request.url), html.unescape(forgotten.group(1))))
-    sent = browser.submit(asked, {"username": local_account.email})
-    assert sent.status_code == 200, sent.text
+    ask_forgotten(browser, local_account)
     form = browser.get(mailed_link(local_account.email, whole=True))
     assert 'name="password-new"' in form.text, form.text
     refused = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})

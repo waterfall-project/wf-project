@@ -159,7 +159,7 @@ class Account:
     updated_at: datetime
     updated_by: Author | None
     lock_version: int
-    # When its holder last closed its sessions, ``None`` until she first does (#668).
+    # When its sessions were last closed, ``None`` until they first are (#668, #835).
     sessions_closed_at: datetime | None
 
 

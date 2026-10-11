@@ -214,10 +214,11 @@ def change_columns(
 
 
 def note_sessions_closed(session: Session, user_id: UUID, at: datetime) -> None:
-    """Note that the holder of an account closed its sessions at ``at``, unless later already.
+    """Note that the sessions of an account were closed at ``at``, unless later already.
 
-    Not a change of the account: neither its version nor its audit columns move, and a form
-    opened on it stays valid. Two sign-outs at once keep the later moment, whichever writes last.
+    By its holder's sign-out, or by its deactivation (#835). Not a change of the account: neither
+    its version nor its audit columns move, and a form opened on it stays valid. Two closings at
+    once keep the later moment, whichever writes last.
     """
     # GREATEST passes over a null: the first sign-out writes its moment.
     moment = literal(at, UserAccount.sessions_closed_at.type)

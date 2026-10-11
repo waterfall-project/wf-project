@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, TypeIs, cast
 from urllib.parse import quote
 
 import httpx2
@@ -79,12 +79,21 @@ def expect(response: httpx2.Response, status: int) -> httpx2.Response:
     return response
 
 
+def is_moment(claim: object) -> TypeIs[int | float]:
+    """Tell whether a claim of a token is a moment, in seconds since the epoch."""
+    return isinstance(claim, int | float) and not isinstance(claim, bool)
+
+
 @dataclass(frozen=True, slots=True)
 class Bearer:
-    """What the API takes from a valid access token: whom it is lent to, and when it was issued."""
+    """What the API takes from a valid access token: whom it is lent to, and since when.
+
+    ``signed_in_at`` is the moment of the sign-in the token comes from, ``auth_time``, which a
+    refresh does not move; a token without it gives its moment of issue, ``iat`` (#835).
+    """
 
     subject: str
-    issued_at: datetime
+    signed_in_at: datetime
 
 
 class Keycloak:
@@ -122,12 +131,12 @@ class Keycloak:
         self._http.close()
 
     def validate(self, token: str) -> Bearer:
-        """Validate an access token, give its subject and its moment of issue, or refuse it (401).
+        """Validate an access token, give its subject and the moment of its sign-in, or refuse it.
 
-        An expired token is ``SESSION_EXPIRED``; any other fault — a key the realm does not
-        have, a signature that does not match, another issuer, another audience, no subject or no
-        moment of issue — is ``SESSION_REQUIRED``. The signature is checked first: an expired
-        token signed by another key is not merely expired.
+        An expired token is ``SESSION_EXPIRED`` (401); any other fault — a key the realm does not
+        have, a signature that does not match, another issuer, another audience, no subject, no
+        moment of issue, or a moment of sign-in that is none — is ``SESSION_REQUIRED`` (401). The
+        signature is checked first: an expired token signed by another key is not merely expired.
         """
         try:
             key_id = jwt.get_unverified_header(token).get("kid")
@@ -153,14 +162,15 @@ class Keycloak:
             raise UnauthenticatedError(SESSION_REQUIRED) from None
         subject = claims["sub"]
         issued_at = claims["iat"]
+        signed_in_at = claims.get("auth_time", issued_at)
         if (
             not isinstance(subject, str)
             or not subject
-            or isinstance(issued_at, bool)
-            or not isinstance(issued_at, int | float)
+            or not is_moment(issued_at)
+            or not is_moment(signed_in_at)
         ):
             raise UnauthenticatedError(SESSION_REQUIRED)
-        return Bearer(subject, datetime.fromtimestamp(issued_at, UTC))
+        return Bearer(subject, datetime.fromtimestamp(signed_in_at, UTC))
 
     def send(
         self, method: str, path: str, *, answered: Collection[int] = (), **options: Any

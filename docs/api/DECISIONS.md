@@ -3682,6 +3682,15 @@ engendre le modèle, que le générateur ne tire pas d'un corps décrit en place
 il manquait au contrat assemblé, donc au client du front, aux modèles du service et au faux back.
 La racine le référence, sans rien changer à sa description, au moment où le service le sert.
 
+## Aucun libellé fait seulement de blancs (EP-03, #837)
+
+Décision de l'auteur du 2026-10-11. Le libellé d'un rôle n'exigeait qu'un caractère : « ␣␣␣ » était
+accepté, et le rôle n'avait plus de nom visible dans la matrice. Les quarante-quatre libellés, noms
+et codes du contrat qui exigeaient un caractère exigent désormais un caractère qui n'est pas un
+blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contrat, le refuse par 422
+`VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
+serait resté sur les noms d'un compte et les libellés du référentiel.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

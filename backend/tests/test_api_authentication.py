@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services, admit, issued_before_sign_out
+from waterfall.api.authentication import Services, admit, signed_in_before_sessions_closed
 from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database
@@ -202,50 +202,69 @@ def test_a_token_issued_by_a_clock_a_little_ahead_is_taken(
     assert api.get(ME, headers=bearer(ahead)).status_code == 200
 
 
-def test_a_token_without_a_moment_of_issue_is_refused(
+def test_a_token_without_a_moment_of_issue_or_of_sign_in_is_refused(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    # Without it, a token issued before its holder signed out could not be told (#668).
+    # Without them, a token of a sign-in before its holder signed out could not be told (#668).
     account(database)
-    for issued in (None, "yesterday", True):
-        token = realm.token(SUBJECT, KEY, claims={"iat": issued})
-        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REQUIRED")
+    for claim in ("iat", "auth_time"):
+        for moment in (None, "yesterday", True):
+            token = realm.token(SUBJECT, KEY, claims={claim: moment})
+            assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REQUIRED")
 
 
-def test_a_sign_out_refuses_every_token_issued_before_it_whichever_client_holds_it(
+@pytest.mark.requirement("WF-SEC-0020-A")
+def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    # The moment is noted before Keycloak is asked: the realm of test, which serves no
-    # administration API, fails then, and the tokens issued before are refused all the same —
-    # one lent to an application next to Waterfall's too, without waiting for its expiry (#668).
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » The moment is noted
+    # before Keycloak is asked: the realm of test, which serves no administration API, fails then,
+    # as a Keycloak that leaves the sessions open, and the tokens of a sign-in before it are
+    # refused all the same — one lent to an application next to Waterfall's, without waiting for
+    # its expiry (#668), and one refreshed since, issued after the sign-out (#835).
     account(database)
-    now = int(time.time())
-    mine = realm.token(SUBJECT, KEY, claims={"iat": now - 1})
-    neighbour = realm.token(SUBJECT, KEY, claims={"iat": now - 1, "azp": "neighbour"})
+    signed_in = int(time.time()) - 60
+    mine = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in})
+    neighbour = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in, "azp": "neighbour"})
     assert api.get(ME, headers=bearer(neighbour)).status_code == 200
     closing = api.delete(SESSIONS, headers=bearer(mine))
     assert refusal(closing) == (503, "COMPONENT_UNAVAILABLE")
-    for token in (mine, neighbour):
+    after = int(time.time()) + 1
+    refreshed = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in, "iat": after})
+    for token in (mine, neighbour, refreshed):
         assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_EXPIRED")
     # Signed in again, the next second.
-    again = realm.token(SUBJECT, KEY, claims={"iat": now + 1})
+    again = realm.token(SUBJECT, KEY, claims={"auth_time": after, "iat": after})
     assert api.get(ME, headers=bearer(again)).status_code == 200
 
 
+def test_a_token_without_a_moment_of_sign_in_is_told_by_its_moment_of_issue(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # A token without ``auth_time`` — a client of the realm whose scopes do not give it — is
+    # dated by its issue: issued before the sign-out, it is refused; after, it is taken (#835).
+    account(database)
+    before = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) - 1})
+    assert refusal(api.delete(SESSIONS, headers=bearer(before))) == (503, "COMPONENT_UNAVAILABLE")
+    after = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) + 1})
+    assert refusal(api.get(ME, headers=bearer(before))) == (401, "SESSION_EXPIRED")
+    assert api.get(ME, headers=bearer(after)).status_code == 200
+
+
 @pytest.mark.parametrize(
-    ("issued", "refused"),
+    ("signed_in", "refused"),
     [(-1.0, True), (0.0, True), (0.999, True), (1.0, False)],
     ids=["the second before", "its very second", "the same second", "the second after"],
 )
-def test_a_token_of_the_second_of_the_sign_out_may_precede_it_and_is_refused(
-    issued: float, refused: bool
+def test_a_sign_in_of_the_second_of_the_closing_may_precede_it_and_is_refused(
+    signed_in: float, refused: bool
 ) -> None:
-    # The moment of issue is written to the second: 12:00:00 covers 12:00:00.000 to .999.
+    # The moment of the sign-in is written to the second: 12:00:00 covers 12:00:00.000 to .999.
     closed = datetime(2026, 10, 11, 12, 0, 0, 500_000, tzinfo=UTC)
     second = datetime(2026, 10, 11, 12, 0, 0, tzinfo=UTC).timestamp()
-    bearer_of = Bearer(SUBJECT, datetime.fromtimestamp(int(second + issued), UTC))
-    assert issued_before_sign_out(bearer_of, closed) is refused
-    assert issued_before_sign_out(bearer_of, None) is False
+    bearer_of = Bearer(SUBJECT, datetime.fromtimestamp(int(second + signed_in), UTC))
+    assert signed_in_before_sessions_closed(bearer_of, closed) is refused
+    assert signed_in_before_sessions_closed(bearer_of, None) is False
 
 
 @pytest.mark.parametrize(
