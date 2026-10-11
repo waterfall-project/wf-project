@@ -22,6 +22,7 @@ from wftools import (
     mockdata,
     mockhistory,
     mockindicators,
+    mockportfolio,
     mockstructure,
     mocktext,
     mocktoday,
@@ -101,7 +102,52 @@ def test_the_shares_of_a_partition_sum_to_one_on_the_largest_part(
     parts = [Decimal(amount) for amount in amounts]
     found = mockstructure.partition(parts, sum(parts, Decimal(0)))
     assert found == [Decimal(each) for each in given]
-    assert sum(found) == 1
+    assert sum(cast("list[Decimal]", found)) == 1
+
+
+@pytest.mark.parametrize(
+    ("amounts", "total"),
+    [((), "0"), ((), "5"), (("0", "0", "0"), "0"), (("5", "-5"), "0")],
+)
+def test_a_partition_without_an_amount_or_of_a_nil_total_gives_no_share(
+    amounts: tuple[str, ...], total: str
+) -> None:
+    # EP-14/L55 (#718), where the tool raised: without an amount, no share; of a nil total, no share
+    # of any amount, nil or not. Provisional, no example having a nil total: what the contract gives
+    # for it, which WF-IND-0010 wants not computable, is for L42t to say (#774).
+    parts = [Decimal(amount) for amount in amounts]
+    assert list(mockstructure.partition(parts, Decimal(total))) == [None] * len(parts)
+
+
+def test_the_cost_structure_of_a_portfolio_without_a_project_in_progress_gives_no_share() -> None:
+    # The same, provisional, through a reading: each nature, and the labour of the node of
+    # organisation, keep their nil amount and come without a share (EP-14/L55, #718; L42t, #774).
+    structure = mockportfolio.portfolio_cost_structure([])
+    for key in ("budget_by_cost_type", "remaining_by_cost_type", "labor_by_org_node"):
+        parts = cast("list[Node]", structure[key])
+        assert parts, key
+        given = [(part["amount"], "share" in part) for part in parts]
+        assert given == [("0.00", False)] * len(parts), key
+
+
+def test_the_estimate_and_the_remaining_of_a_structure_without_a_line_give_no_share() -> None:
+    # The same, provisional, through the readings of the estimate and of the remaining: a task that
+    # bears an order item and no line, so a nil total (EP-14/L55, #718; L42t, #774). No nature has a
+    # part, and the order item comes at 0.00 without its share, as a share over the nil total would
+    # raise.
+    roots = [mockwitness.Task(1, "Fourniture", days=5, order_item=mockwitness.ASSEMBLY)]
+    reading = mockindicators.today(roots)
+    found = mockindicators.estimate(reading)
+    assert found["total"] == {"is_computable": True, "value": "0.00", "reason": None}
+    assert (found["by_cost_type"], found["by_subproject"]) == ([], [])
+    items = cast("list[Node]", found["by_order_item"])
+    assert [(item["key"], item["amount"]["value"], "share" in item) for item in items] == [
+        (mockwitness.ASSEMBLY.identifier, "0.00", False)
+    ]
+    remaining = mockindicators.remaining_indicators(
+        reading, mockindicators.reference(roots), None, []
+    )
+    assert (remaining["total"], remaining["by_cost_type"]) == ("0.00", [])
 
 
 def test_no_share_of_an_amount_not_nil_is_given_nil() -> None:

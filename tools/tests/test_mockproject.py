@@ -375,11 +375,12 @@ def _listed(
 ) -> list[tuple[str, bool, list[str]]]:
     """Return the commands a subproject lists to whom bears `update`.
 
-    Its citation by a marked revision, then its costs, then the lines of the current revision that
-    bear it, then the closing of its project say them, in that order (§4.4.1, WF-DAT-0080,
-    WF-PRJ-0050, WF-CYC-0100): from the condition that never lifts to the one a move of the lines
-    lifts, the conditions of the subproject before the one of the project, as a project lists its
-    commands (`project_completed`).
+    Its citation by a marked revision (§4.4.1, decision of the author of 2026-10-10, #634), then its
+    costs (WF-PRJ-0050), then the lines of the current revision that bear it (WF-DAT-0080, C-273),
+    then the closing of its project (WF-CYC-0100) say them, in that order — the order the contract
+    says (`_order_said`): from the condition that never lifts to the one a move of the lines lifts,
+    the conditions of the subproject before the one of the project, as a project lists its commands
+    (`project_completed`).
     """
     borne = _borne_by_the_current_revision() if borne is None else borne
     closed = [NOT_TERMINAL] if terminal else []
@@ -388,6 +389,23 @@ def _listed(
     missing += [WITHOUT_LINES] if subproject["subproject_id"] in borne else []
     missing += closed
     return [("update", not closed, closed), ("delete", not missing, missing)]
+
+
+ORDER = [NOT_CITED, WITHOUT_COSTS, WITHOUT_LINES, NOT_TERMINAL]
+"""The order the deletion of a subproject lists its missing conditions in (EP-14/L42q, C-273)."""
+
+
+def _order_said(block: str, after: str) -> list[str]:
+    """Return the conditions a description of the contract lists in the sentence after `after`.
+
+    The description is read as YAML folds it, its lines joined; the sentence ends at its full
+    stop, and only the conditions of the catalogue (`CommandCondition`) are kept from it.
+    """
+    catalogue = enumeration(
+        (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
+    )
+    sentence = " ".join(block.split()).split(after, 1)[1].split(". ", 1)[0]
+    return [code for code in re.findall(r"`(\w+)`", sentence) if code in catalogue]
 
 
 @pytest.mark.parametrize("name", SUBPROJECTS)
@@ -431,7 +449,7 @@ def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletio
     # The rule the test applies to the examples, fixed on variants built here rather than new
     # examples: relieved of its costs, the created subproject, which no marked revision cites,
     # would offer its deletion; the tests and commissioning, which the reference cites, would not
-    # (§4.4.1).
+    # (§4.4.1, decision of the author of 2026-10-10, #634).
     uncited = {**fixture("subproject_created"), "has_actual_costs": False}
     assert _listed(uncited, cited) == [("update", True, []), ("delete", True, [])]
     tests = {**fixture("subprojects")[1], "has_actual_costs": False}
@@ -446,6 +464,16 @@ def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletio
 
 
 def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_closing() -> None:
+    # The order the contract says, in the description of `SubprojectCommand` and in that of the
+    # 409 of `deleteSubproject`, read there (#657): a change of either fails here, before the
+    # examples and the rule of this test are confronted with it.
+    schemas = (SCHEMAS / "projects.yaml").read_text(encoding="utf-8")
+    command = schemas.split("\nSubprojectCommand:\n", 1)[1].split("\n\n", 1)[0]
+    paths = (API / "paths" / "projects.yaml").read_text(encoding="utf-8")
+    deletion = paths.split("operationId: deleteSubproject", 1)[1]
+    refusal = deletion.split("'409':", 1)[1].split("content:", 1)[0]
+    assert _order_said(command, "la commande les liste dans cet ordre") == ORDER
+    assert _order_said(refusal, "dans l'ordre où la commande `delete` les liste") == ORDER
     # The order a project lists its own commands in (`project_completed`): the condition proper to
     # the command first, `project_not_terminal` last. The subprojects of the witness completed
     # follow it (`subprojects_completed`, EP-14/L42o); a variant built here, uncited and
@@ -463,7 +491,7 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
         assert _commands(subproject) == _listed(subproject, cited, terminal=True)
         assert _commands(subproject) == [
             ("update", False, [NOT_TERMINAL]),
-            ("delete", False, [NOT_CITED, WITHOUT_COSTS, WITHOUT_LINES, NOT_TERMINAL]),
+            ("delete", False, ORDER),
         ]
     # The same subprojects as those of the project in progress, their commands apart.
     unlisted = [{**each, "available_commands": None} for each in closed]

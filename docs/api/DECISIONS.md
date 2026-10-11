@@ -4386,6 +4386,9 @@ que le dépôt de 13 h 50 redépose) et `task_restore_verification_failed` (tâc
 déclarée : la même copie altérée sur l'emplacement, sa restauration échouée à la vérification à
 14 h 03 min 40 s). `test_mockuniverse.py` les tient contre le dépôt et l'opération.
 
+*Complétée par EP-14/L55 : `partition` ne lève plus sur un total nul ; la part d'un total nul est
+à dire au contrat par L42t (#774, WF-IND-0010).*
+
 **Une part, un avancement ou un taux calculé est donné à quatre décimales, jamais nul quand il ne
 l'est pas, et les parts d'une répartition somment à un** (#694 ; README, « Une part… » ;
 WF-DAT-0100, WF-DEV-0060, WF-PTF-0080, #626). Le contrat ne disait pas la précision d'un rapport
@@ -4883,6 +4886,31 @@ le lot visait d'abord. Le code dans la grille — colonne, recherche, filtre, tr
 refus d'une nature ou d'une catégorie (`params.resource_roles`) et les projets que nomme le refus
 d'un calendrier (`params.projects`) ; le formulaire d'une catégorie dit déjà la troisième condition
 de MO-001 (`cost-form.dom.test.tsx`).
+
+## La part d'un total nul, question ouverte ; l'outil en attendant (EP-14/L55)
+
+Constat #718 de la relecture 2 de L42o : `wftools.mockstructure.partition` levait sur une
+répartition sans montant (`max` d'une suite vide) et sur un total nul (une division par zéro) — un
+devis encore sans ligne, un reste à engager entièrement nul, un portefeuille sans projet en cours —,
+et la règle « Une part… » du README ne dit pas ce que le contrat donne alors.
+
+**La question est ouverte, et part dans L42t (#774).** WF-IND-0010 veut qu'une valeur dont le
+dénominateur est nul soit présentée non calculable, jamais comme zéro ni comme l'infini, et la
+décision « Une enveloppe `Computable` pour ce qui peut ne pas se calculer », en tête de ce fichier,
+en fait une règle du contrat : `{ is_computable, value, reason }` partout où un dénominateur peut
+être nul. La part d'un total nul y entre ; la dire non calculable — un motif pour elle,
+`AmountByKey.share` passé en `Computable`, les descriptions de `share` — est une modification du
+contrat, faite dans le lot de contrat L42t, puis adoptée par un lot du front. EP-14/L55, lot
+d'outillage, ne touche ni au README ni à aucun schéma (relecture 1 de L55, décision de l'agent de
+livraison).
+
+**Ce que fait l'outil en attendant, provisoire.** `partition` ne lève plus : une répartition sans
+montant n'a aucune part, et chaque montant d'un total nul vient sans `share`, comme la part d'un poste
+d'un total nul ; le devis, le reste à engager et la structure des coûts du portefeuille omettent
+alors la part. Aucun exemple n'a de total nul, et aucun ne change ; L42t remplacera ce comportement
+par ce qu'il décidera. `tools/tests/test_mocktoday.py` le tient sur l'outil, sur le devis et le reste
+à engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
+cours.
 
 ## Collage et annulation
 

@@ -849,6 +849,42 @@ L42q (#758) puis L53 (#767), fusionnés avant lui, ont été fusionnés dans le 
 DECISIONS.md, ces notes, `Problem.params` et les catalogues gardent les apports de chacun, les leurs
 d'abord, et le client, les exemples et l'inventaire sont régénérés après chaque fusion.
 
+EP-14/L55 (#769), lot technique d'outillage ajouté le 2026-10-10, reprend les constats d'outillage
+que les relectures ont renvoyés : il solde #653, #657 et le point 2 de #765, garde l'outil de lever
+sur un total nul en laissant au contrat la question de #718, et atténue #729 :
+- #653 : le résumé du Kanban accorde chaque compte à son mot — une colonne d'une tâche, une tâche
+  tirée, une seule signalée se disent au singulier, comme le français sous deux (`mocktext.kanban`) ;
+  aucun exemple ne change, aucun ne comptant zéro ni un. Le test des deux calculs dit ce qu'il
+  compare : l'assemblage des exemples, le second calcul relisant les caches du processus
+  (`functools.cache`), qu'il coûterait une trentaine de secondes de vider ;
+- #657 : le test de l'ordre des conditions d'un sous-projet lit cet ordre dans la description de
+  `SubprojectCommand` et dans celle du 409 de `deleteSubproject` — `subproject_not_cited`,
+  `subproject_without_actual_costs`, `subproject_without_estimate_lines`, `project_not_terminal` —
+  avant d'y confronter `subprojects_completed` ; les résumés de `subprojects`,
+  `subprojects_completed`, `subproject_delete_cited` et `subproject_updated` citent la décision
+  entière (§4.4.1, décision de l'auteur du 2026-10-10, #634) ;
+- #718 : `partition` ne lève plus sur une répartition sans montant ni sur un total nul. La part d'un
+  total nul reste à dire au contrat : WF-IND-0010 la veut non calculable, jamais nulle, et la
+  décision « Une enveloppe `Computable`… » de `DECISIONS.md` en fait une règle ; L42t (#774) l'y
+  écrira, puis un lot du front l'adoptera (relecture 1, décision de l'agent de livraison). En
+  attendant, et provisoirement, l'outil ne donne aucune part d'un total nul : le devis, le reste à
+  engager et la structure des coûts du portefeuille omettent alors `share` ; aucun exemple n'a de
+  total nul, et le contrat n'est pas touché ;
+- #729, atténué : la comparaison de `revisions.spec.ts` n'écrivait pas toujours son adresse en quinze
+  secondes. `openHydrated` attend l'hydratation, et le clic atteint un bouton hydraté ; le faux back
+  répond en quelques dizaines de millisecondes, et son arrêt (« Terminated ») est celui de la fin de
+  chaque passage, que le rapporteur de la chaîne écrit avant le détail des échecs. C'est l'écran,
+  qui rend ses 2 770 nœuds en développement — cinq mégaoctets de réponse, environ quatre secondes au
+  serveur, jusqu'à dix quand un autre parcours le charge, et trois ou quatre au navigateur —, et les
+  instantanés du DOM de la trace, qui y ajoutaient deux secondes environ. Le parcours garde sa trace
+  sans eux, mesure faite — elle perd alors le DOM, le réseau, l'arbre d'accessibilité et la capture
+  de chaque action, et le parcours dit en annotation la durée de la réponse du serveur et de
+  l'adresse : de neuf à onze secondes du clic à l'adresse sur un poste au repos, il passe à sept ou
+  huit, la borne inchangée. Le remède atténue sans solder : #729 reste ouverte, dépendante de #624,
+  qui doit trancher l'écran ;
+- #765, point 2 : le kit des tests du front (`frontend/src/test/`) compte parmi leurs tests dans
+  `tools/paths.toml`, et `make lot-size` ne le compte plus en production.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

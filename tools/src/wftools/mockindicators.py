@@ -498,12 +498,17 @@ def _parts(
 
     The shares of a partition of the total sum to one (``partition``); those of the order items,
     which hold a part of the lines only, are each the amount over the total (``share``). No share
-    is computable when the total is not, nor without its amount.
+    is computable when the total is not, nor without its amount; none is given of a nil total, for
+    now (EP-14/L55, #718), until L42t says what the contract gives for it (#774, WF-IND-0010).
     """
     absent = missing_rates(reading, reading.lines, missing)
     total = _base(reading.lines)
     amounts = [_base(group.lines) for group in groups]
-    found = partition(amounts, total) if whole else [share(each / total) for each in amounts]
+    found = (
+        partition(amounts, total)
+        if whole
+        else [share(each / total) if total else None for each in amounts]
+    )
     parts: list[JsonValue] = []
     for group, part_share in zip(groups, found, strict=True):
         part: JsonObject = {"key": group.key}
@@ -511,12 +516,10 @@ def _parts(
             part["label"] = group.label
         amount = _amount(reading, group.lines, missing)
         part["amount"] = amount
-        computed = not absent and amount["is_computable"] is True
-        part["share"] = (
-            computable(decimal(part_share))
-            if computed
-            else not_computable(_MISSING, {"missing_rates": absent})
-        )
+        if absent or amount["is_computable"] is not True:
+            part["share"] = not_computable(_MISSING, {"missing_rates": absent})
+        elif part_share is not None:
+            part["share"] = computable(decimal(part_share))
         parts.append(part)
     return parts
 
@@ -680,7 +683,7 @@ def remaining_indicators(
                 "key": group.key,
                 "label": group.label,
                 "amount": money(amount),
-                "share": decimal(part),
+                **({} if part is None else {"share": decimal(part)}),
             }
             for (group, amount), part in zip(by_nature, parts, strict=True)
         ],

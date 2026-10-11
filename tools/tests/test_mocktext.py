@@ -119,3 +119,24 @@ def test_the_summary_of_a_kanban_says_milestones_ready_and_a_column_without_the_
         "« Jalon A » et « Jalon B » signalées à terminer, leurs prédécesseurs tous terminés "
         "(predecessors_completed)"
     )
+
+
+def test_the_summary_of_a_kanban_agrees_a_count_of_one_with_its_word() -> None:
+    # An answer made by hand, where the examples go not (#653): a column of one task of the core,
+    # none drawn about it, a column of one drawn task, a single milestone ready — each said in the
+    # singular, as French says a count under two.
+    def node(key: str, label: str, *, ready: bool = False) -> Node:
+        return {"node_id": key, "task": {"label": label}, "predecessors_completed": ready}
+
+    answer: Node = {
+        "not_started": [node("a", "Jalon A", ready=True)],
+        "started": [node("z", "Tirée Z")],
+        "completed": [node("c", "Faite C"), node("v", "Tirée V")],
+    }
+    assert mocktext.kanban(answer, {"a", "c"}) == (
+        "1 non démarrée — dans le cœur, « Jalon A » ; 0 tirée autour de lui — ; "
+        "1 démarrée — dans le cœur, aucune ; 1 tirée autour de lui — ; "
+        "2 terminées — dans le cœur, « Faite C » ; 1 tirée autour de lui — ; "
+        "« Jalon A » signalée à terminer, ses prédécesseurs tous terminés "
+        "(predecessors_completed)"
+    )

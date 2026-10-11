@@ -1798,8 +1798,17 @@ dense — devis, planning, reste à engager, risques, coûts réels, portefeuill
 la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. La
 comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
 modifications en une table simple, rendue au serveur, qui dépasse cinq secondes en développement
-(constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense). Les
-risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
+(constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense) : du clic à
+l'adresse, pour cinq mégaoctets de réponse, environ quatre secondes au serveur, jusqu'à dix quand un
+autre parcours le charge, et trois ou quatre au navigateur, le faux back répondant en quelques
+dizaines de millisecondes (#729). Un parcours qui rend ainsi des milliers de lignes hors d'une
+grille virtualisée peut garder sa trace sans instantanés du DOM (`snapshots: false`), et seulement
+après une mesure qui montre ce qu'ils coûtent dans la borne — pour la comparaison, deux secondes
+environ, qui la portaient jusqu'à onze secondes sur quinze sur un poste au repos. La trace perd le
+DOM, le réseau, l'arbre d'accessibilité et la capture de chaque action, et ne garde que les actions,
+leurs sources et le film de l'écran : le parcours dit lui-même, en annotation, la durée de ce qu'il
+attend (`test.info().annotations`). Le remède atténue, il ne solde rien : le reste tient à l'écran.
+Les risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
 consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
 assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
 secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
