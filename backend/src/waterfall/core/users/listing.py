@@ -7,9 +7,12 @@ each column (WF-IHM-0130) and sorted on each in both directions (WF-IHM-0060): t
 order of the code points, their collation; the origins in the order of their enumeration —
 ``local``, ``directory``, ``identity_provider`` —, as the journal of audit orders its own, the API
 giving no label that a language would order (``docs/api/DECISIONS.md``, #550); the active accounts
-before the deactivated in the ascending order. Equals keep the order of the table unsorted, the
-name then the first name, then come by identifier, ascending whatever the direction: no account is
-read twice nor skipped from one page to the next (contract, ``listUsers``, #741).
+before the deactivated in the ascending order; an account without a role after the others in the
+ascending order, before in the descending, where the contract puts a cell without a value — an
+account without attachment, a project without a code, a line of the actual costs without one.
+Equals keep the order of the table unsorted, the name then the first name, then come by identifier,
+ascending whatever the direction: no account is read twice nor skipped from one page to the next
+(contract, ``listUsers``, #741).
 
 The roles an account holds are those of the module of the roles, which reads the accounts: what the
 table filters and sorts of them is an expression that module writes on its own tables, given the

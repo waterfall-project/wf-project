@@ -26,6 +26,7 @@ from sqlalchemy import (
     exists,
     func,
     insert,
+    literal,
     select,
     update,
 )
@@ -233,7 +234,8 @@ def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[st
     """Give the labels of the roles an account holds, in the order it holds them (``roles_held``).
 
     Compared in the order of the code points of their collation, item by item: a sort of the
-    table of the accounts on their roles (``listUsers``).
+    table of the accounts on their roles (``listUsers``). An account that holds none has no value,
+    which PostgreSQL puts after the others in the ascending order, before in the descending.
     """
     labels = (
         select(AccessRole.label)
@@ -241,7 +243,8 @@ def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[st
         .where(UserAccessRole.user_account_id == user_id, AccessRole.deleted_at.is_(None))
         .order_by(AccessRole.label, AccessRole.id)
     )
-    return func.array(labels.scalar_subquery(), type_=ARRAY(Text))
+    held = func.array(labels.scalar_subquery(), type_=ARRAY(Text))
+    return func.nullif(held, literal([], ARRAY(Text)), type_=ARRAY(Text))
 
 
 def _views(session: Session, rows: Sequence[tuple[AccessRole, int]]) -> list[RoleView]:

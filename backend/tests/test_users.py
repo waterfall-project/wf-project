@@ -82,6 +82,8 @@ def table(database: Database, headers: dict[str, str]) -> dict[str, UUID]:
     del headers
     manager, chief = role(database, "Manager"), role(database, "Chef de projet")
     estimator, pilot = role(database, "Chiffreur"), role(database, "Pilote")
+    # A label in an accented capital comes after any other in the code points, not among the E.
+    team = role(database, "Équipe")
     return {
         "Bernard Dominique": account(
             database, "Bernard", "Dominique", origin="directory", roles=(manager,)
@@ -95,8 +97,8 @@ def table(database: Database, headers: dict[str, str]) -> dict[str, UUID]:
         ),
         # Her roles are held by label: « Chiffreur », then « Pilote ».
         "Roux Inès": account(database, "Roux", "Inès", roles=(pilot, estimator)),
-        "de Vries Anna": account(database, "de Vries", "Anna", origin="directory"),
-        "Émery Zoé": account(database, "Émery", "Zoé"),
+        "de Vries Anna": account(database, "de Vries", "Anna", origin="directory", roles=(team,)),
+        "Émery Élise": account(database, "Émery", "Élise"),
     }
 
 
@@ -125,7 +127,7 @@ EVERY_ONE = [
     "Petit Lucas",
     "Roux Inès",
     "de Vries Anna",
-    "Émery Zoé",
+    "Émery Élise",
 ]
 ALL = "?include_inactive=true"
 
@@ -161,6 +163,7 @@ def test_the_table_keeps_the_active_accounts_unless_the_deactivated_are_asked_fo
     ("column", "ascending"),
     [
         ("last_name", EVERY_ONE),
+        # Élise, in an accented capital, after every other, where a language puts her among the E.
         (
             "first_name",
             [
@@ -172,7 +175,7 @@ def test_the_table_keeps_the_active_accounts_unless_the_deactivated_are_asked_fo
                 "Roux Inès",
                 "Petit Lucas",
                 "Lefèvre Sacha",
-                "Émery Zoé",
+                "Émery Élise",
             ],
         ),
         (
@@ -186,7 +189,7 @@ def test_the_table_keeps_the_active_accounts_unless_the_deactivated_are_asked_fo
                 "Bernard Dominique",
                 "Roux Inès",
                 "Lefèvre Sacha",
-                "Émery Zoé",
+                "Émery Élise",
             ],
         ),
     ],
@@ -206,7 +209,7 @@ def test_the_accounts_are_sorted_on_a_text_in_the_order_of_the_code_points_both_
     if column == "last_name":
         # The two Martin are equal on the name: by first name, ascending in both directions.
         assert descending == [
-            "Émery Zoé",
+            "Émery Élise",
             "de Vries Anna",
             "Roux Inès",
             "Petit Lucas",
@@ -233,22 +236,24 @@ def test_the_accounts_are_sorted_on_a_text_in_the_order_of_the_code_points_both_
                     "Moreau Alix",
                     "Petit Lucas",
                     "Roux Inès",
-                    "Émery Zoé",
+                    "Émery Élise",
                 ],
                 ["Bernard Dominique", "de Vries Anna"],
                 ["Lefèvre Sacha"],
             ],
         ),
-        # The roles by their labels in the order the account holds them; none before any.
+        # The roles by their labels in the order the account holds them, compared in the order of
+        # the code points; an account without a role, a cell without a value, after the others.
         (
             "access_roles",
             [
-                ["Lefèvre Sacha", "de Vries Anna", "Émery Zoé"],
                 ["Martin Camille"],
                 ["Moreau Alix"],
                 ["Martin Bastien", "Petit Lucas"],
                 ["Roux Inès"],
                 ["Bernard Dominique"],
+                ["de Vries Anna"],
+                ["Lefèvre Sacha", "Émery Élise"],
             ],
         ),
         # The deactivated accounts after the active ones.
@@ -322,7 +327,7 @@ def test_the_table_is_read_by_pages_of_fifty_and_says_the_total(
         ("?search=ROUX", ["Roux Inès"]),
         ("?search=ines", ["Roux Inès"]),
         ("?search=ines%20roux", ["Roux Inès"]),
-        ("?search=emery", ["Émery Zoé"]),
+        ("?search=emery", ["Émery Élise"]),
         ("?search=lucas.petit%40", ["Petit Lucas"]),
         ("?search=martin", ["Martin Bastien", "Martin Camille"]),
         ("?search=%25", []),
@@ -346,7 +351,7 @@ def test_the_table_is_read_by_pages_of_fifty_and_says_the_total(
                 "Martin Camille",
                 "Petit Lucas",
                 "Roux Inès",
-                "Émery Zoé",
+                "Émery Élise",
             ],
         ),
     ],
