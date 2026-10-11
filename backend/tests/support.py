@@ -263,6 +263,11 @@ class Watching(KeycloakAdmin):
         self._note("send_invitation")
         return super().send_invitation(subject)
 
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Note, then give a local account of the realm another identity."""
+        self._note("change_identity")
+        return super().change_identity(subject, identity)
+
     def close_sessions(self, subject: str) -> None:
         """Note, then close the sessions of an account."""
         self._note("close_sessions")

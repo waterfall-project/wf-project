@@ -23,7 +23,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.backups.tables import Backup
-from waterfall.core.users.tables import UserAccount
+from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
@@ -457,3 +457,38 @@ def test_the_database_refuses_a_backup_that_breaks_a_rule(
         if not overrides:
             connection.execute(write_backup(task_id, object_key="first.tar"))
     assert refusal(database, write_backup(task_id, **overrides)) == constraint
+
+
+def write_report(of_task: object, **overrides: object) -> Executable:
+    """Give the insertion of the report of a reading of the accounts, with the changes asked for."""
+    columns: dict[str, object] = {
+        "task_id": of_task,
+        "finished_at": ENDED,
+        "created": 1,
+        "updated": 0,
+        "deactivated": 0,
+        "skipped": [],
+        "removed": [],
+    }
+    return insert(IdentitySyncReport).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"created": -1}, "ck_identity_sync_report_counts_not_negative"),
+        ({"deactivated": -1}, "ck_identity_sync_report_counts_not_negative"),
+        ({"skipped": {"email": "a@b"}}, "ck_identity_sync_report_skipped_array"),
+        ({"removed": "a@b"}, "ck_identity_sync_report_removed_array"),
+        ({"task_id": uuid4()}, "fk_identity_sync_report_task_id_background_task"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_report_of_a_reading_that_breaks_a_rule(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    task_id = uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(write_task(id=task_id, kind="identity_sync"))
+    assert refusal(database, write_report(task_id, **overrides)) == constraint

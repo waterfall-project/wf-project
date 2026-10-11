@@ -100,6 +100,35 @@ class UserAccount(Base):
     )
 
 
+class IdentitySyncReport(Base):
+    """What a reading of the accounts of the provider did, by the task that read (WF-ADM-0070).
+
+    The accounts it created, changed and deactivated, those it left as they were with the code of
+    why, and the addresses of the local accounts it removed from the provider (#811).
+    """
+
+    __tablename__ = "identity_sync_report"
+    __table_args__ = (
+        CheckConstraint(
+            "created >= 0 AND updated >= 0 AND deactivated >= 0", name="counts_not_negative"
+        ),
+        CheckConstraint("jsonb_typeof(skipped) = 'array'", name="skipped_array"),
+        CheckConstraint("jsonb_typeof(removed) = 'array'", name="removed_array"),
+    )
+
+    # One report per task, however many attempts it took.
+    task_id: Mapped[UUID] = mapped_column(
+        ForeignKey(BackgroundTask.id, ondelete="RESTRICT"), primary_key=True
+    )
+    # The latest is read first.
+    finished_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
+    created: Mapped[int] = mapped_column(Integer)
+    updated: Mapped[int] = mapped_column(Integer)
+    deactivated: Mapped[int] = mapped_column(Integer)
+    skipped: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
+    removed: Mapped[list[str]] = mapped_column(JSONB)
+
+
 # The requester of a background task is an account (WF-DAT-0090): the platform knows no table of the
 # core, and the reference is declared with the accounts, in each process that has them.
 Base.metadata.tables[BackgroundTask.__tablename__].append_constraint(

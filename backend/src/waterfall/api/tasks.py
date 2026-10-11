@@ -24,16 +24,19 @@ router = APIRouter(tags=["tasks"])
 NOT_FOUND = "NOT_FOUND"
 
 
-# Where a task that succeeded gives its result, by its kind: the backup it took. The exports, whose
-# result is a file to download, add theirs (EP-07).
+# Where a task that succeeded gives its result, by its kind: the backup it took, the report of the
+# reading of the accounts. The exports, whose result is a file to download, add theirs (EP-07).
 BACKUPS = "/api/v1/backups"
+IDENTITY_SYNC_REPORT = "/api/v1/identity-syncs/latest"
 
 
 def result_url(row: BackgroundTask) -> str | None:
     """Give where to read the result of a task, once it has succeeded and if it gives one."""
-    if row.kind == "backup" and row.status == "succeeded" and row.result is not None:
+    if row.status != "succeeded":
+        return None
+    if row.kind == "backup" and row.result is not None:
         return f"{BACKUPS}/{row.result['backup_id']}"
-    return None
+    return IDENTITY_SYNC_REPORT if row.kind == "identity_sync" else None
 
 
 def task_ref(row: BackgroundTask) -> BackgroundTaskRef:

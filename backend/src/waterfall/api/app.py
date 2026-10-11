@@ -10,7 +10,16 @@ interface (WF-ARC-0060). A path with a slash the contract does not write is not 
 from fastapi import FastAPI
 
 from waterfall import __version__
-from waterfall.api import access_roles, avatars, backups, me, system, tasks, users
+from waterfall.api import (
+    access_roles,
+    avatars,
+    backups,
+    identity_syncs,
+    me,
+    system,
+    tasks,
+    users,
+)
 from waterfall.api.authentication import Services
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
@@ -40,6 +49,7 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(me.router, prefix=PREFIX)
     app.include_router(avatars.router, prefix=PREFIX)
     app.include_router(users.router, prefix=PREFIX)
+    app.include_router(identity_syncs.router, prefix=PREFIX)
     app.include_router(access_roles.router, prefix=PREFIX)
     app.include_router(tasks.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
