@@ -268,10 +268,12 @@ appartient à qui dit le refus : un formulaire ou une ligne d'une liste du réf�
 la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
 l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
 lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
-écritures, dont le refus n'est plus dit nulle part (`useHeldCommand(reading)`). Tout refus retient le clic, même dit
-ailleurs que sur l'écran quitté : la relance d'une tâche refusée retient la navigation, bien que son
-refus soit dit dans le panneau des tâches de la coquille, qui survit à l'écran — une règle sans
-exception plutôt qu'une écriture à juger une à une. Le clic se
+écritures, dont le refus n'est plus dit nulle part, ni au retour sur cette lecture, dont les clics
+ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
+(`useHeldCommand(generation)`). Tout refus retient le clic, même dit ailleurs que sur l'écran
+quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit dans le
+panneau des tâches de la coquille, qui survit à l'écran — une règle sans exception plutôt qu'une
+écriture à juger une à une. Le clic se
 juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
 les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
 cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
