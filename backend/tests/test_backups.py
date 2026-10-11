@@ -34,14 +34,13 @@ from waterfall.api.authentication import Services
 from waterfall.core.backups.interface import TakenBackup, add_backup
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
-from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
-from waterfall.worker.backup import MANIFEST, BackupTask, connection, dump, verified
+from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
@@ -352,13 +351,23 @@ def test_a_backup_the_object_storage_does_not_take_fails_as_its_storage_unavaila
 
 
 def test_the_role_of_the_service_cannot_dump_the_database_which_a_backup_dumps_as_its_owner(
-    service_database_url: str, database_url: str, tmp_path: Path
+    database: Database, run: Run, taking: BackupTask, service_database_url: str, tmp_path: Path
 ) -> None:
     # #701: the API and the worker connect as the role of the service, which holds only what the
     # tables grant it; a dump reads every table, and that role cannot. The owner of the tables can.
-    with pytest.raises(UnavailableError):
+    # The database answers: what fails is not a component out of reach but an internal error.
+    with pytest.raises(DumpError):
         dump("waterfall", service_database_url, tmp_path)
-    assert dump("waterfall", database_url, tmp_path).size_bytes > 0
+    owned = taking.databases["waterfall"]
+    assert dump("waterfall", owned, tmp_path).size_bytes > 0
+    serving = {"waterfall": owned, "identity_provider": service_database_url}
+    failed = task(database, run(BackupTask(serving, taking.bucket)))
+    assert (failed.status, failed.problem) == (
+        "failed",
+        {"code": "INTERNAL_ERROR", "status": 500, "correlation_id": REQUEST},
+    )
+    with database.transaction() as session:
+        assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
 
 
 def test_a_dump_reaches_its_database_by_its_whole_address_and_its_password_apart(

@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import IO, Any
 
 import psycopg
+from psycopg.rows import TupleRow
 from sqlalchemy.orm import Session
 
 from waterfall import __version__
@@ -50,6 +51,10 @@ DATABASES = ("waterfall", "identity_provider")
 SERVICE = "backup"
 
 logger = get_logger(__name__)
+
+
+class DumpError(RuntimeError):
+    """A database reached that pg_dump could not dump: an internal error, not an outage."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +110,11 @@ def unavailable_database() -> UnavailableError:
 
 
 def dump(name: str, address: str, folder: Path) -> Dumped:
-    """Dump a database in the custom format, in one snapshot; unavailable if it cannot (503).
+    """Dump a database in the custom format, in one snapshot, once it has been reached.
+
+    A database reached that ``pg_dump`` cannot dump — a right it lacks, a version it does not read
+    — is not a component out of reach: the dump fails as an internal error, and says why to the
+    journal of the service.
 
     The tools of PostgreSQL are those of the system, which Debian and Ubuntu put in ``/usr/bin``.
     """
@@ -122,19 +131,34 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
     if done.returncode != 0:
         said = done.stderr.decode(errors="replace").strip()
         logger.error("backup.dump_failed", database=name, said=said)
-        raise unavailable_database()
+        raise DumpError(name)
     return Dumped(name, path, path.stat().st_size, digest(path))
 
 
-def schema_revision(address: str) -> str:
-    """Read the revision of the schema the migrations have brought the database to, as its owner."""
+def connect(address: str) -> psycopg.Connection[TupleRow]:
+    """Connect to a database as its owner; unavailable if the connection fails (503)."""
     conninfo = engine_url(address).set(drivername="postgresql")
     try:
-        with psycopg.connect(conninfo.render_as_string(hide_password=False)) as connection:
-            row = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    except psycopg.Error as error:
-        logger.warning("backup.revision_unread", error=type(error).__name__)
+        return psycopg.connect(conninfo.render_as_string(hide_password=False))
+    except psycopg.OperationalError as error:
+        logger.warning("backup.database_unreached", error=type(error).__name__)
         raise unavailable_database() from error
+
+
+def reached(address: str) -> None:
+    """Tell, before its dump, that a database answers; unavailable if it does not (503)."""
+    with connect(address) as connection:
+        connection.execute("SELECT 1")
+
+
+def schema_revision(address: str) -> str:
+    """Read the revision of the schema the migrations have brought the database to, as its owner.
+
+    Reading it reaches the database: unavailable if it does not answer (503), and an internal
+    error if it answers and the revision cannot be read.
+    """
+    with connect(address) as connection:
+        row = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     return "" if row is None else str(row[0])
 
 
@@ -205,6 +229,7 @@ class BackupTask:
         with tempfile.TemporaryDirectory(prefix="waterfall-backup-") as work:
             folder = Path(work)
             revision = schema_revision(self.databases["waterfall"])
+            reached(self.databases["identity_provider"])
             dumps = [dump(name, self.databases[name], folder) for name in DATABASES]
             path = folder / "backup.tar"
             archive(path, manifest(taken_at, revision, dumps), dumps)
