@@ -22,6 +22,7 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 | `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
 | `docs/dev/` | ce guide, et les règles de codage par langage | — |
 | `LICENSES/`, `REUSE.toml` | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête | — |
+| `docs/legal/` | l'accord de licence de contribution, et les engagements envers l'édition communautaire | — |
 
 Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `frontend/`,
 `fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi

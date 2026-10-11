@@ -57,6 +57,7 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 | `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
 | `docs/roadmap` | the plan: fourteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
 | `docs/dev` | the development guide, the coding rules per language, and the rules the agents follow |
+| `docs/legal` | the contributor licence agreement and the project's commitments to its community edition, in French — drafts under review |
 | `backend/` | one Python package: the business core, the API service and the worker |
 | `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |
 | `tools/` | the repository tools: requirement coverage, roadmap check, source rules, lot size |

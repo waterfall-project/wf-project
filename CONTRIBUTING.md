@@ -145,5 +145,27 @@ written again.
 
 ## Licence
 
-Contributions are accepted under the [GNU Affero General Public License v3.0](LICENSE) only,
-the licence of the project.
+Waterfall is published under the [GNU Affero General Public License v3.0](LICENSE) only.
+
+A contribution is accepted under that licence **and** under the
+[Contributor Licence Agreement](docs/legal/CLA.md), which you sign once, before your first pull
+request. You keep the copyright on what you contribute: the agreement grants a licence, which
+lets the project also be distributed under other terms, a commercial edition included. In
+return, every contribution stays published under a free licence, and the project's
+[commitments](docs/legal/ENGAGEMENTS.md) say what a commercial offer will never take from the
+community edition — they bind the project for each contribution, as worded on the day it was
+submitted.
+
+Pull requests are open to the repository's collaborators only. To become one, write to
+`contact@waterfall-project.pro`: you receive the agreement as a PDF, whose annex carries the
+maintainer's full identity and notification address; you complete the annex with your name,
+email address and GitHub account, sign — a simple electronic signature, or the PDF signed and
+sent back —, and your account is then added as a collaborator. The signed copy is kept in a
+private register, and neither party publishes the identity the other gave (article 11).
+
+If your employer may own what you write, have them authorise your contribution in writing, or
+sign the agreement on their behalf (article 8). Mark in your pull request any part that is not
+your own work, with its source and licence.
+
+The agreement and the commitments are written in French, under French law; an English
+translation is published for information, and the French text prevails.
