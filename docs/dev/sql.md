@@ -74,9 +74,14 @@ partagent. Une recherche compare les deux textes translittérés par `unaccent` 
 crée la migration `0004` —, puis mis en minuscules dans une collation qui connaît toutes les
 lettres, `und-x-icu` : la collation `C` ne met en minuscules que les lettres ASCII. Elle cherche le
 texte par `strpos`, et non par `LIKE`, pour qu'un `%` ou un `_` cherché soit une lettre comme une
-autre.
+autre. Les deux collations et la recherche s'écrivent une fois, dans `waterfall.platform.database`
+(`CODE_POINTS`, `EVERY_LETTER`, `contains`). Un index qui compare sans égard à la casse une colonne
+en `C` — l'adresse d'un compte — met en minuscules dans `und-x-icu` lui aussi : en `C`, `Élodie` et
+`élodie` seraient deux adresses.
 
-*Contrôle* : les tests de la table qui cherche (`tests/test_access_roles.py`) ; la revue.
+*Contrôle* : les tests des tables qui cherchent (`tests/test_access_roles.py`,
+`tests/test_users.py`) et de l'unicité des adresses (`tests/test_database_constraints.py`) ; la
+revue.
 
 ### Contraintes déclarées
 

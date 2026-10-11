@@ -184,6 +184,20 @@ def test_what_the_tests_of_keycloak_run_on_wakes_their_family(changed: str) -> N
     assert "keycloak" in touched
 
 
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "docs/spec/waterfall-spec.md",
+        "fixtures/api/permissions.json",
+        "fixtures/examples.json",
+        "deploy/compose/compose.service.yaml",
+    ],
+)
+def test_what_the_tests_of_the_back_read_wakes_their_family(changed: str) -> None:
+    touched = {family.name for family in paths.read().touched([changed])}
+    assert "back" in touched
+
+
 @pytest.mark.parametrize("woken", ["back", "keycloak", "service"])
 def test_a_change_of_the_contract_alone_wakes_the_tests_that_hold_the_service_to_it(
     woken: str,

@@ -9,18 +9,21 @@ and deletion is inscribed in the journal, in its transaction (WF-SEC-0030). The 
 is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argument.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import (
+    ARRAY,
     BigInteger,
     ColumnElement,
     Select,
+    SQLColumnExpression,
     Text,
     delete,
+    exists,
     func,
     insert,
     literal,
@@ -36,8 +39,9 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.users.interface import Author, read_author
+from waterfall.core.users.interface import AccountExpression, Author, read_author
 from waterfall.platform.audit import AuditActor, AuditObject, AuditValue, Inscription, record
+from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
     FieldError,
@@ -51,10 +55,6 @@ NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ACCESS_ROLE_IN_USE = "ACCESS_ROLE_IN_USE"
 VALIDATION_FAILED = "VALIDATION_FAILED"
-
-# The search ignores case and accents, lowered in a collation that knows every letter: that of
-# the label, the code points, lowers none but the ASCII ones (contract, README, "Une recherche").
-SEARCH_COLLATION = "und-x-icu"
 
 type SortColumn = Literal["label", "is_predefined", "holder_count"]
 
@@ -96,7 +96,11 @@ class RoleFilters:
 
 @dataclass(frozen=True, slots=True)
 class RoleSort:
-    """The column of the sort and its direction; equals are ordered by identifier (WF-IHM-0060)."""
+    """The column of the sort and its direction (WF-IHM-0060).
+
+    Equals keep the order of the table unsorted, by label, then come by identifier, ascending
+    whatever the direction: two readings give the same order (contract, README, #741).
+    """
 
     column: SortColumn = "label"
     descending: bool = False
@@ -151,16 +155,11 @@ def _roles() -> tuple[Select[AccessRole, int], ColumnElement[int]]:
     return query, holder_count
 
 
-def _folded(text: ColumnElement[str] | InstrumentedAttribute[str]) -> ColumnElement[str]:
-    return func.lower(func.unaccent(text).collate(SEARCH_COLLATION))
-
-
 def list_roles(session: Session, filters: RoleFilters, sort: RoleSort) -> list[RoleView]:
-    """Read the roles the filters keep, in the order of the sort, equals by their identifier."""
+    """Read the roles the filters keep in the order of the sort, equals by label then identifier."""
     query, holder_count = _roles()
     if filters.search is not None:
-        searched = _folded(literal(filters.search, Text))
-        query = query.where(func.strpos(_folded(AccessRole.label), searched) > 0)
+        query = query.where(contains(AccessRole.label, filters.search))
     if filters.is_predefined is not None:
         query = query.where(AccessRole.is_predefined.is_(filters.is_predefined))
     if filters.holder_count_min is not None:
@@ -174,7 +173,7 @@ def list_roles(session: Session, filters: RoleFilters, sort: RoleSort) -> list[R
         "holder_count": holder_count,
     }
     key = keys[sort.column]
-    order = (key.desc(), AccessRole.id.desc()) if sort.descending else (key, AccessRole.id)
+    order = (key.desc() if sort.descending else key, AccessRole.label, AccessRole.id)
     return _views(session, session.execute(query.order_by(*order)).all())
 
 
@@ -197,13 +196,55 @@ class HeldRole:
 
 def roles_held(session: Session, user_id: UUID) -> list[HeldRole]:
     """Read the roles an account holds, deleted ones apart, by label then by identifier."""
+    return roles_held_by(session, [user_id])[user_id]
+
+
+def roles_held_by(session: Session, user_ids: Collection[UUID]) -> dict[UUID, list[HeldRole]]:
+    """Read the roles each account holds, deleted ones apart, by label then by identifier."""
+    held: dict[UUID, list[HeldRole]] = {user_id: [] for user_id in user_ids}
     rows = session.execute(
-        select(AccessRole.id, AccessRole.label)
+        select(UserAccessRole.user_account_id, AccessRole.id, AccessRole.label)
+        .join(UserAccessRole, UserAccessRole.access_role_id == AccessRole.id)
+        .where(UserAccessRole.user_account_id.in_(held), AccessRole.deleted_at.is_(None))
+        .order_by(AccessRole.label, AccessRole.id)
+    )
+    for user_id, role_id, label in rows:
+        held[user_id].append(HeldRole(role_id, label))
+    return held
+
+
+def holding_one_of(role_ids: Collection[UUID]) -> AccountExpression[bool]:
+    """Give the criterion that keeps an account holding one at least of these roles, not deleted.
+
+    A role that does not exist, or no longer, keeps no account (``listUsers``).
+    """
+
+    def holds(user_id: SQLColumnExpression[UUID]) -> ColumnElement[bool]:
+        return exists().where(
+            UserAccessRole.user_account_id == user_id,
+            UserAccessRole.access_role_id.in_(role_ids),
+            AccessRole.id == UserAccessRole.access_role_id,
+            AccessRole.deleted_at.is_(None),
+        )
+
+    return holds
+
+
+def labels_held(user_id: SQLColumnExpression[UUID]) -> ColumnElement[Sequence[str]]:
+    """Give the labels of the roles an account holds, in the order it holds them (``roles_held``).
+
+    Compared in the order of the code points of their collation, item by item: a sort of the
+    table of the accounts on their roles (``listUsers``). An account that holds none has no value,
+    which PostgreSQL puts after the others in the ascending order, before in the descending.
+    """
+    labels = (
+        select(AccessRole.label)
         .join(UserAccessRole, UserAccessRole.access_role_id == AccessRole.id)
         .where(UserAccessRole.user_account_id == user_id, AccessRole.deleted_at.is_(None))
         .order_by(AccessRole.label, AccessRole.id)
     )
-    return [HeldRole(role_id, label) for role_id, label in rows]
+    held = func.array(labels.scalar_subquery(), type_=ARRAY(Text))
+    return func.nullif(held, literal([], ARRAY(Text)), type_=ARRAY(Text))
 
 
 def _views(session: Session, rows: Sequence[tuple[AccessRole, int]]) -> list[RoleView]:

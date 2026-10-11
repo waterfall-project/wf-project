@@ -906,7 +906,7 @@ règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
 
 ## US-0360 — Comptes : la table des comptes et l'affectation des rôles
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
   `setUserAccessRoles`, `listAccessRoles`

@@ -4,7 +4,9 @@
 
 An account is never deleted: its state says whether it may sign in. Its address does not
 identify it for the rest of the database, its identifier does: every row that refers to an
-account holds the identifier, so changing the address changes nothing else (WF-DAT-0060).
+account holds the identifier, so changing the address changes nothing else (WF-DAT-0060). The
+table of the accounts sorts on the name, the first name and the address, in the order of the code
+points: their collation is ``C``.
 """
 
 from datetime import datetime
@@ -25,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from waterfall.platform.database import Base, UtcDateTime
+from waterfall.platform.database import CODE_POINTS, EVERY_LETTER, Base, UtcDateTime
 from waterfall.platform.installation import AVATAR_MAX_BYTES
 from waterfall.platform.tasks import BackgroundTask
 
@@ -60,14 +62,18 @@ class UserAccount(Base):
         ),
         CheckConstraint("lock_version >= 0", name="lock_version_not_negative"),
         # One address per person, whatever its case (WF-ADM-0050), declared here and not
-        # left to a rule of the services.
-        Index("uq_user_account_email_lower", func.lower(text("email")), unique=True),
+        # left to a rule of the services; lowered in every letter, which ``C`` does not.
+        Index(
+            "uq_user_account_email_lower",
+            func.lower(text(f'email COLLATE "{EVERY_LETTER}"')),
+            unique=True,
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    last_name: Mapped[str] = mapped_column(Text)
-    first_name: Mapped[str] = mapped_column(Text)
-    email: Mapped[str] = mapped_column(Text)
+    last_name: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
+    first_name: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
+    email: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
     idp_subject: Mapped[str] = mapped_column(Text, unique=True)
     origin: Mapped[str] = mapped_column(Text)
     state: Mapped[str] = mapped_column(Text, server_default="active")

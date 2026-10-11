@@ -3,7 +3,9 @@
 """The database: the naming of constraints, the types every table shares, the sessions.
 
 SQLAlchemy 2 with synchronous sessions, over psycopg 3. A request is one transaction
-(``Database.transaction``): it commits when the block ends and rolls back when it raises.
+(``Database.transaction``): it commits when the block ends and rolls back when it raises. A text
+a table sorts is compared code point by code point, and a search ignores case and accents
+(contract, README; sql.md, "Trier et chercher un texte"): both are said here once.
 """
 
 from collections.abc import Generator
@@ -11,7 +13,17 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Engine, MetaData, create_engine
+from sqlalchemy import (
+    ColumnElement,
+    DateTime,
+    Engine,
+    MetaData,
+    SQLColumnExpression,
+    Text,
+    create_engine,
+    func,
+    literal,
+)
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
@@ -25,6 +37,26 @@ NAMING_CONVENTION = {
     "ix": "ix_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
 }
+
+
+# The collation of a text a table sorts: the order of the code points, accents and case included.
+CODE_POINTS = "C"
+# The collation a search lowers a text in: one that knows every letter, where ``C`` lowers the
+# ASCII ones alone.
+EVERY_LETTER = "und-x-icu"
+
+
+def folded(text: SQLColumnExpression[str]) -> ColumnElement[str]:
+    """Give a text as a search compares it: transliterated by ``unaccent``, then lowered."""
+    return func.lower(func.unaccent(text).collate(EVERY_LETTER))
+
+
+def contains(text: SQLColumnExpression[str], searched: str) -> ColumnElement[bool]:
+    """Tell whether a text holds the one searched, whatever their case and accents.
+
+    By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another.
+    """
+    return func.strpos(folded(text), folded(literal(searched, Text))) > 0
 
 
 class Base(DeclarativeBase):
