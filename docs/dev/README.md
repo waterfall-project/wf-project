@@ -2033,9 +2033,10 @@ règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'er
 exécuté, du code mort. Le back et le front doivent chacun couvrir **90 % des lignes et 85 %
 des branches** : les branches comptent, parce qu'un `if` sans son `else` couvre toutes ses
 lignes et la moitié des cas. Le code engendré en est exclu. Le client de l'API d'administration
-de Keycloak (`waterfall.platform.keycloak_admin`), que seul Keycloak sert, est mesuré par
-`make test-keycloak`, aux mêmes seuils (`backend/coverage-keycloak.toml`), et écarté par son chemin
-de la mesure du back, `make coverage-back`, qui mesure tout le reste du back. Aucune ligne ne s'exclut de la
+de Keycloak (`waterfall.platform.keycloak_admin`), que seul Keycloak sert, et la lecture des
+comptes du worker (`waterfall.worker.identity_sync`), qui le demande à chaque pas, sont mesurés par
+`make test-keycloak`, aux mêmes seuils (`backend/coverage-keycloak.toml`), et écartés par leur
+chemin de la mesure du back, `make coverage-back`, qui mesure tout le reste du back. Aucune ligne ne s'exclut de la
 mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec sa raison
 (`[tool.coverage.report]` de `backend/pyproject.toml`, `coverage` de
 `frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
