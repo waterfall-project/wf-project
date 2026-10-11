@@ -48,9 +48,14 @@ CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
 # The projection of the specification, whose figures draw the tree of the functions (§3.4.1).
 PROJECTION = CONTRACT.parents[2] / "docs" / "spec" / "waterfall-spec.md"
-# A function of the second level, as a box of a figure names it:
-# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]``.
-SECOND_LEVEL = re.compile(r'\["(FBS-\d+\.\d+)<br>')
+# A function of the second level, as a box of a figure names it —
+# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]`` —, and as the heading
+# of its paragraph does — ``#### 3.4.2.1. FBS-1.1 : Gestion des utilisateurs`` —, as the tools of
+# the repository read them (``wftools.projection``), which the back does not import (#794).
+SECOND_LEVEL = (
+    re.compile(r'^\s*\w+\["(FBS-\d+\.\d+)<br>', re.MULTILINE),
+    re.compile(r"^#+ [\d.]+ (FBS-\d+\.\d+)\s*:", re.MULTILINE),
+)
 # The functions that have only the permission to consult, as WF-ADM-0100 names them.
 READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
 
@@ -109,6 +114,27 @@ def test_the_journal_of_audit_has_the_permission_to_read_alone(
     ]
 
 
+def second_level(projection: str) -> set[str]:
+    """Read the functions of the second level a projection names, in a figure or a heading."""
+    return {code for form in SECOND_LEVEL for code in form.findall(projection)}
+
+
+@pytest.mark.parametrize(
+    ("projection", "named"),
+    [
+        ('    FBS_9_1_Nouvelle["FBS-9.1<br>Nouvelle"]\n', {"FBS-9.1"}),
+        # A function whose paragraph has no box in a figure is a function all the same.
+        ("#### 3.4.9.1. FBS-9.1\u00a0: Nouvelle\n", {"FBS-9.1"}),
+        # Neither a function of the third level, nor a code cited in a sentence.
+        ("##### 3.4.9.1.1. FBS-9.1.1 : Détail\nVoir FBS-9.2 : rien.\n", set()),
+    ],
+)
+def test_the_functions_of_the_second_level_are_read_in_the_figures_and_the_headings(
+    projection: str, named: set[str]
+) -> None:
+    assert second_level(projection) == named
+
+
 @pytest.mark.requirement("WF-ADM-0100-A")
 def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult(
     api: ContractClient, headers: dict[str, str]
@@ -116,7 +142,7 @@ def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to
     # « Chaque fonction de second niveau de l'arborescence est représentée par ses deux
     # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
     # FBS-2.7. » : the tree is the one the specification draws, not a list written here.
-    tree = set(SECOND_LEVEL.findall(PROJECTION.read_text(encoding="utf-8")))
+    tree = second_level(PROJECTION.read_text(encoding="utf-8"))
     # The reading found the tree: the functions the requirement names, and others beside them.
     assert tree > READ_ONLY
     expected = {
