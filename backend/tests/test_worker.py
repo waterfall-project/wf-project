@@ -51,6 +51,16 @@ def worker(database: Database, queue: TaskQueue) -> MakeWorker:
     return make
 
 
+def reachable_from_api(module: str) -> bool:
+    """Say whether a module of the package is imported by the API, directly or not.
+
+    The graph is read from the API as a package, each of its modules an importer; a module outside
+    the package is in reach of none.
+    """
+    graph = grimp.build_graph("waterfall")
+    return module in graph.modules and graph.chain_exists("waterfall.api", module, as_packages=True)
+
+
 def interrupted(session: Session, task: Task) -> None:
     """Do the work, then be stopped before the end, as ``SIGTERM`` stops the worker."""
     inscribe(session, task)
@@ -66,11 +76,11 @@ def test_a_deposited_task_runs_in_the_worker_and_never_in_the_request_that_depos
     # request that deposits a task ends with it queued, deposited once its transaction is
     # committed, and not run. The worker has no handler of its own yet (US-0370/L2): the one this
     # test registers lives with the tests, outside the package, which no endpoint imports.
-    graph = grimp.build_graph("waterfall")
+    assert reachable_from_api("waterfall.platform.tasks")
+    assert not reachable_from_api("waterfall.worker")
     runs = Runs()
     for handler in [*HANDLERS.values(), runs]:
-        module = handler.__module__
-        assert module not in graph.modules or not graph.chain_exists("waterfall.api", module)
+        assert not reachable_from_api(handler.__module__)
     with logging_context(correlation_id=REQUEST), database.transaction() as session:
         task_id = submit(session, queue, "identity_sync", None)
         assert queue.waiting() == set()
