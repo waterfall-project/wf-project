@@ -37,9 +37,11 @@ emailTheme: waterfall
 adminTheme: waterfall
 
 # WF-ADM-0140: twelve characters at least, neither the address nor the last name — the address is
-# the username, hence notUsername as well as notEmail; `not-last-name` is the rule of the
-# extension. No periodic expiry: no `forceExpiredPasswordChange`.
-passwordPolicy: length(12) and notEmail and notUsername and not-last-name
+# the username, hence notUsername as well as notEmail; `not-last-name` is a rule of the extension.
+# `local-account-only`, its other rule, refuses any password to an account of a directory or of an
+# external provider, whichever way it is set (#650). No periodic expiry: no
+# `forceExpiredPasswordChange`.
+passwordPolicy: length(12) and notEmail and notUsername and not-last-name and local-account-only
 
 # WF-ADM-0140: ten consecutive failures lock the account for fifteen minutes, never for good.
 bruteForceProtected: true
