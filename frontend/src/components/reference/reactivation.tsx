@@ -8,7 +8,7 @@
  * and a command the server lists unavailable — a node under a deactivated parent, a role under a
  * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
  * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
- * role an account holds is (`later-commands.tsx`): a press does not run it, and says in the region of
+ * role an account holds is (`role-commands.tsx`): a press does not run it, and says in the region of
  * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
  * `commands.tsx`.
  *
@@ -186,7 +186,7 @@ export function Reactivations({
     <div
       ref={list}
       tabIndex={-1}
-      className="flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-0 flex-1 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ToldConditions told={told?.reading === reading ? told : undefined} />
       {reported

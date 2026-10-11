@@ -12,10 +12,15 @@
  * showed (`readAccountState`). A filter chosen only changes the address, back to the first page, and
  * the page reads anew: the server filters, never the front (WF-ARC-0020).
  *
+ * The search and the filters are kept with the settings of the grid, and found again when the
+ * address says nothing of the table (`USER_KEPT`, WF-IHM-0060); the page, never.
+ *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
 import type { components, operations } from "@/api/generated/schema";
+import { keptReading } from "@/components/grid/kept-address";
 import { CONTRACT_ADDRESS, type GridQuery, pagedList } from "@/components/grid/query";
+import { listReads } from "@/components/reference/address";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
 
@@ -71,6 +76,26 @@ export function readAccountState(search: SearchParameters): boolean | undefined 
   return search.get(INCLUDE_INACTIVE) === "false" ? true : undefined;
 }
 
+/** The path of the screen of the accounts. */
+export const USERS_PATH = "/admin/users";
+
+/** The longest last name and first name the contract gives an account, and the longest address. */
+export const NAME_LENGTH = 100;
+export const EMAIL_LENGTH = 254;
+
+/**
+ * The parameters of the address the screen filters the accounts by, besides their search: those its
+ * grid keeps with its settings — an address of before that hid the deactivated accounts is read, never
+ * kept.
+ */
+export const USER_FILTERS: readonly string[] = [ORIGINS, ORG_NODE, ACCESS_ROLES, IS_ACTIVE];
+
+/**
+ * What the table of the accounts reads of the address and keeps with its settings — its search and
+ * its filters —, which the page finds again when the address says nothing of it (`kept-address.ts`).
+ */
+export const USER_KEPT = keptReading(CONTRACT_ADDRESS, USER_FILTERS);
+
 /** The list of the accounts: its sort, its search and its filters. */
 export const USERS_LIST: PagedList = pagedList(
   CONTRACT_ADDRESS,
@@ -80,6 +105,12 @@ export const USERS_LIST: PagedList = pagedList(
   IS_ACTIVE,
   INCLUDE_INACTIVE,
 );
+
+/**
+ * What the list of the accounts reads of the address, its page included, which a refusal is told on
+ * (`Reactivations`): an answer that arrives once another page is shown says nothing of it.
+ */
+export const USER_READS = listReads(CONTRACT_ADDRESS, ...USER_FILTERS);
 
 /** What the page asks `listUsers`: the query of the contract. */
 type UsersQuery = NonNullable<operations["listUsers"]["parameters"]["query"]>;

@@ -917,21 +917,30 @@ matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier admi
 (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
 à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
 de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
-Pour les comptes, décidé par l'auteur le 2026-10-08 (#379, #515) : des boutons
-seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
-`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
-en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
-« Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
-absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; la désactivation du dernier compte actif qui porte les permissions de
-modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
-pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
-le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
-ces permissions — un refus dit comme tout autre. Un
-clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
-section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
-condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
-aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+Pour les comptes (US-0360, #379), la table est sa propre saisie, à une session qui porte
+`users.write` (`platformOffer`) : le nom et le prénom d'un compte local dans leurs cellules
+(`updateUser`), ceux d'un compte de l'annuaire ou d'un fournisseur restant en lecture (WF-ADM-0050) ;
+l'état sur un interrupteur, son mot à côté (`setUserActivation`) ; les rôles dans une liste à choix
+multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
+`user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
+commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
+sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
+comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
+ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
+retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
+(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
+cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
+d'un compte qui n'est pas local. « Créer un compte local », en tête de la table, ouvre le dialogue du
+nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
+appel, l'adresse déjà portée dite à son champ. Aucune suppression (WF-ADM-0060). Comme pour les
+rôles, une seule source du compte répondu le plus récent par sa `lock_version` (`UserCommands`,
+`user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule, part de sa
+version. Ce que fait une écriture se dit dans la région « Commandes des comptes » ; un refus,
+au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`). La recherche et les
+filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
+table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
+se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule

@@ -123,6 +123,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              witness: { $ref: ../../../fixtures/api/user_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -193,6 +195,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              renamed: { $ref: ../../../fixtures/api/user_renamed.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -245,6 +249,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/user_deactivated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -290,6 +296,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              attributed: { $ref: ../../../fixtures/api/user_access_roles_set.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
