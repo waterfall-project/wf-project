@@ -4845,6 +4845,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
+        UnprocessableEntity: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. */
         Conflict: {
             headers: {
@@ -4856,15 +4865,6 @@ export interface components {
         };
         /** @description Requête mal formée. */
         BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
-        UnprocessableEntity: {
             headers: {
                 [name: string]: unknown;
             };
@@ -5114,6 +5114,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5332,6 +5333,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5360,7 +5362,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte ; rien n'est écrit. */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte, absent quand seul le fournisseur d'identité la porte — un compte du royaume que Waterfall ne connaît pas (#814) ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5369,7 +5371,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`) ; une adresse, un nom ou un prénom que le fournisseur d'identité refuse alors que la règle des adresses et des noms du contrat les admet — des points qui se suivent, une partie locale de plus de 64 caractères, un caractère qu'il interdit dans un nom (`/email`, `/last_name`, `/first_name`, `VALIDATION_FAILED`, #815). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5877,6 +5879,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7035,6 +7038,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7226,6 +7230,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7789,6 +7794,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7864,6 +7870,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8017,6 +8024,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8203,6 +8211,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8471,6 +8480,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8630,6 +8640,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8998,6 +9009,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -9287,6 +9299,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9364,6 +9377,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9647,6 +9661,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9708,6 +9723,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9806,6 +9822,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9911,6 +9928,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9939,6 +9957,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10054,6 +10073,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10225,6 +10245,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10533,6 +10554,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10598,6 +10620,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10662,6 +10685,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10690,6 +10714,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

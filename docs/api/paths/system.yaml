@@ -150,6 +150,7 @@
               none: { $ref: ../../../fixtures/api/tasks_none.json }
               running: { $ref: ../../../fixtures/api/tasks_running.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}:
