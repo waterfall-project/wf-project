@@ -307,7 +307,20 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
   qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
   « mot de passe oublié », console, lien —, avec sa phrase dans le thème, en français et en
   anglais. Sans elle, une personne venue d'un fournisseur externe se donnerait un mot de passe
-  local et garderait l'accès après son départ du fournisseur.
+  local et garderait l'accès après son départ du fournisseur ;
+- `reset-credentials` (#852, livrée par US-0420b, #879) : le lien « mot de passe oublié » de
+  Keycloak est à usage unique par une marque que Keycloak 26 ne garde qu'en mémoire
+  (`singleUseObjects`, Infinispan) : après un redémarrage, un lien déjà employé rouvre le
+  formulaire. Cette pièce, sous l'identifiant de fournisseur `reset-credentials`, étend le
+  `ResetCredentialsActionTokenHandler` de Keycloak d'un vérificateur de plus, qui refuse un
+  jeton dont l'`iat` précède la date de création, en base, du mot de passe du compte, avec le
+  message « déjà servi » du thème. La marque d'emploi devient donc la date du mot de passe :
+  un mot de passe fixé autrement après l'envoi du lien — un autre lien, la console, la page du
+  compte — invalide aussi ce lien. Reste à vérifier que Keycloak 26.5.7 laisse le fournisseur
+  déployé remplacer celui du même identifiant (`order()`) ; le test
+  `test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart` le
+  constate, et perd son `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
+  pièce n'en change que la vérification du jeton.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
 les tests d'intégration du service contre le Keycloak de la plateforme, et la chaîne
