@@ -3666,6 +3666,15 @@ corps (58 `400`, 29 `422` ajoutés), et la règle `rule/operation-with-body-decl
 le tient. Écarté : ne corriger que `updateAccessRole`, l'oubli se serait reproduit à la prochaine
 opération.
 
+## Le 412 de la désactivation d'un compte (EP-03/US-0360/L2, #828)
+
+`setUserActivation` reçoit le `lock_version` du compte sans déclarer le 412 qu'un compteur
+périmé donne, que toute écriture qui porte une version déclare (#296, #532) : il est déclaré,
+`STALE_LOCK_VERSION`, `params.expected_lock_version`. Écarté : ignorer le compteur reçu, une
+désactivation écraserait alors une modification que l'administrateur n'a pas vue (WF-IHM-0110).
+Son corps devient un schéma nommé, `UserActivationWrite`, comme `UserRolesWrite` : le service en
+engendre le modèle, que le générateur ne tire pas d'un corps décrit en place.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
