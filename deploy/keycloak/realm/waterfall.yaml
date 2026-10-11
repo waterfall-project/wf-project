@@ -85,6 +85,10 @@ roles:
       description: >-
         Asks the extension of Waterfall for the password setup link of a local account
         (password-setup-link). Held by the service account of Waterfall alone.
+    - name: waterfall-installation-link
+      description: >-
+        Asks the extension of Waterfall for the link of the installation, valid until it is used
+        (password-setup-link, WF-EXP-0020). Held by the client of the bootstrap alone.
 
 clients:
   # The front: the authorization code flow with PKCE, on the server of Next (#215); Keycloak
@@ -158,6 +162,21 @@ clients:
     directAccessGrantsEnabled: false
     serviceAccountsEnabled: true
 
+  # The client of the bootstrap, `waterfall-api install`, and of it alone: the link of the first
+  # administrator, valid until it is used (#652). Its secret is given to the bootstrap only, never
+  # to the API nor to the worker, whose service account makes links of an hour.
+  - clientId: waterfall-installation
+    name: Waterfall installation
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:WATERFALL_INSTALLATION_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+
   # The client every realm has for its command line: no sign-in by password, which would be a way
   # around the page of the realm the conception does not plan (#644). The platform of the
   # workstation declares its own client of test for the tokens its tests need.
@@ -176,3 +195,8 @@ users:
         - manage-users
         - view-users
         - query-users
+  - username: service-account-waterfall-installation
+    enabled: true
+    serviceAccountClientId: waterfall-installation
+    realmRoles:
+      - waterfall-installation-link

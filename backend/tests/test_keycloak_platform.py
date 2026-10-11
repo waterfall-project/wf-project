@@ -40,6 +40,7 @@ pytestmark = pytest.mark.keycloak
 ADDRESS_VARIABLE = "WATERFALL_TEST_KEYCLOAK_ADDRESS"
 BACKCHANNEL_VARIABLE = "WATERFALL_TEST_KEYCLOAK_BACKCHANNEL"
 SERVICE_CREDENTIAL_VARIABLE = "WATERFALL_SERVICE_CLIENT_SECRET"
+INSTALLATION_CREDENTIAL_VARIABLE = "WATERFALL_INSTALLATION_CLIENT_SECRET"
 ADMIN_CREDENTIAL_VARIABLE = "WATERFALL_KEYCLOAK_ADMIN_PASSWORD"
 FRONT_ADDRESS_VARIABLE = "WATERFALL_TEST_FRONT_ADDRESS"
 REALM = "waterfall"
@@ -112,6 +113,21 @@ def service_token(keycloak: httpx2.Client) -> str:
             "grant_type": "client_credentials",
             "client_id": "waterfall-service",
             "client_secret": required(SERVICE_CREDENTIAL_VARIABLE),
+        },
+    )
+    assert response.status_code == 200, response.text
+    return cast("str", response.json()["access_token"])
+
+
+@pytest.fixture(scope="module")
+def installation_token(keycloak: httpx2.Client) -> str:
+    """Obtain a token of the client of the bootstrap, by its client credentials."""
+    response = keycloak.post(
+        "/protocol/openid-connect/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "waterfall-installation",
+            "client_secret": required(INSTALLATION_CREDENTIAL_VARIABLE),
         },
     )
     assert response.status_code == 200, response.text
@@ -455,6 +471,24 @@ def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
     page = Browser().get(second.json()["url"])
     assert page.status_code == 200
     assert confirmation_target(page).startswith(f"{realm}/login-actions/action-token?key=")
+
+
+def test_the_client_of_the_bootstrap_gets_a_link_valid_until_used_and_sends_no_invitation(
+    backchannel: httpx2.Client,
+    service_token: str,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # The link of the installation (#652): no end but the farthest a token of Keycloak can say,
+    # under the nonce of the account, so that it replaces the link before it as any link does.
+    hourly = link_of(backchannel, local_account.id, service_token).json()["url"]
+    made = link_of(backchannel, local_account.id, installation_token)
+    assert made.status_code == 200, made.text
+    assert list(made.json()) == ["url"]
+    assert action_token(made.json()["url"])["exp"] == 2**31 - 1
+    assert refused_as(Browser().get(hourly)) == "replaced"
+    invitation = invite(backchannel, local_account.id, installation_token)
+    assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
 
 
 def refused_as(page: httpx2.Response) -> str:

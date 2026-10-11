@@ -31,6 +31,7 @@ jobs:
       WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin
       WATERFALL_FRONT_CLIENT_SECRET: chain-only-front-client
       WATERFALL_SERVICE_CLIENT_SECRET: chain-only-service-client
+      WATERFALL_INSTALLATION_CLIENT_SECRET: chain-only-installation-client
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
