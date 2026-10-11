@@ -1082,7 +1082,7 @@ dire dans la spécification.
 
 ## US-0390 — Évaluation d'une action et permissions effectives
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0110-A`
 - **opérations** : `getMe`
 - **issue** : #432
@@ -1098,9 +1098,8 @@ contourner un refus en appelant l'API.
   EP-04 et EP-06 ; EP-04 clôt l'exigence.
 - écart : `WF-ADM-0110-A` — « Inscrit comme contributeur, il le modifie. » : EP-04.
 - écart : `WF-ADM-0110-A` — « Un utilisateur sans la permission de consultation ne voit pas le projet, même contributeur ; un contributeur sans « consulter tous les projets » ne voit que ses projets. » : EP-04.
-- écart : `WF-ADM-0110-A` — « Une adresse d’objet inexistant et une adresse d’objet non consultable mènent au même écran. » : constaté ici pour un compte et un rôle — une
-  adresse inconnue et une adresse que l'appelant n'a pas la permission de consulter rendent
-  la même réponse ; les objets d'un projet arrivent en EP-04.
+- écart : `WF-ADM-0110-A` — « Une adresse d’objet inexistant et une adresse d’objet non consultable mènent au même écran. » : constaté ici pour un rôle ; pour un compte, par
+  US-0360 avec `getUser` ; les objets d'un projet arrivent en EP-04.
 - `WF-ADM-0110-A` — « Un utilisateur connaît la liste de ses permissions effectives, et elle change immédiatement lorsqu'un de ses rôles est modifié. »
 - propre à l'US : une opération demandée sans sa permission est refusée par l'API, quel que
   soit ce que le front présente, et le refus nomme la permission manquante.

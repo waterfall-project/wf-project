@@ -187,6 +187,25 @@ def read_role(session: Session, role_id: UUID) -> RoleView:
     return _views(session, rows)[0]
 
 
+@dataclass(frozen=True, slots=True)
+class HeldRole:
+    """A role an account holds, as the account names it: its identifier and its label."""
+
+    access_role_id: UUID
+    label: str
+
+
+def roles_held(session: Session, user_id: UUID) -> list[HeldRole]:
+    """Read the roles an account holds, deleted ones apart, by label then by identifier."""
+    rows = session.execute(
+        select(AccessRole.id, AccessRole.label)
+        .join(UserAccessRole, UserAccessRole.access_role_id == AccessRole.id)
+        .where(UserAccessRole.user_account_id == user_id, AccessRole.deleted_at.is_(None))
+        .order_by(AccessRole.label, AccessRole.id)
+    )
+    return [HeldRole(role_id, label) for role_id, label in rows]
+
+
 def _views(session: Session, rows: Sequence[tuple[AccessRole, int]]) -> list[RoleView]:
     granted: dict[UUID, list[str]] = {role.id: [] for role, _ in rows}
     for role_id, code in session.execute(

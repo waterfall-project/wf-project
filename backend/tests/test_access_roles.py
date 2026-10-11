@@ -4,7 +4,9 @@
 
 The roles are read as they are written around the service (``access_rows``), and written through
 the API, which inscribes each write in the journal of audit. Every answer is checked against the
-contract (``ContractClient``).
+contract (``ContractClient``). The caller holds a role of its own, which gives it the permissions
+the operations ask for (``caller_permissions``) and which the table of the roles read here leaves
+out (``labels``); a test that needs its caller to hold other ones says which.
 """
 
 import ast
@@ -40,13 +42,31 @@ PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
+# The role of the caller, and the permissions it gives unless a test says otherwise.
+CALLER_ROLE = "Habilitations de l'appelant"
+CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
 # The example of the contract that gives the catalogue as it is delivered.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "permissions.json"
+# The projection of the specification, whose figures draw the tree of the functions (§3.4.1).
+PROJECTION = CONTRACT.parents[2] / "docs" / "spec" / "waterfall-spec.md"
+# A function of the second level, as a box of a figure names it:
+# ``FBS_1_1_Gestion_des_utilisateurs["FBS-1.1<br>Gestion des utilisateurs"]``.
+SECOND_LEVEL = re.compile(r'\["(FBS-\d+\.\d+)<br>')
+# The functions that have only the permission to consult, as WF-ADM-0100 names them.
+READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
 
 
 @pytest.fixture
-def headers(database: Database, realm: TestRealm) -> dict[str, str]:
-    """Write the account of the caller, Camille Martin, and give the header of its token."""
+def caller_permissions() -> tuple[str, ...]:
+    """Give the permissions the role of the caller grants: to consult and change the roles."""
+    return CONSULT_AND_CHANGE
+
+
+@pytest.fixture
+def headers(
+    database: Database, realm: TestRealm, caller_permissions: tuple[str, ...]
+) -> dict[str, str]:
+    """Write the account of the caller, Camille Martin, and its role; give its token's header."""
     with database.transaction() as session:
         session.execute(
             insert(UserAccount).values(
@@ -58,14 +78,18 @@ def headers(database: Database, realm: TestRealm) -> dict[str, str]:
                 )
             )
         )
+    role(database, CALLER_ROLE, permissions=caller_permissions, holders=(CALLER,))
     return bearer(realm.token(SUBJECT, KEY))
 
 
 def labels(api: ContractClient, headers: dict[str, str], query: str = "") -> list[str]:
-    """Give the labels of the table of the roles, in its order, for a query of filters and sort."""
+    """Give the labels of the table of the roles, in its order, for a query of filters and sort.
+
+    The role of the caller is left out, wherever the filters and the sort place it.
+    """
     response = api.get(f"{ROLES}{query}", headers=headers)
     assert response.status_code == 200
-    return [entry["label"] for entry in response.json()]
+    return [entry["label"] for entry in response.json() if entry["label"] != CALLER_ROLE]
 
 
 def test_the_catalogue_is_the_enumeration_of_the_contract_in_its_order(
@@ -84,6 +108,30 @@ def test_the_journal_of_audit_has_the_permission_to_read_alone(
     assert [entry["code"] for entry in catalogue if entry["fbs_code"] == "FBS-1.5"] == [
         "audit_log.read"
     ]
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult(
+    api: ContractClient, headers: dict[str, str]
+) -> None:
+    # « Chaque fonction de second niveau de l'arborescence est représentée par ses deux
+    # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
+    # FBS-2.7. » : the tree is the one the specification draws, not a list written here.
+    tree = set(SECOND_LEVEL.findall(PROJECTION.read_text(encoding="utf-8")))
+    # The reading found the tree: the functions the requirement names, and others beside them.
+    assert tree > READ_ONLY
+    expected = {
+        code: ["function_read"] if code in READ_ONLY else ["function_read", "function_write"]
+        for code in tree
+    }
+    response = api.get(PERMISSIONS, headers=headers)
+    assert response.status_code == 200
+    served: dict[str, list[str]] = {}
+    for entry in response.json():
+        if entry["kind"] in {"function_read", "function_write"}:
+            served.setdefault(entry["fbs_code"], []).append(entry["kind"])
+    # No function of the tree missing, none outside it, and each with exactly its permissions.
+    assert {code: sorted(kinds) for code, kinds in served.items()} == expected
 
 
 @pytest.mark.requirement("WF-ADM-0100-A")
@@ -537,7 +585,9 @@ def test_a_label_that_holds_a_nul_is_refused_at_its_field(
     assert (labels(api, headers), journal(database)) == (["Chiffreur"], [])
 
 
+# The predefined « Administrateur » alone gives the caller what it does here.
 @pytest.mark.requirement("WF-ADM-0010-A")
+@pytest.mark.parametrize("caller_permissions", [()])
 def test_a_predefined_role_is_renamed_changed_and_deleted_when_no_account_holds_it(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
@@ -707,6 +757,8 @@ def test_the_administrator_role_its_holder_holds_is_not_deleted(
     assert labels(api, headers) == ["Administrateur"]
 
 
+# The caller changes the roles by ``Direction`` alone, which it may then take from itself.
+@pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
 @pytest.mark.parametrize("withdrawn", ADMINISTRATION)
 def test_a_change_that_takes_the_administration_from_the_last_administrator_is_refused(
     api: ContractClient, database: Database, headers: dict[str, str], withdrawn: str
@@ -733,18 +785,26 @@ def test_a_change_that_takes_the_administration_from_the_last_administrator_is_r
     )
 
 
+# As above, ``Direction`` alone makes the caller an administrator; without a second one, the
+# same change is refused.
+@pytest.mark.parametrize("caller_permissions", [("access_roles.read",)])
+@pytest.mark.parametrize("second", [True, False])
 def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
-    api: ContractClient, database: Database, headers: dict[str, str]
+    api: ContractClient, database: Database, headers: dict[str, str], second: bool
 ) -> None:
     direction = role(database, "Direction", permissions=ADMINISTRATION, holders=(CALLER,))
-    role(database, "Administration", permissions=ADMINISTRATION, holders=(holder(database),))
+    if second:
+        role(database, "Administration", permissions=ADMINISTRATION, holders=(holder(database),))
     sent: dict[str, object] = {
         "label": "Direction",
         "permissions": ["users.write"],
         "lock_version": 0,
     }
     response = api.patch(f"{ROLES}/{direction}", headers=headers, json=sent)
-    assert (response.status_code, response.json()["permissions"]) == (200, ["users.write"])
+    if second:
+        assert (response.status_code, response.json()["permissions"]) == (200, ["users.write"])
+    else:
+        assert problem(response) == (409, "LAST_ADMINISTRATOR", [])
 
 
 @pytest.mark.parametrize(
