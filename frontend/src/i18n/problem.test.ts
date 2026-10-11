@@ -8,9 +8,29 @@ import { example } from "@/test/fixtures";
 
 import { CATALOGUES } from "./catalogues";
 import type { Locale } from "./locale";
-import { LINES_IN_SENTENCE, namedLines, problemMessage, type ProblemText } from "./problem";
+import {
+  LINES_IN_SENTENCE,
+  namedLines,
+  namedProjects,
+  problemMessage,
+  type ProblemText,
+} from "./problem";
 
 type ErrorCode = components["schemas"]["ErrorCode"];
+
+/** The first projects of the portfolio of the witness, as a refusal names them (`projects`). */
+function portfolioProjects(count: number) {
+  const portfolio = example("volume/portfolio_projects") as {
+    items: { label: string; code: string | null }[];
+  };
+  return portfolio.items
+    .slice(0, count)
+    .map(({ label, code }) => ({ project_label: label, project_code: code }));
+}
+
+/** The monteur câbleur and the electrical engineer of the witness, as a refusal gives them. */
+const FITTER = "01926f3a-7c00-7000-8000-000000000454";
+const ENGINEER = "01926f3a-7c00-7000-8000-000000000451";
 
 /** The sentence of a refusal in a language. */
 function say(problem: ProblemText, locale: Locale): string {
@@ -192,6 +212,135 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the roles a category keeps in labour by their labels and codes, to attach first to another category of labour [WF-REF-0040-A]", () => {
+    // Le rattachement […] d'une catégorie […] à laquelle un rôle de ressource est rattaché, à une
+    // nature hors main-d'œuvre est refusé : the roles named, which the screen of the costs may not
+    // read (EP-14/L42r).
+    const refused = example("cost_category_role_kind_refused") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "L’état actuel ne permet pas cette opération. Condition non remplie\u00A0: catégorie " +
+        "rattachée à aucun rôle de ressource. Rôles à rattacher d’abord à une autre catégorie de " +
+        "main-d’œuvre\u00A0: Automaticien (AUTOM).",
+    );
+    expect(say(refused, "en")).toBe(
+      "The current state does not allow this operation. Unmet condition: category attached to no " +
+        "resource role. Roles to attach first to another labour category: Automaticien (AUTOM).",
+    );
+  });
+
+  it("names the roles a nature keeps in labour, to attach first to a category of another nature", () => {
+    // The refusal of a nature has no example of its own: it takes the form of that of a category
+    // (EP-14/L42r), whose condition this variant of `cost_category_role_kind_refused` alone changes.
+    const { params, ...refused } = example("cost_category_role_kind_refused") as ProblemText;
+    const nature = {
+      ...refused,
+      params: { ...params, missing_condition: "cost_type_without_role" as const },
+    };
+    expect(say(nature, "fr")).toMatch(
+      /Rôles à rattacher d’abord à une catégorie de main-d’œuvre d’une autre nature\u00A0: Automaticien \(AUTOM\)\.$/,
+    );
+  });
+
+  it("names each project a calendar would leave a task without hours in by its label and its code, one without by its label alone [WF-PLA-0010-A]", () => {
+    // La modification d'un calendrier qui laisserait une tâche sans heure dans un projet que le
+    // manager ne peut pas consulter est refusée en nommant ce projet par son libellé et son code ;
+    // un projet en chiffrage sans code est nommé par son seul libellé.
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const hours =
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Le calendrier de son rôle " +
+      "n’a aucune heure.";
+    expect(say(refused, "fr")).toBe(
+      `${hours} Projets en cause\u00A0: Modernisation du poste de commande (PRJ-001).`,
+    );
+    // A variant of `calendar_update_without_hours`: the project without a code, the one value
+    // changed — an offer in pricing, which no code names yet.
+    const [project] = namedProjects(refused.params);
+    const uncoded = { ...refused.params, projects: [{ ...project, project_code: null }] };
+    expect(say({ ...refused, params: uncoded }, "fr")).toBe(
+      `${hours} Projets en cause\u00A0: Modernisation du poste de commande.`,
+    );
+  });
+
+  it("names the role whose calendar has no hour as the screen read it, and says the cause unnamed when it read none", () => {
+    // The one role of `calendar_update_without_hours`, the fitter: its calendar has no hour.
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const named = problemMessage(refused, {
+      locale: "en",
+      messages: CATALOGUES.en,
+      names: { [FITTER]: "Monteur câbleur (MONT-CAB)" },
+    });
+    expect(named).toBe(
+      "A task would have no working hour left in the week. Role whose calendar has no hour: " +
+        "Monteur câbleur (MONT-CAB). Projects involved: Modernisation du poste de commande " +
+        "(PRJ-001).",
+    );
+    expect(say(refused, "en")).toBe(
+      "A task would have no working hour left in the week. The calendar of its role has no hour. " +
+        "Projects involved: Modernisation du poste de commande (PRJ-001).",
+    );
+  });
+
+  it("names the roles whose calendars never overlap, two of them, as the screen read them, and says the cause unnamed when it read none", () => {
+    // A variant of `calendar_update_without_hours`: two roles in cause, the fitter and the
+    // electrical engineer, the one value changed.
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const two = {
+      ...refused,
+      params: { ...refused.params, resource_role_ids: [FITTER, ENGINEER] },
+    };
+    const named = problemMessage(two, {
+      locale: "fr",
+      messages: CATALOGUES.fr,
+      names: {
+        [FITTER]: "Monteur câbleur (MONT-CAB)",
+        [ENGINEER]: "Ingénieur électricien (ING-ELEC)",
+      },
+    });
+    expect(named).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les calendriers " +
+        "ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Ingénieur électricien " +
+        "(ING-ELEC). Projets en cause\u00A0: Modernisation du poste de commande (PRJ-001).",
+    );
+    expect(say(two, "fr")).toContain(" Les calendriers de ses rôles ne se recoupent aucun jour. ");
+  });
+
+  it("says a task without a line of labour on the default calendar when the refusal names no role, and no calendar of a role", () => {
+    // A variant of `calendar_update_without_hours`: no role in cause, the one value changed — the
+    // default calendar emptied, or another designated by default, which the tasks without a line
+    // of labour follow (WF-REF-0120).
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const told = say({ ...refused, params: { ...refused.params, resource_role_ids: [] } }, "fr");
+    expect(told).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Tâches sans ligne de " +
+        "main-d’œuvre, sur le calendrier par défaut. Projets en cause\u00A0: Modernisation du " +
+        "poste de commande (PRJ-001).",
+    );
+    expect(told).not.toMatch(/rôle/);
+  });
+
+  it("names five projects in its sentence, and counts none", () => {
+    // A variant of `calendar_update_without_hours`: five projects of the portfolio in cause, the
+    // one value changed — the most the sentence names.
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const projects = portfolioProjects(LINES_IN_SENTENCE);
+    const told = say({ ...refused, params: { ...refused.params, projects } }, "fr");
+    expect(told).toContain(
+      "Projets en cause\u00A0: Modernisation du poste de commande (PRJ-001), Extension de la ligne " +
+        "d'essais (PRJ-002),",
+    );
+    expect(told).toMatch(/ et Automatisation du poste de commande — Lyon \(PRJ-005\)\.$/);
+    expect(told).not.toContain("listés ci-dessous");
+  });
+
+  it("counts the projects of a refusal beyond a few, which the notice lists", () => {
+    // A variant of `calendar_update_without_hours`: six projects of the portfolio in cause, the one
+    // value changed.
+    const refused = example("calendar_update_without_hours") as ProblemText;
+    const listed = { ...refused, params: { ...refused.params, projects: portfolioProjects(6) } };
+    expect(say(listed, "fr")).toMatch(/ 6 projets en cause, listés ci-dessous\.$/);
+    expect(namedProjects(listed.params)).toHaveLength(6);
+  });
+
   it("says how many columns a paste may have", () => {
     const problem: ProblemText = { code: "PASTE_TOO_WIDE", params: { max_columns: 12 } };
     expect(say(problem, "en")).toBe(
@@ -285,6 +434,9 @@ describe("the sentence of a refusal", () => {
         estimate_lines: [{ row_number: "10", label: "Borniers" }],
         max_columns: "12",
         component: "toString",
+        resource_roles: [{ resource_role_id: "01926f3a-7c00-7000-8000-000000000453" }],
+        resource_role_ids: [453],
+        projects: [{ project_code: "PRJ-001" }],
       },
     };
     expect(say(problem, "en")).toBe("The current state does not allow this operation.");

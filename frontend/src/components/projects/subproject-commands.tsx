@@ -32,7 +32,10 @@
  * stays — against the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the
  * page read anew lists the sub-project where the server retains it. What a write did is said in the
  * region of the list; a refusal of a deletion is told above the list (`Reactivations`). An answer
- * closes only the form or the confirmation it was sent from, never one opened since (#660, #672).
+ * closes only the form or the confirmation it was sent from, never one opened since (#660, #672). A
+ * modification writes from the version its row had when it opened: the command that opens it waits,
+ * inactive and saying why, while a modification of that sub-project is under way — the dialog
+ * closed —, for the form to open on the version its answer brings (#661, #734).
  *
  * The commands of the reference data (`CommandedList`) are bound to its kinds of object: this list has
  * its own, on the same pieces — the form, the command of a cell, the region of the refusals.
@@ -62,7 +65,7 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
-import { ReferenceForm, required } from "@/components/reference/reference-form";
+import { ReferenceForm, required, WritingNote } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -111,7 +114,11 @@ interface Commands {
     { readonly text: string; readonly count: number; readonly lead: Lead | undefined } | undefined;
   readonly answers: ReadonlyMap<string, Subproject>;
   readonly deleted: ReadonlySet<string>;
+  /** The sub-projects whose modification is under way: their command waits for the answer. */
+  readonly writing: ReadonlySet<string>;
   readonly answer: (row: Subproject) => void;
+  /** Told that the modification of a sub-project leaves, then that it is answered. */
+  readonly write: (id: string, writing: boolean) => void;
   readonly remove: (id: string) => void;
   /** Say a sentence in the region of the list, and the link that follows it, if any. */
   readonly say: (text: string, lead?: Lead) => void;
@@ -175,6 +182,7 @@ export function SubprojectCommands({
   const [said, setSaid] = useState<Commands["said"]>();
   const [answers, setAnswers] = useState<ReadonlyMap<string, Subproject>>(() => new Map());
   const [deleted, setDeleted] = useState<ReadonlySet<string>>(() => new Set());
+  const [writing, setWriting] = useState<ReadonlySet<string>>(() => new Set());
   const commands = useMemo<Commands | undefined>(
     () =>
       project === undefined
@@ -187,6 +195,7 @@ export function SubprojectCommands({
             said,
             answers,
             deleted,
+            writing,
             answer: (row) => {
               setAnswers((before) => {
                 const known = before.get(row.subproject_id);
@@ -197,6 +206,17 @@ export function SubprojectCommands({
             },
             remove: (id) => {
               setDeleted((before) => new Set(before).add(id));
+            },
+            write: (id, under) => {
+              setWriting((before) => {
+                const after = new Set(before);
+                if (under) {
+                  after.add(id);
+                } else {
+                  after.delete(id);
+                }
+                return after;
+              });
             },
             say: (text, lead) => {
               setSaid((before) => ({ text, count: (before?.count ?? 0) + 1, lead }));
@@ -211,7 +231,7 @@ export function SubprojectCommands({
               );
             },
           },
-    [project, estimated, opened, said, answers, deleted],
+    [project, estimated, opened, said, answers, deleted, writing],
   );
   return <SubprojectContext value={commands}>{children}</SubprojectContext>;
 }
@@ -312,13 +332,18 @@ function UnavailableCommand({
 
 /**
  * The command that opens the modification of a row, named after its code, as the row lists `update`:
- * absent, nothing; unavailable, with the conditions it lacks.
+ * absent, nothing; unavailable, with the conditions it lacks; waiting, inactive and saying why, while
+ * a modification of the row is under way — its form would open on the version the answer replaces
+ * (#661, #734).
  */
 export function ModifySubproject({ row }: { readonly row: Subproject }) {
   const t = useTranslations("projectLists.subprojects");
+  const form = useTranslations("reference.form");
   const commands = useContext(SubprojectContext);
+  const why = useId();
   const offer = findOffer(row.available_commands, "update");
   const name = t("modifyNamed", { code: row.code });
+  const writing = commands?.writing.has(row.subproject_id) === true;
   const content = (
     <>
       <PencilLine aria-hidden="true" />
@@ -336,14 +361,24 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
     );
   }
   return (
-    <CellCommand
-      aria-label={name}
-      onClick={(event: MouseEvent<HTMLElement>) => {
-        commands?.open({ row, trigger: event.currentTarget, deleting: false });
-      }}
-    >
-      {content}
-    </CellCommand>
+    <>
+      <CellCommand
+        aria-label={name}
+        aria-disabled={writing ? true : undefined}
+        aria-busy={writing}
+        aria-describedby={writing ? why : undefined}
+        title={writing ? form("writing") : undefined}
+        className={UNAVAILABLE}
+        onClick={(event: MouseEvent<HTMLElement>) => {
+          if (!writing) {
+            commands?.open({ row, trigger: event.currentTarget, deleting: false });
+          }
+        }}
+      >
+        {content}
+      </CellCommand>
+      <WritingNote id={why} writing={writing} srOnly />
+    </>
   );
 }
 
@@ -534,6 +569,13 @@ export function SubprojectDialog() {
         answer.data.subproject_id !== row.subproject_id
           ? ANOTHER_OBJECT
           : answer
+      }
+      onWriting={
+        row === undefined
+          ? undefined
+          : (writing) => {
+              commands.write(row.subproject_id, writing);
+            }
       }
       onDone={(answer) => {
         if (row !== undefined) {

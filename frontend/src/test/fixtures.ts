@@ -193,6 +193,30 @@ export interface FakeTiming {
 }
 
 /**
+ * Hold every call of a fake client until the function given back is called (`timing`); `until`
+ * settles then too, for what a test holds besides — a server action that rejects once it settles.
+ */
+export function held(): {
+  readonly timing: FakeTiming;
+  readonly until: Promise<void>;
+  readonly release: () => void;
+} {
+  const settles: (() => void)[] = [];
+  const until = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return {
+    timing: { hold: () => until },
+    until,
+    release: () => {
+      for (const settle of settles) {
+        settle();
+      }
+    },
+  };
+}
+
+/**
  * Make a client that answers each route from the examples of the contract. A call to a route
  * it has no answer for fails the test: an unexpected call is a defect, not an empty page. A
  * table keyed by any string — a `Record<string, string>` — is refused: it would name no

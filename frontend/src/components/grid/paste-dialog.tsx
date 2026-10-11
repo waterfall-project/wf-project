@@ -11,8 +11,8 @@
  * cell; while the plan is applied, nothing closes the dialog. Once applied, what the server did not
  * write — the refusals of the preview, and those it adds judging the accepted rows again — is told
  * above the grid with the cell the block was pasted from and the number of rows written, the
- * refusals in a region of their own whose height is bounded, until the user dismisses it
- * (`PasteAppliedNotice`).
+ * refusals in a region of their own whose height is bounded, out of the alert, until the user
+ * dismisses it (`PasteAppliedNotice`).
  */
 "use client";
 
@@ -39,8 +39,28 @@ function refusedRows(rejected: readonly PasteRejection[]): number {
   return new Set(rejected.map((rejection) => rejection.row)).size;
 }
 
+/**
+ * How many rows of the block are refused: before the list, in the report of the preview; the list
+ * out of it, in the notice of a paste applied (`listed`).
+ */
+function RefusedCount({
+  rejected,
+  listed = false,
+}: {
+  readonly rejected: readonly PasteRejection[];
+  readonly listed?: boolean;
+}) {
+  const t = useTranslations("grid.paste");
+  const count = refusedRows(rejected);
+  return (
+    <p className="font-medium text-destructive">
+      {listed ? t("rejectedListed", { count }) : t("rejected", { count })}
+    </p>
+  );
+}
+
 /** The rows refused, each with its place in the block, its cells as copied and its reason. */
-function Refusals({
+function RefusedRows({
   rejected,
   block,
 }: {
@@ -51,33 +71,28 @@ function Refusals({
   const locale = useLocale();
   const messages = useMessages();
   return (
-    <>
-      <p className="font-medium text-destructive">
-        {t("rejected", { count: refusedRows(rejected) })}
-      </p>
-      <ul className="space-y-1">
-        {rejected.map((rejection, index) => (
-          // A row may be refused twice, same place and same code: the key takes its rank too.
-          <li
-            key={`${rejection.row.toString()}:${rejection.code}:${index.toString()}`}
-            className="space-y-0.5 rounded-md border p-2"
-          >
-            <p className="flex items-start gap-1.5">
-              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
-              {t("rejectedRow", {
-                row: rejection.row + 1,
-                reason: problemMessage(rejection, { locale, messages }),
-              })}
-            </p>
-            <p className="flex flex-wrap gap-x-3 pl-5.5 text-muted-foreground">
-              {(block[rejection.row] ?? []).map((cell, column) => (
-                <span key={`${column.toString()}:${cell}`}>{cell}</span>
-              ))}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </>
+    <ul className="space-y-1">
+      {rejected.map((rejection, index) => (
+        // A row may be refused twice, same place and same code: the key takes its rank too.
+        <li
+          key={`${rejection.row.toString()}:${rejection.code}:${index.toString()}`}
+          className="space-y-0.5 rounded-md border p-2"
+        >
+          <p className="flex items-start gap-1.5">
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+            {t("rejectedRow", {
+              row: rejection.row + 1,
+              reason: problemMessage(rejection, { locale, messages }),
+            })}
+          </p>
+          <p className="flex flex-wrap gap-x-3 pl-5.5 text-muted-foreground">
+            {(block[rejection.row] ?? []).map((cell, column) => (
+              <span key={`${column.toString()}:${cell}`}>{cell}</span>
+            ))}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -91,7 +106,14 @@ function Report({ plan, block }: { readonly plan: PastePlan; readonly block: Pas
   return (
     <>
       <p>{t("accepted", { count: plan.accepted })}</p>
-      {refused ? <Refusals rejected={plan.rejected} block={block} /> : <p>{t("noneRejected")}</p>}
+      {refused ? (
+        <>
+          <RefusedCount rejected={plan.rejected} />
+          <RefusedRows rejected={plan.rejected} block={block} />
+        </>
+      ) : (
+        <p>{t("noneRejected")}</p>
+      )}
       {refused && plan.accepted > 0 ? <p>{t("partial")}</p> : null}
     </>
   );
@@ -111,9 +133,11 @@ export interface PasteAppliedNoticeProps {
  * Tell, once a paste is applied, where the block was pasted from, how many rows the server wrote and
  * the rows it did not, each with its place in the block, its cells and its reason — those the
  * confirmation refused judging the accepted rows again among them —, until the user dismisses it;
- * nothing when every row was written. The refusals are a region of their own, named and reached by
- * the keyboard, whose height is bounded: they scroll, and the grid under them stays in the window,
- * the sentence and the command to dismiss staying out of the scroll.
+ * nothing when every row was written. The rows refused are a region of their own, named, described
+ * by what the alert says, reached by the keyboard, whose height is bounded: they scroll, and the grid
+ * under them stays in the window, the sentence and the command to dismiss staying out of the scroll.
+ * The alert says where the block was pasted from and how many rows were written and refused, never
+ * the rows, which may run to thousands and would be read at once (#765).
  */
 export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppliedNoticeProps) {
   const t = useTranslations("grid");
@@ -124,21 +148,25 @@ export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppli
   }
   const { target } = applied;
   return (
-    <div role="alert" className="space-y-1 text-sm">
-      <p id={told} className="font-medium">
-        {t("paste.appliedFrom", {
-          row: target.row,
-          column: headingOf(target.column, (key) => t(`columns.${key}`)),
-          count: applied.written,
-        })}
-      </p>
+    <div className="space-y-1 text-sm">
+      <div role="alert" id={told} className="space-y-1">
+        <p className="font-medium">
+          {t("paste.appliedFrom", {
+            row: target.row,
+            column: headingOf(target.column, (key) => t(`columns.${key}`)),
+            count: applied.written,
+          })}
+        </p>
+        <RefusedCount rejected={applied.rejected} listed />
+      </div>
       {/* However many rows are refused, the grid stays in the window: the list scrolls (#163). */}
       <section
         aria-label={t("paste.refusedRows")}
+        aria-describedby={told}
         tabIndex={0}
         className="max-h-40 space-y-1 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Refusals rejected={applied.rejected} block={applied.block} />
+        <RefusedRows rejected={applied.rejected} block={applied.block} />
       </section>
       <Button
         type="button"

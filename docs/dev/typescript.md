@@ -376,18 +376,26 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     fermeture qui compare l'ouverture d'origine à celle qui est ouverte (`SubprojectCommands`,
     `ContributorCommands` ; gardé en garde-fou là où le second remède s'applique). La preuve :
     `subproject-commands.dom.test.tsx` retient une modification, puis une suppression confirmée,
-    ferme, ouvre un autre formulaire et libère — il reste ouvert, sa saisie gardée ;
-    `contributor-commands.dom.test.tsx` fait de même pour la liste des contributeurs. Le second : un
-    formulaire qui écrit depuis la version où il s'est ouvert, rouvert pendant que l'écriture d'un
-    dialogue fermé est en route, part de la version que sa propre réponse va remplacer, et le serveur
-    le refuse (412) (#661). La commande qui l'ouvre est inactive, `aria-busy` et décrite par
-    « Enregistrement en cours… », tant que l'écriture est en route — `onWriting` de `ReferenceForm`,
-    appelé au départ et dans un `finally` à la réponse, quelle qu'elle soit (`settings-forms.tsx`,
-    `project-form.tsx`, `backup-schedule.tsx`). La preuve, dans chacun de
+    ferme, ouvre le formulaire d'un autre sous-projet et libère — il reste ouvert, sa saisie gardée.
+    Le second : un formulaire qui écrit depuis la version où il s'est ouvert, rouvert pendant que
+    l'écriture d'un dialogue fermé est en route, part de la version que sa propre réponse va
+    remplacer, et le serveur le refuse (412) (#661). La commande qui l'ouvre est inactive,
+    `aria-busy` et décrite par « Enregistrement en cours… », tant que l'écriture est en route —
+    `onWriting` de `ReferenceForm`, appelé au départ et dans un `finally` à la réponse, quelle
+    qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
+    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
+    son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
+    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). La preuve, dans chacun de
     `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
     l'écriture retenue, le dialogue fermé, la commande a le focus, inactive, et un clic n'ouvre
     rien ; libérée, la commande se lève et le formulaire rouvert écrit depuis la version de la
     réponse — après un succès ; après un refus arrivé le dialogue fermé (les seuils refusés, le code
     pris d'un projet, le dossier d'une planification), dit au-dessus de l'écran ; et après une action
     serveur rejetée, l'API hors d'atteinte — chaque fois, la commande se lève et le dialogue se
-    rouvre. Aucun outil ne le tient : la revue le cherche.
+    rouvre ; dans `subproject-commands.dom.test.tsx` — la cellule de la commande ayant le focus et
+    la modification d'une autre ligne restant offerte, le formulaire rouvert écrivant depuis la
+    version de la réponse — et dans `contributor-commands.dom.test.tsx`, chacun par un `it.each` sur
+    un succès, un refus et une action rejetée, qui affirme ce que l'écran dit de la réponse — le
+    succès dans la région de la liste, le refus et l'API hors d'atteinte en alerte, l'action rejetée
+    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Aucun outil ne le tient :
+    la revue le cherche.

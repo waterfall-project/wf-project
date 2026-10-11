@@ -29,7 +29,9 @@
  * The dialog starts from the reading it was opened on — its rows and its counter —, captured at the
  * opening, as `Opened.row` of the sub-projects: a reading newer that arrives while it is open changes
  * neither what it shows nor the counter it sends, which the server then refuses (412, WF-IHM-0110).
- * An answer closes only the dialog it was sent from, never one opened since (#660, #672).
+ * The command that opens it waits, inactive and saying why, while a write of the dialog closed is
+ * under way, for the dialog to open on the counter its answer brings (#661, #734); an answer closes
+ * only the dialog it was sent from — a guard the waiting leaves without use (#660, #672).
  */
 "use client";
 
@@ -55,6 +57,7 @@ import { UnmetConditions } from "@/components/commands/command";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { WritingNote } from "@/components/reference/reference-form";
 import { ActiveState } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,7 +117,11 @@ interface Commands {
   /** A refusal answered once the dialog is gone, told under the head of the list. */
   readonly refusal: Outcome<unknown> | undefined;
   readonly opened: Opened | undefined;
+  /** Whether a write of the list is under way: the command waits for its answer. */
+  readonly writing: boolean;
   readonly answer: (list: ContributorReading) => void;
+  /** Told that a write of the list leaves, then that it is answered. */
+  readonly write: (writing: boolean) => void;
   readonly say: (text: string) => void;
   readonly refuse: (refusal: Outcome<unknown> | undefined) => void;
   readonly open: (opened: Omit<Opened, "opening">) => void;
@@ -172,6 +179,7 @@ export function ContributorCommands({
   const [opened, setOpened] = useState<Opened>();
   // How many times the dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
+  const [writing, write] = useState(false);
   const commands = useMemo<Commands | undefined>(
     () =>
       editing && {
@@ -180,6 +188,8 @@ export function ContributorCommands({
         said,
         refusal,
         opened,
+        writing,
+        write,
         answer: (list) => {
           setAnswered((before) => (before === undefined ? list : newer(before, list)));
         },
@@ -197,7 +207,7 @@ export function ContributorCommands({
           );
         },
       },
-    [editing, answered, said, refusal, opened],
+    [editing, answered, said, refusal, opened, writing],
   );
   return <ContributorContext value={commands}>{children}</ContributorContext>;
 }
@@ -205,7 +215,8 @@ export function ContributorCommands({
 /**
  * The command that modifies the list, as the project lists `manage_contributors`: unavailable, with
  * the conditions it lacks; available once the list is read whole, with its counter — the reading the
- * dialog starts from, captured when the command is pressed.
+ * dialog starts from, captured when the command is pressed —; waiting, inactive and saying why,
+ * while a write is under way, whose answer brings the counter (#661, #734).
  */
 function ModifyContributors({
   commands,
@@ -224,17 +235,20 @@ function ModifyContributors({
     return null;
   }
   const unmet = unmetId(offer, id);
+  const { writing } = commands;
+  const why = `${id}-writing`;
   return (
     <>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        aria-disabled={offer.is_available ? undefined : true}
-        aria-describedby={unmet}
+        aria-disabled={offer.is_available && !writing ? undefined : true}
+        aria-busy={writing}
+        aria-describedby={writing ? why : unmet}
         className={UNAVAILABLE}
         onClick={(event: MouseEvent<HTMLElement>) => {
-          if (offer.is_available && reading !== undefined) {
+          if (offer.is_available && !writing && reading !== undefined) {
             commands.refuse(undefined);
             commands.open({ ...reading, trigger: event.currentTarget });
           }
@@ -244,6 +258,7 @@ function ModifyContributors({
         {t("modify")}
       </Button>
       <UnmetConditions id={unmet} offer={offer} />
+      <WritingNote id={why} writing={writing} />
     </>
   );
 }
@@ -335,6 +350,36 @@ function ContributorEditor({
     commands.close();
   };
 
+  /** Take the answer of the server to the list sent, the dialog open or closed. */
+  const take = (answer: Outcome<ContributorReading>, sent: readonly Contributor[]) => {
+    if (answer.kind === "done") {
+      commands.answer(answer.data);
+      commands.say(t("saved"));
+      // Closed if it is still the opening the answer was sent from, never a later one.
+      open.current = false;
+      commands.close(opened.opening);
+    } else if (!open.current) {
+      commands.refuse(answer);
+    } else {
+      const placed = new Map<string, FieldProblem>();
+      const rest = ("problem" in answer ? (answer.problem.fields ?? []) : []).filter((field) => {
+        const at = AT_CONTRIBUTOR.exec(field.pointer)?.[1];
+        const row = at === undefined ? undefined : sent[Number(at)];
+        if (row !== undefined) {
+          placed.set(row.user_id, field);
+        }
+        return row === undefined;
+      });
+      setProblems(placed);
+      // What is said at a row is not said again under the form; the rest of the refusal is.
+      if (placed.size === 0 || !("problem" in answer)) {
+        setOutcome(answer);
+      } else if (rest.length > 0) {
+        setOutcome({ ...answer, problem: { ...answer.problem, fields: rest } });
+      }
+    }
+  };
+
   const submit = () => {
     if (pending) {
       return;
@@ -352,36 +397,17 @@ function ContributorEditor({
     }
     setOutcome(undefined);
     const sent = draft;
+    // The command waits for the answer, whatever it is: it brings the counter to open on (#734).
+    commands.write(true);
     startTransition(async () => {
-      const answer = await setContributors(commands.editing.project, {
-        contributors: sent.map(({ user_id, kind }) => ({ user_id, kind })),
-        lock_version: opened.counter,
-      }).catch(rejected);
-      if (answer.kind === "done") {
-        commands.answer(answer.data);
-        commands.say(t("saved"));
-        // Closed if it is still the opening the answer was sent from, never a later one.
-        open.current = false;
-        commands.close(opened.opening);
-      } else if (!open.current) {
-        commands.refuse(answer);
-      } else {
-        const placed = new Map<string, FieldProblem>();
-        const rest = ("problem" in answer ? (answer.problem.fields ?? []) : []).filter((field) => {
-          const at = AT_CONTRIBUTOR.exec(field.pointer)?.[1];
-          const row = at === undefined ? undefined : sent[Number(at)];
-          if (row !== undefined) {
-            placed.set(row.user_id, field);
-          }
-          return row === undefined;
-        });
-        setProblems(placed);
-        // What is said at a row is not said again under the form; the rest of the refusal is.
-        if (placed.size === 0 || !("problem" in answer)) {
-          setOutcome(answer);
-        } else if (rest.length > 0) {
-          setOutcome({ ...answer, problem: { ...answer.problem, fields: rest } });
-        }
+      try {
+        const answer = await setContributors(commands.editing.project, {
+          contributors: sent.map(({ user_id, kind }) => ({ user_id, kind })),
+          lock_version: opened.counter,
+        }).catch(rejected);
+        take(answer, sent);
+      } finally {
+        commands.write(false);
       }
     });
   };

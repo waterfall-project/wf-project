@@ -163,7 +163,7 @@ describe("the creation of a project", () => {
       // Sur une plateforme dont le référentiel est incomplet, la création d'un projet est refusée,
       // et le refus nomme chaque prérequis manquant. Sur un référentiel dont aucune catégorie de
       // type provision pour risques n'est active, la création est refusée en nommant ce prérequis.
-      serve({ [CREATE]: { problem: { ...(example(refused) as Problem), status: 409 } } });
+      serve({ [CREATE]: { problem: example(refused) as Problem & { status: 409 } } });
       const form = await openCreation();
       await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
       await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
@@ -199,7 +199,7 @@ describe("the creation of a project", () => {
   it("tells a code another project bears at its field, naming the project by the label the refusal gives it [WF-PRJ-0010-A]", async () => {
     // La saisie d'un code déjà porté par un autre projet est refusée.
     serve({
-      [CREATE]: { problem: { ...(example("project_code_taken") as Problem), status: 409 } },
+      [CREATE]: { problem: example("project_code_taken") as Problem & { status: 409 } },
     });
     const form = await openCreation();
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
@@ -384,7 +384,7 @@ describe("the modification of a project", () => {
     // pricing, the project passed in progress meanwhile, and the server refuses by the condition.
     serve({
       [UPDATE]: {
-        problem: { ...(example("project_win_probability_frozen") as Problem), status: 409 },
+        problem: example("project_win_probability_frozen") as Problem & { status: 409 },
       },
     });
     const form = await openModification(pricing);
@@ -398,7 +398,7 @@ describe("the modification of a project", () => {
   it("says at each rate the bound it crosses, in percentages as the field enters it, the first refused taking the focus", async () => {
     // The probability sent at 40 % — refused above 100 — and the inflation under 0 (EP-14/L42i).
     serve({
-      [UPDATE]: { problem: { ...(example("project_rates_out_of_range") as Problem), status: 422 } },
+      [UPDATE]: { problem: example("project_rates_out_of_range") as Problem & { status: 422 } },
     });
     const form = await openModification(pricing);
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
@@ -421,12 +421,11 @@ describe("the modification of a project", () => {
     // The refusal of the contract (`project_code_taken`) without the label of the project that bears
     // the code: a fallback held for robustness, should a server leave it out. The code of the
     // witness given to the project in pricing, which the refusal names.
-    const taken = example("project_code_taken") as Problem;
+    const taken = example("project_code_taken") as Problem & { status: 409 };
     serve({
       [UPDATE]: {
         problem: {
           ...taken,
-          status: 409,
           fields: (taken.fields ?? []).map(({ params, ...field }) => ({
             ...field,
             params: { conflicting_object_id: params?.conflicting_object_id },
@@ -504,7 +503,7 @@ describe("the modification of a project", () => {
       settles.push(settle);
     });
     serve(
-      { [UPDATE]: { problem: { ...(example("project_code_taken") as Problem), status: 409 } } },
+      { [UPDATE]: { problem: example("project_code_taken") as Problem & { status: 409 } } },
       { hold: () => until },
     );
     render(inFrench(<ProjectIdentity project={pricing} />));

@@ -17,8 +17,8 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { type Calendar, DAYS } from "./resource-grids";
-import { CalendarList, type DayBounds } from "./resource-lists";
+import { type Calendar, DAYS, type ResourceRole } from "./resource-grids";
+import { CalendarList, type DayBounds, RoleNames } from "./resource-lists";
 
 // The commands of the calendars (EP-02/L43b, EP-14/L43g), the forms of the nodes and of the roles
 // being those of `resource-commands.dom.test.tsx`. The server of Next, as far as the list needs it:
@@ -43,6 +43,7 @@ const DEFAULT = "PUT /reference/calendars/{calendar_id}/default";
 const NO_QUERY = { sort: undefined, search: undefined };
 const NO_BOUNDS = { min: undefined, max: undefined };
 const calendars = example("calendars_with_inactive") as { items: Calendar[]; meta: ListPage };
+const roles = (example("resource_roles") as { items: ResourceRole[] }).items;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}): FakeClient {
@@ -58,7 +59,7 @@ function serve(answers: FakeAnswers = {}): FakeClient {
 
 /**
  * The calendars, in French, the active ones unless told, for a session that may write them — their
- * commands listed.
+ * commands listed —, every role of the witness read, as the page reads them for such a session.
  */
 function calendarList(
   rows: readonly Calendar[] = calendars.items.filter((calendar) => calendar.is_active),
@@ -66,16 +67,18 @@ function calendarList(
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <CalendarList
-          rows={rows}
-          page={calendars.meta}
-          query={NO_QUERY}
-          preferences={undefined}
-          readsInactive
-          editable
-          state={undefined}
-          hours={Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds}
-        />
+        <RoleNames roles={roles}>
+          <CalendarList
+            rows={rows}
+            page={calendars.meta}
+            query={NO_QUERY}
+            preferences={undefined}
+            readsInactive
+            editable
+            state={undefined}
+            hours={Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds}
+          />
+        </RoleNames>
       </PendingAddress>
     </NextIntlClientProvider>
   );
@@ -304,6 +307,34 @@ describe("the calendars", () => {
     expect(within(form).getByRole("textbox", { name: "Mardi" })).not.toHaveAttribute(
       "aria-invalid",
     );
+  });
+
+  it("tells under the form a calendar that would leave tasks without hours, naming the roles as the page read them and the project by its label and its code [WF-PLA-0010-A]", async () => {
+    // La modification d'un calendrier qui laisserait une tâche sans heure dans un projet que le
+    // manager ne peut pas consulter est refusée en nommant ce projet par son libellé et son code.
+    serve({
+      [CALENDAR]: {
+        problem: example("calendar_update_without_hours") as Problem & { status: 422 },
+      },
+    });
+    render(calendarList());
+    const form = await opened(
+      "Modifier «\u00a0Semaine de quatre jours\u00a0»",
+      "Modifier «\u00a0Semaine de quatre jours\u00a0»",
+    );
+    for (const day of ["Lundi", "Mardi", "Mercredi", "Jeudi"]) {
+      const hours = within(form).getByRole("textbox", { name: day });
+      await userEvent.clear(hours);
+      await userEvent.type(hours, "0");
+    }
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    // The role by its identifier alone, which the page names as it read every role.
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
+        "n’a aucune heure : Monteur câbleur (MONT-CAB). Projets en cause : Modernisation du " +
+        "poste de commande (PRJ-001).",
+    );
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("tells under the form the modification of a calendar from a stale version, with the offer to read the page anew", async () => {

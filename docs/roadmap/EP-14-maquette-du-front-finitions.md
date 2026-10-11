@@ -932,6 +932,63 @@ exemples, les chronologies créées et supprimées sous `manage_timelines` — e
 offert dans l'état vide de la grille de planning, la réponse qui la remplit, la colonne du
 rattachement et ses refus, nommant la tâche qui porte déjà le poste ou le lot.
 
+EP-14/L54 (#772), lot technique ajouté le 2026-10-10, fait adopter par les écrans ce que L42r a écrit
+au contrat, et solde des mineurs du front :
+- le code d'un rôle : la grille des rôles le montre, le serveur le cherche avec le libellé, le filtre
+  (`role_code`, le `code` du contrat) et le trie ; un code pris se dit au champ, le rôle qui le porte
+  nommé par le libellé que le refus donne (`resource_role_code_taken`) ;
+- les refus nommés : celui du changement de type d'une nature ou d'une catégorie nomme les rôles en
+  cause par leur libellé et leur code, à rattacher d'abord à une autre catégorie de main-d'œuvre
+  (`params.resource_roles`) ; celui d'une écriture qui laisserait une tâche sans heure nomme chaque
+  projet par son libellé et son code, par son seul libellé sans code (`params.projects`), et les
+  rôles, que la page des ressources lit tous pour une session qui les écrit, désactivés compris autant
+  qu'elle le peut, et prête aux avis de ses listes (`resource_role_ids`, `RoleNames`, `KnownNames`) ;
+- #714, point 1 : au formulaire d'un rôle, une catégorie active dont la nature a quitté la
+  main-d'œuvre n'est plus dite « (désactivée) », toutes les catégories lues disant son état — un
+  garde-fou seul, le contrat interdisant ce cas depuis L42r (`DECISIONS.md`, la mention de L42r dans
+  la section de L42j) ;
+- #734 : la décision de #661, par le mécanisme de L52 — la modification d'un sous-projet attend la
+  réponse d'une écriture de ce sous-projet, la cellule de la commande gardant le focus et les autres
+  lignes restant offertes ; celle des contributeurs, la réponse d'une écriture de la liste, dont le
+  compteur d'ouvertures devient un garde-fou ;
+- #738 : la seconde phrase de WF-PRJ-0050-A citée par le test du sous-projet cité ; une borne qui
+  n'est pas un nombre laisse l'ordre sans jugement, pour elle et pour la suivante ; le refus d'un
+  champ l'emporte sur celui d'une règle (`reference-form.dom.test.tsx`) ; aucun test ne réécrit plus
+  le statut que son exemple porte ;
+- #765, point 1 : la liste qui défile sort de la région vivante — les lignes nommées d'`OutcomeNotice`,
+  les lignes refusées d'un collage —, nommée et décrite par ce que dit l'alerte.
+
+Choix, faute d'une règle de la spécification ou du contrat : un rôle se nomme par son libellé et son
+code dans les deux refus, et un rôle que la page n'a pas lu ne se nomme pas ; le refus d'une nature
+dit « une catégorie de main-d'œuvre d'une autre nature » ; la catégorie active hors main-d'œuvre se
+nomme sans marque, plutôt qu'avec une marque propre ; seule la modification d'un sous-projet attend,
+et seulement celle de ce sous-projet, la création et la suppression n'écrivant aucune version ;
+l'alerte d'un collage dit le nombre de lignes refusées et la fermeture suit leur liste, hors de
+l'alerte, quand les commandes d'`OutcomeNotice` restent dans la sienne, avant la liste ; le code pris
+d'un rôle a sa phrase générique (« Déjà porté par un autre rôle. »).
+
+La relecture 1 a ajouté : la phrase de `TASK_WITHOUT_WORKING_HOURS` est vraie partout (« Une tâche
+n'aurait plus aucune heure travaillée dans la semaine. »), sa cause en détail — les rôles dont les
+calendriers ne se recoupent aucun jour, nommés quand l'écran les a lus, ou, aucun rôle donné, les
+tâches sans ligne de main-d'œuvre, sur le calendrier par défaut vidé ou désigné — ; les projets d'un
+refus au-delà de cinq sont comptés dans la phrase et listés hors de l'alerte, comme les lignes d'un
+sous-projet ; l'avis d'un collage appliqué a sa phrase du nombre de lignes refusées, « listées
+ci-dessous » ; les preuves de #734 passent par un succès, un refus et une action rejetée ; les tests
+de la page des ressources quittent `pages.test.tsx` pour `resources/page.test.tsx`, et `held()` le kit
+des tests ; aucun test ne réécrit plus le statut d'un exemple, ceux des paramètres de coûts et des
+sauvegardes compris. La relecture 2 : la cause d'un seul rôle se dit au singulier — son calendrier
+n'a aucune heure — ; les preuves de #734 disent ce que l'écran annonce de la réponse ; la liste des
+rôles ramène son filtre du code à la première page ; cinq projets se nomment dans la phrase, sans
+liste.
+
+Ce que les tests ne prouvent pas : le contrat n'illustre le refus d'une tâche sans heure que sous la
+modification d'un calendrier ; celui d'un rôle modifié ou d'une désignation par défaut suit le même
+chemin, sans exemple propre. Le refus d'une nature n'a pas d'exemple non plus : sa phrase est éprouvée
+sur une variante déclarée de celui d'une catégorie.
+
+L55 (#778) puis L42k (#780), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase : ces
+notes gardent les apports dans l'ordre des fusions.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : à faire

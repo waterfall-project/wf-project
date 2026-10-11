@@ -298,6 +298,7 @@
       "noneRejected": "Aucune ligne n’est refusée.",
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
+      "rejectedListed": "{count, plural, one {# ligne est refusée, listée ci-dessous.} other {# lignes sont refusées, listées ci-dessous.}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
       "appliedFrom": "Collage appliqué à partir de la ligne {row}, colonne « {column} » : {count, plural, =0 {aucune ligne n’a été écrite} one {# ligne a été écrite} other {# lignes ont été écrites}}.",
       "refusedRows": "Lignes refusées par le collage",
@@ -885,7 +886,8 @@
     "reload": "Recharger",
     "signIn": "Se connecter",
     "dismiss": "Fermer l’avis",
-    "namedLines": "Lignes de devis nommées par le refus"
+    "namedLines": "Lignes de devis nommées par le refus",
+    "namedProjects": "Projets nommés par le refus"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
@@ -1164,7 +1166,7 @@
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "takenBy": "Déjà porté par « {name} ».",
-      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} calendar {Déjà porté par un autre calendrier.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} resource_role {Déjà porté par un autre rôle.} calendar {Déjà porté par un autre calendrier.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
@@ -1250,6 +1252,7 @@
     "resourceRoles": {
       "title": "Rôles de ressources",
       "none": "Aucun rôle de ressource.",
+      "codeFilter": "Code du rôle",
       "orgNodeFilter": "Nœud d’organisation",
       "everyNode": "Tous les nœuds",
       "costCategoryFilter": "Catégorie de coût",
@@ -1617,7 +1620,7 @@
     "PROJECT_CODE_REQUIRED": "Le code projet doit être renseigné.",
     "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
     "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
-    "TASK_WITHOUT_WORKING_HOURS": "Les calendriers des rôles de cette tâche ne se recoupent aucun jour : elle n’aurait aucune heure travaillée dans la semaine.",
+    "TASK_WITHOUT_WORKING_HOURS": "Une tâche n’aurait plus aucune heure travaillée dans la semaine.",
     "VALUE_REQUIRED": "Une valeur est requise.",
     "VALUE_TOO_LONG": "La valeur est trop longue.",
     "VALUE_OUT_OF_RANGE": "La valeur sort des limites admises.",
@@ -1660,6 +1663,13 @@
     "estimate_lines": "Lignes de devis de la révision en cours qui portent le sous-projet : {lines}. Une ligne de provision change de sous-projet par son risque.",
     "estimate_lines_listed": "{count, number} lignes de devis de la révision en cours portent le sous-projet, listées ci-dessous. Une ligne de provision change de sous-projet par son risque.",
     "estimateLine": "ligne {row} « {label} »",
+    "resource_roles": "Rôles à rattacher d’abord {of, select, cost_type {à une catégorie de main-d’œuvre d’une autre nature} other {à une autre catégorie de main-d’œuvre}} : {roles}.",
+    "resource_role_ids": "{count, plural, one {Rôle dont le calendrier n’a aucune heure : {roles}.} other {Rôles dont les calendriers ne se recoupent aucun jour : {roles}.}}",
+    "resource_role_ids_unnamed": "{count, plural, one {Le calendrier de son rôle n’a aucune heure.} other {Les calendriers de ses rôles ne se recoupent aucun jour.}}",
+    "resource_role_ids_none": "Tâches sans ligne de main-d’œuvre, sur le calendrier par défaut.",
+    "projects": "Projets en cause : {projects}.",
+    "projects_listed": "{count, number} projets en cause, listés ci-dessous.",
+    "codedName": "{label} ({code})",
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",

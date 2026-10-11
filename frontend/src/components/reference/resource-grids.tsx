@@ -11,8 +11,8 @@
  *   by pages, folds and unfolds as the grids of the tasks do (`GridTree.parent`, `fold.tsx`), and is
  *   searched and filtered by the server — its code, its depth, its state —, which gives the nodes
  *   retained with their ancestors (WF-PLA-0080).
- * - The roles are a flat table: each column sorts (WF-IHM-0060), searched by the server, filtered
- *   by node, category, calendar and state, and paged by it.
+ * - The roles are a flat table: each column sorts (WF-IHM-0060), searched by the server — on their
+ *   label and their code —, filtered by code, node, category, calendar and state, and paged by it.
  * - The calendars are a flat table: each column sorts, the hours of each day too, filtered by state
  *   and paged by the server.
  *
@@ -66,9 +66,10 @@ export const CALENDAR_ADDRESS = prefixedAddress("calendar_");
 
 /**
  * The filters of each grid in the address: those of the contract, after the prefix of its grid —
- * the node, the category, the calendar and the state of the roles, the state of the calendars, the
- * code, the depth and the state of the nodes.
+ * the code, the node, the category, the calendar and the state of the roles, the state of the
+ * calendars, the code, the depth and the state of the nodes.
  */
+export const ROLE_CODE = "role_code";
 export const ROLE_ORG_NODE = "role_org_node_id";
 export const ROLE_COST_CATEGORY = "role_cost_category_id";
 export const ROLE_CALENDAR = "role_calendar_id";
@@ -90,7 +91,10 @@ export function calendarDay(day: Day): string {
   return `calendar_${day}`;
 }
 
-/** The longest code of a node the contract filters on (`code` of `listOrgNodes`). */
+/**
+ * The longest code of a node — and of a role, written alike (EP-14/L42r) — the contract filters on
+ * (`code` of `listOrgNodes` and `listResourceRoles`).
+ */
 export const ORG_CODE_LENGTH = 20;
 
 /** The seven days of a calendar, from Monday, as the contract names them. */
@@ -161,9 +165,10 @@ export function orgNodeGrid(editable = false): GridConfig<OrgNode, never, null> 
 }
 
 /**
- * The resource roles: each with its node, its category and its calendar — named as the server
- * resolves them, active or not (WF-REF-0150) —, its capacity in hours a month and the headcount it
- * stands for (WF-REF-0090, WF-REF-0100), and its state; each column sorted by the server.
+ * The resource roles: each by its label and its code, unique (WF-REF-0090, EP-14/L42r), with its
+ * node, its category and its calendar — named as the server resolves them, active or not
+ * (WF-REF-0150) —, its capacity in hours a month and the headcount it stands for (WF-REF-0100), and
+ * its state; each column sorted by the server.
  */
 export function resourceRoleGrid(
   editable = false,
@@ -183,6 +188,14 @@ export function resourceRoleGrid(
         pinned: true,
         contract: "label",
         value: (role) => role.label,
+      },
+      {
+        key: "code",
+        label: "code",
+        format: "text",
+        width: 110,
+        contract: "code",
+        value: (role) => role.code,
       },
       {
         key: "org_node",

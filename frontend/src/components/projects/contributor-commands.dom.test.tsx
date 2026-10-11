@@ -17,6 +17,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 
 import type { ContributorReading, Suggestion } from "./contributor-commands";
@@ -29,6 +30,22 @@ const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A write whose server action rejects once `until` settles — the API out of reach, as `fetch`
+// rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
+vi.mock("@/api/actions/projects", async (original) => {
+  const actual = await original<typeof import("@/api/actions/projects")>();
+  return {
+    ...actual,
+    setContributors: async (...asked: Parameters<typeof actual.setContributors>) => {
+      if (failing.until === undefined) {
+        return actual.setContributors(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
+  };
+});
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -108,6 +125,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  failing.until = undefined;
   vi.restoreAllMocks();
   refresh.mockClear();
   router.refresh.mockClear();
@@ -253,7 +271,7 @@ describe("the modification of the contributors of a project", () => {
     // Alix Moreau, deactivated, passed project manager at the second row, and a fifth row the server
     // does not know — here the account inscribed from the proposal (EP-14/L42i).
     const client = serve({
-      [SET]: { problem: { ...(example("contributors_accounts_refused") as Problem), status: 422 } },
+      [SET]: { problem: example("contributors_accounts_refused") as Problem & { status: 422 } },
     });
     render(list());
     const form = await modify();
@@ -286,7 +304,7 @@ describe("the modification of the contributors of a project", () => {
   it("says under the form what the server refuses as a whole, the form kept", async () => {
     serve({
       [SET]: {
-        problem: { ...(example("contributors_without_manager_refused") as Problem), status: 409 },
+        problem: example("contributors_without_manager_refused") as Problem & { status: 409 },
       },
     });
     render(list());
@@ -333,12 +351,9 @@ describe("the modification of the contributors of a project", () => {
     expect(within(await modify()).getAllByRole("combobox")).toHaveLength(5);
   });
 
-  it("closes on an answer only the dialog it was sent from: a late one shows, and leaves the dialog opened since open, its entry kept (#672)", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    const client = serve({}, { hold: () => until });
+  it("keeps its command waiting while a write of the dialog closed is under way, then opens on the counter the answer brings (#661, #734)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
     render(list());
     const first = await modify();
     await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
@@ -346,16 +361,69 @@ describe("the modification of the contributors of a project", () => {
       expect(written(client)).toHaveLength(1);
     });
     await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
-    const kind = within(await modify()).getByRole("combobox", { name: "Qualité de Inès Roux" });
-    await userEvent.selectOptions(kind, "Chef de projet");
-    for (const settle of settles) {
-      settle();
-    }
-    // Said behind the dialog opened since, which hides the rest of the screen from its readers.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // Opened anew now, the dialog would write from the counter 4, which its own answer replaces:
+    // the command, which has the focus back, waits and says why.
+    const command = screen.getByRole("button", { name: "Modifier les contributeurs" });
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    await userEvent.click(command);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    release();
     expect(await screen.findByText("Liste des contributeurs enregistrée.")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Modifier les contributeurs" })).toBeVisible();
-    expect(kind).toHaveValue("project_manager");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(within(await modify()).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)[1]).toMatchObject({ lock_version: 5 });
   });
+
+  it.each([
+    ["answered", {}, "status", "Liste des contributeurs enregistrée."],
+    [
+      "refused",
+      {
+        [SET]: {
+          problem: example("contributors_without_manager_refused") as Problem & { status: 409 },
+        },
+      },
+      "alert",
+      "Un projet garde au moins un chef de projet.",
+    ],
+    ["rejected, the API out of reach", {}, "alert", "Le service est injoignable"],
+  ] satisfies [string, FakeAnswers, "status" | "alert", string][])(
+    "frees its command once a write of the dialog closed is %s, says it, and opens the dialog again (#734)",
+    async (outcome, answers, role, said) => {
+      const { timing, until, release } = held();
+      failing.until = outcome.startsWith("rejected") ? until : undefined;
+      const client = serve(answers, timing);
+      render(list());
+      const form = await modify();
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      const command = screen.getByRole("button", { name: "Modifier les contributeurs" });
+      expect(command).toHaveAttribute("aria-disabled", "true");
+      release();
+      // What the answer did, said under the head of the list, the dialog gone.
+      await vi.waitFor(() => {
+        expect(screen.getAllByRole(role).map((region) => region.textContent)).toContainEqual(
+          expect.stringContaining(said),
+        );
+      });
+      // A server action rejected asked nothing of the fake back.
+      expect(written(client)).toHaveLength(outcome.startsWith("rejected") ? 0 : 1);
+      await vi.waitFor(() => {
+        expect(command).not.toHaveAttribute("aria-disabled");
+      });
+      await userEvent.click(command);
+      expect(screen.getByRole("dialog", { name: "Modifier les contributeurs" })).toBeVisible();
+    },
+  );
 
   it("presents the command unavailable with the conditions it lacks, and opens nothing", async () => {
     serve();

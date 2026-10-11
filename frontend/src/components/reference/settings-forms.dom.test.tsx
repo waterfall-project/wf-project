@@ -192,6 +192,19 @@ describe("the form of the risk matrix", () => {
     expect(client.calls).toEqual([]);
   });
 
+  it("leaves unjudged by the order a bound that is no number, and the bound after it, saying the first alone", async () => {
+    // A bound refused has no value: the order neither refuses it nor the bound after it (#738).
+    const client = serve({ [UPDATE]: "reference_settings_matrix_updated" });
+    const form = await openRisks();
+    await retype(field(form, PROBABILITY, "Deuxième borne"), "abc");
+    await save(form);
+    const second = field(form, PROBABILITY, "Deuxième borne");
+    expect(second).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
+    expect(second).toHaveFocus();
+    expect(field(form, PROBABILITY, "Troisième borne")).not.toHaveAttribute("aria-invalid");
+    expect(client.calls).toEqual([]);
+  });
+
   it("says at its field the bound the server refuses, the form open to correct it", async () => {
     serve({
       [UPDATE]: {

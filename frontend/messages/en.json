@@ -298,6 +298,7 @@
       "noneRejected": "No row is refused.",
       "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
+      "rejectedListed": "{count, plural, one {# row is refused, listed below.} other {# rows are refused, listed below.}}",
       "rejectedRow": "Row {row} of the block — {reason}",
       "appliedFrom": "Paste applied from row {row}, column “{column}”: {count, plural, =0 {no row was written} one {# row was written} other {# rows were written}}.",
       "refusedRows": "Rows the paste refused",
@@ -885,7 +886,8 @@
     "reload": "Reload",
     "signIn": "Sign in",
     "dismiss": "Dismiss",
-    "namedLines": "Estimate lines the refusal names"
+    "namedLines": "Estimate lines the refusal names",
+    "namedProjects": "Projects named by the refusal"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -1164,7 +1166,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
@@ -1250,6 +1252,7 @@
     "resourceRoles": {
       "title": "Resource roles",
       "none": "No resource role.",
+      "codeFilter": "Role code",
       "orgNodeFilter": "Organisation node",
       "everyNode": "Every node",
       "costCategoryFilter": "Cost category",
@@ -1617,7 +1620,7 @@
     "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
     "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
     "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
-    "TASK_WITHOUT_WORKING_HOURS": "The calendars of the roles of this task never overlap: it would have no working hour in the week.",
+    "TASK_WITHOUT_WORKING_HOURS": "A task would have no working hour left in the week.",
     "VALUE_REQUIRED": "A value is required.",
     "VALUE_TOO_LONG": "The value is too long.",
     "VALUE_OUT_OF_RANGE": "The value is outside the allowed range.",
@@ -1660,6 +1663,13 @@
     "estimate_lines": "Estimate lines of the current revision that bear the subproject: {lines}. A provision line changes subproject through its risk.",
     "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
     "estimateLine": "line {row} “{label}”",
+    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another nature} other {to another labour category}}: {roles}.",
+    "resource_role_ids": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
+    "resource_role_ids_unnamed": "{count, plural, one {The calendar of its role has no hour.} other {The calendars of its roles never overlap.}}",
+    "resource_role_ids_none": "Tasks without a labour line, on the default calendar.",
+    "projects": "Projects involved: {projects}.",
+    "projects_listed": "{count, number} projects involved, listed below.",
+    "codedName": "{label} ({code})",
     "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
