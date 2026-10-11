@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The service platform: PostgreSQL, Redis, the migrations, the API and the worker, for the
-# developers and for the tests that run against the real service (EP-03); Keycloak, with its realm
-# applied by keycloak-config-cli, behind its front end in HTTPS, Caddy (#680), and what lets the
-# Definition of done be seen on a workstation — a directory of test, OpenLDAP, and Mailpit, which
-# receives the mails (US-0350). Started by `make service-up`; `make e2e-service` adds Prism, as a
-# proxy that holds every answer of the API to the contract (US-0340).
+# The service platform: PostgreSQL, Redis, the migrations, the API, the worker and the schedule of
+# its tasks (US-0370), for the developers and for the tests that run against the real service
+# (EP-03); Keycloak, with its realm applied by keycloak-config-cli, behind its front end in HTTPS,
+# Caddy (#680), and what lets the Definition of done be seen on a workstation — a directory of
+# test, OpenLDAP, and Mailpit, which receives the mails (US-0350). Started by `make service-up`;
+# `make e2e-service` adds Prism, as a proxy that holds every answer of the API to the contract
+# (US-0340).
 #
 # The secrets come from the environment of the caller, and the platform refuses to start without
 # them: nothing here has a default password. The password of PostgreSQL is written in a URL, so
@@ -30,6 +31,14 @@ x-back: &back
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
 # every token, whoever asks for it; by default, the port the front end is published on.
 x-keycloak-address: &keycloak-address ${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+
+# How the API and the worker reach Keycloak: the issuer of the tokens is the address the browser
+# reaches it at; they reach it on the back channel, for its keys and its administration API, as its
+# service account, inside the network of the platform: its encryption is EP-13's (WF-SEC-0010).
+x-keycloak-client-environment: &keycloak-client-environment
+  WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
+  WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
+  WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
 
 # One image, two commands: Keycloak, and the application of the realm (deploy/keycloak/Dockerfile).
 x-keycloak: &keycloak
@@ -111,13 +120,7 @@ services:
   api:
     <<: *back
     environment:
-      <<: *back-environment
-      # The issuer of the tokens is the address the browser reaches Keycloak at; the API reaches
-      # it on the back channel, for its keys and its administration API, as its service account,
-      # inside the network of the platform: its encryption is EP-13's (WF-SEC-0010).
-      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
-      WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
-      WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
+      <<: [*back-environment, *keycloak-client-environment]
     depends_on:
       service-database-role:
         condition: service_completed_successfully
@@ -131,11 +134,33 @@ services:
       timeout: 3s
       retries: 30
 
-  # The task queue arrives with US-0370: until then the worker starts, states its version and stops.
+  # Runs the background tasks of the queue (WF-ARC-0090), with the settings of the API, and starts
+  # again if it stops: a task it was running is taken up again.
   worker:
     <<: *back
+    environment:
+      <<: [*back-environment, *keycloak-client-environment]
     command: ["waterfall-worker"]
-    restart: "no"
+    restart: unless-stopped
+    depends_on:
+      service-database-role:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # Deposits the reading of the accounts at the end of each interval of the installation, in
+  # seconds, a day by default (PBS-5.3); a CronJob does it in EP-13. An interval that sleep refuses
+  # stops the service, with 2. Its process 1 is an init, which passes the stop on to the shell.
+  scheduler:
+    <<: *back
+    environment:
+      <<: *back-environment
+      WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
+    init: true
+    command:
+      - sh
+      - -c
+      - while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done; exit 2
     depends_on:
       service-database-role:
         condition: service_completed_successfully

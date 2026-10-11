@@ -53,6 +53,26 @@ un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`).
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
 
+**Les tâches de fond** (WF-ARC-0090). Une tâche vit dans la table `background_task`
+(`waterfall.platform.tasks`), qui fait foi ; le flux Redis (`waterfall.platform.queue`) n'en porte
+que l'identifiant. Une route la dépose par `submit(session, queue, genre, demandeur)`, dans sa
+transaction, sous la corrélation de la requête : le dépôt dans le flux suit la validation, et une
+tâche dont le dépôt s'est perdu reste `queued`, que le worker redépose au démarrage puis
+périodiquement. Le worker (`waterfall.worker.runner`) exécute la tâche dans une seule transaction,
+sous un verrou consultatif qui lui est propre, par le traitement de son genre — une fonction
+`(session, tâche)` que `HANDLERS` (`waterfall.worker.main`) enregistre, et qui refuse par une
+exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
+ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
+tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Les
+tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en dépose pas une
+quand une tâche du même genre est en file ou en cours : le service `scheduler` de Compose
+l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut.
+Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
+`TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
+retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
+erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
+dite dans ses journaux par `worker.failed`, secrets masqués.
+
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la
 validation des paramètres et du corps, après sa lecture : un corps illisible est refusé d'abord
@@ -1308,7 +1328,7 @@ commande.
 | `make check-all` | toutes les familles de contrôles |
 | `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
 | `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
 | `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
@@ -1697,13 +1717,17 @@ test défait.
 
 ### Un test contre Redis
 
-La session du front se teste contre un vrai Redis, jamais un double : la variable
-`WATERFALL_TEST_REDIS_URL` le désigne (`redis://127.0.0.1:6379/0`), et `withTestRedis()`
-(`frontend/src/test/session.ts`) y pointe le magasin des sessions pour la durée d'un fichier de
-test. Chaque clé est tirée au hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et
-les clés expirent d'elles-mêmes.
+La session du front et la file des tâches du back se testent contre un vrai Redis, jamais un
+double : la variable `WATERFALL_TEST_REDIS_URL` le désigne (`redis://127.0.0.1:6379/0`), une base
+que les tests sont seuls à employer. Côté front, `withTestRedis()` (`frontend/src/test/session.ts`)
+y pointe le magasin des sessions pour la durée d'un fichier de test ; chaque clé est tirée au
+hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et les clés expirent
+d'elles-mêmes. Côté back, la fixture `queue` (`backend/tests/conftest.py`) ouvre la file sur un flux
+à elle, supprimé après le test, et `platform_queue` sur celui de toute installation, que les
+commandes de la plateforme emploient, vidé avant et après. Aucun test ne vide le serveur.
 
-- **Dans la chaîne**, `front.yml` démarre Redis en service du travail et pose la variable.
+- **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
+  variable.
 - **Sur un poste**, un Redis jetable suffit :
   `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
 - **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
