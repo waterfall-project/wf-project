@@ -1327,9 +1327,11 @@ réglages — sur une autre machine.
 - écart : `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai d’expiration. » : EP-06.
 - écart : `WF-DAT-0120-A` — « Un export téléchargé jusqu’au bout n’est plus sur le stockage objet ; un téléchargement interrompu le laisse disponible ; un export jamais téléchargé en disparaît au terme de vingt-quatre heures. » : les exports arrivent en EP-06.
 - propre à l'US : une sauvegarde couvre les deux bases, Waterfall et le fournisseur
-  d'identité, chacune dans un état cohérent, sauf le journal d'audit, qui reste hors de ce
-  qu'une restauration remplace et y inscrit la restauration une fois faite (WF-ADM-0160) ; elle
-  vit dans le compartiment des sauvegardes du stockage objet (WF-DAT-0120).
+  d'identité, chacune dans un état cohérent, le journal d'audit compris, sauvegardé avec la
+  base de Waterfall (WF-SEC-0030, #705), et vit dans le compartiment des sauvegardes du
+  stockage objet (WF-DAT-0120) ; une restauration relit les inscriptions du journal
+  postérieures à la sauvegarde avant de remplacer les bases, les réinscrit ensuite, et y
+  inscrit la restauration une fois faite (WF-ADM-0160).
 - propre à l'US : une sauvegarde prise sur une installation, téléchargée, puis déposée sur une
   autre installation de même version ou plus récente et restaurée, y rend les comptes, les
   rôles et les réglages de la première, et l'administrateur de la première s'y connecte ; une
