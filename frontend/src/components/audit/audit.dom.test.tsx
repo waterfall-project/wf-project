@@ -686,24 +686,27 @@ describe("an anonymised account in the journal", () => {
   const authored = example("audit_events_anonymized_actor") as Journal;
   const authors = (example("audit_facets_anonymized") as components["schemas"]["AuditFacets"])
     .actors;
+  const zone = process.env.TZ;
+
+  afterEach(() => {
+    if (zone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = zone;
+    }
+  });
 
   it("names it as the object of its inscriptions by the neutral label alone, every inscription kept with its date and its action [WF-SEC-0030-A]", () => {
+    process.env.TZ = "Europe/Paris";
     page.search = `object_kind=user&object_id=${ALIX}`;
     render(
       journal({ shown: designated, named: { ...NAMED, object: { label: null, kind: "user" } } }),
     );
-    // Each row by its date, in the zone of the machine — the hour moves with it, not the day.
     const rows = within(grid()).getAllByRole("row").slice(1, -1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringMatching(
-        /^3 juin 2026, \d\d:\d\dCamille MartinAnonymisation d’un compteCompteCompte anonymisé/,
-      ),
-      expect.stringMatching(
-        /^2 mars 2026, \d\d:\d\dCamille MartinDésactivation d’un compteCompteCompte anonymisé/,
-      ),
-      expect.stringMatching(
-        /^12 janv\. 2026, \d\d:\d\dCamille MartinCréation d’un compteCompteCompte anonymisé/,
-      ),
+      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000040",
+      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000020",
+      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000014",
     ]);
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
     expect(
