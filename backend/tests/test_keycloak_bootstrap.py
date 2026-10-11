@@ -15,6 +15,9 @@ import html
 import io
 import json
 import logging
+import os
+import subprocess
+import sys
 import time
 from collections.abc import Iterator
 from typing import Any
@@ -93,6 +96,16 @@ def installed(settings: InstallationSettings) -> tuple[int, str]:
     """Run the bootstrap; give what it returns and what it writes on its standard output."""
     out = io.StringIO()
     return bootstrap.install(settings, out), out.getvalue()
+
+
+def variables_of(settings: InstallationSettings) -> dict[str, str]:
+    """Give the variables of the environment that carry ``settings`` to the command."""
+    return {
+        f"WATERFALL_{name.upper()}": (
+            value.get_secret_value() if isinstance(value, SecretStr) else str(value)
+        )
+        for name, value in settings.model_dump(exclude_none=True).items()
+    }
 
 
 def link_of(settings: InstallationSettings) -> str:
@@ -218,27 +231,46 @@ def test_a_second_installation_creates_nothing_and_replaces_the_link_until_a_pas
     # the nature arrive with EP-05.
     settings = settings_of(database_url, address)
     first = link_of(settings)
-
-    def counts() -> tuple[int, int, int, int]:
-        with database.transaction() as session:
-            return (
-                session.scalar(select(func.count()).select_from(UserAccount)) or 0,
-                session.scalar(select(func.count()).select_from(AccessRole)) or 0,
-                session.scalar(select(func.count()).select_from(Installation)) or 0,
-                len(realm_accounts(admin, address)),
-            )
-
-    created = counts()
+    created = counts(admin, database, address)
     assert created == (1, 3, 1, 1)
     second = link_of(settings)
     assert second != first
-    assert counts() == created
+    assert counts(admin, database, address) == created
     replaced = Browser().get(first)
     assert (replaced.status_code, REPLACED in html.unescape(replaced.text)) == (400, True)
     _, done = set_by_link(second, PASSWORD)
     assert done.status_code == 200, done.text
     assert installed(settings) == (0, "")
-    assert counts() == created
+    assert counts(admin, database, address) == created
+
+
+def test_two_installations_run_at_once_make_one(
+    admin: httpx2.Client, database: Database, database_url: str, address: str
+) -> None:
+    # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
+    # for the first, finds the installation made, and replaces its link. Without it, both would
+    # find none and install, and the second would fail on the row of the first.
+    command = [
+        sys.executable,
+        "-c",
+        "import sys; from waterfall.bootstrap import main; sys.exit(main(['install']))",
+    ]
+    environment = os.environ | variables_of(settings_of(database_url, address))
+    runs = [
+        subprocess.Popen(
+            command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        for _ in range(2)
+    ]
+    written = [run.communicate(timeout=180) for run in runs]
+    assert [run.returncode for run in runs] == [0, 0], [err for _, err in written]
+    links = [out.removesuffix("\n") for out, _ in written]
+    assert all(link and "\n" not in link for link in links), links
+    assert counts(admin, database, address) == (1, 3, 1, 1)
+    # The link of the first is replaced by that of the second, whichever came first.
+    pages = [html.unescape(Browser().get(link).text) for link in links]
+    assert sorted(REPLACED in page for page in pages) == [False, True]
+    assert sorted('name="password-new"' in page for page in pages) == [False, True]
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
@@ -316,6 +348,17 @@ def test_the_installation_gives_the_realm_its_language_at_each_run(
         assert realm.put("", json={"defaultLocale": "fr"}).status_code == 204
     link_of(settings.model_copy(update={"default_language": "fr"}))
     assert realm_language() == "en"
+
+
+def counts(admin: httpx2.Client, database: Database, email: str) -> tuple[int, int, int, int]:
+    """Count the accounts, the roles and the installations made, and the accounts of the realm."""
+    with database.transaction() as session:
+        return (
+            session.scalar(select(func.count()).select_from(UserAccount)) or 0,
+            session.scalar(select(func.count()).select_from(AccessRole)) or 0,
+            session.scalar(select(func.count()).select_from(Installation)) or 0,
+            len(realm_accounts(admin, email)),
+        )
 
 
 def refused(settings: InstallationSettings, logs: Logs) -> str:
@@ -441,10 +484,8 @@ def test_the_command_bootstraps_and_writes_the_link_alone(
     address: str,
 ) -> None:
     # Its logs on the error output, which the fixture of the logs gives back after the test.
-    settings = settings_of(database_url, address)
-    for name, value in settings.model_dump(exclude_none=True).items():
-        held = value.get_secret_value() if hasattr(value, "get_secret_value") else str(value)
-        monkeypatch.setenv(f"WATERFALL_{name.upper()}", held)
+    for name, value in variables_of(settings_of(database_url, address)).items():
+        monkeypatch.setenv(name, value)
     assert bootstrap.main(["install"]) == 0
     written = capsys.readouterr()
     assert written.out.startswith(f"{required(ADDRESS_VARIABLE).rstrip('/')}/realms/waterfall/")
