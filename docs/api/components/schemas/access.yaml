@@ -188,6 +188,13 @@ UserUpdate:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+UserActivationWrite:
+  type: object
+  required: [is_active, lock_version]
+  properties:
+    is_active: { type: boolean }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
 UserRolesWrite:
   type: object
   required: [access_role_ids, lock_version]

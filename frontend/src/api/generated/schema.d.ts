@@ -2885,6 +2885,10 @@ export interface components {
             org_node_id?: components["schemas"]["Uuid"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
+        UserActivationWrite: {
+            is_active: boolean;
+            lock_version: components["schemas"]["LockVersion"];
+        };
         UserRolesWrite: {
             access_role_ids: components["schemas"]["Uuid"][];
             lock_version: components["schemas"]["LockVersion"];
@@ -5433,10 +5437,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    is_active: boolean;
-                    lock_version: components["schemas"]["LockVersion"];
-                };
+                "application/json": components["schemas"]["UserActivationWrite"];
             };
         };
         responses: {
@@ -5462,6 +5463,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

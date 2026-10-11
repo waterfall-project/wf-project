@@ -10,7 +10,7 @@ administrators under it: two such writes never decide each on what the other is 
 """
 
 from collections.abc import Generator, Mapping
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from typing import Any
 from uuid import UUID
 
@@ -23,10 +23,12 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
+from waterfall.core.users.interface import LAST_ADMINISTRATOR as LAST_ADMINISTRATOR_LACKING
 from waterfall.core.users.interface import active_accounts
 from waterfall.platform.errors import ConflictError
 
 LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 ADMINISTRATION = ("users.write", "access_roles.write")
 
 # The key of the advisory lock of the rule, distinct from that of the migrations.
@@ -79,3 +81,15 @@ def guard_last_administrator(
     session.flush()
     if held and not administrators(session):
         raise ConflictError(code, params)
+
+
+def guard_deactivation(session: Session) -> AbstractContextManager[None]:
+    """Run the change of the state of an account under the guard of the last administrator.
+
+    The deactivation that takes the last one away is refused as its command says in advance
+    (WF-ADM-0120, WF-IHM-0090): ``STATE_FORBIDS_OPERATION``, with the condition the command lacks,
+    which the accounts name. A reactivation takes the administration from nobody.
+    """
+    return guard_last_administrator(
+        session, STATE_FORBIDS_OPERATION, {"missing_condition": LAST_ADMINISTRATOR_LACKING}
+    )

@@ -598,6 +598,11 @@ class UserUpdate(ContractModel):
     lock_version: LockVersion
 
 
+class UserActivationWrite(ContractModel):
+    is_active: bool
+    lock_version: LockVersion
+
+
 class UserRolesWrite(ContractModel):
     access_role_ids: list[Uuid]
     lock_version: LockVersion

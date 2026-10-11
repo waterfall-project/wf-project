@@ -24,7 +24,8 @@ from urllib.parse import quote
 import httpx2
 
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
-from waterfall.platform.keycloak import Keycloak, expect
+from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
+from waterfall.platform.logs import get_logger
 from waterfall.platform.settings import ServiceSettings
 
 SERVICE_CLIENT = "waterfall-service"
@@ -42,6 +43,8 @@ IDENTITY_POINTERS = {
 # Why the invitation of an account did not leave: the realm has no mail server, its server did not
 # take the mail, or Keycloak does not answer.
 type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,23 +87,29 @@ def _document(response: httpx2.Response) -> Mapping[str, Any]:
     return cast("Mapping[str, Any]", read) if isinstance(read, Mapping) else {}
 
 
-def refused_identity(response: httpx2.Response) -> UnprocessableError:
+def refused_identity(response: httpx2.Response) -> UnprocessableError | IdentityProviderError:
     """Point at the fields of a local identity the user profile of the realm refuses (422).
 
-    The realm names one field, or a list of them under ``errors``; one it names that the identity
-    does not have is pointed at as the whole of it.
+    The realm names one field, or a list of them under ``errors``; the username and the address
+    are one field of the identity. A refusal that names none of its fields — an attribute the
+    profile of the realm requires besides — is no value the user could correct: a defect of the
+    platform, raised as such.
     """
     refusal = _document(response)
     errors = refusal.get("errors")
     named = cast("list[object]", errors) if isinstance(errors, list) and errors else [refusal]
-    pointers = dict.fromkeys(_pointer(error) for error in named)
+    pointers = dict.fromkeys(pointer for error in named if (pointer := _pointer(error)))
+    if not pointers:
+        request = response.request
+        message = f"{request.method} {request.url.path} answered 400 on no field of the identity"
+        return IdentityProviderError(message)
     faults = tuple(FieldError(pointer, VALIDATION_FAILED) for pointer in pointers)
     return UnprocessableError(VALIDATION_FAILED, fields=faults)
 
 
-def _pointer(error: object) -> str:
+def _pointer(error: object) -> str | None:
     named = _text(cast("Mapping[str, Any]", error), "field") if isinstance(error, Mapping) else ""
-    return IDENTITY_POINTERS.get(named, "")
+    return IDENTITY_POINTERS.get(named)
 
 
 class KeycloakAdmin:
@@ -150,7 +159,7 @@ class KeycloakAdmin:
         """Create a local account of the realm, without a password; give its subject.
 
         ``None`` if the realm holds an account of that address already, whose username it is.
-        Refused if the user profile of the realm refuses a field (422).
+        Refused if the user profile of the realm refuses a field of the identity (422).
         """
         response = self._as_service(
             "POST",
@@ -192,7 +201,11 @@ class KeycloakAdmin:
             return "provider_unavailable"
         error = _document(response).get("error")
         if response.status_code == HTTPStatus.BAD_GATEWAY:
-            return "not_sent" if error == "not_sent" else "provider_unavailable"
+            if error == "not_sent":
+                return "not_sent"
+            # Not the extension's: a proxy says Keycloak failed, as ``Keycloak.send`` logs it.
+            logger.warning("identity_provider.failed", status=response.status_code)
+            return "provider_unavailable"
         if response.status_code == HTTPStatus.CONFLICT and error == "no_mail_server":
             return "no_mail_server"
         expect(response, HTTPStatus.NO_CONTENT)
