@@ -96,7 +96,7 @@ describe("the sign-in route on the identity provider", () => {
     ]);
   });
 
-  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once, by the browser whose cookie it is bound to only (#689) [WF-SEC-0020-A]", async () => {
+  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once, by the browser whose cookie it is bound to only (#689)", async () => {
     const [mine, theirs] = [randomUUID(), randomUUID()];
     const ticket = await armSignOut(mine);
     // Another browser, or one without the cookie — a victim led to the ticket a third party armed
