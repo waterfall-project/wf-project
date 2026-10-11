@@ -256,3 +256,38 @@ test("leads from the planning to the timelines of the project, read only", async
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
   ).toHaveCount(0);
 });
+
+test("creates a timeline by its name, and deletes the one shown once confirmed, the screen showing the first one left (EP-14/L44f)", async ({
+  page,
+}) => {
+  // Two readings of the structure of a thousand tasks, each in the bound of a grid.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const steering = page.getByRole("link", { name: "Comité de pilotage" });
+  await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
+  await expect(page.getByRole("note")).toContainText("Maquette");
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByText("Chronologie « Réunion de chantier » créée.")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Supprimer la chronologie «\u00a0Comité de pilotage\u00a0»" })
+    .click();
+  const confirmation = page.getByRole("dialog", { name: /^Supprimer la chronologie/ });
+  await expect(confirmation).toContainText("les tâches et les jalons gardent leurs dates");
+  await confirmation.getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByText("Chronologie « Comité de pilotage » supprimée.")).toBeVisible();
+  await expect(steering).toHaveCount(0);
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/timelines?timeline=01926f3a-7c00-7000-8000-000000001001`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+});

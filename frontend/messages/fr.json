@@ -359,10 +359,19 @@
     "noSummary": "Ce planning n’a aucune tâche récapitulative : l’arborescence se réduit au projet."
   },
   "timelines": {
-    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet — en lecture.",
+    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet, qui s’y inscrivent depuis le planning.",
     "choice": "Chronologie affichée",
     "none": "Ce projet n’a aucune chronologie.",
-    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie."
+    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie.",
+    "create": "Nouvelle chronologie",
+    "labelField": "Nom",
+    "formHint": "Une chronologie porte un nom, que d’autres peuvent partager ; les tâches et les jalons s’y inscrivent ensuite depuis le planning.",
+    "created": "Chronologie « {label} » créée.",
+    "delete": "Supprimer",
+    "deleteNamed": "Supprimer la chronologie « {label} »",
+    "deleteTitle": "Supprimer la chronologie « {label} » ?",
+    "deleteHint": "La chronologie et ses inscriptions seront supprimées ; les tâches et les jalons gardent leurs dates.",
+    "deleted": "Chronologie « {label} » supprimée."
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
