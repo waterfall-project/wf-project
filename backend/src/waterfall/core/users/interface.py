@@ -3,21 +3,25 @@
 """What the accounts offer to the other modules and to the API.
 
 The label of an account; the author of a row, named as it is shown; which accounts are active;
-the account the identity provider knows by a subject, as the account itself reads it; and the
-account of a person the provider knows and Waterfall not yet, created without any role
-(WF-ADM-0180). The other operations on accounts arrive with the stories that need them (US-0360).
+the account the identity provider knows by a subject, as the account itself reads it; the account
+of a person the provider knows and Waterfall not yet, created without any role (WF-ADM-0180); an
+account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
+each one carries (WF-ADM-0050, WF-IHM-0090). The other operations on accounts arrive with the
+stories that need them (US-0360).
 """
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
+    NOT_FOUND,
     NewAccount,
     Stamp,
     add_account_if_absent,
@@ -25,8 +29,42 @@ from waterfall.core.users.accounts import (
     find_account_of_subject,
     find_active_accounts,
 )
+from waterfall.core.users.commands import CommandAvailability, account_commands
+from waterfall.core.users.listing import (
+    AccountColumn,
+    AccountExpression,
+    AccountFilters,
+    AccountSort,
+    Page,
+    find_accounts,
+)
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import ProviderAccount
+
+__all__ = [
+    "Account",
+    "AccountColumn",
+    "AccountExpression",
+    "AccountFilters",
+    "AccountLabel",
+    "AccountPage",
+    "AccountSort",
+    "Author",
+    "CommandAvailability",
+    "NotAdmitted",
+    "Page",
+    "account_commands",
+    "active_accounts",
+    "add_account_of_provider",
+    "display_name",
+    "list_accounts",
+    "origin_of",
+    "read_account",
+    "read_account_label",
+    "read_account_of_subject",
+    "read_author",
+]
 
 NAME_MAX_LENGTH = 100
 
@@ -66,7 +104,7 @@ class Author:
 
 @dataclass(frozen=True, slots=True)
 class Account:
-    """An account as the person who holds it reads it (``getMe``)."""
+    """An account as it is read, by the person who holds it (``getMe``) or in the table."""
 
     user_id: UUID
     subject: str
@@ -169,22 +207,69 @@ def add_account_of_provider(
     return NotAdmitted.ADDRESS_TAKEN if account is None else _account(session, account)
 
 
-def _account(session: Session, account: UserAccount) -> Account:
-    return Account(
-        user_id=account.id,
-        subject=account.idp_subject,
-        last_name=account.last_name,
-        first_name=account.first_name,
-        email=account.email,
-        is_active=account.state == "active",
-        origin=account.origin,
-        display_preferences=dict(account.display_preferences),
-        # The image and its type are set and removed together (``avatar_with_its_media_type``):
-        # the type says whether there is one without reading up to 8 MiB.
-        has_avatar=account.avatar_media_type is not None,
-        created_at=account.created_at,
-        created_by=read_author(session, account.created_by),
-        updated_at=account.updated_at,
-        updated_by=read_author(session, account.updated_by),
-        lock_version=account.lock_version,
+@dataclass(frozen=True, slots=True)
+class AccountPage:
+    """A page of the table of the accounts, and the number of accounts the filters keep."""
+
+    accounts: list[Account]
+    total: int
+
+
+def read_account(session: Session, user_id: UUID) -> Account:
+    """Read an account, or refuse (404)."""
+    account = find_account(session, user_id)
+    if account is None:
+        raise NotFoundError(NOT_FOUND)
+    return _account(session, account)
+
+
+def list_accounts(
+    session: Session, filters: AccountFilters, sort: AccountSort, page: Page
+) -> AccountPage:
+    """Read a page of the table of the accounts, and count those the filters keep."""
+    rows, total = find_accounts(session, filters, sort, page)
+    return AccountPage(_accounts(session, rows), total)
+
+
+def _authors(session: Session, user_ids: Iterable[UUID | None]) -> dict[UUID, Author]:
+    """Name the authors of rows at once; the platform, ``None``, is no author."""
+    wanted = {user_id for user_id in user_ids if user_id is not None}
+    if not wanted:
+        return {}
+    rows = session.execute(
+        select(UserAccount.id, UserAccount.first_name, UserAccount.last_name).where(
+            UserAccount.id.in_(wanted)
+        )
     )
+    return {user_id: Author(user_id, display_name(first, last)) for user_id, first, last in rows}
+
+
+def _account(session: Session, account: UserAccount) -> Account:
+    return _accounts(session, [account])[0]
+
+
+def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
+    authors = _authors(
+        session, [user_id for each in accounts for user_id in (each.created_by, each.updated_by)]
+    )
+    return [
+        Account(
+            user_id=account.id,
+            subject=account.idp_subject,
+            last_name=account.last_name,
+            first_name=account.first_name,
+            email=account.email,
+            is_active=account.state == "active",
+            origin=account.origin,
+            display_preferences=dict(account.display_preferences),
+            # The image and its type are set and removed together (``avatar_with_its_media_type``):
+            # the type says whether there is one without reading up to 8 MiB.
+            has_avatar=account.avatar_media_type is not None,
+            created_at=account.created_at,
+            created_by=None if account.created_by is None else authors[account.created_by],
+            updated_at=account.updated_at,
+            updated_by=None if account.updated_by is None else authors[account.updated_by],
+            lock_version=account.lock_version,
+        )
+        for account in accounts
+    ]

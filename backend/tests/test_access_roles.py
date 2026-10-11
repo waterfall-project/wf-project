@@ -387,40 +387,47 @@ def test_the_roles_are_sorted_by_label_in_the_order_of_the_code_points_by_defaul
     assert labels(api, headers, "?sort_order=desc") == IN_CODE_POINT_ORDER[::-1]
 
 
-def by_identifier(
-    table: dict[str, UUID], names: list[str], *, descending: bool = False
-) -> list[str]:
-    """Order roles that are equal on the column of the sort by their identifier."""
-    return sorted(names, key=lambda name: table[name], reverse=descending)
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_label(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    predefined = ["Beta", "Zeta"]
+    composed = ["Alpha", "Main-d'œuvre", "Straße", "alpha", "Émile", "БЮРО"]
+    assert set(table) == {*predefined, *composed}
+    assert labels(api, headers, "?sort_by=is_predefined") == predefined + composed
+    # Equals keep the order of the table unsorted, whatever the direction (#741).
+    assert labels(api, headers, "?sort_by=is_predefined&sort_order=desc") == composed + predefined
 
 
 @pytest.mark.requirement("WF-IHM-0060-A")
-def test_the_roles_are_sorted_by_nature_the_predefined_first_equals_by_identifier(
+def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_label(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
-    predefined = ["Zeta", "Beta"]
-    composed = ["alpha", "Émile", "Alpha", "БЮРО", "Straße", "Main-d'œuvre"]
-    assert labels(api, headers, "?sort_by=is_predefined") == (
-        by_identifier(table, predefined) + by_identifier(table, composed)
-    )
-    assert labels(api, headers, "?sort_by=is_predefined&sort_order=desc") == (
-        by_identifier(table, composed, descending=True)
-        + by_identifier(table, predefined, descending=True)
-    )
-
-
-@pytest.mark.requirement("WF-IHM-0060-A")
-def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_identifier(
-    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
-) -> None:
-    never = by_identifier(table, ["alpha", "БЮРО", "Straße", "Main-d'œuvre"])
-    once = by_identifier(table, ["Émile", "Beta", "Alpha"])
+    never = ["Main-d'œuvre", "Straße", "alpha", "БЮРО"]
+    once = ["Alpha", "Beta", "Émile"]
+    assert set(table) == {*never, *once, "Zeta"}
     assert labels(api, headers, "?sort_by=holder_count") == [*never, *once, "Zeta"]
     assert labels(api, headers, "?sort_by=holder_count&sort_order=desc") == [
         "Zeta",
-        *reversed(once),
-        *reversed(never),
+        *once,
+        *never,
     ]
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+@pytest.mark.parametrize(
+    "query",
+    ["", "?sort_order=desc", "?sort_by=is_predefined&sort_order=desc", "?sort_by=holder_count"],
+)
+def test_roles_equal_on_the_sort_and_on_the_label_come_by_identifier_ascending(
+    api: ContractClient, database: Database, headers: dict[str, str], query: str
+) -> None:
+    # Two readings give the same order: the identifier ends every tie, ascending (#741).
+    twins = sorted(role(database, "Jumeau") for _ in range(3))
+    response = api.get(f"{ROLES}{query}", headers=headers)
+    assert response.status_code == 200
+    read = [entry["access_role_id"] for entry in response.json() if entry["label"] == "Jumeau"]
+    assert read == [str(twin) for twin in twins]
 
 
 @pytest.mark.parametrize(

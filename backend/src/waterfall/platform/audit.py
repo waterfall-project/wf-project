@@ -31,7 +31,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
 
-from waterfall.platform.database import Base, UtcDateTime
+from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import names_a_secret
 
@@ -75,9 +75,6 @@ OBJECT_KINDS: tuple[str, ...] = get_args(AuditObjectKind.__value__)
 
 # What the data of an inscription may hold: codes, identifiers in text, numbers, never a float.
 type AuditValue = str | int | bool | Sequence[AuditValue] | Mapping[str, AuditValue] | None
-
-# The collation of the texts the journal sorts on: the order of the code points.
-CODE_POINTS = "C"
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:

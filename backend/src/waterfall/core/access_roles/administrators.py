@@ -52,6 +52,16 @@ def administrators(session: Session) -> frozenset[UUID]:
     return active_accounts(session, holders)
 
 
+def sole_administrator(session: Session) -> UUID | None:
+    """Give the account that alone holds the administration, if a single one does.
+
+    Its deactivation is unavailable, which its commands say (WF-ADM-0120, WF-IHM-0090): a reading,
+    not a guard — the write that would take the administration away runs under the guard.
+    """
+    held = administrators(session)
+    return next(iter(held)) if len(held) == 1 else None
+
+
 @contextmanager
 def guard_last_administrator(
     session: Session, code: str = LAST_ADMINISTRATOR, params: Mapping[str, Any] | None = None

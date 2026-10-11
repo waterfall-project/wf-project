@@ -13,12 +13,9 @@ from uuid import UUID
 from sqlalchemy import CheckConstraint, ForeignKey, Integer, SmallInteger, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from waterfall.platform.database import Base, UtcDateTime
+from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime
 
 KINDS = ("function_read", "function_write", "irreversible", "structuring")
-
-# The collation of a label: a sort compares the code points, accents and case included.
-CODE_POINTS = "C"
 
 # A table the migrations fill and the service only reads: the tests do not empty it.
 WRITTEN_BY_MIGRATION = "written_by_migration"
