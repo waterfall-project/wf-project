@@ -124,18 +124,28 @@ async function administering(request: APIRequestContext, realm = "waterfall") {
   };
 }
 
+/** The identifier of an account in a realm — that of Waterfall by default —, if it holds one. */
+async function realmUserIfAny(
+  request: APIRequestContext,
+  email: string,
+  name = "waterfall",
+): Promise<string | undefined> {
+  const realm = await administering(request, name);
+  const users = await realm.get("/users", { email, exact: "true" });
+  expect(users.ok()).toBe(true);
+  const [user] = (await users.json()) as { id: string }[];
+  return user?.id;
+}
+
 /** The identifier of an account in a realm — that of Waterfall by default —, by its address. */
 async function realmUser(
   request: APIRequestContext,
   email: string,
   name = "waterfall",
 ): Promise<string> {
-  const realm = await administering(request, name);
-  const users = await realm.get("/users", { email, exact: "true" });
-  expect(users.ok()).toBe(true);
-  const [user] = (await users.json()) as { id: string }[];
-  expect(user, `the account ${email} in the realm`).toBeDefined();
-  return user?.id ?? "";
+  const id = await realmUserIfAny(request, email, name);
+  expect(id, `the account ${email} in the realm`).toBeDefined();
+  return id ?? "";
 }
 
 /**
@@ -184,14 +194,26 @@ export async function newToTheProvider(request: APIRequestContext): Promise<Pers
   return { ...EXTERNAL, login, email, name: "Camille Nouvelle" };
 }
 
-/** Remove a person new to the provider from its realm, and the account it brought to Waterfall's. */
+/**
+ * Remove a person new to the provider from its realm, the account it brought to Waterfall's, and
+ * the account of Waterfall her first request created — on a platform used again, her name would
+ * otherwise stay in its lists. Each only if it is there: a path that failed before her first
+ * sign-in leaves none of them, and its own failure is the one to tell.
+ */
 export async function removeFromTheProvider(
   request: APIRequestContext,
   person: Person,
 ): Promise<void> {
-  const id = await realmUser(request, person.email, "external");
-  expect((await (await administering(request, "external")).delete(`/users/${id}`)).ok()).toBe(true);
-  await removeFromRealm(request, await realmUser(request, person.email));
+  const provided = await realmUserIfAny(request, person.email, "external");
+  if (provided !== undefined) {
+    const removed = await (await administering(request, "external")).delete(`/users/${provided}`);
+    expect(removed.ok()).toBe(true);
+  }
+  const brought = await realmUserIfAny(request, person.email);
+  if (brought !== undefined) {
+    await removeFromRealm(request, brought);
+  }
+  removeFromWaterfall(person.email);
 }
 
 /** Remove an account from the realm, as its administration does. */
@@ -297,6 +319,21 @@ insert into user_access_role (user_account_id, access_role_id)
   on conflict do nothing;
 `,
     { label, email, permissions: permissions.join(",") },
+  );
+}
+
+/**
+ * Remove the account of an address from Waterfall, if any, with the roles it holds: what a path
+ * made, and that the service offers no way to delete. An account another references — one it
+ * created, a task it asked — is refused, and the path fails rather than leave it half done.
+ */
+function removeFromWaterfall(email: string): void {
+  sql(
+    `delete from user_access_role
+  where user_account_id in (select id from user_account where email = :'email');
+delete from user_account where email = :'email';
+`,
+    { email },
   );
 }
 
