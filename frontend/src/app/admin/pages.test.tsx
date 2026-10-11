@@ -336,34 +336,50 @@ describe("the access roles", () => {
     expect(queriesOf("GET /access-roles")).toEqual([{}]);
   });
 
-  it("ask the server for the search and the sort the address names, and every role for the matrix", async () => {
+  it("ask the server once for the search and the sort the address names, which the matrix shows too", async () => {
     await AccessRolesPage(
       searched({ search: "Chef", sort_by: "holder_count", sort_order: "desc" }),
     );
     expect(queriesOf("GET /access-roles")).toEqual([
       { search: "Chef", sort_by: "holder_count", sort_order: "desc" },
-      {},
     ]);
   });
 
-  it("ask the server for the kind and the bounds of the holders the address names, and every role for the matrix [WF-IHM-0130-A]", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /access-roles": ["access_roles_unheld", "access_roles"],
-    };
+  it("ask the server for the kind and the bounds of the holders the address names, the matrix showing the roles the table retains [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, "GET /access-roles": "access_roles_unheld" };
     const page = rendered(
       await AccessRolesPage(searched({ is_predefined: "true", holder_count_max: "0" })),
     );
     expect(queriesOf("GET /access-roles")).toEqual([
       { is_predefined: "true", holder_count_max: "0" },
-      {},
     ]);
     expect(rows(page, "Rôles d’habilitation").slice(1)).toEqual([
-      "Administrateur Prédéfini 0 Modifier Supprimer",
+      "Administrateur Prédéfini 0 Supprimer",
       "1 rôle",
     ]);
-    // The matrix holds every role, whatever the grid asks.
-    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
+    // The matrix has a column for the roles the table retains, and none for another.
+    expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission Administrateur");
+  });
+
+  it("lead an address that says nothing of the table — the link of the navigation, from the screen too — to the filters the account keeps for it before anything is read, which reads the roles once, filtered [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await expect(AccessRolesPage(searched())).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        ";/admin/access-roles?is_predefined=false&holder_count_min=1;",
+      ) as unknown,
+    });
+    expect(queriesOf("GET /access-roles")).toEqual([]);
+    await AccessRolesPage(searched({ is_predefined: "false", holder_count_min: "1" }));
+    expect(queriesOf("GET /access-roles")).toEqual([
+      { is_predefined: "false", holder_count_min: "1" },
+    ]);
+  });
+
+  it("read the roles unfiltered at an address that says the reading lifted, or a sort alone, whatever the account keeps", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await AccessRolesPage(searched({ search: "" }));
+    await AccessRolesPage(searched({ sort_by: "label", sort_order: "desc" }));
+    expect(queriesOf("GET /access-roles")).toEqual([{}, { sort_by: "label", sort_order: "desc" }]);
   });
 
   it("ask no bound that is no count, nor a kind that is none", async () => {
@@ -373,13 +389,12 @@ describe("the access roles", () => {
     expect(queriesOf("GET /access-roles")).toEqual([{}]);
   });
 
-  it("say at its field the bound the API refuses, the grid unread, the matrix of every role kept", async () => {
+  it("say at its field the bound the API refuses, the grid unread, the matrix without a role", async () => {
     server.answers = {
       ...server.answers,
-      "GET /access-roles": [
-        { problem: example("access_roles_bounds_inverted") as Problem & { status: 422 } },
-        "access_roles",
-      ],
+      "GET /access-roles": {
+        problem: example("access_roles_bounds_inverted") as Problem & { status: 422 },
+      },
     };
     const page = rendered(
       await AccessRolesPage(searched({ holder_count_min: "2", holder_count_max: "1" })),
@@ -387,20 +402,22 @@ describe("the access roles", () => {
     expect(page).not.toContain('aria-label="Rôles d’habilitation" role="grid"');
     expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
     expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 2.");
-    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
+    expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission");
   });
 
-  it("offer to a session that may modify the roles the commands to create one, and to modify and delete each", async () => {
+  it("offer to a session that may modify the roles to create one in line, to delete each, and to write their permissions in the matrix", async () => {
     const page = rendered(await AccessRolesPage(searched()));
-    expect(rows(page, "Rôles d’habilitation")[0]).toBe(
-      "Libellé Nature Comptes porteurs Modifier Supprimer",
-    );
+    expect(rows(page, "Rôles d’habilitation")[0]).toBe("Libellé Nature Comptes porteurs Supprimer");
     expect(buttons(page)).toContain("Créer un rôle");
+    expect(page).toContain('aria-label="Création d’un rôle"');
     expect(page).toContain('aria-label="Supprimer «\u00a0Chiffreur\u00a0»"');
-    expect(page).toContain('aria-label="Modifier «\u00a0Manager\u00a0»"');
+    expect(page).toContain(
+      'aria-label="«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0Administrateur\u00a0»"',
+    );
   });
 
   it("present the permissions of the catalogue in its order, under the function of the second level each covers, and whether each role holds it", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
     // A header, forty permissions of the functions — the functions in reading alone read only
     // (#739) —, the consultation of the journal of audit, eight irreversible and two structuring.

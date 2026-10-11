@@ -14,25 +14,35 @@
  *   EP-03 wires (`UserCommand`) — none deletes an account —, the last two as the account lists them
  *   (`available_commands`): the deactivation of the last administrator unavailable (WF-ADM-0120).
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
- *   WF-ADM-0090); for a session that may modify the roles, the commands to modify and to delete
- *   each, which EP-03 wires (`RoleCommand`) — the deletion unavailable while an account holds it.
+ *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
+ *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
  *
  * The server filters each on its columns (WF-IHM-0130, EP-02/L42f): the accounts by their origin,
  * their node, their access roles — one at least of those chosen — and their state; the roles by
- * their kind and between bounds of their holders, deactivated accounts counted.
+ * their kind and between bounds of their holders, deactivated accounts counted, and kept (US-0380).
  *
  * Neither server nor client: the page reads the keys and the columns sorted; the grids, in the
  * browser, the rest — the functions that read a row never cross to the server.
  */
 import { useTranslations } from "next-intl";
 
+import { updateAccessRole } from "@/api/actions/access-roles";
 import type { components, operations } from "@/api/generated/schema";
-import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
+import type { Outcome } from "@/api/problem";
+import {
+  type CellEntry,
+  type GridColumn,
+  type GridConfig,
+  type RowsWritten,
+  sortColumns,
+} from "@/components/grid/columns";
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
 import { Badge } from "@/components/ui/badge";
 
-import { RoleCommand, UserCommand, type UserCommandName } from "./later-commands";
+import { UserCommand, type UserCommandName } from "./later-commands";
+import { DeleteRole } from "./role-commands";
+import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
 
 /** An account, as the contract gives it. */
 export type User = components["schemas"]["User"];
@@ -42,6 +52,17 @@ export type AccessRole = components["schemas"]["AccessRole"];
 
 /** Where a page stands in the accounts the server retained: their number, the totals row's. */
 export type UserPage = components["schemas"]["PaginationMeta"];
+
+/**
+ * The roles the server answered a write with, shared by the table and the matrix of the screen
+ * (`RoleAnswers`): read in an event, and recorded once answered.
+ */
+export interface RoleAnswered {
+  /** The role as it stands now: the one last answered, or the one read when it is as new. */
+  readonly latest: (read: AccessRole) => AccessRole;
+  /** Keep a role answered, unless one newer is kept. */
+  readonly record: (answered: AccessRole) => void;
+}
 
 /** The column of the contract the server sorts the accounts by. */
 export type UserSort = NonNullable<
@@ -211,28 +232,69 @@ function RoleKind({ role }: { readonly role: AccessRole }) {
 
 /** The columns of the commands of a role, for a session that may modify the roles. */
 function commandColumns(): GridColumn<AccessRole, AccessRoleSort, null>[] {
-  return (["modify", "delete"] as const).map((command) => ({
+  return (["delete"] as const).map((command) => ({
     key: command,
     label: command,
     format: "text",
     width: COMMAND_WIDTH,
     value: () => null,
-    render: (role) => (
-      <RoleCommand command={command} name={role.label} holders={role.holder_count} />
-    ),
+    render: (role) => <DeleteRole role={role} />,
   }));
 }
 
 /**
- * The grid of the access roles: the label, the kind, the number of accounts that hold it — each
- * sorted by the server —, and, for a session that may modify the roles, its commands.
+ * The renaming of a role in its cell, from the version the screen holds of it — the one read, or
+ * one the matrix or a renaming answered since (`RoleAnswered`) —, with its permissions; the answer
+ * kept for the matrix as for the table.
  */
-export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, AccessRoleSort, null> {
+function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null> {
+  let answered = 0;
+  return {
+    kind: { type: "text", maxLength: LABEL_LENGTH },
+    in: () => true,
+    value: (role) => role.label,
+    write: async (shown, label): Promise<Outcome<RowsWritten<AccessRole, null>>> => {
+      if (label === null) {
+        // A text entered is never emptied (`cell-values.ts`): a defect of the front.
+        throw new Error("a role is never left without a label");
+      }
+      const role = answers?.latest(shown) ?? shown;
+      const outcome = await updateAccessRole(role.access_role_id, {
+        label,
+        permissions: role.permissions,
+        lock_version: role.lock_version,
+      });
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      answers?.record(outcome.data);
+      answered += 1;
+      const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
+      return { kind: "done", data: { ...written, order: answered } };
+    },
+  };
+}
+
+/**
+ * The grid of the access roles: the label, the kind, the number of accounts that hold it — each
+ * sorted by the server —, and, for a session that may modify the roles, its commands, its renaming
+ * writing from the roles the screen holds (`answers`).
+ */
+export function accessRoleGrid(
+  editable: boolean,
+  answers?: RoleAnswered,
+): GridConfig<AccessRole, AccessRoleSort, null> {
   return {
     key: ACCESS_ROLE_GRID_KEY,
     name: "accessRoles",
     searched: true,
     rowKey: (role) => role.access_role_id,
+    filters: ROLE_FILTERS,
+    // A role answered prevails over the same role read while it is newer, by its counter.
+    fresher: (answered, read) =>
+      answered.lock_version === read.lock_version
+        ? undefined
+        : answered.lock_version > read.lock_version,
     columns: [
       {
         key: "label",
@@ -242,6 +304,7 @@ export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, Access
         pinned: true,
         contract: "label",
         value: (role) => role.label,
+        entry: editable ? renaming(answers) : undefined,
       },
       {
         key: "is_predefined",

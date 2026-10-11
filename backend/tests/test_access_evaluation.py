@@ -28,7 +28,7 @@ from waterfall.core.access_roles.interface import (
     granted_permissions,
     require,
 )
-from waterfall.core.access_roles.predefined import ADMINISTRATOR
+from waterfall.core.access_roles.predefined import ADMINISTRATOR, PROJECT_MANAGER
 from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
@@ -172,6 +172,34 @@ def test_an_account_given_two_roles_holds_the_permissions_of_both(
     assert api.request("PUT", path, headers=administrator, json=sent).status_code == 200
     assert me(api, headers)["permissions"] == ["users.read", CONSULT]
     assert [api.get(path, headers=headers).status_code for path in (USERS, ROLES)] == [200, 200]
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+def test_a_role_composed_of_two_actors_gives_its_holder_the_permissions_of_both(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # « Un rôle d'habilitation composé sur mesure permet à un utilisateur de cumuler des
+    # permissions relevant de deux acteurs différents. » : here, a role composed through the API
+    # of a permission of the project manager and one of the administrator, given to an account,
+    # makes both its effective permissions; their exercise awaits EP-05.
+    assert "planning.write" in PROJECT_MANAGER
+    assert "users.write" in ADMINISTRATOR
+    administrator = person(role(database, "Administration", permissions=ADMINISTRATOR))
+    label = "Planificateur administrateur"
+    sent: dict[str, object] = {"label": label, "permissions": ["planning.write"]}
+    created = api.post(ROLES, headers=administrator, json=sent)
+    assert created.status_code == 201
+    composed = created.json()["access_role_id"]
+    widened = {"label": label, "permissions": ["planning.write", "users.write"], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{composed}", headers=administrator, json=widened).status_code == 200
+    headers = person()
+    assert me(api, headers)["permissions"] == []
+    given = {"access_role_ids": [composed], "lock_version": 0}
+    attribution = f"{USERS}/{me(api, headers)['user_id']}/access-roles"
+    assert api.request("PUT", attribution, headers=administrator, json=given).status_code == 200
+    account = me(api, headers)
+    assert account["permissions"] == ["users.write", "planning.write"]
+    assert account["access_role_labels"] == [label]
 
 
 @pytest.mark.requirement("WF-ADM-0090-A")

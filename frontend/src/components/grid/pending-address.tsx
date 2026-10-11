@@ -29,6 +29,8 @@ import {
   useRef,
 } from "react";
 
+import { type KeptReading, spokenHref } from "./kept-address";
+
 /**
  * An address asked, by its query, and the query of the address it was asked from; and the streak it
  * ends: the queries of every address asked from that same address, each composed on the one before
@@ -48,15 +50,27 @@ export interface Asked {
 /** The address a screen last asked for; none outside a screen that shares one. */
 const AskedContext = createContext<RefObject<Asked | undefined> | undefined>(undefined);
 
+/** What the grid of a screen that keeps its filters reads of the address; none for another. */
+const KeptContext = createContext<KeptReading | undefined>(undefined);
+
 /**
  * Share the address last asked for among the parts of a screen — or of a grid, which shares it
- * with its bar: one already shared around it is kept, the grid composing with its screen.
+ * with its bar: one already shared around it is kept, the grid composing with its screen. A screen
+ * that keeps the filters of its grid names what the grid reads (`kept`): a change that would leave
+ * the address saying nothing of the grid says the reading lifted (`spokenHref`).
  */
-export function PendingAddress({ children }: { readonly children: ReactNode }) {
+export function PendingAddress({
+  kept,
+  children,
+}: {
+  readonly kept?: KeptReading | undefined;
+  readonly children: ReactNode;
+}) {
   const around = useContext(AskedContext);
   // A ref, stable from the first render: the value of the context never changes.
   const asked = useRef<Asked>(undefined);
-  return <AskedContext value={around ?? asked}>{children}</AskedContext>;
+  const shared = <AskedContext value={around ?? asked}>{children}</AskedContext>;
+  return kept === undefined ? shared : <KeptContext value={kept}>{shared}</KeptContext>;
 }
 
 /** The query of an address, as the address shown writes it once arrived. */
@@ -110,12 +124,17 @@ function useAsked() {
  */
 export function usePendingAddress() {
   const { shown, underWay, ask } = useAsked();
+  const kept = useContext(KeptContext);
   const router = useRouter();
   /** The query a change goes on from. */
   const base = () => new URLSearchParams(underWay()?.query ?? shown);
-  /** Navigate to an address built from the query a change goes on from, and keep it as asked. */
+  /**
+   * Navigate to an address built from the query a change goes on from — saying a reading lifted,
+   * for a screen that keeps the filters of its grid —, and keep it as asked.
+   */
   const request = (build: (query: URLSearchParams) => string) => {
-    const href = build(base());
+    const built = build(base());
+    const href = kept === undefined ? built : spokenHref(built, kept);
     ask(href);
     router.push(href, { scroll: false });
   };

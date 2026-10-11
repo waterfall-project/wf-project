@@ -43,6 +43,7 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   Fragment,
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useOptimistic,
@@ -101,6 +102,7 @@ import {
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
+import { type KeptFilters, useKeptFilters } from "./kept-filters";
 import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
@@ -674,6 +676,18 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
+  // The filters its screen keeps with its settings, as the page last showed them (`kept-filters.ts`).
+  const { recordShown, shown } = writer;
+  const recordFilters = useCallback(
+    (filters: KeptFilters) => {
+      recordShown(() =>
+        recordedPreferences(preferences, currentSettings.current, keptSort.current, filters),
+      );
+      shown();
+    },
+    [preferences, recordShown, shown],
+  );
+  const kept = useKeptFilters(config, preferences, recordFilters);
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
 
@@ -686,7 +700,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // after it have answered — writing the preference at the click would hold the sort back by a
   // round trip to the API, and by every action queued before it. Left, hidden or gone before,
   // the page writes it as it writes what waits.
-  const { shown } = writer;
   useEffect(() => {
     shown();
   }, [query, shown]);
@@ -700,7 +713,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
     writer.recordShown(() =>
-      recordedPreferences(preferences, currentSettings.current, keptSort.current),
+      recordedPreferences(preferences, currentSettings.current, keptSort.current, kept.current),
     );
   };
   const search = (text: string) => {
@@ -735,7 +748,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     onSettings: (next) => {
       setSettings(next);
       currentSettings.current = next;
-      writer.record(recordedPreferences(preferences, next, keptSort.current));
+      writer.record(recordedPreferences(preferences, next, keptSort.current, kept.current));
     },
   });
 
