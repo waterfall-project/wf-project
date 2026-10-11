@@ -79,6 +79,7 @@
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/avatar:
@@ -102,8 +103,10 @@
     responses:
       '204':
         description: Avatar enregistré.
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteMyAvatar

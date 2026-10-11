@@ -58,6 +58,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -160,6 +161,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
             examples:
               created: { $ref: ../../../fixtures/api/org_node_created.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -209,6 +211,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
             examples:
               moved: { $ref: ../../../fixtures/api/org_node_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -280,6 +283,7 @@
             examples:
               reactivated: { $ref: ../../../fixtures/api/org_node_reactivated.json }
               deactivated: { $ref: ../../../fixtures/api/org_node_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -304,6 +308,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/org_node_activation_stale.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles:
@@ -442,6 +447,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
             examples:
               created: { $ref: ../../../fixtures/api/resource_role_created.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422':
@@ -479,6 +485,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
             examples:
               updated: { $ref: ../../../fixtures/api/resource_role_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -527,6 +534,7 @@
             examples:
               reactivated: { $ref: ../../../fixtures/api/resource_role_reactivated.json }
               deactivated: { $ref: ../../../fixtures/api/resource_role_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -551,6 +559,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/resource_role_activation_stale.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/duration-units:
@@ -594,6 +603,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -778,6 +788,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
             examples:
               created: { $ref: ../../../fixtures/api/calendar_created.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -805,6 +816,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
             examples:
               updated: { $ref: ../../../fixtures/api/calendar_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -890,6 +902,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
             examples:
               deactivated: { $ref: ../../../fixtures/api/calendar_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -913,6 +926,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/calendar_activation_stale.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types:
@@ -993,6 +1007,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
             examples:
               created: { $ref: ../../../fixtures/api/cost_type_created.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -1048,6 +1063,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
             examples:
               updated: { $ref: ../../../fixtures/api/cost_type_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1114,6 +1130,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
             examples:
               deactivated: { $ref: ../../../fixtures/api/cost_type_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1136,6 +1153,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories:
@@ -1224,6 +1242,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
             examples:
               created: { $ref: ../../../fixtures/api/cost_category_created.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -1287,6 +1306,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
             examples:
               updated: { $ref: ../../../fixtures/api/cost_category_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1360,6 +1380,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
             examples:
               deactivated: { $ref: ../../../fixtures/api/cost_category_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1382,6 +1403,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/hourly-rates:
@@ -1527,6 +1549,7 @@
               entered: { $ref: ../../../fixtures/api/hourly_rate_entered.json }
               corrected: { $ref: ../../../fixtures/api/hourly_rate_corrected.json }
               added_year: { $ref: ../../../fixtures/api/hourly_rate_added_year.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

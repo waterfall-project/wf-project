@@ -75,6 +75,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -130,11 +131,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteRisk
@@ -228,6 +231,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -239,6 +243,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:
@@ -271,10 +276,12 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/coverage:

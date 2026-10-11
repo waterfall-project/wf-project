@@ -68,6 +68,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -76,6 +77,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}:
@@ -153,6 +155,7 @@
             examples:
               queued: { $ref: ../../../fixtures/api/task_mark_queued.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -166,6 +169,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/reference-revision:
@@ -193,6 +197,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -201,6 +206,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/rate-update:
@@ -254,10 +260,12 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/comparison:
@@ -339,10 +347,12 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
@@ -377,10 +387,12 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:
@@ -618,6 +630,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -758,6 +771,7 @@
             examples:
               renamed: { $ref: ../../../fixtures/api/task_renamed.json }
               lengthened: { $ref: ../../../fixtures/api/volume/task_lengthened.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -815,6 +829,7 @@
               entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
               redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -865,6 +880,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               set: { $ref: ../../../fixtures/api/predecessor_set.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -874,6 +890,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress:
@@ -902,11 +919,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining:
@@ -941,6 +960,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               reestimated: { $ref: ../../../fixtures/api/remaining_reestimated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -989,9 +1009,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move:
@@ -1025,6 +1047,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1074,6 +1097,7 @@
             examples:
               planned: { $ref: ../../../fixtures/api/paste_plan.json }
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1117,11 +1141,13 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/undo:

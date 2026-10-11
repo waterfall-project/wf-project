@@ -187,6 +187,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -243,6 +244,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -257,6 +259,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/access-roles:
@@ -285,6 +288,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -580,6 +584,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -595,6 +600,7 @@
             examples:
               last_administrator: { $ref: ../../../fixtures/api/access_role_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteAccessRole
