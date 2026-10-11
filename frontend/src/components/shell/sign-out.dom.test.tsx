@@ -134,7 +134,7 @@ describe("signing out from the menu of the account", () => {
     expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login");
   });
 
-  it("sends the browser to the sign-out of the realm, not to the sign-in, when the front had lost its session [WF-SEC-0020-A]", async () => {
+  it("sends the browser to the silent sign-in that closes every workstation, when the front had lost its session (#689) [WF-SEC-0020-A]", async () => {
     const sent: Request[] = [];
     server.client = createApiClient({
       address: "http://api.test",
@@ -150,12 +150,7 @@ describe("signing out from the menu of the account", () => {
     await signOut();
     expect(sent).toEqual([]);
     expect(rememberedContext()).toBeUndefined();
-    expect(loadDocument).toHaveBeenCalledOnce();
-    const address = new URL(vi.mocked(loadDocument).mock.lastCall?.[0] ?? "");
-    expect(`${address.origin}${address.pathname}`).toBe(
-      `${TEST_SETTINGS.realmAddress}/protocol/openid-connect/logout`,
-    );
-    expect(address.searchParams.get("post_logout_redirect_uri")).toBe(TEST_SETTINGS.signedOut);
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login?sign_out=1");
   });
 
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {

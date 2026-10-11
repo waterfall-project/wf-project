@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as login } from "@/app/login/route";
 import { createIdentityProvider, type IdentityProvider } from "@/session/provider";
-import { readSession } from "@/session/store";
+import { openSession, readSession } from "@/session/store";
 import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
-import { fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
@@ -15,6 +15,18 @@ import { GET as callback } from "./route";
 const state = vi.hoisted(() => ({
   provider: undefined as IdentityProvider | undefined,
   jar: undefined as CookieJar | undefined,
+  api: undefined as FakeAnswers | undefined,
+  clients: [] as FakeClient[],
+}));
+
+// The API a sign-out of a lost session reaches with the token its silent sign-in obtained.
+vi.mock("@/api/server", async (original) => ({
+  ...(await original<typeof import("@/api/server")>()),
+  tokenClient: (token: string) => {
+    const client = fakeClient(state.api ?? {}, {}, () => token);
+    state.clients.push(client);
+    return client;
+  },
 }));
 
 vi.mock("@/session/provider", async (original) => ({
@@ -38,11 +50,9 @@ async function received(response: Response): Promise<string> {
   return [String(response.status), ...response.headers.entries(), await response.text()].join("\n");
 }
 
-/** Start a sign-in from a screen aimed at: the answer of `/login`, and the cookie it gives. */
-async function start(next: string) {
-  const started = await login(
-    new Request(`https://front.test/login?next=${encodeURIComponent(next)}`),
-  );
+/** Start a sign-in from a screen aimed at — or a sign-out: the answer of `/login`, and its cookie. */
+async function start(next: string, query = `?next=${encodeURIComponent(next)}`) {
+  const started = await login(new Request(`https://front.test/login${query}`));
   const address = started.headers.get("Location") ?? "";
   const [pair = ""] = (started.headers.getSetCookie()[0] ?? "").split(";");
   const [name = "", value = ""] = pair.split("=");
@@ -190,9 +200,78 @@ describe("the return of the sign-in", () => {
     ]);
   });
 
+  it("says the sign-in could not be made when the realm cannot be reached, offering it again for the screen aimed at (#687)", async () => {
+    const { address, cookie } = await start("/account?tab=1");
+    const query = realm.signIn(address, "camille");
+    state.provider = createIdentityProvider(TEST_SETTINGS, () =>
+      Promise.reject(new TypeError("fetch failed")),
+    );
+    const response = await back(query, cookie);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe(
+      `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
+    );
+    expect(sessionCookieOf(response)).toBeUndefined();
+  });
+
   it("answers nothing on the fake back, which signs nobody in", async () => {
     vi.stubEnv("WATERFALL_AUTH", "mock");
     const response = await callback(new Request("https://front.test/auth/callback?state=s"));
     expect(response.status).toBe(404);
+  });
+});
+
+describe("the return of the sign-out of a session the front lost (#689)", () => {
+  beforeEach(() => {
+    state.clients = [];
+    state.api = { "DELETE /me/sessions": { status: 204 } };
+  });
+
+  /** A session of the account the front still keeps on another workstation: its identifier. */
+  async function elsewhere(subject: string): Promise<string> {
+    const id = crypto.randomUUID();
+    const session = {
+      accessToken: "a",
+      refreshToken: "r",
+      expiresAt: Date.now() + 300_000,
+      subject,
+    };
+    await openSession(id, session, 7200);
+    return id;
+  }
+
+  it("closes the sessions of the account on all its workstations by the token of its silent sign-in, opens none, and leads to the sign-in [WF-SEC-0020-A]", async () => {
+    const subject = crypto.randomUUID();
+    const other = await elsewhere(subject);
+    const { address, cookie } = await start("", "?sign_out=1");
+    const response = await back(realm.signIn(address, subject), cookie);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/login");
+    expect(sessionCookieOf(response)).toBeUndefined();
+    const calls = state.clients.flatMap((client) => client.calls);
+    expect(calls.map((call) => call.route)).toEqual(["DELETE /me/sessions"]);
+    expect(realm.issued).toContain(calls[0]?.authorization?.replace("Bearer ", ""));
+    expect(await readSession(other)).toBeUndefined();
+  });
+
+  it("leads to the sign-in when the realm holds no session for the browser: no workstation left to close", async () => {
+    const { address, cookie } = await start("", "?sign_out=1");
+    const signIn = new URL(address).searchParams.get("state") ?? "";
+    const query = `?${new URLSearchParams({ error: "login_required", state: signIn }).toString()}`;
+    const response = await back(query, cookie);
+    expect(response.headers.get("Location")).toBe("/login");
+    expect(state.clients).toEqual([]);
+  });
+
+  it("ends at least the session of the browser at the realm when the API does not close them", async () => {
+    state.api = {
+      "DELETE /me/sessions": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
+    };
+    const { address, cookie } = await start("", "?sign_out=1");
+    const response = await back(realm.signIn(address, crypto.randomUUID()), cookie);
+    const location = new URL(response.headers.get("Location") ?? "");
+    expect(`${location.origin}${location.pathname}`).toBe(
+      `${TEST_SETTINGS.realmAddress}/protocol/openid-connect/logout`,
+    );
   });
 });

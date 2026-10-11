@@ -4,6 +4,7 @@ import { createClient } from "@redis/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createIdentityProvider } from "@/session/provider";
+import { closeStore } from "@/session/store";
 import { FRONT_CLIENT } from "@/session/settings";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { withTestRedis } from "@/test/session";
@@ -84,9 +85,39 @@ describe("the sign-in route on the identity provider", () => {
     expect(signIn.value).toMatchObject({ target: screen, nonce: query.get("nonce") });
     expect(signIn.ttl).toBeGreaterThan(0);
     expect(signIn.ttl).toBeLessThanOrEqual(15 * 60);
+    expect(query.has("prompt")).toBe(false);
+    expect(signIn.value).toMatchObject({ signOut: false });
+    // The cookie of the session the browser held is forgotten here, where the sign-out leads (#724).
     expect(response.headers.getSetCookie()).toEqual([
       `wf_sign_in_${query.get("state") ?? ""}=1; Path=/auth/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=900`,
+      "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
     ]);
+  });
+
+  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account (#689)", async () => {
+    const response = await login("?sign_out=1");
+    const query = new URL(response.headers.get("Location") ?? "").searchParams;
+    expect(query.get("prompt")).toBe("none");
+    expect((await kept(query.get("state") ?? "")).value).toMatchObject({
+      signOut: true,
+      target: "/",
+    });
+  });
+
+  it("says the sign-in could not be made when Redis is out of reach, rather than fail bare (#687)", async () => {
+    // A Redis nobody serves: the connection is refused.
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      const response = await login(`?next=${encodeURIComponent("/account?tab=1")}`);
+      expect(response.status).toBe(307);
+      expect(response.headers.get("Location")).toBe(
+        `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
+      );
+      expect(response.headers.getSetCookie()).toEqual([]);
+    } finally {
+      await closeStore();
+    }
   });
 
   it("keeps the home page in place of another site", async () => {

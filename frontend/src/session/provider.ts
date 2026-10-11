@@ -35,8 +35,12 @@ export type SignedIn = Tokens & { readonly subject: string };
 
 /** What the server of Next asks of the identity provider. */
 export interface IdentityProvider {
-  /** The address of the sign-in, for a request of its state, its nonce and its PKCE challenge. */
-  signInAddress(state: string, nonce: string, challenge: string): URL;
+  /**
+   * The address of the sign-in, for a request of its state, its nonce and its PKCE challenge;
+   * `silent`, a sign-in the realm answers without showing a page (`prompt=none`) — with a code
+   * while its session in the browser lives, with `login_required` otherwise.
+   */
+  signInAddress(state: string, nonce: string, challenge: string, silent?: boolean): URL;
   /**
    * The address that ends the session of the realm in the browser, then sends it back to the
    * sign-in of the front: a sign-out the client asks for without an ID token, which the realm has
@@ -46,6 +50,7 @@ export interface IdentityProvider {
   /**
    * Exchange the code of a return, after checking its state, its nonce and its verifier; nothing
    * when the realm refused the sign-in — an error in the return, a code it refuses, a wrong nonce.
+   * The realm out of reach, or silent past its time, is `RealmUnreachable`.
    */
   exchange(
     query: string,
@@ -54,8 +59,11 @@ export interface IdentityProvider {
     verifier: string,
   ): Promise<SignedIn | undefined>;
   /**
-   * Refresh a session, or nothing when the realm refuses its refresh token — or does not answer
-   * within `REFRESH_TIMEOUT`: the token may have been used, and is never presented again.
+   * Refresh a session, or nothing when the realm refuses its refresh token — or fails in any way
+   * once the request has left: silent past `REFRESH_TIMEOUT`, its connection cut during the answer,
+   * a proxy answering for it. The realm may have taken the token then, and it is never presented
+   * again (#687). Only a request that could not leave — the realm out of reach — keeps the session:
+   * `RealmUnreachable`.
    */
   refresh(refreshToken: string): Promise<Tokens | undefined>;
   /** The subject a logout token of the back channel names, or nothing when it is not valid. */
@@ -89,6 +97,47 @@ export interface SignInChecks {
   readonly nonce: string;
   readonly verifier: string;
   readonly challenge: string;
+}
+
+/**
+ * The realm could not be reached: a request to it never left — refused, its host unknown —, or,
+ * for a sign-in, did not answer in time. Nothing was decided of the session.
+ */
+export class RealmUnreachable extends Error {
+  /** The failure of the request, kept as the cause. */
+  constructor(cause: unknown) {
+    super("the identity provider cannot be reached", { cause });
+    this.name = "RealmUnreachable";
+  }
+}
+
+/** The codes of a connection that was never made: the request did not leave. */
+const NOT_SENT: ReadonlySet<unknown> = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+]);
+
+/**
+ * Whether a request to the realm never left: `fetch` rejected for want of a connection, which its
+ * cause names by its code — never a connection cut once made, nor an answer.
+ */
+function notSent(error: unknown): boolean {
+  if (!(error instanceof TypeError)) {
+    return false;
+  }
+  const cause: unknown = error.cause;
+  return typeof cause === "object" && cause !== null && "code" in cause && NOT_SENT.has(cause.code);
+}
+
+/** Whether a request to the realm failed without an answer: out of reach, or silent in time. */
+function unanswered(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof oidc.ClientError && error.code === "OAUTH_TIMEOUT")
+  );
 }
 
 /** Draw the checks of a new sign-in. */
@@ -127,13 +176,9 @@ function isRefusedSignIn(error: unknown): boolean {
   );
 }
 
-/** Whether an error is the realm refusing a refresh token, or not answering in time. */
+/** Whether an error is the realm refusing a refresh token: its session over, or the token used. */
 function isRefusedRefresh(error: unknown): boolean {
-  return (
-    // `invalid_grant`: the session of Keycloak is over, or the token was already used.
-    (error instanceof oidc.ResponseBodyError && error.error === "invalid_grant") ||
-    (error instanceof oidc.ClientError && error.code === "OAUTH_TIMEOUT")
-  );
+  return error instanceof oidc.ResponseBodyError && error.error === "invalid_grant";
 }
 
 /**
@@ -167,7 +212,7 @@ export function createIdentityProvider(
     config[oidc.customFetch] = send;
   }
   return {
-    signInAddress: (state, nonce, challenge) =>
+    signInAddress: (state, nonce, challenge, silent = false) =>
       oidc.buildAuthorizationUrl(config, {
         redirect_uri: callback,
         scope: "openid",
@@ -175,6 +220,7 @@ export function createIdentityProvider(
         nonce,
         code_challenge: challenge,
         code_challenge_method: "S256",
+        ...(silent ? { prompt: "none" } : {}),
       }),
 
     signOutAddress: () =>
@@ -197,7 +243,7 @@ export function createIdentityProvider(
         if (isRefusedSignIn(error)) {
           return undefined;
         }
-        throw error;
+        throw unanswered(error) ? new RealmUnreachable(error) : error;
       }
       const subject = answer.claims()?.sub;
       if (subject === undefined) {
@@ -210,10 +256,13 @@ export function createIdentityProvider(
       try {
         return tokensOf(await oidc.refreshTokenGrant(config, refreshToken), Date.now());
       } catch (error) {
-        if (isRefusedRefresh(error)) {
-          return undefined;
+        if (notSent(error)) {
+          throw new RealmUnreachable(error);
         }
-        throw error;
+        if (!isRefusedRefresh(error)) {
+          console.error("A refresh failed once sent: its session is closed", error);
+        }
+        return undefined;
       }
     },
 

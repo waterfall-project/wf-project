@@ -25,9 +25,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { cookies } from "next/headers";
 
+import { Unreachable } from "@/api/client";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 
-import { identityProvider, REFRESH_TIMEOUT, type Tokens } from "./provider";
+import { identityProvider, RealmUnreachable, REFRESH_TIMEOUT, type Tokens } from "./provider";
 import { CALLBACK_PATH } from "./settings";
 import {
   type FrontSession,
@@ -138,11 +139,15 @@ async function renew(id: string, holder: string): Promise<string | undefined> {
     try {
       tokens = await identityProvider().refresh(session.refreshToken);
     } catch (error) {
-      // The realm out of reach closes no session: its access token serves as long as it lives.
+      if (!(error instanceof RealmUnreachable)) {
+        throw error;
+      }
+      // The realm out of reach closes no session: its access token serves as long as it lives,
+      // and the request is then the service out of reach, as its screen says (#687).
       if (session.expiresAt > Date.now()) {
         return session.accessToken;
       }
-      throw error;
+      throw new Unreachable(error);
     }
     if (tokens === undefined) {
       await forgetSession(id);
@@ -204,8 +209,11 @@ export async function requestBearer(): Promise<string | undefined> {
 }
 
 /**
- * Close the sessions of the account of the request on all its workstations, and forget its
- * cookie: the sign-out (WF-SEC-0020), whatever the back channel of Keycloak says after.
+ * Close the sessions of the account of the request on all its workstations: the sign-out
+ * (WF-SEC-0020), whatever the back channel of Keycloak says after. The cookie stays as it is: a
+ * server action that changes a cookie has Next render the page again in its answer, which would
+ * read the API without a session, and lead its screen to the sign-in page while the menu loads it
+ * (#724). `/login`, where the sign-out leads, forgets it.
  */
 export async function closeRequestSessions(): Promise<void> {
   const id = await requestSessionId();
@@ -216,5 +224,4 @@ export async function closeRequestSessions(): Promise<void> {
   if (session !== undefined) {
     await forgetAccount(session.subject);
   }
-  (await cookies()).delete(SESSION_COOKIE);
 }

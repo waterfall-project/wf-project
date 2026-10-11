@@ -29,8 +29,9 @@ x-back: &back
   environment: *back-environment
 
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
-# every token, whoever asks for it; by default, the port the front end is published on.
-x-keycloak-address: &keycloak-address ${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+# every token, whoever asks for it; the port the front end is published on, which alone moves —
+# the front end serves localhost and 127.0.0.1 only (#735).
+x-keycloak-address: &keycloak-address https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth
 
 # How the API and the worker reach Keycloak: the issuer of the tokens is the address the browser
 # reaches it at; they reach it on the back channel, for its keys and its administration API, as its

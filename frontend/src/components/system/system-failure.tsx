@@ -32,6 +32,7 @@ const TEXTS = {
   session_lost: "signedOut",
   signed_out: "signedOut",
   deactivated: "deactivated",
+  not_admitted: "notAdmitted",
   unexpected: "unexpected",
 } as const satisfies Record<Failure["kind"], string>;
 

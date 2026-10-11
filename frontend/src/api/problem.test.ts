@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import { SessionLost } from "@/session/tokens";
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
   failureOf,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
@@ -13,7 +15,7 @@ import {
 
 import { createApiClient, Unreachable } from "./client";
 import {
-  AccountDeactivated,
+  AccountRefused,
   type BackgroundTask,
   decode,
   decodeTask,
@@ -132,14 +134,30 @@ describe("the decoder of an answer of the API", () => {
     expect(outcome).toMatchObject({ kind: "signed_out", problem: { code: "SESSION_REQUIRED" } });
   });
 
-  it("says a deactivated account (401) as a refusal, not as a session to open again, which would loop", async () => {
-    const client = fakeClient({
-      "PATCH /me/preferences": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
+  it.each(["ACCOUNT_DEACTIVATED", "ACCOUNT_NOT_ADMITTED"] as const)(
+    "says an account refused (401 %s) as a refusal, not as a session to open again, which would loop",
+    async (code) => {
+      const client = fakeClient({ "PATCH /me/preferences": { problem: { code, status: 401 } } });
+      const outcome = await decode(() =>
+        client.PATCH("/me/preferences", { body: { theme: "dark" } }),
+      );
+      expect(outcome).toMatchObject({ kind: "refused", problem: { code } });
+    },
+  );
+
+  it("says a write whose session the front lost as signed out, the request never sent, rather than fail (#695)", async () => {
+    const client = fakeClient({ "PATCH /me/preferences": "preferences" }, {}, () => {
+      throw new SessionLost();
     });
     const outcome = await decode(() =>
       client.PATCH("/me/preferences", { body: { theme: "dark" } }),
     );
-    expect(outcome).toMatchObject({ kind: "refused", problem: { code: "ACCOUNT_DEACTIVATED" } });
+    expect(outcome).toEqual({
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    });
+    expect(client.calls).toEqual([]);
   });
 
   it("tells an API out of reach apart from any refusal", async () => {
@@ -294,17 +312,18 @@ describe("a read a screen cannot do without", () => {
     });
   });
 
-  it("throws a refusal for a deactivated account as such, for the screen of failure to say it", async () => {
-    const client = fakeClient({
-      "GET /reference/readiness": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
-    });
-    const read = readiness(client);
-    await expect(read).rejects.toBeInstanceOf(AccountDeactivated);
-    await expect(read).rejects.toMatchObject({
-      operation: "getReferenceReadiness",
-      digest: ACCOUNT_DEACTIVATED_DIGEST,
-    });
-  });
+  it.each([
+    ["ACCOUNT_DEACTIVATED", ACCOUNT_DEACTIVATED_DIGEST],
+    ["ACCOUNT_NOT_ADMITTED", ACCOUNT_NOT_ADMITTED_DIGEST],
+  ] as const)(
+    "throws a refusal of the account (%s) as such, for the screen of failure to say which",
+    async (code, digest) => {
+      const client = fakeClient({ "GET /reference/readiness": { problem: { code, status: 401 } } });
+      const read = readiness(client);
+      await expect(read).rejects.toBeInstanceOf(AccountRefused);
+      await expect(read).rejects.toMatchObject({ operation: "getReferenceReadiness", digest });
+    },
+  );
 
   it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
     const read = readiness(answering(() => Promise.resolve(failure("req-7f3a"))));

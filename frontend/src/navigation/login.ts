@@ -20,6 +20,18 @@ export const LOGIN_ROUTE = "/login";
 /** The parameter of the sign-in route that names the screen to come back to. */
 export const NEXT_PARAMETER = "next";
 
+/**
+ * The parameter of the sign-in route that makes it the sign-out of a session the front lost
+ * (#689): a sign-in the realm answers silently, whose token closes the sessions of the account.
+ */
+export const SIGN_OUT_PARAMETER = "sign_out";
+
+/** Where the sign-out of a session the front lost leads the browser. */
+export const SIGN_OUT_HREF = `${LOGIN_ROUTE}?${SIGN_OUT_PARAMETER}=1`;
+
+/** The page that says a sign-in could not be made, the service out of reach (#687). */
+export const SIGN_IN_UNAVAILABLE_ROUTE = `${LOGIN_ROUTE}/unavailable`;
+
 // An origin nobody serves, to resolve `next` as a browser would: only the path is kept.
 const FRONT = "http://front.invalid";
 
@@ -47,6 +59,12 @@ export function returnTarget(next: string | null | undefined): string {
 /** Whether a path, resolved as a browser would, stays on this front. */
 function staysOnFront(path: string): boolean {
   return URL.canParse(path, FRONT) && new URL(path, FRONT).origin === FRONT;
+}
+
+/** The page that says a sign-in could not be made, which offers it again for a screen. */
+export function signInUnavailableHref(screen: string): string {
+  const query = new URLSearchParams({ [NEXT_PARAMETER]: returnTarget(screen) });
+  return `${SIGN_IN_UNAVAILABLE_ROUTE}?${query.toString()}`;
 }
 
 /** The address of the sign-in route, which comes back to a screen: its path and its query. */

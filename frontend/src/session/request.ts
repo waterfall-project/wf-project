@@ -20,7 +20,7 @@ import { cache } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { reach } from "@/api/problem";
-import { isDeactivation } from "@/api/problem-kind";
+import { isAccountRefusal } from "@/api/problem-kind";
 import { serverClient } from "@/api/server";
 
 /** The account of the request, with its display preferences and its effective permissions. */
@@ -31,14 +31,14 @@ export type Permission = components["schemas"]["PermissionCode"];
 
 /**
  * What a request knows of its session: `open`, with its account and its permissions;
- * `signed_out`, the API saying there is none (401); `deactivated`, the account being so (401
- * `ACCOUNT_DEACTIVATED`: not led back to the sign-in page, which would loop, the screen says
- * it); `unreadable`, when there is none to read
- * — the API out of reach, or an answer that is neither.
+ * `signed_out`, the API saying there is none (401); `refused`, the account refused itself (401
+ * `ACCOUNT_DEACTIVATED` or `ACCOUNT_NOT_ADMITTED`: not led back to the sign-in page, which would
+ * loop, the screen says it); `unreadable`, when there is none to read — the API out of reach, or
+ * an answer that is neither.
  */
 export type SessionState =
   | { readonly kind: "open"; readonly account: Account }
-  | { readonly kind: "signed_out" | "deactivated" | "unreadable" };
+  | { readonly kind: "signed_out" | "refused" | "unreadable" };
 
 /** The state of the session of the request, read once per request, however many ask. */
 export const requestSessionState = cache(async (): Promise<SessionState> => {
@@ -50,10 +50,10 @@ export const requestSessionState = cache(async (): Promise<SessionState> => {
   if (status !== 401) {
     return { kind: "unreadable" };
   }
-  // A 401 may come without the envelope (a proxy): then it is no session, not a deactivation.
+  // A 401 may come without the envelope (a proxy): then it is no session, not a refused account.
   const body: unknown = answer?.error;
   const code = typeof body === "object" && body !== null && "code" in body ? body.code : undefined;
-  return { kind: isDeactivation(status, code) ? "deactivated" : "signed_out" };
+  return { kind: isAccountRefusal(status, code) ? "refused" : "signed_out" };
 });
 
 /**

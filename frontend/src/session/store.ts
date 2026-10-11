@@ -18,7 +18,7 @@
  */
 import "server-only";
 
-import { createClient } from "@redis/client";
+import { createClient, ErrorReply } from "@redis/client";
 
 import { redisAddress } from "./settings";
 
@@ -33,6 +33,11 @@ export interface SignIn {
   readonly nonce: string;
   /** The screen aimed at, a path of this front with its query (`returnTarget`). */
   readonly target: string;
+  /**
+   * Whether the sign-in is the sign-out of a session the front lost (#689): silent, it obtains a
+   * token only to close the sessions of the account, on all its workstations.
+   */
+  readonly signOut: boolean;
 }
 
 /** The tokens of a session, and whose they are. */
@@ -107,6 +112,27 @@ async function redis(): Promise<Redis> {
   return connection === current ? reconnect() : (connection ?? reconnect());
 }
 
+/**
+ * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read
+ * nor written. A refusal of Redis itself, an answer, is not this, but a defect.
+ */
+export class StoreUnreachable extends Error {
+  /** The failure of the client, kept as the cause. */
+  constructor(cause: unknown) {
+    super("the sessions of the front cannot reach Redis", { cause });
+    this.name = "StoreUnreachable";
+  }
+}
+
+/** Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`). */
+async function reaching<T>(commands: (client: Redis) => Promise<T>): Promise<T> {
+  try {
+    return await commands(await redis());
+  } catch (error) {
+    throw error instanceof ErrorReply ? error : new StoreUnreachable(error);
+  }
+}
+
 /** Close the connection, if any: the end of the process, or of a test. */
 export async function closeStore(): Promise<void> {
   const open = connection;
@@ -118,32 +144,34 @@ export async function closeStore(): Promise<void> {
 
 /** Keep a sign-in under way, until its return or for fifteen minutes. */
 export async function rememberSignIn(state: string, signIn: SignIn): Promise<void> {
-  const client = await redis();
-  await client.set(`${SIGN_IN}${state}`, JSON.stringify(signIn), {
-    expiration: { type: "EX", value: SIGN_IN_LIFETIME },
-  });
+  await reaching((client) =>
+    client.set(`${SIGN_IN}${state}`, JSON.stringify(signIn), {
+      expiration: { type: "EX", value: SIGN_IN_LIFETIME },
+    }),
+  );
 }
 
 /** Take a sign-in under way by its state: once, and never after fifteen minutes. */
 export async function takeSignIn(state: string): Promise<SignIn | undefined> {
-  const text = await (await redis()).getDel(`${SIGN_IN}${state}`);
+  const text = await reaching((client) => client.getDel(`${SIGN_IN}${state}`));
   return text === null ? undefined : (JSON.parse(text) as SignIn);
 }
 
 /** Open a session for as long as Keycloak keeps it, in seconds, filed under its account. */
 export async function openSession(id: string, session: FrontSession, lifetime: number) {
-  const client = await redis();
   const account = `${ACCOUNT}${session.subject}`;
-  await client
-    .multi()
-    .set(`${SESSION}${id}`, JSON.stringify(session), {
-      expiration: { type: "EX", value: lifetime },
-    })
-    .sAdd(account, id)
-    // The index lives as long as the longest of its sessions.
-    .expire(account, lifetime, "NX")
-    .expire(account, lifetime, "GT")
-    .exec();
+  await reaching((client) =>
+    client
+      .multi()
+      .set(`${SESSION}${id}`, JSON.stringify(session), {
+        expiration: { type: "EX", value: lifetime },
+      })
+      .sAdd(account, id)
+      // The index lives as long as the longest of its sessions.
+      .expire(account, lifetime, "NX")
+      .expire(account, lifetime, "GT")
+      .exec(),
+  );
 }
 
 /** The session of an identifier, if it lives. */

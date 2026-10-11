@@ -17,15 +17,32 @@
  * session of Keycloak would answer at once with the same refusal, again and again. Home, without
  * the cookie, offers the sign-in page and goes nowhere by itself (`requestBearer`).
  *
+ * The sign-out of a session the front lost (`signOut`, #689) comes back here from its silent
+ * sign-in: its token closes the sessions of the account on all its workstations
+ * (`closeMySessions`, WF-SEC-0020), the front forgets those it keeps, and the browser goes on to
+ * the sign-in, which the realm asks for anew. Refused, the realm holding no session for the
+ * browser, there is no workstation left to close: the browser goes on to the sign-in all the same.
+ * Should the API not close them, the browser ends at least its own session at the realm.
+ *
+ * The realm or Redis out of reach, or the realm silent past its time, the browser is told the
+ * sign-in could not be made, never a bare error (#687).
+ *
  * Nothing to return to on the fake back (`WATERFALL_AUTH=mock`), which signs nobody in.
  */
 import { randomBytes } from "node:crypto";
 
-import { isMockAuthentication } from "@/api/server";
+import { reach } from "@/api/problem";
+import { isMockAuthentication, tokenClient } from "@/api/server";
 import { HOME } from "@/navigation/home";
-import { LOGIN_ROUTE } from "@/navigation/login";
-import { identityProvider } from "@/session/provider";
-import { openSession, takeSignIn } from "@/session/store";
+import { LOGIN_ROUTE, signInUnavailableHref } from "@/navigation/login";
+import { identityProvider, RealmUnreachable, type SignedIn } from "@/session/provider";
+import {
+  forgetAccount,
+  openSession,
+  type SignIn,
+  StoreUnreachable,
+  takeSignIn,
+} from "@/session/store";
 import {
   forgottenSessionCookie,
   holdsSignIn,
@@ -42,6 +59,43 @@ function redirect(location: string, ...cookies: string[]): Response {
   return new Response(null, { status: 303, headers });
 }
 
+/**
+ * Close the sessions of the account a silent sign-in found, on all its workstations, and lead to
+ * the sign-in — or, the API not closing them, end at least the session of this browser at the realm.
+ */
+async function closeEverywhere(signedIn: SignedIn, spent: string): Promise<Response> {
+  const answer = await reach(() => tokenClient(signedIn.accessToken).DELETE("/me/sessions"));
+  await forgetAccount(signedIn.subject);
+  if (answer?.response.ok !== true) {
+    console.error("The sign-out of a lost session did not close it", answer?.response.status);
+    return redirect(identityProvider().signOutAddress().href, spent);
+  }
+  return redirect(LOGIN_ROUTE, spent);
+}
+
+/** Exchange the code of a return; the browser leads where the sign-in ends. */
+async function returned(search: string, state: string, signIn: SignIn): Promise<Response> {
+  const spent = spentSignInCookie(state);
+  const signedIn = await identityProvider().exchange(search, state, signIn.nonce, signIn.verifier);
+  if (signedIn === undefined) {
+    // Refused: home, which offers the sign-in — or, signing out, the sign-in, nothing left to close.
+    return redirect(signIn.signOut ? LOGIN_ROUTE : HOME, forgottenSessionCookie(), spent);
+  }
+  if (signIn.signOut) {
+    return closeEverywhere(signedIn, spent);
+  }
+  const { lifetime, ...session } = signedIn;
+  const id = randomBytes(32).toString("base64url");
+  await openSession(id, session, lifetime);
+  // Relative, as the target is: behind a proxy, the address of the request is not the browser's.
+  return redirect(signIn.target, sessionCookie(id), spent);
+}
+
+/** Whether a failure is the realm or Redis out of reach: the sign-in could not be made. */
+function isUnavailable(error: unknown): boolean {
+  return error instanceof RealmUnreachable || error instanceof StoreUnreachable;
+}
+
 /** Open the session of a sign-in that comes back, and lead to the screen it aimed at. */
 export async function GET(request: Request): Promise<Response> {
   if (isMockAuthentication()) {
@@ -52,18 +106,19 @@ export async function GET(request: Request): Promise<Response> {
   if (state === null || !(await holdsSignIn(state))) {
     return redirect(LOGIN_ROUTE);
   }
-  const spent = spentSignInCookie(state);
-  const signIn = await takeSignIn(state);
-  if (signIn === undefined) {
-    return redirect(LOGIN_ROUTE, spent);
+  let target = HOME;
+  try {
+    const signIn = await takeSignIn(state);
+    if (signIn === undefined) {
+      return redirect(LOGIN_ROUTE, spentSignInCookie(state));
+    }
+    target = signIn.target;
+    return await returned(search, state, signIn);
+  } catch (error) {
+    if (!isUnavailable(error)) {
+      throw error;
+    }
+    console.error("A sign-in could not be made", error);
+    return redirect(signInUnavailableHref(target), spentSignInCookie(state));
   }
-  const signedIn = await identityProvider().exchange(search, state, signIn.nonce, signIn.verifier);
-  if (signedIn === undefined) {
-    return redirect(HOME, forgottenSessionCookie(), spent);
-  }
-  const { lifetime, ...session } = signedIn;
-  const id = randomBytes(32).toString("base64url");
-  await openSession(id, session, lifetime);
-  // Relative, as the target is: behind a proxy, the address of the request is not the browser's.
-  return redirect(signIn.target, sessionCookie(id), spent);
 }

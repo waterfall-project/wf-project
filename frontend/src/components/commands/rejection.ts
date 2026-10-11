@@ -12,7 +12,7 @@
  *   Next forwards: the API out of reach (`UNREACHABLE_DIGEST`), a session lost
  *   (`SESSION_LOST_DIGEST`, `SESSION_REQUIRED_DIGEST`), which the notice says before it leads to
  *   the sign-in page — never at once: the write is told as not applied —, an account deactivated
- *   (`ACCOUNT_DEACTIVATED_DIGEST`), which it does not — signing in again would loop —, or the unexpected error
+ *   or not admitted (`ACCOUNT_DEACTIVATED_DIGEST`, `ACCOUNT_NOT_ADMITTED_DIGEST`), which it does not — signing in again would loop —, or the unexpected error
  *   (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the API, or
  *   the digest Next computed —, kept only when it has the form the contract gives a
  *   `correlation_id`: the notice shows it as the screen of failure does (WF-OBS-0020).
@@ -35,9 +35,17 @@ function asBoundaryError(error: unknown): BoundaryError {
   });
 }
 
-/** The outcome of a loss the screen of failure tells apart: out of reach, signed out, deactivated. */
+/** A refusal of the account that says so, not a session lost: no link to the sign-in page. */
+function accountRefused(code: "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED"): Outcome<never> {
+  return { kind: "refused", problem: { code, status: 401 }, conflictingObjectId: null };
+}
+
+/**
+ * The outcome of a loss the screen of failure tells apart: out of reach, signed out, the account
+ * deactivated or not admitted.
+ */
 function outcomeOfLoss(
-  kind: "unreachable" | "session_lost" | "signed_out" | "deactivated",
+  kind: "unreachable" | "session_lost" | "signed_out" | "deactivated" | "not_admitted",
 ): Outcome<never> {
   switch (kind) {
     case "unreachable":
@@ -50,12 +58,9 @@ function outcomeOfLoss(
         conflictingObjectId: null,
       };
     case "deactivated":
-      // A refusal that says so, not a session lost: no link to the sign-in page.
-      return {
-        kind: "refused",
-        problem: { code: "ACCOUNT_DEACTIVATED", status: 401 },
-        conflictingObjectId: null,
-      };
+      return accountRefused("ACCOUNT_DEACTIVATED");
+    case "not_admitted":
+      return accountRefused("ACCOUNT_NOT_ADMITTED");
   }
 }
 

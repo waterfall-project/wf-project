@@ -4,10 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TEST_SETTINGS } from "@/test/identity-provider";
 
-import { createIdentityProvider, identityProvider, type Send } from "./provider";
+import { createIdentityProvider, identityProvider, RealmUnreachable, type Send } from "./provider";
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 /** A token endpoint that answers every refresh with one body, at one status. */
@@ -38,16 +39,37 @@ describe("the identity provider", () => {
     expect(tokens).toMatchObject({ accessToken: "a", refreshToken: "r", lifetime: 300 });
   });
 
-  it("fails a refresh the realm answers without a refresh token", async () => {
-    const withoutRefresh: Record<string, unknown> = { ...TOKENS };
-    delete withoutRefresh.refresh_token;
-    const provider = createIdentityProvider(TEST_SETTINGS, answering(withoutRefresh));
-    await expect(provider.refresh("r0")).rejects.toThrow("no refresh token");
+  it.each([
+    ["answers without a refresh token", answering({ ...TOKENS, refresh_token: undefined })],
+    ["answers 503", answering({ error: "temporarily_unavailable" }, 503)],
+  ])(
+    "closes the session when the realm %s: the token sent may have been taken, and is never presented again (#687)",
+    async (_, send) => {
+      vi.spyOn(console, "error").mockReturnValue();
+      await expect(createIdentityProvider(TEST_SETTINGS, send).refresh("r0")).resolves.toBe(
+        undefined,
+      );
+    },
+  );
+
+  it("says the realm out of reach when a refresh could not leave, rather than close the session", async () => {
+    const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    const send: Send = () => Promise.reject(new TypeError("fetch failed", { cause: refused }));
+    const provider = createIdentityProvider(TEST_SETTINGS, send);
+    await expect(provider.refresh("r0")).rejects.toBeInstanceOf(RealmUnreachable);
   });
 
-  it("fails a refresh the realm cannot answer, rather than close the session", async () => {
-    const failing = answering({ error: "temporarily_unavailable" }, 503);
-    await expect(createIdentityProvider(TEST_SETTINGS, failing).refresh("r0")).rejects.toThrow();
+  it("says the realm out of reach when the code of a sign-in cannot be exchanged", async () => {
+    const send: Send = () => Promise.reject(new TypeError("fetch failed"));
+    const provider = createIdentityProvider(TEST_SETTINGS, send);
+    const exchange = provider.exchange("?code=c&state=s", "s", "n", "v");
+    await expect(exchange).rejects.toBeInstanceOf(RealmUnreachable);
+  });
+
+  it("asks the realm for a silent sign-in, which shows no page (#689)", () => {
+    const provider = createIdentityProvider(TEST_SETTINGS);
+    expect(provider.signInAddress("s", "n", "c", true).searchParams.get("prompt")).toBe("none");
+    expect(provider.signInAddress("s", "n", "c").searchParams.has("prompt")).toBe(false);
   });
 
   it("fails a logout when the keys of the realm are out of reach, rather than refuse it", async () => {

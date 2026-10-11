@@ -47,7 +47,7 @@ function sessionOf(subject: string): FrontSession {
 describe("the store of the sessions of the front", () => {
   it("keeps a sign-in under way fifteen minutes at most, and gives it once", async () => {
     const state = randomUUID();
-    const signIn = { verifier: "v", nonce: "n", target: "/projects?sort_by=code" };
+    const signIn = { verifier: "v", nonce: "n", target: "/projects?sort_by=code", signOut: false };
     await rememberSignIn(state, signIn);
     const left = await ttl(`wf:sign-in:${state}`);
     expect(left).toBeGreaterThan(SIGN_IN_LIFETIME - 5);
