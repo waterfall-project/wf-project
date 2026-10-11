@@ -366,8 +366,8 @@ class LockVersion(RootModel[int]):
 
 class UserAccount(ContractModel):
     user_id: Uuid
-    last_name: Annotated[str, Field(max_length=100, min_length=1)]
-    first_name: Annotated[str, Field(max_length=100, min_length=1)]
+    last_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
+    first_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     email: Annotated[
         str,
         Field(
@@ -583,16 +583,16 @@ class User(UserAccount):
 
 
 class UserCreate(ContractModel):
-    last_name: Annotated[str, Field(max_length=100, min_length=1)]
-    first_name: Annotated[str, Field(max_length=100, min_length=1)]
+    last_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
+    first_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     email: Annotated[str, Field(max_length=254)]
     org_node_id: Uuid | None = None
     access_role_ids: list[Uuid] | None = None
 
 
 class UserUpdate(ContractModel):
-    last_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
-    first_name: Annotated[str | None, Field(max_length=100, min_length=1)] = None
+    last_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
+    first_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
     email: Annotated[str | None, Field(max_length=254)] = None
     org_node_id: Uuid | None = None
     lock_version: LockVersion
@@ -658,7 +658,7 @@ class Permission(ContractModel):
 
 class AccessRole(ContractModel):
     access_role_id: Uuid
-    label: Annotated[str, Field(max_length=100, min_length=1)]
+    label: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     permissions: list[PermissionCode]
     is_predefined: bool
     holder_count: Annotated[int, Field(ge=0)]
@@ -667,7 +667,7 @@ class AccessRole(ContractModel):
 
 
 class AccessRoleWrite(ContractModel):
-    label: Annotated[str, Field(max_length=100, min_length=1)]
+    label: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     permissions: list[PermissionCode]
 
 
@@ -1131,7 +1131,7 @@ class OrgNode(ContractModel):
             min_length=1,
         ),
     ]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     parent_id: Uuid | None
     parent_label: Annotated[
         ParentLabel | None,
@@ -1153,8 +1153,8 @@ class OrgNode(ContractModel):
 
 
 class OrgNodeWrite(ContractModel):
-    code: Annotated[str, Field(max_length=20, min_length=1)]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     parent_id: Annotated[
         Uuid | None,
         Field(
@@ -1178,7 +1178,7 @@ class RoleCapacity(ContractModel):
 
 class ResourceRoleImage(ContractModel):
     resource_role_id: Uuid
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     org_node_id: Uuid
     org_node_label: Annotated[
         str,
@@ -1221,7 +1221,7 @@ class ResourceRole(ResourceRoleImage, ReferenceObjectCommands):
 
 
 class ResourceRoleWrite(ContractModel):
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     org_node_id: Annotated[
         Uuid,
         Field(
@@ -1234,7 +1234,7 @@ class ResourceRoleWrite(ContractModel):
 
 
 class ResourceRoleUpdate(ContractModel):
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     cost_category_id: Uuid
     calendar_id: Uuid
     capacity: RoleCapacity
@@ -1267,7 +1267,7 @@ class WeeklyHours(ContractModel):
 
 class CalendarImage(ContractModel):
     calendar_id: Uuid
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     weekly_hours: WeeklyHours
     is_default: bool
     is_active: bool
@@ -1280,7 +1280,7 @@ class Calendar(CalendarImage, ReferenceObjectCommands):
 
 
 class CalendarWrite(ContractModel):
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     weekly_hours: WeeklyHours
 
 
@@ -1328,7 +1328,7 @@ class CostType(ContractModel):
             min_length=1,
         ),
     ]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     kind: CostTypeKind
     is_active: bool
     available_commands: CostTypeCommands
@@ -1337,8 +1337,8 @@ class CostType(ContractModel):
 
 
 class CostTypeWrite(ContractModel):
-    code: Annotated[str, Field(max_length=20, min_length=1)]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     kind: CostTypeKind
 
 
@@ -1356,7 +1356,7 @@ class CostCategoryImage(ContractModel):
             min_length=1,
         ),
     ]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     cost_type_id: Uuid
     cost_type_label: Annotated[
         str,
@@ -1408,8 +1408,8 @@ class CostCategory(CostCategoryImage):
 
 
 class CostCategoryWrite(ContractModel):
-    code: Annotated[str, Field(max_length=20, min_length=1)]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     cost_type_id: Annotated[
         Uuid,
         Field(
@@ -1447,8 +1447,8 @@ class HourlyRate(ContractModel):
 
 class HourlyRateRow(ContractModel):
     cost_category_id: Uuid
-    code: Annotated[str, Field(max_length=20, min_length=1)]
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     is_active: bool
     cells: Annotated[
         list[HourlyRate | None],
@@ -1533,7 +1533,7 @@ class Code1(RootModel[str]):
 
 class Project(ContractModel):
     project_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     code: Annotated[
         Code1 | None,
@@ -1581,13 +1581,13 @@ class Code2(RootModel[str]):
 
 
 class ProjectCreate(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     code: Code2 | None = None
 
 
 class ProjectUpdate(ContractModel):
-    label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     description: str | None = None
     code: Code2 | None = None
     inflation_rate: Percent | None = None
@@ -1653,18 +1653,18 @@ class WorkBreakdownKind(StrEnum):
 
 class Deliverable(ContractModel):
     deliverable_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
 
 
 class WorkPackage(ContractModel):
     work_package_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     deliverables: list[Deliverable]
 
 
 class OrderItem(ContractModel):
     order_item_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     work_packages: list[WorkPackage]
 
 
@@ -1690,16 +1690,16 @@ class WorkBreakdown(ContractModel):
 
 class Subproject(ContractModel):
     subproject_id: Uuid
-    code: Annotated[str, Field(max_length=50, min_length=1)]
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    code: Annotated[str, Field(max_length=50, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     has_actual_costs: bool
     audit: Audit
     lock_version: LockVersion
 
 
 class SubprojectWrite(ContractModel):
-    code: Annotated[str, Field(max_length=50, min_length=1)]
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    code: Annotated[str, Field(max_length=50, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
 
 
 class SubprojectUpdate(SubprojectWrite):
@@ -1757,7 +1757,7 @@ class ContributorSuggestion(ContractModel):
 
 class Timeline(ContractModel):
     timeline_id: Uuid
-    label: Annotated[str, Field(max_length=200, min_length=1)]
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
 
 
 class RevisionStatus(StrEnum):
@@ -1988,7 +1988,7 @@ class CostStructure(ContractModel):
 
 class StructureCreate(ContractModel):
     kind: StructureKind
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     risk_id: Uuid | None = None
 
 
@@ -2127,7 +2127,7 @@ class ExternalId(RootModel[str]):
 
 
 class TaskFacet(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     scheduling_mode: SchedulingMode
     duration: Duration
@@ -2245,7 +2245,7 @@ class PaymentDelayDays(RootModel[int]):
 
 
 class EstimateLineFacet(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     cost_category_id: Uuid
     cost_category_label: Annotated[
         str,
@@ -2478,7 +2478,7 @@ class NodeListMeta(ContractModel):
 
 
 class TaskFacetWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
@@ -2493,7 +2493,7 @@ class PaymentDelayDays1(RootModel[int]):
 
 
 class EstimateLineWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     cost_category_id: Uuid
     quantity: Decimal
     resource_role_id: Uuid | None = None
@@ -2650,7 +2650,7 @@ class ComputedValueDependencies(ContractModel):
 
 
 class TaskFacetUpdate(ContractModel):
-    label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
@@ -2672,7 +2672,7 @@ class TaskFacetUpdate(ContractModel):
 
 
 class EstimateLineUpdate(ContractModel):
-    label: Annotated[str | None, Field(max_length=300, min_length=1)] = None
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     cost_category_id: Uuid | None = None
     quantity: Decimal | None = None
     resource_role_id: Uuid | None = None
@@ -3205,7 +3205,7 @@ class RiskCommandAvailability(ContractModel):
 
 class Risk(ContractModel):
     risk_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     mitigation_notes: str | None = None
     probability: Percent
@@ -3256,7 +3256,7 @@ class ProvisionTotals(ContractModel):
 
 
 class RiskWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1)]
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     mitigation_notes: str | None = None
     probability: Percent
