@@ -378,18 +378,41 @@ and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0
 WORK_BREAKDOWN = (ASSEMBLY,)
 """The work breakdown of the witness, as its order was entered (WF-PRJ-0020)."""
 
+CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
+"""The project created today, its order not entered (``project_created``): its work breakdown is
+the one by default, and the revision opened after it has no task (EP-14/L42k)."""
+
 DEFAULT_BREAKDOWN = (
-    OrderItem(universe(714), "Commande", (WorkPackage(universe(715), "Lot unique"),)),
+    OrderItem(
+        universe(714),
+        CREATED_PROJECT[1],
+        (WorkPackage(universe(715), CREATED_PROJECT[1]),),
+    ),
 )
-"""The work breakdown of a project whose order was not entered: one order item holding one work
-package without a deliverable (WF-PRJ-0020). The document names neither: these labels are the
-example's."""
+"""The work breakdown of a project whose order was not entered: « en son absence, le lotissement
+vaut un poste et un lot qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
+the project created today."""
+
+ON_SITE = WorkPackage(
+    universe(716),
+    "Mise en service sur site",
+    ((universe(717), "Procès-verbal de mise en service"),),
+)
+"""A work package entered today under the one order item of the witness, after « Armoires », with
+its deliverable (`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
+
+SAVED_BREAKDOWN = (OrderItem(ASSEMBLY.identifier, ASSEMBLY.label, (CABINETS, ON_SITE)),)
+"""The work breakdown of the witness once that work package is entered (WF-PRJ-0020)."""
 
 STEERING = universe(1000)
 CUSTOMER = universe(1001)
 TIMELINES = ((STEERING, "Comité de pilotage"), (CUSTOMER, "Revue client"))
 """The named timelines of the witness (WF-PLA-0140): the steering committee follows the studies,
 their reception, the factory acceptance and the commissioning; the customer, the two receptions."""
+
+CREATED_TIMELINE = (universe(1002), "Réunion de chantier")
+"""The timeline created today, with no task inscribed yet (`timeline_created`, `createTimeline`,
+WF-PLA-0140, EP-14/L42k)."""
 
 INSCRIBED: dict[int, tuple[str, ...]] = {
     N.STUDIES: (STEERING,),

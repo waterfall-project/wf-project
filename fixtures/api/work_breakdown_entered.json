@@ -1,0 +1,10 @@
+{
+  "summary": "Le lotissement du projet témoin saisi aujourd'hui, entier, depuis sa lecture entière, ses marques laissées : le lot « Mise en service sur site » ajouté sous le poste « Fourniture et montage des armoires », après « Armoires », avec son livrable, l'un et l'autre sans identifiant — le serveur les engendre (WF-PRJ-0020, WF-DAT-0060).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "order_items": [
+      {"order_item_id":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","work_packages":[{"work_package_id":"01926f3a-7c00-7000-8000-000000000712","label":"Armoires","deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000713","label":"Procès-verbal de réception usine des armoires"}]},{"label":"Mise en service sur site","deliverables":[{"label":"Procès-verbal de mise en service"}]}]}
+    ],
+    "lock_version": 1
+  }
+}

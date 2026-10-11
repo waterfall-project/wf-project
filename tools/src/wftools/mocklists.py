@@ -24,7 +24,13 @@ screens ask them:
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: an order item, without what it
-  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item;
+  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item,
+  which it gives for the context alone (#574); ``work_breakdown_entered.json`` and
+  ``work_breakdown_saved.json``, ``setWorkBreakdown``: the work breakdown entered whole from its
+  whole reading, a work package added without identifier, and the answer that gives it one;
+  ``work_breakdown_label_required.json``, ``work_breakdown_unknown_item.json`` and
+  ``work_breakdown_duplicate_item.json``, its refusals: the work package added without a label,
+  with the identifier of a deliverable, with that of a work package the write bears already;
 - ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
   nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
   the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
@@ -45,13 +51,13 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockids import universe
-from wftools.mockwitness import WORK_BREAKDOWN, fixture
+from wftools.mockwitness import ON_SITE, SAVED_BREAKDOWN, WORK_BREAKDOWN, fixture
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from wftools.mockstructure import JsonObject, JsonValue
-    from wftools.mockwitness import OrderItem
+    from wftools.mockwitness import OrderItem, WorkPackage
 
 PROJECT_STATES = ("created", "pricing", "in_progress", "completed", "lost", "abandoned")
 """The states of a project in the order of `ProjectState`, that of the life cycle (WF-CYC-0010)."""
@@ -86,6 +92,12 @@ SEARCHED_LABEL = "Montage"
 
 BREAKDOWN_KINDS = ("order_item", "work_package", "deliverable")
 """The kinds of an element of a work breakdown in the order of `WorkBreakdownKind`."""
+
+BREAKDOWN_HELD = {
+    "order_item": ("work_packages", "work_package"),
+    "work_package": ("deliverables", "deliverable"),
+}
+"""What an element of a work breakdown holds, by its kind: the field, and the kind it holds."""
 
 BACKUP_ORIGINS = ("manual", "scheduled")
 """The origins of a backup in the order of `BackupOrigin`: by hand first."""
@@ -433,7 +445,9 @@ def filtered_breakdown(
     An element is retained if its kind is one of `kinds` — any, when none is named — and its
     label holds `text` — any, when none is given. The order items and the work packages that hold
     a retained element are given for the tree to stay readable, without the others they hold.
-    A filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
+    Each element given says whether it is retained (`is_match`) or given for the context alone,
+    so that the grid counts the retained alone (WF-IHM-0130, #574); without a filter, every one
+    is. A filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
     requires: sent back as it is, it would remove what it leaves out (#560).
     """
     unknown = set(kinds) - set(BREAKDOWN_KINDS)
@@ -444,21 +458,113 @@ def filtered_breakdown(
     def retained(kind: str, element: JsonObject) -> bool:
         return (not kinds or kind in kinds) and (text is None or holds(element["label"], text))
 
+    def marked(element: JsonObject, kind: str, below: str, held: list[JsonValue]) -> JsonObject:
+        """Return an element given, its mark after its label and before what it holds."""
+        rest = {key: value for key, value in element.items() if key != below}
+        return {**rest, "is_match": retained(kind, element), below: held}
+
     items: list[JsonValue] = []
     for item in cast("list[JsonObject]", breakdown["order_items"]):
         packages: list[JsonValue] = []
         for package in cast("list[JsonObject]", item["work_packages"]):
-            deliverables = [
-                each
+            deliverables: list[JsonValue] = [
+                {**each, "is_match": True}
                 for each in cast("list[JsonObject]", package["deliverables"])
                 if retained("deliverable", each)
             ]
             if deliverables or retained("work_package", package):
-                packages.append({**package, "deliverables": cast("list[JsonValue]", deliverables)})
+                packages.append(marked(package, "work_package", "deliverables", deliverables))
         if packages or retained("order_item", item):
-            items.append({**item, "work_packages": packages})
+            items.append(marked(item, "order_item", "work_packages", packages))
     filtered = text is not None or bool(kinds)
     return {"order_items": items, "lock_version": None if filtered else breakdown["lock_version"]}
+
+
+def breakdown_reading(items: tuple[OrderItem, ...], lock_version: int) -> JsonObject:
+    """Return a work breakdown as `getWorkBreakdown` reads it whole: every element retained."""
+    return filtered_breakdown(work_breakdown(items, lock_version))
+
+
+def written(reading: JsonValue) -> JsonValue:
+    """Return what a screen sends back to `setWorkBreakdown` from a reading: its marks left out.
+
+    Only a whole reading is written back: a filtered one has no counter (#560).
+    """
+    if isinstance(reading, list):
+        return [written(each) for each in reading]
+    if not isinstance(reading, dict):
+        return reading
+    if reading.get("lock_version", 0) is None:
+        message = "a filtered reading of a work breakdown is never written back"
+        raise ValueError(message)
+    return {key: written(value) for key, value in reading.items() if key != "is_match"}
+
+
+def entered_with(entered: JsonObject, change: JsonObject) -> JsonObject:
+    """Return a write of the work breakdown, its last work package changed: a variant refused."""
+    items = cast("list[JsonObject]", entered["order_items"])
+    *before, last = items
+    packages = cast("list[JsonObject]", last["work_packages"])
+    *kept, package = packages
+    rest = {key: value for key, value in package.items() if key not in change}
+    changed = {**change, **rest}
+    return {
+        **entered,
+        "order_items": [*before, {**last, "work_packages": [*kept, changed]}],
+    }
+
+
+def breakdown_refusal(read: JsonObject, entered: JsonObject, correlation: str) -> JsonObject:
+    """Return the 422 `setWorkBreakdown` answers a write with, its fields in the order written.
+
+    A label left empty is `VALUE_REQUIRED`; an identifier the whole reading does not bear under
+    the kind of its element — unknown, or that of an element of another kind — is
+    `UNKNOWN_WORK_BREAKDOWN_ITEM`: the client forges none (WF-DAT-0060, EP-14/L42k); one it
+    bears, sent again after its first occurrence, is `DUPLICATE_WORK_BREAKDOWN_ITEM`.
+    """
+    known: dict[str, set[JsonValue]] = {kind: set() for kind in BREAKDOWN_KINDS}
+    seen: dict[str, set[JsonValue]] = {kind: set() for kind in BREAKDOWN_KINDS}
+    fields: list[JsonValue] = []
+
+    def walk(element: JsonObject, kind: str, at: str, *, judged: bool) -> None:
+        key = f"{kind}_id"
+        if not judged:
+            known[kind].add(element[key])
+        else:
+            if key in element and element[key] not in known[kind]:
+                fields.append({"pointer": f"{at}/{key}", "code": "UNKNOWN_WORK_BREAKDOWN_ITEM"})
+            elif key in element and element[key] in seen[kind]:
+                fields.append({"pointer": f"{at}/{key}", "code": "DUPLICATE_WORK_BREAKDOWN_ITEM"})
+            elif key in element:
+                seen[kind].add(element[key])
+            if element["label"] == "":
+                fields.append({"pointer": f"{at}/label", "code": "VALUE_REQUIRED"})
+        if kind in BREAKDOWN_HELD:
+            name, inner = BREAKDOWN_HELD[kind]
+            for index, each in enumerate(cast("list[JsonObject]", element[name])):
+                walk(each, inner, f"{at}/{name}/{index}", judged=judged)
+
+    for judged, breakdown in ((False, read), (True, entered)):
+        for index, item in enumerate(cast("list[JsonObject]", breakdown["order_items"])):
+            walk(item, "order_item", f"/order_items/{index}", judged=judged)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": fields,
+        "correlation_id": correlation,
+    }
+
+
+def added(package: WorkPackage) -> JsonObject:
+    """Return a work package a screen adds: its label and its deliverables, without identifier.
+
+    The server engenders the identifier of an element written without one (WF-DAT-0060,
+    EP-14/L42k): the client forges none.
+    """
+    return {
+        "label": package.label,
+        "deliverables": [{"label": label} for _, label in package.deliverables],
+    }
 
 
 def _labels(rows: Iterable[JsonObject]) -> str:
@@ -592,10 +698,15 @@ def backups() -> dict[str, JsonObject]:
 
 
 def breakdowns() -> dict[str, JsonObject]:
-    """Return the readings of the work breakdown of the witness, filtered, by file name."""
+    """Return the readings of the work breakdown of the witness, filtered, and its write."""
     breakdown = work_breakdown(WORK_BREAKDOWN, 1)
     [item] = cast("list[JsonObject]", breakdown["order_items"])
     [package] = cast("list[JsonObject]", item["work_packages"])
+    read = breakdown_reading(WORK_BREAKDOWN, 1)
+    entered = cast("JsonObject", written(read))
+    [kept] = cast("list[JsonObject]", entered["order_items"])
+    kept["work_packages"] = [*cast("list[JsonValue]", kept["work_packages"]), added(ON_SITE)]
+    [(deliverable, label)] = WORK_BREAKDOWN[0].work_packages[0].deliverables
     return {
         "work_breakdown_search.json": _example(
             f"Le lotissement du projet témoin cherché par « {SEARCHED_LABEL} », quels que soient "
@@ -609,8 +720,48 @@ def breakdowns() -> dict[str, JsonObject]:
         "work_breakdown_work_packages.json": _example(
             f"Les lots du lotissement du projet témoin (kinds=work_package) : « "
             f"{package['label']} », sans son livrable, sous le poste « {item['label']} » qui le "
-            f"contient, rendu pour que l'arbre reste lisible (WF-IHM-0130, WF-IHM-0060).",
+            f"contient, rendu pour que l'arbre reste lisible et marqué non retenu (is_match), "
+            f"pour que la grille compte un lot et aucun poste (WF-IHM-0130, WF-IHM-0060).",
             filtered_breakdown(breakdown, kinds=("work_package",)),
+        ),
+        "work_breakdown_entered.json": _example(
+            f"Le lotissement du projet témoin saisi aujourd'hui, entier, depuis sa lecture "
+            f"entière, ses marques laissées : le lot « {ON_SITE.label} » ajouté sous le poste "
+            f"« {item['label']} », après « {package['label']} », avec son livrable, l'un et "
+            f"l'autre sans identifiant — le serveur les engendre (WF-PRJ-0020, WF-DAT-0060).",
+            entered,
+        ),
+        "work_breakdown_unknown_item.json": _example(
+            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
+            f"l'identifiant du livrable « {label} », refusée : le "
+            f"lotissement lu ne porte aucun lot de cet identifiant, et le client n'en forge "
+            f"aucun ; rien n'est écrit (WF-DAT-0060, WF-PRJ-0020).",
+            breakdown_refusal(
+                read, entered_with(entered, {"work_package_id": deliverable}), universe(1133)
+            ),
+        ),
+        "work_breakdown_duplicate_item.json": _example(
+            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
+            f"l'identifiant du lot « {package['label']} », que la saisie porte déjà, refusée à sa "
+            f"seconde occurrence : un élément du lotissement ne s'écrit qu'une fois ; rien n'est "
+            f"écrit (WF-PRJ-0020).",
+            breakdown_refusal(
+                read,
+                entered_with(entered, {"work_package_id": package["work_package_id"]}),
+                universe(1135),
+            ),
+        ),
+        "work_breakdown_label_required.json": _example(
+            "La saisie work_breakdown_entered, le lot ajouté envoyé sans libellé, refusée : "
+            "chaque poste, lot et livrable porte un libellé ; rien n'est écrit (WF-PRJ-0020).",
+            breakdown_refusal(read, entered_with(entered, {"label": ""}), universe(1134)),
+        ),
+        "work_breakdown_saved.json": _example(
+            f"La réponse à cette saisie : le lotissement entier, lu comme après une lecture "
+            f"entière, chaque élément retenu ; le lot « {ON_SITE.label} » et son livrable "
+            f"portent les identifiants que le serveur leur a donnés, et le compteur suivant, "
+            f"jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110).",
+            breakdown_reading(SAVED_BREAKDOWN, 2),
         ),
     }
 

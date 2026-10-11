@@ -1,0 +1,242 @@
+{
+  "summary": "Le squelette de planning engendré aujourd'hui sur la révision ouverte à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison » (revision_without_tasks), sa structure principale encore vide (nodes_empty) : le lotissement par défaut (work_breakdown_default), un poste et un lot qui portent le libellé du projet, donne une récapitulative de poste et une récapitulative de lot sans feuille, rattachées au poste et au lot, et leurs deux jalons de fin, celui du poste succédant à celui du lot — à la fin de la journée de travail qui précède, la lecture d'une fin que la liaison de fin à début lui donne ; sans ligne, rien n'est chiffré, et le compteur de la structure, lu à 0, passe à 1 (WF-PRJ-0030, WF-PLA-0170, WF-PLA-0050, WF-IHM-0110).",
+  "value": {
+    "nodes": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000571",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000671",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Rénovation du poste de livraison",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-06-02",
+            "hours": "8"
+          },
+          "finish": {
+            "date": "2026-06-03",
+            "hours": "0"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "order_item_id": "01926f3a-7c00-7000-8000-000000000714",
+          "work_package_id": null,
+          "work_breakdown_label": "Rénovation du poste de livraison",
+          "base_amount": "0.00",
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
+          "physical_progress": {
+            "is_computable": false,
+            "value": null,
+            "reason": "no_budgeted_amount"
+          }
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.order_item_id",
+          "task.work_package_id"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000572",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000672",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000571",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Rénovation du poste de livraison",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-06-03",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-03",
+            "hours": "0"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "order_item_id": null,
+          "work_package_id": "01926f3a-7c00-7000-8000-000000000715",
+          "work_breakdown_label": "Rénovation du poste de livraison",
+          "base_amount": "0.00",
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
+          "physical_progress": {
+            "is_computable": false,
+            "value": null,
+            "reason": "no_budgeted_amount"
+          }
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.order_item_id",
+          "task.work_package_id"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000573",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000673",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000572",
+        "position": 0,
+        "row_number": 3,
+        "level": 3,
+        "lock_version": 1,
+        "task": {
+          "label": "Fin de « Rénovation du poste de livraison »",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-06-03",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-03",
+            "hours": "0"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": true,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "base_amount": "0.00",
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00"
+        },
+        "predecessors": [],
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.progress",
+          "task.order_item_id",
+          "task.work_package_id"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000574",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000674",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000571",
+        "position": 1,
+        "row_number": 4,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Fin de « Rénovation du poste de livraison »",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-06-02",
+            "hours": "8"
+          },
+          "finish": {
+            "date": "2026-06-02",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": true,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "base_amount": "0.00",
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00"
+        },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000573",
+            "predecessor_row_number": 3,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
+          }
+        ],
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.progress",
+          "task.order_item_id",
+          "task.work_package_id"
+        ]
+      }
+    ],
+    "ancestors": [],
+    "rescheduled": [],
+    "reinflated": [],
+    "totals": {
+      "task_count": 4,
+      "estimate_line_count": 0,
+      "hours": "0",
+      "base_amount": "0.00",
+      "budgeted_amount": "0.00",
+      "reestimated_amount": "0.00",
+      "inflated_amount": "0.00"
+    },
+    "structure_lock_version": 1
+  }
+}

@@ -152,8 +152,8 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0060, WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Contributeurs proposés | WF-ADM-0060, WF-PRJ-0070 |
 | GET | `/projects/{project_id}/timelines` | Chronologies du projet | WF-PLA-0140 |
-| POST | `/projects/{project_id}/timelines` | Créer une chronologie | WF-PLA-0140 |
-| DELETE | `/projects/{project_id}/timelines/{timeline_id}` | Supprimer une chronologie | WF-PLA-0140 |
+| POST | `/projects/{project_id}/timelines` | Créer une chronologie | WF-PLA-0060, WF-PLA-0140 |
+| DELETE | `/projects/{project_id}/timelines/{timeline_id}` | Supprimer une chronologie | WF-CYC-0100, WF-DAT-0080, WF-PLA-0140 |
 
 ## Révisions, structures et arbre commun
 
@@ -172,7 +172,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-PLA-0010, WF-PLA-0170, WF-REV-0050, WF-SEC-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0170, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-PLA-0010, WF-PLA-0170, WF-RAE-0050, WF-RIS-0010 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0070, WF-PLA-0100, WF-PLA-0170 |
@@ -188,7 +188,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste` | Appliquer un collage | WF-IHM-0050, WF-IHM-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-IHM-0110, WF-RIS-0020 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/redo` | Rétablir la dernière annulation | WF-IHM-0110 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/skeleton` | Engendrer le squelette de planning depuis le lotissement | WF-PLA-0170, WF-PRJ-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/skeleton` | Engendrer le squelette de planning depuis le lotissement | WF-CYC-0100, WF-DAT-0020, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0030 |
 
 ## Indicateurs de devis, de reste à engager et de projet
 

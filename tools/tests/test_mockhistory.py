@@ -78,6 +78,7 @@ _SEQUELS = {
     "task_import_succeeded.json",
     "task_export_queued.json",
     "task_export_succeeded.json",
+    "task_merge_outside_order_item.json",
     "tasks_running.json",
     "audit_events_import_applied.json",
 }

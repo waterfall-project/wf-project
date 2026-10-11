@@ -117,6 +117,8 @@ from wftools.mockwitness import (
     COMMISSIONING,
     CONTROL_STATION,
     CORE,
+    CREATED_PROJECT,
+    CREATED_TIMELINE,
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
@@ -479,6 +481,13 @@ def readings() -> dict[str, JsonObject]:
             f"existent (WF-PLA-0110, #494).",
             mockcore.summaries(mockcore.alone(nested()), 2),
         ),
+        "nodes_empty.json": _example(
+            f"La structure principale de la révision ouverte le {day} sur le projet créé à "
+            f"14 h 05 (structures_without_tasks), lue sans filtre : aucune tâche, aucune ligne, "
+            f"des totaux nuls et aucune récapitulative — l'état vide où la grille de planning "
+            f"offre le squelette (WF-PRJ-0030, WF-PLA-0080).",
+            mockcore.whole([]),
+        ),
         "nodes_summaries_leaves.json": _example(
             f"Variante contrefactuelle : l'arborescence de tâches d'un planning composé "
             f"uniquement de tâches feuilles — les tâches du cœur du témoin sans leurs "
@@ -526,18 +535,25 @@ def readings() -> dict[str, JsonObject]:
             f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un poste, « Fourniture et "
             f"montage des armoires », que porte la récapitulative « Poste de commande » ; son lot "
             f"« Armoires », qu'aucune tâche ne porte (WF-PLA-0130) ; et le livrable de ce lot.",
-            mocklists.work_breakdown(WORK_BREAKDOWN, 1),
+            mocklists.breakdown_reading(WORK_BREAKDOWN, 1),
         ),
         "work_breakdown_default.json": _example(
-            f"Le lotissement d'un projet dont la commande n'est pas saisie, le {day} : le "
-            f"lotissement par défaut, un poste comprenant un lot sans livrable (WF-PRJ-0020), "
-            f"que rien n'a encore écrit.",
-            mocklists.work_breakdown(DEFAULT_BREAKDOWN, 0),
+            f"Le lotissement du projet créé le {day}, « {CREATED_PROJECT[1]} », dont la "
+            f"commande n'est pas saisie : le lotissement par défaut, un poste comprenant un lot "
+            f"sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore "
+            f"écrit.",
+            mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 0),
         ),
         "timelines_empty.json": _example(
             f"Un projet qui n'a encore aucune chronologie nommée, le {day} : la liste est vide, "
             f"et l'écran des chronologies le dit sans lire aucune tâche (WF-PLA-0140).",
             [],
+        ),
+        "timeline_created.json": _example(
+            f"La chronologie « {CREATED_TIMELINE[1]} » créée le {day} sur le projet témoin, à côté "
+            f"de ses deux chronologies, sans aucune inscription : les tâches s'y inscrivent "
+            f"ensuite depuis le planning (WF-PLA-0140, WF-PLA-0060).",
+            {"timeline_id": CREATED_TIMELINE[0], "label": CREATED_TIMELINE[1]},
         ),
         "startable_tasks.json": _example(
             f"Le Kanban de toute la structure du témoin le {day}, sur la révision en cours, ses "

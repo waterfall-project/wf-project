@@ -145,6 +145,9 @@ def bounds(text: str, file: Path, at: str = "", seen: frozenset[str] = frozenset
         found |= {(here, b["side"], Decimal(b["bound"])) for b in BOUND.finditer(line)}
         for each in REF.finditer(line):
             target, _, name = each["ref"].partition("#/")
+            if target.endswith(".json"):
+                # An example of the body, not a schema: it publishes no bound (EP-14/L42k).
+                continue
             path = (file.parent / target).resolve() if target else file
             followed = f"{path}#{name}"
             if followed not in seen:

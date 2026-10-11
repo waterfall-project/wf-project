@@ -1194,6 +1194,11 @@ d'identifiants (711, au lieu de 701, que les rôles d'habilitation occupent : l'
 disparaît), et les totaux par poste du devis le nomment ainsi ; les récapitulatives de tous les
 exemples et du volume nomment les deux champs parmi ceux qu'elles acceptent.
 
+*Le paramètre `attached_node_id` est remplacé par EP-14/L42k : le refus nomme la tâche qui porte
+déjà le poste ou le lot par `conflicting_object_id` et `conflicting_object_label`, son nœud et son
+libellé — section « Le squelette, le rattachement, les chronologies et les nœuds retenus d'un
+lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour l'histoire.*
+
 **Le compte rendu d'import dit l'aller-retour** (#383 ; WF-INTF-0040, WF-INTF-0060, WF-INTF-0080,
 WF-INTF-0100, WF-INTF-0120, WF-PLA-0130). `ImportDifference.change` gagne `kept` : une tâche
 démarrée ou terminée que le fichier ne porte plus, ou une ligne d'une telle tâche, conservée et
@@ -1330,6 +1335,15 @@ déplacent encore.
 montre. Exemple : `task_attach_outside_order_item`, le groupe « Études » refusé au lot 712 du poste
 que porte le « Poste de commande ». Les filtres par poste et par lot de `listNodes` et les totaux par
 poste lisent la tâche rattachée, quelle qu'elle soit.
+
+*Deux points sont remplacés par EP-14/L42k, d'après la spécification acceptée par l'auteur le
+2026-10-09 (WF-PLA-0170). Le refus de `setWorkBreakdown` : « Le déplacement d'un lot sous un autre
+poste retire de même le rattachement de sa tâche lorsqu'elle n'est pas dans le sous-arbre de la
+tâche de ce poste » ; la saisie aboutit et retire le rattachement, et `params.work_package_id`
+disparaît avec le refus. Et « toute tâche » : « Le rattachement n'existe que dans la structure
+principale » ; une tâche d'un différentiel ou du devis propre d'un risque n'en porte pas, et
+l'écriture qui lui en pose un est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY`. Le texte
+ci-dessus est gardé pour l'histoire.*
 
 **La marge totale est signée** (#402 ; WF-PLA-0100). Une tâche manuelle borne la fin au plus tard
 de ses prédécesseurs : `TaskFacet.total_float` et `NodeSchedule.total_float` peuvent être négatifs,
@@ -3316,6 +3330,12 @@ elle, rend toujours le tout avec son compteur suivant, jamais nul : la réponse 
 `setContributors`, dont le schéma `ContributorList` admet désormais un compteur nul, le dit (revue
 2 du lot) ; celle de `setWorkBreakdown` rend `WorkBreakdown`, dont le compteur n'est jamais nul.
 
+*Remplacé par EP-14/L42k (relecture 1) : `setWorkBreakdown` rend sa lecture,
+`WorkBreakdownReading`, entière, chaque élément retenu, avec son compteur suivant, jamais nul, comme
+`setContributors` rend la sienne — section « Le squelette, le rattachement, les chronologies et les
+nœuds retenus d'un lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour
+l'histoire.*
+
 **Les comptes se filtrent par leur état** (`is_active`, revue du lot ; WF-IHM-0130, WF-ADM-0060).
 `include_inactive` ne faisait qu'ajouter les désactivés aux actifs : la colonne de l'état ne se
 filtrait pas sur les seuls désactivés. `is_active`, vrai ou faux, prime sur `include_inactive`,
@@ -4911,6 +4931,247 @@ alors la part. Aucun exemple n'a de total nul, et aucun ne change ; L42t remplac
 par ce qu'il décidera. `tools/tests/test_mocktoday.py` le tient sur l'outil, sur le devis et le reste
 à engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
 cours.
+
+## Le squelette, le rattachement, les chronologies et les nœuds retenus d'un lotissement filtré (EP-14/L42k)
+
+La partie L42k de #507 (#614), au périmètre revu le 2026-10-10 : le squelette et le rattachement
+(#586), les chronologies, les nœuds retenus d'un lotissement filtré (#574) ; la catégorie de la
+provision (#579), qu'elle portait au cadrage, est sortie, réalisée par EP-14/L42p. Le contrat suit
+la spécification à jour depuis #708. Les décisions sont de l'agent de réalisation du lot, chacune
+avec sa raison, et celles de la relecture 1 de l'agent de livraison, dites comme telles. Le lot ne
+touche au front que pour compiler sur le client régénéré, tenir ses catalogues et ses tests ;
+l'adoption revient à EP-14/L44c — la grille du lotissement et les chronologies — et EP-14/L44d — le
+squelette et la colonne du rattachement. Ni #574 ni #586 ne se ferment ici : la troisième Vérif
+de #574, le total des seuls retenus à l'écran, revient à L44c, et #586 garde ce que #771 reprend.
+
+**La révision liste le squelette parmi ses commandes** (`RevisionCommand.generate_skeleton` ;
+WF-PRJ-0030 : « La génération n'est proposée que sur la structure principale (WF-PLA-0170), et
+seulement lorsqu'elle ne comporte aucune tâche » ; Vérif : « Elle n'est plus proposée dès que la
+structure principale comporte une tâche, et ne l'est jamais sur un différentiel ni sur le devis
+propre d'un risque. »). Une saisie du planning, juste après `edit_planning`, gardée par la même
+permission, `planning.write`. La condition nouvelle, `main_structure_without_tasks`, manque dès que
+la structure principale de la révision comporte une tâche ; elle vient la première, la condition
+propre d'abord, puis celles de toute saisie de la révision en cours — `no_background_task_running`
+pendant un marquage, un import, le traitement d'une survenance de risque ou une fusion, comme
+`merge_structure` après `unmerged_amendment_exists` ; sur une révision marquée, la commande ne
+manque que de `revision_draft`, comme `merge_structure`. Le 409 de `generatePlanningSkeleton` est
+`STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première qui manque ; une révision
+marquée ou un projet terminal restent des 403, comme toute saisie. Ni différentiel ni devis propre
+d'un risque : la commande est de la révision, et l'opération, qui ne nomme aucune structure,
+engendre sur la principale. Les révisions des huit exemples écrits à la main qui listent
+`edit_planning` listent la commande : indisponible dans les sept qui portent les tâches du témoin,
+disponible dans `revision_without_tasks`, sans tâche. Exemple `skeleton_structure_not_empty`, sous
+le 409 qui n'en avait aucun (corrélation 1132). Écartés : une commande absente dès la première
+tâche, que « n'est plus proposée » permettait de lire, quand une commande indisponible dit pourquoi
+(WF-IHM-0090) et que le cadrage l'a voulue indisponible ; la commande sur la structure
+(`CostStructure`), que l'écran du planning ne lit pas pour offrir le squelette et que l'opération ne
+vise pas ; la permission du paramétrage du projet (`update`, `project_settings.write`), réservée aux
+chefs de projet (WF-PRJ-0060), au motif que le squelette naît du lotissement — il écrit des tâches
+dans le planning de la révision, comme une saisie de la grille, et la conception d'EP-14 l'offre
+dans la grille de planning vide, à qui peut y saisir (relecture 1).
+
+**L'état où le squelette est proposé a ses exemples** (relecture 1) : `revision_without_tasks`
+(`getRevision`), la révision ouverte aujourd'hui sur le projet créé à 14 h 05, « Rénovation du poste
+de livraison » (révision 103), `generate_skeleton` disponible, ses autres commandes celles de la
+révision courante du témoin ; `structures_without_tasks` (`listCostStructures`), sa structure
+principale (207), son compteur à 0 ; `nodes_empty` (`listNodes`), sa lecture, sans nœud, des totaux
+nuls, engendrée par `make mock-data` (`mockcore.whole` d'une structure vide, relecture 2) ; et
+`project_revision_opened` (`getProject`, relecture 2), le projet créé, passé en Chiffrage, qui porte
+cette révision en cours (WF-CYC-0020). Chacun vient en dernier sous son statut ;
+`test_mockbreakdown.py` tient que la commande n'est disponible que là où la lecture de la même
+structure est vide, et que le squelette engendré y porte le compteur lu plus un.
+
+**Le squelette rend ce que rend une écriture de grille** (`NodesWritten` ; convention du README : «
+Toute écriture de grille — […] création […] — rend `NodesWritten` »). La réponse 201 rendait un
+tableau de nœuds : la grille vide qui se remplit (L44d) n'aurait eu ni les totaux ni le compteur de
+la structure, qu'exige la saisie suivante (WF-IHM-0110), sans relire toute la structure. Les tâches
+créées sont dans `nodes`, dans l'ordre du plan ; aucun ancêtre hors d'elles, aucune tâche redatée —
+`NodesWritten.ancestors` le dit désormais : les ancêtres hors des nœuds écrits. Écarté : garder le
+tableau et relire `listNodes` après chaque génération, une lecture de plus pour ce que l'écriture
+sait. Exemple `skeleton_generated`, écrit à la main, sur la révision 103 et le lotissement par
+défaut du projet créé (`work_breakdown_default`) — « Sur le lotissement par défaut, la génération
+produit une récapitulative de poste, une récapitulative de lot sans feuille, et leurs deux jalons de
+fin » (Vérif de WF-PRJ-0030), les récapitulatives rattachées au poste et au lot, le jalon du poste
+succédant à celui du lot, sur les nœuds 571 à 574 et leurs lignées 671 à 674. Les jalons sont datés
+comme le cœur, par `mockcalendar.follow` (relecture 1) : celui du lot à la première heure de la
+structure, le 3 juin ; celui du poste, que la liaison de fin à début lit comme une fin, à la fin de
+la journée de travail du 2 juin (WF-PLA-0050) ; chaque récapitulative couvre ses subordonnées
+(WF-PLA-0040).
+
+**Le lotissement par défaut porte le libellé du projet** (WF-PRJ-0020 : « en son absence, le
+lotissement vaut un poste et un lot qui portent le libellé du projet, sans livrable » ; relecture
+1). `getWorkBreakdown`, `WorkBreakdown` et l'exemple `work_breakdown_default` le disent, désormais
+celui du projet créé aujourd'hui, « Rénovation du poste de livraison »
+(`mockwitness.CREATED_PROJECT`) ; ses libellés « Commande » et « Lot unique », que la spécification
+ne nommait pas, disparaissent, et le squelette engendré en suit le libellé, ses jalons « Fin de «
+Rénovation du poste de livraison » ».
+
+**`setWorkBreakdown` ne fait forger aucun identifiant au client** (WF-DAT-0060 ; décision de l'agent
+de livraison à la relecture 1). L'écriture entière ne pouvait rien créer sans un identifiant inventé
+par le client, que le README refuse. Dans l'écriture, l'identifiant d'un poste, d'un lot ou d'un
+livrable est facultatif (`OrderItem`, `WorkPackage`, `Deliverable`) : absent, l'élément est nouveau,
+le serveur engendre son identifiant, et la réponse le porte ; présent, c'est l'élément que le
+lotissement lu porte, renommé ou rangé ailleurs ; un identifiant que le lotissement lu n'a pas —
+inconnu, d'un élément d'une autre nature, ou d'un élément marqué supprimé (WF-DAT-0080) — est refusé
+par 422 `UNKNOWN_WORK_BREAKDOWN_ITEM` sur son champ. Écartés : un identifiant engendré par le
+client, contraire à WF-DAT-0060 ; des opérations par élément — créer, renommer, supprimer —, que la
+conception d'EP-14 a écartées pour l'écriture entière ; une clé provisoire du client pour retrouver
+dans la réponse l'élément créé, quand l'ordre saisi, que la réponse garde, le désigne déjà.
+L'exemple de la requête, `work_breakdown_entered`, est la lecture entière du témoin, ses marques
+laissées, le lot « Mise en service sur site » et son livrable ajoutés sans identifiant ; la réponse,
+`work_breakdown_saved`, les rend avec 716 et 717. Sous le 422, `work_breakdown_label_required`
+(corrélation 1134), le premier, que prism sert à une saisie invalide, refuse cette saisie quand le
+lot ajouté n'a pas de libellé, `work_breakdown_unknown_item` (corrélation 1133) quand il porte
+l'identifiant 713, celui du livrable (relecture 2), et `work_breakdown_duplicate_item` (corrélation
+1135) quand il porte 712, celui d'« Armoires », que la saisie porte déjà (relecture 3). Tous sont
+engendrés par `make mock-data` (`mocklists`, `breakdown_refusal` jugeant la saisie contre la lecture
+entière) ; `test_mocklists.py` rejoue l'ajout depuis la lecture entière, affirme la liste littérale
+des champs de chaque refus, l'indice du lot ajouté tiré de la lecture, et deux identifiants d'une
+autre nature refusés comme inconnus — un poste envoyé pour un lot, un lot pour un livrable. **Un
+identifiant envoyé deux fois est refusé** (décision de l'agent de livraison à la relecture 3) :
+chaque occurrence après la première, par 422 `DUPLICATE_WORK_BREAKDOWN_ITEM` sur `/…/<nature>_id`,
+code nouveau. Écartés : `UNKNOWN_WORK_BREAKDOWN_ITEM`, l'identifiant étant connu, qui ne dirait pas
+la vraie cause (défaut n° 10 du guide) ; « le dernier gagne », qui supprimerait sans un mot
+l'occurrence précédente et ce qu'elle porte ; fusionner les livrables des deux occurrences, une
+écriture que personne n'a saisie. Le texte du front pour `UNKNOWN_WORK_BREAKDOWN_ITEM` devient
+générique — un élément qui ne fait pas partie du lotissement lu, inconnu, d'une autre nature ou
+supprimé —, le code servant désormais à `setWorkBreakdown` comme au rattachement.
+
+**`setWorkBreakdown` rend sa lecture** (relecture 1) : `WorkBreakdownReading`, entière, chaque
+élément retenu, avec son compteur suivant, jamais nul, comme `setContributors` rend sa lecture ; la
+décision d'EP-02/L42f, qui lui faisait rendre `WorkBreakdown`, est remplacée, une mention le disant
+à sa place. Son 422 déclare chaque champ refusé : le compteur nul d'une lecture filtrée
+(EP-02/L42f), un libellé vide ou trop long — `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
+`/order_items/<i>/label`, `/order_items/<i>/work_packages/<j>/label` ou celui d'un livrable, comme
+`createTimeline` —, un identifiant que le lotissement lu n'a pas.
+
+**Le rattachement d'un poste ou d'un lot déjà porté nomme la tâche qui le porte, par son nœud et son
+libellé** (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` ; WF-PLA-0170 : « un poste ou un lot n'y est porté
+que par une tâche à la fois » ; Vérif : « Le rattachement d'une tâche à un lot déjà porté par une
+autre est refusé, comme celui d'une même tâche à un poste et à un lot. »). `fields[].params` porte
+`conflicting_object_id` et `conflicting_object_label`, les paramètres de toute valeur déjà portée
+quand le formulaire ne connaît pas la liste qui la porte : la grille de planning, cherchée ou
+filtrée — par sous-arbre, par poste, par chronologie —, peut ne pas lire la tâche, que la cellule
+doit nommer (conception d'EP-14, L44d). Ils remplacent `attached_node_id` (EP-02/L29), qui n'en
+donnait que le nœud ; aucun écran ne le lisait. La convention du README nomme cette exception : la
+même paire sous un 422. Écartés : garder `attached_node_id` et lui adjoindre un libellé, deux noms
+pour un même rôle ; un 409 `ALREADY_EXISTS`, quand les autres refus du rattachement sont des motifs
+par champ du même 422 et qu'une cellule n'attend qu'une enveloppe. La tâche rattachée à la fois à un
+poste et à un lot — « jamais aux deux » — est refusée par `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans
+paramètre, la cellule connaissant la tâche qu'elle écrit ; envoyés tous deux non nuls, chacun est
+refusé à son champ. `fields` porte une entrée par motif qui s'applique :
+`WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` sont rendus ensemble
+quand l'un et l'autre s'appliquent (relecture 1). Exemples, en dernier sous le 422
+d'`updateTaskFacet` : `task_attach_refused`, le premier, garde son scénario et nomme le « Poste de
+commande » par ses deux paramètres ; `task_attach_exclusive` (corrélation 1130), le lot « Armoires »
+envoyé à la récapitulative qui porte déjà son poste.
+
+**Le rattachement n'existe que dans la structure principale** (#586, point 1 ; WF-PLA-0170 : « Le
+rattachement n'existe que dans la structure principale […]. Les structures différentielles et les
+devis propres des risques n'en portent pas »). Une tâche d'un différentiel ou du devis propre d'un
+risque ne nomme ni `task.order_item_id` ni `task.work_package_id` parmi ses champs
+(`editable_fields`) et les porte nuls ; une écriture qui en pose un — `updateTaskFacet`,
+`createNode` — est refusée par 422, sur le champ, motif nouveau
+`WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY`, `null` restant accepté ; un collage refuse la cellule de la
+colonne `work_breakdown` par le même motif (`PasteRejection`, relecture 1). Écartés :
+`COMPUTED_VALUE`, le rattachement n'étant pas calculé, et `UNKNOWN_WORK_BREAKDOWN_ITEM`, qui dirait
+le poste inconnu et non la vraie cause (défaut n° 10 du guide). Exemple
+`task_attach_main_structure_only` (corrélation 1131). La restriction remplace « Toute tâche porte
+son rattachement » d'EP-02/L30, une mention le disant à sa place.
+
+**Un lot rangé sous un autre poste retire le rattachement de sa tâche, sans refus** (#586, point 3 ;
+WF-PLA-0170 : « Le déplacement d'un lot sous un autre poste retire de même le rattachement de sa
+tâche lorsqu'elle n'est pas dans le sous-arbre de la tâche de ce poste. »). `setWorkBreakdown` ne
+refuse plus par `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` : la saisie aboutit, et la tâche du lot, dans la
+révision en cours, ne porte plus le lot ; les révisions marquées le conservent. La décision de
+l'auteur à la revue d'EP-02/L30, qui refusait, précédait la spécification acceptée le 2026-10-09 ;
+elle est remplacée, une mention le disant à sa place. `params.work_package_id` disparaît avec le
+refus. Écarté : nommer dans la réponse la tâche qui perd son lot, que rien n'exige — la réponse est
+le lotissement lu, et la grille de planning relue montre la tâche sans rattachement ; la
+confirmation de L44c le dit d'avance pour une suppression (conception d'EP-14). Ce que l'écriture
+fait pendant un traitement de fond, et les compteurs qu'elle avance, sont ouverts en #775.
+
+**Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en nommant
+les tâches** (#586, point 2 ; WF-PLA-0170 : « Une fusion qui déplacerait la tâche d'un lot hors du
+sous-arbre de la tâche de son poste est refusée en nommant la tâche » ; WF-IHM-0080 : « l'échec
+nomme ce qui a échoué »). Sur le modèle de `TASK_WITHOUT_WORKING_HOURS`, la tâche de fond de
+`mergeCostStructure` finit en échec sans rien fusionner, `problem.code` à
+`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `params.order_item_task` et `work_package_tasks` nommant la tâche
+du poste et celles des lots, chacune par son nœud et son libellé (relecture 1). Écartés : le nœud
+seul, que l'écran d'une tâche de fond, qui ne lit pas la structure, n'aurait pas pu nommer ; un
+refus synchrone à la demande de fusion, que la fusion, confiée au worker (WF-ARC-0090), ne sait
+qu'en fusionnant — le compte rendu préalable de la fusion (WF-REV-0050 : « Avant application, la
+fusion présente un compte rendu : […] et motifs de refus »), que le contrat n'a pas, le dira avant
+l'application, et il est ouvert en #771. Exemple `task_merge_outside_order_item`
+(`getBackgroundTask`, tâche de fond 939), une variante déclarée : « Câblage des armoires » porterait
+le lot « Armoires » sous « Poste de commande ». Le même manque pour `moveNodes`, antérieur au lot,
+est ouvert en #775.
+
+**Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche** (#586, point 4 ;
+WF-INTF-0040 : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le
+poste ou le lot qui perd sa tâche. »). `ImportDifference.work_breakdown_label`, nullable et
+facultatif, porte son libellé sur le retrait d'une tâche rattachée, comme la facette de la tâche le
+porte ; aucun exemple du témoin ne retire une tâche rattachée. Écarté : l'identifiant du poste ou du
+lot, que l'écran du compte rendu devrait résoudre en lisant le lotissement. Le point voisin du
+constat — un fichier qui sortirait la tâche d'un lot du sous-arbre de son poste « est rejeté au
+compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon » (WF-INTF-0040) —
+demande de dire qu'un compte rendu n'est pas applicable, ce que le contrat ne dit pas non plus de
+l'horizon (WF-PLA-0150) ; il est ouvert en #771, avec le point 5 de #586,
+`EstimateIndicators.by_order_item` face à WF-DEV-0060 (« un poste sans tâche rattachée est présenté
+sans total »), que ni L44c ni L44d ne consomme.
+
+**Le projet liste les chronologies parmi ses commandes** (`ProjectCommand.manage_timelines` ;
+WF-PLA-0140 : « Un projet peut porter plusieurs chronologies. Chacune porte un nom, conserve la
+liste des tâches et des jalons qui y sont inscrits, peut être supprimée, et peut être exportée au
+format PNG. »). Une commande pour créer et supprimer, après `manage_contributors`, gardée par
+`planning.write` — les chronologies sont une vue du planning (FBS-4.3.1) —, non réservée aux chefs
+de projet, indisponible sur un projet terminal (`project_not_terminal`, WF-CYC-0100). Écartés : deux
+commandes, créer et supprimer, quand un seul écran les offre sous la même permission et les mêmes
+conditions, comme `manage_contributors` ; des commandes sur chaque chronologie, qu'aucune condition
+propre ne distinguerait ; la seule permission de la session, contraire à la règle d'EP-02 qu'un
+objet du projet liste ses commandes (conception d'EP-14). Les projets des sept exemples écrits à la
+main que lit une session qui porte `planning.write` listent la commande ; les listes dérivées sont
+engendrées.
+
+**`deleteTimeline` reste un 204 sans 409** (WF-DAT-0080 : « Un livrable ou une chronologie se
+supprime physiquement. »). Le cadrage disait qu'une chronologie citée par une révision marquée
+serait marquée supprimée ; la spécification à jour depuis #708 la supprime physiquement, et la
+conclusion ne change pas : rien ne la refuse. La conception d'EP-14 est corrigée de même. Un projet
+terminal reste un 403, comme toute écriture. `createTimeline` déclare son 422 — un nom vide ou trop
+long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/label` — et dit le nom non unique, la spécification
+ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALREADY_EXISTS`, que
+WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
+comité et un client par exemple. Exemple de succès `timeline_created`, engendré par `make mock-data`
+(`mockdata`) : « Réunion de chantier », chronologie 1002, sans inscription.
+
+**Chaque élément d'une lecture du lotissement dit s'il est retenu** (#574 ; WF-IHM-0130 : « Toute
+table se filtre sur chacune de ses colonnes, et le filtre s'applique aux totaux qu'elle présente » ;
+WF-IHM-0060 : « dans une grille arborescente, le filtre laisse visibles les parents des lignes
+retenues »). `is_match`, exigé sur chaque poste, lot et livrable de `WorkBreakdownReading` : vrai
+quand les filtres le retiennent, et toujours sans filtre ; faux quand il n'est rendu que parce qu'il
+contient un élément retenu. La grille ne compte que les retenus : `work_breakdown_work_packages`
+rend le poste marqué faux, et la ligne des totaux dira « 1 lot », non « 1 poste ». Un livrable ne
+contient rien et n'est rendu que retenu : sa marque, toujours vraie, garde une même lecture de
+chaque ligne. La lecture a ses éléments (`OrderItemReading`, `WorkPackageReading`,
+`DeliverableReading`), et l'écriture garde les siens : la marque n'entre pas dans
+`setWorkBreakdown`. Écartés : la liste des identifiants retenus au niveau de la lecture, l'autre
+proposition du constat, que la grille aurait dû croiser avec l'arbre ; des comptes par nature, qui
+auraient servi la ligne des totaux sans marquer les lignes de contexte ; la marque sur les éléments
+partagés avec l'écriture, qu'un client aurait renvoyée ; le nom `matched` du constat, le contrat
+nommant ses booléens `is_…`. Les quatre lectures engendrées du lotissement portent la marque.
+
+**Identifiants et corrélations** : 1130 à 1135 ; la tâche de fond 939 ; la révision 103 et sa
+structure 207, réemployées par `revision_without_tasks`, `structures_without_tasks`, `nodes_empty`,
+`skeleton_generated` et `project_revision_opened`, qui décrivent la même révision ; les nœuds 571 à
+574 et leurs lignées ; le lot 716 et son livrable 717 ; la chronologie 1002. `test_mockbreakdown.py`
+tient la commande du squelette, où elle est offerte, son refus et l'exemple du lotissement par
+défaut, ses dates comprises, les refus du rattachement, la tâche qu'ils nomment et la fusion qui
+échoue, le projet qui porte la révision sans tâche, la commande des chronologies et la chronologie
+créée ; `test_mocklists.py`, la marque des éléments retenus, le libellé du lotissement par défaut,
+l'écriture du lotissement, ses refus et sa réponse ; `test_mockwitness.py` admet un nœud de la
+structure pour `conflicting_object_id`. Les catalogues reçoivent `generate_skeleton`,
+`manage_timelines`, `main_structure_without_tasks`, `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` et
+`DUPLICATE_WORK_BREAKDOWN_ITEM`.
 
 ## Collage et annulation
 

@@ -1644,10 +1644,12 @@
     "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
-    "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "This item is not part of the work breakdown read: unknown, of another kind, or deleted.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears an order item or a work package.",
+    "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error."
   },
@@ -1969,6 +1971,7 @@
       "update": "Edit the project",
       "update_win_probability": "Edit the win probability",
       "manage_contributors": "Manage contributors",
+      "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
       "complete": "Complete the project",
       "lose": "Declare the project lost",
@@ -2022,7 +2025,8 @@
       "project_before_in_progress": "project not yet in progress",
       "subproject_not_cited": "subproject cited by no marked revision",
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
-      "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject"
+      "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
+      "main_structure_without_tasks": "main structure without any task"
     },
     "ProjectExit": {
       "to_state": {
@@ -2054,6 +2058,7 @@
     },
     "RevisionCommand": {
       "edit_planning": "Edit the schedule",
+      "generate_skeleton": "Generate the schedule skeleton",
       "edit_estimate": "Edit the estimate",
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",

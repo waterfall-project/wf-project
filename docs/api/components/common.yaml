@@ -180,13 +180,19 @@ Problem:
         portent des lignes de devis de la révision en cours
         (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
         WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
-        libellé (`structure_id`, `node_id`, `row_number`, `label`). Les paramètres d'un motif par
-        champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà
-        le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
-        WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
-        celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-        WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
-        un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
+        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `order_item_task` et
+        `work_package_tasks` pour une fusion qui sortirait la tâche d'un lot du sous-arbre de la
+        tâche de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `mergeCostStructure`, WF-PLA-0170)
+        : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure
+        principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de
+        `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ;
+        EP-14/L42k). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et
+        `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou
+        le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
+        WF-PLA-0170 ; EP-14/L42k) ; `order_item_node_id` et `work_package_node_ids`, la tâche du
+        poste et celles de ses lots qui sortiraient de son sous-arbre
+        (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170) ; `task_node_id`, dans
+        `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
@@ -362,13 +368,22 @@ ErrorCode:
     # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
     - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
-    # (`TaskFacetUpdate`, WF-PLA-0170) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
-    # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la
-    # tâche d'un lot du sous-arbre de celle de son poste.
+    # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
+    # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; le dernier aussi d'un
+    # déplacement (`moveNodes`) et d'une ligne importée qui sortiraient la tâche d'un lot du
+    # sous-arbre de celle de son poste, et le code d'une fusion qui échoue pour ce motif (`mergeCostStructure`) — une saisie du
+    # lotissement qui range un lot sous un autre poste retire le rattachement, sans refus
+    # (`setWorkBreakdown`, EP-14/L42k). `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` refuse un
+    # rattachement posé sur une tâche d'un différentiel ou du devis propre d'un risque, qui n'en
+    # portent pas (EP-14/L42k). `DUPLICATE_WORK_BREAKDOWN_ITEM` refuse, dans une saisie du
+    # lotissement, un identifiant envoyé une seconde fois, chaque occurrence après la première
+    # (`setWorkBreakdown`, EP-14/L42k).
     - UNKNOWN_WORK_BREAKDOWN_ITEM
     - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
     - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
     - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
+    - WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY
+    - DUPLICATE_WORK_BREAKDOWN_ITEM
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

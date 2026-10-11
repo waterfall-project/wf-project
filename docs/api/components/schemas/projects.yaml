@@ -100,9 +100,10 @@ CommandCondition:
     Pendant l'application d'un import de planning, de devis ou de reste à engager
     (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
     qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
-    dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`,
-    `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration
-    d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un
+    dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`,
+    `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —,
+    la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles.
+    L'analyse d'un
     import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
     coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090,
     WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
@@ -180,6 +181,11 @@ CommandCondition:
     que portent des lignes de devis de la révision en cours (WF-DAT-0080, WF-PRJ-0050 ;
     EP-14/L42q, C-273). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre
     où la commande les liste (`SubprojectCommand`).
+    `main_structure_without_tasks` manque à la génération du squelette de planning
+    (`RevisionCommand.generate_skeleton`) dès que la structure principale de la révision comporte
+    une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche »
+    (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui
+    manque, dans l'ordre où la commande les liste (EP-14/L42k).
   enum:
     - is_contributor
     - is_project_manager
@@ -222,6 +228,7 @@ CommandCondition:
     - subproject_not_cited
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
+    - main_structure_without_tasks
 
 ProjectCommand:
   type: string
@@ -229,6 +236,7 @@ ProjectCommand:
     - update
     - update_win_probability
     - manage_contributors
+    - manage_timelines
     - create_revision
     - complete
     - lose
@@ -246,7 +254,11 @@ ProjectCommand:
     lotissement (WF-PRJ-0020) et ses sous-projets (WF-PRJ-0050), que chaque sous-projet détaille
     (`Subproject.available_commands`) —, et parmi eux la probabilité de gain, dont
     `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à
-    partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090) ; ses contributeurs,
+    partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090) ; ses contributeurs ;
+    ses chronologies — en créer une, en supprimer une (`createTimeline`, `deleteTimeline`) :
+    `manage_timelines`, gardée par `planning.write`, la permission du planning dont elles sont
+    une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et indisponible sur
+    un projet terminal, `project_not_terminal` manquante (WF-CYC-0100) — ;
     ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
     survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
     fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
@@ -391,9 +403,17 @@ WorkBreakdown:
   type: object
   required: [order_items, lock_version]
   description: >-
-    Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son
-    absence, un poste, un lot, aucun livrable (WF-PRJ-0020). Le lotissement entier, que
-    `setWorkBreakdown` écrit et rend.
+    Lotissement : postes, lots, livrables. Sa saisie est facultative ; « en son absence, le
+    lotissement vaut un poste et un lot qui portent le libellé du projet, sans livrable »
+    (WF-PRJ-0020). Le lotissement entier, que `setWorkBreakdown` écrit, et qu'il rend lu
+    (`WorkBreakdownReading`). Un élément envoyé sans identifiant est nouveau : le serveur
+    engendre son identifiant, que la réponse porte (WF-DAT-0060) ; un élément envoyé avec le sien
+    est celui que le lotissement lu porte, renommé ou rangé ailleurs, et un identifiant que le
+    lotissement lu n'a pas — inconnu, d'un élément d'une autre nature, ou d'un élément marqué
+    supprimé (WF-DAT-0080) — est refusé (`UNKNOWN_WORK_BREAKDOWN_ITEM`) : le client ne forge
+    aucun identifiant (EP-14/L42k). Un élément ne s'écrit qu'une fois : un identifiant envoyé
+    deux fois est refusé à chaque occurrence après la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`,
+    sur `/…/<nature>_id`).
   properties:
     order_items:
       type: array
@@ -409,11 +429,13 @@ WorkBreakdownReading:
   required: [order_items, lock_version]
   description: >-
     Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en
-    retiennent (WF-PRJ-0020, WF-IHM-0130).
+    retiennent (WF-PRJ-0020, WF-IHM-0130), et ce que `setWorkBreakdown` rend, entier, chaque
+    élément retenu. Chaque élément rendu porte son identifiant et dit s'il est retenu
+    (`is_match`) ou rendu pour le seul contexte, ce que l'écriture ne porte pas.
   properties:
     order_items:
       type: array
-      items: { $ref: '#/OrderItem' }
+      items: { $ref: '#/OrderItemReading' }
     lock_version:
       anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
       description: >-
@@ -424,7 +446,10 @@ WorkBreakdownReading:
 
 OrderItem:
   type: object
-  required: [order_item_id, label, work_packages]
+  required: [label, work_packages]
+  description: >-
+    Un poste que `setWorkBreakdown` écrit : avec son identifiant s'il existe, sans s'il est
+    nouveau (`WorkBreakdown`).
   properties:
     order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -434,7 +459,8 @@ OrderItem:
 
 WorkPackage:
   type: object
-  required: [work_package_id, label, deliverables]
+  required: [label, deliverables]
+  description: Un lot que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
   properties:
     work_package_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -444,10 +470,57 @@ WorkPackage:
 
 Deliverable:
   type: object
-  required: [deliverable_id, label]
+  required: [label]
+  description: Un livrable que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
+
+OrderItemReading:
+  type: object
+  required: [order_item_id, label, is_match, work_packages]
+  description: Un poste tel que `getWorkBreakdown` le rend (`OrderItem`), et s'il est retenu.
+  properties:
+    order_item_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    is_match:
+      type: boolean
+      description: >-
+        Vrai quand les filtres de la lecture retiennent l'élément — il les satisfait tous, et
+        toujours sans filtre —, faux quand il n'est rendu que parce qu'il contient un élément
+        retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes
+        retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente »
+        (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par
+        `kinds=work_package`, celle du témoin compte un lot, et aucun poste (#574).
+    work_packages:
+      type: array
+      items: { $ref: '#/WorkPackageReading' }
+
+WorkPackageReading:
+  type: object
+  required: [work_package_id, label, is_match, deliverables]
+  description: >-
+    Un lot tel que `getWorkBreakdown` le rend (`WorkPackage`), et s'il est retenu, comme un poste
+    (`OrderItemReading.is_match`).
+  properties:
+    work_package_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    is_match: { type: boolean }
+    deliverables:
+      type: array
+      items: { $ref: '#/DeliverableReading' }
+
+DeliverableReading:
+  type: object
+  required: [deliverable_id, label, is_match]
+  description: >-
+    Un livrable tel que `getWorkBreakdown` le rend (`Deliverable`). Il ne contient rien : rendu,
+    il est toujours retenu, et sa marque, toujours vraie, ne sert qu'à lire chaque ligne de la
+    grille de même.
+  properties:
+    deliverable_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    is_match: { type: boolean }
 
 WorkBreakdownKind:
   type: string

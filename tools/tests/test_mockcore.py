@@ -679,6 +679,8 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0
+    # The main structure of the revision opened today has no task, nor summary (EP-14/L42k).
+    depths["nodes_empty"] = 0
     assert set(depths) == cited
     assert (depths["nodes"], depths["nodes_core"], depths["nodes_summaries"]) == (2, 2, 3)
     for name, depth in depths.items():

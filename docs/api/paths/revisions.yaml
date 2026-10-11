@@ -100,6 +100,7 @@
               estimator: { $ref: ../../../fixtures/api/revision_estimator.json }
               marking: { $ref: ../../../fixtures/api/revision_marking.json }
               importing: { $ref: ../../../fixtures/api/revision_importing.json }
+              without_tasks: { $ref: ../../../fixtures/api/revision_without_tasks.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
@@ -306,6 +307,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/structures.json }
               amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
+              without_tasks: { $ref: ../../../fixtures/api/structures_without_tasks.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -350,7 +352,12 @@
       structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
       heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
       échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et
-      les tâches en cause (WF-PLA-0010).
+      les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un lot hors du
+      sous-arbre de la tâche de son poste est refusée en nommant la tâche » (WF-PLA-0170) : elle
+      échoue de même sans rien fusionner, `problem.code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+      `params.order_item_task` nommant la tâche du poste et `work_package_tasks` celles des lots
+      qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme
+      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_order_item`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -570,6 +577,7 @@
               summaries: { $ref: ../../../fixtures/api/nodes_summaries.json }
               summaries_leaves: { $ref: ../../../fixtures/api/nodes_summaries_leaves.json }
               timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
+              empty: { $ref: ../../../fixtures/api/nodes_empty.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -754,8 +762,9 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
-          poste ou lot inconnu, poste et lot ensemble, poste ou lot déjà porté par une autre
-          tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0170,
+          tâche hors de la structure principale, poste ou lot inconnu, poste et lot ensemble,
+          poste ou lot déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche
+          d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0170,
           `TaskFacetUpdate`).
         content:
           application/problem+json:
@@ -763,6 +772,8 @@
             examples:
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_order_item.json }
+              attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
+              attach_main_structure_only: { $ref: ../../../fixtures/api/task_attach_main_structure_only.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
   patch:
@@ -1200,23 +1211,39 @@
       différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et
       proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le
       lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
-      supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170).
+      supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La
+      révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ;
+      refusée sur une révision marquée ou un projet terminal, par 403, comme toute saisie
+      (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres : elle rend les tâches
+      créées, les totaux et le compteur de la structure (`NodesWritten`), pour que la grille
+      vide se remplisse et que la saisie suivante porte le bon compteur (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '201':
-        description: Squelette engendré.
+        description: >-
+          Squelette engendré : ses tâches dans `nodes`, dans l'ordre du plan — la récapitulative
+          d'un poste, puis celle de chacun de ses lots suivie de ses livrables et de son jalon de
+          fin, puis le jalon de fin du poste —, sans ancêtre à recalculer ni tâche redatée.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              default_breakdown: { $ref: ../../../fixtures/api/skeleton_generated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: La structure comporte déjà une tâche (WF-PRJ-0030).
+        description: >-
+          La génération n'est pas proposée : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` nommant la première condition qui manque, dans l'ordre où la
+          commande les liste (`generate_skeleton`) — `main_structure_without_tasks` dès que la
+          structure principale comporte une tâche (Vérif de WF-PRJ-0030), puis
+          `no_background_task_running` pendant un marquage, un import, le traitement d'une
+          survenance de risque ou une fusion (WF-IHM-0080).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              structure_not_empty: { $ref: ../../../fixtures/api/skeleton_structure_not_empty.json }

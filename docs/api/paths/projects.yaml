@@ -161,6 +161,7 @@
               reader: { $ref: ../../../fixtures/api/project_reader.json }
               created: { $ref: ../../../fixtures/api/project_created.json }
               completed: { $ref: ../../../fixtures/api/project_completed.json }
+              revision_opened: { $ref: ../../../fixtures/api/project_revision_opened.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -322,15 +323,18 @@
     tags: [projects]
     summary: Lotissement
     description: >-
-      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020). Une
+      En l'absence de saisie, un poste comprenant un lot sans livrable, qui portent le libellé
+      du projet (WF-PRJ-0020). Une
       grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre
       sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature
       — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu
       s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu
       sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments
-      qu'ils contiennent. Une lecture filtrée rend un compteur nul : `setWorkBreakdown` écrit
-      le lotissement entier, et un renvoi tel quel, qui supprimerait ce qu'elle omet, est
-      refusé par 422 (`WorkBreakdownReading`).
+      qu'ils contiennent ; chaque élément rendu dit s'il est retenu ou rendu pour le contexte
+      (`is_match`), et la grille ne compte que les retenus : « le filtre s'applique aux totaux
+      qu'elle présente » (WF-IHM-0130, #574). Une lecture filtrée rend un compteur nul :
+      `setWorkBreakdown` écrit le lotissement entier, et un renvoi tel quel, qui supprimerait ce
+      qu'elle omet, est refusé par 422 (`WorkBreakdownReading`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: search
@@ -371,11 +375,15 @@
       Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un poste
       ou un lot que la saisie omet est supprimé : les tâches de la révision en cours qui le
       portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et
-      le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080). Un lot que la
-      saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0170) : si le lot
-      et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la tâche
-      du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les
-      révisions marquées n'entrent pas dans ce jugement : leurs tâches ne se déplacent plus.
+      le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080) ; un livrable
+      omis se supprime physiquement (WF-DAT-0080). Un lot que la saisie range sous un autre
+      poste n'est jamais refusé : « Le déplacement d'un lot sous un autre poste retire de même
+      le rattachement de sa tâche lorsqu'elle n'est pas dans le sous-arbre de la tâche de ce
+      poste » (WF-PLA-0170) — le lot et son nouveau poste tous deux portés, la tâche du lot hors
+      du sous-arbre de celle du poste dans la révision en cours, la saisie aboutit et cette
+      tâche ne porte plus le lot. Les révisions marquées le conservent, leurs tâches ne se
+      déplaçant plus ; la réponse ne nomme pas la tâche qui perd son lot, que la grille de
+      planning relue montre sans rattachement.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -383,28 +391,44 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+          examples:
+            entered: { $ref: ../../../fixtures/api/work_breakdown_entered.json }
     responses:
       '200':
-        description: Lotissement enregistré ; il ne crée aucun lien durable avec le planning (WF-PRJ-0030).
+        description: >-
+          Lotissement enregistré, rendu lu entier dans l'ordre saisi, chaque élément retenu, les
+          éléments nouveaux avec l'identifiant que le serveur leur a donné, et son compteur
+          suivant, jamais nul ; il ne crée aucun lien durable avec le planning (WF-PRJ-0030).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownReading }
+            examples:
+              saved: { $ref: ../../../fixtures/api/work_breakdown_saved.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Un compteur nul, celui d'une lecture filtrée (`WorkBreakdownReading`) :
-          `VALIDATION_FAILED`, `fields` désignant `/lock_version` par `VALUE_REQUIRED`.
-          Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son
-          nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0170) : `VALIDATION_FAILED`, `fields`
-          sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-          `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et
-          `work_package_node_ids` les tâches du poste et du lot.
+          `VALIDATION_FAILED`, `fields` désignant chaque champ refusé : un compteur nul, celui
+          d'une lecture filtrée (`WorkBreakdownReading`), `/lock_version` par `VALUE_REQUIRED` ;
+          un libellé vide ou trop long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
+          `/order_items/<i>/label`, `/order_items/<i>/work_packages/<j>/label` ou
+          `/order_items/<i>/work_packages/<j>/deliverables/<k>/label` (WF-PRJ-0020) ; un
+          identifiant que le lotissement lu n'a pas sous la nature de son élément,
+          `UNKNOWN_WORK_BREAKDOWN_ITEM` sur cet identifiant — `/order_items/<i>/order_item_id`,
+          `/order_items/<i>/work_packages/<j>/work_package_id` ou
+          `/order_items/<i>/work_packages/<j>/deliverables/<k>/deliverable_id` ; un identifiant
+          que la saisie porte déjà, chaque occurrence après la première,
+          `DUPLICATE_WORK_BREAKDOWN_ITEM` sur le même champ. Un lot rangé sous un autre poste
+          n'est pas un refus : il retire le rattachement de sa tâche (WF-PLA-0170).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_required: { $ref: ../../../fixtures/api/work_breakdown_label_required.json }
+              unknown_item: { $ref: ../../../fixtures/api/work_breakdown_unknown_item.json }
+              duplicate_item: { $ref: ../../../fixtures/api/work_breakdown_duplicate_item.json }
 
 /projects/{project_id}/subprojects:
   get:
@@ -788,8 +812,11 @@
     operationId: createTimeline
     summary: Créer une chronologie
     description: >-
-      Une chronologie nommée, qui date un jeu de tâches sans toucher aux autres
-      (WF-PLA-0140).
+      Une chronologie nommée, sans inscription, à laquelle les tâches et les jalons s'inscrivent
+      ensuite depuis le planning (WF-PLA-0140, WF-PLA-0060). « Un projet peut porter plusieurs
+      chronologies. Chacune porte un nom » : le nom n'est pas unique, et deux chronologies d'un
+      projet peuvent le partager. Le projet dit d'avance si l'appelant peut en créer
+      (`ProjectCommand.manage_timelines`).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -808,16 +835,30 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+            examples:
+              created: { $ref: ../../../fixtures/api/timeline_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Un nom vide ou trop long : `VALIDATION_FAILED`, `fields` désignant `/label` par
+          `VALUE_REQUIRED` ou `VALUE_TOO_LONG` (WF-PLA-0140).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/timelines/{timeline_id}:
   delete:
     operationId: deleteTimeline
     summary: Supprimer une chronologie
     description: >-
-      Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140).
+      Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140). « Un
+      livrable ou une chronologie se supprime physiquement » (WF-DAT-0080) : aucune révision
+      marquée ne la retient, ni ne la fait marquer supprimée, et la suppression n'a pas de 409,
+      ses inscriptions partant avec elle. Le projet dit d'avance si l'appelant peut en
+      supprimer (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée
+      par 403, comme toute écriture (WF-CYC-0100).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

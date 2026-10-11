@@ -48,7 +48,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Reading context"';
 
 type StateTransition = components["schemas"]["StateTransition"];
-type WorkBreakdown = components["schemas"]["WorkBreakdown"];
+type WorkBreakdown = components["schemas"]["WorkBreakdownReading"];
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -68,9 +68,9 @@ function html(page: ReactNode): string {
 }
 
 /** What Next hands a page of the project, at the query given. */
-function at(search: Record<string, string> = {}) {
+function at(search: Record<string, string> = {}, projectId: string = PROJECT) {
   return {
-    params: Promise.resolve({ projectId: PROJECT }),
+    params: Promise.resolve({ projectId }),
     searchParams: Promise.resolve(search),
   };
 }
@@ -310,26 +310,33 @@ describe("the settings of a project", () => {
     expect(text(none)).not.toContain("This project has no order item.");
   });
 
-  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable", async () => {
+  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable, both bearing the label of the project", async () => {
+    // The project created today, its first revision opened, its order not entered.
+    const project = example("project_revision_opened") as Project;
     server.answers = {
       ...server.answers,
+      "GET /projects/{project_id}": "project_revision_opened",
       "GET /projects/{project_id}/work-breakdown": "work_breakdown_default",
     };
-    const page = html(await SettingsPage(at()));
+    const page = html(await SettingsPage(at({}, project.project_id)));
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      "Commande Order item",
-      "Lot unique Work package",
+      `${project.label} Order item`,
+      `${project.label} Work package`,
       "1 order item",
     ]);
   });
 
   it("shows an order item without a work package alone, and says a work breakdown without an order item empty", () => {
     const fallback = example("work_breakdown_default") as WorkBreakdown;
+    const project = example("project_created") as Project;
     const [item] = fallback.order_items;
     const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
     expect(
-      rows(html(<WorkBreakdownList breakdown={bare} project={PROJECT} />), "Work breakdown"),
-    ).toEqual(["Label Kind", "Commande Order item", "1 order item"]);
+      rows(
+        html(<WorkBreakdownList breakdown={bare} project={project.project_id} />),
+        "Work breakdown",
+      ),
+    ).toEqual(["Label Kind", `${project.label} Order item`, "1 order item"]);
     expect(
       text(
         html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} project={PROJECT} />),

@@ -21,12 +21,14 @@ import {
   ListTree,
   ListX,
   type LucideIcon,
+  Milestone,
   Pencil,
   Percent,
   ShieldAlert,
   Stamp,
   Star,
   UserPlus,
+  Workflow,
 } from "lucide-react";
 
 import { createElement, type ReactElement } from "react";
@@ -41,6 +43,8 @@ export const PROJECT_COMMAND_ICONS: Readonly<
   // The win probability, a rate the project freezes from in progress (EP-14/L42i).
   update_win_probability: Percent,
   manage_contributors: UserPlus,
+  // The timelines of the project, which show its milestones and tasks inscribed (EP-14/L42k).
+  manage_timelines: Milestone,
   create_revision: GitBranchPlus,
   complete: CircleCheckBig,
   lose: CircleX,
@@ -60,6 +64,8 @@ export const REVISION_COMMAND_ICONS: Readonly<
   Record<components["schemas"]["RevisionCommand"], LucideIcon>
 > = {
   edit_planning: CalendarRange,
+  // The skeleton the work breakdown generates, a structure of tasks drawn at once (EP-14/L42k).
+  generate_skeleton: Workflow,
   edit_estimate: Calculator,
   edit_remaining: Hourglass,
   edit_risks: ShieldAlert,
