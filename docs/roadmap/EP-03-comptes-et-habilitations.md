@@ -259,7 +259,9 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  rôles `manage-users`, `view-users`, `query-users`, `view-realm` — pour trouver les annuaires
+  que le royaume fédère, dont la lecture des comptes demande la synchronisation, leurs secrets
+  masqués — et le rôle de l'extension) ; `admin-cli`,
   que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
   (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
   client de test pour les jetons dont ses tests ont besoin ;
@@ -466,7 +468,12 @@ garde le compte actif et le signale.
   aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
   L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
   Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
-  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  transaction. `updateUser` reporte dans Keycloak, par son API d'administration, le nom, le
+  prénom et l'adresse changés d'un compte local, dont Waterfall fait foi (motif de WF-ADM-0050) :
+  le royaume connecte et écrit au compte par l'adresse qu'il tient (#810). Le changement est
+  vérifié dans une transaction courte, reporté, puis écrit dans une seconde, qui revérifie le
+  `lock_version` ; refusé alors, il est défait dans Keycloak, et un échec de ce retour est
+  journalisé. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
@@ -509,7 +516,26 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
   sans rôle, met à jour nom, prénom et adresse des comptes fédérés, désactive ceux que
   Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne touche
   aucun compte local (WF-ADM-0070). Ses écritures portent la plateforme comme auteur
-  (WF-DAT-0070).
+  (WF-DAT-0070). Précisions de sa réalisation (US-0370/L2) :
+  - une personne de l'annuaire dont l'adresse est portée par un compte y est rattachée, comme à
+    sa première requête (#707) : le compte prend son identifiant chez Keycloak, son nom, son
+    prénom et son adresse, vient désormais de l'annuaire, et garde ses rôles et son état ; une
+    nouvelle fédération, qui donne aux personnes d'autres identifiants, retrouve ainsi leurs
+    comptes. Une personne relayée par un fournisseur externe à l'adresse déjà portée est laissée
+    et signalée (`ALREADY_EXISTS`) ;
+  - un compte anonymisé n'est ni modifié ni recréé : la lecture le rapproche par l'identifiant
+    que l'anonymisation conserve (WF-ADM-0070, WF-ADM-0060) ;
+  - un compte que la liste ne nomme plus n'est désactivé qu'après que Keycloak a dit, à sa
+    lecture, ne plus le connaître : une page déplacée par une écriture concurrente ne désactive
+    personne ;
+  - les comptes locaux du royaume que Waterfall ne connaît pas et qui n'ont jamais eu de mot de
+    passe — laissés par une création que Waterfall n'a pas menée à son terme, Keycloak ayant
+    créé le compte puis répondu trop tard — sont retirés du royaume et nommés dans le compte rendu
+    (#811), une fois âgés d'une heure : une création en cours est chez Keycloak avant d'être dans
+    Waterfall ;
+  - tout ce qui se demande à Keycloak — synchronisation, lecture, retraits — précède la garde du
+    dernier administrateur, prise à chaque désactivation ; le compte rendu est gardé dans
+    `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche réussie y renvoie.
 
 ### Journal d'audit
 
@@ -1051,7 +1077,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
 - **opérations** : `startIdentitySync`, `getLatestIdentitySync`, `getBackgroundTask`,
   `listBackgroundTasks`
