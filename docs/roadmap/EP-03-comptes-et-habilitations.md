@@ -774,6 +774,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | `AuditEvent` rend les paramètres de l'action, codes et identifiants (auteur, 2026-10-10, #706) | ne pas les rendre : le journal ne dirait pas quel droit a été donné, l'« afin de » d'US-0410 |
 | Une déconnexion sans session du front passe par une connexion silencieuse avant `closeMySessions` (auteur, 2026-10-10, #689) | ne fermer que le poste : contraire à WF-SEC-0020, « sur tous ses postes » |
 | Une navigation attend l'écriture en cours, et un refus est dit sur place avant de partir (auteur, 2026-10-10, #688) | un avis qui survit à la navigation et à la connexion : plus fragile, et la personne ne choisit plus |
+| Une table qui déclare ses filtres les garde en préférence d'affichage, retrouvés à l'ouverture d'une adresse qui ne dit rien d'elle, une adresse qui les dit passant avant (auteur, 2026-10-11, #836). Un lien sans filtre ouvert dans un nouvel onglet ramène donc aux filtres que le compte garde : accepté, la conservation en préférence l'emporte (auteur, 2026-10-11, #836, #883) | exclure les filtres des préférences, comme le guide le disait le 2026-10-09 : contraire à WF-IHM-0060 et aux critères d'US-0360 et d'US-0380 |
 
 ### Issues à ouvrir avec la conception
 
