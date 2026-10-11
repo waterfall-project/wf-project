@@ -13,8 +13,9 @@
  *   the object that holds a value already taken — and the screen knows it;
  * - `signed_out` (401), no session — or none the front holds, and the request did not leave —,
  *   not the account refused, a `refused` whose code the screen says (`ACCOUNT_DEACTIVATED`,
- *   `ACCOUNT_NOT_ADMITTED`), since signing in again would loop —: the screen leads to the sign-in page, which comes back
- *   to the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
+ *   `ACCOUNT_NOT_ADMITTED`), since signing in again would loop —: the screen leads to the sign-in
+ *   page, which comes back to the screen once signed in again (`loginHref`,
+ *   `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
  *   502, 503 or 504 without the envelope — a result of its own, never a `Problem` the API did
  *   not send, and never a blank screen.
@@ -24,8 +25,9 @@
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
  * instead: what is not its data is thrown — not found, the API out of reach, no session, an
- * unexpected answer, the account refused —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`). A read it
- * can do without goes through `readUnlessRefused`, which gives nothing on the refusals it expects.
+ * unexpected answer, the account refused —, and the pages of the shell say it (`not-found.tsx`,
+ * `error.tsx`). A read it can do without goes through `readUnlessRefused`, which gives nothing on
+ * the refusals it expects.
  *
  * A client component imports only the types of this module; the decoding runs on the server.
  */

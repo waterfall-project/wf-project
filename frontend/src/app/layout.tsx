@@ -32,7 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * What the navigation offers for a session: its permissions when it is open; none when the
- * API says there is no session, or refuses the account; the status screen alone when it cannot be read.
+ * API says there is no session, or refuses the account; the status screen alone when it cannot be
+ * read.
  */
 function offered(state: SessionState): ShellProps["permissions"] {
   if (state.kind === "open") {

@@ -186,23 +186,23 @@ clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconne
 (`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
 le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
 témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge en
-document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un gestionnaire de route (`src/app/login/route.ts`), non
-une page : Waterfall n'a ni formulaire de connexion, ni liste de fournisseurs, ni mot de passe
-oublié, le fournisseur d'identité tenant ses écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui
-accorde la session, il mène droit à l'écran visé (`returnTarget(next)`,
-`frontend/src/navigation/login.ts`) — sans lui, ou hors du front, l'accueil — : le layout relit la
-session, et le suivi reprend les tâches qu'une session perdue avait interrompues. Hors de ce mode,
-il démarre le flux du code d'autorisation du royaume `waterfall` (US-0350) — voir « La session du
-front » ci-dessous. La session est
-`getMe` (`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses
-permissions. Un 401 `ACCOUNT_DEACTIVATED` ou `ACCOUNT_NOT_ADMITTED` n'est pas une session
-absente : l'écran le dit (la panne `failure.deactivated` ou `failure.notAdmitted`, le refus d'une
-action), et ne renvoie pas à la connexion, qui bouclerait (#664).
-Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
-illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
-menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
-une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que si elle est
-rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au déclencheur.
+document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
+gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
+connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
+écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui accorde la session, il mène droit à l'écran
+visé (`returnTarget(next)`, `frontend/src/navigation/login.ts`) — sans lui, ou hors du front,
+l'accueil — : le layout relit la session, et le suivi reprend les tâches qu'une session perdue avait
+interrompues. Hors de ce mode, il démarre le flux du code d'autorisation du royaume `waterfall`
+(US-0350) — voir « La session du front » ci-dessous. La session est `getMe`
+(`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses permissions. Un
+401 `ACCOUNT_DEACTIVATED` ou `ACCOUNT_NOT_ADMITTED` n'est pas une session absente : l'écran le dit
+(la panne `failure.deactivated` ou `failure.notAdmitted`, le refus d'une action), et ne renvoie pas
+à la connexion, qui bouclerait (#664). Sans compte (401), il n'y a ni menu du compte ni barre
+latérale ; quand la session est illisible, la barre latérale est rendue avec l'écran d'état seul,
+son bloc ouvert, et sans menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur
+écran étroit, c'est une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que
+si elle est rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au
+déclencheur.
 
 **La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
 (WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
@@ -230,30 +230,31 @@ dans ce délai, la connexion coupée pendant la réponse, un mandataire qui rép
 la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois (#687). Seule une
 requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte inconnu) ne la ferme
 pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
-(`Unreachable`), que l'écran dit comme tel. Quand la session que nomme le témoin ne vit plus, la requête
-ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de
-panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
+(`Unreachable`), que l'écran dit comme tel. Quand la session que nomme le témoin ne vit plus, la
+requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran
+de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
 d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
 (`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
-une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme les sessions
-du compte par `closeMySessions`, puis efface celles que le front garde de ce compte, sans attendre
-Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et `/login`
-redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un témoin
-fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ; `/login`
-l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le navigateur
-va au point de déconnexion du royaume. Quand la session que nomme le témoin ne vit plus, la requête
-ne part pas, et le navigateur passe par une connexion silencieuse (`/login?sign_out=1`,
+une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme
+les sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte,
+sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
+`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
+témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
+`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
+navigateur va au point de déconnexion du royaume. Quand la session que nomme le témoin ne vit plus,
+la requête ne part pas, et le navigateur passe par une connexion silencieuse (`/login?sign_out=1`,
 `prompt=none`) : son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
 qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
 Keycloak non plus, il n'y a plus de poste à fermer (#689). Une navigation attend les écritures en
 cours d'une grille (`holdNavigation`, `useNavigationHold`) : une refusée — la session perdue
-comprise —, elle n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
-désactivation, retrait des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du
-front et non une opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume
-et efface les sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts`
-(`openid-client`, `jose`) et `src/session/store.ts` (`@redis/client`) atteignent Keycloak et
-Redis, chacun les siennes seulement : ESLint refuse ces bibliothèques ailleurs, et chacun des deux
-modules celles de l'autre (`src/api/network-guard.test.ts`).
+comprise —, elle n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688).
+Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
+des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
+opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume et efface les
+sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts` (`openid-client`, `jose`) et
+`src/session/store.ts` (`@redis/client`) atteignent Keycloak et Redis, chacun les siennes seulement
+: ESLint refuse ces bibliothèques ailleurs, et chacun des deux modules celles de l'autre
+(`src/api/network-guard.test.ts`).
 
 Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
 navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;

@@ -63,8 +63,8 @@ export type BoundaryError = Error & { readonly digest?: string | undefined };
 /**
  * What the screen of failure says: the API out of reach, no session — the front held none, and
  * the screen leads to the sign-in page at once, or the API refused the one it held, and the screen
- * offers the way to sign in —, the account deactivated or not admitted, or a defect, with its reference when the
- * error carries one.
+ * offers the way to sign in —, the account deactivated or not admitted, or a defect, with its
+ * reference when the error carries one.
  */
 export type Failure =
   | {
