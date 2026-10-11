@@ -679,3 +679,59 @@ describe("the filters of the journal", () => {
     expect(screen.queryByRole("combobox", { name: "Auteur" })).toBeNull();
   });
 });
+
+describe("an anonymised account in the journal", () => {
+  const ALIX = "01926f3a-7c00-7000-8000-000000000303";
+  const designated = example("audit_events_anonymized_object") as Journal;
+  const authored = example("audit_events_anonymized_actor") as Journal;
+  const authors = (example("audit_facets_anonymized") as components["schemas"]["AuditFacets"])
+    .actors;
+
+  it("names it as the object of its inscriptions by the neutral label alone, every inscription kept with its date and its action [WF-SEC-0030-A]", () => {
+    page.search = `object_kind=user&object_id=${ALIX}`;
+    render(
+      journal({ shown: designated, named: { ...NAMED, object: { label: null, kind: "user" } } }),
+    );
+    const rows = within(grid()).getAllByRole("row").slice(1, -1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringMatching(/Camille MartinAnonymisation d’un compteCompteCompte anonymisé/),
+      expect.stringMatching(/Camille MartinDésactivation d’un compteCompteCompte anonymisé/),
+      expect.stringMatching(/Camille MartinCréation d’un compteCompteCompte anonymisé/),
+    ]);
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
+    expect(
+      within(grid()).getAllByRole("link", { name: "Histoire de « Compte anonymisé »" }),
+    ).toHaveLength(3);
+    expect(
+      screen.getByRole("link", { name: "Lever le filtre sur « Compte anonymisé »" }),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
+  });
+
+  it("names it as the author of its inscriptions, and among the authors to choose, by the neutral label alone [WF-ADM-0060-A]", () => {
+    page.search = `user_id=${ALIX}`;
+    render(
+      journal({
+        shown: authored,
+        users: authors.map((actor) => ({ id: actor.user_id, name: actor.display_name })),
+      }),
+    );
+    const row = within(grid()).getAllByRole("row")[1];
+    expect(row?.textContent).toMatch(/^.+Compte anonymiséApplication d’un import/);
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(author).toHaveValue(ALIX);
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Compte anonymisé",
+    );
+    expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
+  });
+
+  it("keeps an anonymised author no choice offers under the neutral label, to be cleared [WF-ADM-0060-A]", () => {
+    page.search = `user_id=${ALIX}`;
+    render(journal({ shown: authored, users: [], named: { ...NAMED, user: null } }));
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Compte anonymisé",
+    );
+  });
+});

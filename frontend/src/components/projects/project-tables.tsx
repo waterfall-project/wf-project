@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { useAccountNaming } from "@/components/account/account-name";
 import { LocalTime } from "@/components/local-time";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
@@ -84,14 +85,20 @@ export function ListTable({
   );
 }
 
-/** Who made a transition: the name of their account, or an automatic process of the platform. */
+/**
+ * Who made a transition: the name of their account — the neutral label for an account anonymised
+ * since (WF-ADM-0060) —, or an automatic process of the platform.
+ */
 export function Actor({ actor }: { readonly actor: StateTransition["actor"] }) {
   const t = useTranslations("enums.ActorRef.kind");
+  const naming = useAccountNaming();
   const Icon = actor.kind === "platform" ? Bot : User;
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon aria-hidden="true" className={ICON} />
-      {actor.display_name ?? t(actor.kind)}
+      {actor.kind === "user" && actor.display_name !== undefined
+        ? naming.kept(actor.display_name)
+        : t(actor.kind)}
     </span>
   );
 }

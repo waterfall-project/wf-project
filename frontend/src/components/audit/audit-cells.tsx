@@ -3,9 +3,10 @@
 /**
  * The cells of the journal of audit that show more than a value formatted (WF-SEC-0030): the
  * author, an account by the name the inscription keeps — that of the moment of the action, kept
- * after the account is deactivated (WF-ADM-0060) — or the platform; the action and the nature of
- * the object, in words; the object and the project, by the names the inscription keeps, each a link
- * to it when the session may consult it (WF-ADM-0110), its name alone otherwise; the link to the
+ * after the account is deactivated, and the neutral label once it is anonymised (WF-ADM-0060) — or
+ * the platform; the action and the nature of the object, in words; the object and the project, by
+ * the names the inscription keeps — an account anonymised by the neutral label —, each a link to it
+ * when the session may consult it (WF-ADM-0110), its name alone otherwise; the link to the
  * history of the object, the journal filtered on it; and the correlation, a link to the inscriptions
  * of its request alone (WF-OBS-0020). A link is out of the order of tabulation,
  * the grid being one stop, which follows it on Enter (`grid-keyboard.ts`).
@@ -18,6 +19,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { useAccountNaming } from "@/components/account/account-name";
 import { usePendingLink } from "@/components/grid/pending-address";
 
 import {
@@ -32,11 +34,25 @@ type AuditEvent = components["schemas"]["AuditEvent"];
 /** How a link of a cell shows: the whole cell, its text cut short. */
 const LINK = "block truncate underline-offset-2 hover:underline";
 
-/** Render the author of an inscription: the name of the account, or the platform. */
+/**
+ * The name of the object of an inscription: the label it bore at the moment of the action; for an
+ * account anonymised since, the neutral label; for a backup, which has none, its nature.
+ */
+export function useObjectName(): (object: Pick<AuditEvent["object"], "label" | "kind">) => string {
+  const t = useTranslations("enums.AuditObjectKind");
+  const naming = useAccountNaming();
+  return ({ label, kind }) => label ?? (kind === "user" ? naming.kept(null) : t(kind));
+}
+
+/**
+ * Render the author of an inscription: the name of the account — the neutral label for an account
+ * anonymised —, or the platform.
+ */
 export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
   const t = useTranslations("enums.AuditActorKind");
+  const naming = useAccountNaming();
   return actor.kind === "user" && actor.display_name !== undefined ? (
-    actor.display_name
+    naming.kept(actor.display_name)
   ) : (
     <span className="text-muted-foreground">{t(actor.kind)}</span>
   );
@@ -55,9 +71,9 @@ export function ObjectKindCell({ kind }: { readonly kind: AuditObjectKind }) {
 }
 
 /**
- * Render the object of an inscription by the label it bore at the moment of the action — or, for
- * one that has none, a backup, by its nature, never by its identifier —, a link to it when the
- * session may consult it.
+ * Render the object of an inscription by the label it bore at the moment of the action — an account
+ * anonymised since by the neutral label; a backup, which has none, by its nature, never by its
+ * identifier —, a link to it when the session may consult it.
  */
 export function ObjectCell({
   object,
@@ -66,10 +82,10 @@ export function ObjectCell({
   readonly object: AuditEvent["object"];
   readonly href: string | undefined;
 }) {
-  const t = useTranslations("enums.AuditObjectKind");
+  const name = useObjectName()(object);
   const label = object.label;
   if (label === null) {
-    return <span className="text-muted-foreground">{t(object.kind)}</span>;
+    return <span className="text-muted-foreground">{name}</span>;
   }
   return href === undefined ? (
     label
@@ -114,7 +130,7 @@ export function HistoryCell({ object }: { readonly object: AuditEvent["object"] 
   const t = useTranslations();
   const pathname = usePathname();
   const { href, onClick } = usePendingLink((query) => historyHref(pathname, query, object));
-  const name = object.label ?? t(`enums.AuditObjectKind.${object.kind}`);
+  const name = useObjectName()(object);
   return (
     <Link
       href={href}
