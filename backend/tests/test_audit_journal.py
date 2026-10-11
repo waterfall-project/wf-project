@@ -229,6 +229,8 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "background_task": {"SELECT", "INSERT", "UPDATE"},
     # Recorded by the worker and read; neither marked nor deleted until EP-13 (WF-ADM-0170).
     "backup": {"SELECT", "INSERT"},
+    # The report of a reading of the accounts, kept and read; neither changed nor deleted.
+    "identity_sync_report": {"SELECT", "INSERT"},
 }
 
 
