@@ -183,7 +183,7 @@ def _bootstrap(
     """Install what nobody may enter without, unless it is installed.
 
     Give its administrator and its language: those of the installation already made, whatever the
-    settings say now.
+    settings say now — an address that is not the administrator's is said ignored, without it.
     """
     with database.transaction() as session:
         installation = session.get(Installation, THE_ROW)
@@ -193,6 +193,8 @@ def _bootstrap(
         if administrator is None:
             raise InstallationRefusedError(NO_ADMINISTRATOR)
         logger.info("installation.already_installed")
+        if administrator.email.lower() != settings.admin_email.lower():
+            logger.warning("installation.admin_email_ignored", user_id=str(administrator.user_id))
         return administrator, language
     roles = predefined_roles(settings.default_language)
     label = next(role.label for role in roles if role.key == "administrator")

@@ -333,6 +333,22 @@ def test_the_installation_applies_the_migrations_and_labels_its_roles_in_its_lan
     assert token not in logs.text
 
 
+def test_a_second_installation_for_another_address_says_it_ignores_it(
+    database_url: str, address: str, logs: Logs
+) -> None:
+    # The administrator is that of the installation made: another address, given since, makes no
+    # second one, and the logs say it is ignored — without it.
+    link_of(settings_of(database_url, address))
+    other = f"autre.{address}"
+    link_of(settings_of(database_url, other))
+    (ignored,) = logs.named("installation.admin_email_ignored")
+    assert ignored["level"] == "warning"
+    assert other not in logs.text
+    # The same address, in other letters, is the administrator's.
+    link_of(settings_of(database_url, address.upper()))
+    assert len(logs.named("installation.admin_email_ignored")) == 1
+
+
 def test_the_installation_gives_the_realm_its_language_at_each_run(
     database_url: str, address: str
 ) -> None:
