@@ -126,7 +126,7 @@ def second_level(projection: str) -> set[str]:
         # A function whose paragraph has no box in a figure is a function all the same.
         ("#### 3.4.9.1. FBS-9.1\u00a0: Nouvelle\n", {"FBS-9.1"}),
         # Neither a function of the third level, nor a code cited in a sentence.
-        ("##### 3.4.9.1.1. FBS-9.1.1 : Détail\nVoir FBS-9.2 : rien.\n", set()),
+        ("##### 3.4.9.1.1. FBS-9.1.1 : Détail\nVoir FBS-9.2 : rien.\n", set[str]()),
     ],
 )
 def test_the_functions_of_the_second_level_are_read_in_the_figures_and_the_headings(
