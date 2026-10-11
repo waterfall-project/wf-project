@@ -19,7 +19,8 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { PermissionMatrix } from "./permission-matrix";
+import { PermissionMatrix } from "./account-lists";
+import { MatrixWrites } from "./permission-matrix";
 
 // The server of Next, as far as the matrix needs it: the fake back, the page read anew once a role
 // is written, and the address it reads.
@@ -58,6 +59,21 @@ function withCode(role: Schemas["AccessRole"], code: string): string[] {
   return permissions
     .map((permission) => permission.code)
     .filter((each) => each === code || role.permissions.includes(each));
+}
+
+/** The matrix as a session that may modify the roles has it: its cells within its writes. */
+function Written({
+  permissions: shown,
+  roles: retained,
+}: {
+  readonly permissions: readonly Schemas["Permission"][];
+  readonly roles: readonly Schemas["AccessRole"][];
+}) {
+  return (
+    <MatrixWrites order={shown.map(({ code }) => code)} roles={retained}>
+      <PermissionMatrix permissions={shown} roles={retained} editable />
+    </MatrixWrites>
+  );
 }
 
 /** Render in a language. */
@@ -138,12 +154,12 @@ describe("the matrix of the permissions", () => {
     expect(read.container.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(4);
     await expectAccessible(read.container);
     read.unmount();
-    const written = rendered(<PermissionMatrix permissions={shapes} roles={roles} editable />);
+    const written = rendered(<Written permissions={shapes} roles={roles} />);
     await expectAccessible(written.container);
   });
 
   it("speaks English in English", () => {
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable />, "en");
+    rendered(<Written permissions={permissions} roles={roles} />, "en");
     expect(screen.getByRole("rowheader", { name: "Irreversible action" })).toHaveAttribute(
       "rowspan",
       "8",
@@ -172,7 +188,7 @@ describe("the matrix of the permissions, where they are modified", () => {
       { [ROLE]: { problem: STALE } },
       () => new Promise((settle) => (answer = settle)),
     );
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable />);
+    rendered(<Written permissions={permissions} roles={roles} />);
     const planning = cell("Modifier la planification", "Manager");
     expect(planning).not.toBeChecked();
     expect(cell("Consulter tous les projets", "Manager")).toBeChecked();
@@ -204,7 +220,7 @@ describe("the matrix of the permissions, where they are modified", () => {
 
   it("keeps each irreversible or structuring action a cell of its own, written alone: the modification of the estimate without the marking, the marking without the merge, nor the creation of a project [WF-ADM-0100-A]", async () => {
     const client = serve({ [ROLE]: { problem: STALE } });
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable />);
+    rendered(<Written permissions={permissions} roles={roles} />);
     // The estimator modifies the estimate and marks no revision, merges no differential, creates no
     // project: four cells, one checked.
     expect(cell("Modifier le chiffrage et le devis", "Chiffreur")).toBeChecked();
@@ -225,7 +241,7 @@ describe("the matrix of the permissions, where they are modified", () => {
 
   it("tells the last administrator the server refuses to deprive by the catalogue, and shows the role as it was", async () => {
     const client = serve({ [ROLE]: { problem: LAST_ADMINISTRATOR } });
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable />);
+    rendered(<Written permissions={permissions} roles={roles} />);
     const users = cell("Modifier les utilisateurs", "Direction de projet");
     await userEvent.click(users);
     const alert = await screen.findByRole("alert");
@@ -240,7 +256,7 @@ describe("the matrix of the permissions, where they are modified", () => {
 
   it("offers to read the page anew when the role changed since it was read", async () => {
     serve({ [ROLE]: { problem: STALE } });
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} editable />);
+    rendered(<Written permissions={permissions} roles={roles} />);
     await userEvent.click(cell("Consulter le journal d’audit", "Manager"));
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByRole("button", { name: /Recharger/ })).toBeInTheDocument();
@@ -252,19 +268,13 @@ describe("the matrix of the permissions, where they are modified", () => {
       { [ROLE]: { problem: LAST_ADMINISTRATOR } },
       () => new Promise((settle) => (answer = settle)),
     );
-    const { rerender } = rendered(
-      <PermissionMatrix permissions={permissions} roles={roles} editable />,
-    );
+    const { rerender } = rendered(<Written permissions={permissions} roles={roles} />);
     await userEvent.click(cell("Modifier les utilisateurs", "Direction de projet"));
     // The table searched meanwhile: the refusal says nothing of the reading now shown.
     page.search = "search=Direction";
     rerender(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-        <PermissionMatrix
-          permissions={permissions}
-          roles={[roleNamed("Direction de projet")]}
-          editable
-        />
+        <Written permissions={permissions} roles={[roleNamed("Direction de projet")]} />
       </NextIntlClientProvider>,
     );
     const users = cell("Modifier les utilisateurs", "Direction de projet");

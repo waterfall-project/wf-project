@@ -6,27 +6,27 @@
  * filtered by the server as the address asks under the names of the contract (#515, EP-02/L42f) —
  * `sort_by`, `sort_order`, `search`, the kind `is_predefined`, the bounds of the holders
  * `holder_count_min` and `holder_count_max`, which, refused (422), leave the grid unread and are
- * said at their field —, its sort and its filters kept with the settings of the grid; the volumes of
- * §4.6.2 count no roles, three of them predefined: the list holds in one page, which the contract
- * does not page, and says how many roles it retains —; and the matrix of the permissions by function
- * of the second level, as `listPermissions` gives the catalogue, a column for each role the table
- * retains, in its order (WF-ADM-0100, US-0380). A session that may modify the roles creates one in
- * line, renames one in its cell, deletes one from its row, and writes their permissions in the
- * matrix (US-0380, #380); another, none. No screen creates a permission. A read the API refuses, or
- * cannot answer, is thrown for the pages of the shell to say.
+ * said at their field —; the volumes of §4.6.2
+ * count no roles, three of them predefined: the list holds in one page, which the contract does not
+ * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
+ * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
+ * session that may modify the roles creates one in line, renames and deletes it in the table, and
+ * writes its permissions in the matrix (US-0380/L2); another, none. No screen creates
+ * a permission. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
+ * say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { AccessRoleList } from "@/components/admin/account-lists";
+import { AccessRoleList, PermissionMatrix } from "@/components/admin/account-lists";
 import {
   ACCESS_ROLE_GRID_KEY,
   ACCESS_ROLE_SORTS,
   type AccessRoleSort,
 } from "@/components/admin/admin-grids";
-import { PermissionMatrix } from "@/components/admin/permission-matrix";
+import { MatrixWrites } from "@/components/admin/permission-matrix";
 import { HOLDER_COUNT, PREDEFINED, rolesQuery } from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
 import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
@@ -107,7 +107,13 @@ export default async function AccessRolesPage({
           filters={{ predefined, holders, refused }}
           editable={editable}
         />
-        <PermissionMatrix permissions={permissions} roles={listed} editable={editable} />
+        {editable ? (
+          <MatrixWrites order={permissions.map(({ code }) => code)} roles={listed}>
+            <PermissionMatrix permissions={permissions} roles={listed} editable />
+          </MatrixWrites>
+        ) : (
+          <PermissionMatrix permissions={permissions} roles={listed} editable={false} />
+        )}
       </PendingAddress>
     </Screen>
   );

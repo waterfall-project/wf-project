@@ -14,15 +14,12 @@
  *   EP-03 wires (`UserCommand`) — none deletes an account —, the last two as the account lists them
  *   (`available_commands`): the deactivation of the last administrator unavailable (WF-ADM-0120).
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
- *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell — the
- *   renaming, written from the version read with the permissions the row reads (`updateAccessRole`),
- *   the server answering the role as it now is — and the command to delete it (`DeleteRole`),
- *   unavailable while an account holds it (US-0380, #380).
+ *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
+ *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
  *
  * The server filters each on its columns (WF-IHM-0130, EP-02/L42f): the accounts by their origin,
  * their node, their access roles — one at least of those chosen — and their state; the roles by
- * their kind and between bounds of their holders, deactivated accounts counted, their search and
- * their filters kept with the settings of the grid (`GridConfig.filters`, US-0380).
+ * their kind and between bounds of their holders, deactivated accounts counted, and kept (US-0380).
  *
  * Neither server nor client: the page reads the keys and the columns sorted; the grids, in the
  * browser, the rest — the functions that read a row never cross to the server.
@@ -222,31 +219,19 @@ function RoleKind({ role }: { readonly role: AccessRole }) {
   return role.is_predefined ? t("predefined") : t("composed");
 }
 
-/** The column of the deletion of a role, for a session that may modify the roles. */
-const DELETION: GridColumn<AccessRole, AccessRoleSort, null> = {
-  key: "delete",
-  label: "delete",
-  format: "text",
-  width: COMMAND_WIDTH,
-  value: () => null,
-  render: (role) => <DeleteRole role={role} />,
-};
+/** The columns of the commands of a role, for a session that may modify the roles. */
+function commandColumns(): GridColumn<AccessRole, AccessRoleSort, null>[] {
+  return (["delete"] as const).map((command) => ({
+    key: command,
+    label: command,
+    format: "text",
+    width: COMMAND_WIDTH,
+    value: () => null,
+    render: (role) => <DeleteRole role={role} />,
+  }));
+}
 
-/**
- * The server answered the modification of another role than the one renamed: an unexpected error
- * of the service, told as such, which nothing takes the place of the row for.
- */
-const ANOTHER_ROLE: Outcome<never> = {
-  kind: "refused",
-  problem: { code: "INTERNAL_ERROR", status: 500 },
-  conflictingObjectId: null,
-};
-
-/**
- * The renaming of a role in its cell: its label, never blank, as long as the contract takes it,
- * written from the version read with the permissions the row reads; the role the server answers
- * takes the place of the row, each answer counted after the one before it.
- */
+/** The renaming of a role in its cell, from the version read with the permissions of the row. */
 function renaming(): CellEntry<AccessRole, null> {
   let answered = 0;
   return {
@@ -266,9 +251,6 @@ function renaming(): CellEntry<AccessRole, null> {
       if (outcome.kind !== "done") {
         return outcome;
       }
-      if (outcome.data.access_role_id !== role.access_role_id) {
-        return ANOTHER_ROLE;
-      }
       answered += 1;
       const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
       return { kind: "done", data: { ...written, order: answered } };
@@ -278,8 +260,7 @@ function renaming(): CellEntry<AccessRole, null> {
 
 /**
  * The grid of the access roles: the label, the kind, the number of accounts that hold it — each
- * sorted by the server —, and, for a session that may modify the roles, the label entered and the
- * deletion; the search and the filters of the screen kept with its settings.
+ * sorted by the server —, and, for a session that may modify the roles, its commands.
  */
 export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, AccessRoleSort, null> {
   return {
@@ -321,7 +302,7 @@ export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, Access
         contract: "holder_count",
         value: (role) => role.holder_count.toString(),
       },
-      ...(editable ? [DELETION] : []),
+      ...(editable ? commandColumns() : []),
     ],
   };
 }

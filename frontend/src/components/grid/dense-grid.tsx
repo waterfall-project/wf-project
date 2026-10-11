@@ -46,7 +46,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -108,7 +107,7 @@ import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
-import { CONTRACT_ADDRESS, type GridQuery, type GridSort, searchHref, sortHref } from "./query";
+import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
   type GridPreferences,
   initialSettings,
@@ -678,12 +677,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
   // The filters its screen keeps with its settings, as the page last showed them (`kept-filters.ts`).
-  const reading = useMemo(() => {
-    const names = config.address ?? CONTRACT_ADDRESS;
-    return config.filters === undefined
-      ? undefined
-      : { filters: [names.search, ...config.filters], sort: [names.sortBy, names.sortOrder] };
-  }, [config]);
   const { recordShown, shown } = writer;
   const recordFilters = useCallback(
     (filters: KeptFilters) => {
@@ -694,7 +687,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     },
     [preferences, recordShown, shown],
   );
-  const kept = useKeptFilters(reading, preferences, recordFilters);
+  const kept = useKeptFilters(config, preferences, recordFilters);
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
 

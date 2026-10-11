@@ -31,10 +31,7 @@ export const ROLE_FILTERS: readonly string[] = [
   ...Object.values(boundNames(HOLDER_COUNT)),
 ];
 
-/**
- * The parameters of the address the list of the roles reads — its search, its sort and its filters —:
- * what a refusal of a command of the roles is told on (`Reactivations`).
- */
+/** What the list of the roles reads of the address, which a refusal is told on (`Reactivations`). */
 export const ROLE_READS = listReads(CONTRACT_ADDRESS, ...ROLE_FILTERS);
 
 /** What the page asks `listAccessRoles`: the query of the contract. */

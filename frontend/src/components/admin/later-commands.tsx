@@ -3,9 +3,9 @@
 /**
  * The commands of the accounts (FBS-1.1, #379, #515), placed before EP-03 wires them (US-0360/L3):
  * create a local account, modify one, deactivate or reactivate it, attribute its roles — no account
- * is deleted (WF-ADM-0060) —; those of the access roles are wired (`role-commands.tsx`). They are
- * offered only to a session that may modify the function — `users.write` (`platformOffer`) —, and
- * none to another: the screen presents only what the user may do (WF-IHM-0090). An account lists its own commands besides
+ * is deleted (WF-ADM-0060). They are offered only to a session that may modify the accounts —
+ * `users.write` (`platformOffer`) —, and none to another: the screen presents only what the user may
+ * do (WF-IHM-0090). An account lists its own commands besides
  * (`User.available_commands`): its deactivation or its reactivation, and the attribution of its
  * roles, each presented as the server lists it — absent, not presented; unavailable, with the
  * condition it lacks: the last account active that holds the permissions of administration is not

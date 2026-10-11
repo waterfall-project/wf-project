@@ -2,16 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the access roles (FBS-1.2, US-0380): a role created, modified — renamed, or
- * its permissions written by the matrix — or deleted (`createAccessRole`, `updateAccessRole`,
- * `deleteAccessRole`). The screen asks the server of Next, which calls the API (§4.3.1), and gets
- * back the outcome the one decoder makes of its answer (`src/api/problem.ts`): a refusal is told by
- * the catalogue of the codes of error — the role an account holds (`ACCESS_ROLE_IN_USE`), the last
- * administrator (`LAST_ADMINISTRATOR`, WF-ADM-0120).
- *
- * Every write answered reads the page anew: the table and the matrix list the roles as the server
- * retains them, a role created among them, a role deleted no longer — it is neither read nor
- * attributable (WF-ADM-0090) —, and the permissions of the session itself may have changed with
- * those of a role it holds, which the commands of the screen follow (WF-ADM-0110).
+ * its permissions written — or deleted, decoded into an outcome (`src/api/problem.ts`). Every write
+ * answered reads the page anew: the roles as the server retains them, and the permissions of the
+ * session, which a role it holds may have changed (WF-ADM-0110).
  */
 "use server";
 
@@ -22,8 +15,6 @@ import { decode, type Outcome, type Settled, settled } from "@/api/problem";
 import { serverClient } from "@/api/server";
 
 type Schemas = components["schemas"];
-
-/** An access role, as the server answers a write of it. */
 type AccessRole = Schemas["AccessRole"];
 
 /** Read the page anew once a write is answered. */
@@ -41,10 +32,7 @@ export async function createAccessRole(
   return readAnew(await decode(() => serverClient().POST("/access-roles", { body: role })));
 }
 
-/**
- * Modify a role from the version read: its label and its permissions, whole. The change applies at
- * once to every account that holds it (WF-ADM-0090).
- */
+/** Modify a role, whole, from the version read: at once for its holders (WF-ADM-0090). */
 export async function updateAccessRole(
   accessRoleId: string,
   role: Schemas["AccessRoleUpdate"],

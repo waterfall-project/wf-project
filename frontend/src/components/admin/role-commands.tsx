@@ -1,23 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The commands of the table of the access roles (FBS-1.2, US-0380, #380), for a session that may
- * modify them (`access_roles.write`, `platformOffer`): a role created in line, at the head of the
- * table, from its label alone — its permissions are written in the matrix, the place of their
- * modification —, and each role deleted from its row — a logical deletion (#456): the role is no
- * longer read nor attributable (WF-ADM-0090). Its renaming is the entry of its label, in its cell
- * (`admin-grids.tsx`).
- *
- * The deletion of a role an account holds is presented unavailable, as the server would refuse it
- * (`ACCESS_ROLE_IN_USE`, WF-ADM-0090): marked `aria-disabled`, described by its condition, and a
- * press says the condition in the region of the table, without running it. What a write did is said
- * in that region; a refusal of the server is told above the table by the catalogue of the codes of
- * error, on the reading it was asked from alone (`Reactivations`). Every write answered reads the
- * page anew (`access-roles.ts`): a role created is listed where the server retains it.
- *
- * Every prop is data — the role as the list gives it —, never a function: a server component hands
- * them over (défaut n° 12 de `typescript.md`). In a dense grid, a command is out of the order of
- * tabulation, the grid being one stop: Enter on its cell presses it (`CELL_COMMAND`).
+ * The commands of the table of the access roles (US-0380, #380), for a session that may modify them
+ * (`access_roles.write`): a role created in line from its label alone — its permissions are written
+ * in the matrix —, and deleted from its row — a logical deletion (#456) —, unavailable while an
+ * account holds it, as the server would refuse it (`ACCESS_ROLE_IN_USE`, WF-ADM-0090); its renaming
+ * is the entry of its label (`admin-grids.tsx`). What a write did is said in the region of the table;
+ * a refusal, above it by the catalogue of the codes of error, on the reading it was asked from alone
+ * (`Reactivations`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
@@ -49,12 +39,6 @@ import { LABEL_LENGTH, ROLE_READS } from "./role-address";
 
 type AccessRole = components["schemas"]["AccessRole"];
 
-/** What the last write of the table said, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /** How a command of the table says what it did; none outside the table. */
 const Say = createContext<((text: string) => void) | undefined>(undefined);
 
@@ -63,7 +47,8 @@ const Say = createContext<((text: string) => void) | undefined>(undefined);
  * so that a reader of the screen hears what is put in it —, and the refusals told above the table.
  */
 export function RoleCommands({ children }: { readonly children: ReactNode }) {
-  const [said, setSaid] = useState<Said>();
+  // What the last write said, and the how-many-th it was.
+  const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
   const say = useCallback((text: string) => {
     setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
   }, []);
