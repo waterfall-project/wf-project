@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The images of Waterfall (US-0430): front, waterfall — the API, the worker, its schedule and the
+# migrations — and keycloak, built at each push to main or to an epic branch, that is at each merge,
+# which the merge queue has already held to the chain, and published on ghcr.io/waterfall-project,
+# tagged by commit, by branch, and on main by version, once: the tag of a version is immutable
+# (make images). Nothing is published from a pull request: none triggers this workflow. No secret
+# enters a build (WF-SEC-0010); the token that publishes is given to the login alone.
+name: images
+
+on:
+  push:
+    branches: [main, "epic/**"]
+
+permissions:
+  contents: read
+
+# A merge waits for the publication of the one before it on its branch, never cancels it. GitHub
+# keeps one run waiting by group, though: a third merge cancels the one that waits. The last merge
+# wins — the tag of the branch ends on it —, and a commit between two may have no image.
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Writing packages is what publishing is: this job alone asks for it.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - env:
+          IMAGE_BRANCH: ${{ github.ref_name }}
+          IMAGE_COMMIT: ${{ github.sha }}
+        run: make images PUSH=yes

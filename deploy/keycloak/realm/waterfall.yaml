@@ -159,8 +159,8 @@ clients:
     serviceAccountsEnabled: true
 
   # The client every realm has for its command line: no sign-in by password, which would be a way
-  # around the page of the realm the conception does not plan (#644). The development platform
-  # declares its own client of test for the tokens its tests need (development/waterfall.yaml).
+  # around the page of the realm the conception does not plan (#644). The platform of the
+  # workstation declares its own client of test for the tokens its tests need.
   # Declared here, it is managed: removed from this file, keycloak-config-cli would delete it.
   - clientId: admin-cli
     directAccessGrantsEnabled: false

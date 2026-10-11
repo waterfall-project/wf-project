@@ -46,6 +46,7 @@ jobs:
       contract: ${{ steps.families.outputs.contract }}
       back: ${{ steps.families.outputs.back }}
       front: ${{ steps.families.outputs.front }}
+      front-image: ${{ steps.families.outputs.front-image }}
       roadmap: ${{ steps.families.outputs.roadmap }}
       keycloak: ${{ steps.families.outputs.keycloak }}
       service: ${{ steps.families.outputs.service }}
@@ -99,6 +100,13 @@ jobs:
     if: needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/e2e.yml
 
+  # The production image of the front, built and started when a pull request changes what makes
+  # it (US-0430): images.yml publishes it after the merge alone.
+  front-image:
+    needs: changes
+    if: needs.changes.outputs.front-image == 'true'
+    uses: ./.github/workflows/front-image.yml
+
   roadmap:
     needs: changes
     if: needs.changes.outputs.roadmap == 'true'
@@ -118,7 +126,7 @@ jobs:
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled.
-    needs: [changes, repo, spec, contract, back, front, e2e, roadmap, keycloak, service]
+    needs: [changes, repo, spec, contract, back, front, e2e, front-image, roadmap, keycloak, service]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The front but its end-to-end paths: the client is the contract's, lint, strict types, the
-# catalogues, then its production build with no API to reach and the unit tests in the fast
-# tier, the coverage in the full one (make check-front-code). The paths run beside it, in
-# e2e.yml, in the full tier only (#492).
+# catalogues, then its production build with no API to reach, the routes it prerendered and the
+# unit tests in the fast tier, the coverage in the full one (make check-front-code). The paths
+# run beside it, in e2e.yml, in the full tier only (#492).
 name: front
 
 on:

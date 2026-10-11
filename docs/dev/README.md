@@ -1206,8 +1206,9 @@ garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance au
 palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
 au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, la mesure du
-§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). `make typecheck-front`,
-`make test-front` ;
+§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). Après l'une ou l'autre
+construction, `make prerendered-front` affirme qu'elle n'a prérendu aucune page (« Chaîne »).
+`make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
 
 ## Le faux back
@@ -1326,7 +1327,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap`, `keycloak`, `service` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
 | `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
 | `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
@@ -1336,6 +1337,9 @@ commande.
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
 | `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) — : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
+| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
+| `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
+| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond sans variable de la plateforme, que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -1409,8 +1413,9 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
   front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
   bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
-  au palier complet seulement (`make e2e`, `make e2e-measure`) ; sur un poste,
-  `make check-front` enchaîne les deux moitiés, `check-front-code` puis `check-front-e2e`.
+  au palier complet seulement (`make e2e`, `make e2e-measure`, puis `make prerendered-front`
+  sur la construction de la mesure) ; sur un poste, `make check-front` enchaîne les deux
+  moitiés, `check-front-code` puis `check-front-e2e`.
   `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
   royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
   réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur
@@ -1422,6 +1427,63 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
   que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
   installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
+  `front-image.yml` construit et démarre l'image de production du front, que `images.yml` ne
+  publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
+  `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
+  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` —, et non sur le
+  code du front, que la famille `front` construit déjà ; elle coûte une construction d'environ
+  une minute et demie. Ce qui est prérendu, c'est le code des pages qui le décide — un
+  `layout.tsx` qui cesserait de lire les cookies, une page qui ne lirait aucune valeur de la
+  requête — : la famille `front` l'affirme donc elle-même, sans Docker, sur le manifeste de sa
+  propre construction (`make prerendered-front`), après `make build-front` au palier rapide et
+  après la construction de la mesure au palier complet ; cette construction prérend comme celle
+  de l'image, dont la sortie autonome (`WATERFALL_STANDALONE=1`) ne change que l'empaquetage.
+  La famille `front-image` affirme que `/` répond sans variable de la plateforme, que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans
+  `WATERFALL_E2E` — `/` répond `500`, le serveur dit pourquoi —, et que `next build` n'a prérendu
+  (`.next/prerender-manifest.json`) que `/_global-error` et `/icon.svg` : aucune page qui lirait
+  l'environnement n'est figée à la construction.
+
+Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque poussée sur `main` ou
+sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,
+`waterfall` (l'API, le worker, sa planification et les migrations, commandes d'une même
+distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien de
+`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
+PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
+registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
+`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes.
+
+- **Les trois d'abord.** Les trois images sont construites avant toute poussée, et rien n'est
+  poussé si l'une échoue ; puis toutes les étiquettes du commit, et seulement ensuite celles qui
+  bougent — la branche, la version —, pour qu'une étiquette mobile ne désigne jamais des images
+  de deux commits.
+- **L'étiquette de version est immuable.** Elle ne se pose que depuis `main`, une seule fois, et
+  pour les trois images ensemble, qui viennent alors d'un même commit : avant de la poser,
+  l'outil demande au registre, image par image, s'il a déjà `<image>:<version>`
+  (`docker buildx imagetools inspect`). S'il ne l'a pour aucune, les trois la prennent ; s'il
+  l'a pour les trois, aucune ne la reprend, et les étiquettes du commit et de la branche se
+  publient seules : une fusion dans `main` qui ne monte pas la version ne la republie donc pas,
+  et c'est en montant `version` de `backend/pyproject.toml` (et du front) qu'une publication en
+  pose une nouvelle. Tout autre cas — le registre l'a pour certaines seulement, après une
+  publication interrompue, ou ne répond pas clairement qu'il ne l'a pas, comme le `403` de ghcr
+  pour un paquet absent ou illisible — ne la pose sur aucune : l'outil publie les étiquettes du
+  commit et de la branche, puis échoue en nommant chaque image et ce que le registre en a dit ;
+  la version se règle alors à la main, ou en la montant. Une branche d'EPIC, qui porte la même
+  version, ne la pose jamais ; le label `org.opencontainers.image.version` d'une image qui ne
+  prend pas l'étiquette de version le dit (`0.1.0+epic-EP-03` hors de `main`, `0.1.0+main` sur
+  `main` une fois la version publiée). Chaque image porte aussi son propre `title` et son `url`,
+  qui remplacent ceux de son image de base.
+- **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
+  commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
+  images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
+  dont le système de fichiers (`docker export`) contient une valeur de développement connue — la
+  marque `development-only`, que portent toutes celles de `deploy/keycloak/development/`, et les
+  secrets de poste de `.github/workflows/keycloak.yml`. L'outil nomme alors la valeur trouvée,
+  jamais la valeur elle-même. La fouille lit l'archive du conteneur telle quelle : une valeur
+  dans un fichier compressé lui échappe.
+- **La dernière fusion gagne.** Une publication attend celle de la fusion précédente sur sa
+  branche, sans l'annuler ; mais GitHub ne garde qu'une exécution en attente par groupe, et une
+  troisième fusion annule celle qui attend : l'étiquette de la branche finit sur la dernière, et
+  un commit intermédiaire peut ne pas avoir d'image.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
