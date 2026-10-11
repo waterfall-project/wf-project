@@ -241,7 +241,10 @@ sans attendre Keycloak — l'API d'administration ferme aussi la session de Keyc
 `/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
 témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
 `/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
-navigateur va au point de déconnexion du royaume. Quand la session que nomme le témoin ne vit plus,
+navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
+compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`,
+qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de
+confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
 la requête ne part pas, et le navigateur passe par une connexion silencieuse
 (`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
 hasard, gardé une minute dans Redis, que `/login` prend une seule fois (`armSignOut`,

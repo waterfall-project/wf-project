@@ -8,21 +8,23 @@
  * the link to it, and goes nowhere by itself: the token the front held was refused, and another
  * could be too. Either way the sign-in comes back to the screen (`loginHref`, from the address
  * the browser shows). Any other error is unexpected, with the reference that finds it again in
- * the logs when it carries one. In every case, the user may try again: the page is read anew
- * from the server.
+ * the logs when it carries one. An account Waterfall does not admit is offered the way out: the
+ * realm signs it in again at each sign-in, and the shell offers it no menu of the account (#664).
+ * In every case, the user may try again: the page is read anew from the server.
  *
  * A client component, as every error boundary of Next is: it receives the error as Next
  * forwards it (`failure.ts`), and the texts of the provider around it.
  */
 "use client";
 
-import { CircleAlert, RotateCcw } from "lucide-react";
+import { CircleAlert, LogOut, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 import { SignIn, useSignInHref } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { loadDocument } from "@/navigation/document";
+import { REALM_SIGN_OUT_ROUTE } from "@/navigation/login";
 
 import { type BoundaryError, type Failure, failureOf } from "./failure";
 
@@ -43,6 +45,23 @@ function LeadToSignIn() {
     loadDocument(href);
   }, [href]);
   return <SignIn />;
+}
+
+/**
+ * The way out of the session of the realm, a whole document loaded: the route sends the browser to
+ * another site, which the router of Next would fetch.
+ */
+function RealmSignOut() {
+  const t = useTranslations("failure");
+  return (
+    <a
+      href={REALM_SIGN_OUT_ROUTE}
+      className="inline-flex items-center gap-1.5 font-medium underline"
+    >
+      <LogOut aria-hidden="true" className="size-4" />
+      {t("signOut")}
+    </a>
+  );
 }
 
 /** The error a boundary caught, and how to try the page again. */
@@ -69,6 +88,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
         )}
         {failure.kind === "session_lost" ? <LeadToSignIn /> : null}
         {failure.kind === "signed_out" ? <SignIn /> : null}
+        {failure.kind === "not_admitted" ? <RealmSignOut /> : null}
       </div>
       <Button type="button" size="sm" onClick={retry}>
         <RotateCcw aria-hidden="true" />

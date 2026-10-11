@@ -21,8 +21,10 @@ import {
   grantRole,
   localAccount,
   type Person,
+  REALM,
   removeFromRealm,
   signIn,
+  under,
   waterfallAccount,
   withdrawRoles,
   withRealm,
@@ -45,7 +47,7 @@ test.beforeAll(async ({ browser, playwright }) => {
 });
 
 test.beforeEach(async ({ request }) => {
-  await compileAnswered(request, "/auth/callback", ACCOUNT, USERS);
+  await compileAnswered(request, "/auth/callback", "/auth/sign-out", ACCOUNT, USERS);
 });
 
 /** A page of a workstation of its own, in French, which trusts the front end of Keycloak. */
@@ -143,7 +145,7 @@ test("a return to another site after the sign-in is refused, and leads home", as
   await expect(page).toHaveURL("/");
 });
 
-test("an account of the realm Waterfall did not create is refused as not admitted, never as deactivated, and is not led back to the sign-in (#664)", async ({
+test("an account of the realm Waterfall did not create is refused as not admitted, never as deactivated, is not led back to the sign-in, and signs out of the realm, whose sign-in page asks for the identifiers anew (#664)", async ({
   page,
   request,
 }) => {
@@ -154,6 +156,14 @@ test("an account of the realm Waterfall did not create is refused as not admitte
     await expect(page).toHaveURL(ACCOUNT);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Compte non admis");
     await expect(page.getByRole("link", { name: "Se connecter" })).toHaveCount(0);
+    // The way out: the session of the realm ends — the realm, given no ID token, asks to confirm —
+    // and the sign-in asks for the identifiers, where it signed the account in again silently.
+    const signOut = page.getByRole("link", { name: "Se déconnecter" });
+    await expect(signOut).toHaveAttribute("href", "/auth/sign-out");
+    await signOut.click();
+    await expect(page).toHaveURL(under(`${REALM}/protocol/openid-connect/logout`));
+    await page.getByRole("button", { name: /déconnexion/i }).click();
+    await expectSignInPage(page);
   } finally {
     await removeFromRealm(request, id);
   }

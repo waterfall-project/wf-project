@@ -33,6 +33,12 @@ export function signOutHref(ticket: string): string {
   return `${LOGIN_ROUTE}?${new URLSearchParams({ [SIGN_OUT_PARAMETER]: ticket }).toString()}`;
 }
 
+/**
+ * The route that ends the session of the realm of an account Waterfall does not admit, which the
+ * API does not close (#664): the screen of failure offers it.
+ */
+export const REALM_SIGN_OUT_ROUTE = "/auth/sign-out";
+
 /** The page that says a sign-in could not be made, the service out of reach (#687). */
 export const SIGN_IN_UNAVAILABLE_ROUTE = `${LOGIN_ROUTE}/unavailable`;
 

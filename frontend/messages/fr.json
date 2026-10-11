@@ -1023,7 +1023,8 @@
     },
     "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "signOut": "Se déconnecter"
   },
   "loading": {
     "label": "Chargement de l’écran"
