@@ -43,7 +43,7 @@ from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
     give_first_roles,
-    guard_last_administrator,
+    guard_deactivation,
     holding_one_of,
     labels_held,
     roles_held_by,
@@ -82,9 +82,6 @@ router = APIRouter(tags=["users"])
 
 logger = get_logger(__name__)
 
-# The refusal of the deactivation of the last administrator, which its command says in advance.
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-LAST_ADMINISTRATOR_LACKING = {"missing_condition": "last_administrator"}
 CONSULTATION = "users.read"
 CHANGE = "users.write"
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -402,7 +399,7 @@ def put_user_activation(
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
-        with guard_last_administrator(session, STATE_FORBIDS_OPERATION, LAST_ADMINISTRATOR_LACKING):
+        with guard_deactivation(session):
             changed = set_account_activation(
                 session,
                 user_id,

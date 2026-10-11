@@ -156,9 +156,12 @@ def test_the_deactivation_of_an_account_signed_in_twice_interrupts_both_at_their
     # « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête
     # suivante. » The API reads the account at each request: both tokens are refused, whatever the
     # provider does of the sessions it is asked to close — here, nothing: it fails, and the
-    # deactivation stands all the same.
+    # deactivation stands all the same. Each device holds its own token, of its own session.
     paul = account(database, "Durand", "Paul", idp_subject="kc-paul")
-    office, home = (bearer(realm.token("kc-paul", KEY)) for _ in range(2))
+    office, home = (
+        bearer(realm.token("kc-paul", KEY, claims={"sid": device})) for device in ("office", "home")
+    )
+    assert office != home
     assert [client.get(ME, headers=device).status_code for device in (office, home)] == [200, 200]
     assert activate(client, headers, paul, is_active=False).status_code == 200
     for device in (office, home):
@@ -180,11 +183,20 @@ def test_the_deactivation_of_the_last_administrator_is_refused_until_a_second_on
     # permission. »
     jeanne_id, direction = jeanne
     account(database, "Durand", "Paul", roles=(direction,), state="deactivated")
+    (announced, _) = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()[
+        "available_commands"
+    ]
+    assert announced == {
+        "command": "deactivate",
+        "is_available": False,
+        "missing_conditions": ["last_administrator"],
+    }
+    # The refusal names the condition the command announced.
     refused = activate(client, headers, jeanne_id, is_active=False)
     assert problem(refused) == (
         409,
         "STATE_FORBIDS_OPERATION",
-        {"missing_condition": "last_administrator"},
+        {"missing_condition": announced["missing_conditions"][0]},
     )
     assert (row(database, jeanne_id), journal(database), watching.held) == (
         ("active", 0, None),
@@ -338,3 +350,32 @@ def test_a_role_deleted_while_the_attribution_waits_for_the_guard_is_refused(
         {"pointer": "/access_role_ids/0", "code": "UNKNOWN_ACCESS_ROLE"}
     ]
     assert (row(database, paul), journal(database)) == (("active", 0, None), [])
+
+
+@pytest.mark.parametrize("operation", ["activation", "access-roles"])
+def test_a_write_that_waits_for_the_guard_holds_no_lock_on_the_account(
+    client: ContractClient, database: Database, headers: dict[str, str], operation: str
+) -> None:
+    # The lock of the guard is taken before the account is locked, by every write that takes it:
+    # a write waiting for it holds nothing another one would wait for in turn. Locked first, the
+    # account would be held while the write waits, and could not be locked here.
+    paul = account(database, "Durand", "Paul")
+    answers: list[Any] = []
+    writing = threading.Thread(
+        target=lambda: answers.append(
+            activate(client, headers, paul, is_active=False)
+            if operation == "activation"
+            else give(client, headers, paul)
+        )
+    )
+    with Session(database.engine) as guarding:
+        lock_administrators(guarding)
+        writing.start()
+        wait_for_a_lock(database)
+        locked = guarding.scalar(
+            select(UserAccount.id).where(UserAccount.id == paul).with_for_update(nowait=True)
+        )
+        guarding.commit()
+    writing.join(timeout=10)
+    (answer,) = answers
+    assert (locked, answer.status_code) == (paul, 200)

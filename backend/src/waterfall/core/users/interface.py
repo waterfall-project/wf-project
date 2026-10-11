@@ -6,7 +6,8 @@ The label of an account; the author of a row, named as it is shown; which accoun
 the account the identity provider knows by a subject, as the account itself reads it; the account
 of a person the provider knows and Waterfall not yet, created without any role (WF-ADM-0180); an
 account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
-each one carries (WF-ADM-0050, WF-IHM-0090); a local account created, and the identity of an
+each one carries and the condition the deactivation of the last administrator lacks (WF-ADM-0050,
+WF-IHM-0090); a local account created, and the identity of an
 account changed (``identity``); an account deactivated or reactivated, and an account locked at the
 version read for a write of the roles it holds, which notes the change (``states``).
 """
@@ -34,7 +35,7 @@ from waterfall.core.users.accounts import (
     find_active_accounts,
     lock_account_at,
 )
-from waterfall.core.users.commands import CommandAvailability, account_commands
+from waterfall.core.users.commands import LAST_ADMINISTRATOR, CommandAvailability, account_commands
 from waterfall.core.users.identity import (
     Identity,
     IdentityChange,
@@ -61,6 +62,7 @@ from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
+    "LAST_ADMINISTRATOR",
     "Account",
     "AccountColumn",
     "AccountExpression",

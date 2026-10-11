@@ -838,35 +838,51 @@ def colleague(admin: httpx2.Client) -> Iterator[Account]:
     admin.delete(f"/users/{made.id}")
 
 
-# A write that leaves an account without access, and what the API answers the account after it.
-INTERRUPTING: list[tuple[str, dict[str, object], tuple[int, str | None]]] = [
-    ("activation", {"is_active": False}, (401, "ACCOUNT_DEACTIVATED")),
-    ("access-roles", {"access_role_ids": []}, (200, None)),
-]
+type Devices = tuple[dict[str, Any], dict[str, Any]]
+
+
+def signed_in_twice(database: Database, colleague: Account, permission: str) -> tuple[str, Devices]:
+    """Give the colleague a role of ``permission``; give its identifier and two devices' tokens."""
+    row = known(database, colleague)
+    role(database, "Collègue", permissions=(permission,), holders=(row["id"],))
+    office, home = (tokens_of(colleague.email, PASSWORD) for _ in range(2))
+    assert office["refresh_token"] != home["refresh_token"]
+    return str(row["id"]), (office, home)
 
 
 @pytest.mark.requirement("WF-SEC-0020-A")
-@pytest.mark.parametrize("case", INTERRUPTING, ids=["deactivated", "withdrawn all its roles"])
-def test_an_account_signed_in_on_two_devices_is_interrupted_on_both(
-    api: ContractClient,
-    database: Database,
-    administrator: dict[str, str],
-    colleague: Account,
-    case: tuple[str, dict[str, object], tuple[int, str | None]],
+def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both(
+    api: ContractClient, database: Database, administrator: dict[str, str], colleague: Account
 ) -> None:
     # « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête
-    # suivante » ; so does the withdrawal of all its roles. The realm closes the sessions of both
-    # devices: neither refreshes its tokens, which Keycloak notifies the front of; and the API,
-    # which reads the account at each request, refuses the deactivated one at once.
-    write, sent, next_answer = case
-    row = known(database, colleague)
-    role(database, "Pilote", permissions=("planning.read",), holders=(row["id"],))
-    office, home = (tokens_of(colleague.email, PASSWORD) for _ in range(2))
-    path = f"{USERS}/{row['id']}/{write}"
-    response = api.request("PUT", path, headers=administrator, json={**sent, "lock_version": 0})
+    # suivante. » The API, which reads the account at each request, refuses it at once; the realm
+    # closes the sessions of both devices: neither refreshes its tokens, which Keycloak notifies
+    # the front of.
+    user_id, devices = signed_in_twice(database, colleague, "planning.read")
+    body = {"is_active": False, "lock_version": 0}
+    path = f"{USERS}/{user_id}/activation"
+    response = api.request("PUT", path, headers=administrator, json=body)
     assert response.status_code == 200, response.text
-    for device in (office, home):
+    for device in devices:
         answer = api.get(ME, headers=bearer(device))
-        assert (answer.status_code, answer.json().get("code")) == next_answer
+        assert (answer.status_code, answer.json()["code"]) == (401, "ACCOUNT_DEACTIVATED")
+        again = refreshed(device["refresh_token"])
+        assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed(
+    api: ContractClient, database: Database, administrator: dict[str, str], colleague: Account
+) -> None:
+    # The roles are read at each request: the same token that consulted the accounts no longer
+    # may, and they do not exist for it; the realm closes the sessions of both devices.
+    user_id, devices = signed_in_twice(database, colleague, "users.read")
+    assert [api.get(USERS, headers=bearer(device)).status_code for device in devices] == [200, 200]
+    body: dict[str, object] = {"access_role_ids": [], "lock_version": 0}
+    path = f"{USERS}/{user_id}/access-roles"
+    response = api.request("PUT", path, headers=administrator, json=body)
+    assert response.status_code == 200, response.text
+    for device in devices:
+        answer = api.get(USERS, headers=bearer(device))
+        assert (answer.status_code, answer.json()["code"]) == (404, "NOT_FOUND")
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
