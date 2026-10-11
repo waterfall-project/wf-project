@@ -287,14 +287,14 @@ export function useRowCommand(
       return;
     }
     // The reading the command is pressed on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
       const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data));
       } else {
-        list?.report({ outcome, reading, names, target });
+        list?.report({ outcome, generation, names, target });
       }
     });
   };

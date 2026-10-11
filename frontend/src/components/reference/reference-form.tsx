@@ -286,13 +286,13 @@ export function ReferenceForm({
       return;
     }
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
       const answer = answering(await held(ask(values)));
       if (answer.kind === "done") {
         onDone(answer.data);
       } else if (!open.current) {
-        list?.report({ outcome: answer, reading, names, target });
+        list?.report({ outcome: answer, generation, names, target });
       } else {
         const told = placed(fields, answer);
         refuse(told.refused);

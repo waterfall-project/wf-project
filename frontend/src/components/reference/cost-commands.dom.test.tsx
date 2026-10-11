@@ -570,6 +570,40 @@ describe("a write whose dialog is closed, and the focus", () => {
     }
   });
 
+  it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal nowhere (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Modifier « Sous-traitance »" }));
+      const form = dialog("Modifier « Sous-traitance »");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden, then shown again: the list is back on its reading.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      address.query = "";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      link.remove();
+    }
+  });
+
   it("tells a refusal answered once the dialog is closed beside another refusal of the list, neither in the place of the other", async () => {
     const answer = held();
     serve(

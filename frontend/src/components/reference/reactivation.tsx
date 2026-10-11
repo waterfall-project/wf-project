@@ -45,8 +45,8 @@ import { CellCommand } from "./cell-command";
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
   readonly outcome: Outcome<unknown>;
-  /** What the list read when the command was pressed (`readingOf`). */
-  readonly reading: string;
+  /** The reading of the list the command was pressed on (`ListReport.generation`). */
+  readonly generation: number;
   /** The names of the objects the refusal may be about. */
   readonly names: ObjectNames;
   /**
@@ -73,7 +73,7 @@ interface Told {
   readonly name: string;
   readonly offer: CommandOffer;
   readonly press: number;
-  readonly reading: string;
+  readonly generation: number;
 }
 
 /**
@@ -83,7 +83,12 @@ interface Told {
 interface ListReport {
   readonly report: (reported: Reported) => void;
   readonly tell: (name: string, offer: CommandOffer, command: ActivationCommand) => void;
-  readonly reading: string;
+  /**
+   * The reading the list is on: counted anew each time the list is read otherwise, so that a
+   * reading left and come back to is another — the clicks its commands held were released when it
+   * was left (#688), and a refusal asked from it is told no more.
+   */
+  readonly generation: number;
   /**
    * Give the focus to the control given while the page holds it, or else to the active cell of the
    * grid of the list, or to the list.
@@ -148,7 +153,8 @@ interface Kept extends Reported {
  * lacks is said in the region of the list, on the same reading alone. A refusal is told only on the reading it
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
  * hidden, a search of its own — says nothing of the list now shown (défaut n° 1 de
- * `typescript.md`); a sort of another list of the screen leaves it said.
+ * `typescript.md`), nor of the list back on that reading, whose clicks it no longer holds (#688); a
+ * sort of another list of the screen leaves it said.
  */
 export function Reactivations({
   reads,
@@ -161,11 +167,17 @@ export function Reactivations({
   const [reported, setReported] = useState<readonly Kept[]>([]);
   const [told, setTold] = useState<Told>();
   const reading = readingOf(useSearchParams(), reads);
+  // Each reading the list is on is counted: one come back to after another is a new one.
+  const [read, setRead] = useState({ reading, generation: 0 });
+  if (read.reading !== reading) {
+    setRead({ reading, generation: read.generation + 1 });
+  }
+  const { generation } = read;
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
   // The list tells a refusal on the reading it was asked from alone: read otherwise, it releases
-  // the clicks its commands hold, their refusal told nowhere now.
-  const held = useHeldCommand(reading);
+  // the clicks its commands hold, their refusal told nowhere now, nor once that reading is back.
+  const held = useHeldCommand(String(generation));
   const report = useCallback((refusal: Reported) => {
     counted.current += 1;
     const key = counted.current;
@@ -186,13 +198,19 @@ export function Reactivations({
     () => ({
       report,
       tell: (name: string, offer: CommandOffer, command: ActivationCommand) => {
-        setTold((before) => ({ command, name, offer, press: (before?.press ?? 0) + 1, reading }));
+        setTold((before) => ({
+          command,
+          name,
+          offer,
+          press: (before?.press ?? 0) + 1,
+          generation,
+        }));
       },
-      reading,
+      generation,
       refocus,
       held,
     }),
-    [reading, report, refocus, held],
+    [generation, report, refocus, held],
   );
   return (
     <div
@@ -200,9 +218,9 @@ export function Reactivations({
       tabIndex={-1}
       className="flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <ToldConditions told={told?.reading === reading ? told : undefined} />
+      <ToldConditions told={told?.generation === generation ? told : undefined} />
       {reported
-        .filter((each) => each.reading === reading)
+        .filter((each) => each.generation === generation)
         .map((each) => (
           <OutcomeNotice
             key={each.key}
