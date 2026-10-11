@@ -90,8 +90,8 @@ function AuditHeader({ count }: { readonly count: number | undefined }) {
 
 /**
  * The authors and the projects the whole journal names, to choose among in its filters: the accounts
- * by the names they show today, deactivated ones included (WF-ADM-0060), the projects by their codes
- * and labels, whether the session may open them or not.
+ * by the names they show today, deactivated ones included, none for an anonymised one (WF-ADM-0060),
+ * the projects by their codes and labels, whether the session may open them or not.
  */
 async function readFacets(): Promise<{
   readonly authors: AuthorChoice[];

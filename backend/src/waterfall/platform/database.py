@@ -48,15 +48,16 @@ CODE_POINTS = "C"
 EVERY_LETTER = "und-x-icu"
 
 
-def folded(text: SQLColumnExpression[str]) -> ColumnElement[str]:
+def folded(text: SQLColumnExpression[str | None]) -> ColumnElement[str]:
     """Give a text as a search compares it: transliterated by ``unaccent``, then lowered."""
     return func.lower(func.unaccent(text).collate(EVERY_LETTER))
 
 
-def contains(text: SQLColumnExpression[str], searched: str) -> ColumnElement[bool]:
+def contains(text: SQLColumnExpression[str | None], searched: str) -> ColumnElement[bool]:
     """Tell whether a text holds the one searched, whatever their case and accents.
 
-    By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another.
+    By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another. A null
+    text — the name of an anonymised account — holds nothing.
     """
     return func.strpos(folded(text), folded(literal(searched, Text))) > 0
 

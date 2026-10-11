@@ -1,10 +1,11 @@
 {
-  "summary": "Le compte de Noé Vidal désactivé aujourd'hui par Camille Martin à partir de la version lue : il reste listé, porte sa réactivation et garde son rôle, qu'il retrouvera s'il est réactivé ; ses sessions sont fermées (WF-ADM-0060, WF-SEC-0020).",
+  "summary": "Le compte de Noé Vidal désactivé aujourd'hui par Camille Martin à partir de la version lue : il reste listé, porte sa réactivation et son anonymisation, et garde son rôle, qu'il retrouvera s'il est réactivé ; ses sessions sont fermées (WF-ADM-0060, WF-SEC-0020).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000307",
     "last_name": "Vidal",
     "first_name": "Noé",
     "email": "noe.vidal@example.com",
+    "anonymized_at": null,
     "is_active": false,
     "origin": "local",
     "org_node_id": null,
@@ -19,6 +20,11 @@
     "available_commands": [
       {
         "command": "reactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "anonymize",
         "is_available": true,
         "missing_conditions": []
       },

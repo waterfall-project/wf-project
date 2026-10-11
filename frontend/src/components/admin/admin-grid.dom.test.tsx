@@ -52,6 +52,10 @@ type Schemas = components["schemas"];
 const NO_QUERY = { sort: undefined, search: undefined };
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const second = example("users_page") as { items: User[]; meta: Schemas["PaginationMeta"] };
+const anonymized = example("users_anonymized") as {
+  items: User[];
+  meta: Schemas["PaginationMeta"];
+};
 const roles = example("access_roles") as AccessRole[];
 const roleChoices = roles.map((role) => ({ id: role.access_role_id, label: role.label }));
 const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
@@ -329,6 +333,18 @@ describe("the grid of the accounts", () => {
     rerender(userList(NO_QUERY, none));
     expect(screen.queryByRole("grid")).toBeNull();
     expect(screen.getByText("Aucun compte.")).toBeInTheDocument();
+  });
+});
+
+describe("an anonymised account", () => {
+  it("presents neither its name nor its address, the neutral label in their place [WF-ADM-0060-A]", () => {
+    render(userList(NO_QUERY, anonymized));
+    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
+    const row = within(grid).getAllByRole("row")[1];
+    expect(row).toHaveTextContent(
+      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé$/,
+    );
+    expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
 });
 

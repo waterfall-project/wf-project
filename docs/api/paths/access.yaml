@@ -97,6 +97,7 @@
               by_access_role: { $ref: ../../../fixtures/api/users_by_access_role.json }
               search: { $ref: ../../../fixtures/api/users_search.json }
               inactive: { $ref: ../../../fixtures/api/users_inactive.json }
+              anonymized: { $ref: ../../../fixtures/api/users_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -119,10 +120,13 @@
           schema: { $ref: ../components/schemas/access.yaml#/UserCreate }
     responses:
       '201':
-        description: Compte créé.
+        description: >-
+          Compte créé, et si l'invitation est partie (`invitation_sent`) : faux, le porteur
+          n'attend aucun courriel, et son lien de fixation se remet à la main
+          (`createPasswordSetupLink`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/access.yaml#/User }
+            schema: { $ref: ../components/schemas/access.yaml#/UserCreated }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -204,10 +208,14 @@
         description: >-
           Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
           `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le compte qui la porte. Rien n'est écrit.
+          le compte qui la porte. Un nom, un prénom ou une adresse envoyés pour un compte
+          anonymisé, l'anonymisation étant irréversible (WF-ADM-0060) : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -234,7 +242,8 @@
       Un compte se désactive, jamais ne se supprime : ses actes doivent rester
       attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
       (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
-      d'administration (WF-ADM-0120).
+      d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
+      l'anonymisation est irréversible (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -259,12 +268,74 @@
           La désactivation du dernier compte actif qui porte les permissions de modifier les
           comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la
-          commande `deactivate` du compte dit d'avance (`available_commands`).
+          commande `deactivate` du compte dit d'avance (`available_commands`). La réactivation
+          d'un compte anonymisé, refusée, rien n'étant écrit (WF-ADM-0060) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`, ce que la
+          commande `reactivate` du compte dit d'avance.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_reactivation_refused.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/users/{user_id}/anonymization:
+  post:
+    operationId: anonymizeUser
+    tags: [users]
+    summary: Anonymiser un compte désactivé
+    description: >-
+      À la demande de la personne, un compte désactivé est anonymisé, de façon irréversible
+      (WF-ADM-0060) : son nom, son prénom et son adresse deviennent nuls (`anonymized_at` dit
+      quand), son avatar est retiré, et le libellé qui le désigne dans le journal d'audit, comme
+      auteur ou comme objet, est effacé de toutes les inscriptions, leur nombre, leurs dates et
+      leurs actions inchangés (WF-SEC-0030) ; le front le présente partout sous le libellé neutre
+      de son catalogue. Ses actes lui restent attribués, par son identifiant ; il garde ses rôles,
+      son rattachement, et l'identifiant que le fournisseur d'identité lui donne, par lequel la
+      lecture des comptes le reconnaît sans le modifier ni le recréer (WF-ADM-0070). Un compte
+      local est en outre retiré du fournisseur d'identité, avant que l'anonymisation ne soit
+      écrite : si le fournisseur ne répond pas, 503 (`identity_provider`), rien n'est écrit, et
+      l'anonymisation se redemande. Un compte de l'annuaire ou d'un fournisseur externe n'est pas
+      touché dans le fournisseur. Aucune confirmation n'est demandée ici : l'écran la demande.
+      L'anonymisation s'inscrit au journal d'audit (`user_anonymize`, l'objet le compte, sans
+      libellé ni paramètre). Sous la permission de modifier les comptes (`users.write`,
+      WF-ADM-0100) ; un compte anonymisé ne se réactive plus, ni ne s'anonymise de nouveau.
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserAnonymizationWrite }
+    responses:
+      '200':
+        description: Compte anonymisé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un compte actif, refusé : seul un compte désactivé s'anonymise (WF-ADM-0060), et la
+          commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_deactivated_account`. Un compte déjà anonymisé, refusé,
+          ce que sa commande `anonymize` dit d'avance : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit, et le fournisseur
+          d'identité n'est pas sollicité.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              active: { $ref: ../../../fixtures/api/user_anonymization_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_anonymization_repeated.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -281,7 +352,11 @@
       retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
       compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
       donner davantage reste possible, et la commande `set_access_roles` de ce compte reste
-      disponible : le serveur juge les rôles envoyés.
+      disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la
+      gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier
+      les comptes (`users.write`), celle de modifier les rôles d'habilitation
+      (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que
+      `users.write` ne se donne pas le rôle administrateur.
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:

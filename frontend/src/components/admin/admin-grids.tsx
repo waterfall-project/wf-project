@@ -11,10 +11,13 @@
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
  *   the table is its own entry (US-0360, #379): the names of a local account in their cells, its
- *   state on a switch, its roles in a list of several choices (`user-cells.tsx`) — none deletes
- *   an account —, the state and the roles as the account lists
- *   their commands (`available_commands`): the deactivation of the last administrator unavailable
- *   (WF-ADM-0120).
+ *   state on a switch, its roles in a list of several choices, its anonymisation on a command
+ *   (`user-cells.tsx`) — none deletes an account —, the state, the roles and the anonymisation as
+ *   the account lists their commands (`available_commands`): the deactivation of the last
+ *   administrator unavailable (WF-ADM-0120); the anonymisation offered to a deactivated account
+ *   only, and the reactivation and the anonymisation of an anonymised one unavailable
+ *   (WF-ADM-0060). An anonymised account has neither name nor address: it shows the neutral label
+ *   in place of its last name, nothing for the rest, and its names are not entered.
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
  *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
@@ -33,6 +36,7 @@ import { updateAccessRole } from "@/api/actions/access-roles";
 import { updateUser } from "@/api/actions/users";
 import type { components, operations } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { KeptName } from "@/components/account/anonymized-name";
 import {
   type CellEntry,
   type GridColumn,
@@ -45,7 +49,7 @@ import { ActiveState } from "@/components/reference/section";
 
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
-import { HeldRoles, RolesCell, StateSwitch } from "./user-cells";
+import { AnonymizeCommand, HeldRoles, RolesCell, StateSwitch } from "./user-cells";
 import { NAME_LENGTH, USER_FILTERS } from "./user-address";
 
 /** An account, as the contract gives it. */
@@ -82,6 +86,11 @@ export type AccessRoleSort = NonNullable<
 export const USER_GRID_KEY = "users";
 export const ACCESS_ROLE_GRID_KEY = "access_roles";
 
+/** The last name of an account, or the neutral label of an anonymised one, which has none. */
+function LastName({ user }: { readonly user: User }) {
+  return <KeptName name={user.last_name} />;
+}
+
 /** An access role an account may hold or be filtered by, by its identifier and its label. */
 export interface RoleChoice {
   readonly id: string;
@@ -117,7 +126,7 @@ const COMMAND_WIDTH = 120;
  * The entry of a name of a local account in its cell — the last name or the first name, never blank
  * —, written after the writes of its row under way, from the version they leave of the account
  * (`updateUser`, `Renaming`): the name of an account of the directory or of an identity provider is
- * theirs, and is not entered (WF-ADM-0050).
+ * theirs, and is not entered (WF-ADM-0050); an anonymised account has none to enter (WF-ADM-0060).
  */
 function naming(
   field: "last_name" | "first_name",
@@ -126,7 +135,7 @@ function naming(
   let answered = 0;
   return {
     kind: { type: "text", maxLength: NAME_LENGTH },
-    in: (user) => user.origin === "local",
+    in: (user) => user.origin === "local" && user.anonymized_at === null,
     value: (user) => user[field],
     write: async (shown, name): Promise<Outcome<RowsWritten<User, UserPage>>> => {
       if (name === null) {
@@ -146,6 +155,18 @@ function naming(
   };
 }
 
+/** The column of the anonymisation of an account, for a session that may modify the accounts. */
+function anonymizeColumn(): GridColumn<User, UserSort, UserPage> {
+  return {
+    key: "anonymize",
+    label: "anonymize",
+    format: "text",
+    width: COMMAND_WIDTH,
+    value: () => null,
+    render: (user) => <AnonymizeCommand user={user} />,
+  };
+}
+
 /** What the grid of the accounts writes with, for a session that may modify them. */
 export interface UserEntry {
   /** The roles of the installation an account may be given, read by the cell alone (défaut n° 14). */
@@ -159,8 +180,8 @@ export interface UserEntry {
  * and the first name followed by the last name, its search named after it, the accounts having no
  * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
  * state. For a session that may modify the accounts, it is its own entry (`entry`): the names of a
- * local account in their cells, the state on a switch, the roles in a list of several choices — none
- * deletes an account (WF-ADM-0060).
+ * local account in their cells, the state on a switch, the roles in a list of several choices, and
+ * the anonymisation of a deactivated account on its command — none deletes an account (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {
@@ -184,6 +205,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
         pinned: true,
         contract: "last_name",
         value: (user) => user.last_name,
+        render: (user) => <LastName user={user} />,
         entry: entry === undefined ? undefined : naming("last_name", entry.rename),
       },
       {
@@ -249,6 +271,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
             <StateSwitch user={user} />
           ),
       },
+      ...(entry === undefined ? [] : [anonymizeColumn()]),
     ],
   };
 }

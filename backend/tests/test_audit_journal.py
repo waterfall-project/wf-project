@@ -14,13 +14,14 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 from openapi_core import OpenAPI
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Engine, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from support import operations, service_role
+from support import operations, raw_account, service_role
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.contract import models
+from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     ACTIONS,
     OBJECT_KINDS,
@@ -31,6 +32,7 @@ from waterfall.platform.audit import (
     AuditProject,
     AuditRevision,
     Inscription,
+    forget_account,
     record,
 )
 from waterfall.platform.database import Base, Database
@@ -57,6 +59,17 @@ def inscribe(database: Database, inscription: Inscription) -> UUID:
     """Inscribe an action in a transaction of its own, under the correlation of a request."""
     with logging_context(correlation_id=CORRELATION), database.transaction() as session:
         return record(session, inscription)
+
+
+def hold_account(database: Database, user_id: UUID, *, is_anonymized: bool) -> None:
+    """Write by hand the account the journal names, anonymised or not."""
+    forgotten = dict.fromkeys(("last_name", "first_name", "email"))
+    anonymized = {**forgotten, "anonymized_at": NOON, "state": "deactivated"}
+    row = raw_account(id=user_id, email=f"{user_id.hex}@example.org")
+    if is_anonymized:
+        row.update(anonymized)
+    with database.engine.begin() as connection:
+        connection.execute(insert(UserAccount).values(**row))
 
 
 def read(database: Database, identifier: UUID) -> AuditEntry:
@@ -166,7 +179,8 @@ def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> N
 @pytest.mark.parametrize(
     "statement",
     [
-        "UPDATE audit_entry SET object_label = 'Administrateur'",
+        "UPDATE audit_entry SET action = 'restore'",
+        "UPDATE audit_entry SET object_label = NULL, occurred_at = now()",
         "DELETE FROM audit_entry",
         "TRUNCATE audit_entry",
     ],
@@ -186,6 +200,11 @@ def test_the_service_may_neither_update_nor_delete_an_inscription(
     ("statement", "operation"),
     [
         ("UPDATE audit_entry SET object_label = 'Administrateur'", "UPDATE"),
+        # The label of an object that is no account, made null.
+        ("UPDATE audit_entry SET object_label = NULL", "UPDATE"),
+        # The name of the author made null, and something else changed with it.
+        ("UPDATE audit_entry SET actor_display_name = NULL, action = 'restore'", "UPDATE"),
+        ("UPDATE audit_entry SET actor_display_name = NULL, params = '{}'", "UPDATE"),
         ("DELETE FROM audit_entry", "DELETE"),
         ("TRUNCATE audit_entry", "TRUNCATE"),
     ],
@@ -199,6 +218,137 @@ def test_the_database_refuses_an_update_or_a_deletion_even_to_the_owner_of_the_t
     assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
     assert f"audit_entry is never updated nor deleted: {operation} refused" in str(raised.value)
     assert read_labels(database) == ["Auditeur"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_entry SET actor_display_name = 'Administrateur'",
+        "UPDATE audit_entry SET object_label = 'Administrateur'",
+        # A role is no account: its label stays.
+        "UPDATE audit_entry SET object_label = NULL",
+        # An update that changes nothing is no anonymisation.
+        "UPDATE audit_entry SET actor_display_name = actor_display_name",
+        "UPDATE audit_entry SET object_label = object_label",
+    ],
+)
+def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of_an_account(
+    database: Database, statement: str
+) -> None:
+    # The service may update the two labels that name an account, and the trigger admits no other
+    # change of them than making null the name of an anonymised account (migration 0010).
+    inscribe(database, role_created())
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(text(statement))
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+    assert "audit_entry is never updated nor deleted: UPDATE refused" in str(raised.value)
+    assert read_labels(database) == ["Auditeur"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize("is_held", [True, False], ids=["active", "unknown"])
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_entry SET actor_display_name = NULL",
+        "UPDATE audit_entry SET object_label = NULL",
+        "UPDATE audit_entry SET actor_display_name = NULL, object_label = NULL",
+    ],
+)
+def test_the_name_of_an_account_that_is_not_anonymized_stays_in_the_journal(
+    database: Database, owner: Engine, statement: str, *, is_held: bool
+) -> None:
+    # Claire is the author and the object, and is not anonymised: the module of the accounts
+    # refuses that the journal forget her name, to the service as to the owner of the tables.
+    if is_held:
+        hold_account(database, CLAIRE.user_id, is_anonymized=False)
+    claire = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created(action="user_update", audited=claire))
+    for engine in (database.engine, owner):
+        with pytest.raises(IntegrityError) as raised, engine.begin() as connection:
+            connection.execute(text(statement))
+        assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+        assert "forgets the name of an anonymised account alone: UPDATE refused" in str(
+            raised.value
+        )
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == ("Claire Martin", "Claire Martin")
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_name_of_another_account_stays_when_an_account_is_anonymized(
+    database: Database,
+) -> None:
+    # Claire is anonymised, Paul is not: the name of Paul, author of the inscription that names
+    # Claire as its object, is not hers to forget.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    hold_account(database, paul.user_id, is_anonymized=False)
+    claire = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created(action="user_update", actor=paul, audited=claire))
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(
+            text("UPDATE audit_entry SET actor_display_name = NULL, object_label = NULL")
+        )
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+    with database.engine.begin() as connection:
+        connection.execute(text("UPDATE audit_entry SET object_label = NULL"))
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == ("Paul Durand", None)
+
+
+def rows(database: Database) -> list[dict[str, Any]]:
+    """Read every inscription whole, in the order of the journal."""
+    with database.engine.connect() as connection:
+        query = text("SELECT to_jsonb(audit_entry) FROM audit_entry ORDER BY id")
+        return list(connection.execute(query).scalars())
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and_actions_stay(
+    database: Database,
+) -> None:
+    # « Après anonymisation d'un compte, aucune inscription ne porte plus son nom ; leur nombre,
+    # leurs dates et leurs actions sont inchangés. » Claire acted, and was acted upon; Paul's own
+    # name, and the label of the role, stay.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    claire_as_object = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    inscribe(database, role_created())
+    inscribe(database, role_created(action="user_update", actor=paul, audited=claire_as_object))
+    inscribe(database, role_created(actor=paul, occurred_at=NOON.replace(hour=13)))
+    before = rows(database)
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        forget_account(session, CLAIRE.user_id)
+    after = rows(database)
+    assert not [row for row in after if "Claire Martin" in str(row)]
+    assert [
+        (row["occurred_at"], row["action"], row["actor_user_id"], row["object_id"]) for row in after
+    ] == [
+        (row["occurred_at"], row["action"], row["actor_user_id"], row["object_id"])
+        for row in before
+    ]
+    forgotten = [
+        {**row, "actor_display_name": None}
+        if row["actor_user_id"] == str(CLAIRE.user_id)
+        else {**row, "object_label": None}
+        if row["object_id"] == str(CLAIRE.user_id)
+        else row
+        for row in before
+    ]
+    assert after == forgotten
+    assert [row["actor_display_name"] for row in after] == [None, "Paul Durand", "Paul Durand"]
+
+
+def test_an_account_forgotten_twice_is_forgotten_once(database: Database) -> None:
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    inscribe(database, role_created())
+    for _ in range(2):
+        with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+            forget_account(session, CLAIRE.user_id)
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == (None, "Auditeur")
 
 
 def read_labels(database: Database) -> list[str | None]:
@@ -253,6 +403,16 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
             ),
             {"role": service},
         ).one()
+        journal_columns_updated = set(
+            connection.execute(
+                text(
+                    "SELECT column_name FROM information_schema.column_privileges "
+                    "WHERE grantee = :role AND table_name = 'audit_entry' "
+                    "AND privilege_type = 'UPDATE'"
+                ),
+                {"role": service},
+            ).scalars()
+        )
         connected_as = connection.execute(
             text(
                 "SELECT pg_has_role(current_user, :role, 'USAGE'), rolsuper FROM pg_roles "
@@ -268,6 +428,8 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
     assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
     assert held == {name: SERVICE_RIGHTS[name] for name in tables}
     assert tuple(role) == (False, False, False, 0)
+    # And the update of the two labels that name an account, which an anonymisation makes null.
+    assert journal_columns_updated == {"actor_display_name", "object_label"}
     assert tuple(connected_as) == (True, False)
 
 

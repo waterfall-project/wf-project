@@ -13,7 +13,9 @@
  * other: a name entered while another write of its row is under way waits for its answer, and goes
  * from the version it answered; the switch and the roles of the row are marked busy and unavailable
  * the while. What a write asked shows until the server answers. What a write did is said in the
- * region of the table, named after it; a refusal of the switch or of the roles, above it by the
+ * region of the table, named after it, as what the anonymisation of a deactivated account pressed
+ * does — it writes nothing yet: available with EP-03, or the condition it lacks
+ * (`AnonymizeCommand`); a refusal of the switch or of the roles, above it by the
  * catalogue of the codes of error, on the reading it was asked from alone (`Reactivations`, défaut
  * n° 1), that of a name, at its cell. Every prop is data, never a function (défaut n° 12).
  */
@@ -78,6 +80,11 @@ export interface UserWrites {
    * answer kept and said; its outcome given back, for the cell to tell a refusal.
    */
   readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
+  /**
+   * Say in the region of the table what a command pressed does without writing — the anonymisation,
+   * available with EP-03, or the condition it lacks.
+   */
+  readonly say: (text: string) => void;
 }
 
 const WritesContext = createContext<UserWrites | undefined>(undefined);
@@ -193,8 +200,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
     [list, reserve],
   );
   const writes = useMemo<UserWrites>(
-    () => ({ answered, asked, busy, latest, run, queue: reserve }),
-    [answered, asked, busy, latest, run, reserve],
+    () => ({ answered, asked, busy, latest, run, queue: reserve, say }),
+    [answered, asked, busy, latest, run, reserve, say],
   );
   return (
     <WritesContext value={writes}>

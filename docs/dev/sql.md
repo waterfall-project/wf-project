@@ -123,7 +123,12 @@ Une table d'association qui ne porte que ses deux clés se supprime ligne à lig
 Le journal d'audit va plus loin : la base refuse toute mise à jour et toute suppression de ses
 inscriptions (WF-SEC-0030). Le rôle du service n'y a que `INSERT` et `SELECT`, et un déclencheur
 refuse la mise à jour, la suppression et la troncature à quiconque, propriétaire compris
-(`0003_audit_entry`). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+(`0003_audit_entry`) — à une exception : l'anonymisation d'un compte passe à NULL le libellé qui le
+désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le service n'a `UPDATE` que
+sur ces deux colonnes, et le déclencheur n'admet que cela, un libellé au moins passé à NULL. Que le
+compte désigné soit anonymisé, c'est le module des comptes qui le vérifie, par un déclencheur à lui
+sur le journal, qui lit `user_account` : la fonction du journal ne lit la table d'aucun module
+(`0011_account_anonymization`, #702, #865). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.
@@ -134,7 +139,7 @@ Les migrations passent par le propriétaire des tables ; l'API et le worker se c
 le rôle du service, qui ne possède rien et ne tient que ce que chaque table lui accorde. La
 migration qui crée une table lui accorde ce dont le service a besoin, au plus `SELECT`,
 `INSERT`, `UPDATE` et `DELETE`, jamais `TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT`
-seulement. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
+seulement, et `UPDATE` sur les deux libellés qu'une anonymisation efface. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
 base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
 d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
@@ -190,6 +195,13 @@ une chaîne ; c'est la revue qui le cherche, dans le diff et dans le code voisin
 Une jointure entre modules se fait en deux lectures, ou par une opération que l'interface du
 module propriétaire offre. Une migration, elle, voit toute la base : c'est le seul endroit où
 le nom d'une table d'un autre module peut figurer.
+
+Un module du noyau peut nommer une table de la plateforme dans son SQL — une fonction ou un
+déclencheur qu'il pose par sa migration, comme celui des comptes sur `audit_entry` — ; l'inverse
+est interdit. La plateforme est sous chacun des modules et ne connaît aucun d'eux, comme ses
+imports (`make imports-back`) : un module extrait en service emporte son SQL et retrouve la
+plateforme de l'autre côté, mais une plateforme qui lirait la table d'un module ne s'en
+séparerait plus.
 
 *Pourquoi* : WF-ARC-0010 veut qu'un module s'extraie en service sans réécrire ses voisins.
 *Contrôle* : la revue.
