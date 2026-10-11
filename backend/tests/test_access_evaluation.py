@@ -352,6 +352,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "createUser": ("users.write",),
     "updateUser": ("users.read", "users.write"),
     "setUserActivation": ("users.read", "users.write"),
+    "anonymizeUser": ("users.read", "users.write"),
     "setUserAccessRoles": ("users.read", "users.write", CHANGE),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),

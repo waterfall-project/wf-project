@@ -89,7 +89,7 @@ def client(
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
-def accounts(database: Database) -> list[str]:
+def accounts(database: Database) -> list[str | None]:
     """Give the addresses of the accounts, in the order of their creation."""
     with database.transaction() as session:
         return list(session.scalars(select(UserAccount.email).order_by(UserAccount.created_at)))
@@ -257,7 +257,8 @@ def test_a_local_account_is_written_with_its_first_roles_and_both_are_inscribed(
             session, (identity, "kc-jeanne"), [pilot, estimator, pilot], Actor(CALLER, CHANGE), act
         )
     # The address as written; the roles by label, the one sent twice held once.
-    assert (user.last_name, user.first_name, user.email, user.origin.value) == (
+    written = user.model_dump(mode="json")
+    assert (written["last_name"], written["first_name"], written["email"], written["origin"]) == (
         "Montgolfier",
         "Jeanne",
         "Jeanne@Mairie.LOCAL",

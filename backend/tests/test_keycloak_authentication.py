@@ -890,3 +890,19 @@ def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_
         assert (answer.status_code, answer.json()["code"]) == (404, "NOT_FOUND")
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+def test_a_local_account_anonymized_is_removed_from_the_realm(
+    api: ContractClient,
+    database: Database,
+    administrator: dict[str, str],
+    colleague: Account,
+    admin: httpx2.Client,
+) -> None:
+    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité ».
+    row = known(database, colleague, state="deactivated")
+    body = {"lock_version": 0}
+    path = f"{USERS}/{row['id']}/anonymization"
+    response = api.request("POST", path, headers=administrator, json=body)
+    assert response.status_code == 200, response.text
+    assert admin.get(f"/users/{colleague.id}").status_code == 404

@@ -184,7 +184,7 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
 
 
 def change_columns(
-    session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
+    session: Session, user_id: UUID, values: Mapping[str, object], lock_version: int, stamp: Stamp
 ) -> UserAccount:
     """Change columns of an account whose version is the one read, and advance its version.
 

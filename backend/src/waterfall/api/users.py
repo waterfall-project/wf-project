@@ -14,7 +14,7 @@ transaction (#669): what Waterfall would refuse is refused before the provider i
 account is written once the provider has created it, and withdrawn from the provider if Waterfall
 refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
 withdrawn all its roles, has its sessions closed by the provider once the write is committed
-(WF-SEC-0020).
+(WF-SEC-0020); a local account anonymised is removed from it then (WF-ADM-0060).
 """
 
 from collections.abc import Sequence
@@ -32,6 +32,7 @@ from waterfall.api.contract.models import (
     SortOrder,
     User,
     UserActivationWrite,
+    UserAnonymizationWrite,
     UserCreate,
     UserCreated,
     UserOrigin,
@@ -57,12 +58,14 @@ from waterfall.core.users.interface import (
     AccountColumn,
     AccountFilters,
     AccountSort,
+    AccountState,
     Identity,
     IdentityChange,
     Page,
     account_commands,
     address_holder,
     address_taken,
+    anonymize_account,
     change_account,
     create_local_account,
     display_name,
@@ -88,6 +91,7 @@ CHANGE = "users.write"
 # Giving or withdrawing a role is managing the roles (FBS-1.2, WF-ADM-0090): who changes the
 # accounts alone does not give himself the administration.
 ROLES_CHANGE = "access_roles.write"
+LOCAL = "local"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 READ = [Depends(Requires(CONSULTATION))]
 CREATE = [Depends(Requires(CHANGE))]
@@ -113,6 +117,7 @@ def account_fields(account: Account, roles: Sequence[HeldRole]) -> dict[str, obj
         "last_name": account.last_name,
         "first_name": account.first_name,
         "email": account.email,
+        "anonymized_at": account.anonymized_at,
         "is_active": account.is_active,
         "origin": account.origin,
         "org_node_id": None,
@@ -138,12 +143,12 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
     last = sole_administrator(session) if may_change else None
     described: list[User] = []
     for account in accounts:
-        commands = account_commands(
+        state = AccountState(
             is_active=account.is_active,
+            is_anonymized=account.anonymized_at is not None,
             is_last_administrator=account.user_id == last,
-            may_change=may_change,
-            may_attribute=may_attribute,
         )
+        commands = account_commands(state, may_change=may_change, may_attribute=may_attribute)
         fields = account_fields(account, held[account.user_id])
         fields["available_commands"] = [
             {
@@ -425,6 +430,51 @@ def put_user_activation(
         described = users(session, actor, [changed])[0]
     if not body.is_active:
         close_sessions(services.keycloak_admin, changed)
+    return described
+
+
+def remove_from_provider(admin: KeycloakAdmin, account: Account) -> None:
+    """Have the provider remove a local account once its anonymisation is committed (WF-ADM-0060).
+
+    The account of the directory or of an external provider is the provider's, which Waterfall
+    does not remove. A failure of Keycloak is said in the log and refuses nothing: the account is
+    anonymised all the same, and asking again removes it.
+    """
+    if account.origin != LOCAL:
+        return
+    try:
+        admin.remove_account(account.subject)
+    except (UnavailableError, IdentityProviderError):
+        logger.exception("account.not_removed_from_provider", user_id=str(account.user_id))
+        return
+    logger.info("account.removed_from_provider", user_id=str(account.user_id))
+
+
+@router.post(
+    "/users/{user_id}/anonymization",
+    operation_id="anonymizeUser",
+    dependencies=WRITE,
+    response_model_exclude_unset=True,
+)
+def post_user_anonymization(
+    user_id: UUID,
+    body: UserAnonymizationWrite,
+    account: Caller,
+    actor: Acting,
+    services: ServicesOf,
+) -> User:
+    """Anonymise a deactivated account at the request of its holder, for good (WF-ADM-0060).
+
+    Its names, its address and its avatar are removed, and the journal of audit forgets its name
+    (WF-SEC-0030); an active account is refused. A local account is removed from the provider once
+    the anonymisation is committed, even one anonymised already: asking again removes it if a
+    failure of the provider left it there.
+    """
+    act = Act(audit_actor(account), utc_now())
+    with services.database.transaction() as session:
+        anonymized = anonymize_account(session, user_id, body.lock_version.root, act)
+        described = users(session, actor, [anonymized])[0]
+    remove_from_provider(services.keycloak_admin, anonymized)
     return described
 
 
