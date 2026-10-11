@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decode, type Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
+import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient, type Problem } from "@/test/fixtures";
@@ -283,6 +284,43 @@ describe("the outcome of a command", () => {
     );
     expect(client.calls).toHaveLength(1);
     await expectAccessible(container);
+  });
+
+  it("holds a navigation clicked while it runs, and drops it when the server refuses it: the refusal is told beside the command (#688)", async () => {
+    const conflict = refusal("conflict", { code: "STATE_FORBIDS_OPERATION", status: 409 });
+    let answer: (outcome: Outcome<unknown>) => void = () => undefined;
+    renderHook(() => {
+      useNavigationHold();
+    });
+    french(
+      available(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      ),
+    );
+    const followed = vi.fn((event: MouseEvent) => {
+      event.preventDefault();
+    });
+    const link = document.createElement("a");
+    link.href = "/portfolio";
+    link.addEventListener("click", followed);
+    document.body.append(link);
+
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    fireEvent.pointerDown(link);
+    link.click();
+    await act(async () => {
+      answer(conflict);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "L’état actuel ne permet pas cette opération.",
+    );
+    expect(followed).not.toHaveBeenCalled();
+    link.remove();
   });
 
   it("explains a conflict, naming the object in conflict", async () => {

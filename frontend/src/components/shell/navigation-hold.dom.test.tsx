@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, renderHook } from "@testing-library/react";
+import { act, fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -74,8 +74,9 @@ function page() {
   link.href = "/portfolio";
   link.addEventListener("click", followed);
   document.body.append(link);
-  /** The cell left for the link: validated as the focus leaves it, its write under way. */
-  const leave = async () => {
+  /** The pointer goes down on the link: the cell is validated, its write under way. */
+  const press = async () => {
+    fireEvent.pointerDown(link);
     await act(async () => {
       grid.result.current.write({
         row: MECHANICAL,
@@ -86,6 +87,10 @@ function page() {
       });
       await settled();
     });
+  };
+  /** The cell left for the link: validated as the pointer goes down, the click following. */
+  const leave = async () => {
+    await press();
     link.click();
   };
   /** The server answers the write. */
@@ -95,7 +100,7 @@ function page() {
       await settled();
     });
   };
-  return { grid, link, followed, leave, answered };
+  return { grid, link, followed, press, leave, answered };
 }
 
 afterEach(() => {
@@ -122,6 +127,40 @@ describe("a navigation while a cell is written (#688)", () => {
     // No write under way: the next navigation goes at once.
     link.click();
     expect(followed).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not take place when the session lost answered between the pointer going down and the click: the refusal is told, where the write was made", async () => {
+    const { grid, link, followed, press, answered } = page();
+    await press();
+    await answered(LOST);
+    link.click();
+    await act(settled);
+    expect(followed).not.toHaveBeenCalled();
+    expect(grid.result.current.outcome).toEqual(LOST);
+    // A gesture begun once the refusal is told: the person decides, and the link is followed.
+    fireEvent.pointerDown(link);
+    link.click();
+    expect(followed).toHaveBeenCalledOnce();
+  });
+
+  it("makes again only the last click held", async () => {
+    const { link, followed, leave, answered } = page();
+    await leave();
+    fireEvent.pointerDown(link);
+    link.click();
+    await answered({ kind: "done", data: rateWritten(MECHANICAL, entered.year, entered, 1) });
+    expect(followed).toHaveBeenCalledOnce();
+  });
+
+  it("does not wait for the writes of a grid gone: they hold no click of the next screen", async () => {
+    const { grid, link, followed, press, answered } = page();
+    await press();
+    grid.unmount();
+    fireEvent.pointerDown(link);
+    link.click();
+    expect(followed).toHaveBeenCalledOnce();
+    await answered(LOST);
+    expect(followed).toHaveBeenCalledOnce();
   });
 
   it("leaves alone a link that opens elsewhere, even while a write is under way", async () => {

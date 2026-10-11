@@ -32,7 +32,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -250,6 +250,7 @@ export function ReferenceForm({
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  const held = useHeldCommand();
   const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
@@ -282,7 +283,7 @@ export function ReferenceForm({
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
     const reading = list?.reading ?? "";
     startTransition(async () => {
-      const answer = answering(await ask(values).catch(rejected));
+      const answer = answering(await held(ask(values)));
       if (answer.kind === "done") {
         onDone(answer.data);
       } else if (!open.current) {

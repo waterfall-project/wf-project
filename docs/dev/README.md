@@ -245,9 +245,19 @@ navigateur va au point de déconnexion du royaume. Quand la session que nomme le
 la requête ne part pas, et le navigateur passe par une connexion silencieuse (`/login?sign_out=1`,
 `prompt=none`) : son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
 qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
-Keycloak non plus, il n'y a plus de poste à fermer (#689). Une navigation attend les écritures en
-cours d'une grille (`holdNavigation`, `useNavigationHold`) : une refusée — la session perdue
-comprise —, elle n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688).
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
+écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
+appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
+référentiel, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
+`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
+navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). Le clic se
+juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
+les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
+cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
+retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
+ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
+(`router.push`), « Précédent » et « Suivant » du navigateur (#863), un lien qui ouvre ailleurs —
+autre onglet, touche de modification, téléchargement, autre site.
 Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
 des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
 opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume et efface les

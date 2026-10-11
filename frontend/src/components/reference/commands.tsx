@@ -44,7 +44,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 
@@ -275,6 +275,7 @@ export function useRowCommand(
   const list = useListReport();
   const commands = useContext(ListCommands);
   const [pending, startTransition] = useTransition();
+  const held = useHeldCommand();
   const run = (
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,
@@ -285,7 +286,7 @@ export function useRowCommand(
     // The reading the command is pressed on: its refusal is told on it alone.
     const reading = list?.reading ?? "";
     startTransition(async () => {
-      const outcome = await action().catch(rejected);
+      const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data));
