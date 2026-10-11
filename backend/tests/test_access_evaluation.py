@@ -162,7 +162,9 @@ def test_an_account_given_two_roles_holds_the_permissions_of_both(
 ) -> None:
     # « Un utilisateur portant deux rôles dispose des permissions des deux. » : given by the
     # attribution of its roles, each opens its operation at the next request of the account.
-    administrator = person(role(database, "Comptes", permissions=("users.read", "users.write")))
+    administrator = person(
+        role(database, "Comptes", permissions=("users.read", "users.write", CHANGE))
+    )
     accounts = role(database, "Lecture des comptes", permissions=("users.read",))
     roles = role(database, "Lecture des rôles", permissions=(CONSULT,))
     headers = person()
@@ -204,6 +206,8 @@ def test_a_permission_withdrawn_from_a_role_deprives_each_of_its_holders_at_once
 DEPRIVED: list[tuple[str, tuple[str, str | None, dict[str, object]]]] = [
     ("users.write", ("PUT", "activation", {"is_active": False})),
     ("users.write", ("PUT", "access-roles", {"access_role_ids": []})),
+    # Giving a role is managing the roles (FBS-1.2, WF-ADM-0090, #834).
+    ("access_roles.write", ("PUT", "access-roles", {"access_role_ids": []})),
     ("access_roles.write", ("POST", None, {"label": "Pilote", "permissions": []})),
 ]
 
@@ -348,7 +352,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "createUser": ("users.write",),
     "updateUser": ("users.read", "users.write"),
     "setUserActivation": ("users.read", "users.write"),
-    "setUserAccessRoles": ("users.read", "users.write"),
+    "setUserAccessRoles": ("users.read", "users.write", CHANGE),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),

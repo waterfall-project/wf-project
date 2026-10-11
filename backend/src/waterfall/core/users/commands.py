@@ -26,13 +26,14 @@ class CommandAvailability:
 
 
 def account_commands(
-    *, is_active: bool, is_last_administrator: bool, may_change: bool
+    *, is_active: bool, is_last_administrator: bool, may_change: bool, may_attribute: bool
 ) -> tuple[CommandAvailability, ...]:
     """Give the commands of an account its reader may exercise, in the order of the contract.
 
     None for a reader who may not change the accounts (``users.write``, WF-ADM-0100). Else the one
     that changes its state — the deactivation of the last active account that holds the
-    administration unavailable (WF-ADM-0120) — and the attribution of its roles, always available:
+    administration unavailable (WF-ADM-0120) — and, for a reader who may also change the roles
+    (``may_attribute``, FBS-1.2, WF-ADM-0090), the attribution of its roles, always available:
     giving it more stays possible, and a withdrawal is refused by the roles sent (WF-IHM-0090).
     """
     if not may_change:
@@ -43,4 +44,4 @@ def account_commands(
         state = CommandAvailability("deactivate", (LAST_ADMINISTRATOR_CONDITION,))
     else:
         state = CommandAvailability("deactivate")
-    return (state, CommandAvailability("set_access_roles"))
+    return (state, CommandAvailability("set_access_roles")) if may_attribute else (state,)

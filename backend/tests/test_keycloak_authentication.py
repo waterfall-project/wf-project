@@ -483,12 +483,12 @@ def new_address() -> str:
 
 @pytest.fixture
 def administrator(database: Database, local_account: Account) -> dict[str, str]:
-    """Make the caller an account Waterfall knows, which may change the accounts; give its token."""
+    """Make the caller an account Waterfall knows, which may change the accounts and give roles."""
     row = known(database, local_account)
     role(
         database,
         "Gestion des comptes",
-        permissions=("users.read", "users.write"),
+        permissions=("users.read", "users.write", "access_roles.write"),
         holders=(row["id"],),
     )
     return bearer(tokens_of(local_account.email, PASSWORD))
@@ -548,8 +548,9 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     assert (held.get("federationLink"), held["enabled"]) == (None, True)
     assert admin.get(f"/users/{subject}/federated-identity").json() == []
     assert admin.get(f"/users/{subject}/credentials").json() == []
-    # Invited by the extension, with a link of its own (#651).
+    # Invited by the extension, with a link of its own (#651), which the answer says (#816).
     assert action_token(mailed_link(email.lower()))["typ"] == EXTENSION_ACTION
+    assert body["invitation_sent"] is True
     # Keycloak is asked with no connection of the database held (#669).
     assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
 
@@ -783,6 +784,8 @@ def test_an_account_is_created_on_a_realm_without_a_mail_server_its_link_given_b
     with mail_server(server):
         response = api.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 201, response.text
+    # The answer says it, and the screen offers the link at once (#816).
+    assert response.json()["invitation_sent"] is False
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],
@@ -818,7 +821,7 @@ def test_an_account_whose_invitation_fails_is_created_all_the_same(
     vanishing: ContractClient, administrator: dict[str, str], logs: Logs
 ) -> None:
     response = vanishing.post(USERS, headers=administrator, json=jeanne(new_address()))
-    assert response.status_code == 201, response.text
+    assert (response.status_code, response.json()["invitation_sent"]) == (201, False)
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],

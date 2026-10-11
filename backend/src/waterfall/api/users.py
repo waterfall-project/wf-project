@@ -33,6 +33,7 @@ from waterfall.api.contract.models import (
     User,
     UserActivationWrite,
     UserCreate,
+    UserCreated,
     UserOrigin,
     UserRolesWrite,
     UserUpdate,
@@ -84,10 +85,14 @@ logger = get_logger(__name__)
 
 CONSULTATION = "users.read"
 CHANGE = "users.write"
+# Giving or withdrawing a role is managing the roles (FBS-1.2, WF-ADM-0090): who changes the
+# accounts alone does not give himself the administration.
+ROLES_CHANGE = "access_roles.write"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 READ = [Depends(Requires(CONSULTATION))]
 CREATE = [Depends(Requires(CHANGE))]
 WRITE = [Depends(Requires(CONSULTATION, CHANGE))]
+ATTRIBUTE = [Depends(Requires(CONSULTATION, CHANGE, ROLES_CHANGE))]
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
@@ -129,6 +134,7 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
     """Describe accounts for the table, each with its roles and the commands its reader may use."""
     held = roles_held_by(session, [account.user_id for account in accounts])
     may_change = CHANGE in actor.permissions
+    may_attribute = may_change and ROLES_CHANGE in actor.permissions
     last = sole_administrator(session) if may_change else None
     described: list[User] = []
     for account in accounts:
@@ -136,6 +142,7 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
             is_active=account.is_active,
             is_last_administrator=account.user_id == last,
             may_change=may_change,
+            may_attribute=may_attribute,
         )
         fields = account_fields(account, held[account.user_id])
         fields["available_commands"] = [
@@ -291,11 +298,14 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
     status_code=201,
     response_model_exclude_unset=True,
 )
-def post_user(body: UserCreate, account: Caller, actor: Acting, services: ServicesOf) -> User:
+def post_user(
+    body: UserCreate, account: Caller, actor: Acting, services: ServicesOf
+) -> UserCreated:
     """Create a local account in the provider and in Waterfall, and invite its holder.
 
     A local account is born without a password: its holder sets one by the link the extension
-    mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140).
+    mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140). The answer
+    says whether the mail left: when it did not, the link is given by hand (#816).
     """
     org_node_id = None if body.org_node_id is None else body.org_node_id.root
     identity = Identity(body.last_name, body.first_name, body.email, org_node_id)
@@ -317,15 +327,18 @@ def post_user(body: UserCreate, account: Caller, actor: Acting, services: Servic
     except Exception:
         withdraw(admin, subject)
         raise
-    invite(admin, subject, created.user_id.root)
-    return created
+    sent = invite(admin, subject, created.user_id.root)
+    return UserCreated.model_validate(
+        {**created.model_dump(exclude_unset=True), "invitation_sent": sent}
+    )
 
 
-def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
+def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> bool:
     """Have the extension mail the holder of an account just created the link of its password.
 
     The account exists whether the mail leaves or not: one that does not is said in the log with
     its reason, and the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
+    Give whether it left.
     """
     try:
         reason = admin.send_invitation(subject)
@@ -333,9 +346,11 @@ def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
         logger.exception(
             "account.invitation_not_sent", user_id=str(user_id), reason="provider_error"
         )
-        return
+        return False
     if reason is not None:
         logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=reason)
+        return False
+    return True
 
 
 def identity_change(body: UserUpdate) -> IdentityChange:
@@ -416,7 +431,7 @@ def put_user_activation(
 @router.put(
     "/users/{user_id}/access-roles",
     operation_id="setUserAccessRoles",
-    dependencies=WRITE,
+    dependencies=ATTRIBUTE,
     response_model_exclude_unset=True,
 )
 def put_user_access_roles(
@@ -424,6 +439,9 @@ def put_user_access_roles(
 ) -> User:
     """Set the roles of an account, which hold at its next request (WF-ADM-0050, WF-ADM-0090).
 
+    Asks for the permission to change the roles besides that to change the accounts: giving a role
+    is managing the roles (FBS-1.2, WF-ADM-0090), and who changes the accounts alone does not give
+    himself the administration (#834).
     Roles that take the administration from the last administrator are refused (WF-ADM-0120). An
     account withdrawn all its roles has its sessions closed (WF-SEC-0020).
     """

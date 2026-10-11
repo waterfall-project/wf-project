@@ -472,6 +472,16 @@ def test_an_account_carries_the_commands_its_reader_may_exercise(
     assert [each["available_commands"] for each in listed] == [alone]
 
 
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, "users.write")])
+def test_the_attribution_of_the_roles_is_offered_only_to_who_may_change_the_roles(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # Giving a role is managing the roles (FBS-1.2, WF-ADM-0090, #834): who changes the accounts
+    # alone is offered the change of their state, not the attribution of their roles.
+    assert commands(api, headers, table["Roux Inès"]) == [available("deactivate")]
+    assert commands(api, headers, table["Moreau Alix"]) == [available("reactivate")]
+
+
 @pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])
 def test_the_deactivation_of_an_administrator_is_available_once_another_holds_the_administration(
     api: ContractClient, database: Database, headers: dict[str, str]
