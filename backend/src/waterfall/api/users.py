@@ -18,7 +18,7 @@ withdrawn all its roles, has its sessions closed by the provider once the write 
 (WF-SEC-0020).
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -65,6 +65,7 @@ from waterfall.core.users.interface import (
     address_holder,
     address_taken,
     change_account,
+    check_account_change,
     create_local_account,
     display_name,
     identity_faults,
@@ -79,7 +80,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnavailableError
+from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
@@ -365,12 +366,52 @@ def identity_change(body: UserUpdate) -> IdentityChange:
     response_model_exclude_unset=True,
 )
 def patch_user(
-    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, session: Transaction
+    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, services: ServicesOf
 ) -> User:
-    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050)."""
+    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050).
+
+    For a local account Waterfall is the authority (WF-ADM-0050): its new identity is carried to
+    the provider, which signs it in and mails it by its address (#810), out of any transaction
+    (#669) — checked first, carried, then written; a write refused after all gives the provider
+    back the identity it had.
+    """
+    sent = identity_change(body)
+    lock_version = body.lock_version.root
+    with services.database.transaction() as session:
+        held, changed = check_account_change(session, user_id, sent, lock_version)
+    carried = held.origin == "local" and bool(changed)
+    if carried:
+        carry_identity(services.keycloak_admin, held, changed)
     act = Act(audit_actor(account), utc_now())
-    changed = change_account(session, user_id, identity_change(body), body.lock_version.root, act)
-    return users(session, actor, [changed])[0]
+    try:
+        with services.database.transaction() as session:
+            done = change_account(session, user_id, sent, lock_version, act)
+            return users(session, actor, [done])[0]
+    except Exception:
+        if carried:
+            restore_identity(services.keycloak_admin, held)
+        raise
+
+
+def carry_identity(admin: KeycloakAdmin, held: Account, changed: Mapping[str, str]) -> None:
+    """Give the provider the new identity of a local account; refused if it holds the address."""
+    identity = {"last_name": held.last_name, "first_name": held.first_name, "email": held.email}
+    new = LocalIdentity(**{**identity, **changed})
+    if not admin.change_identity(held.subject, new):
+        raise address_taken(None)
+
+
+def restore_identity(admin: KeycloakAdmin, held: Account) -> None:
+    """Give the provider back the identity of a local account whose change Waterfall refused.
+
+    The refusal is what the caller is told; a provider that cannot be given it back is logged.
+    """
+    try:
+        admin.change_identity(
+            held.subject, LocalIdentity(held.last_name, held.first_name, held.email)
+        )
+    except (UnavailableError, IdentityProviderError, UnprocessableError):
+        logger.exception("account.identity_not_restored", user_id=str(held.user_id))
 
 
 def close_sessions(admin: KeycloakAdmin, account: Account) -> None:
