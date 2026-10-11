@@ -8,7 +8,9 @@ here one step at a time; a stop is what ``SIGTERM`` raises in it (``serve``), an
 again is another consumer of the queue.
 """
 
-from collections.abc import Callable, Mapping
+import socket
+import time
+from collections.abc import Callable, Iterator, Mapping
 from itertools import count
 from uuid import uuid4
 
@@ -23,7 +25,7 @@ from task_handlers import REQUEST, Runs, deposit, held_run, inscribe, inscriptio
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import FIELD, GROUP, TaskQueue
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, FIELD, GROUP, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.tasks import BackgroundTask, Task, TaskError, TaskHandler, submit
 from waterfall.worker.runner import MAX_ATTEMPTS, Timing, Worker
 
@@ -261,7 +263,7 @@ def test_a_task_whose_deposit_redis_refused_is_deposited_by_the_worker_at_start_
 ) -> None:
     # The request is not failed by a deposit that follows its commit; the worker deposits the
     # queued tasks the stream does not name when it starts, and at the end of each period.
-    lost = deposit(database, TaskQueue.connect(UNREACHABLE, queue.stream))
+    lost = deposit(database, TaskQueue.connect(UNREACHABLE, queue.stream, timeout=DEPOSIT_TIMEOUT))
     (refused,) = logs.named("task.deposit_failed")
     assert refused["task_id"] == str(lost)
     queue.prepare()
@@ -271,7 +273,7 @@ def test_a_task_whose_deposit_redis_refused_is_deposited_by_the_worker_at_start_
     def step() -> bool:
         if next(steps):
             raise KeyboardInterrupt
-        deposit(database, TaskQueue.connect(UNREACHABLE, queue.stream))
+        deposit(database, TaskQueue.connect(UNREACHABLE, queue.stream, timeout=DEPOSIT_TIMEOUT))
         return Worker.step(taker)
 
     with pytest.MonkeyPatch.context() as patch:
@@ -319,9 +321,27 @@ def test_what_a_handler_gives_or_refuses_with_is_kept_as_json(
     assert (problem or {}).get("params") == {"conflicting_object_id": str(refused)}
 
 
-def test_a_read_of_the_worker_waits_less_than_its_socket_waits_for_redis(queue: TaskQueue) -> None:
-    # A read as long as the socket's wait would end in a timeout, and stop the worker.
-    assert Timing().block < queue.client.connection_pool.connection_kwargs["socket_timeout"]
+@pytest.fixture
+def mute() -> Iterator[str]:
+    """Give the address of a server that takes connections and never answers, as a Redis stuck."""
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        port = server.getsockname()[1]
+        yield f"redis://127.0.0.1:{port}/0"
+
+
+def test_a_deposit_to_a_redis_that_does_not_answer_holds_a_request_no_longer_than_its_bound(
+    database: Database, queue: TaskQueue, mute: str, logs: Logs
+) -> None:
+    # The deposit follows the commit of a request, before its answer: a Redis that does not answer
+    # holds the request for the bound of a deposit, not for the wait of the worker, and the task
+    # stays queued for the worker to deposit again.
+    assert DEPOSIT_TIMEOUT < WORKER_TIMEOUT
+    began = time.monotonic()
+    task_id = deposit(database, TaskQueue.connect(mute, queue.stream, timeout=DEPOSIT_TIMEOUT))
+    assert time.monotonic() - began < 2 * DEPOSIT_TIMEOUT
+    assert task(database, task_id).status == "queued"
+    (refused,) = logs.named("task.deposit_failed")
+    assert refused["task_id"] == str(task_id)
 
 
 def test_an_idle_entry_behind_more_recent_ones_than_a_look_covers_is_taken_over(

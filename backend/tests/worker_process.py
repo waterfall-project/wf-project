@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from task_handlers import inscribe
 
 from waterfall.platform.database import Database, create_database_engine
-from waterfall.platform.queue import TaskQueue
+from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.tasks import Task
 from waterfall.worker.main import serve
 from waterfall.worker.runner import Timing, Worker
@@ -37,7 +37,7 @@ def main() -> int:
             time.sleep(STALL)
 
     database = Database(create_database_engine(os.environ["WATERFALL_DATABASE_URL"]))
-    queue = TaskQueue.connect(os.environ["WATERFALL_REDIS_URL"], stream)
+    queue = TaskQueue.connect(os.environ["WATERFALL_REDIS_URL"], stream, timeout=WORKER_TIMEOUT)
     timing = Timing(claim_after=0, block=0.1)
     return serve(Worker(database, queue, {"identity_sync": handler}, consumer, timing))
 

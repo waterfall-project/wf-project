@@ -67,6 +67,9 @@ tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s
 tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en dépose pas une
 quand une tâche du même genre est en file ou en cours : le service `scheduler` de Compose
 l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut.
+Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
+`TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
+retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures.
 
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la

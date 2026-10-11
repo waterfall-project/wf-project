@@ -18,7 +18,7 @@ from waterfall import __version__
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
-from waterfall.platform.queue import TaskQueue
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
     Settings,
     SettingsError,
@@ -84,7 +84,7 @@ def serve(worker: Worker) -> int:
 def _work(settings: Settings) -> int:
     logger.info("worker.starting", version=__version__)
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    queue = TaskQueue.connect(settings.redis_url.get_secret_value())
+    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     try:
         return serve(Worker(database, queue, HANDLERS))
     finally:
@@ -95,7 +95,7 @@ def _work(settings: Settings) -> int:
 def _enqueue(settings: Settings, kind: TaskKind) -> int:
     """Deposit a task of ``kind`` for the platform, under a correlation of its own."""
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    queue = TaskQueue.connect(settings.redis_url.get_secret_value())
+    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
             with database.transaction() as session:

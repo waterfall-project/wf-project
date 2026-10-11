@@ -14,7 +14,7 @@ from task_handlers import task
 import waterfall
 from waterfall.platform.correlation import FORM
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.queue import TaskQueue
+from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import main as worker_main
 from waterfall.worker.runner import Worker
@@ -82,6 +82,9 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     (worker,) = served
     assert worker.handlers is worker_main.HANDLERS
     assert worker.consumer
+    # A read as long as the socket's wait would end in a timeout, and stop the worker.
+    waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]
+    assert worker.timing.block < waits == WORKER_TIMEOUT
 
 
 def test_a_stop_of_the_platform_stops_the_worker_where_it_stands(

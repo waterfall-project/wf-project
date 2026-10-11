@@ -20,8 +20,11 @@ from redis.exceptions import ResponseError
 STREAM = "waterfall:tasks"
 GROUP = "workers"
 FIELD = "task_id"
-# How long a socket waits for Redis, in seconds: more than a read of the worker waits.
-SOCKET_TIMEOUT = 10.0
+# How long a deposit waits for Redis, in seconds, when a request or the schedule makes it: a deposit
+# lost is deposited again by the worker, a request held keeps its caller waiting.
+DEPOSIT_TIMEOUT = 1.0
+# How long a socket of the worker waits for Redis, in seconds: more than a read of the worker waits.
+WORKER_TIMEOUT = 10.0
 # Where a sweep of the entries left pending starts, and what Redis gives back once it has ended.
 SWEEP_START = "0-0"
 
@@ -55,9 +58,15 @@ class TaskQueue:
         self.stream = stream
 
     @classmethod
-    def connect(cls, address: str, stream: str = STREAM) -> Self:
-        """Open the queue on the Redis an address designates."""
-        client = redis.from_url(address, decode_responses=True, socket_timeout=SOCKET_TIMEOUT)
+    def connect(cls, address: str, stream: str = STREAM, *, timeout: float) -> Self:
+        """Open the queue on the Redis an address designates, waiting for it ``timeout`` at most.
+
+        Each opener says how long it waits: a request ``DEPOSIT_TIMEOUT``, the worker
+        ``WORKER_TIMEOUT``.
+        """
+        client = redis.from_url(
+            address, decode_responses=True, socket_timeout=timeout, socket_connect_timeout=timeout
+        )
         return cls(client, stream)
 
     def deposit(self, task_id: UUID) -> None:

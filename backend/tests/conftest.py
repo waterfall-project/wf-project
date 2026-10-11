@@ -33,7 +33,7 @@ from waterfall.platform.database import Base, Database, create_database_engine, 
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging
-from waterfall.platform.queue import TaskQueue
+from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 
 
@@ -245,8 +245,11 @@ def redis_url() -> str:
 
 @pytest.fixture
 def queue(redis_url: str) -> Iterator[TaskQueue]:
-    """Give a queue of tasks on the Redis of the tests, in a stream of its own, deleted after."""
-    opened = TaskQueue.connect(redis_url, f"waterfall:test:{uuid4().hex}")
+    """Give a queue of tasks on the Redis of the tests, in a stream of its own, deleted after.
+
+    It waits for Redis as the worker's does, which the tests run on it.
+    """
+    opened = TaskQueue.connect(redis_url, f"waterfall:test:{uuid4().hex}", timeout=WORKER_TIMEOUT)
     yield opened
     opened.client.delete(opened.stream)
     opened.close()
@@ -255,7 +258,7 @@ def queue(redis_url: str) -> Iterator[TaskQueue]:
 @pytest.fixture
 def platform_queue(redis_url: str) -> Iterator[TaskQueue]:
     """Give the queue every installation uses, on the Redis of the tests, emptied around a test."""
-    opened = TaskQueue.connect(redis_url)
+    opened = TaskQueue.connect(redis_url, timeout=WORKER_TIMEOUT)
     opened.client.delete(opened.stream)
     yield opened
     opened.client.delete(opened.stream)
