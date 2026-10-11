@@ -183,7 +183,9 @@ def test_a_role_composed_of_two_actors_gives_its_holder_the_permissions_of_both(
     # of a permission of the project manager and one of the administrator, given to an account,
     # makes both its effective permissions; their exercise awaits EP-05.
     assert "planning.write" in PROJECT_MANAGER
+    assert "planning.write" not in ADMINISTRATOR
     assert "users.write" in ADMINISTRATOR
+    assert "users.write" not in PROJECT_MANAGER
     administrator = person(role(database, "Administration", permissions=ADMINISTRATOR))
     label = "Planificateur administrateur"
     sent: dict[str, object] = {"label": label, "permissions": ["planning.write"]}
