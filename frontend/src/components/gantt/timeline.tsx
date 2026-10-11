@@ -79,6 +79,7 @@ export function TimelineTable({
     <GanttRows rows={tasks}>
       <Table
         aria-label={name}
+        list={name}
         container={{ className: "w-fit max-w-full rounded-md border" }}
         className="text-xs tabular-nums"
       >

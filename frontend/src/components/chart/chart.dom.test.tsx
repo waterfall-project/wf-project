@@ -70,6 +70,13 @@ describe("the envelope of the charts", () => {
     await expectAccessible(container);
   });
 
+  it("holds the table of its values in a group named after them, in the order of the keyboard", () => {
+    drawn(line);
+    const values = screen.getByRole("group", { name: "Valeurs du graphique" });
+    expect(values).toHaveAttribute("tabindex", "0");
+    expect(values).toContainElement(screen.getByRole("cell", { name: "0,8" }));
+  });
+
   it("draws in SVG, with the option aria of ECharts on and the description of the chart", async () => {
     const option = vi.fn(line);
     drawn(option);

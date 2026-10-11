@@ -989,9 +989,63 @@ sur une variante déclarée de celui d'une catégorie.
 L55 (#778) puis L42k (#780), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase : ces
 notes gardent les apports dans l'ordre des fusions.
 
+US-0200 (#84), réalisée par un seul lot, pose le harnais d'accessibilité et corrige ce qu'il relève.
+`frontend/e2e/accessibility.spec.ts` contrôle chaque écran de `frontend/e2e/routes.ts` : ceux de la
+table de `functions.json`, que `screens.spec.ts` lit aussi, et ceux qu'aucune table ne nomme — le
+projet lui-même, les trois pages du compte, la connexion, le mot de passe oublié et l'écran
+« introuvable » ; `frontend/src/app/screens.test.ts` confronte chaque page de l'application à ces
+écrans et aux deux pages qui ne font que rediriger, et échoue sur une page ajoutée sans son écran, sur
+une page de redirection qui fait autre chose, et sur une route qui en intercepte une autre. Trois
+tests par écran, chacun à 1366 puis à 911 points — l'écran ouvert par son adresse, puis la fenêtre
+rétrécie comme le navigateur remet la page quand on l'agrandit à 150 % : les règles d'axe pour WCAG A
+et AA — axe n'est pas WCAG —, contraste compris, en mode clair puis en mode sombre, le mode peint
+constaté d'abord, un texte qu'axe laisse « incomplet » avec ses deux couleurs mesurées et un rapport
+qui échoue compté pour un écart, ce qu'il laisse sans mesure noté raison par raison, les libellés des
+champs et les descriptions des images (`label`, `image-alt` et leurs parentes) dits à part en mode
+clair ; et le parcours au clavier (`walkByTab`) — Tab jusqu'au retour au premier élément atteint,
+chaque élément atteint vu — non transparent, et le milieu de ce qui en reste, coupé par la fenêtre et
+par les boîtes qui le rognent, est l'élément lui-même : rien de peint par-dessus, rien qui y prenne le
+pointeur —, portant un indicateur du focus qu'il ne portait pas sans lui, non transparent, un côté au
+moins hors de ce que coupent les boîtes qui le rognent et, à l'intérieur, pas sous ce qui le recouvre,
+aucun piège, chaque élément que Tab peut atteindre atteint et chaque widget qui déplace lui-même le
+focus entré, aucun élément entier au-delà du bord d'une boîte qui cache ce qui la déborde, aucun lien
+ni bouton sorti de l'ordre du clavier hors d'un tel widget, et, à 911 points, tout ce qu'il atteignait
+à 1366. `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et
+l'audit d'axe sur des pages écrites pour eux. Les outils du serveur de développement de Next, que le
+front construit n'a pas, sont écartés d'axe et du parcours. Les 38 écrans donnent 114 tests, joués un
+à un entre les workers et les morceaux de la chaîne (`mode: "parallel"`), chacun sous `test.slow()`.
+Le harnais n'a relevé aucun écart de contraste mesuré, en clair comme en sombre, ni de libellé ou de
+description. Il a relevé des listes plus larges que leur boîte que le clavier ne pouvait pas faire
+défiler (`scrollable-region-focusable`) : la matrice des permissions dès 1366 points, le journal des
+imports des coûts réels aux deux largeurs, les dernières opérations de l'état du système, les tables
+du référentiel des risques et le plan de charge du portefeuille à 911 points. La boîte où défile une
+liste — `ListTable`, la matrice des permissions, la table d'une chronologie, les valeurs d'une
+courbe — est désormais un groupe nommé comme elle, que Tab atteint, son focus un contour tracé à
+l'intérieur de son bord (`list` de `Table`, `scrollingList`) : un groupe, non une région, la liste
+étant déjà dans la région de sa section sous le même nom ; Chromium et Firefox rendent focalisable de
+lui-même un conteneur qui défile, Safari non. Le parcours au clavier n'a relevé aucun piège, aucun
+élément caché ou recouvert, aucun focus invisible, aucun widget sans arrêt ni aucune commande perdue
+à 911 points. Le guide (« Un parcours de bout en bout ») et les règles TypeScript (« Accessibilité »)
+disent le harnais et la règle des listes.
+
+Ce que les tests ne prouvent pas. Le harnais contrôle chaque écran tel qu'il s'ouvre, et rien de ce
+qu'un geste y ouvre : les dialogues, les menus, le Popover d'un refus et l'éditeur d'une cellule ne
+sont pas parcourus ; le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — n'est pas
+contrôlé ; un état qu'un geste atteint, un refus, une adresse `?import=`, non plus. Axe ne mesure pas
+le contraste d'un texte qu'il ne sait pas situer — posé sur le dessin d'une courbe, en partie hors de
+la boîte qui le fait défiler, sous un autre — : le test de ses règles le note en annotation, raison
+par raison, les figures de courbe à part, et un caractère seul dont il n'a pas mesuré les couleurs y
+compte sous sa brièveté, non comme un écart. Le contraste de l'indicateur du focus (WCAG 1.4.11)
+n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Ce qui les couvre
+ailleurs : `expectAccessible`, axe sous happy-dom sans le contraste, dans 58 fichiers de tests de
+composants, dont 21 ouvrent un dialogue ou un menu ; les jetons de la charte, mesurés deux à deux par
+`contrast.test.ts`, les séries des courbes et l'anneau du focus compris ; Radix et les tests de
+composants pour le focus qu'un dialogue ou un menu rend en se fermant. Les dialogues, les menus et les
+éditeurs hors du harnais sont suivis par #782.
+
 ## US-0200 — Accessibilité minimale
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #84

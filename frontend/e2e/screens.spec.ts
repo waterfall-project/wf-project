@@ -18,37 +18,10 @@
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import catalogue from "../messages/fr.json" with { type: "json" };
-import type { FunctionGroup, NavigationFunction, ScreenSection } from "../src/navigation/functions";
-import table from "../src/navigation/functions.json" with { type: "json" };
+import type { NavigationFunction, ScreenSection } from "../src/navigation/functions";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
-
-// The table as the front reads it (`FUNCTION_GROUPS`): its module imports the JSON without the
-// attribute Node asks for, and cannot be loaded here.
-const FUNCTION_GROUPS = table.groups as readonly FunctionGroup[];
-
-// The project of the examples of the contract, in progress, and its current revision.
-const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
-const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-
-/** The text of a key of the reference catalogue. */
-function text(key: string): string {
-  const found = key.split(".").reduce<unknown>((node, part) => {
-    return typeof node === "object" && node !== null
-      ? (node as Record<string, unknown>)[part]
-      : undefined;
-  }, catalogue);
-  if (typeof found !== "string") {
-    throw new Error(`no text for ${key} in the reference catalogue`);
-  }
-  return found;
-}
-
-/** The path of a route in the project and the revision of the examples. */
-function path(route: string): string {
-  return route.replace("[projectId]", PROJECT).replace("[revisionId]", REVISION);
-}
+import { FUNCTION_GROUPS, path, text } from "./routes";
 
 /** An address whose path is the one given, whatever its query: the context a link carries. */
 function at(route: string): RegExp {
