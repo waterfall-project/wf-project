@@ -125,7 +125,10 @@ inscriptions (WF-SEC-0030). Le rôle du service n'y a que `INSERT` et `SELECT`, 
 refuse la mise à jour, la suppression et la troncature à quiconque, propriétaire compris
 (`0003_audit_entry`) — à une exception : l'anonymisation d'un compte passe à NULL le libellé qui le
 désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le service n'a `UPDATE` que
-sur ces deux colonnes, et le déclencheur n'admet que cela (`0010_account_anonymization`, #702). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+sur ces deux colonnes, et le déclencheur n'admet que cela, un libellé au moins passé à NULL. Que le
+compte désigné soit anonymisé, c'est le module des comptes qui le vérifie, par un déclencheur à lui
+sur le journal, qui lit `user_account` : la fonction du journal ne lit la table d'aucun module
+(`0010_account_anonymization`, #702, #865). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.
@@ -192,6 +195,13 @@ une chaîne ; c'est la revue qui le cherche, dans le diff et dans le code voisin
 Une jointure entre modules se fait en deux lectures, ou par une opération que l'interface du
 module propriétaire offre. Une migration, elle, voit toute la base : c'est le seul endroit où
 le nom d'une table d'un autre module peut figurer.
+
+Un module du noyau peut nommer une table de la plateforme dans son SQL — une fonction ou un
+déclencheur qu'il pose par sa migration, comme celui des comptes sur `audit_entry` — ; l'inverse
+est interdit. La plateforme est sous chacun des modules et ne connaît aucun d'eux, comme ses
+imports (`make imports-back`) : un module extrait en service emporte son SQL et retrouve la
+plateforme de l'autre côté, mais une plateforme qui lirait la table d'un module ne s'en
+séparerait plus.
 
 *Pourquoi* : WF-ARC-0010 veut qu'un module s'extraie en service sans réécrire ses voisins.
 *Contrôle* : la revue.

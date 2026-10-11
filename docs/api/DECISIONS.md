@@ -3755,7 +3755,13 @@ qui laisse un compte anonymisé dans le fournisseur sans que personne le sache. 
 `reactivate` d'un compte anonymisé est indisponible, `is_not_anonymized` manquante, que
 `setUserActivation` nomme dans son 409 ; `updateUser` la nomme aussi pour un nom, un prénom ou une
 adresse envoyés à un compte anonymisé, que la contrainte de la table refuserait. `user_anonymize`
-s'ajoute à `AuditAction` (WF-SEC-0030), l'objet le compte, sans libellé ni paramètre.
+s'ajoute à `AuditAction` (WF-SEC-0030), l'objet le compte, sans libellé ni paramètre. La base
+n'admet l'oubli d'un nom dans le journal que pour un compte anonymisé (#865) : le déclencheur du
+journal n'admet que le passage à nul de `actor_display_name` ou `object_label`, l'un au moins, le
+reste de la ligne inchangé, et un déclencheur du module des comptes sur le journal refuse ce
+passage quand le compte désigné n'a pas `anonymized_at` ; la plateforme ne lit la table d'aucun
+module (`docs/dev/sql.md`). Écarté : laisser la vérification au service seul, qu'une écriture
+qui le contourne ne rencontre pas.
 `User.available_commands` admet trois commandes.
 
 ## Collage et annulation

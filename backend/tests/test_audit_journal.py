@@ -14,13 +14,14 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 from openapi_core import OpenAPI
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Engine, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
-from support import operations, service_role
+from support import operations, raw_account, service_role
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.contract import models
+from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     ACTIONS,
     OBJECT_KINDS,
@@ -58,6 +59,17 @@ def inscribe(database: Database, inscription: Inscription) -> UUID:
     """Inscribe an action in a transaction of its own, under the correlation of a request."""
     with logging_context(correlation_id=CORRELATION), database.transaction() as session:
         return record(session, inscription)
+
+
+def hold_account(database: Database, user_id: UUID, *, is_anonymized: bool) -> None:
+    """Write by hand the account the journal names, anonymised or not."""
+    forgotten = dict.fromkeys(("last_name", "first_name", "email"))
+    anonymized = {**forgotten, "anonymized_at": NOON, "state": "deactivated"}
+    row = raw_account(id=user_id, email=f"{user_id.hex}@example.org")
+    if is_anonymized:
+        row.update(anonymized)
+    with database.engine.begin() as connection:
+        connection.execute(insert(UserAccount).values(**row))
 
 
 def read(database: Database, identifier: UUID) -> AuditEntry:
@@ -216,18 +228,74 @@ def test_the_database_refuses_an_update_or_a_deletion_even_to_the_owner_of_the_t
         "UPDATE audit_entry SET object_label = 'Administrateur'",
         # A role is no account: its label stays.
         "UPDATE audit_entry SET object_label = NULL",
+        # An update that changes nothing is no anonymisation.
+        "UPDATE audit_entry SET actor_display_name = actor_display_name",
+        "UPDATE audit_entry SET object_label = object_label",
     ],
 )
 def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of_an_account(
     database: Database, statement: str
 ) -> None:
     # The service may update the two labels that name an account, and the trigger admits no other
-    # change of them than making null the name of an account (migration 0010).
+    # change of them than making null the name of an anonymised account (migration 0010).
     inscribe(database, role_created())
     with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
         connection.execute(text(statement))
     assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+    assert "audit_entry is never updated nor deleted: UPDATE refused" in str(raised.value)
     assert read_labels(database) == ["Auditeur"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize("is_held", [True, False], ids=["active", "unknown"])
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_entry SET actor_display_name = NULL",
+        "UPDATE audit_entry SET object_label = NULL",
+        "UPDATE audit_entry SET actor_display_name = NULL, object_label = NULL",
+    ],
+)
+def test_the_name_of_an_account_that_is_not_anonymized_stays_in_the_journal(
+    database: Database, owner: Engine, statement: str, *, is_held: bool
+) -> None:
+    # Claire is the author and the object, and is not anonymised: the module of the accounts
+    # refuses that the journal forget her name, to the service as to the owner of the tables.
+    if is_held:
+        hold_account(database, CLAIRE.user_id, is_anonymized=False)
+    claire = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created(action="user_update", audited=claire))
+    for engine in (database.engine, owner):
+        with pytest.raises(IntegrityError) as raised, engine.begin() as connection:
+            connection.execute(text(statement))
+        assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+        assert "forgets the name of an anonymised account alone: UPDATE refused" in str(
+            raised.value
+        )
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == ("Claire Martin", "Claire Martin")
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_name_of_another_account_stays_when_an_account_is_anonymized(
+    database: Database,
+) -> None:
+    # Claire is anonymised, Paul is not: the name of Paul, author of the inscription that names
+    # Claire as its object, is not hers to forget.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    hold_account(database, paul.user_id, is_anonymized=False)
+    claire = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created(action="user_update", actor=paul, audited=claire))
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(
+            text("UPDATE audit_entry SET actor_display_name = NULL, object_label = NULL")
+        )
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+    with database.engine.begin() as connection:
+        connection.execute(text("UPDATE audit_entry SET object_label = NULL"))
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == ("Paul Durand", None)
 
 
 def rows(database: Database) -> list[dict[str, Any]]:
@@ -246,6 +314,7 @@ def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and
     # name, and the label of the role, stay.
     paul = AuditActor(uuid4(), "Paul Durand")
     claire_as_object = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
     inscribe(database, role_created())
     inscribe(database, role_created(action="user_update", actor=paul, audited=claire_as_object))
     inscribe(database, role_created(actor=paul, occurred_at=NOON.replace(hour=13)))
@@ -273,6 +342,7 @@ def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and
 
 
 def test_an_account_forgotten_twice_is_forgotten_once(database: Database) -> None:
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
     inscribe(database, role_created())
     for _ in range(2):
         with logging_context(correlation_id=CORRELATION), database.transaction() as session:

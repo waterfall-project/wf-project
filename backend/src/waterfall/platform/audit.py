@@ -16,7 +16,9 @@ refuses to update or delete an inscription: the role of the service has only ``I
 (migration ``0003``) — but one. The anonymisation of an account makes null the label that names
 it in every inscription, as its author or as its object, and nothing else: their number, their
 dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0060). The role of
-the service may update those two columns alone, and the trigger admits that update alone
+the service may update those two columns alone, and the trigger of the journal admits that update
+alone, one label at least made null; that the account is anonymised, the module of the accounts
+checks, by a trigger of its own on this table, for the platform reads no table of a module
 (migration ``0010``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
@@ -280,7 +282,8 @@ def forget_account(session: Session, user_id: UUID) -> None:
     """Make null, in the transaction of ``session``, the label of an account the journal names.
 
     In every inscription that names it, as its author or as its object, and nothing else
-    (WF-SEC-0030): its caller anonymises the account in the same transaction. Two anonymisations
+    (WF-SEC-0030): its caller anonymises the account first, in the same transaction, and the
+    database refuses to forget the name of an account that is not anonymised. Two anonymisations
     wait for each other: an inscription may name both accounts, and each would hold the row the
     other waits for.
     """

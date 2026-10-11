@@ -9,10 +9,12 @@ several null ones.
 
 The journal refuses any change of an inscription but one: the label that names an account — as
 its author, or as its object — becomes null, the rest of the row unchanged (WF-SEC-0030). The
-trigger compares the whole row but those two labels, so that a column added later is kept as
-well; the role of the service may update those two columns, and no other. That the account is
-anonymised is the journal's caller's to know: the trigger reads no table of another module.
-``user_anonymize`` joins the actions of the journal.
+trigger of the journal compares the whole row but those two labels, so that a column added later
+is kept as well, and refuses an update that changes nothing; the role of the service may update
+those two columns, and no other. That the account is anonymised, the module of the accounts
+checks, by a trigger of its own on the journal that reads ``user_account``: a module may name a
+table of the platform, never the reverse, and the function of the journal reads no table of a
+module (``docs/dev/sql.md``). ``user_anonymize`` joins the actions of the journal.
 
 The descent restores what ``0003`` and ``0001`` declared: it is refused by the database once an
 account has been anonymised, whose names are lost.
@@ -71,7 +73,9 @@ OBJECT_LABELED = (
     "object_label IS NOT NULL OR object_kind IN ('backup', 'user')",
 )
 
-# The update the trigger admits: each label of an account kept or made null, nothing else changed.
+# The update the trigger of the journal admits: each label of an account kept or made null, one
+# of them at least made null, nothing else changed. Whether the account is anonymised, it does not
+# read: the platform names no table of a module.
 GUARD = """
 CREATE OR REPLACE FUNCTION audit_entry_refuse_change() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -80,6 +84,8 @@ BEGIN
                 OR (NEW.actor_display_name IS NULL AND OLD.actor_user_id IS NOT NULL))
             AND (NEW.object_label IS NOT DISTINCT FROM OLD.object_label
                 OR (NEW.object_label IS NULL AND OLD.object_kind = 'user'))
+            AND (NEW.actor_display_name IS DISTINCT FROM OLD.actor_display_name
+                OR NEW.object_label IS DISTINCT FROM OLD.object_label)
             AND to_jsonb(NEW) - 'actor_display_name' - 'object_label'
                 = to_jsonb(OLD) - 'actor_display_name' - 'object_label'
         THEN
@@ -101,6 +107,35 @@ BEGIN
 END
 $$
 """
+
+# The trigger of the module of the accounts on the journal: a label made null names an anonymised
+# account. It fires after the journal's own, by the order of their names, which refuses first any
+# other change.
+FORGET_ANONYMIZED = """
+CREATE FUNCTION user_account_forget_anonymized() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (NEW.actor_display_name IS NULL AND OLD.actor_display_name IS NOT NULL
+            AND NOT EXISTS (
+                SELECT FROM user_account
+                WHERE id = OLD.actor_user_id AND anonymized_at IS NOT NULL
+            ))
+        OR (NEW.object_label IS NULL AND OLD.object_label IS NOT NULL
+            AND NOT (OLD.object_kind = 'user' AND EXISTS (
+                SELECT FROM user_account
+                WHERE id = OLD.object_id AND anonymized_at IS NOT NULL
+            )))
+    THEN
+        RAISE EXCEPTION 'audit_entry forgets the name of an anonymised account alone: % refused',
+            TG_OP USING ERRCODE = 'restrict_violation';
+    END IF;
+    RETURN NEW;
+END
+$$
+"""
+FORGET_TRIGGER = (
+    "CREATE TRIGGER user_account_forget_anonymized BEFORE UPDATE ON audit_entry "
+    "FOR EACH ROW EXECUTE FUNCTION user_account_forget_anonymized()"
+)
 
 GRANT = """
 DO $$
@@ -139,12 +174,16 @@ def upgrade() -> None:
     _replace_check(JOURNAL, "actor_named", ACTOR_NAMED[1])
     _replace_check(JOURNAL, "object_labeled", OBJECT_LABELED[1])
     op.execute(GUARD)
+    op.execute(FORGET_ANONYMIZED)
+    op.execute(FORGET_TRIGGER)
     op.execute(GRANT.format(verb="GRANT", way="TO"))
 
 
 def downgrade() -> None:
     """Refuse again every change of the journal, and give every account back its names."""
     op.execute(GRANT.format(verb="REVOKE", way="FROM"))
+    op.execute("DROP TRIGGER user_account_forget_anonymized ON audit_entry")
+    op.execute("DROP FUNCTION user_account_forget_anonymized()")
     op.execute(REFUSE)
     _replace_check(JOURNAL, "object_labeled", OBJECT_LABELED[0])
     _replace_check(JOURNAL, "actor_named", ACTOR_NAMED[0])
