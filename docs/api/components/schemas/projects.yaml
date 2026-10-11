@@ -135,11 +135,14 @@ CommandCondition:
     `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
     n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
     du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
-    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Une tient à
-    l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_not_anonymized` manque à la
-    réactivation d'un compte anonymisé, que le compte nomme (`User.available_commands`) et
-    `setUserActivation` dans son 409, et à la modification de son nom, de son prénom ou de son
-    adresse, que `updateUser` nomme dans son 409. Le retrait de l'une de
+    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à
+    l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de
+    `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme
+    dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ;
+    `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que
+    le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans
+    leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser`
+    nomme dans son 409. Le retrait de l'une de
     ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
   enum:
@@ -175,6 +178,7 @@ CommandCondition:
     - last_administrator
     - is_local_account
     - is_active_account
+    - is_deactivated_account
     - is_not_anonymized
 
 ProjectCommand:

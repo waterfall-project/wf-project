@@ -49,7 +49,8 @@ User:
             Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
             `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est
-            désactivé et ne l'est pas encore, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
+            désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas
+            présentée ; la liste est vide pour
             qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
             et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
             d'habilitation (`access_roles.write`, WF-ADM-0090).
@@ -86,7 +87,9 @@ UserCommand:
     `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état :
     `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
     anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
-    `anonymize` s'il est désactivé et non anonymisé, et toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
+    `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est
+    pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours
+    `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
     (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
     d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
     WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
@@ -97,7 +100,7 @@ UserCommand:
     davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
     attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
     `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
-    disponible.
+    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
 
 UserCommandAvailability:
   type: object

@@ -599,6 +599,7 @@ class CommandCondition(StrEnum):
     last_administrator = "last_administrator"
     is_local_account = "is_local_account"
     is_active_account = "is_active_account"
+    is_deactivated_account = "is_deactivated_account"
     is_not_anonymized = "is_not_anonymized"
 
 
@@ -614,7 +615,7 @@ class User(UserAccount):
     available_commands: Annotated[
         list[UserCommandAvailability],
         Field(
-            description="Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est désactivé et ne l'est pas encore, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100), et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles d'habilitation (`access_roles.write`, WF-ADM-0090). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            description="Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100), et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles d'habilitation (`access_roles.write`, WF-ADM-0090). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
             max_length=3,
         ),
     ]

@@ -3739,16 +3739,24 @@ adresse de remplacement, une valeur qu'aucune personne ne porte.
 
 **`anonymizeUser`, `POST /users/{user_id}/anonymization`** : l'anonymisation est irréversible, et
 mérite un verbe comme le marquage (« Forme des chemins ») ; elle porte le `lock_version` lu, d'où
-son 412. Elle refuse un compte actif par 409 `STATE_FORBIDS_OPERATION` sans condition : la
-commande `anonymize` ne se liste que pour un compte désactivé et non anonymisé, et aucune
-condition du catalogue ne dit « compte désactivé ». Demandée pour un compte déjà anonymisé, elle
-n'écrit rien et retire de nouveau du fournisseur d'identité un compte local — WF-ADM-0060 le veut
-retiré, et la retirer après la validation laisse un échec du fournisseur à reprendre —, comme une
-désactivation redemandée ferme de nouveau les sessions. La commande `reactivate` d'un compte
-anonymisé est indisponible, `is_not_anonymized` manquante, que `setUserActivation` nomme dans son
-409 ; `updateUser` la nomme aussi pour un nom, un prénom ou une adresse envoyés à un compte
-anonymisé, que la contrainte de la table refuserait. `user_anonymize` s'ajoute à `AuditAction`
-(WF-SEC-0030). `User.available_commands` admet trois commandes.
+son 412, et rend le compte (`User`) ; aucune confirmation côté API, l'écran la demande. Elle
+refuse un compte actif par 409 `STATE_FORBIDS_OPERATION`, `missing_condition` à
+`is_deactivated_account`, une condition de plus, miroir de `is_active_account`, et un compte déjà
+anonymisé par `is_not_anonymized` (#856 ; décision de l'auteur du 2026-10-11). La commande
+`anonymize` ne se liste que pour un compte désactivé, comme `reactivate` qu'elle suit : disponible
+tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante. Un compte
+local est retiré du fournisseur d'identité **avant** l'écriture, hors transaction (#669), après
+une vérification sous transaction courte — le compte, son état, sa version — : si le fournisseur
+ne répond pas, 503 et rien n'est écrit, et l'anonymisation se redemande ; un compte que le
+fournisseur ne tient déjà plus est retiré. Un compte de l'annuaire ou d'un fournisseur externe
+n'est pas touché dans le fournisseur, et la lecture des comptes ne le recrée pas (WF-ADM-0070).
+Écarté : retirer le compte local après la validation, un échec du fournisseur seulement journalisé,
+qui laisse un compte anonymisé dans le fournisseur sans que personne le sache. La commande
+`reactivate` d'un compte anonymisé est indisponible, `is_not_anonymized` manquante, que
+`setUserActivation` nomme dans son 409 ; `updateUser` la nomme aussi pour un nom, un prénom ou une
+adresse envoyés à un compte anonymisé, que la contrainte de la table refuserait. `user_anonymize`
+s'ajoute à `AuditAction` (WF-SEC-0030), l'objet le compte, sans libellé ni paramètre.
+`User.available_commands` admet trois commandes.
 
 ## Collage et annulation
 

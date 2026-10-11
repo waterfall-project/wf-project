@@ -1,5 +1,5 @@
 {
-  "summary": "Le compte désactivé d'Alix Moreau anonymisé par Camille Martin, à la demande de la personne : son nom, son prénom et son adresse sont nuls, et le front le présente sous le libellé neutre de son catalogue ; son identifiant, son rattachement et ses rôles demeurent, et sa réactivation est indisponible, is_not_anonymized manquante (WF-ADM-0060).",
+  "summary": "Le compte désactivé d'Alix Moreau anonymisé par Camille Martin, à la demande de la personne : son nom, son prénom et son adresse sont nuls, et le front le présente sous le libellé neutre de son catalogue ; son identifiant, son rattachement et ses rôles demeurent, et sa réactivation comme son anonymisation sont indisponibles, is_not_anonymized manquante (WF-ADM-0060).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000303",
     "last_name": null,
@@ -20,6 +20,13 @@
     "available_commands": [
       {
         "command": "reactivate",
+        "is_available": false,
+        "missing_conditions": [
+          "is_not_anonymized"
+        ]
+      },
+      {
+        "command": "anonymize",
         "is_available": false,
         "missing_conditions": [
           "is_not_anonymized"

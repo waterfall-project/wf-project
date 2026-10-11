@@ -291,11 +291,13 @@
       de son catalogue. Ses actes lui restent attribués, par son identifiant ; il garde ses rôles,
       son rattachement, et l'identifiant que le fournisseur d'identité lui donne, par lequel la
       lecture des comptes le reconnaît sans le modifier ni le recréer (WF-ADM-0070). Un compte
-      local est en outre retiré du fournisseur d'identité, une fois l'anonymisation écrite ; un
-      échec du fournisseur n'empêche pas l'anonymisation, et la demander de nouveau, pour un
-      compte déjà anonymisé, n'écrit rien et le retire encore. L'anonymisation s'inscrit au
-      journal d'audit (`user_anonymize`). Sous la permission de modifier les comptes
-      (`users.write`, WF-ADM-0100) ; un compte anonymisé ne se réactive plus.
+      local est en outre retiré du fournisseur d'identité, avant que l'anonymisation ne soit
+      écrite : si le fournisseur ne répond pas, 503 (`identity_provider`), rien n'est écrit, et
+      l'anonymisation se redemande. Un compte de l'annuaire ou d'un fournisseur externe n'est pas
+      touché dans le fournisseur. Aucune confirmation n'est demandée ici : l'écran la demande.
+      L'anonymisation s'inscrit au journal d'audit (`user_anonymize`, l'objet le compte, sans
+      libellé ni paramètre). Sous la permission de modifier les comptes (`users.write`,
+      WF-ADM-0100) ; un compte anonymisé ne se réactive plus, ni ne s'anonymise de nouveau.
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -318,13 +320,17 @@
       '409':
         description: >-
           Un compte actif, refusé : seul un compte désactivé s'anonymise (WF-ADM-0060), et la
-          commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`, sans
-          paramètre. Rien n'est écrit.
+          commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_deactivated_account`. Un compte déjà anonymisé, refusé,
+          ce que sa commande `anonymize` dit d'avance : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit, et le fournisseur
+          d'identité n'est pas sollicité.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               active: { $ref: ../../../fixtures/api/user_anonymization_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_anonymization_repeated.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

@@ -1,5 +1,5 @@
 {
-  "summary": "Les comptes désactivés (is_active=false) lus par Camille Martin après l'anonymisation du compte d'Alix Moreau : son nom, son prénom et son adresse sont nuls, et le front le présente sous le libellé neutre de son catalogue ; sa réactivation est indisponible, is_not_anonymized manquante, et son anonymisation n'est plus offerte (WF-ADM-0060, WF-IHM-0090).",
+  "summary": "Les comptes désactivés (is_active=false) lus par Camille Martin après l'anonymisation du compte d'Alix Moreau : son nom, son prénom et son adresse sont nuls, et le front le présente sous le libellé neutre de son catalogue ; sa réactivation et son anonymisation sont indisponibles, is_not_anonymized manquante (WF-ADM-0060, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -22,6 +22,13 @@
         "available_commands": [
           {
             "command": "reactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "is_not_anonymized"
+            ]
+          },
+          {
+            "command": "anonymize",
             "is_available": false,
             "missing_conditions": [
               "is_not_anonymized"
