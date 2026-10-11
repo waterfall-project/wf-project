@@ -243,10 +243,17 @@ describe("the session a request to a route holds", () => {
     ["not_wf_session=abc", undefined],
     ["wf_session=", undefined],
     ["", undefined],
-  ])("is read from its cookies, none without the cookie of the session: %j", (cookie, id) => {
-    const headers: HeadersInit = cookie === "" ? {} : { Cookie: cookie };
-    expect(sessionIdOf(new Request("https://front.test/login", { headers }))).toBe(id);
-  });
+    // As `cookies()` of Next reads it, which arms the ticket: the cookie given twice, at its last.
+    ["wf_session=first; wf_session=last", "last"],
+    // Its value decoded, as `cookies()` gives it.
+    ["wf_session=a%2Fb%3D", "a/b="],
+  ])(
+    "is read from its cookies as Next reads them, none without the cookie of the session: %j",
+    (cookie, id) => {
+      const headers: HeadersInit = cookie === "" ? {} : { Cookie: cookie };
+      expect(sessionIdOf(new Request("https://front.test/login", { headers }))).toBe(id);
+    },
+  );
 });
 
 describe("closing the sessions of the request", () => {

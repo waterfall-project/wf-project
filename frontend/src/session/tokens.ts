@@ -23,6 +23,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { RequestCookies } from "next/dist/server/web/spec-extension/cookies";
 import { cookies } from "next/headers";
 
 import { Unreachable } from "@/api/client";
@@ -194,19 +195,15 @@ async function requestSessionId(): Promise<string | undefined> {
 }
 
 /**
- * The identifier of the session a request to a route of the front holds in its cookie, if any,
- * read from its header: the request Next hands a route is of its own class, which a `NextRequest`
- * made of it does not take.
+ * The identifier of the session a request to a route of the front holds in its cookie, if any, read
+ * from its header as `cookies()` reads it — by the class of Next behind it, the cookie given twice
+ * taken at its last, its value decoded —, so that `/login` finds the identifier the ticket was armed
+ * for (`armRequestSignOut`). The request Next hands a route is of its own class, which a
+ * `NextRequest` made of it does not take: the cookies are read from its headers alone.
  */
 export function sessionIdOf(request: Request): string | undefined {
-  for (const pair of (request.headers.get("cookie") ?? "").split(";")) {
-    const at = pair.indexOf("=");
-    if (at >= 0 && pair.slice(0, at).trim() === SESSION_COOKIE) {
-      const id = pair.slice(at + 1).trim();
-      return id === "" ? undefined : id;
-    }
-  }
-  return undefined;
+  const id = new RequestCookies(request.headers).get(SESSION_COOKIE)?.value;
+  return id === "" ? undefined : id;
 }
 
 /**
