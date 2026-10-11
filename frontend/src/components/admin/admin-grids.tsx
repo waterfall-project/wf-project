@@ -53,6 +53,17 @@ export type AccessRole = components["schemas"]["AccessRole"];
 /** Where a page stands in the accounts the server retained: their number, the totals row's. */
 export type UserPage = components["schemas"]["PaginationMeta"];
 
+/**
+ * The roles the server answered a write with, shared by the table and the matrix of the screen
+ * (`RoleAnswers`): read in an event, and recorded once answered.
+ */
+export interface RoleAnswered {
+  /** The role as it stands now: the one last answered, or the one read when it is as new. */
+  readonly latest: (read: AccessRole) => AccessRole;
+  /** Keep a role answered, unless one newer is kept. */
+  readonly record: (answered: AccessRole) => void;
+}
+
 /** The column of the contract the server sorts the accounts by. */
 export type UserSort = NonNullable<
   NonNullable<operations["listUsers"]["parameters"]["query"]>["sort_by"]
@@ -231,18 +242,23 @@ function commandColumns(): GridColumn<AccessRole, AccessRoleSort, null>[] {
   }));
 }
 
-/** The renaming of a role in its cell, from the version read with the permissions of the row. */
-function renaming(): CellEntry<AccessRole, null> {
+/**
+ * The renaming of a role in its cell, from the version the screen holds of it — the one read, or
+ * one the matrix or a renaming answered since (`RoleAnswered`) —, with its permissions; the answer
+ * kept for the matrix as for the table.
+ */
+function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null> {
   let answered = 0;
   return {
     kind: { type: "text", maxLength: LABEL_LENGTH },
     in: () => true,
     value: (role) => role.label,
-    write: async (role, label): Promise<Outcome<RowsWritten<AccessRole, null>>> => {
+    write: async (shown, label): Promise<Outcome<RowsWritten<AccessRole, null>>> => {
       if (label === null) {
         // A text entered is never emptied (`cell-values.ts`): a defect of the front.
         throw new Error("a role is never left without a label");
       }
+      const role = answers?.latest(shown) ?? shown;
       const outcome = await updateAccessRole(role.access_role_id, {
         label,
         permissions: role.permissions,
@@ -251,6 +267,7 @@ function renaming(): CellEntry<AccessRole, null> {
       if (outcome.kind !== "done") {
         return outcome;
       }
+      answers?.record(outcome.data);
       answered += 1;
       const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
       return { kind: "done", data: { ...written, order: answered } };
@@ -260,9 +277,13 @@ function renaming(): CellEntry<AccessRole, null> {
 
 /**
  * The grid of the access roles: the label, the kind, the number of accounts that hold it — each
- * sorted by the server —, and, for a session that may modify the roles, its commands.
+ * sorted by the server —, and, for a session that may modify the roles, its commands, its renaming
+ * writing from the roles the screen holds (`answers`).
  */
-export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, AccessRoleSort, null> {
+export function accessRoleGrid(
+  editable: boolean,
+  answers?: RoleAnswered,
+): GridConfig<AccessRole, AccessRoleSort, null> {
   return {
     key: ACCESS_ROLE_GRID_KEY,
     name: "accessRoles",
@@ -283,7 +304,7 @@ export function accessRoleGrid(editable: boolean): GridConfig<AccessRole, Access
         pinned: true,
         contract: "label",
         value: (role) => role.label,
-        entry: editable ? renaming() : undefined,
+        entry: editable ? renaming(answers) : undefined,
       },
       {
         key: "is_predefined",

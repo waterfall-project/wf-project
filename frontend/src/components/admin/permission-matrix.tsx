@@ -3,14 +3,16 @@
 /**
  * The matrix of the permissions as the place of their modification (US-0380, #380): each cell a
  * checkbox that writes its role whole — its label, its permissions in the order of the catalogue, the
- * version read (`updateAccessRole`), any set of them (WF-ADM-0020). The cell shows what was asked
- * until the server answers, the other cells of the role waiting for the answer, whose version the
- * next write goes from. A refusal is told above the matrix by the catalogue of the codes of error, on
- * the reading it was asked from alone (`Reactivations`), the cell showing the role as it was.
+ * version the screen holds (`updateAccessRole`), any set of them (WF-ADM-0020). The cell shows what
+ * was asked until the server answers, the other cells of the role waiting for the answer, which the
+ * screen keeps for the matrix and the table alike (`RoleAnswers`): the next write, a cell or a
+ * renaming, goes from its version. A refusal is told above the matrix by the catalogue of the codes
+ * of error, on the reading it was asked from alone (`Reactivations`), the cell showing the role as it
+ * was, and taking the focus back once the refusal is dismissed.
  */
 "use client";
 
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useRef, useState } from "react";
 
 import { updateAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
@@ -19,6 +21,7 @@ import { Reactivations, useListReport } from "@/components/reference/reactivatio
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { ROLE_READS } from "./role-address";
+import { newer, RoleAnswers, useRoleAnswers } from "./role-answers";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -33,7 +36,12 @@ interface Holding {
 /** The roles of the matrix as they show, and how a cell writes one. */
 interface Writes {
   readonly holding: (role: string) => Holding | undefined;
-  readonly write: (holding: Holding, code: PermissionCode, held: boolean) => void;
+  readonly write: (
+    holding: Holding,
+    code: PermissionCode,
+    held: boolean,
+    cell: HTMLElement | null,
+  ) => void;
 }
 
 const WritesContext = createContext<Writes | undefined>(undefined);
@@ -45,19 +53,27 @@ interface WritesProps {
   readonly children: ReactNode;
 }
 
-/** The writes of the permissions of the roles the matrix shows, and their refusals told above it. */
+/**
+ * The writes of the permissions of the roles the matrix shows, from the roles the screen holds
+ * (`RoleAnswers`), and their refusals told above it.
+ */
 export function MatrixWrites(props: WritesProps) {
   return (
-    <Reactivations reads={ROLE_READS}>
-      <Writing {...props} />
-    </Reactivations>
+    <RoleAnswers>
+      <Reactivations reads={ROLE_READS}>
+        <Writing {...props} />
+      </Reactivations>
+    </RoleAnswers>
   );
 }
 
-/** The roles answered and the permissions asked, by role, and the writes that change them. */
+/**
+ * The permissions asked, by role, the roles as the screen holds them — read, or answered since —, and
+ * the writes that change them.
+ */
 function Writing({ order, roles, children }: WritesProps) {
   const list = useListReport();
-  const [answered, setAnswered] = useState<ReadonlyMap<string, AccessRole>>(() => new Map());
+  const answers = useRoleAnswers();
   const [asked, setAsked] = useState<ReadonlyMap<string, ReadonlySet<PermissionCode>>>(
     () => new Map(),
   );
@@ -66,17 +82,23 @@ function Writing({ order, roles, children }: WritesProps) {
     if (read === undefined) {
       return undefined;
     }
-    const answer = answered.get(id);
-    const role = answer !== undefined && answer.lock_version > read.lock_version ? answer : read;
+    const role = newer(read, answers?.answered.get(id));
     const codes = asked.get(id);
     return { role, codes: codes ?? new Set(role.permissions), writing: codes !== undefined };
   };
-  const write = ({ role, codes, writing }: Holding, code: PermissionCode, held: boolean) => {
+  const write = (
+    { role: shown, writing }: Holding,
+    code: PermissionCode,
+    held: boolean,
+    cell: HTMLElement | null,
+  ) => {
     if (writing) {
       return;
     }
+    // The role as the screen holds it now: an answer may have arrived since the last render.
+    const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
-    const next = new Set(codes);
+    const next = new Set(role.permissions);
     if (held) {
       next.add(code);
     } else {
@@ -95,9 +117,9 @@ function Writing({ order, roles, children }: WritesProps) {
           return after;
         });
         if (outcome.kind === "done") {
-          setAnswered((before) => new Map(before).set(id, outcome.data));
+          answers?.record(outcome.data);
         } else {
-          list?.report({ outcome, reading, names: {}, target: `permissions ${id}` });
+          list?.report({ outcome, reading, names: {}, target: `permissions ${id}`, back: cell });
         }
       });
   };
@@ -115,19 +137,21 @@ export function PermissionCell({
   readonly name: string;
 }) {
   const writes = useContext(WritesContext);
+  const checkbox = useRef<HTMLButtonElement>(null);
   const holding = writes?.holding(role);
   if (holding === undefined) {
     return null;
   }
   return (
     <Checkbox
+      ref={checkbox}
       checked={holding.codes.has(code)}
       aria-label={name}
       aria-busy={holding.writing}
       aria-disabled={holding.writing ? true : undefined}
       className="align-middle aria-disabled:opacity-50"
       onCheckedChange={(checked) => {
-        writes?.write(holding, code, checked === true);
+        writes?.write(holding, code, checked === true, checkbox.current);
       }}
     />
   );

@@ -21,6 +21,7 @@ import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
+import { useRoleAnswers } from "./role-answers";
 import {
   type AccessRole,
   type AccessRoleSort,
@@ -77,7 +78,18 @@ export function AccessRoleGrid({
   readonly editable: boolean;
 }) {
   const t = useTranslations("admin.accessRoles");
-  const config = useMemo(() => accessRoleGrid(editable), [editable]);
+  // The roles the server answered, which the renaming writes from, shared with the matrix.
+  const answers = useRoleAnswers();
+  const latest = answers?.latest;
+  const record = answers?.record;
+  const config = useMemo(
+    () =>
+      accessRoleGrid(
+        editable,
+        latest === undefined || record === undefined ? undefined : { latest, record },
+      ),
+    [editable, latest, record],
+  );
   return (
     <DenseGrid
       config={config}

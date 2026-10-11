@@ -11,7 +11,8 @@
  * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
  * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
  * session that may modify the roles creates one in line, renames and deletes it in the table, and
- * writes its permissions in the matrix (US-0380/L2); another, none. No screen creates
+ * writes its permissions in the matrix (US-0380/L2), the roles answered shared by both
+ * (`RoleAnswers`); another, none. No screen creates
  * a permission. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
@@ -27,6 +28,7 @@ import {
   type AccessRoleSort,
 } from "@/components/admin/admin-grids";
 import { MatrixWrites } from "@/components/admin/permission-matrix";
+import { RoleAnswers } from "@/components/admin/role-answers";
 import { HOLDER_COUNT, PREDEFINED, rolesQuery } from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
 import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
@@ -100,19 +102,31 @@ export default async function AccessRolesPage({
     <Screen density={FUNCTION_DENSITY.access_roles}>
       <PendingAddress>
         <AccessRolesHeader />
-        <AccessRoleList
-          roles={listed}
-          query={query}
-          preferences={preferences}
-          filters={{ predefined, holders, refused }}
-          editable={editable}
-        />
         {editable ? (
-          <MatrixWrites order={permissions.map(({ code }) => code)} roles={listed}>
-            <PermissionMatrix permissions={permissions} roles={listed} editable />
-          </MatrixWrites>
+          // The roles the server answered, one source for the table and the matrix.
+          <RoleAnswers>
+            <AccessRoleList
+              roles={listed}
+              query={query}
+              preferences={preferences}
+              filters={{ predefined, holders, refused }}
+              editable
+            />
+            <MatrixWrites order={permissions.map(({ code }) => code)} roles={listed}>
+              <PermissionMatrix permissions={permissions} roles={listed} editable />
+            </MatrixWrites>
+          </RoleAnswers>
         ) : (
-          <PermissionMatrix permissions={permissions} roles={listed} editable={false} />
+          <>
+            <AccessRoleList
+              roles={listed}
+              query={query}
+              preferences={preferences}
+              filters={{ predefined, holders, refused }}
+              editable={false}
+            />
+            <PermissionMatrix permissions={permissions} roles={listed} editable={false} />
+          </>
         )}
       </PendingAddress>
     </Screen>
