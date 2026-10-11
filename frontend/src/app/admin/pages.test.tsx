@@ -238,15 +238,18 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation unavailable [WF-ADM-0060-A]", async () => {
+  it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation and its anonymisation unavailable [WF-ADM-0060-A]", async () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
     expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
-      "Compte anonymisé Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé Modifier Réactiver Condition non remplie : compte non anonymisé. Attribuer les rôles",
+      "Compte anonymisé Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé Modifier Réactiver Condition non remplie : compte non anonymisé. Anonymiser Condition non remplie : compte non anonymisé. Attribuer les rôles",
     ]);
     expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
     expect(page).toMatch(
       /aria-label="Réactiver «\u00a0Compte anonymisé\u00a0»" aria-disabled="true"/,
+    );
+    expect(page).toMatch(
+      /aria-label="Anonymiser «\u00a0Compte anonymisé\u00a0»" aria-disabled="true"/,
     );
   });
 

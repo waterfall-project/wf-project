@@ -12,9 +12,9 @@
  * anonymisation, and the attribution of its roles, each presented as the server lists it — absent,
  * not presented; unavailable, with the condition it lacks: the last account active that holds the
  * permissions of administration is not deactivated (WF-ADM-0120), which the front could not find
- * itself, the list being paged; an anonymised account is not reactivated (WF-ADM-0060). Pressed, a
- * command says it is available with EP-03, in one region announced — each press, the same one
- * pressed again too —; nothing is asked of the server.
+ * itself, the list being paged; an anonymised account is neither reactivated nor anonymised again
+ * (WF-ADM-0060). Pressed, a command says it is available with EP-03, in one region announced —
+ * each press, the same one pressed again too —; nothing is asked of the server.
  *
  * A command the server declares it would refuse is presented unavailable, as `Command` does: a
  * role an account holds is not deleted (`deleteAccessRole`, 409, WF-ADM-0090), the last

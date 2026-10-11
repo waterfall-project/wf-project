@@ -14,7 +14,7 @@
  *   its roles, which EP-03 wires (`UserCommand`) — none deletes an account —, the last three as the
  *   account lists them (`available_commands`): the deactivation of the last administrator
  *   unavailable (WF-ADM-0120); the anonymisation offered to a deactivated account only, and the
- *   reactivation of an anonymised one unavailable (WF-ADM-0060). An anonymised account has neither
+ *   reactivation and the anonymisation of an anonymised one unavailable (WF-ADM-0060). An anonymised account has neither
  *   name nor address: it shows the neutral label in place of its last name, nothing for the rest.
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, the commands to modify and to delete

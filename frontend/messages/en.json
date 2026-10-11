@@ -1818,6 +1818,7 @@
       "last_administrator": "another active account holding the administration permissions",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
+      "is_deactivated_account": "deactivated account",
       "is_not_anonymized": "account not anonymised"
     },
     "ProjectExit": {

@@ -445,7 +445,7 @@ describe("an anonymised account", () => {
     expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
 
-  it("presents its reactivation unavailable, naming the condition it lacks, and no longer its anonymisation [WF-ADM-0060-A]", async () => {
+  it("presents its reactivation and its anonymisation unavailable, each naming the condition it lacks [WF-ADM-0060-A]", async () => {
     render(userList(NO_QUERY, anonymized, { editable: true }));
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
     const reactivation = within(grid).getByRole("button", {
@@ -459,7 +459,16 @@ describe("an anonymised account", () => {
     expect(screen.getByRole("status").textContent).toBe(
       `Réactiver «\u00a0Compte anonymisé\u00a0»\u00a0: ${unmet}`,
     );
-    expect(within(grid).queryByRole("button", { name: /^Anonymiser/ })).toBeNull();
+    // Its anonymisation stays listed, unavailable: it is not done twice.
+    const anonymization = within(grid).getByRole("button", {
+      name: "Anonymiser «\u00a0Compte anonymisé\u00a0»",
+    });
+    expect(anonymization).toHaveAttribute("aria-disabled", "true");
+    expect(anonymization).toHaveAccessibleDescription(unmet);
+    await userEvent.click(anonymization);
+    expect(screen.getByRole("status").textContent).toBe(
+      `Anonymiser «\u00a0Compte anonymisé\u00a0»\u00a0: ${unmet}`,
+    );
     // Its roles may still be attributed, as the account lists it.
     expect(
       within(grid).getByRole("button", {
