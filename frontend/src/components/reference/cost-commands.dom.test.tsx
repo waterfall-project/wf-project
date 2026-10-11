@@ -579,8 +579,10 @@ describe("a write whose dialog is closed, and the focus", () => {
     const { rerender } = render(categoryList());
     const link = heldLink();
     try {
-      await userEvent.click(screen.getByRole("button", { name: "Modifier « Sous-traitance »" }));
-      const form = dialog("Modifier « Sous-traitance »");
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
       await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
       await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
       expect(screen.queryByRole("dialog")).toBeNull();
