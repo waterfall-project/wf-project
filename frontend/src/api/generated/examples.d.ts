@@ -272,6 +272,9 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
+  "POST /users/{user_id}/anonymization": {
+    200: "user_anonymized";
+  };
   "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
     200: "chunked_upload_part";
   };

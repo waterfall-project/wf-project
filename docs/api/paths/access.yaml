@@ -198,10 +198,14 @@
         description: >-
           Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
           `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le compte qui la porte. Rien n'est écrit.
+          le compte qui la porte. Un nom, un prénom ou une adresse envoyés pour un compte
+          anonymisé, l'anonymisation étant irréversible (WF-ADM-0060) : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -228,7 +232,8 @@
       Un compte se désactive, jamais ne se supprime : ses actes doivent rester
       attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
       (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
-      d'administration (WF-ADM-0120).
+      d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
+      l'anonymisation est irréversible (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -251,12 +256,68 @@
           La désactivation du dernier compte actif qui porte les permissions de modifier les
           comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la
-          commande `deactivate` du compte dit d'avance (`available_commands`).
+          commande `deactivate` du compte dit d'avance (`available_commands`). La réactivation
+          d'un compte anonymisé, refusée, rien n'étant écrit (WF-ADM-0060) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`, ce que la
+          commande `reactivate` du compte dit d'avance.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_reactivation_refused.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/users/{user_id}/anonymization:
+  post:
+    operationId: anonymizeUser
+    tags: [users]
+    summary: Anonymiser un compte désactivé
+    description: >-
+      À la demande de la personne, un compte désactivé est anonymisé, de façon irréversible
+      (WF-ADM-0060) : son nom, son prénom et son adresse deviennent nuls (`anonymized_at` dit
+      quand), son avatar est retiré, et le libellé qui le désigne dans le journal d'audit, comme
+      auteur ou comme objet, est effacé de toutes les inscriptions, leur nombre, leurs dates et
+      leurs actions inchangés (WF-SEC-0030) ; le front le présente partout sous le libellé neutre
+      de son catalogue. Ses actes lui restent attribués, par son identifiant ; il garde ses rôles,
+      son rattachement, et l'identifiant que le fournisseur d'identité lui donne, par lequel la
+      lecture des comptes le reconnaît sans le modifier ni le recréer (WF-ADM-0070). Un compte
+      local est en outre retiré du fournisseur d'identité, une fois l'anonymisation écrite ; un
+      échec du fournisseur n'empêche pas l'anonymisation, et la demander de nouveau, pour un
+      compte déjà anonymisé, n'écrit rien et le retire encore. L'anonymisation s'inscrit au
+      journal d'audit (`user_anonymize`). Sous la permission de modifier les comptes
+      (`users.write`, WF-ADM-0100) ; un compte anonymisé ne se réactive plus.
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserAnonymizationWrite }
+    responses:
+      '200':
+        description: Compte anonymisé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un compte actif, refusé : seul un compte désactivé s'anonymise (WF-ADM-0060), et la
+          commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`, sans
+          paramètre. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              active: { $ref: ../../../fixtures/api/user_anonymization_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

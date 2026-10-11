@@ -3705,6 +3705,29 @@ désormais `UserCreated`, le compte (`User`) et `invitation_sent`, un booléen e
 des comptes propose aussitôt le lien de fixation (`createPasswordSetupLink`). Écarté : une règle
 d'écran qui propose toujours le lien, que l'administrateur remettrait aussi à qui l'a déjà reçu.
 
+## L'anonymisation d'un compte (EP-03/US-0360/L2b, #702, #832)
+
+**Un compte anonymisé garde sa ligne, ses noms et son adresse à nul** (#832 ; décision de l'auteur
+du 2026-10-11). `UserAccount` rend `last_name`, `first_name` et `email` nuls pour un compte
+anonymisé seulement, et `anonymized_at`, exigé, nul tant qu'il ne l'est pas ; `ActorRef.display_name`
+et `AuditActorFacet.display_name` sont nuls pour lui, `AuditObject.label` aussi. Le front présente
+un nom nul d'un compte sous le libellé neutre de son catalogue : l'API ne rend aucune phrase
+(WF-ARC-0110). Écartés : un libellé neutre écrit en base, une phrase que l'API rendrait ; une
+adresse de remplacement, une valeur qu'aucune personne ne porte.
+
+**`anonymizeUser`, `POST /users/{user_id}/anonymization`** : l'anonymisation est irréversible, et
+mérite un verbe comme le marquage (« Forme des chemins ») ; elle porte le `lock_version` lu, d'où
+son 412. Elle refuse un compte actif par 409 `STATE_FORBIDS_OPERATION` sans condition : la
+commande `anonymize` ne se liste que pour un compte désactivé et non anonymisé, et aucune
+condition du catalogue ne dit « compte désactivé ». Demandée pour un compte déjà anonymisé, elle
+n'écrit rien et retire de nouveau du fournisseur d'identité un compte local — WF-ADM-0060 le veut
+retiré, et la retirer après la validation laisse un échec du fournisseur à reprendre —, comme une
+désactivation redemandée ferme de nouveau les sessions. La commande `reactivate` d'un compte
+anonymisé est indisponible, `is_not_anonymized` manquante, que `setUserActivation` nomme dans son
+409 ; `updateUser` la nomme aussi pour un nom, un prénom ou une adresse envoyés à un compte
+anonymisé, que la contrainte de la table refuserait. `user_anonymize` s'ajoute à `AuditAction`
+(WF-SEC-0030). `User.available_commands` admet trois commandes.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

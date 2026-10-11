@@ -44,12 +44,12 @@ User:
       properties:
         available_commands:
           type: array
-          maxItems: 2
+          maxItems: 3
           description: >-
             Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
-            `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses
-            rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
+            `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est
+            désactivé et ne l'est pas encore, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
             qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
             et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
             d'habilitation (`access_roles.write`, WF-ADM-0090).
@@ -78,13 +78,15 @@ UserCreated:
 
 UserCommand:
   type: string
-  enum: [deactivate, reactivate, set_access_roles]
+  enum: [deactivate, reactivate, anonymize, set_access_roles]
   description: >-
     Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
-    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles
-    d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui
-    change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte
-    toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
+    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par
+    `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par
+    `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état :
+    `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
+    anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
+    `anonymize` s'il est désactivé et non anonymisé, et toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
     (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
     d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
     WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
@@ -118,6 +120,7 @@ UserAccount:
     - last_name
     - first_name
     - email
+    - anonymized_at
     - is_active
     - origin
     - org_node_label
@@ -127,12 +130,29 @@ UserAccount:
     - lock_version
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
-    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    last_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    first_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
     email:
-      type: string
-      format: email
-      description: Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
+      anyOf: [{ type: string, format: email }, { type: 'null' }]
+      description: >-
+        Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle
+        pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    anonymized_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un
+        compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs
+        sont nuls, et le front le présente partout sous le libellé neutre de son catalogue,
+        l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son
+        identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas.
     is_active:
       type: boolean
       description: >-
@@ -215,6 +235,13 @@ UserActivationWrite:
   required: [is_active, lock_version]
   properties:
     is_active: { type: boolean }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserAnonymizationWrite:
+  type: object
+  required: [lock_version]
+  description: L'anonymisation d'un compte désactivé, à la version lue (`anonymizeUser`).
+  properties:
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserRolesWrite:
