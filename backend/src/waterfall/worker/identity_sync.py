@@ -98,7 +98,7 @@ class IdentitySync:
         for account in unheld:
             try:
                 with session.begin_nested(), guard_deactivation(session):
-                    deactivated = deactivate_unheld(session, account.user_id, at)
+                    deactivated = deactivate_unheld(session, account, at)
             except ConflictError:
                 skipped.append((account.email, LAST_ADMINISTRATOR))
                 logger.warning(

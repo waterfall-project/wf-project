@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from support import raw_account
 
 from waterfall.core.users.interface import (
+    HeldAccount,
     NotAdmitted,
     SyncReport,
     deactivate_unheld,
@@ -150,15 +151,19 @@ def test_an_account_the_provider_no_longer_holds_is_deactivated_by_the_platform(
     local = held(session, email="local@example.org", origin="local")
     held(session, email="off@example.org", state="deactivated")
     assert known_subjects(session) == frozenset(session.scalars(select(UserAccount.idp_subject)))
-    unheld = unheld_accounts(session, {kept["idp_subject"], local["idp_subject"]})
-    assert [(each.user_id, each.email) for each in unheld] == [(gone["id"], gone["email"])]
-    assert deactivate_unheld(session, gone["id"], NOON) is True
+    (unheld,) = unheld_accounts(session, {kept["idp_subject"], local["idp_subject"]})
+    assert (unheld.user_id, unheld.email) == (gone["id"], gone["email"])
+    # Attached to another subject meanwhile, it is held after all.
+    moved = HeldAccount(gone["id"], "another-subject", gone["email"])
+    assert deactivate_unheld(session, moved, NOON) is False
+    assert deactivate_unheld(session, unheld, NOON) is True
     stored = session.get_one(UserAccount, gone["id"])
     assert (stored.state, stored.updated_by, stored.updated_at) == ("deactivated", None, NOON)
     assert journal(session) == [("user_deactivate", None, gone["id"], {})]
     # Deactivated already, or local: left as it is.
-    assert deactivate_unheld(session, gone["id"], NOON) is False
-    assert deactivate_unheld(session, local["id"], NOON) is False
+    assert deactivate_unheld(session, unheld, NOON) is False
+    as_local = HeldAccount(local["id"], local["idp_subject"], local["email"])
+    assert deactivate_unheld(session, as_local, NOON) is False
     assert session.get_one(UserAccount, local["id"]).state == "active"
 
 

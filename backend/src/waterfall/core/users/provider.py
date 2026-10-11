@@ -198,15 +198,21 @@ def unheld_accounts(session: Session, held: Collection[str]) -> list[HeldAccount
     return [HeldAccount(*row) for row in rows if row[1] not in kept]
 
 
-def deactivate_unheld(session: Session, user_id: UUID, at: datetime) -> bool:
+def deactivate_unheld(session: Session, held: HeldAccount, at: datetime) -> bool:
     """Deactivate an account the provider no longer holds, by the platform; ``False`` if it is not.
 
-    Locked, then read under the lock: one local, or deactivated meanwhile, is left as it is.
-    Whether the installation keeps an administrator is the guard's its caller runs it under.
+    Locked, then read under the lock: one local, deactivated or attached to another subject
+    meanwhile is left as it is. Whether the installation keeps an administrator is the guard's its
+    caller runs it under.
     """
-    account = lock_account(session, user_id)
-    if account.origin == LOCAL or account.state == DEACTIVATED:
+    account = lock_account(session, held.user_id)
+    if (
+        account.origin == LOCAL
+        or account.state == DEACTIVATED
+        or account.idp_subject != held.subject
+    ):
         return False
+    user_id = held.user_id
     stamp = Stamp(None, at)
     account = change_columns(session, user_id, {"state": DEACTIVATED}, account.lock_version, stamp)
     inscribe(session, "user_deactivate", account, Act(None, at), {})

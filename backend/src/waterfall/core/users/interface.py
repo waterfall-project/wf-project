@@ -88,6 +88,7 @@ from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
     "LAST_ADMINISTRATOR",
+    "NAME_MAX_LENGTH",
     "Account",
     "AccountColumn",
     "AccountExpression",
