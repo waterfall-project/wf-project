@@ -278,6 +278,9 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
+  "POST /users/{user_id}/password-link": {
+    201: "password_setup_link";
+  };
   "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
     200: "chunked_upload_part";
   };

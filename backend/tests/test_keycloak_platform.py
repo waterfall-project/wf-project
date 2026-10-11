@@ -10,10 +10,11 @@ HTTPS, through its front end, whose authority ``SSL_CERT_FILE`` names, the only 
 (#680) —, ``WATERFALL_SERVICE_CLIENT_SECRET`` the secret its realm was applied with, and
 ``WATERFALL_KEYCLOAK_ADMIN_PASSWORD`` the administrator that applied it. Without them they
 fail and say so. The mails Keycloak sends are read in the Mailpit of the platform, on the port
-``WATERFALL_MAILPIT_PORT`` publishes, 8025 unless it says another, as Compose does. They try the
-platform and cite no requirement: what the requirements ask of Keycloak — the lockout, a link used
-or expired, the sign-in of each kind of account through the front — is proved by the tests of the
-lot that closes those criteria (US-0350/L5).
+``WATERFALL_MAILPIT_PORT`` publishes, 8025 unless it says another, as Compose does;
+``WATERFALL_TEST_FRONT_ADDRESS`` is the address of the front the realm was applied with. They try
+the platform and cite no requirement: what the requirements ask of Keycloak — the lockout, a link
+used or expired, the sign-in of each kind of account through the front — is proved by
+``test_keycloak_sign_in.py``.
 """
 
 import base64
@@ -28,7 +29,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 from uuid import uuid4
 
 import httpx2
@@ -40,6 +41,7 @@ ADDRESS_VARIABLE = "WATERFALL_TEST_KEYCLOAK_ADDRESS"
 BACKCHANNEL_VARIABLE = "WATERFALL_TEST_KEYCLOAK_BACKCHANNEL"
 SERVICE_CREDENTIAL_VARIABLE = "WATERFALL_SERVICE_CLIENT_SECRET"
 ADMIN_CREDENTIAL_VARIABLE = "WATERFALL_KEYCLOAK_ADMIN_PASSWORD"
+FRONT_ADDRESS_VARIABLE = "WATERFALL_TEST_FRONT_ADDRESS"
 REALM = "waterfall"
 # The person of the directory of test (deploy/keycloak/development/directory.ldif).
 DIRECTORY_EMAIL = "dominique.annuaire@waterfall.test"
@@ -48,11 +50,28 @@ DIRECTORY_EMAIL = "dominique.annuaire@waterfall.test"
 EXTERNAL_PROVIDER = "external"
 # A password the policy of the realm accepts: long enough, neither an address nor a name.
 PASSWORD = secrets.token_urlsafe(24)
-# The page of a replaced link, in the login theme of Waterfall, in French by default.
+# The pages of a replaced link and of a spent one, in the login theme of Waterfall, in French by
+# default: two refusals told apart (#655).
 REPLACED = "Ce lien a été remplacé par un plus récent"
+SPENT = "Ce lien a déjà servi"
+# The page of a link expired, or of a link of Keycloak's own already used, in the words of its base
+# theme: expiredActionTokenNoSessionMessage, expiredActionMessage.
+EXPIRED = "Action expirée"
+# The refusal of a password to an account of a directory or of a provider, in its theme (#650).
+LOCAL_ACCOUNT_ONLY = "ce compte se connecte par son annuaire ou par son fournisseur"
+# The same refusal, as the administration API says it, in the words of the admin theme.
+LOCAL_ACCOUNT_ONLY_REFUSAL = {
+    "error": "invalidPasswordLocalAccountOnlyMessage",
+    "error_description": (
+        "Invalid password: the account signs in with its directory or its identity provider."
+    ),
+}
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
 # The type of the action token of a link the extension makes (PasswordSetupToken).
 EXTENSION_ACTION = "waterfall-password-setup"
+# The client the development platform declares for the tokens its tests sign in for by a password
+# (deploy/keycloak/development/waterfall.yaml, #644).
+TEST_CLIENT = "waterfall-test"
 # A mail server on a port of the container of Keycloak where nothing listens.
 UNREACHABLE_MAIL_SERVER = {"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}
 
@@ -199,13 +218,15 @@ def set_password(admin: httpx2.Client, user_id: str, password: str) -> None:
     assert response.status_code == 204, response.text
 
 
-def password_grant(keycloak: httpx2.Client, account: Account, password: str) -> httpx2.Response:
-    """Sign in with a password through the client every realm has for its command line."""
+def password_grant(
+    keycloak: httpx2.Client, account: Account, password: str, *, client: str = TEST_CLIENT
+) -> httpx2.Response:
+    """Sign in with a password, through the client of test of the development platform."""
     return keycloak.post(
         "/protocol/openid-connect/token",
         data={
             "grant_type": "password",
-            "client_id": "admin-cli",
+            "client_id": client,
             "username": account.email,
             "password": password,
         },
@@ -252,14 +273,30 @@ def confirmation_target(page: httpx2.Response) -> str:
     return html.unescape(target.group(1))
 
 
+def set_by_link(url: str, password: str) -> tuple[Browser, httpx2.Response]:
+    """Open a link in a new browser, confirm it, and set a password in the form it opens.
+
+    Give the browser and the page that answers the form.
+    """
+    browser = Browser()
+    form = browser.get(confirmation_target(browser.get(url)))
+    assert 'name="password-new"' in form.text, form.text
+    fields = {"password-new": password, "password-confirm": password}
+    return browser, browser.submit(form, fields)
+
+
 def invite(backchannel: httpx2.Client, user_id: str, token: str | None) -> httpx2.Response:
     """Ask the extension to mail an account its invitation, as the service does."""
     headers = {} if token is None else {"Authorization": f"Bearer {token}"}
     return backchannel.post(f"/password-setup-link/users/{user_id}/invitation", headers=headers)
 
 
-def mailed_link(address: str) -> str:
-    """Wait for the mail Keycloak sent to an address, ten seconds at most; give its link."""
+def mailed_link(address: str, *, whole: bool = False) -> str:
+    """Wait for the mail Keycloak sent to an address, ten seconds at most; give its link.
+
+    The link is cut after its token unless ``whole`` is asked for, with the parameters of the
+    browser it was asked from.
+    """
     port = os.environ.get(MAILPIT_PORT_VARIABLE) or "8025"
     deadline = time.monotonic() + 10
     with httpx2.Client(base_url=f"http://127.0.0.1:{port}", timeout=10) as mailpit:
@@ -267,8 +304,9 @@ def mailed_link(address: str) -> str:
             found = mailpit.get("/api/v1/search", params={"query": f'to:"{address}"'}).json()
             if found["messages"]:
                 message = mailpit.get(f"/api/v1/message/{found['messages'][0]['ID']}").json()
+                ending = r"\S+" if whole else r"[\w.-]+"
                 link = re.search(
-                    r"https://\S+/login-actions/action-token\?key=[\w.-]+", message["Text"]
+                    rf"https://\S+/login-actions/action-token\?key={ending}", message["Text"]
                 )
                 assert link is not None, message["Text"]
                 return link.group(0)
@@ -294,6 +332,17 @@ def test_the_realm_lends_tokens_of_five_minutes_to_the_service_account(
     read = claims(service_token)
     assert read["exp"] - read["iat"] == 300
     assert read["azp"] == "waterfall-service"
+
+
+def test_the_command_line_client_of_the_realm_takes_no_password(
+    keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
+) -> None:
+    # No second way of signing in around the page of the realm (#644): the client every realm has
+    # for its command line refuses a password the client of test takes.
+    set_password(admin, local_account.id, PASSWORD)
+    refused = password_grant(keycloak, local_account, PASSWORD, client="admin-cli")
+    assert (refused.status_code, refused.json()["error"]) == (400, "unauthorized_client")
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
 
 
 def test_the_lockout_is_ten_failures_fifteen_minutes_and_does_not_outlive_its_lock(
@@ -402,47 +451,68 @@ def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
     assert second.json()["url"] != link["url"]
     # The page of Keycloak refuses the first link, saying it was replaced, and asks to confirm
     # the second.
-    replaced = Browser().get(link["url"])
-    assert replaced.status_code == 400
-    assert REPLACED in html.unescape(replaced.text)
+    assert refused_as(Browser().get(link["url"])) == "replaced"
     page = Browser().get(second.json()["url"])
     assert page.status_code == 200
     assert confirmation_target(page).startswith(f"{realm}/login-actions/action-token?key=")
 
 
-def test_a_link_sets_the_password_once(
+def refused_as(page: httpx2.Response) -> str:
+    """Say how the page of a link refuses it: spent, or replaced; it says one, never both."""
+    assert page.status_code == 400, page.text
+    text = html.unescape(page.text)
+    said = [name for name, words in (("spent", SPENT), ("replaced", REPLACED)) if words in text]
+    assert len(said) == 1, text
+    return said[0]
+
+
+def test_a_link_sets_the_password_once_then_leads_to_waterfall(
     keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     url = made.json()["url"]
-    browser = Browser()
-    form = browser.get(confirmation_target(browser.get(url)))
-    assert form.status_code == 200
-    assert 'name="password-new"' in form.text
-    done = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
+    browser, done = set_by_link(url, PASSWORD)
     assert done.status_code == 200, done.text
+    # The page that ends it leads to the home of the front, which asks to sign in (#645).
+    home = f"{required(FRONT_ADDRESS_VARIABLE).rstrip('/')}/"
+    assert f'href="{home}"' in done.text, done.text
     assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
-    # Opened again, in the same browser or another one, the link is spent.
-    assert browser.get(url).status_code == 400
-    assert Browser().get(url).status_code == 400
+    # Opened again, in the same browser or another one, the link says it served already (#655).
+    assert refused_as(browser.get(url)) == refused_as(Browser().get(url)) == "spent"
 
 
-def test_a_link_is_spent_once_confirmed_and_its_form_stays_open(
+def test_a_link_is_spent_once_confirmed_and_its_form_stays_open_in_its_browser(
     keycloak: httpx2.Client, backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
     # Spent in the base of Keycloak, not in its memory alone: neither a restart nor a password
-    # set another way makes the link valid again.
+    # set another way makes the link valid again. Opened again in another browser, it leaves the
+    # form it opened open.
     made = link_of(backchannel, local_account.id, service_token)
     assert made.status_code == 200, made.text
     url = made.json()["url"]
     browser = Browser()
     form = browser.get(confirmation_target(browser.get(url)))
     assert 'name="password-new"' in form.text
-    assert Browser().get(url).status_code == 400
+    assert refused_as(Browser().get(url)) == "spent"
     done = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
     assert done.status_code == 200, done.text
     assert password_grant(keycloak, local_account, PASSWORD).status_code == 200
+
+
+def test_a_link_confirmed_then_reopened_in_its_own_browser_says_it_served(
+    backchannel: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    # Reopened in the same browser, the refusal ends the session of the form already open, which
+    # Keycloak keeps one per browser: the page says the link served, and a new one is to be asked
+    # for (#655).
+    made = link_of(backchannel, local_account.id, service_token)
+    assert made.status_code == 200, made.text
+    url = made.json()["url"]
+    browser = Browser()
+    form = browser.get(confirmation_target(browser.get(url)))
+    assert 'name="password-new"' in form.text
+    assert refused_as(browser.get(url)) == "spent"
 
 
 def test_a_link_outlives_an_update_of_its_account(
@@ -481,19 +551,23 @@ def test_an_account_of_the_directory_has_no_link(
     assert (response.status_code, response.json()) == (409, {"error": "not_local"})
 
 
-def test_an_account_relayed_by_an_external_provider_has_no_link(
-    backchannel: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
-) -> None:
-    # The link a first sign-in through the provider of the development platform leaves.
+def relay(admin: httpx2.Client, account: Account) -> None:
+    """Link an account to the provider of the development platform, as a first sign-in does."""
     relayed = admin.post(
-        f"/users/{local_account.id}/federated-identity/{EXTERNAL_PROVIDER}",
+        f"/users/{account.id}/federated-identity/{EXTERNAL_PROVIDER}",
         json={
             "identityProvider": EXTERNAL_PROVIDER,
             "userId": str(uuid4()),
-            "userName": local_account.email,
+            "userName": account.email,
         },
     )
     assert relayed.status_code == 204, relayed.text
+
+
+def test_an_account_relayed_by_an_external_provider_has_no_link(
+    backchannel: httpx2.Client, admin: httpx2.Client, service_token: str, local_account: Account
+) -> None:
+    relay(admin, local_account)
     response = link_of(backchannel, local_account.id, service_token)
     assert (response.status_code, response.json()) == (409, {"error": "not_local"})
 
@@ -510,9 +584,7 @@ def test_an_invitation_mails_a_link_of_the_extension_that_a_later_link_replaces(
     assert action_token(url)["typ"] == EXTENSION_ACTION
     later = link_of(backchannel, local_account.id, service_token)
     assert later.status_code == 200, later.text
-    replaced = Browser().get(url)
-    assert replaced.status_code == 400
-    assert REPLACED in html.unescape(replaced.text)
+    assert refused_as(Browser().get(url)) == "replaced"
 
 
 def test_an_invitation_is_refused_as_a_link_is(
@@ -542,3 +614,101 @@ def test_a_realm_without_a_mail_server_or_whose_server_fails_sends_no_invitation
     # The invitation that did not leave replaced nothing: the link obtained before still serves.
     kept = Browser().get(made.json()["url"])
     assert kept.status_code == 200, kept.text
+
+
+def test_an_account_of_a_provider_is_refused_a_password_by_the_console(
+    keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
+) -> None:
+    # The rule local-account-only of the extension (#650): a password the policy takes otherwise.
+    relay(admin, local_account)
+    response = admin.put(
+        f"/users/{local_account.id}/reset-password",
+        json={"type": "password", "value": PASSWORD, "temporary": False},
+    )
+    assert response.status_code == 400, response.text
+    assert response.json() == LOCAL_ACCOUNT_ONLY_REFUSAL
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 401
+
+
+@contextmanager
+def directory_keeping_passwords() -> Generator[None]:
+    """Let the realm keep the passwords of the directory's accounts for a while, then read it only.
+
+    The directory of the platform is read only, which Keycloak says before any rule of the policy;
+    unsynchronized, it leaves a password to the realm, and to its policy.
+    """
+    with administering() as realm:
+        (directory,) = realm.get(
+            "/components", params={"type": "org.keycloak.storage.UserStorageProvider"}
+        ).json()
+
+        def edit_mode(mode: str) -> None:
+            config = {**directory["config"], "editMode": [mode]}
+            done = realm.put(f"/components/{directory['id']}", json={**directory, "config": config})
+            assert done.status_code == 204, done.text
+
+        edit_mode("UNSYNCED")
+        try:
+            yield
+        finally:
+            edit_mode(directory["config"]["editMode"][0])
+
+
+def test_an_account_of_the_directory_is_refused_a_password_by_the_console(
+    admin: httpx2.Client,
+) -> None:
+    # The rule local-account-only of the extension (#650), not the read-only directory, refuses it.
+    found = admin.get("/users", params={"email": DIRECTORY_EMAIL, "exact": "true"}).json()
+    assert [user["email"] for user in found] == [DIRECTORY_EMAIL]
+    with directory_keeping_passwords():
+        response = admin.put(
+            f"/users/{found[0]['id']}/reset-password",
+            json={"type": "password", "value": PASSWORD, "temporary": False},
+        )
+    assert response.status_code == 400, response.text
+    assert response.json() == LOCAL_ACCOUNT_ONLY_REFUSAL
+
+
+def front_login_page(browser: Browser) -> httpx2.Response:
+    """Open the login page of the realm the front sends a person to."""
+    front = required(FRONT_ADDRESS_VARIABLE).rstrip("/")
+    query = {
+        "client_id": "waterfall-front",
+        "response_type": "code",
+        "scope": "openid",
+        "redirect_uri": f"{front}/auth/callback",
+        "state": secrets.token_urlsafe(16),
+        "code_challenge": secrets.token_urlsafe(43),
+        "code_challenge_method": "S256",
+    }
+    realm = required(ADDRESS_VARIABLE).rstrip("/")
+    page = browser.get(f"{realm}/realms/{REALM}/protocol/openid-connect/auth?{urlencode(query)}")
+    assert page.status_code == 200, page.text
+    return page
+
+
+def ask_forgotten(browser: Browser, account: Account) -> None:
+    """Ask the page of a forgotten password, from the login page of the front, to mail a link."""
+    login = front_login_page(browser)
+    forgotten = re.search(r'href="([^"]*login-actions/reset-credentials[^"]*)"', login.text)
+    assert forgotten is not None, login.text
+    asked = browser.get(urljoin(str(login.request.url), html.unescape(forgotten.group(1))))
+    sent = browser.submit(asked, {"username": account.email})
+    assert sent.status_code == 200, sent.text
+
+
+def test_an_account_of_a_provider_is_refused_a_password_by_a_forgotten_one(
+    keycloak: httpx2.Client, admin: httpx2.Client, local_account: Account
+) -> None:
+    # The page of a forgotten password mails a person relayed by a provider a link as it mails a
+    # local account; the rule refuses the password she would set by it, in the words of the login
+    # theme (#650).
+    relay(admin, local_account)
+    browser = Browser()
+    ask_forgotten(browser, local_account)
+    form = browser.get(mailed_link(local_account.email, whole=True))
+    assert 'name="password-new"' in form.text, form.text
+    refused = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
+    assert refused.status_code == 200, refused.text
+    assert LOCAL_ACCOUNT_ONLY in html.unescape(refused.text)
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 401

@@ -4,9 +4,10 @@
 
 Through it the service reads where an account comes from, creates a local account and removes one
 whose creation Waterfall could not complete, and closes the sessions of an account (WF-ADM-0070,
-WF-SEC-0020). The invitation of a local account is sent by the extension of Waterfall, with the
-link it makes: never by ``execute-actions-email``, whose links would escape its nonce (#651). The
-token of the service account is kept until shortly before it expires.
+WF-SEC-0020). The link that sets the password of a local account is made by the extension of
+Waterfall, which also mails it as the invitation of the account: never by
+``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The token of the
+service account is kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -17,6 +18,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from http import HTTPStatus
 from typing import Any, Literal, cast
 from urllib.parse import quote
@@ -62,6 +64,21 @@ class ProviderAccount:
     is_federated: bool
     # Linked to an external provider the realm relays to: the account has a federated identity.
     is_relayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PasswordLink:
+    """A link that sets the password of a local account, and when it stops being valid.
+
+    A secret: whoever holds it sets the password. It is never logged nor kept (WF-SEC-0030).
+    """
+
+    url: str
+    expires_at: datetime
+
+    def __repr__(self) -> str:
+        """Name the link without showing it."""
+        return f"PasswordLink(expires_at={self.expires_at.isoformat()})"
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,6 +227,31 @@ class KeycloakAdmin:
             return "no_mail_server"
         expect(response, HTTPStatus.NO_CONTENT)
         return None
+
+    def make_password_link(self, subject: str) -> PasswordLink | None:
+        """Have the extension make the link that sets the password of a local account.
+
+        Valid one hour and once, it replaces the one made before it (WF-ADM-0140). ``None`` if the
+        realm holds the account as no local one: read from a directory, or relayed by an external
+        provider since Waterfall created it. An account the realm no longer holds is a defect.
+        """
+        path = f"{self._extension}/users/{quote(subject, safe='')}"
+        response = self._as_service("POST", path)
+        if (
+            response.status_code == HTTPStatus.CONFLICT
+            and _document(response).get("error") == "not_local"
+        ):
+            return None
+        made = _document(expect(response, HTTPStatus.OK))
+        url, expires_at = _text(made, "url"), _text(made, "expires_at")
+        try:
+            moment = datetime.fromisoformat(expires_at)
+        except ValueError:
+            moment = None
+        if not url or moment is None or moment.tzinfo is None:
+            message = f"POST {response.request.url.path} answered no link"
+            raise IdentityProviderError(message)
+        return PasswordLink(url, moment)
 
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).

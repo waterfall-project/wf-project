@@ -37,9 +37,11 @@ emailTheme: waterfall
 adminTheme: waterfall
 
 # WF-ADM-0140: twelve characters at least, neither the address nor the last name — the address is
-# the username, hence notUsername as well as notEmail; `not-last-name` is the rule of the
-# extension. No periodic expiry: no `forceExpiredPasswordChange`.
-passwordPolicy: length(12) and notEmail and notUsername and not-last-name
+# the username, hence notUsername as well as notEmail; `not-last-name` is a rule of the extension.
+# `local-account-only`, its other rule, refuses any password to an account of a directory or of an
+# external provider, whichever way it is set (#650). No periodic expiry: no
+# `forceExpiredPasswordChange`.
+passwordPolicy: length(12) and notEmail and notUsername and not-last-name and local-account-only
 
 # WF-ADM-0140: ten consecutive failures lock the account for fifteen minutes, never for good.
 bruteForceProtected: true
@@ -155,6 +157,13 @@ clients:
     implicitFlowEnabled: false
     directAccessGrantsEnabled: false
     serviceAccountsEnabled: true
+
+  # The client every realm has for its command line: no sign-in by password, which would be a way
+  # around the page of the realm the conception does not plan (#644). The development platform
+  # declares its own client of test for the tokens its tests need (development/waterfall.yaml).
+  # Declared here, it is managed: removed from this file, keycloak-config-cli would delete it.
+  - clientId: admin-cli
+    directAccessGrantsEnabled: false
 
 users:
   - username: service-account-waterfall-service

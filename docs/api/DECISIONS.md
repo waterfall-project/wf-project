@@ -3675,6 +3675,13 @@ désactivation écraserait alors une modification que l'administrateur n'a pas v
 Son corps devient un schéma nommé, `UserActivationWrite`, comme `UserRolesWrite` : le service en
 engendre le modèle, que le générateur ne tire pas d'un corps décrit en place.
 
+## Le lien de fixation, enfin au contrat (EP-03/US-0350/L5)
+
+`createPasswordSetupLink` (`POST /users/{user_id}/password-link`) était décrit dans
+`paths/access.yaml` depuis EP-02/L29 (#388), mais la racine du contrat ne le référençait pas :
+il manquait au contrat assemblé, donc au client du front, aux modèles du service et au faux back.
+La racine le référence, sans rien changer à sa description, au moment où le service le sert.
+
 ## Aucun libellé fait seulement de blancs (EP-03, #837)
 
 Décision de l'auteur du 2026-10-11. Le libellé d'un rôle n'exigeait qu'un caractère : « ␣␣␣ » était
@@ -3683,6 +3690,21 @@ et codes du contrat qui exigeaient un caractère exigent désormais un caractèr
 blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contrat, le refuse par 422
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
+
+## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
+
+Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma
+par 422 `VALIDATION_FAILED`, sur toute opération qui en a, et un `lock_version` périmé par 412
+`STALE_LOCK_VERSION`, sur toute écriture qui en porte. Vingt-quatre opérations à paramètres de
+requête ne déclaraient pas leur 422 (#799), et `setNodeTracking` pas son 412 (#827) : elles les
+déclarent. Deux tests du service (`backend/tests/test_contract_declarations.py`) le tiennent, en
+lisant le contrat références suivies — ce que les règles de `redocly.yaml` ne savent pas faire
+pour la place d'un paramètre ou les propriétés d'un corps.
+
+`createUser` dit deux cas que le service connaît : son 409 n'a pas de `conflicting_object_id`
+quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse aussi une adresse
+ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
+resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
 
 ## Collage et annulation
 

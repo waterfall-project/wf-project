@@ -9,7 +9,8 @@ account read, and the table of the accounts, filtered, sorted and read by pages,
 each one carries and the condition the deactivation of the last administrator lacks (WF-ADM-0050,
 WF-IHM-0090); a local account created, and the identity of an
 account changed (``identity``); an account deactivated or reactivated, and an account locked at the
-version read for a write of the roles it holds, which notes the change (``states``).
+version read for a write of the roles it holds, which notes the change (``states``); the moment its
+holder closed its sessions, which refuses the tokens issued before (#668).
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -34,6 +35,7 @@ from waterfall.core.users.accounts import (
     find_account_of_subject,
     find_active_accounts,
     lock_account_at,
+    note_sessions_closed,
 )
 from waterfall.core.users.commands import LAST_ADMINISTRATOR, CommandAvailability, account_commands
 from waterfall.core.users.identity import (
@@ -55,10 +57,11 @@ from waterfall.core.users.listing import (
     Page,
     find_accounts,
 )
+from waterfall.core.users.password_link import inscribe_link, lock_link_holder, not_local
 from waterfall.core.users.states import set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import ConflictError, NotFoundError
 from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
@@ -85,11 +88,15 @@ __all__ = [
     "create_local_account",
     "display_name",
     "identity_faults",
+    "inscribe_password_link",
     "is_address",
     "list_accounts",
     "lock_account_for_change",
     "note_account_change",
+    "note_sessions_closed",
     "origin_of",
+    "password_link_holder",
+    "password_link_not_local",
     "read_account",
     "read_account_label",
     "read_account_of_subject",
@@ -152,6 +159,8 @@ class Account:
     updated_at: datetime
     updated_by: Author | None
     lock_version: int
+    # When its sessions were last closed, ``None`` until they first are (#668, #835).
+    sessions_closed_at: datetime | None
 
 
 def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
@@ -350,6 +359,28 @@ def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
             updated_at=account.updated_at,
             updated_by=None if account.updated_by is None else authors[account.updated_by],
             lock_version=account.lock_version,
+            sessions_closed_at=account.sessions_closed_at,
         )
         for account in accounts
     ]
+
+
+def password_link_holder(session: Session, user_id: UUID) -> Account:
+    """Read the account a link to set its password is asked for, or refuse (404, 409).
+
+    Only a local and active account has one (WF-ADM-0140, WF-ADM-0060).
+    """
+    return _account(session, lock_link_holder(session, user_id))
+
+
+def password_link_not_local() -> ConflictError:
+    """Refuse a link to an account the provider says is not local after all (409)."""
+    return not_local()
+
+
+def inscribe_password_link(session: Session, user_id: UUID, act: Act) -> None:
+    """Inscribe that a link was made for an account, refused if it may no longer have one (409).
+
+    Without the token of the link, which never reaches the base (WF-SEC-0030).
+    """
+    inscribe_link(session, user_id, act)

@@ -1362,7 +1362,7 @@ commande.
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
 | `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
 | `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up` |
+| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) — : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service` |
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1390,9 +1390,10 @@ dans le volume du frontal, est copiée à chaque démarrage dans
 aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
 leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
 `SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
-les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner où
-Python n'est pas encore en cache, uv ne se fierait plus à GitHub pour le télécharger (#737).
-L'API, dans le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce lien relève d'EP-13 (WF-SEC-0010).
+les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner sans
+cache, uv ne se fierait plus à GitHub pour télécharger Python ou les paquets (#737). L'API, dans
+le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce
+lien relève d'EP-13 (WF-SEC-0010).
 Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
 (#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
 fermeture des sessions à ce front par le canal de retour, à l'adresse
@@ -1403,7 +1404,14 @@ dans le royaume quand il s'applique, et `make e2e-service` les remplace par cell
 parcours, jusqu'au `service-up` suivant. Mailpit
 montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
 OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
-et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`.
+et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`. Il
+ajoute aussi `waterfall-test`, un client public qui accepte un mot de passe hors de la page du
+royaume, pour les jetons dont les tests de la plateforme ont besoin : `admin-cli`, que Keycloak
+crée dans chaque royaume, n'en accepte plus (#644), et ses jetons ne sont pas pour l'API, faute de
+l'audience `waterfall-api`. Ces fichiers s'appliquent après le royaume, sous un état distant à eux
+(`--import.cache.key=development`, service `keycloak-realm`) : keycloak-config-cli supprime les
+clients que son état nomme et que les fichiers qu'il applique ne déclarent pas, et sans cela le
+client de test emporterait ceux du royaume.
 L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
 personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
 supprime avec elles.
@@ -1767,8 +1775,10 @@ de rafraîchissement tourné à chaque emploi et refusé au second, jetons sign�
 `make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
 refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
 jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
-(`frontend/e2e/service/session.spec.ts`) ; le reste — `refresh_expires_in` — revient aux
-parcours contre le service d'US-0350/L5.
+(`frontend/e2e/service/session.spec.ts`) ; `refresh_expires_in`, les deux heures d'une session
+inactive, et ce qu'US-0350 demande d'autre au royaume — chaque nature de compte, le mot de passe,
+le verrouillage, le lien —, `backend/tests/test_keycloak_sign_in.py` ; le retour à l'écran visé,
+les parcours contre le service d'US-0350/L5b (#849).
 
 ### Un parcours de bout en bout
 
@@ -1805,7 +1815,9 @@ du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port d�
 `E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
 port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
-chacun des runners de la chaîne (« Chaîne »). Avec `WATERFALL_API_ADDRESS`, le harnais joue
+chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
+(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
+des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
@@ -2095,11 +2107,16 @@ ses paramètres, jamais une phrase.
   l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
   transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
   `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
-  privé de tous ses rôles une fois l'écriture validée — ne prend pas `Transaction`, mais ouvre les
-  siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
-  jeton expiré un 401 `SESSION_EXPIRED`, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un
-  compte que Waterfall ne connaît pas encore est créé sans rôle s'il vient de l'annuaire ou d'un
-  fournisseur externe, refusé comme un compte désactivé sinon. L'appelant devient l'auteur
+  privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
+  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait — ne prend pas
+  `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est
+  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton dont la
+  connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
+  tombe dans sa seconde — `closeMySessions` et la désactivation en notent l'heure,
+  `sessions_closed_at`, avant d'appeler Keycloak (#668, #835) —, un compte désactivé un 401
+  `ACCOUNT_DEACTIVATED` ; un compte que Waterfall ne connaît pas encore est créé sans rôle s'il
+  vient de l'annuaire ou d'un fournisseur externe, refusé sinon par un 401
+  `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au seul journal. L'appelant devient l'auteur
   (`actor`) de chaque journal de la requête. L'API lit `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse
   du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
   joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test

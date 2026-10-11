@@ -306,3 +306,23 @@ def test_an_account_that_other_rows_refer_to_cannot_be_removed_from_the_database
         owner.begin() as connection,
     ):
         connection.execute(text("DELETE FROM user_account WHERE id = :id"), {"id": author})
+
+
+def test_a_sign_out_notes_its_moment_without_changing_the_account(session: Session) -> None:
+    # A form opened on the account stays valid: neither its version nor its audit columns move.
+    account = born(session)
+    before = (account.lock_version, account.updated_at, account.updated_by)
+    assert account.sessions_closed_at is None
+    interface.note_sessions_closed(session, account.id, NOON + timedelta(hours=1))
+    session.expire_all()
+    noted = session.get_one(UserAccount, account.id)
+    assert noted.sessions_closed_at == NOON + timedelta(hours=1)
+    assert (noted.lock_version, noted.updated_at, noted.updated_by) == before
+
+
+def test_of_two_sign_outs_the_later_moment_is_kept_whichever_writes_last(session: Session) -> None:
+    account = born(session)
+    interface.note_sessions_closed(session, account.id, NOON + timedelta(hours=2))
+    interface.note_sessions_closed(session, account.id, NOON + timedelta(hours=1))
+    session.expire_all()
+    assert session.get_one(UserAccount, account.id).sessions_closed_at == NOON + timedelta(hours=2)

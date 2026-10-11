@@ -337,6 +337,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user_id}/password-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Obtenir le lien de fixation du mot de passe d'un compte
+         * @description Engendre, pour un compte local, le lien par lequel son porteur fixe ou réinitialise son mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal (WF-ADM-0140) : c'est ainsi que le premier administrateur fixe son mot de passe à l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois : un lien précédent du même compte cesse de valoir. Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ; chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément d'authentification que Waterfall montre (WF-ADM-0140).
+         */
+        post: operations["createPasswordSetupLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user_id}/avatar": {
         parameters: {
             query?: never;
@@ -2893,6 +2913,16 @@ export interface components {
             access_role_ids: components["schemas"]["Uuid"][];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Le lien par lequel le porteur d'un compte local fixe ou réinitialise son mot de passe, rendu à l'utilisateur habilité qui l'a demandé pour le remettre par un autre canal (WF-ADM-0140) : le même lien qu'un courriel du fournisseur d'identité porterait, à usage unique et valable une heure. Il mène à la page du fournisseur d'identité qui fixe le mot de passe, non à un écran de Waterfall, qui n'en présente aucun (WF-ADM-0140, WF-ARC-0030). Il n'est rendu qu'une fois, jamais relu, et sa demande est inscrite au journal d'audit (WF-SEC-0030) ; le jeton n'y figure pas. */
+        PasswordSetupLink: {
+            /**
+             * Format: uri
+             * @description Le lien entier, tel qu'il se remet.
+             */
+            url: string;
+            /** @description Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140). */
+            expires_at: components["schemas"]["Timestamp"];
+        };
         /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
         IdentitySyncReport: {
             created: number;
@@ -4815,6 +4845,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
+        UnprocessableEntity: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. */
         Conflict: {
             headers: {
@@ -4826,15 +4865,6 @@ export interface components {
         };
         /** @description Requête mal formée. */
         BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
-        UnprocessableEntity: {
             headers: {
                 [name: string]: unknown;
             };
@@ -5084,6 +5114,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5302,6 +5333,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5330,7 +5362,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte ; rien n'est écrit. */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte, absent quand seul le fournisseur d'identité la porte — un compte du royaume que Waterfall ne connaît pas (#814) ; rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5339,7 +5371,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit. */
+            /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`) ; une adresse, un nom ou un prénom que le fournisseur d'identité refuse alors que la règle des adresses et des noms du contrat les admet — des points qui se suivent, une partie locale de plus de 64 caractères, un caractère qu'il interdit dans un nom (`/email`, `/last_name`, `/first_name`, `VALIDATION_FAILED`, #815). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5508,6 +5540,41 @@ export interface operations {
             412: components["responses"]["PreconditionFailed"];
             /** @description Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut (WF-ADM-0050) : un rôle d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`, `UNKNOWN_ACCESS_ROLE`). Rien n'est écrit. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createPasswordSetupLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lien engendré, à remettre au porteur. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordSetupLink"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque (`CommandCondition`) : `is_local_account` quand le compte n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer ici —, `is_active_account` quand il est désactivé (WF-ADM-0140, WF-ADM-0060). Un compte qui manque aux deux est refusé par la première. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5812,6 +5879,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6970,6 +7038,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7161,6 +7230,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7724,6 +7794,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7799,6 +7870,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7952,6 +8024,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8138,6 +8211,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8406,6 +8480,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8565,6 +8640,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8933,6 +9009,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -9222,6 +9299,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9299,6 +9377,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9582,6 +9661,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9643,6 +9723,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9741,6 +9822,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9846,6 +9928,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9874,6 +9957,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9989,6 +10073,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10160,6 +10245,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10468,6 +10554,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10533,6 +10620,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10597,6 +10685,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10625,6 +10714,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
