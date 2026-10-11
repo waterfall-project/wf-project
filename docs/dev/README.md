@@ -931,8 +931,13 @@ disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINI
 retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
 Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
 (`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
-part de sa version. Ce que fait une écriture se dit dans la région « Commandes des comptes » ; un refus,
-au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`). La recherche et les
+part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi pendant
+qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle a
+répondue, et l'interrupteur et les rôles de la ligne se marquent occupés et indisponibles
+(`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route. Ce que fait une écriture — un
+renommage compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur ou des
+rôles, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa
+cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
 se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et

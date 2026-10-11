@@ -89,15 +89,14 @@ export interface RoleChoice {
 }
 
 /**
- * The accounts the server answered a write with, which a name entered writes from and keeps
- * (`UserWrites`): read in an event, and recorded once answered.
+ * The writing of a name entered, within the writes of its row (`UserWrites.queue`): sent once those
+ * under way are answered, from the version they left, its answer kept and said in the region of the
+ * table.
  */
-export interface UserAnswered {
-  /** The account as it stands now: the one last answered, or the one read when it is as new. */
-  readonly latest: (read: User) => User;
-  /** Keep an account answered, unless one newer is kept. */
-  readonly record: (answered: User) => void;
-}
+export type Renaming = (
+  shown: User,
+  send: (user: User) => Promise<Outcome<User>>,
+) => Promise<Outcome<User>>;
 
 /** The origin of an account, in words. */
 function Origin({ user }: { readonly user: User }) {
@@ -116,12 +115,13 @@ const COMMAND_WIDTH = 120;
 
 /**
  * The entry of a name of a local account in its cell — the last name or the first name, never blank
- * —, written from the version the screen holds of the account (`updateUser`): the name of an account
- * of the directory or of an identity provider is theirs, and is not entered (WF-ADM-0050).
+ * —, written after the writes of its row under way, from the version they leave of the account
+ * (`updateUser`, `Renaming`): the name of an account of the directory or of an identity provider is
+ * theirs, and is not entered (WF-ADM-0050).
  */
 function naming(
   field: "last_name" | "first_name",
-  answers: UserAnswered | undefined,
+  rename: Renaming | undefined,
 ): CellEntry<User, UserPage> {
   let answered = 0;
   return {
@@ -133,15 +133,12 @@ function naming(
         // A text entered is never emptied (`cell-values.ts`): a defect of the front.
         throw new Error("an account is never left without a name");
       }
-      const user = answers?.latest(shown) ?? shown;
-      const outcome = await updateUser(user.user_id, {
-        [field]: name,
-        lock_version: user.lock_version,
-      });
+      const send = (user: User) =>
+        updateUser(user.user_id, { [field]: name, lock_version: user.lock_version });
+      const outcome = await (rename === undefined ? send(shown) : rename(shown, send));
       if (outcome.kind !== "done") {
         return outcome;
       }
-      answers?.record(outcome.data);
       answered += 1;
       const written = { rows: [outcome.data], changed: [], parts: [], totals: undefined };
       return { kind: "done", data: { ...written, order: answered } };
@@ -153,8 +150,8 @@ function naming(
 export interface UserEntry {
   /** The roles of the installation an account may be given, read by the cell alone (défaut n° 14). */
   readonly roles: () => readonly RoleChoice[];
-  /** The accounts answered, which the names entered write from and keep. */
-  readonly answers: UserAnswered | undefined;
+  /** The writing of a name entered within the writes of its row (`UserWrites.queue`). */
+  readonly rename: Renaming | undefined;
 }
 
 /**
@@ -187,7 +184,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
         pinned: true,
         contract: "last_name",
         value: (user) => user.last_name,
-        entry: entry === undefined ? undefined : naming("last_name", entry.answers),
+        entry: entry === undefined ? undefined : naming("last_name", entry.rename),
       },
       {
         key: "first_name",
@@ -196,7 +193,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
         width: 140,
         contract: "first_name",
         value: (user) => user.first_name,
-        entry: entry === undefined ? undefined : naming("first_name", entry.answers),
+        entry: entry === undefined ? undefined : naming("first_name", entry.rename),
       },
       {
         key: "email",

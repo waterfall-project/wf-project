@@ -1235,7 +1235,8 @@
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
       "rolesOf": "Roles of “{name}”",
-      "rolesAttributed": "Roles of “{name}” attributed."
+      "rolesAttributed": "Roles of “{name}” attributed.",
+      "renamed": "“{name}” renamed."
     },
     "accessRoles": {
       "title": "Access roles",

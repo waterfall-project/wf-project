@@ -1235,7 +1235,8 @@
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
-      "rolesAttributed": "Rôles de « {name} » attribués."
+      "rolesAttributed": "Rôles de « {name} » attribués.",
+      "renamed": "« {name} » renommé."
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",

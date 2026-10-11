@@ -14,6 +14,9 @@
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
  *   administrator (WF-ADM-0120).
  *
+ * While a write of its row is under way, whatever its cell, each is marked busy, and the switch and the
+ * roles unavailable: a press asks nothing (`UserWrites.busy`).
+ *
  * In a dense grid, each is out of the order of tabulation, the grid being one stop: Enter on its cell
  * presses it (`CELL_COMMAND`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
  */
@@ -76,6 +79,7 @@ export function StateSwitch({ user }: { readonly user: User }) {
   const command = user.is_active ? "deactivate" : "reactivate";
   const offer = findOffer(user.available_commands, command);
   const asked = writes?.asked.get(user.user_id);
+  const busy = writes?.busy.has(user.user_id) === true;
   const active = asked?.is_active ?? user.is_active;
   if (offer === undefined || writes === undefined) {
     return <ActiveState active={user.is_active} />;
@@ -89,8 +93,8 @@ export function StateSwitch({ user }: { readonly user: User }) {
         tabIndex={-1}
         {...{ [CELL_COMMAND]: "" }}
         aria-label={t("activeUser", { name })}
-        aria-busy={asked !== undefined}
-        aria-disabled={lacking === undefined && asked === undefined ? undefined : true}
+        aria-busy={busy}
+        aria-disabled={lacking === undefined && !busy ? undefined : true}
         aria-describedby={lacking === undefined ? undefined : described}
         title={lacking}
         className={UNAVAILABLE}
@@ -98,6 +102,10 @@ export function StateSwitch({ user }: { readonly user: User }) {
           if (lacking !== undefined) {
             // An unavailable command never runs: the press says the condition it lacks.
             list?.tell(name, offer, command);
+            return;
+          }
+          if (busy) {
+            // Marked busy and unavailable: the write of the row under way is answered first.
             return;
           }
           writes.run(user, {
@@ -146,6 +154,7 @@ export function RolesCell({
   const group = useId();
   const offer = findOffer(user.available_commands, "set_access_roles");
   const asked = writes?.asked.get(user.user_id)?.access_role_ids;
+  const busy = writes?.busy.has(user.user_id) === true;
   if (offer === undefined || writes === undefined || roles.length === 0) {
     return <HeldRoles labels={user.access_role_labels} />;
   }
@@ -156,7 +165,8 @@ export function RolesCell({
       ? user.access_role_labels
       : asked.map((id) => roles.find((role) => role.id === id)?.label ?? id);
   const toggle = (role: string, checked: boolean) => {
-    if (asked !== undefined) {
+    if (busy) {
+      // Marked busy and unavailable: the write of the row under way is answered first.
       return;
     }
     const current = writes.latest(user).access_role_ids;
@@ -189,7 +199,7 @@ export function RolesCell({
           tabIndex={-1}
           {...{ [CELL_COMMAND]: "" }}
           aria-label={t("rolesOf", { name })}
-          aria-busy={asked !== undefined}
+          aria-busy={busy}
           className="h-5 max-w-full justify-start px-0.5 font-normal"
         >
           <HeldRoles labels={labels} />
@@ -217,7 +227,7 @@ export function RolesCell({
                 <Checkbox
                   id={box}
                   checked={held.includes(role.id)}
-                  aria-disabled={asked === undefined ? undefined : true}
+                  aria-disabled={busy ? true : undefined}
                   className="aria-disabled:opacity-50"
                   onCheckedChange={(checked) => {
                     toggle(role.id, checked === true);

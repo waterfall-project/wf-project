@@ -9,11 +9,13 @@
  * The accounts the server answered a write with are kept here until the page read anew holds them,
  * one source for every cell of a row: the account answered prevails over the same account read while
  * it is newer, by its counter (`lock_version`), and the next write of the row, whatever its cell,
- * goes from its version (défaut n° 22 de `typescript.md`). What a write asked shows until the server
- * answers, the row's other writes waiting for it. What a write did is said in the region of the table,
- * named after it; a refusal, above it by the catalogue of the codes of error, on the reading it was
- * asked from alone (`Reactivations`, défaut n° 1). Every prop is data, never a function (défaut
- * n° 12).
+ * goes from its version (défaut n° 22 de `typescript.md`). The writes of a row go one after the
+ * other: a name entered while another write of its row is under way waits for its answer, and goes
+ * from the version it answered; the switch and the roles of the row are marked busy and unavailable
+ * the while. What a write asked shows until the server answers. What a write did is said in the
+ * region of the table, named after it; a refusal of the switch or of the roles, above it by the
+ * catalogue of the codes of error, on the reading it was asked from alone (`Reactivations`, défaut
+ * n° 1), that of a name, at its cell. Every prop is data, never a function (défaut n° 12).
  */
 "use client";
 
@@ -52,18 +54,30 @@ export interface UserWrite {
   readonly back: HTMLElement | null;
 }
 
+/** A write of an account sent once the writes of its row under way are answered. */
+export interface QueuedWrite {
+  /** Send the write from the account as the writes before it left it. */
+  readonly send: (user: User) => Promise<Outcome<User>>;
+  readonly said: (answered: User) => string;
+}
+
 /** The accounts of the table as they show, and the commands that change them. */
 export interface UserWrites {
   /** The accounts answered, by their identifier, as the last render saw them. */
   readonly answered: ReadonlyMap<string, User>;
-  /** What the writes under way asked, by account. */
+  /** What the writes of the switch or of the roles under way asked, by account. */
   readonly asked: ReadonlyMap<string, Asked>;
+  /** The accounts a write of which, whatever its cell, is under way. */
+  readonly busy: ReadonlySet<string>;
   /** The account as it stands now: the one last answered, or the one read when it is as new. */
   readonly latest: (read: User) => User;
-  /** Keep an account answered, unless one newer is kept. */
-  readonly record: (answered: User) => void;
-  /** Write an account, unless a write of it is under way. */
+  /** Write an account by its switch or its roles, unless a write of it is under way. */
   readonly run: (shown: User, write: UserWrite) => void;
+  /**
+   * Write an account once the writes of its row under way are answered — a name entered —, its
+   * answer kept and said; its outcome given back, for the cell to tell a refusal.
+   */
+  readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
 }
 
 const WritesContext = createContext<UserWrites | undefined>(undefined);
@@ -102,7 +116,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
   // The same, as the last answer left them: an event reads it, which may run before the render.
   const latestAnswers = useRef<ReadonlyMap<string, User>>(answered);
   const [asked, setAsked] = useState<ReadonlyMap<string, Asked>>(() => new Map());
-  const asking = useRef(new Set<string>());
+  const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
+  // The last write of each row under way, settled whatever its outcome: the next one waits for it.
+  const asking = useRef(new Map<string, Promise<unknown>>());
 
   const record = useCallback((user: User) => {
     const kept = latestAnswers.current.get(user.user_id);
@@ -117,40 +133,68 @@ function Writes({ children }: { readonly children: ReactNode }) {
     (read: User) => newer(read, latestAnswers.current.get(read.user_id)),
     [],
   );
+  // Send a write of a row once those before it are answered, from the account as they left it; the
+  // row busy until its last write is answered.
+  const reserve = useCallback(
+    (shown: User, write: QueuedWrite): Promise<Outcome<User>> => {
+      const id = shown.user_id;
+      const before = asking.current.get(id) ?? Promise.resolve();
+      const sent = before.then(async () => {
+        const outcome = await write.send(latest(shown));
+        if (outcome.kind === "done") {
+          record(outcome.data);
+          say(write.said(outcome.data));
+        }
+        return outcome;
+      });
+      const settled = sent.then(
+        () => undefined,
+        () => undefined,
+      );
+      asking.current.set(id, settled);
+      setBusy((rows) => (rows.has(id) ? rows : new Set(rows).add(id)));
+      void settled.then(() => {
+        if (asking.current.get(id) !== settled) {
+          return;
+        }
+        asking.current.delete(id);
+        setBusy((rows) => {
+          const after = new Set(rows);
+          after.delete(id);
+          return after;
+        });
+      });
+      return sent;
+    },
+    [latest, record, say],
+  );
   const run = useCallback(
     (shown: User, write: UserWrite) => {
-      const user = latest(shown);
-      const id = user.user_id;
+      const id = shown.user_id;
       if (asking.current.has(id)) {
         return;
       }
-      asking.current.add(id);
       setAsked((before) => new Map(before).set(id, write.asked));
       // The reading the row is written on: its refusal is told on it alone.
       const reading = list?.reading ?? "";
-      void write
-        .send(user)
+      void reserve(shown, { send: (user) => write.send(user).catch(rejected), said: write.said })
         .catch(rejected)
         .then((outcome) => {
-          asking.current.delete(id);
           setAsked((before) => {
             const after = new Map(before);
             after.delete(id);
             return after;
           });
-          if (outcome.kind === "done") {
-            record(outcome.data);
-            say(write.said(outcome.data));
-          } else {
+          if (outcome.kind !== "done") {
             list?.report({ outcome, reading, names: {}, target: write.target, back: write.back });
           }
         });
     },
-    [latest, list, record, say],
+    [list, reserve],
   );
   const writes = useMemo<UserWrites>(
-    () => ({ answered, asked, latest, record, run }),
-    [answered, asked, latest, record, run],
+    () => ({ answered, asked, busy, latest, run, queue: reserve }),
+    [answered, asked, busy, latest, run, reserve],
   );
   return (
     <WritesContext value={writes}>

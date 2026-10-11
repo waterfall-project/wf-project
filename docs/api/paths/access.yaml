@@ -195,6 +195,7 @@
             schema: { $ref: ../components/schemas/access.yaml#/User }
             examples:
               renamed: { $ref: ../../../fixtures/api/user_renamed.json }
+              renamed_after_deactivation: { $ref: ../../../fixtures/api/user_renamed_deactivated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

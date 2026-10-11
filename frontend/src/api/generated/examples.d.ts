@@ -228,7 +228,7 @@ export interface Examples {
     200: "resource_role_updated";
   };
   "PATCH /users/{user_id}": {
-    200: "user_renamed";
+    200: "user_renamed" | "user_renamed_deactivated";
   };
   "POST /access-roles": {
     201: "access_role_created";

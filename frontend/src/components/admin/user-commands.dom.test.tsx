@@ -16,6 +16,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
 
@@ -50,8 +51,8 @@ const CHIFFREUR = "01926f3a-7c00-7000-8000-000000000705";
 const DIRECTION = "01926f3a-7c00-7000-8000-000000000701";
 
 /** Serve the fake back, which keeps the settings of the grid, and give it back to read its calls. */
-function serve(answers: FakeAnswers): FakeClient {
-  const client = fakeClient({ "PATCH /me/preferences": "preferences", ...answers });
+function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient({ "PATCH /me/preferences": "preferences", ...answers }, timing);
   server.client = client;
   return client;
 }
@@ -94,6 +95,24 @@ function grid(): HTMLElement {
 /** The region of the table that says what its last command did, by its name. */
 function told(): HTMLElement {
   return screen.getByRole("status", { name: "Commandes des comptes" });
+}
+
+/** Hold the deactivations until released: a write of a row under way. */
+function heldActivation(): { readonly timing: FakeTiming; readonly release: () => void } {
+  const settles: (() => void)[] = [];
+  const until = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return {
+    timing: {
+      hold: (route) => (route === "PUT /users/{user_id}/activation" ? until : undefined),
+    },
+    release: () => {
+      for (const settle of settles) {
+        settle();
+      }
+    },
+  };
 }
 
 /** An account of the witness, by its last name. */
@@ -146,6 +165,9 @@ describe("the table of the accounts, its own entry", () => {
     petit?.focus();
     await userEvent.keyboard("Petit-Laurent{Enter}");
     expect(await within(grid()).findByText("Petit-Laurent")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(told().textContent).toBe("« Lucas Petit-Laurent » renommé.");
+    });
     const lucas = account("Petit");
     expect(writes(client)).toEqual([
       [
@@ -158,6 +180,73 @@ describe("the table of the accounts, its own entry", () => {
     const bernard = within(grid()).getByText("Bernard").closest<HTMLElement>("[tabindex]");
     bernard?.focus();
     await userEvent.keyboard("Durand{Enter}");
+    expect(writes(client)).toHaveLength(1);
+  });
+
+  it("writes a name entered while the switch of its row is under way once it is answered, from the version it answered", async () => {
+    const held = heldActivation();
+    const client = serve(
+      {
+        "PUT /users/{user_id}/activation": "user_deactivated",
+        "PATCH /users/{user_id}": "user_renamed_deactivated",
+      },
+      held.timing,
+    );
+    render(accounts());
+    await userEvent.click(
+      within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" }),
+    );
+    within(grid()).getByText("Vidal").closest<HTMLElement>("[tabindex]")?.focus();
+    await userEvent.keyboard("Vidal-Roux{Enter}");
+    // The name waits for the deactivation of its row.
+    expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
+    held.release();
+    await waitFor(() => {
+      expect(told().textContent).toBe("« Noé Vidal-Roux » renommé.");
+    });
+    const noe = account("Vidal");
+    const deactivated = example("user_deactivated") as User;
+    expect(writes(client)).toEqual([
+      [
+        "PUT /users/{user_id}/activation",
+        `/users/${noe.user_id}/activation`,
+        { is_active: false, lock_version: noe.lock_version },
+      ],
+      [
+        "PATCH /users/{user_id}",
+        `/users/${noe.user_id}`,
+        { last_name: "Vidal-Roux", lock_version: deactivated.lock_version },
+      ],
+    ]);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(within(grid()).getByText("Vidal-Roux")).toBeInTheDocument();
+  });
+
+  it("marks the switch and the roles of a row busy and unavailable while a write of it is under way, a press asking nothing", async () => {
+    const held = heldActivation();
+    const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
+    render(accounts());
+    const vidal = within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" });
+    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    expect(vidal).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(vidal);
+    await waitFor(() => {
+      expect(vidal).toHaveAttribute("aria-busy", "true");
+    });
+    expect(vidal).toHaveAttribute("aria-disabled", "true");
+    expect(trigger).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(trigger);
+    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    const chiffreur = within(list).getByRole("checkbox", { name: "Chiffreur" });
+    expect(chiffreur).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(chiffreur);
+    expect(chiffreur).not.toBeChecked();
+    expect(writes(client)).toHaveLength(1);
+    held.release();
+    await waitFor(() => {
+      expect(chiffreur).not.toHaveAttribute("aria-disabled");
+    });
+    expect(trigger).toHaveAttribute("aria-busy", "false");
     expect(writes(client)).toHaveLength(1);
   });
 });

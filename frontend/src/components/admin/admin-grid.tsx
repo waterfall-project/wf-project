@@ -59,8 +59,7 @@ export function UserGrid({
 }) {
   const t = useTranslations("admin.users");
   const writes = useUserWrites();
-  const latest = writes?.latest;
-  const record = writes?.record;
+  const queue = writes?.queue;
   const answered = writes?.answered;
   const config = useMemo(
     () =>
@@ -68,12 +67,25 @@ export function UserGrid({
         editable
           ? {
               roles: () => roles,
-              answers:
-                latest === undefined || record === undefined ? undefined : { latest, record },
+              // A name entered waits for the writes of its row, and is said once answered.
+              rename:
+                queue === undefined
+                  ? undefined
+                  : (shown, send) =>
+                      queue(shown, {
+                        send,
+                        said: (renamed) =>
+                          t("renamed", {
+                            name: t("named", {
+                              firstName: renamed.first_name,
+                              lastName: renamed.last_name,
+                            }),
+                          }),
+                      }),
             }
           : undefined,
       ),
-    [editable, roles, latest, record],
+    [editable, roles, queue, t],
   );
   const shown = useMemo(
     () =>
