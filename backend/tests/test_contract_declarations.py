@@ -35,14 +35,15 @@ class Contract:
 
     def follow(self, node: Any, base: Path) -> tuple[Any, Path]:
         """Follow the references of a node to what they name, and the file that holds it."""
-        while isinstance(node, dict) and "$ref" in node:
-            reference = cast("str", cast("dict[str, Any]", node)["$ref"])
+        found: Any = node
+        while isinstance(found, dict) and "$ref" in found:
+            reference = cast("str", cast("dict[str, Any]", found)["$ref"])
             name, _, pointer = reference.partition("#")
             base = (base.parent / name).resolve() if name else base
-            node = self.load(base)
+            found = self.load(base)
             for part in filter(None, pointer.split("/")):
-                node = node[part.replace("~1", "/").replace("~0", "~")]
-        return node, base
+                found = found[part.replace("~1", "/").replace("~0", "~")]
+        return cast("Any", found), base
 
     def properties(self, schema: Any, base: Path) -> set[str]:
         """Name the properties of a schema, those of the schemas it is all of included."""
@@ -100,7 +101,8 @@ def without_412(contract: Contract) -> list[str]:
     return [
         name
         for name, operation, _, base in contract.operations()
-        if contract.carries_lock_version(operation, base) and "412" not in contract.statuses(operation)
+        if contract.carries_lock_version(operation, base)
+        and "412" not in contract.statuses(operation)
     ]
 
 
@@ -118,7 +120,8 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
     )
     (tmp_path / "schemas.yaml").write_text(
         "Versioned: { properties: { lock_version: { type: integer } } }\n"
-        "Change: { allOf: [{ $ref: '#/Versioned' }, { properties: { label: { type: string } } }] }\n",
+        "Change: { allOf: [{ $ref: '#/Versioned' },"
+        " { properties: { label: { type: string } } }] }\n",
         encoding="utf-8",
     )
     (tmp_path / "openapi.yaml").write_text(
