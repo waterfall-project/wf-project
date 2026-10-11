@@ -64,14 +64,46 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
-  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its twelve headers,
-  // the number and the eleven columns, none holds a button, none says a sort.
+  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
+  // the number and the twelve columns, none holds a button, none says a sort.
   const headers = grid.getByRole("columnheader");
-  await expect(headers).toHaveCount(12);
+  await expect(headers).toHaveCount(13);
   await expect(headers.getByRole("button")).toHaveCount(0);
   for (const header of await headers.all()) {
     await expect(header).not.toHaveAttribute("aria-sort");
   }
+});
+
+test("attaches a leaf to a lot of the work breakdown from its cell, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
+  page,
+}) => {
+  // Row 8, « Poste de commande », bears the post of the work breakdown of the witness; row 9 under
+  // it, « Câblage des armoires », a leaf, nothing. The fake back answers `updateTaskFacet` by its
+  // first example whatever was written: the task of row 9 renamed — what the grid does with an
+  // attachment answered is proven on the examples by `planning-writes.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await expect(page.getByRole("note")).toContainText("Maquette");
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { attachment: "Rattachement" });
+  const post = grid.getByRole("row", { name: /^8 .*Poste de commande/ });
+  await expect(post.getByRole("gridcell").nth(at.attachment)).toHaveText(
+    "Fourniture et montage des armoires",
+  );
+  // Une feuille peut être rattachée à un lot: its first letter typed on the cell finds it.
+  const leaf = grid.getByRole("row", { name: /^9 .*Câblage des armoires/ });
+  const cell = leaf.getByRole("gridcell").nth(at.attachment);
+  await cell.click();
+  await expect(cell).toBeFocused();
+  const sent = page.waitForRequest((request) => request.method() === "POST");
+  await page.keyboard.press("A");
+  await expect(page.getByRole("combobox", { name: "Rattachement" })).toHaveValue(
+    "01926f3a-7c00-7000-8000-000000000712",
+  );
+  await page.keyboard.press("Enter");
+  await sent;
+  await expect(
+    grid.getByRole("row", { name: /^9 .*Câblage et repérage des armoires/ }),
+  ).toBeVisible();
 });
 
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({

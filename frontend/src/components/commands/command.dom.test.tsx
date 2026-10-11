@@ -88,7 +88,7 @@ describe("a command of a screen", () => {
     await expectAccessible(container);
   });
 
-  it("lists the commands in the order of the server, within a region named for them, its exports left to the screen of the exchanges", () => {
+  it("lists the commands in the order of the server, within a region named for them, its exports left to the screen of the exchanges and its entries and its skeleton to their grids", () => {
     french(revisionCommands("revision"));
     const region = screen.getByRole("region", { name: "Commandes" });
     expect(
@@ -96,11 +96,6 @@ describe("a command of a screen", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual([
-      "Modifier le planning",
-      "Engendrer le squelette de planning",
-      "Modifier le devis",
-      "Réestimer le reste à engager",
-      "Modifier les risques",
       // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
       "Déclarer un risque",
       "Créer une structure",
@@ -119,7 +114,7 @@ describe("a command of a screen", () => {
       </>,
     );
     const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThan(10);
+    expect(buttons.length).toBeGreaterThan(5);
     for (const button of buttons) {
       expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     }
@@ -186,9 +181,8 @@ describe("a command of a revision", () => {
       </>,
     );
     expect(screen.queryByRole("button", { name: "Marquer la révision" })).toBeNull();
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "Modifier le devis",
-    ]);
+    // The estimate, the one command left them, is offered by its grid: none is listed here.
+    expect(screen.queryAllByRole("button")).toEqual([]);
   });
 
   it("is shown to a user with the permission to mark the revision", () => {
@@ -205,16 +199,16 @@ describe("a command of a revision", () => {
 
   it("is offered for modification on a draft, and not on a marked revision [WF-IHM-0020-A]", () => {
     const draft = french(revisionCommands("revision"));
-    expect(screen.getByRole("button", { name: "Modifier le planning" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Créer une structure" })).not.toHaveAttribute(
       "aria-disabled",
     );
     draft.unmount();
 
     french(revisionCommands("revision_marked"));
     for (const name of [
-      "Modifier le planning",
-      "Modifier le devis",
-      "Réestimer le reste à engager",
+      "Créer une structure",
+      "Fusionner une structure",
+      "Abandonner la révision",
     ]) {
       const edit = screen.getByRole("button", { name });
       expect(edit).toHaveAttribute("aria-disabled", "true");
@@ -231,7 +225,7 @@ describe("a command of a revision", () => {
     expect(mark).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: aucun traitement de fond en cours sur l’objet.",
     );
-    expect(screen.getByRole("button", { name: "Modifier le planning" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Créer une structure" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );

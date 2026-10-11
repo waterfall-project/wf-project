@@ -174,7 +174,7 @@ describe("the grid of the planning", () => {
     // The description, which no task of the witness bears; the physical progress of the summary
     // alone; the Gantt last, a drawing.
     expect(bodyRows().map(texts)).toEqual([
-      ["1", "Études", "", "", days("40"), "02/03/2026", "24/04/2026", "", full, "", "", ""],
+      ["1", "Études", "", "", days("40"), "02/03/2026", "24/04/2026", "", full, "", "", "", ""],
       [
         "2",
         "Études de détail",
@@ -188,6 +188,7 @@ describe("the grid of the planning", () => {
         days("0"),
         "",
         "",
+        "",
       ],
       [
         "4",
@@ -197,6 +198,7 @@ describe("the grid of the planning", () => {
         days("40"),
         "02/03/2026",
         "24/04/2026",
+        "",
         "",
         "",
         "",
@@ -216,6 +218,7 @@ describe("the grid of the planning", () => {
         days("0"),
         "2",
         "",
+        "",
       ],
       [
         "6",
@@ -230,6 +233,7 @@ describe("the grid of the planning", () => {
         days("0"),
         `5;4DD+1${NBSP}sem`,
         "",
+        "",
       ],
       [
         "7",
@@ -243,6 +247,7 @@ describe("the grid of the planning", () => {
         "",
         days(FILE_FLOAT.replace(".", ",")),
         `2FD-${days("2")}`,
+        "",
         "",
       ],
     ]);
@@ -336,6 +341,7 @@ describe("the grid of the planning", () => {
       "completed",
       undefined,
       "0",
+      undefined,
     ]);
   });
 
@@ -425,6 +431,7 @@ describe("the grid of the planning", () => {
       `0${NBSP}d`,
       `5;4SS+1${NBSP}wk`,
       "",
+      "",
     ]);
     expect(texts(bodyRows()[5])).toEqual([
       "7",
@@ -438,6 +445,7 @@ describe("the grid of the planning", () => {
       "",
       `${FILE_FLOAT}${NBSP}d`,
       `2FS-2${NBSP}d`,
+      "",
       "",
     ]);
     expect(iconNames(cellsOf("Revue de conception")[at("total_float")])).toEqual([

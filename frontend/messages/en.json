@@ -345,7 +345,8 @@
     "critical": "Critical path",
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
-    "notComputableReason": " — {reason}"
+    "notComputableReason": " — {reason}",
+    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
   },
   "gantt": {
     "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}"
@@ -1705,7 +1706,10 @@
     "maximum": "Maximum value: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
-    "expected_version": "Expected version: {version}."
+    "expected_version": "Expected version: {version}.",
+    "order_item_task": "Task of the order item: {task}.",
+    "work_package_tasks": "{count, plural, one {Task of the work package at issue} other {Tasks of the work packages at issue}}: {tasks}.",
+    "taskName": "“{label}”"
   },
   "permissions": {
     "users": {

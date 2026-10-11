@@ -379,7 +379,7 @@ describe("the parts of the revision the screen reads in", () => {
 describe("the commands of the revision the screen reads in", () => {
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    for (const name of ["Modifier le planning", "Modifier le devis", "Marquer la révision"]) {
+    for (const name of ["Créer une structure", "Marquer la révision"]) {
       expect(offered(page, name)).toBe("available");
     }
   });
@@ -395,11 +395,10 @@ describe("the commands of the revision the screen reads in", () => {
     expect(text(page)).toContain("Marquée");
     expect(text(page)).toContain("Lecture seule");
     for (const name of [
-      "Modifier le planning",
-      "Modifier le devis",
-      "Réestimer le reste à engager",
       "Créer une structure",
       "Fusionner une structure",
+      "Marquer la révision",
+      "Abandonner la révision",
     ]) {
       expect(offered(page, name)).toBe("unavailable");
     }
@@ -413,7 +412,8 @@ describe("the commands of the revision the screen reads in", () => {
     };
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
     expect(offered(page, "Marquer la révision")).toBe("absent");
-    expect(offered(page, "Modifier le devis")).toBe("available");
+    // The estimate, the one command left them, is offered by its grid: the screen lists none.
+    expect(page).not.toContain('aria-label="Commandes"');
   });
 
   it("presents the marking unavailable while a background task runs on the revision, naming the condition", async () => {

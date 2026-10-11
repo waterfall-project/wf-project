@@ -569,7 +569,18 @@ dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâ
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
+déplier. Sa colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé
+que le serveur résout (`work_breakdown_label`) ; là où la révision liste `edit_planning`, la cellule le
+choisit parmi les postes et les lots du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
+— le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
+(`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
+déjà l'élément ou celles qui sortiraient du sous-arbre de leur poste (WF-PLA-0170) ; comme tout refus
+de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
+(`aria-invalid`, `aria-describedby`). Dans la grille vide, le squelette s'offre comme la révision
+liste `generate_skeleton`, indisponible avec sa condition dès que la structure comporte une tâche
+(WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le compteur de la structure
+qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les autres feuilles du planning ont
+leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
@@ -1330,7 +1341,8 @@ du cycle de vie d'un projet — les autres commandes du projet appartiennent aux
 leur domaine, sa modification à celui de ses paramètres (`ProjectIdentity`) —, et `RevisionCommands` celles d'une révision, chacune selon son
 `is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
 en cours d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre
-(`ExportForm`) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
+(`ExportForm`), ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide
+(EP-14/L44d) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
 l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
 `platform` (`PlatformFunction`) dans `Session.permissions`, ou `project_create` pour la création

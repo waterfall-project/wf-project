@@ -83,6 +83,11 @@ export interface OutcomeNoticeProps {
    * back, which the notice took away with its button — never left to fall to the page.
    */
   readonly onDismissed?: (() => void) | undefined;
+  /**
+   * The identifier of its sentence, for what it describes besides — the cell of a grid whose write it
+   * refused —; one of its own otherwise.
+   */
+  readonly id?: string | undefined;
 }
 
 /**
@@ -182,6 +187,32 @@ function NamedItems({ problem, told }: { readonly problem: Problem; readonly tol
   ));
 }
 
+/**
+ * The identifier of the paragraph that names the object in conflict, from that of the sentence of
+ * the notice: what a cell refused is described by besides (EP-14/L44d).
+ */
+export function conflictId(told: string): string {
+  return `${told}-object`;
+}
+
+/**
+ * What describes what an outcome refused, from the identifier of the sentence of its notice: the
+ * sentence, and the paragraph that names the object in conflict when the refusal names one.
+ */
+export function refusalDescription(outcome: Outcome<unknown> | undefined, told: string): string {
+  return outcome !== undefined &&
+    "conflictingObjectId" in outcome &&
+    outcome.conflictingObjectId !== null
+    ? `${told} ${conflictId(told)}`
+    : told;
+}
+
+/** The identifier of the sentence of a notice: the one given, or one of its own. */
+function useTold(id: string | undefined): string {
+  const own = useId();
+  return id ?? own;
+}
+
 /** Tell of the outcome of an action; nothing on success. */
 export function OutcomeNotice({
   outcome,
@@ -189,12 +220,13 @@ export function OutcomeNotice({
   onClear,
   dismissible = false,
   onDismissed,
+  id,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
   const locale = useLocale();
   const messages = useMessages();
-  const told = useId();
+  const told = useTold(id);
   const known = { ...useContext(Known), ...names };
   if (outcome === undefined || outcome.kind === "done") {
     return null;
@@ -231,7 +263,9 @@ export function OutcomeNotice({
           {problemMessage(problem, { locale, messages, names: known })}
         </p>
         {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
-        {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
+        {name === undefined ? null : (
+          <p id={conflictId(told)}>{t("conflictingObject", { name })}</p>
+        )}
         {kind === "signed_out" ? <SignIn /> : null}
         {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
         {kind === "stale" ? <Reload onClear={dismissed} /> : null}

@@ -12,7 +12,8 @@
  * write — the refusals of the preview, and those it adds judging the accepted rows again — is told
  * above the grid with the cell the block was pasted from and the number of rows written, the
  * refusals in a region of their own whose height is bounded, out of the alert, until the user
- * dismisses it (`PasteAppliedNotice`).
+ * dismisses it (`PasteAppliedNotice`). A block refused before the server is asked — it would fill a
+ * column hidden or absent, or rows the grid does not show — says why (`UnshownNotice`).
  */
 "use client";
 
@@ -31,8 +32,14 @@ import {
 } from "@/components/ui/dialog";
 import { problemMessage } from "@/i18n/problem";
 
-import { headingOf, type PastedBlock, type PastePlan, type PasteRejection } from "./columns";
-import type { Pasting, PasteReport } from "./paste";
+import {
+  type ColumnName,
+  headingOf,
+  type PastedBlock,
+  type PastePlan,
+  type PasteRejection,
+} from "./columns";
+import type { Pasting, PasteReport, Unshown, UnshownRows } from "./paste";
 
 /** How many rows of the block are refused: a row refused for several cells counts once. */
 function refusedRows(rejected: readonly PasteRejection[]): number {
@@ -243,5 +250,43 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The text that says why a block would fill rows the grid does not show, by their cause. */
+const ROWS_REFUSAL = {
+  folded: "foldedRows",
+  sorted: "sortedRows",
+  unretained: "unretainedRows",
+  beyond: "beyondRows",
+} as const satisfies Record<UnshownRows, string>;
+
+/**
+ * Why a block pasted was refused before the server was asked: it would fill a column the grid hides
+ * or does not present, or a row of the plan the grid does not show under the cell.
+ */
+export function UnshownNotice({
+  unshown,
+  heading,
+}: {
+  readonly unshown: Unshown | undefined;
+  readonly heading: (column: ColumnName) => string;
+}) {
+  const t = useTranslations("grid.paste");
+  if (unshown === undefined) {
+    return null;
+  }
+  let text: string;
+  if (unshown.shown === "hidden") {
+    text = t("hiddenColumn", { column: heading(unshown.column) });
+  } else if (unshown.shown === "absent") {
+    text = t("absentColumn", { column: unshown.name });
+  } else {
+    text = t(ROWS_REFUSAL[unshown.shown]);
+  }
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {text}
+    </p>
   );
 }

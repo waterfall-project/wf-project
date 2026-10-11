@@ -21,7 +21,7 @@
  * one stop of the grid in the order of tabulation, which the arrows move — the header among the
  * rows —, and a computed cell tried opens its refusal; a cell validated is written alone,
  * and what the server answers takes the place of what was read — the row, the rows the write changed
- * with it, the totals (`useCellWrites`). A block pasted from a spreadsheet on the active cell is
+ * with it, the totals (`useCellWrites`), a refusal told above the grid, its cell marked (EP-14/L44d). A block pasted from a spreadsheet on the active cell is
  * shown as the server would write and refuse it, and its valid rows written once confirmed, in one
  * operation, what was not written told (WF-IHM-0050, `useGridPaste`). A grid that enters a
  * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`). A screen
@@ -53,7 +53,7 @@ import {
   useTransition,
 } from "react";
 
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
 import {
   Table,
   TableBody,
@@ -67,7 +67,6 @@ import type { Locale } from "@/i18n/locale";
 
 import {
   alignment,
-  type ColumnName,
   type DependencyReader,
   type EntryKind,
   formatCell,
@@ -103,8 +102,8 @@ import {
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
-import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
-import { PasteAppliedNotice, PasteDialog } from "./paste-dialog";
+import { useGridPaste } from "./paste";
+import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
@@ -285,6 +284,8 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly refusal: CellRefusal;
   /** What a cell under way shows, by the key of its row and its column, if it is. */
   readonly pending: (row: string, column: string) => string | undefined;
+  /** The identifier of the refusal told of the write of a cell, by its row and column, if any. */
+  readonly writeRefusal: (row: string, column: string) => string | undefined;
   /** The entry of the cell entered. */
   readonly editor: (draft: CellDraft, column: GridColumn<Row, Sort, Totals>) => ReactNode;
   /** Close the refusal from the keyboard, the focus back on its cell. */
@@ -304,6 +305,13 @@ interface CellState {
   /** What it shows while the server has not answered its write. */
   readonly pending: string | undefined;
   readonly refused: boolean;
+  /** The identifier of the sentence of the refusal of its write, when the server refused it. */
+  readonly invalid: string | undefined;
+}
+
+/** The ring of a cell whose write the server refused: none for another. */
+function invalidRing(invalid: string | undefined): string | null {
+  return invalid === undefined ? null : "ring-2 ring-destructive ring-inset";
 }
 
 /** The key that opens the menu of a cell, as `aria-keyshortcuts` names it (`CellMenu`). */
@@ -330,6 +338,8 @@ function cellAttributes(
     "aria-busy": state.pending === undefined ? undefined : true,
     "aria-haspopup": computed ? ("dialog" as const) : undefined,
     "aria-expanded": computed ? state.refused : undefined,
+    "aria-invalid": state.invalid === undefined ? undefined : true,
+    "aria-describedby": state.invalid,
   };
 }
 
@@ -382,6 +392,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
       cells.draft?.key === key && cells.draft.column === position.column ? cells.draft : undefined,
     pending: cells.pending(key, position.column),
     refused: refusedAt(cells.refusal, key, position.column),
+    invalid: cells.writeRefusal(key, position.column),
   };
   const content = state.pending ?? cellContent(config, column, row, locale);
   let shown = content;
@@ -418,6 +429,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
         computed ? "bg-muted" : "bg-background",
         column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
         state.draft === undefined ? null : "py-0",
+        invalidRing(state.invalid),
         alignClass(column),
       )}
     >
@@ -557,44 +569,6 @@ function EntryProblemNotice({
   return (
     <p id={id} role="alert" className="text-sm text-destructive">
       {texts[problem]()}
-    </p>
-  );
-}
-
-/** The text that says why a block would fill rows the grid does not show, by their cause. */
-const ROWS_REFUSAL = {
-  folded: "foldedRows",
-  sorted: "sortedRows",
-  unretained: "unretainedRows",
-  beyond: "beyondRows",
-} as const satisfies Record<UnshownRows, string>;
-
-/**
- * Why a block pasted was refused before the server was asked: it would fill a column the grid hides
- * or does not present, or a row of the plan the grid does not show under the cell.
- */
-function UnshownNotice({
-  unshown,
-  heading,
-}: {
-  readonly unshown: Unshown | undefined;
-  readonly heading: (column: ColumnName) => string;
-}) {
-  const t = useTranslations("grid.paste");
-  if (unshown === undefined) {
-    return null;
-  }
-  let text: string;
-  if (unshown.shown === "hidden") {
-    text = t("hiddenColumn", { column: heading(unshown.column) });
-  } else if (unshown.shown === "absent") {
-    text = t("absentColumn", { column: unshown.name });
-  } else {
-    text = t(ROWS_REFUSAL[unshown.shown]);
-  }
-  return (
-    <p role="alert" className="text-sm text-destructive">
-      {text}
     </p>
   );
 }
@@ -807,12 +781,15 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     },
   });
   const invalid = useId();
+  const refusalId = useId();
   const screenCommands = onRows(commands, (index) => model[index]?.original);
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
     draft: keyboard.draft,
     refusal: keyboard.refusal,
     pending: writes.pending,
+    writeRefusal: (row, column) =>
+      writes.refused(row, column) ? refusalDescription(writes.outcome, refusalId) : undefined,
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
     menu: hasCellMenu(undoable, folding.menu, screenCommands.menu),
@@ -854,6 +831,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         dismissible
       />
       <OutcomeNotice
+        id={refusalId}
         outcome={writes.outcome}
         onClear={writes.clear}
         onDismissed={keyboard.refocus}
