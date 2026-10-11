@@ -567,7 +567,9 @@ Complété le 2026-10-11 (#856) :
 1. applique les migrations (`alembic upgrade head`) — le catalogue avec elles —, sous le
    rôle propriétaire, qui crée aussi le rôle de service (#701) ; la commande pose sa propre
    corrélation, que ses inscriptions au journal portent ;
-2. si la ligne `installation` existe, s'arrête sans rien faire d'autre (WF-EXP-0020) ;
+2. si la ligne `installation` existe, ne crée rien : ni ligne, ni rôle, ni compte, et la
+   langue et l'administrateur restent ceux de l'installation déjà faite — une autre adresse dans
+   `WATERFALL_ADMIN_EMAIL` est dite ignorée ; la commande passe à l'étape 4 (WF-EXP-0020) ;
 3. crée la ligne `installation` avec la langue par défaut (`WATERFALL_DEFAULT_LANGUAGE`) et
    les bornes ; les trois rôles prédéfinis, avec les permissions de l'exemple `access_roles`
    du contrat et leurs libellés dans cette langue ; le compte administrateur local dans
@@ -575,7 +577,13 @@ Complété le 2026-10-11 (#856) :
    `WATERFALL_ADMIN_EMAIL` ;
 4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension sous le rôle
    `waterfall-installation-link` : il vaut jusqu'à son emploi (WF-ADM-0140, WF-EXP-0020) ;
-   une nouvelle commande en produit un autre, qui remplace le précédent.
+   une nouvelle commande en produit un autre, qui remplace le précédent, **tant que
+   l'administrateur n'a pas de mot de passe**, et aucun ensuite : la commande s'achève alors
+   sans lien, avec succès. Le lien d'installation ne vaut que pour un compte sans mot de passe
+   (auteur, 2026-10-11, #884), règle tenue dans l'extension : elle refuse d'en fabriquer un pour
+   un compte qui a un mot de passe (409 `has_password`, que l'amorçage lit comme « pas de
+   lien »), et refuse à l'ouverture un lien d'installation dont le compte a, entre-temps, reçu
+   un mot de passe par une autre voie, avec le message « déjà servi » du thème.
 
 Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
 calendrier et la nature de provision.
