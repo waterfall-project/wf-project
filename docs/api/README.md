@@ -53,6 +53,7 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | Toute opération gardée par le jeton `bearer` déclare le `401`, et le `503` : elle peut attendre le fournisseur d'identité ; une opération publique le dit par `security: []` ; `make lint-openapi` le vérifie (`rule/session-operation-declares-401`, `rule/protected-operation-declares-503` de `redocly.yaml`) | WF-SEC-0020, WF-EXP-0040, WF-ARC-0060 |
 | Une adresse est reçue telle qu'elle est écrite, casse comprise, et comparée sans égard à la casse : une seule `@`, une partie locale et un domaine non vides, aucun espace, 254 caractères au plus ; les domaines à usage spécial (`.local`, `.test`) et sans point (`intranet`) sont admis. Une adresse mal formée est refusée par 422 `VALIDATION_FAILED` sur son champ | WF-ADM-0050 |
 | Toute opération qui reçoit un corps déclare le `400` d'un corps illisible (`MALFORMED_REQUEST`) et le `422` d'un champ manquant ou refusé (`VALIDATION_FAILED` et les codes par champ) ; `make lint-openapi` le vérifie (`rule/operation-with-body-declares-400-and-422`) | WF-ARC-0060, WF-ARC-0110 |
+| Un libellé, un nom ou un code reçu porte au moins un caractère qui n'est pas un blanc (`pattern: '\S'`) : fait seulement de blancs, il est refusé par 422 `VALIDATION_FAILED` sur son champ | WF-ARC-0110 |
 | Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
 | L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
 
