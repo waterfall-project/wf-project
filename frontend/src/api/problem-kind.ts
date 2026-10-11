@@ -6,6 +6,10 @@
  * address (`result-refusal.ts`) read. A module of its own, which reads nothing of the server: the
  * decoder imports the client of the API, which a browser never loads.
  */
+import type { components } from "@/api/generated/schema";
+
+/** A code of the contract, which names a refusal. */
+type ErrorCode = components["schemas"]["ErrorCode"];
 
 /** What a refusal of the API asks of the screen, by the status that carries it. */
 export type ProblemKind = "refused" | "stale" | "conflict" | "signed_out";
@@ -18,7 +22,7 @@ const KIND_BY_STATUS: Readonly<Record<number, ProblemKind>> = {
 };
 
 /** The 401 that refuse the account itself, whatever its session: deactivated, or not admitted. */
-const ACCOUNT_REFUSALS: ReadonlySet<unknown> = new Set([
+const ACCOUNT_REFUSALS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   "ACCOUNT_DEACTIVATED",
   "ACCOUNT_NOT_ADMITTED",
 ]);
@@ -30,7 +34,7 @@ const ACCOUNT_REFUSALS: ReadonlySet<unknown> = new Set([
  * refusal. The screen says it instead.
  */
 export function isAccountRefusal(status: number, code: unknown): boolean {
-  return status === 401 && ACCOUNT_REFUSALS.has(code);
+  return status === 401 && [...ACCOUNT_REFUSALS].some((refusal) => refusal === code);
 }
 
 /**

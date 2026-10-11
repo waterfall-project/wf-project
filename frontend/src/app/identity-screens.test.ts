@@ -81,7 +81,7 @@ describe("the password, which the identity provider asks for", () => {
     expect(screenRoutes().filter((route) => PASSWORD_TEXT.test(route))).toEqual([]);
   });
 
-  it("is reached by the link that sets it alone, among the operations of the contract the front calls [WF-ADM-0140-A]", () => {
+  it("is reached by the link that sets it alone, among all the operations of the contract [WF-ADM-0140-A]", () => {
     expect(operationPaths().filter((path) => PASSWORD_TEXT.test(path))).toEqual([
       "/users/{user_id}/password-link",
     ]);

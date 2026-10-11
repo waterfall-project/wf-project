@@ -229,8 +229,8 @@ royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne présente
 jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti — refusé, sans réponse
 dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond à sa place — ferme
 la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois (#687). Seule une
-requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte inconnu) ne la ferme
-pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
+requête qui n'a pu partir (Keycloak injoignable : connexion refusée ou non établie à temps, hôte
+inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
 (`Unreachable`), que l'écran dit comme tel. Quand la session que nomme le témoin ne vit plus, la
 requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran
 de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant

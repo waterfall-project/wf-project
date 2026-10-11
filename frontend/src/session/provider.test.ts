@@ -52,12 +52,22 @@ describe("the identity provider", () => {
     },
   );
 
-  it("says the realm out of reach when a refresh could not leave, rather than close the session", async () => {
-    const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
-    const send: Send = () => Promise.reject(new TypeError("fetch failed", { cause: refused }));
-    const provider = createIdentityProvider(TEST_SETTINGS, send);
-    await expect(provider.refresh("r0")).rejects.toBeInstanceOf(RealmUnreachable);
-  });
+  it.each([
+    "ECONNREFUSED",
+    "UND_ERR_CONNECT_TIMEOUT",
+    "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+    "CERT_HAS_EXPIRED",
+    "DEPTH_ZERO_SELF_SIGNED_CERT",
+    "SELF_SIGNED_CERT_IN_CHAIN",
+  ])(
+    "says the realm out of reach when a refresh could not leave, rather than close the session: %s",
+    async (code) => {
+      const failed = Object.assign(new Error(code), { code });
+      const send: Send = () => Promise.reject(new TypeError("fetch failed", { cause: failed }));
+      const provider = createIdentityProvider(TEST_SETTINGS, send);
+      await expect(provider.refresh("r0")).rejects.toBeInstanceOf(RealmUnreachable);
+    },
+  );
 
   it("says the realm out of reach when the code of a sign-in cannot be exchanged", async () => {
     const send: Send = () => Promise.reject(new TypeError("fetch failed"));

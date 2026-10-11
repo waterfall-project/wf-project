@@ -111,13 +111,24 @@ export class RealmUnreachable extends Error {
   }
 }
 
-/** The codes of a connection that was never made: the request did not leave. */
+/**
+ * The codes of a connection that was never made — refused, its host unknown or out of reach, not
+ * made in time, or its certificate not trusted —: the request did not leave.
+ */
 const NOT_SENT: ReadonlySet<unknown> = new Set([
   "ECONNREFUSED",
   "ENOTFOUND",
   "EAI_AGAIN",
   "ENETUNREACH",
   "EHOSTUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "CERT_HAS_EXPIRED",
+  "CERT_NOT_YET_VALID",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "ERR_TLS_CERT_ALTNAME_INVALID",
 ]);
 
 /**
