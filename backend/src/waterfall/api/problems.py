@@ -90,6 +90,10 @@ def _on_http_error(request: Request, error: Exception) -> JSONResponse:
     return internal_error_response(request)
 
 
+# The last place Pydantic gives a fault of a key of an object, after the key itself.
+KEY_FAULT = "[key]"
+
+
 def _is_empty(value: object) -> bool:
     return isinstance(value, str | list | tuple | dict) and not value
 
@@ -101,6 +105,10 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
     if kind == NUL_FAULT:
         # The NUL is pointed at the item of the field that holds it, as any fault of an item is.
         path = [*path, *fault["ctx"]["path"]]
+    if path[-1:] == [KEY_FAULT]:
+        # A key refused is pointed at the object that holds it, as a NUL in a key is: the key is
+        # no field of its own (#874).
+        path = path[:-2]
     pointer = f"/{place}/{path[0]}" if place in {"query", "path"} else json_pointer(*path)
     params: dict[str, Any] = {}
     if kind == "missing":

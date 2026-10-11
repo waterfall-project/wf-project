@@ -211,6 +211,12 @@ DisplayPreferences:
     réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne
     change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme,
     chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut.
+    Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
+    (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64
+    caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus,
+    la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est
+    refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
+    défaut ; un nom trop long, au pointeur de l'objet qui le porte.
   properties:
     language:
       type: string
@@ -231,6 +237,8 @@ DisplayPreferences:
     highlight_tasks_added_after_reference: { type: boolean }
     grids:
       type: object
+      maxProperties: 100
+      propertyNames: { maxLength: 64 }
       additionalProperties:
         anyOf: [{ $ref: '#/GridPreferences' }, { type: 'null' }]
 
@@ -239,9 +247,12 @@ GridPreferences:
   properties:
     hidden_columns:
       type: array
-      items: { type: string }
+      maxItems: 64
+      items: { type: string, maxLength: 64 }
     column_widths:
       type: object
+      maxProperties: 64
+      propertyNames: { maxLength: 64 }
       additionalProperties: { type: integer, minimum: 20 }
     sort:
       anyOf:
@@ -251,12 +262,17 @@ GridPreferences:
             Le tri tel que la grille le demande au serveur : `column` est une valeur
             du `sort_by` de l'opération qui la sert.
           properties:
-            column: { type: string }
+            column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
         - type: 'null'
     filters:
       type: object
-      additionalProperties: true
+      description: >-
+        La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
+        paramètre sous son nom, avec sa valeur en texte.
+      maxProperties: 20
+      propertyNames: { maxLength: 64 }
+      additionalProperties: { type: string, maxLength: 500 }
 
 PermissionCode:
   type: string

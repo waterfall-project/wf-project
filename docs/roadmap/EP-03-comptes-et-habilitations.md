@@ -712,6 +712,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    manque pour suivre la restauration jusqu'à la levée de la maintenance.
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
    une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
+11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque
+   requête de son titulaire et dans la liste des comptes, elles ont une taille bornée au
+   contrat, que les modèles engendrés appliquent au service, refus par 422 :
+   `DisplayPreferences.grids`, cent grilles au plus (`maxProperties: 100`) ; un nom de grille,
+   de colonne ou de filtre, 64 caractères au plus (`propertyNames`, `maxLength: 64`, de même
+   pour `hidden_columns` et `sort.column`) ; par grille, 64 colonnes masquées
+   (`maxItems: 64`), 64 largeurs et 20 filtres (`maxProperties`) ; un filtre est un texte, la
+   valeur du paramètre de l'adresse que le front garde, de 500 caractères au plus.
 
 ### Conformité au contrat et parcours contre le service
 
