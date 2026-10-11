@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from support import PLATFORM_SECRETS
 
 from waterfall.core.users import accounts, interface
-from waterfall.core.users.accounts import NewAccount, Stamp, add_account, change_email
+from waterfall.core.users.accounts import NewAccount, Stamp, add_account, change_identity
 from waterfall.core.users.interface import read_account_label
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
@@ -47,8 +47,12 @@ def test_changing_the_address_of_an_account_leaves_the_rows_that_refer_to_it_as_
     author = born(session, "author@example.org")
     written = born(session, "written@example.org", author.id)
     before = (written.created_by, written.updated_by, written.updated_at, written.lock_version)
-    change_email(
-        session, author.id, "new.author@example.org", author.lock_version, Stamp(None, NOON)
+    change_identity(
+        session,
+        author.id,
+        {"email": "new.author@example.org"},
+        author.lock_version,
+        Stamp(None, NOON),
     )
     session.expire_all()
     after = session.get_one(UserAccount, written.id)
@@ -160,10 +164,10 @@ def test_an_account_changed_by_an_administrator_carries_the_administrator_and_th
     administrator = born(session, "administrator@example.org")
     person = born(session, "person@example.org")
     later = NOON + timedelta(hours=3)
-    changed = change_email(
+    changed = change_identity(
         session,
         person.id,
-        "person.new@example.org",
+        {"email": "person.new@example.org"},
         person.lock_version,
         Stamp(administrator.id, later),
     )
@@ -181,8 +185,12 @@ def test_the_platform_is_the_author_of_a_row_by_a_null_author(session: Session) 
         Stamp(administrator.id, NOON),
     )
     later = NOON + timedelta(hours=1)
-    changed = change_email(
-        session, account.id, "claire.new@example.org", account.lock_version, Stamp(None, later)
+    changed = change_identity(
+        session,
+        account.id,
+        {"email": "claire.new@example.org"},
+        account.lock_version,
+        Stamp(None, later),
     )
     session.expire_all()
     stored = session.get_one(UserAccount, changed.id)
@@ -195,9 +203,9 @@ def test_a_change_made_on_a_version_that_is_not_the_current_one_is_refused(
     session: Session,
 ) -> None:
     account = born(session)
-    change_email(session, account.id, "one@example.org", 0, Stamp(None, NOON))
+    change_identity(session, account.id, {"email": "one@example.org"}, 0, Stamp(None, NOON))
     with pytest.raises(PreconditionFailedError) as refused:
-        change_email(session, account.id, "two@example.org", 0, Stamp(None, NOON))
+        change_identity(session, account.id, {"email": "two@example.org"}, 0, Stamp(None, NOON))
     assert (refused.value.code, refused.value.params) == (
         "STALE_LOCK_VERSION",
         {"expected_lock_version": 1},
@@ -207,7 +215,7 @@ def test_a_change_made_on_a_version_that_is_not_the_current_one_is_refused(
 
 def test_a_change_to_an_account_that_does_not_exist_is_a_missing_object(session: Session) -> None:
     with pytest.raises(NotFoundError):
-        change_email(session, uuid4(), "x@example.org", 0, Stamp(None, NOON))
+        change_identity(session, uuid4(), {"email": "x@example.org"}, 0, Stamp(None, NOON))
 
 
 def test_the_label_of_an_account_says_whether_it_may_sign_in(session: Session) -> None:

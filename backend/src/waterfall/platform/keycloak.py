@@ -19,7 +19,7 @@ breaks what the realm promises is a defect of the platform, raised as such.
 import math
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from functools import partial
 from http import HTTPStatus
 from typing import Any, cast
@@ -145,14 +145,22 @@ class Keycloak:
             raise UnauthenticatedError(SESSION_REQUIRED)
         return subject
 
-    def send(self, method: str, path: str, **options: Any) -> httpx2.Response:
-        """Send a request to Keycloak on its back channel; refuse it while Keycloak fails (503)."""
+    def send(
+        self, method: str, path: str, *, answered: Collection[int] = (), **options: Any
+    ) -> httpx2.Response:
+        """Send a request to Keycloak on its back channel; refuse it while Keycloak fails (503).
+
+        A failure of a status in ``answered`` is given to the caller, who reads what it says.
+        """
         try:
             response = self._http.request(method, path, **options)
         except httpx2.HTTPError as error:
             logger.warning("identity_provider.unreachable", fault=type(error).__name__)
             raise unavailable() from None
-        if response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
+        if (
+            response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR
+            and response.status_code not in answered
+        ):
             logger.warning("identity_provider.failed", status=response.status_code)
             raise unavailable()
         return response

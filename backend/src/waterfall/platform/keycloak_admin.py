@@ -18,18 +18,30 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
 import httpx2
 
-from waterfall.platform.errors import UnavailableError
+from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak, expect
 from waterfall.platform.settings import ServiceSettings
 
 SERVICE_CLIENT = "waterfall-service"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
+VALIDATION_FAILED = "VALIDATION_FAILED"
+# The field of a local identity each attribute of the realm holds, the username being its address.
+IDENTITY_POINTERS = {
+    "username": "/email",
+    "email": "/email",
+    "firstName": "/first_name",
+    "lastName": "/last_name",
+}
+
+# Why the invitation of an account did not leave: the realm has no mail server, its server did not
+# take the mail, or Keycloak does not answer.
+type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +73,34 @@ class LocalIdentity:
 def _text(document: Mapping[str, Any], name: str) -> str:
     value = document.get(name)
     return value if isinstance(value, str) else ""
+
+
+def _document(response: httpx2.Response) -> Mapping[str, Any]:
+    """Read the object an answer carries, or an empty one if it carries none."""
+    try:
+        read: object = response.json()
+    except ValueError:
+        return {}
+    return cast("Mapping[str, Any]", read) if isinstance(read, Mapping) else {}
+
+
+def refused_identity(response: httpx2.Response) -> UnprocessableError:
+    """Point at the fields of a local identity the user profile of the realm refuses (422).
+
+    The realm names one field, or a list of them under ``errors``; one it names that the identity
+    does not have is pointed at as the whole of it.
+    """
+    refusal = _document(response)
+    errors = refusal.get("errors")
+    named = cast("list[object]", errors) if isinstance(errors, list) and errors else [refusal]
+    pointers = dict.fromkeys(_pointer(error) for error in named)
+    faults = tuple(FieldError(pointer, VALIDATION_FAILED) for pointer in pointers)
+    return UnprocessableError(VALIDATION_FAILED, fields=faults)
+
+
+def _pointer(error: object) -> str:
+    named = _text(cast("Mapping[str, Any]", error), "field") if isinstance(error, Mapping) else ""
+    return IDENTITY_POINTERS.get(named, "")
 
 
 class KeycloakAdmin:
@@ -110,6 +150,7 @@ class KeycloakAdmin:
         """Create a local account of the realm, without a password; give its subject.
 
         ``None`` if the realm holds an account of that address already, whose username it is.
+        Refused if the user profile of the realm refuses a field (422).
         """
         response = self._as_service(
             "POST",
@@ -124,6 +165,8 @@ class KeycloakAdmin:
         )
         if response.status_code == HTTPStatus.CONFLICT:
             return None
+        if response.status_code == HTTPStatus.BAD_REQUEST:
+            raise refused_identity(response)
         location = expect(response, HTTPStatus.CREATED).headers["Location"]
         return location.rstrip("/").rsplit("/", 1)[-1]
 
@@ -133,22 +176,27 @@ class KeycloakAdmin:
         if response.status_code != HTTPStatus.NOT_FOUND:
             expect(response, HTTPStatus.NO_CONTENT)
 
-    def send_invitation(self, subject: str) -> bool:
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
         """Have the extension mail a local account the link that sets its password (WF-ADM-0140).
 
-        The link replaces the one made before it. ``False`` when the realm has no mail server —
-        an installation without one gives the link by hand (WF-CMP-0030) — or when the mail could
-        not be sent: the account exists all the same, and its link may be asked for again.
+        The link replaces the one made before it, unless the mail does not leave. Then the reason
+        is given: the realm has no mail server — an installation without one gives the link by
+        hand (WF-CMP-0030) —, its server did not take the mail, or Keycloak does not answer. The
+        account exists all the same, and its link may be asked for again.
         """
         path = f"{self._extension}/users/{quote(subject, safe='')}/invitation"
         try:
-            response = self._as_service("POST", path)
+            # The extension says by a 502 that the mail server failed; a proxy, that Keycloak did.
+            response = self._as_service("POST", path, answered={HTTPStatus.BAD_GATEWAY})
         except UnavailableError:
-            return False
-        if response.status_code == HTTPStatus.CONFLICT:
-            return False
+            return "provider_unavailable"
+        error = _document(response).get("error")
+        if response.status_code == HTTPStatus.BAD_GATEWAY:
+            return "not_sent" if error == "not_sent" else "provider_unavailable"
+        if response.status_code == HTTPStatus.CONFLICT and error == "no_mail_server":
+            return "no_mail_server"
         expect(response, HTTPStatus.NO_CONTENT)
-        return True
+        return None
 
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).

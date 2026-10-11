@@ -20,7 +20,12 @@ from sqlalchemy import URL, QueuePool, text
 
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, ProviderAccount
+from waterfall.platform.keycloak_admin import (
+    InvitationFailure,
+    KeycloakAdmin,
+    LocalIdentity,
+    ProviderAccount,
+)
 from waterfall.platform.settings import ServiceSettings
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
@@ -215,6 +220,16 @@ class Watching(KeycloakAdmin):
         """Note, then create a local account of the realm."""
         self._note("create_account")
         return super().create_account(identity)
+
+    def remove_account(self, subject: str) -> None:
+        """Note, then remove an account of the realm."""
+        self._note("remove_account")
+        super().remove_account(subject)
+
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
+        """Note, then have the extension mail an account its invitation."""
+        self._note("send_invitation")
+        return super().send_invitation(subject)
 
     def close_sessions(self, subject: str) -> None:
         """Note, then close the sessions of an account."""

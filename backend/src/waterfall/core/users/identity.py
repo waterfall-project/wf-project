@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The identity of an account — its name, first name and address —, as Waterfall writes it.
 
-A local account is Waterfall's: it is created here, then in the identity provider, and its
-identity changes here. That of an account of the directory or of an external provider is the
-provider's: a value that differs from the one held is refused, the field sent unchanged is not
-(WF-ADM-0050, WF-ADM-0070). An address is received as written, case included, and compared
-without regard to it: one ``@``, a local part and a domain not empty, no space, 254 characters at
-most, the special-use domains and those without a dot admitted (contract, README; #665). An
-account is attached to no node of the organisation before EP-05 creates the tree: any node is
-unknown.
+A local account is Waterfall's: it is created in the identity provider, then here, and its
+identity changes here alone — the provider does not follow yet (#810). That of an account of the
+directory or of an external provider is the provider's: a value that differs from the one held is
+refused, the field sent unchanged is not (WF-ADM-0050, WF-ADM-0070). An address is received as
+written, case included, and compared without regard to it: one ``@``, a local part and a domain
+not empty, no space, 254 characters at most, the special-use domains and those without a dot
+admitted (contract, README; #665). An account is attached to no node of the organisation before
+EP-05 creates the tree: any node is unknown.
 
 Every creation and change is inscribed in the journal of audit, which names the account by its
 label and keeps neither its names nor its address in its data: the anonymisation of the account
@@ -153,7 +153,9 @@ def change(
         if (value := getattr(sent, name)) is not None and value != getattr(account, name)
     }
     # An address sent unchanged is the one held, whatever form the provider gave it.
-    faults = list(identity_faults(changed.get("email"), sent.org_node_id))
+    # The address of an account the provider holds is refused as read-only, not as malformed.
+    email = changed.get("email") if account.origin == LOCAL else None
+    faults = list(identity_faults(email, sent.org_node_id))
     if account.origin != LOCAL:
         faults.extend(FieldError(f"/{name}", FIELD_READ_ONLY) for name in changed)
     refuse(tuple(faults))

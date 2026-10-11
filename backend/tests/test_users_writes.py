@@ -5,9 +5,9 @@
 The caller, Camille Martin, holds a role that lets her consult and change the accounts. Keycloak is
 the realm of test, which serves keys and nothing of the administration API: a creation Waterfall
 accepts reaches it and fails there (503), what it refuses is refused before Keycloak is asked. A
-local account created in Keycloak is tried against the platform (``test_keycloak_accounts.py``);
-the writing of the account once Keycloak has created it is tried here, by the function the route
-calls, under the correlation of a request.
+local account created in Keycloak is tried against the platform
+(``test_keycloak_authentication.py``); the writing of the account once Keycloak has created it is
+tried here, by the function the route calls, under the correlation of a request.
 """
 
 import threading
@@ -196,6 +196,19 @@ def test_the_roles_the_installation_lacks_and_any_node_are_each_named_on_its_fie
     assert accounts(database) == ["camille.martin@example.org"]
 
 
+def test_roles_sent_null_are_refused_on_their_field(
+    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
+) -> None:
+    # Not sent, the account has no role; sent, they are a list, empty or not.
+    response = client.post(USERS, headers=headers, json={**JEANNE, "access_role_ids": None})
+    assert fields(response) == [
+        ("422", "VALIDATION_FAILED"),
+        ("/access_role_ids", "VALIDATION_FAILED"),
+    ]
+    assert watching.held == []
+    assert accounts(database) == ["camille.martin@example.org"]
+
+
 def test_no_connection_is_held_while_the_provider_creates_the_account(
     client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
 ) -> None:
@@ -216,7 +229,7 @@ def test_a_caller_who_may_only_consult_the_accounts_creates_none(
     assert response.json()["params"] == {"missing_permission": "users.write"}
 
 
-def test_an_account_the_provider_fails_to_withdraw_is_logged_and_the_refusal_kept(
+def test_an_account_the_provider_fails_to_withdraw_is_said_in_the_log(
     keycloak: Keycloak, realm_settings: ServiceSettings, logs: Logs
 ) -> None:
     # The realm of test serves no administration API: the removal fails, and is said in the log.
@@ -398,6 +411,9 @@ def test_the_names_and_the_address_of_an_account_of_the_provider_are_not_changed
         ("/last_name", "FIELD_READ_ONLY"),
         ("/email", "FIELD_READ_ONLY"),
     ]
+    # An address it may not change is refused for that alone, malformed or not.
+    malformed = change(client, headers, dominique, email="jeanne@")
+    assert fields(malformed) == [("422", "VALIDATION_FAILED"), ("/email", "FIELD_READ_ONLY")]
     unchanged = change(
         client,
         headers,

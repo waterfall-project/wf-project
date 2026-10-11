@@ -173,13 +173,6 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
     ).first()
 
 
-def change_email(
-    session: Session, user_id: UUID, email: str, lock_version: int, stamp: Stamp
-) -> UserAccount:
-    """Change the address of an account whose version is the one read, and return it."""
-    return change_identity(session, user_id, {"email": email}, lock_version, stamp)
-
-
 def change_identity(
     session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
 ) -> UserAccount:

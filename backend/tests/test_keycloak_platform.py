@@ -53,6 +53,8 @@ REPLACED = "Ce lien a été remplacé par un plus récent"
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
 # The type of the action token of a link the extension makes (PasswordSetupToken).
 EXTENSION_ACTION = "waterfall-password-setup"
+# A mail server on a port of the container of Keycloak where nothing listens.
+UNREACHABLE_MAIL_SERVER = {"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}
 
 
 def required(variable: str) -> str:
@@ -366,7 +368,7 @@ def test_a_caller_without_a_token_of_the_realm_gets_no_link(
         assert (response.status_code, response.json()) == (401, {"error": "not_authenticated"})
 
 
-def test_a_token_without_the_role_of_the_extension_gets_no_link(
+def test_a_token_without_the_role_of_the_extension_gets_no_link_nor_invitation(
     keycloak: httpx2.Client,
     backchannel: httpx2.Client,
     admin: httpx2.Client,
@@ -375,8 +377,11 @@ def test_a_token_without_the_role_of_the_extension_gets_no_link(
     set_password(admin, local_account.id, PASSWORD)
     signed_in = password_grant(keycloak, local_account, PASSWORD)
     assert signed_in.status_code == 200, signed_in.text
-    response = link_of(backchannel, local_account.id, signed_in.json()["access_token"])
+    token = signed_in.json()["access_token"]
+    response = link_of(backchannel, local_account.id, token)
     assert (response.status_code, response.json()) == (403, {"error": "not_allowed"})
+    invitation = invite(backchannel, local_account.id, token)
+    assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
 
 
 def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
@@ -525,11 +530,15 @@ def test_an_invitation_is_refused_as_a_link_is(
 def test_a_realm_without_a_mail_server_or_whose_server_fails_sends_no_invitation(
     backchannel: httpx2.Client, service_token: str, local_account: Account
 ) -> None:
+    made = link_of(backchannel, local_account.id, service_token)
+    assert made.status_code == 200, made.text
     # An installation without a mail server gives the link by hand (WF-CMP-0030).
     with mail_server({}):
         none = invite(backchannel, local_account.id, service_token)
     assert (none.status_code, none.json()) == (409, {"error": "no_mail_server"})
-    # A port of the container of Keycloak where nothing listens.
-    with mail_server({"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}):
+    with mail_server(UNREACHABLE_MAIL_SERVER):
         failing = invite(backchannel, local_account.id, service_token)
     assert (failing.status_code, failing.json()) == (502, {"error": "not_sent"})
+    # The invitation that did not leave replaced nothing: the link obtained before still serves.
+    kept = Browser().get(made.json()["url"])
+    assert kept.status_code == 200, kept.text

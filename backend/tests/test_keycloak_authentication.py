@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import func, insert, select, update
-from support import ContractClient, Logs, raw_account
+from support import ContractClient, Logs, Watching, raw_account
 from test_keycloak_platform import (
     ADDRESS_VARIABLE,
     BACKCHANNEL_VARIABLE,
@@ -35,6 +35,7 @@ from test_keycloak_platform import (
     PASSWORD,
     REALM,
     SERVICE_CREDENTIAL_VARIABLE,
+    UNREACHABLE_MAIL_SERVER,
     Account,
     Browser,
     action_token,
@@ -199,14 +200,14 @@ def keycloak(settings: ServiceSettings) -> Iterator[Keycloak]:
 
 
 @pytest.fixture
-def keycloak_admin(keycloak: Keycloak, settings: ServiceSettings) -> KeycloakAdmin:
-    """Give the client of the administration API of the realm the API reaches."""
-    return KeycloakAdmin(keycloak, settings)
+def keycloak_admin(keycloak: Keycloak, settings: ServiceSettings, database: Database) -> Watching:
+    """Give the client of the administration API of the realm the API reaches, watched (#669)."""
+    return Watching(keycloak, settings, database)
 
 
 @pytest.fixture
 def api(
-    contract: OpenAPI, database: Database, keycloak: Keycloak, keycloak_admin: KeycloakAdmin
+    contract: OpenAPI, database: Database, keycloak: Keycloak, keycloak_admin: Watching
 ) -> ContractClient:
     """Give a client of the API on the database of the test and the Keycloak of the platform."""
     app = create_app(Services(database, keycloak, keycloak_admin))
@@ -487,10 +488,16 @@ def administrator(database: Database, local_account: Account) -> dict[str, str]:
 
 
 @pytest.fixture
-def in_realm(admin: httpx2.Client) -> Iterator[list[str]]:
-    """Collect the accounts a test creates in the realm, and remove them after."""
+def in_realm(admin: httpx2.Client, database: Database) -> Iterator[list[str]]:
+    """Collect the accounts a test creates in the realm, and remove them after.
+
+    Those Waterfall holds, created by an account, are removed without being collected.
+    """
     subjects: list[str] = []
     yield subjects
+    with database.transaction() as session:
+        created = select(UserAccount.idp_subject).where(UserAccount.created_by.is_not(None))
+        subjects.extend(session.scalars(created))
     for subject in subjects:
         admin.delete(f"/users/{subject}")
 
@@ -507,21 +514,22 @@ def jeanne(email: str, **more: object) -> dict[str, object]:
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")
+@pytest.mark.usefixtures("in_realm")
 def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     api: ContractClient,
     database: Database,
     admin: httpx2.Client,
     administrator: dict[str, str],
-    in_realm: list[str],
+    keycloak_admin: Watching,
 ) -> None:
     email = new_address()
     response = api.post(USERS, headers=administrator, json=jeanne(email))
     assert response.status_code == 201, response.text
     body = response.json()
-    in_realm.append(subject_of(database, body["user_id"]))
+    subject = subject_of(database, body["user_id"])
     # Waterfall keeps the address as written; the realm, which identifies by it, in small letters.
     assert (body["email"], body["origin"], body["access_role_ids"]) == (email, "local", [])
-    held = admin.get(f"/users/{in_realm[0]}").json()
+    held = admin.get(f"/users/{subject}").json()
     assert (held["email"], held["username"], held["firstName"], held["lastName"]) == (
         email.lower(),
         email.lower(),
@@ -531,10 +539,41 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     # A local account of the realm: neither read from a directory nor relayed, enabled, and
     # without a password until its holder sets one.
     assert (held.get("federationLink"), held["enabled"]) == (None, True)
-    assert admin.get(f"/users/{in_realm[0]}/federated-identity").json() == []
-    assert admin.get(f"/users/{in_realm[0]}/credentials").json() == []
+    assert admin.get(f"/users/{subject}/federated-identity").json() == []
+    assert admin.get(f"/users/{subject}/credentials").json() == []
     # Invited by the extension, with a link of its own (#651).
     assert action_token(mailed_link(email.lower()))["typ"] == EXTENSION_ACTION
+    # Keycloak is asked with no connection of the database held (#669).
+    assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
+
+
+@pytest.mark.parametrize(
+    ("sent", "pointer"),
+    [
+        ({"email": "jeanne..x@mairie.test"}, "/email"),
+        ({"last_name": "Montgolfier (Durand)"}, "/last_name"),
+    ],
+    ids=["an address", "a name"],
+)
+def test_a_value_the_user_profile_of_the_provider_refuses_is_refused_on_its_field(
+    api: ContractClient,
+    admin: httpx2.Client,
+    administrator: dict[str, str],
+    sent: dict[str, str],
+    pointer: str,
+) -> None:
+    # Waterfall receives the address and the name; the user profile of the realm does not.
+    body = {**jeanne(new_address()), **sent}
+    response = api.post(USERS, headers=administrator, json=body)
+    assert response.status_code == 422, response.text
+    assert (response.json()["code"], response.json()["fields"]) == (
+        "VALIDATION_FAILED",
+        [{"pointer": pointer, "code": "VALIDATION_FAILED"}],
+    )
+    # Neither in Waterfall, where the administrator is alone, nor in the realm.
+    assert api.get(USERS, headers=administrator).json()["meta"]["total"] == 1
+    address = str(body["email"]).lower()
+    assert admin.get("/users", params={"email": address, "exact": "true"}).json() == []
 
 
 @pytest.mark.requirement("WF-ADM-0050-A")
@@ -553,7 +592,50 @@ def test_an_account_whose_address_an_account_of_the_provider_holds_is_not_create
         assert session.scalar(select(func.count()).select_from(UserAccount)) == 1
 
 
-class Deleting(KeycloakAdmin):
+class Racing(KeycloakAdmin):
+    """The administration client of the service, whose creation another one overtakes.
+
+    Between the checks of the creation and the provider's answer, another administrator creates
+    the account of that address, in Waterfall and in the provider: the provider refuses this one.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Write the other account in ``database``; none is written yet."""
+        super().__init__(keycloak, settings)
+        self.database = database
+        self.holder: UUID | None = None
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Write the other account of the address, then answer as the provider that holds it."""
+        row = raw_account(email=identity.email)
+        with self.database.transaction() as session:
+            session.execute(insert(UserAccount).values(**row))
+        self.holder = cast("UUID", row["id"])
+        return None
+
+
+def test_the_account_that_overtook_a_creation_in_the_provider_is_named(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    settings: ServiceSettings,
+    administrator: dict[str, str],
+) -> None:
+    racing = Racing(keycloak, settings, database)
+    app = create_app(Services(database, keycloak, racing))
+    client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    response = client.post(USERS, headers=administrator, json=jeanne(new_address()))
+    assert response.status_code == 409, response.text
+    assert response.json()["fields"] == [
+        {
+            "pointer": "/email",
+            "code": "ALREADY_EXISTS",
+            "params": {"conflicting_object_id": str(racing.holder)},
+        }
+    ]
+
+
+class Deleting(Watching):
     """The administration client of the service, during whose creation of an account a role goes.
 
     The role is deleted as an administrator would delete it between the checks of the creation and
@@ -564,7 +646,7 @@ class Deleting(KeycloakAdmin):
         self, keycloak: Keycloak, settings: ServiceSettings, database: Database, role_id: UUID
     ) -> None:
         """Delete ``role_id`` in ``database`` at the creation of an account."""
-        super().__init__(keycloak, settings)
+        super().__init__(keycloak, settings, database)
         self.database = database
         self.role_id = role_id
         self.subjects: list[str] = []
@@ -607,22 +689,33 @@ def test_an_account_waterfall_refuses_once_the_provider_created_it_is_withdrawn_
     in_realm.extend(administration.subjects)
     statuses = [admin.get(f"/users/{subject}").status_code for subject in administration.subjects]
     assert statuses == [404]
+    assert administration.held == [("create_account", 0), ("remove_account", 0)]
 
 
+@pytest.mark.parametrize(
+    ("server", "reason"),
+    [({}, "no_mail_server"), (UNREACHABLE_MAIL_SERVER, "not_sent")],
+    ids=["no mail server", "a server out of reach"],
+)
+@pytest.mark.usefixtures("in_realm")
 def test_an_account_is_created_on_a_realm_without_a_mail_server_its_link_given_by_hand(
     api: ContractClient,
-    database: Database,
     administrator: dict[str, str],
-    in_realm: list[str],
     logs: Logs,
+    server: dict[str, str],
+    reason: str,
 ) -> None:
-    # An installation without a mail server gives the link by hand (WF-CMP-0030).
-    with mail_server({}):
+    # An installation without a mail server gives the link by hand (WF-CMP-0030); so does one
+    # whose server does not take the mail.
+    with mail_server(server):
         response = api.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 201, response.text
-    in_realm.append(subject_of(database, response.json()["user_id"]))
     (record,) = logs.named("account.invitation_not_sent")
-    assert record["user_id"] == response.json()["user_id"]
+    assert (record["user_id"], record["reason"], record["level"]) == (
+        response.json()["user_id"],
+        reason,
+        "warning",
+    )
 
 
 class Vanishing(KeycloakAdmin):
@@ -654,4 +747,8 @@ def test_an_account_whose_invitation_fails_is_created_all_the_same(
     response = vanishing.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 201, response.text
     (record,) = logs.named("account.invitation_not_sent")
-    assert (record["user_id"], record["level"]) == (response.json()["user_id"], "error")
+    assert (record["user_id"], record["reason"], record["level"]) == (
+        response.json()["user_id"],
+        "provider_error",
+        "error",
+    )

@@ -39,7 +39,8 @@ import org.keycloak.urls.UrlType;
  * mails the account a link made the same way, with the invitation of the email theme, and answers
  * nothing (204): the link leaves by the mail alone. Waterfall invites its local accounts so, never
  * by Keycloak's own {@code execute-actions-email}, whose links would escape the nonce (#651). A
- * realm without a mail server refuses it (409), a mail that cannot be sent too (502).
+ * realm without a mail server refuses it (409), a mail that cannot be sent too (502); either way,
+ * the link made before stays valid.
  */
 public final class PasswordSetupLinkResource {
 
@@ -94,6 +95,8 @@ public final class PasswordSetupLinkResource {
           .setUser(user)
           .sendExecuteActions(url, minutes);
     } catch (EmailException failure) {
+      // The nonce of the link that did not leave is not kept: the link made before stays valid.
+      session.getTransactionManager().setRollbackOnly();
       return refusal(Status.BAD_GATEWAY, "not_sent");
     }
     return Response.noContent().build();

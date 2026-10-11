@@ -226,15 +226,21 @@ def get_user(user_id: UUID, actor: Acting, session: Transaction) -> User:
     return users(session, actor, [read_account(session, user_id)])[0]
 
 
-def check_new_account(session: Session, identity: Identity, role_ids: Sequence[UUID]) -> None:
+def check_new_account(
+    session: Session, identity: Identity, role_ids: Sequence[UUID] | None
+) -> None:
     """Refuse an account Waterfall would refuse, before the provider creates it.
 
-    Each field in fault, the roles included, is named (422); then an address another account
-    holds is refused (409). The roles and the address are read again when the account is written.
+    Each field in fault, the roles included — sent null if ``None`` —, is named (422); then an
+    address another account holds is refused (409). The roles and the address are read again when
+    the account is written.
     """
-    refuse(
-        (*identity_faults(identity.email, identity.org_node_id), *unknown_roles(session, role_ids))
+    roles = (
+        (FieldError("/access_role_ids", VALIDATION_FAILED),)
+        if role_ids is None
+        else unknown_roles(session, role_ids)
     )
+    refuse((*identity_faults(identity.email, identity.org_node_id), *roles))
     holder = address_holder(session, identity.email)
     if holder is not None:
         raise address_taken(holder)
@@ -287,13 +293,16 @@ def post_user(body: UserCreate, account: Caller, actor: Acting, services: Servic
     org_node_id = None if body.org_node_id is None else body.org_node_id.root
     identity = Identity(body.last_name, body.first_name, body.email, org_node_id)
     role_ids = [role_id.root for role_id in body.access_role_ids or ()]
+    sent_null = "access_role_ids" in body.model_fields_set and body.access_role_ids is None
     with services.database.transaction() as session:
-        check_new_account(session, identity, role_ids)
+        check_new_account(session, identity, None if sent_null else role_ids)
     admin = services.keycloak_admin
     subject = admin.create_account(LocalIdentity(body.last_name, body.first_name, body.email))
     if subject is None:
-        # An account of the provider that Waterfall does not know holds the address.
-        raise address_taken(None)
+        # An account of the provider holds the address: one Waterfall holds too, created since it
+        # was checked, is named.
+        with services.database.transaction() as session:
+            raise address_taken(address_holder(session, body.email))
     act = Act(audit_actor(account), utc_now())
     try:
         with services.database.transaction() as session:
@@ -308,16 +317,18 @@ def post_user(body: UserCreate, account: Caller, actor: Acting, services: Servic
 def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
     """Have the extension mail the holder of an account just created the link of its password.
 
-    The account exists whether the mail leaves or not: one that does not is said in the log, and
-    the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
+    The account exists whether the mail leaves or not: one that does not is said in the log with
+    its reason, and the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
     """
     try:
-        if admin.send_invitation(subject):
-            return
+        reason = admin.send_invitation(subject)
     except IdentityProviderError:
-        logger.exception("account.invitation_not_sent", user_id=str(user_id))
+        logger.exception(
+            "account.invitation_not_sent", user_id=str(user_id), reason="provider_error"
+        )
         return
-    logger.warning("account.invitation_not_sent", user_id=str(user_id))
+    if reason is not None:
+        logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=reason)
 
 
 def identity_change(body: UserUpdate) -> IdentityChange:
