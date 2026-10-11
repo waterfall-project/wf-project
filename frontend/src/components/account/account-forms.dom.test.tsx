@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { updateDisplay } from "@/api/actions/preferences";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -24,6 +25,11 @@ const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
+// The server action of the preferences as it is, save where a test makes it reject.
+vi.mock("@/api/actions/preferences", async (original) => {
+  const actual = await original<typeof import("@/api/actions/preferences")>();
+  return { ...actual, updateDisplay: vi.fn(actual.updateDisplay) };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh: () => undefined }),
@@ -185,8 +191,9 @@ describe("the preferences on the screen of the account", () => {
   });
 
   it("says the service out of reach when the server action itself fails, rather than lose the choice", async () => {
-    // No server of Next behind the action: the browser's fetch would reject with a TypeError.
-    server.client = undefined;
+    // The browser cannot reach the server of Next: its fetch of the action rejects.
+    serve({});
+    vi.mocked(updateDisplay).mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(inFrench(<PreferencesForm language="default" theme="default" />));
     await userEvent.click(screen.getByRole("radio", { name: "Français" }));
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
