@@ -311,7 +311,6 @@ _KEYS = {
     "provision_cost_category_id": ("catégories de coût",),
     "provision_subproject_id": ("sous-projets",),
     "order_item_id": ("postes, lots et livrables du lotissement",),
-    "attached_node_id": _STRUCTURE,
     "order_item_node_id": _STRUCTURE,
     "work_package_node_ids": _STRUCTURE,
     "task_node_id": _STRUCTURE,
@@ -336,6 +335,7 @@ _KEYS = {
         "projets",
         "sous-projets",
         "calendriers",
+        *_STRUCTURE,
     ),
     "audit_event_id": ("inscriptions du journal d'audit",),
     "object_id": (

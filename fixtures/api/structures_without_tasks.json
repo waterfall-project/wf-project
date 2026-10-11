@@ -1,0 +1,13 @@
+{
+  "summary": "Les structures de la révision ouverte aujourd'hui sur le projet créé à 14 h 05 (revision_without_tasks) : sa seule structure principale, qui existe dès la création de la révision (WF-REV-0100) et que rien n'a encore écrite, son compteur à 0.",
+  "value": [
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000207",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000103",
+      "kind": "main",
+      "label": "Structure principale",
+      "is_merged": false,
+      "lock_version": 0
+    }
+  ]
+}

@@ -35,6 +35,13 @@
         ]
       },
       {
+        "command": "manage_timelines",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
+      },
+      {
         "command": "create_revision",
         "is_available": false,
         "missing_conditions": [

@@ -18,6 +18,13 @@
         ]
       },
       {
+        "command": "generate_skeleton",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
         "command": "edit_estimate",
         "is_available": false,
         "missing_conditions": [

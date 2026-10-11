@@ -165,7 +165,7 @@ modifier le contrat en passant, contre la règle « le contrat d'abord ».
 | L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e, L43f |
 | L42i — projet, sous-projets, contributeurs | #590, #592 | Le déclencheur du prochain état énuméré, et ce que `getProjectNextState` rend d'un projet en cours ou terminal ; la probabilité de gain annoncée figée, le statut et le pointeur de son refus ; le code pris nommant le projet qui le porte, par son libellé, comme L42g l'a décidé pour le référentiel ; les bornes des deux taux. Un sous-projet liste ses commandes (modifier, supprimer), la suppression indisponible avec sa condition quand des coûts réels lui sont imputés ou qu'une révision marquée le cite, son 409 nommé ; le code pris nommant le sous-projet qui le porte ; le refus par champ d'un compte inconnu ou désactivé dans `setContributors` ; une proposition nomme son nœud et ses rôles, dit si le compte est actif, et `listContributorSuggestions` s'appuie sur les lignes de devis comme WF-PRJ-0070. Les écrans de L44a et L44b l'adoptent dans le lot. | écrans L44a, L44b |
 | L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans un lot propre, L43g (#685), ajouté après la part de contrat pour tenir le plafond. | écrans L43b, par L43g |
-| L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 marque supprimée une chronologie qu'une révision marquée cite, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
+| L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 supprime physiquement une chronologie, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
 
 Les noms des codes et des conditions ci-dessus sont ceux que le cadrage propose ; chaque partie
 les arrête dans `DECISIONS.md`, avec les options écartées.
@@ -884,6 +884,53 @@ sur un total nul en laissant au contrat la question de #718, et atténue #729 :
   qui doit trancher l'écran ;
 - #765, point 2 : le kit des tests du front (`frontend/src/test/`) compte parmi leurs tests dans
   `tools/paths.toml`, et `make lot-size` ne le compte plus en production.
+
+EP-14/L42k (#614), lot de contrat au périmètre revu le 2026-10-10 — la part #579 sortie, réalisée
+par L42p —, écrit au contrat ce que L44c et L44d consomment, d'après la spécification à jour depuis
+#708 :
+
+- la révision liste le squelette parmi ses commandes (`generate_skeleton`, après `edit_planning`),
+  indisponible dès que sa structure principale comporte une tâche (`main_structure_without_tasks`),
+  et le 409 de `generatePlanningSkeleton` nomme la première condition qui manque ; la génération
+  rend `NodesWritten`, comme toute écriture de grille, avec un exemple sur le lotissement par défaut
+  (WF-PRJ-0030) ;
+- le rattachement (#586, WF-PLA-0170) : le poste ou le lot déjà porté nomme la tâche qui le porte
+  par `conflicting_object_id` et `conflicting_object_label`, qui remplacent `attached_node_id` ; la
+  tâche rattachée à un poste et à un lot est refusée par `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, une tâche
+  hors de la structure principale par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` ; `setWorkBreakdown`
+  retire le rattachement d'un lot rangé sous un autre poste au lieu de le refuser ; une fusion qui
+  sortirait la tâche d'un lot du sous-arbre de son poste échoue par
+  `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` ; le compte rendu d'import nomme le poste ou le lot qui perd sa
+  tâche (`ImportDifference.work_breakdown_label`) ;
+- le projet liste les chronologies parmi ses commandes (`manage_timelines`) ; `deleteTimeline` reste
+  un 204 sans 409, WF-DAT-0080 supprimant physiquement une chronologie — la phrase du cadrage qui la
+  disait marquée supprimée précède #708 — ; les exemples de succès de `createTimeline` et de
+  `setWorkBreakdown` ;
+- chaque élément d'une lecture du lotissement dit s'il est retenu ou rendu pour le contexte
+  (`is_match`, #574).
+
+La relecture 1 a ajouté : la fusion refusée nomme la tâche du poste et celles des lots par leur nœud
+et leur libellé ; le lotissement par défaut porte le libellé du projet (WF-PRJ-0020) ; l'état où le
+squelette est proposé a ses exemples — une révision sans tâche, sa structure et sa lecture vide ;
+`setWorkBreakdown` ne fait forger aucun identifiant au client — un élément envoyé sans identifiant
+est nouveau, le serveur le lui donne (WF-DAT-0060) — et rend sa lecture entière. La relecture 2 :
+les refus de l'écriture du lotissement — un identifiant d'une autre nature, un libellé vide — ont
+leurs exemples, et le projet créé, passé en Chiffrage, porte sa révision sans tâche. La relecture 3
+: un identifiant que la saisie du lotissement envoie deux fois est refusé à chaque occurrence après
+la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`. Ni #574 ni #586 ne se ferment par ce lot : la troisième Vérif de #574, le
+total des seuls retenus à l'écran, revient à L44c, et #586 garde ce que #771 reprend — le compte
+rendu préalable de la fusion (WF-REV-0050), le rejet entier d'un fichier d'import qui sortirait la
+tâche d'un lot du sous-arbre de son poste ou dépasserait l'horizon, et le total d'un poste sans
+tâche rattachée (`EstimateIndicators.by_order_item`, WF-DEV-0060). Deux constats antérieurs au lot
+sont ouverts en #775 : `setWorkBreakdown` pendant un traitement de fond, et le refus de `moveNodes`
+qui nomme la tâche par son seul nœud. Le front ne change que pour compiler, tenir ses catalogues et
+ses tests : la révision montre « Engendrer le squelette de planning » parmi ses commandes,
+indisponible, sans action. L'adoption revient à L44c — la grille du lotissement, qui compte les
+seuls éléments retenus, ses écritures entières, leurs éléments nouveaux sans identifiant et leurs
+exemples, les chronologies créées et supprimées sous `manage_timelines` — et à L44d — le squelette
+offert dans l'état vide de la grille de planning, la réponse qui la remplit, la colonne du
+rattachement et ses refus, nommant la tâche qui porte déjà le poste ou le lot.
 
 ## US-0200 — Accessibilité minimale
 

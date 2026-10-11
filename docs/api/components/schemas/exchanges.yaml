@@ -272,6 +272,13 @@ ImportDifference:
         Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte
         rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080,
         WF-ARC-0020) ; nul pour tout autre objet.
+    work_breakdown_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot
+        qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte
+        rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
+        absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k).
     fields:
       type: array
       description: >-

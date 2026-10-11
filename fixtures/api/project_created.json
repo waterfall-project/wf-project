@@ -28,6 +28,11 @@
         "missing_conditions": []
       },
       {
+        "command": "manage_timelines",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "create_revision",
         "is_available": true,
         "missing_conditions": []

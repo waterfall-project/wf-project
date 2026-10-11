@@ -103,8 +103,9 @@
       rattachement au lotissement ; sur la structure principale, seule à porter des
       rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste
       de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040,
-      WF-PLA-0170). Confiée au worker (WF-ARC-0090).
+      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée, le compte rendu
+      nommant le poste ou le lot qui perd sa tâche (`ImportDifference.work_breakdown_label`,
+      WF-INTF-0040, WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:

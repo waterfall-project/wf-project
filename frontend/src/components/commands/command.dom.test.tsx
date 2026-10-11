@@ -97,6 +97,7 @@ describe("a command of a screen", () => {
         .map((button) => button.textContent),
     ).toEqual([
       "Modifier le planning",
+      "Engendrer le squelette de planning",
       "Modifier le devis",
       "Réestimer le reste à engager",
       "Modifier les risques",

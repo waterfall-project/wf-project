@@ -1644,10 +1644,12 @@
     "BOUNDS_NOT_ORDERED": "Les bornes doivent être strictement croissantes.",
     "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
-    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Cet élément ne fait pas partie du lotissement lu : inconnu, d’une autre nature ou supprimé.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un poste ou un lot.",
+    "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service."
   },
@@ -1969,6 +1971,7 @@
       "update": "Modifier le projet",
       "update_win_probability": "Modifier la probabilité de gain",
       "manage_contributors": "Gérer les contributeurs",
+      "manage_timelines": "Gérer les chronologies",
       "create_revision": "Créer une révision",
       "complete": "Terminer le projet",
       "lose": "Déclarer le projet perdu",
@@ -2022,7 +2025,8 @@
       "project_before_in_progress": "projet non encore en cours",
       "subproject_not_cited": "sous-projet cité par aucune révision marquée",
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
-      "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet"
+      "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
+      "main_structure_without_tasks": "structure principale sans aucune tâche"
     },
     "ProjectExit": {
       "to_state": {
@@ -2054,6 +2058,7 @@
     },
     "RevisionCommand": {
       "edit_planning": "Modifier le planning",
+      "generate_skeleton": "Engendrer le squelette de planning",
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",

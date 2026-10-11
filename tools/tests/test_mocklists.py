@@ -515,26 +515,250 @@ def test_the_filters_of_the_breakdown_combine() -> None:
     assert _tree(combined) == [("o1", [("w1", []), ("w2", [])])]
 
 
+def _marks(breakdown: dict[str, Any]) -> dict[str, bool]:
+    """Say whether each element a reading gives is retained, by its identifier (#574)."""
+    marks: dict[str, bool] = {}
+    for item in breakdown["order_items"]:
+        marks[item["order_item_id"]] = item["is_match"]
+        for package in item["work_packages"]:
+            marks[package["work_package_id"]] = package["is_match"]
+            for each in package["deliverables"]:
+                marks[each["deliverable_id"]] = each["is_match"]
+    return marks
+
+
+def test_each_element_given_says_whether_the_filters_retain_it_or_give_it_for_its_context() -> None:
+    # « plan »: o1 is given for w1, which holds it, as d1 does; o2 holds it itself.
+    searched: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, "PLAN")
+    assert _marks(searched) == {"o1": False, "w1": True, "d1": True, "o2": True}
+    # The work packages: their order items are their context alone, never counted (#574).
+    packages: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, kinds=("work_package",))
+    assert _marks(packages) == {"o1": False, "w1": True, "w2": True, "o2": False, "w3": True}
+    # « essai » is in d3 alone: o2 and w3 are its context, and o2 does not hold the text.
+    tried: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, "Essai")
+    assert _marks(tried) == {"o2": False, "w3": False, "d3": True}
+    # The deliverables: every order item and every work package is their context alone.
+    deliverables: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, kinds=("deliverable",))
+    assert _marks(deliverables) == {
+        "o1": False,
+        "w1": False,
+        "d1": True,
+        "w2": False,
+        "d2": True,
+        "o2": False,
+        "w3": False,
+        "d3": True,
+    }
+    # Without a filter, or every kind named, every element is retained.
+    for every in ((), mocklists.BREAKDOWN_KINDS):
+        found: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN, kinds=every)
+        whole: dict[str, Any] = mocklists.filtered_breakdown(BREAKDOWN)
+        assert set(_marks(found).values()) == {True}
+        assert len(_marks(found)) == len(_marks(whole))
+    # The mark comes after the label and before what the element holds, as the contract has it.
+    [first, _] = searched["order_items"]
+    assert list(first) == ["order_item_id", "label", "is_match", "work_packages"]
+    held = ["work_package_id", "label", "is_match", "deliverables"]
+    assert list(first["work_packages"][0]) == held
+
+
 def test_the_readings_of_the_breakdown_follow_their_parameters(lists: dict[str, Any]) -> None:
     whole: dict[str, Any] = mocklists.work_breakdown(mockwitness.WORK_BREAKDOWN, 1)
     [item] = whole["order_items"]
     [package] = item["work_packages"]
+    head = {key: item[key] for key in ("order_item_id", "label")}
     searched = lists["work_breakdown_search"]
     # The order item, whose label holds the text in another case, without what it holds.
     assert mocklists.SEARCHED_LABEL not in item["label"]
     assert mocktext.folded(mocklists.SEARCHED_LABEL) in mocktext.folded(item["label"])
-    assert searched == {"order_items": [{**item, "work_packages": []}], "lock_version": None}
+    assert searched == {
+        "order_items": [{**head, "is_match": True, "work_packages": []}],
+        "lock_version": None,
+    }
     packages = lists["work_breakdown_work_packages"]
+    lot = {key: package[key] for key in ("work_package_id", "label")}
     assert packages == {
-        "order_items": [{**item, "work_packages": [{**package, "deliverables": []}]}],
+        "order_items": [
+            {
+                **head,
+                "is_match": False,
+                "work_packages": [{**lot, "is_match": True, "deliverables": []}],
+            }
+        ],
         "lock_version": None,
     }
     # The witness holds a deliverable, which the reading of the work packages leaves out.
     assert package["deliverables"] != []
+    # Read whole, the witness is its work breakdown, every element retained, with its counter.
+    read: dict[str, Any] = mocklists.breakdown_reading(mockwitness.WORK_BREAKDOWN, 1)
+    assert set(_marks(read).values()) == {True}
+    assert read["lock_version"] == whole["lock_version"]
+
+
+def test_the_default_breakdown_bears_the_label_of_its_project() -> None:
+    # « En son absence, le lotissement vaut un poste et un lot qui portent le libellé du
+    # projet, sans livrable » (WF-PRJ-0020): the project created today.
+    [item] = fixture("work_breakdown_default")["order_items"]
+    [package] = item["work_packages"]
+    project = fixture("project_created")
+    assert item["label"] == package["label"] == project["label"]
+    assert (project["project_id"], project["label"]) == mockwitness.CREATED_PROJECT
+    assert package["deliverables"] == []
+
+
+def test_the_refusals_of_a_breakdown_written_name_their_field_as_the_contract_declares(
+    lists: dict[str, Any],
+) -> None:
+    contract = (REPOSITORY / "docs/api/paths/projects.yaml").read_text(encoding="utf-8")
+    block = contract.split("operationId: setWorkBreakdown\n", 1)[1]
+    block = block.split("\n      '422':", 1)[1].split("\n/projects", 1)[0]
+    forms = [
+        re.compile(re.sub(r"<[ijk]>", r"\\d+", re.escape(form)))
+        for form in re.findall(r"`(/order_items/[^`]+)`", block)
+    ]
+    common = (REPOSITORY / "docs/api/components/common.yaml").read_text(encoding="utf-8")
+    listed = common.split("\nErrorCode:\n", 1)[1].split("\n\n", 1)[0]
+    codes = {line.strip()[2:] for line in listed.splitlines() if line.strip().startswith("- ")}
+    read, entered = fixture("work_breakdown"), lists["work_breakdown_entered"]
+    kinds = {
+        each[f"{kind}_id"]: kind
+        for item in read["order_items"]
+        for kind, each in [
+            ("order_item", item),
+            *(("work_package", package) for package in item["work_packages"]),
+            *(
+                ("deliverable", deliverable)
+                for package in item["work_packages"]
+                for deliverable in package["deliverables"]
+            ),
+        ]
+    }
+    # The work package added comes after those the reading gives: its index, read from it.
+    [item] = read["order_items"]
+    j = len(item["work_packages"])
+    added = f"/order_items/0/work_packages/{j}"
+    [cabinets] = item["work_packages"]
+    [(delivered, _)] = mockwitness.WORK_BREAKDOWN[0].work_packages[0].deliverables
+    assert (kinds[delivered], kinds[cabinets["work_package_id"]]) == ("deliverable", "work_package")
+    told = {
+        "work_breakdown_label_required": [{"pointer": f"{added}/label", "code": "VALUE_REQUIRED"}],
+        "work_breakdown_unknown_item": [
+            {"pointer": f"{added}/work_package_id", "code": "UNKNOWN_WORK_BREAKDOWN_ITEM"}
+        ],
+        "work_breakdown_duplicate_item": [
+            {"pointer": f"{added}/work_package_id", "code": "DUPLICATE_WORK_BREAKDOWN_ITEM"}
+        ],
+    }
+    for name, fields in told.items():
+        refusal = lists[name]
+        assert refusal["fields"] == fields, name
+        assert refusal["status"] == 422
+        for field in fields:
+            assert any(form.fullmatch(field["pointer"]) for form in forms), name
+            assert field["code"] in codes
+    # An identifier the reading bears under another kind is unknown: an order item sent as a
+    # work package, a work package sent as a deliverable.
+    as_package = mocklists.entered_with(entered, {"work_package_id": item["order_item_id"]})
+    assert mocklists.breakdown_refusal(read, as_package, "none")["fields"] == [
+        {"pointer": f"{added}/work_package_id", "code": "UNKNOWN_WORK_BREAKDOWN_ITEM"}
+    ]
+    as_deliverable = json.loads(json.dumps(entered))
+    package = as_deliverable["order_items"][0]["work_packages"][j]
+    package["deliverables"][0] = {
+        "deliverable_id": cabinets["work_package_id"],
+        **package["deliverables"][0],
+    }
+    assert mocklists.breakdown_refusal(read, as_deliverable, "none")["fields"] == [
+        {
+            "pointer": f"{added}/deliverables/0/deliverable_id",
+            "code": "UNKNOWN_WORK_BREAKDOWN_ITEM",
+        }
+    ]
+    # The write entered, from the whole reading, is refused nothing.
+    assert mocklists.breakdown_refusal(read, entered, "none")["fields"] == []
+
+
+def test_the_fake_back_serves_the_refusal_of_an_empty_label_first() -> None:
+    # Prism answers an invalid request by the first example of the 422: an empty label, which
+    # the schema refuses by itself, not a rule the fake back cannot judge.
+    contract = (REPOSITORY / "docs/api/paths/projects.yaml").read_text(encoding="utf-8")
+    block = contract.split("operationId: setWorkBreakdown\n", 1)[1].split("\n/projects", 1)[0]
+    cited = re.findall(r"fixtures/api/(\w+)\.json", block.split("'422':", 1)[1])
+    assert cited[0] == "work_breakdown_label_required"
+    assert cited == [
+        "work_breakdown_label_required",
+        "work_breakdown_unknown_item",
+        "work_breakdown_duplicate_item",
+    ]
+
+
+def _without_marks(value: Any) -> Any:
+    """Return a reading as its write: the same elements, the marks left out."""
+    if isinstance(value, list):
+        return [_without_marks(each) for each in cast("list[Any]", value)]
+    if isinstance(value, dict):
+        fields = cast("dict[str, Any]", value)
+        return {key: _without_marks(item) for key, item in fields.items() if key != "is_match"}
+    return value
+
+
+def test_the_work_breakdown_entered_is_the_whole_reading_a_package_added_without_identifier(
+    lists: dict[str, Any],
+) -> None:
+    # The screen writes from the whole reading, its marks left; what it adds has no identifier,
+    # which the server engenders (WF-DAT-0060): the client forges none.
+    read = fixture("work_breakdown")
+    entered = lists["work_breakdown_entered"]
+    replayed = _without_marks(read)
+    replayed["order_items"][0]["work_packages"].append(
+        {
+            "label": mockwitness.ON_SITE.label,
+            "deliverables": [{"label": label} for _, label in mockwitness.ON_SITE.deliverables],
+        }
+    )
+    assert entered == replayed
+    assert entered["lock_version"] == read["lock_version"]
+    with pytest.raises(ValueError, match="never written back"):
+        mocklists.written(lists["work_breakdown_search"])
+
+
+def test_the_work_breakdown_saved_gives_the_elements_added_their_identifiers_and_a_counter(
+    lists: dict[str, Any],
+) -> None:
+    # The answer of setWorkBreakdown is the whole reading, every element retained; the elements
+    # entered without identifier come back with the one the server gave them.
+    entered, saved = lists["work_breakdown_entered"], lists["work_breakdown_saved"]
+    assert set(_marks(saved).values()) == {True}
+    known = set(_marks(fixture("work_breakdown")))
+    given = set(_marks(saved)) - known
+    assert given == {
+        mockwitness.ON_SITE.identifier,
+        *(d for d, _ in mockwitness.ON_SITE.deliverables),
+    }
+
+    def anonymous(value: Any) -> Any:
+        if isinstance(value, list):
+            return [anonymous(each) for each in cast("list[Any]", value)]
+        if isinstance(value, dict):
+            fields = cast("dict[str, Any]", value)
+            return {
+                key: anonymous(item)
+                for key, item in fields.items()
+                if not (key.endswith("_id") and item in given)
+            }
+        return value
+
+    assert anonymous(_without_marks(saved)) == {
+        **entered,
+        "lock_version": entered["lock_version"] + 1,
+    }
 
 
 def _examples_of(operation: str, path: str) -> dict[str, str]:
-    """Return the fixtures the 200 of an operation cites, by the name of their example."""
+    """Return the fixtures an operation cites before its 401, by the name of their example.
+
+    Those of its request body and of its 200: the write and the reading it answers.
+    """
     text = (REPOSITORY / "docs/api/paths" / path).read_text(encoding="utf-8")
     block = text.split(f"operationId: {operation}\n", 1)[1].split("'401'", 1)[0]
     return dict(re.findall(r"(\w+): \{ \$ref: [./]*fixtures/api/(\w+)\.json \}", block))
@@ -550,6 +774,8 @@ def test_the_filtered_readings_the_contract_cites_have_no_counter_the_others_hav
             "search": False,
             "work_packages": False,
         },
+        # The write, from a whole reading, and its answer, whole: both with their counter.
+        ("setWorkBreakdown", "projects.yaml"): {"entered": True, "saved": True},
         ("listContributors", "projects.yaml"): {
             "witness": True,
             "by_name": True,
