@@ -218,11 +218,11 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # trust: at the address the browser knows it by, and at another one, 127.0.0.1, as a service
 # reaches it. Those that serve the API in their process create their database on the PostgreSQL
 # of the platform, unless WATERFALL_TEST_DATABASE_URL names another server. They measure the
-# administration API of Keycloak, which the measure of the back leaves out, to the thresholds of
-# the back (coverage-keycloak.toml). Their environment is synchronised first, outside of
+# administration API of Keycloak and the bootstrap that creates the first administrator in it,
+# which the measure of the back leaves out, to the thresholds of the back (coverage-keycloak.toml). Their environment is synchronised first, outside of
 # SSL_CERT_FILE: uv reads it too, and would trust no other authority to download Python or the
 # packages (#737). One of them restarts Keycloak, whose container is named to it (#852).
-test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included, measuring its administration client (needs the secrets of service-up)
+test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
