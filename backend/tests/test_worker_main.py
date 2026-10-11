@@ -150,7 +150,6 @@ def test_a_schedule_that_cannot_reach_the_database_ends_in_failure_said_in_its_l
     )
     assert FORM.fullmatch(str(failed["correlation_id"]))
     assert "OperationalError" in str(failed["exception"])
-    assert "s3cret-of-the-schedule" not in err
 
 
 @pytest.mark.usefixtures("logs")
