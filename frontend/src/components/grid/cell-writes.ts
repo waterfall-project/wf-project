@@ -32,9 +32,9 @@
  * totals included — or, where the grid cannot tell, while the reading anew reads the row as the one
  * before did (`reread` of `answers.ts`, défaut n° 22). An answer about another row than the one
  * written is a failure of the service. A refusal stays told until the notice clears it, whatever
- * writes succeed after it. A navigation of the page waits for the writes under way, and does not take
- * place when one is refused: the refusal is told here, and the person decides (`holdNavigation`,
- * #688). Rows a paste wrote together take the place of those read the same way,
+ * writes succeed after it. A navigation of the page waits for the writes under way, and does not
+ * take place when one is refused: the refusal is told here, and the person decides
+ * (`holdNavigation`, #688). Rows a paste wrote together take the place of those read the same way,
  * the cells of each row written after them starting from them (WF-IHM-0050). A cell written before
  * a paste and answered after it is taken as any answer, its place among the writes deciding which
  * of the two a row shows (#202); only its refusal is kept quiet when the paste wrote its row since
@@ -387,7 +387,8 @@ export function useCellWrites<Row, Totals>(
             : answer,
       }));
       settle(at);
-      return answer.kind === "done";
+      // Applied, or a refusal kept quiet: a navigation waits for no refusal the screen does not say.
+      return answer.kind === "done" || stale;
     });
     queues.current.set(key, queued);
     holdNavigation(queued);
