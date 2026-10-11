@@ -3732,6 +3732,21 @@ bases entières, comptes et réglages du fournisseur d'identité compris, et son
 pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
 plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
 
+## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
+
+`IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
+`finished_at`) : la plateforme en planifie une chaque jour, et l'écran des comptes montre la
+dernière qui a abouti, demandée ou non. Il nomme aussi, dans `removed`, les adresses des comptes
+locaux que la lecture a retirés du fournisseur d'identité — inconnus de Waterfall, sans mot de
+passe, laissés par une création interrompue —, décision de l'auteur du 2026-10-11 (#811). Un
+rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
+les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
+adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXISTS` et
+`VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un compte laissé tel quel.
+`startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
+`getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
+compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

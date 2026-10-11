@@ -1,0 +1,14 @@
+{
+  "summary": "Variante contrefactuelle : une lecture où Dominique Bernard, retirée de l'annuaire, porterait seule l'administration ; son compte reste actif et la lecture le signale (WF-ADM-0120). Elle a créé deux comptes, sans rôle, mis à jour un nom, et retiré du fournisseur le compte local de Jeanne Montgolfier, laissé sans mot de passe par une création interrompue (WF-ADM-0070, #811).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000942",
+    "finished_at": "2026-06-03T14:05:12Z",
+    "created": 2,
+    "updated": 1,
+    "deactivated": 0,
+    "skipped": [
+      { "email": "dominique.bernard@example.com", "code": "LAST_ADMINISTRATOR" }
+    ],
+    "removed": ["jeanne.montgolfier@example.com"]
+  }
+}

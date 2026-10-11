@@ -388,7 +388,7 @@ export interface paths {
         put?: never;
         /**
          * Lire les comptes du fournisseur d'identité
-         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090).
+         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`). Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
          */
         post: operations["startIdentitySync"];
         delete?: never;
@@ -406,7 +406,7 @@ export interface paths {
         };
         /**
          * Compte rendu de la dernière lecture des comptes
-         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité, et ceux qu'elle a laissés tels quels avec leur motif (WF-ADM-0070).
+         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels quels avec leur motif, et les comptes locaux qu'elle a retirés du fournisseur (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
          */
         get: operations["getLatestIdentitySync"];
         put?: never;
@@ -2924,16 +2924,25 @@ export interface components {
             /** @description Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140). */
             expires_at: components["schemas"]["Timestamp"];
         };
-        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
+        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
         IdentitySyncReport: {
+            /** @description La tâche de la lecture (`BackgroundTaskRef.task_id`). */
+            task_id: components["schemas"]["Uuid"];
+            /** @description Fin de la lecture. */
+            finished_at: components["schemas"]["Timestamp"];
+            /** @description Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas. */
             created: number;
+            /** @description Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de l'annuaire a rattachés par leur adresse (#707). */
             updated: number;
+            /** @description Comptes désactivés parce que le fournisseur ne les connaît plus. */
             deactivated: number;
-            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120). */
+            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
             skipped: {
                 email: string;
                 code: components["schemas"]["ErrorCode"];
             }[];
+            /** @description Les adresses des comptes locaux que la lecture a retirés du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). */
+            removed: string[];
         };
         Permission: {
             code: components["schemas"]["PermissionCode"];

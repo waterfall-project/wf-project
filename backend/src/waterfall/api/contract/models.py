@@ -641,13 +641,38 @@ class SkippedItem(ContractModel):
 
 
 class IdentitySyncReport(ContractModel):
-    created: Annotated[int, Field(ge=0)]
-    updated: Annotated[int, Field(ge=0)]
-    deactivated: Annotated[int, Field(ge=0)]
+    task_id: Annotated[
+        Uuid, Field(description="La tâche de la lecture (`BackgroundTaskRef.task_id`).")
+    ]
+    finished_at: Annotated[Timestamp, Field(description="Fin de la lecture.")]
+    created: Annotated[
+        int,
+        Field(
+            description="Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas.",
+            ge=0,
+        ),
+    ]
+    updated: Annotated[
+        int,
+        Field(
+            description="Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de l'annuaire a rattachés par leur adresse (#707).",
+            ge=0,
+        ),
+    ]
+    deactivated: Annotated[
+        int,
+        Field(description="Comptes désactivés parce que le fournisseur ne les connaît plus.", ge=0),
+    ]
     skipped: Annotated[
         list[SkippedItem],
         Field(
-            description="Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120)."
+            description="Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde."
+        ),
+    ]
+    removed: Annotated[
+        list[str],
+        Field(
+            description="Les adresses des comptes locaux que la lecture a retirés du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811)."
         ),
     ]
 

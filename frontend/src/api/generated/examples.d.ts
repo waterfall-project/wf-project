@@ -26,6 +26,9 @@ export interface Examples {
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
   };
+  "GET /identity-syncs/latest": {
+    200: "identity_sync_report" | "identity_sync_report_flagged";
+  };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
@@ -244,6 +247,9 @@ export interface Examples {
   };
   "POST /file-uploads": {
     201: "file_upload";
+  };
+  "POST /identity-syncs": {
+    202: "identity_sync_queued";
   };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";
