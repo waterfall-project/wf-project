@@ -54,6 +54,11 @@ interface Reported {
    * them replaces rather than repeats; none for a creation, which names no object yet.
    */
   readonly target?: string | undefined;
+  /**
+   * The control that asked the write, which takes the focus back once its refusal is dismissed —
+   * a checkbox of the matrix of the permissions —; none, the active cell of the grid, or the list.
+   */
+  readonly back?: HTMLElement | null | undefined;
 }
 
 /** A command that changes the state of an object of the reference data. */
@@ -79,8 +84,11 @@ interface ListReport {
   readonly report: (reported: Reported) => void;
   readonly tell: (name: string, offer: CommandOffer, command: ActivationCommand) => void;
   readonly reading: string;
-  /** Give the focus to the active cell of the grid of the list, or to the list. */
-  readonly refocus: () => void;
+  /**
+   * Give the focus to the control given while the page holds it, or else to the active cell of the
+   * grid of the list, or to the list.
+   */
+  readonly refocus: (back?: HTMLElement | null) => void;
   /**
    * Hold the navigations of the page while a command whose refusal the list may tell answers
    * (`useHeldCommand`), for as long as the list stays on the reading it was pressed on: the dialog
@@ -134,7 +142,8 @@ interface Kept extends Reported {
  * A list whose objects may be reactivated, and the refusals of its commands, each told above it until
  * dismissed — one that arrives while another is told is added to it, never put in its place, save
  * the refusal of the same command on the same object, which replaces the one before —: a
- * success after them does not take them away, and the focus goes back to the active cell of the grid
+ * success after them does not take them away, and the focus goes back to the control that asked the
+ * write, when the refusal names one — a checkbox of the matrix —, else to the active cell of the grid
  * — or to the list, ringed — once one is. What an unavailable reactivation pressed
  * lacks is said in the region of the list, on the same reading alone. A refusal is told only on the reading it
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
@@ -165,7 +174,11 @@ export function Reactivations({
       { ...refusal, key },
     ]);
   }, []);
-  const refocus = useCallback(() => {
+  const refocus = useCallback((back?: HTMLElement | null) => {
+    if (back?.isConnected === true) {
+      back.focus();
+      return;
+    }
     const cell = list.current?.querySelector<HTMLElement>(ACTIVE_CELL);
     (cell ?? list.current)?.focus();
   }, []);
@@ -198,7 +211,9 @@ export function Reactivations({
             onClear={() => {
               setReported((before) => before.filter((kept) => kept.key !== each.key));
             }}
-            onDismissed={refocus}
+            onDismissed={() => {
+              refocus(each.back);
+            }}
             dismissible
           />
         ))}

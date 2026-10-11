@@ -43,6 +43,24 @@ de `next build`, que `make build-front` lance au palier rapide, sans API joignab
 et `make e2e` au palier complet.
 `make client-up-to-date`.
 
+### Une action serveur en tête d'un module des actions, rien pour le mode brouillon
+
+Une action serveur ne s'écrit qu'en tête d'un module de `src/api/actions/`, qui s'ouvre sur
+`"use server"` ; jamais en ligne, dans une fonction. Ni `"use cache"`, sous aucune de ses
+formes, ni le mode brouillon : aucun `draftMode`, aucun routeur de pages (`pages/`,
+`src/pages/`), dont les gestionnaires y entrent par `setDraftMode`, `setPreviewData` ou
+`clearPreviewData`.
+
+*Pourquoi* : l'image de production est construite une fois et publiée, et `next build` y écrit
+ses propres clés — celle des fermetures des actions serveur, celles du mode brouillon —, que lit
+quiconque tire l'image (US-0430, WF-SEC-0010). La clé des actions ne protège rien tant que Next
+n'a aucune fermeture à chiffrer (#825) ; celles du mode brouillon y feraient entrer qui veut,
+si le front en avait un. `previewModeId` laisse en outre contourner le cache des pages
+prérendues, sans objet tant qu'aucune ne porte autre chose que du public, ce que tient
+`make prerendered-front`.
+*Contrôle* : `src/next-config.test.ts` (`make test-front`), qui lit chaque source du build hors
+des commentaires.
+
 ### Le front affiche, il ne calcule pas
 
 Une date, un montant, un indice, un total s'affichent tels que l'API les rend. Le front ne

@@ -543,6 +543,23 @@ qui la réalise ajoute au contrat), et la lecture des comptes ne la défait pas 
 Le lot porte au contrat `user_anonymize`, l'opération d'anonymisation, `anonymized_at`, la
 nullité des trois champs et les nouvelles valeurs, avant le code.
 
+Complété le 2026-10-11 (#856) :
+
+- **les conditions** : `anonymize` n'est listée que pour un compte désactivé, comme `reactivate`
+  qu'elle suit, disponible tant que le compte n'est pas anonymisé et indisponible ensuite
+  (`is_not_anonymized`) ; un appel sur un compte actif est refusé par 409
+  `STATE_FORBIDS_OPERATION`, `missing_condition` à `is_deactivated_account`, nouvelle valeur de
+  `CommandCondition` ; sous `users.write` ;
+- **ce que l'anonymisation retire** : l'avatar, dans la même écriture ; un compte local est en
+  outre retiré du fournisseur d'identité (WF-ADM-0060) **avant** l'écriture, hors transaction
+  (#669), après une vérification sous transaction courte ; si Keycloak ne répond pas, 503 et
+  rien n'est écrit. Un compte de l'annuaire ou d'un fournisseur externe n'est pas touché dans
+  Keycloak, et la lecture des comptes ne le recrée pas (WF-ADM-0070) ;
+- **le nom d'un auteur anonymisé** : `ActorRef.display_name` et `AuditActorFacet.display_name`
+  sont nuls pour un compte anonymisé, que le front affiche par le libellé neutre de son
+  catalogue ;
+- **l'opération** : `anonymizeUser`, telle que le lot la propose.
+
 ### Amorçage
 
 `waterfall-api install`, une commande du même paquet, sous un verrou consultatif :
@@ -1135,7 +1152,7 @@ appellent : la qualité de contributeur, second terme, s'y ajoute en EP-04.
 
 ## US-0400 — Mon compte : préférences, langue, avatar
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0040-A`, `WF-ADM-0080-A`, `WF-INTF-0160-A`, `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar`,
   `getUserAvatar`, `getInstallation`
@@ -1247,7 +1264,7 @@ traîne dans une procédure, et que la relancer soit sans danger.
 
 ## US-0430 — Déployer une plateforme de démonstration
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0050-A`
 - **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
 - **issue** : #564

@@ -5,7 +5,8 @@
 # front family, side by side with front.yml (#492). The paths are spread over three runners,
 # each playing one part of them (make e2e SHARD=i/3); the measure of the second of §4.6.2
 # (US-0110) runs on a fourth, alone, against the front built for production (make
-# e2e-measure). A part that fails fails this workflow, and the gate with it.
+# e2e-measure), whose prerendered routes it then holds (make prerendered-front, US-0430). A part
+# that fails fails this workflow, and the gate with it.
 #
 # Each part runs in Playwright's image, which carries Chromium and its system packages: no
 # apt, no mirror whose speed is not ours (#472). The image is the one of the Playwright version
@@ -80,3 +81,7 @@ jobs:
           SHARD: ${{ matrix.part }}
       - if: matrix.part == 'measure'
         run: make e2e-measure
+      # The front built for the measure prerenders as its image would: what it prerendered is held
+      # here, on every change of the front, without building the image (US-0430).
+      - if: matrix.part == 'measure'
+        run: make prerendered-front

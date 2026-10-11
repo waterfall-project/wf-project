@@ -9,11 +9,11 @@
  * commands of the accounts for a session that may modify them, which EP-03 wires; each access role,
  * predefined or composed, with how many accounts hold it (WF-ADM-0010, WF-ADM-0090), filtered by
  * kind and between bounds of their holders, and the commands of the roles for a session that may
- * modify them, which EP-03 wires; and the matrix of the permissions, a row for each permission of
+ * modify them (`role-commands.tsx`); and the matrix of the permissions, a row for each permission of
  * the catalogue as `listPermissions` gives it, gathered under the name of the function of the
- * second level it covers — or the kind of the action it guards —, a column for each role, which
- * holds it or not (WF-ADM-0100), where EP-03 modifies a role. The forms belong to the epic of the
- * administration, and no screen creates a permission.
+ * second level it covers — or the kind of the action it guards —, a column for each role the table
+ * retains, which holds it or not (WF-ADM-0100), where a role is modified (`permission-matrix.tsx`).
+ * No screen creates a permission.
  *
  * A list says it is empty only when nothing narrows it: a search or a filter that retains nothing
  * keeps its grid, the search shown to be changed.
@@ -45,8 +45,10 @@ import { functionAt } from "@/navigation/functions";
 
 import { AccessRoleGrid, UserGrid } from "./admin-grid";
 import type { AccessRoleSort, User, UserPage, UserSort } from "./admin-grids";
-import { CreateCommand, LaterCommands, LaterNotice } from "./later-commands";
+import { LaterNotice } from "./later-commands";
+import { PermissionCell } from "./permission-matrix";
 import { HOLDER_COUNT, PREDEFINED } from "./role-address";
+import { CreateRole, RoleCommands } from "./role-commands";
 import {
   ACCESS_ROLES,
   INCLUDE_INACTIVE,
@@ -225,8 +227,8 @@ function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
 
 /**
  * The access roles, each predefined or composed, with how many accounts hold it, filtered by kind
- * and between bounds of their holders; for a session that may modify them, the command that
- * creates one, and those that modify and delete each. Bounds the API refuses (422) leave the list
+ * and between bounds of their holders; for a session that may modify them, its creation in line, its
+ * label entered in its cell and its deletion. Bounds the API refuses (422) leave the list
  * unread, the bound said at its field, a sentence standing for the grid.
  */
 export function AccessRoleList({
@@ -266,11 +268,10 @@ export function AccessRoleList({
   return (
     <ReferenceSection title={t("title")} icon={ShieldCheck}>
       {editable ? (
-        <LaterCommands>
-          <CreateCommand kind="role" />
-          <LaterNotice />
+        <RoleCommands>
+          <CreateRole />
           {shown}
-        </LaterCommands>
+        </RoleCommands>
       ) : (
         shown
       )}
@@ -330,14 +331,18 @@ function Held({ held }: { readonly held: boolean }) {
 
 /**
  * The matrix of the permissions: a row for each permission of the catalogue, under the function it
- * covers, a column for each access role.
+ * covers, a column for each access role the table retains; for a session that may modify the roles,
+ * each cell a checkbox that writes its role, within the writes of the matrix (`MatrixWrites`).
  */
 export function PermissionMatrix({
   permissions,
   roles,
+  editable,
 }: {
   readonly permissions: readonly Permission[];
   readonly roles: readonly AccessRole[];
+  /** Whether the session may modify the access roles (`platformOffer`). */
+  readonly editable: boolean;
 }) {
   const t = useTranslations();
   const title = t("admin.permissions.title");
@@ -371,7 +376,18 @@ export function PermissionMatrix({
                 </TableHead>
                 {holds.map(({ role, codes }) => (
                   <TableCell key={role.access_role_id} className={`${CELL} text-center`}>
-                    <Held held={codes.has(permission.code)} />
+                    {editable ? (
+                      <PermissionCell
+                        role={role.access_role_id}
+                        code={permission.code}
+                        name={t("admin.permissions.cell", {
+                          permission: t(`permissions.${permission.code}`),
+                          role: role.label,
+                        })}
+                      />
+                    ) : (
+                      <Held held={codes.has(permission.code)} />
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

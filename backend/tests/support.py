@@ -241,3 +241,8 @@ class Watching(KeycloakAdmin):
         """Note, then have the extension make the password link of an account."""
         self._note("make_password_link")
         return super().make_password_link(subject)
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Note, then give an account of the realm its language."""
+        self._note("set_locale")
+        super().set_locale(subject, locale)

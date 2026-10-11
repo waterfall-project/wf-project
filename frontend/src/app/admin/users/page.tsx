@@ -59,7 +59,7 @@ function UsersHeader({ editable }: { readonly editable: boolean }) {
       title={t("users")}
       icon={FUNCTION_ICONS.users}
       density={FUNCTION_DENSITY.users}
-      actions={editable ? <CreateCommand kind="localAccount" /> : undefined}
+      actions={editable ? <CreateCommand /> : undefined}
     />
   );
 }
