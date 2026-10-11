@@ -1100,6 +1100,51 @@ le refus d'un lot hors de son poste.
 L54 (#783) puis US-0200 (#798), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
 ces notes gardent leurs apports d'abord.
 
+EP-14/L44c (#585), lot technique, fait adopter par les paramètres du projet ce que L42k a écrit au
+contrat pour le lotissement ; les chronologies, qu'il portait aussi, sont reportées à EP-14/L44f
+(#801), le lot ayant dépassé deux fois son estimation (coupe du 2026-10-11) :
+- le lotissement se saisit dans sa grille arborescente, comme le projet liste
+  `update_work_breakdown` — indisponible sur un projet terminal et pendant un traitement de fond
+  (L42s, #775) : un poste ajouté, un lot ajouté à un poste, un livrable à un lot, un élément renommé
+  ou supprimé, du menu d'une cellule, sur sa ligne, et de la barre de la grille, sur la ligne de la
+  cellule active (`RowCommands` de `DenseGrid`, `MenuCommands` de `CellMenu`) ; chaque geste envoie
+  le lotissement entier (`setWorkBreakdown`), fait sur sa lecture entière et avec son compteur — la
+  page la relit quand la grille la lit filtrée —, l'élément ajouté sans identifiant (WF-DAT-0060) ;
+  la lecture répondue remplace les lignes d'une lecture entière tant que son compteur est plus
+  récent ;
+- la suppression d'un élément est confirmée, et celle d'un poste ou d'un lot dit que les tâches de la
+  révision en cours qui le portent restent et perdent leur rattachement, les révisions marquées le
+  gardant (WF-PLA-0170) ;
+- un refus par champ qui vise l'élément du dialogue — son libellé, son identifiant — est dit à son
+  champ ; celui qui vise un autre élément le nomme, par sa nature et son libellé
+  (`UNKNOWN_WORK_BREAKDOWN_ITEM`, `DUPLICATE_WORK_BREAKDOWN_ITEM`) ; le reste — la version périmée
+  avec l'offre de relire — sous le dialogue, ou au-dessus de la grille une fois le dialogue fermé,
+  comme tout refus d'une suppression ; pendant une écriture, les commandes attendent, inactives,
+  `aria-busy` et décrites par « Enregistrement en cours… » (le mécanisme de L52) ;
+- la ligne des totaux compte les seuls éléments retenus, par nature (`is_match`, troisième Vérif de
+  #574) : lue par `kinds=work_package`, elle dit « 1 lot », non « 1 poste ».
+
+Choix, faute d'une règle de la spécification ou du contrat : la lecture ne disant pas si une tâche
+porte un poste ou un lot — constat ouvert en #802, reporté → EP-15 —, toute suppression d'un poste
+ou d'un lot se confirme en disant le sort de ses tâches, et celle d'un livrable se confirme aussi,
+par le même chemin ; un refus qui vise un autre élément que celui du dialogue se dit en le nommant,
+sous le dialogue ou au-dessus de la grille, non à sa ligne ; l'élément d'un pointeur est le plus
+profond dont le pointeur le préfixe ; l'offre du lotissement suit `update_work_breakdown`, que L42s,
+fusionné avant le lot, a écrite — aucun exemple ne listant cette commande indisponible faute de
+`no_background_task_running`, le test l'éprouve sur une variante déclarée de l'offre du témoin, la
+seule condition changée, et le refus du serveur sur son exemple (`work_breakdown_background_task`).
+
+Ce que les tests ne prouvent pas : aucun exemple ne refuse un élément autre que celui du dialogue —
+le nommage s'éprouve sur `work_breakdown_duplicate_item` après un premier ajout répondu par
+`work_breakdown_saved`, qui fait du lot ajouté le second de l'envoi ; la version périmée de
+`setWorkBreakdown` est une enveloppe écrite dans le test, comme pour les autres écrans, le contrat
+n'en ayant pas d'exemple — constat ouvert en #803, avec ceux des refus des chronologies, reporté →
+EP-15 — ; le faux back répondant `work_breakdown_saved` à toute écriture, le parcours ne voit pas
+une suppression ôter sa ligne, ni un renommage changer son libellé.
+
+US-0200 (#798) puis L42s (#804), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+ces notes gardent leurs apports d'abord.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : fini

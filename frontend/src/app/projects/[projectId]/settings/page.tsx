@@ -12,18 +12,18 @@
  * capacity and the state of their account (`contributor_search`, `contributor_sort_by`,
  * `contributor_sort_order`, `contributor_kinds`, `contributor_is_active`) — WF-IHM-0060,
  * WF-IHM-0130 —, the sort each grid keeps in the settings of the account serving when the address
- * names none. The work breakdown is a tree in the order entered, searched on its labels and filtered
- * on its kinds by the server (`breakdown_search`, `breakdown_kinds`), read only — a work breakdown
- * read narrowed is never the whole one to write back (`setWorkBreakdown`). The identity and the facts
- * of the project are modified in their form, as the project lists the command (`ProjectIdentity`,
- * EP-02/L44a); the sub-projects offer their commands as the project lists `update` — a deletion the
- * estimate lines of the revision in progress hold leading to its estimate, to a session that reads
- * it (EP-14/L53) —, the contributors
- * theirs as it lists `manage_contributors` (EP-02/L44b): to a session that may write them, the page
- * reads the accounts the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list
- * whole when the grid reads it filtered — a reading filtered has no counter to write from. Once, under
- * its header, the screen says that the fake back keeps none of what any of these commands writes
- * (`MockupNotice`).
+ * names none. The work breakdown is a tree in the order entered, searched on its labels and
+ * filtered on its kinds by the server (`breakdown_search`, `breakdown_kinds`), and edited in its
+ * grid as the project lists `update_work_breakdown` (EP-14/L44c) — a work breakdown read narrowed
+ * is never the whole one to write back (`setWorkBreakdown`): the page then reads it whole besides.
+ * The identity and the facts of the project are modified in their form, as the project lists the
+ * command (`ProjectIdentity`, EP-02/L44a); the sub-projects offer their commands as the project
+ * lists `update` — a deletion the estimate lines of the revision in progress hold leading to its
+ * estimate, to a session that reads it (EP-14/L53) —, the contributors theirs as it lists
+ * `manage_contributors` (EP-02/L44b): to a session that may write them, the page reads the accounts
+ * the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list whole when the grid
+ * reads it filtered — a reading filtered has no counter to write from. Once, under its header, the
+ * screen says that the fake back keeps none of what any of these commands writes (`MockupNotice`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -55,6 +55,7 @@ import {
   SUBPROJECT_ADDRESS,
   SUBPROJECT_GRID_KEY,
   SUBPROJECT_SORT_COLUMNS,
+  type WorkBreakdown,
 } from "@/components/projects/settings-grids";
 import {
   ContributorList,
@@ -117,16 +118,19 @@ function SettingsHeader({
 
 /**
  * The commands the project lists: `update` for its identity and its sub-projects,
- * `manage_contributors` for its contributors; whether the screen writes anything — one of them
- * available —, and says once that the fake back keeps nothing.
+ * `update_work_breakdown` for its work breakdown — unavailable besides while a background task runs
+ * (EP-14/L42s) —, `manage_contributors` for its contributors; whether the screen writes anything —
+ * one of them available —, and says once that the fake back keeps nothing.
  */
 function offersOf(project: Project) {
   const update = findOffer(project.available_commands, "update");
+  const breakdown = findOffer(project.available_commands, "update_work_breakdown");
   const manage = findOffer(project.available_commands, "manage_contributors");
   return {
     update,
+    breakdown,
     manage,
-    writes: update?.is_available === true || manage?.is_available === true,
+    writes: [update, breakdown, manage].some((offer) => offer?.is_available === true),
   };
 }
 
@@ -155,6 +159,30 @@ async function readWritable(
         )
       : shown,
   ]);
+}
+
+/**
+ * What the work breakdown is written from, to a session the project lets write it: the reading the
+ * grid shows when it is whole, the one read whole besides when it is filtered — without a counter to
+ * write from —; nothing to any other session.
+ */
+async function readWholeBreakdown(
+  client: ReturnType<typeof serverClient>,
+  projectId: string,
+  offer: CommandOffer | undefined,
+  shown: WorkBreakdown,
+): Promise<WorkBreakdown | undefined> {
+  if (offer?.is_available !== true) {
+    return undefined;
+  }
+  if (shown.lock_version !== null) {
+    return shown;
+  }
+  return readOrFail("getWorkBreakdown", () =>
+    client.GET("/projects/{project_id}/work-breakdown", {
+      params: { path: { project_id: projectId } },
+    }),
+  );
 }
 
 /** Render the settings of a project, its work breakdown, its sub-projects and its contributors. */
@@ -222,8 +250,12 @@ export default async function SettingsPage(props: ProjectPageProps) {
       }),
     ),
   ]);
-  const { update, manage, writes } = offersOf(read.project);
-  const [suggestions, whole] = await readWritable(client, address.projectId, manage, contributors);
+  const offers = offersOf(read.project);
+  const { update, manage, writes } = offers;
+  const [[suggestions, whole], wholeBreakdown] = await Promise.all([
+    readWritable(client, address.projectId, manage, contributors),
+    readWholeBreakdown(client, address.projectId, offers.breakdown, breakdown),
+  ]);
   return (
     <>
       <ContextBanner reading={read} />
@@ -240,6 +272,12 @@ export default async function SettingsPage(props: ProjectPageProps) {
             shown={{
               query: breakdownQuery,
               preferences: grids?.[BREAKDOWN_GRID_KEY] ?? undefined,
+            }}
+            editing={{
+              project: address.projectId,
+              offer: offers.breakdown,
+              counter: breakdown.lock_version,
+              whole: wholeBreakdown,
             }}
           />
           <SubprojectList

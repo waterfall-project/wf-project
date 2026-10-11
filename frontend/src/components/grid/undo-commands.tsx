@@ -24,6 +24,7 @@ import {
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
+  type ReactNode,
   useId,
   useRef,
   useState,
@@ -198,19 +199,85 @@ function openFromKeyboard(event: KeyboardEvent<HTMLElement>): boolean {
 }
 
 /**
+ * The commands a screen gives the menu of a cell, on the cell it opened on — its position and its
+ * element, where a dialog it opens gives the focus back —; `took` tells the menu that a command took
+ * the focus elsewhere, which the menu, closing, leaves there.
+ */
+export type MenuCommands = (opened: MenuOpened) => ReactNode;
+
+/** The cell a menu opened on — its position and its element —, and how a command tells it moved on. */
+interface MenuOpened {
+  readonly at: CellPosition | undefined;
+  readonly cell: HTMLElement | undefined;
+  readonly took: () => void;
+}
+
+/**
+ * The commands a screen gives the rows of a grid — those of the work breakdown —: in its bar, on the
+ * row of the active cell, none on the header or in an empty grid; in the menu of a cell, on its row.
+ */
+export interface RowCommands<Row> {
+  readonly bar: (row: Row | undefined) => ReactNode;
+  readonly menu: (row: Row | undefined, opened: Omit<MenuOpened, "at">) => ReactNode;
+}
+
+/**
+ * The commands of a screen on the rows of a grid, each found by its index among those shown — in the
+ * bar, that of the active cell; in the menu, that of the cell it opened on —; nothing when the screen
+ * gives none.
+ */
+export function onRows<Row>(
+  commands: RowCommands<Row> | undefined,
+  rowAt: (index: number) => Row | undefined,
+): { readonly bar: (index: number) => ReactNode; readonly menu: MenuCommands | undefined } {
+  if (commands === undefined) {
+    return { bar: () => null, menu: undefined };
+  }
+  return {
+    bar: (index) => commands.bar(rowAt(index)),
+    menu: ({ at, ...opened }) =>
+      commands.menu(at === undefined ? undefined : rowAt(at.row), opened),
+  };
+}
+
+/**
+ * Whether the cells of a grid have a menu, which they announce: the commands of its screen, undo and
+ * redo, or its folding.
+ */
+export function hasCellMenu(
+  undoable: boolean | undefined,
+  folding: unknown,
+  commands: MenuCommands | undefined,
+): boolean {
+  return undoable === true || folding !== undefined || commands !== undefined;
+}
+
+/** The commands of the screen in the menu of a cell, on the cell it opened on. */
+function ScreenMenuItems({
+  commands,
+  ...opened
+}: MenuOpened & { readonly commands: MenuCommands }) {
+  return commands(opened);
+}
+
+/**
  * Give the cells of a grid their menu — by a right click, Shift+F10 or the Menu key —, which holds
- * undo and redo, unavailable and saying why, on the body of a grid that offers them; and, in a tree
- * grid, the folding of the row of the cell, which the keys of the folding do not reach in every
- * browser (`FoldMenuItems`). Nothing in a grid that offers neither. The menu adds no stop to the
- * order of tabulation; once a row is folded from it, the focus goes back to the active cell.
+ * the commands its screen gives it (`MenuCommands`); undo and redo, unavailable and saying why, on
+ * the body of a grid that offers them; and, in a tree grid, the folding of the row of the cell, which
+ * the keys of the folding do not reach in every browser (`FoldMenuItems`). Nothing in a grid that
+ * offers none of them. The menu adds no stop to the order of tabulation; once a row is folded from
+ * it, the focus goes back to the active cell.
  */
 export function CellMenu({
   offered,
   folding,
+  commands,
   disabled,
   children,
 }: {
   readonly offered: boolean | undefined;
+  /** The commands of the screen; none for a grid whose screen gives it none. */
+  readonly commands?: MenuCommands | undefined;
   /** The folding of a tree grid; none for a grid that is no tree. */
   readonly folding?: { readonly menu: CellFolding; readonly refocus: () => void } | undefined;
   /**
@@ -224,10 +291,13 @@ export function CellMenu({
   const reason = useId();
   // When a key last opened the menu: the native echo of that key moves nothing.
   const keyed = useRef(Number.NEGATIVE_INFINITY);
-  // The cell the menu opened on, whose row it folds; and whether it folded one.
+  // The cell the menu opened on, whose row it folds; whether it folded one, or a command of the
+  // screen took the focus elsewhere.
   const [at, setAt] = useState<CellPosition>();
+  const [cell, setCell] = useState<HTMLElement>();
   const folded = useRef(false);
-  if (offered !== true && folding === undefined) {
+  const took = useRef(false);
+  if (offered !== true && folding === undefined && commands === undefined) {
     return children;
   }
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -242,7 +312,9 @@ export function CellMenu({
       return;
     }
     const { target } = event;
-    setAt(positionOf(target instanceof Element ? target.closest("td[data-column]") : null));
+    const opened = target instanceof Element ? target.closest("td[data-column]") : null;
+    setAt(positionOf(opened));
+    setCell(opened instanceof HTMLElement ? opened : undefined);
   };
   return (
     <ContextMenu>
@@ -263,9 +335,23 @@ export function CellMenu({
             folded.current = false;
             event.preventDefault();
             folding?.refocus();
+          } else if (took.current) {
+            took.current = false;
+            event.preventDefault();
           }
         }}
       >
+        {commands === undefined ? null : (
+          <ScreenMenuItems
+            commands={commands}
+            at={at}
+            cell={cell}
+            took={() => {
+              took.current = true;
+            }}
+          />
+        )}
+        {commands === undefined || folding === undefined ? null : <ContextMenuSeparator />}
         {folding === undefined ? null : (
           <FoldMenuItems
             folding={folding.menu}
@@ -276,7 +362,10 @@ export function CellMenu({
           />
         )}
         {offered === true ? (
-          <UndoMenuItems reason={reason} separated={folding !== undefined} />
+          <UndoMenuItems
+            reason={reason}
+            separated={folding !== undefined || commands !== undefined}
+          />
         ) : null}
       </ContextMenuContent>
     </ContextMenu>
@@ -289,7 +378,7 @@ function UndoMenuItems({
   separated,
 }: {
   readonly reason: string;
-  /** Whether the folding comes before them. */
+  /** Whether the folding, or the commands of the screen, come before them. */
   readonly separated: boolean;
 }) {
   const t = useTranslations("grid.undo");

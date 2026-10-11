@@ -11,23 +11,29 @@
  * (`subproject-commands.tsx`), and a row answered or deleted shows as the server answered it, as do
  * the contributors once their list is written (`contributor-commands.tsx`).
  *
- * The totals row says how many the list holds — the order items of the work breakdown, the rows of
- * the answer for the others, the search and the filters applying to it (WF-IHM-0130) —, never a
- * sum. The sub-projects and the contributors sort by the columns of the contract, the server
- * sorting, as the address asks it under the names of their grid.
+ * The totals row says how many the list holds — the elements of the work breakdown the filters
+ * retain, by kind, never those shown for the context of what they retain (#574); the rows of the
+ * answer for the others —, the search and the filters applying to it (WF-IHM-0130), never a sum. The
+ * sub-projects and the contributors sort by the columns of the contract, the server sorting, as the
+ * address asks it under the names of their grid. The work breakdown is edited in its grid, as the
+ * project lists `update_work_breakdown`, its commands in its bar and in the menu of its cells
+ * (`breakdown-commands.tsx`, EP-14/L44c).
  */
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import { formatLocale } from "@/i18n/format";
 
+import { useBreakdownCommands, useBreakdownRows } from "./breakdown-commands";
 import { useContributorRows } from "./contributor-commands";
 
 import {
   BREAKDOWN_GRID,
+  BREAKDOWN_KINDS,
   type BreakdownRow,
   CONTRIBUTOR_GRID,
   type Contributor,
@@ -53,8 +59,6 @@ export type SettingsGridProps =
       readonly kind: "workBreakdown";
       /** The project whose work breakdown it is: its folds are kept for it. */
       readonly project: string;
-      /** How many order items the work breakdown holds. */
-      readonly items: number;
     } & GridProps<BreakdownRow, never>)
   | ({
       readonly kind: "subprojects";
@@ -111,6 +115,44 @@ function SubprojectGrid({
   );
 }
 
+/**
+ * Render the grid of the work breakdown, as the server last answered it, with its commands; its
+ * totals count the elements the filters retain, by kind.
+ */
+function BreakdownGrid({
+  rows,
+  project,
+  query,
+  preferences,
+}: Omit<Extract<SettingsGridProps, { kind: "workBreakdown" }>, "kind">) {
+  const t = useTranslations("projectLists.workBreakdown");
+  const locale = useLocale();
+  const shown = useBreakdownRows(rows);
+  const commands = useBreakdownCommands();
+  const retained = BREAKDOWN_KINDS.map((kind) => ({
+    kind,
+    count: shown.filter((row) => row.matched && row.kind === kind).length,
+  }))
+    .filter(({ count }) => count > 0)
+    .map((counted) => t("retained", counted));
+  return (
+    <DenseGrid
+      config={BREAKDOWN_GRID}
+      rows={shown}
+      totals={null}
+      totalsCaption={() =>
+        retained.length === 0
+          ? t("noneRetained")
+          : new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(retained)
+      }
+      query={query}
+      preferences={preferences}
+      foldScope={project}
+      commands={commands}
+    />
+  );
+}
+
 /** Render the grid of the contributors, as the server last answered their list. */
 function ContributorGrid({
   rows,
@@ -133,20 +175,9 @@ function ContributorGrid({
 
 /** Render a grid of the settings of a project, by its kind. */
 export function SettingsGrid(props: SettingsGridProps) {
-  const t = useTranslations("projectLists");
   switch (props.kind) {
     case "workBreakdown":
-      return (
-        <DenseGrid
-          config={BREAKDOWN_GRID}
-          rows={props.rows}
-          totals={null}
-          totalsCaption={() => t("workBreakdown.count", { count: props.items })}
-          query={props.query}
-          preferences={props.preferences}
-          foldScope={props.project}
-        />
-      );
+      return <BreakdownGrid {...props} />;
     case "subprojects":
       return <SubprojectGrid {...props} />;
     case "contributors":

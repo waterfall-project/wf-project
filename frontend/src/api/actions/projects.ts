@@ -3,7 +3,8 @@
 /**
  * The server actions of a project — created (`createProject`), its identity and its facts modified
  * (`updateProject`), taken out of its lifecycle (`exitProject`) —, of its sub-projects
- * (`writeSubproject`, `deleteSubproject`) and of its contributors (`setContributors`): the browser
+ * (`writeSubproject`, `deleteSubproject`), of its contributors (`setContributors`) and of its work
+ * breakdown (`setWorkBreakdown`): the browser
  * asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder
  * makes of its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what
  * the server now retains.
@@ -119,6 +120,26 @@ export async function setContributors(
       serverClient().PUT("/projects/{project_id}/contributors", {
         params: { path: { project_id: projectId } },
         body: list,
+      }),
+    ),
+  );
+}
+
+/**
+ * Write the whole work breakdown of a project from the counter of its reading whole (WF-PRJ-0020,
+ * WF-IHM-0110): an element sent without its identifier is new, the server gives it one (WF-DAT-0060);
+ * one left out is deleted, the tasks that bore it kept without it (WF-PLA-0170). The API answers the
+ * work breakdown read whole with its next counter, or refuses an element by its field (422).
+ */
+export async function setWorkBreakdown(
+  projectId: string,
+  breakdown: Schemas["WorkBreakdown"],
+): Promise<Outcome<Schemas["WorkBreakdownReading"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().PUT("/projects/{project_id}/work-breakdown", {
+        params: { path: { project_id: projectId } },
+        body: breakdown,
       }),
     ),
   );

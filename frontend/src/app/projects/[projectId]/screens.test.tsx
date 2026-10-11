@@ -208,6 +208,28 @@ describe("the settings of a project", () => {
     );
   });
 
+  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists it unavailable (EP-14/L44c)", async () => {
+    const open = handed<ComponentProps<typeof WorkBreakdownList>>(
+      await SettingsPage(at()),
+      WorkBreakdownList,
+    );
+    expect(open?.props.editing).toEqual({
+      project: PROJECT,
+      offer: { command: "update_work_breakdown", is_available: true, missing_conditions: [] },
+      counter: 1,
+      whole: example("work_breakdown"),
+    });
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const closed = handed<ComponentProps<typeof WorkBreakdownList>>(
+      await SettingsPage(at()),
+      WorkBreakdownList,
+    );
+    expect(closed?.props.editing?.offer?.is_available).toBe(false);
+    expect(closed?.props.editing?.whole).toBeUndefined();
+    // Read whole, the work breakdown is read once a page.
+    expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toHaveLength(2);
+  });
+
   it("shows the inflation rate and the probability of winning as the API gives them", async () => {
     const page = html(await SettingsPage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
@@ -234,7 +256,7 @@ describe("the settings of a project", () => {
       "Fourniture et montage des armoires Order item",
       "Armoires Work package",
       "Procès-verbal de réception usine des armoires Deliverable",
-      "1 order item",
+      "1 order item, 1 work package and 1 deliverable",
     ]);
     expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
     expect(region).toContain('aria-level="3"');
@@ -246,10 +268,14 @@ describe("the settings of a project", () => {
     expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
   });
 
-  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, and says the order items and work packages kept partial", async () => {
+  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the order items and work packages kept partial, and counts the elements retained alone (#574)", async () => {
+    // Read filtered, then whole besides, for the commands of the grid to write from.
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/work-breakdown": "work_breakdown_work_packages",
+      "GET /projects/{project_id}/work-breakdown": [
+        "work_breakdown_work_packages",
+        "work_breakdown",
+      ],
     };
     const page = html(
       await SettingsPage(
@@ -263,12 +289,15 @@ describe("the settings of a project", () => {
     );
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toEqual([
       { search: "Armoires", kinds: "work_package,deliverable" },
+      {},
     ]);
-    // The order item kept for its work package holds it alone: the list says so.
+    // The order item kept for its work package holds it alone: the list says so; and it is there
+    // for the context alone: the totals count the work package the filter retains, and no order
+    // item — le front affiche le total des seuls retenus.
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
       "Fourniture et montage des armoires Order item",
       "Armoires Work package",
-      "1 order item",
+      "1 work package",
     ]);
     expect(text(page)).toContain(
       "The order items and work packages show only what the search and the filter retain.",
@@ -322,7 +351,7 @@ describe("the settings of a project", () => {
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
       `${project.label} Order item`,
       `${project.label} Work package`,
-      "1 order item",
+      "1 order item and 1 work package",
     ]);
   });
 
