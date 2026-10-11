@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
 
 from waterfall.api.contract.base import ContractModel
 
@@ -606,6 +606,16 @@ class UserActivationWrite(ContractModel):
 class UserRolesWrite(ContractModel):
     access_role_ids: list[Uuid]
     lock_version: LockVersion
+
+
+class PasswordSetupLink(ContractModel):
+    url: Annotated[AnyUrl, Field(description="Le lien entier, tel qu'il se remet.")]
+    expires_at: Annotated[
+        Timestamp,
+        Field(
+            description="Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140)."
+        ),
+    ]
 
 
 class SkippedItem(ContractModel):

@@ -2067,8 +2067,9 @@ ses paramètres, jamais une phrase.
   l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
   transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
   `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
-  privé de tous ses rôles une fois l'écriture validée — ne prend pas `Transaction`, mais ouvre les
-  siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
+  privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
+  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait — ne prend pas
+  `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est un 401 `SESSION_REQUIRED`, un
   jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton émis avant que le compte ait fermé ses
   sessions — `closeMySessions` en note l'heure, `sessions_closed_at`, avant d'appeler Keycloak
   (#668) —, un compte désactivé un 401 `ACCOUNT_DEACTIVATED` ; un

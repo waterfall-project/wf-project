@@ -107,7 +107,9 @@ def refuse(faults: tuple[FieldError, ...]) -> None:
 
 def inscribe(
     session: Session,
-    action: Literal["user_create", "user_update", "user_deactivate", "user_reactivate"],
+    action: Literal[
+        "user_create", "user_update", "user_deactivate", "user_reactivate", "password_link_create"
+    ],
     account: UserAccount,
     act: Act,
     params: dict[str, AuditValue],
