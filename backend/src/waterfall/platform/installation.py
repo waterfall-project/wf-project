@@ -4,20 +4,27 @@
 
 It is not a function of the business, so it lives in the platform. The row is written by the
 bootstrap of a new installation (US-0420), never by a migration: the language and the date are
-the installer's.
+the installer's. Until the bootstrap writes it, the installation is not ready: what reads its
+settings is refused as if its database did not answer, never served with values nobody chose.
 """
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import BigInteger, CheckConstraint, Integer, SmallInteger, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from waterfall.platform.database import Base, UtcDateTime
+from waterfall.platform.errors import UnavailableError
+from waterfall.platform.logs import get_logger
 
 LANGUAGES = ("fr", "en")
 AVATAR_MAX_BYTES = 8 * 1024 * 1024
 EXTERNAL_BACKUP_MAX_BYTES = 2**53 - 1
 THE_ROW = 1
+COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
+
+logger = get_logger(__name__)
 
 
 class Installation(Base):
@@ -44,3 +51,24 @@ class Installation(Base):
     avatar_max_bytes: Mapped[int] = mapped_column(Integer)
     external_backup_max_bytes: Mapped[int] = mapped_column(BigInteger)
     installed_at: Mapped[datetime] = mapped_column(UtcDateTime)
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    """The settings of the installation that the API serves or applies."""
+
+    default_language: str
+    avatar_max_bytes: int
+    external_backup_max_bytes: int
+
+
+def read_settings(session: Session) -> Settings:
+    """Read the settings of the installation; refused while it is not bootstrapped (503).
+
+    Its row is the bootstrap's (US-0420): an installation without it is not ready to serve.
+    """
+    row = session.get(Installation, THE_ROW)
+    if row is None:
+        logger.warning("installation.not_bootstrapped")
+        raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"})
+    return Settings(row.default_language, row.avatar_max_bytes, row.external_backup_max_bytes)

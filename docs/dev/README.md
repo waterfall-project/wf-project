@@ -512,8 +512,11 @@ aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre tro
 plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
-et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page ni ses filtres, qui
-vivent dans l'adresse (règle validée par l'auteur le 2026-10-09). Une colonne ou une largeur
+et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
+l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
+préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
+venir) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
+les filtres d'une adresse qui les dit vivent dans l'adresse. Une autre grille ne garde aucun filtre. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
@@ -725,8 +728,8 @@ d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre d
 au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
 ce qu'on ferme son avis — un refus arrivé pendant qu'un autre est dit s'ajoute à lui, sans le
 remplacer, sauf celui de la même commande sur le même objet, qui prend sa place ; un succès après lui
-ne l'efface pas, et le focus revient à la cellule active
-de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
+ne l'efface pas, et le focus revient au contrôle qui a écrit quand le refus en nomme un (`back`,
+une case de la matrice des permissions), sinon à la cellule active de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
 les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
 une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
 (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
@@ -858,7 +861,8 @@ refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REF
 faux back ne garde rien (`MockupNotice`).
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
-`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
+`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
+celui des rôles, branché sur le service (plus bas) : les
 comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
 serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
 filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
@@ -879,23 +883,47 @@ contrat. Les rôles d'habilitation sont sur la grille dense eux aussi
 `holder_count_max`, `RangeFilter` de forme `count`, un entier depuis zéro ; une borne refusée dite
 à son champ, la liste non lue) —, sans pagination — le
 §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
-des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
+des permissions montre les rôles que la table retient, dans son ordre (US-0380) — une ligne par
 permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
 niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
 accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
+aucune commande. La recherche et les filtres de la table des rôles sont gardés avec les réglages de
+sa grille (`GridConfig.filters`, `kept-filters.ts`, sous `filters` de `GridPreferences`, tels que
+l'adresse les écrit) : enregistrés dès que la page en montre d'autres que ceux gardés — une lecture
+levée comprise —, et retrouvés seulement sur une adresse qui ne dit rien de la grille, ni tri, ni
+recherche, ni filtre, que la page, sur le serveur et avant toute lecture, redirige vers celle des
+filtres gardés (`restoredAddress`, `kept-address.ts`), comme elle prend le tri gardé quand l'adresse
+n'en dit rien — d'où qu'on vienne, le lien de la barre latérale suivi depuis l'écran compris. La
+levée du dernier filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`, que
+pose le `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit
+`sort_by` vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des rôles est branché sur le
+service (US-0380/L2, #380) : à une session qui porte `access_roles.write`, la table crée un rôle en
+ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa cellule — la saisie de la
+grille, écrite par `updateAccessRole` avec les permissions du rôle — et le supprime depuis sa ligne,
+après une confirmation qui nomme le rôle et dit la suppression définitive (`AlertDialog`, hors de la
+grille, Échap l'abandonnant) — une suppression logique (#456), que rien ne restaure, un rôle prédéfini
+compris —, indisponible, `aria-disabled` et décrite par sa condition, tant qu'un compte porte le rôle
+(`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matrice est le lieu de la modification des permissions, une
+case à cocher par permission et par rôle (`permission-matrix.tsx`), qui écrit le rôle entier, ses
+permissions dans l'ordre du catalogue, les autres cases du rôle attendant la réponse. La table et la
+matrice lisent une seule source du rôle répondu le plus récent par sa `lock_version`
+(`RoleAnswers`, `role-answers.tsx`) : un renommage puis une case cochée avant la relecture, ou
+l'inverse, part de la version répondue, et une relecture plus ancienne que la réponse ne la défait
+pas. Ce que fait une commande de la table se dit dans sa région, nommée « Commandes des rôles
+d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la table ou de la
+matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier administrateur
+(`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
+à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
+de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
+Pour les comptes, décidé par l'auteur le 2026-10-08 (#379, #515) : des boutons
 seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
 `users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
 en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
 « Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
 absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; à une session qui porte
-`access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
-et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
-sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
-409, WF-ADM-0090), et la désactivation du dernier compte actif qui porte les permissions de
+(WF-ADM-0060) ; la désactivation du dernier compte actif qui porte les permissions de
 modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
 pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
 le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
@@ -2086,7 +2114,9 @@ ses paramètres, jamais une phrase.
   404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
   `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
   un refus par champ se dit par des `FieldError(pointer, code, params)`, le pointeur étant celui
-  du contrat (`/label` dans le corps, `/query/from` dans la requête). Il ne construit jamais
+  du contrat (`/label` dans le corps, `/query/from` dans la requête) ; une clé envoyée par le
+  client s'y échappe comme RFC 6901 le veut, `~` en `~0` et `/` en `~1` (`json_pointer` de
+  `waterfall.platform.errors`, #750). Il ne construit jamais
   de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
   erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
   dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
@@ -2155,8 +2185,10 @@ ses paramètres, jamais une phrase.
   transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
   `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
   privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
-  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait — ne prend pas
-  `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est
+  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
+  `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
+  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
+  et après l'appel. Un jeton absent ou invalide est
   un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton dont la
   connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
   tombe dans sa seconde — `closeMySessions` et la désactivation en notent l'heure,

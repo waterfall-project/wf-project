@@ -12,7 +12,6 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
-import { PermissionMatrix } from "./account-lists";
 import { BACKUPS_LIST } from "./backup-address";
 import {
   AlertList,
@@ -35,8 +34,6 @@ vi.mock("next/navigation", async (original) => ({
 
 type Schemas = components["schemas"];
 
-const roles = example("access_roles") as Schemas["AccessRole"][];
-const permissions = example("permissions") as Schemas["Permission"][];
 const failed = example("system_status_backup_failed") as Schemas["SystemStatus"];
 const backups = example("backups") as {
   items: Schemas["Backup"][];
@@ -52,64 +49,6 @@ function rendered(children: ReactNode, locale: Locale = "fr") {
     </NextIntlClientProvider>,
   );
 }
-
-describe("the matrix of the permissions", () => {
-  it("is a table whose rows a reader finds by their permission, under their function, and whose cells say whether each role holds it", () => {
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} />);
-    const matrix = screen.getByRole("table", { name: "Permissions par fonction" });
-    // The row is found by its header, the permission: the name of a row is that of all its cells,
-    // and computing it for the sixty rows took a second under load (EP-02/L46).
-    const restore = within(matrix)
-      .getByRole("rowheader", { name: "Restaurer la plateforme" })
-      .closest("tr");
-    if (restore === null) {
-      throw new Error("the permission heads no row");
-    }
-    expect(
-      within(restore)
-        .getAllByRole("cell")
-        .map((cell) => cell.textContent),
-    ).toEqual([
-      "Accordée",
-      "Non accordée",
-      "Non accordée",
-      "Non accordée",
-      "Accordée",
-      "Non accordée",
-      "Non accordée",
-    ]);
-    // Each of the twenty-five functions heads its group by its name alone: no code of the FBS is
-    // shown to the user (decision of the author on #515) — the journal of audit, FBS-1.5, too.
-    expect(within(matrix).getByRole("rowheader", { name: "Journal d’audit" })).toBeInTheDocument();
-    expect(
-      within(matrix).getByRole("rowheader", { name: "Gestion des rôles d’habilitation" }),
-    ).toHaveAttribute("rowspan", "2");
-    // Twenty-five functions, the journal of audit among them, and the irreversible and the
-    // structuring actions.
-    expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(27);
-    expect(matrix.textContent).not.toContain("FBS-");
-  });
-
-  it("breaks no rule of accessibility, each kind of group of rows rendered", async () => {
-    // A function of one permission, one of two, and the actions outside any function: every
-    // shape of row and of group the matrix draws. The rules of axe hold for each row alike, and
-    // the sixty rows took longer to check than the test may last under load (EP-02/L46).
-    const shapes = permissions.filter((permission) =>
-      [null, "FBS-1.2", "FBS-1.5"].includes(permission.fbs_code ?? null),
-    );
-    const { container } = rendered(<PermissionMatrix permissions={shapes} roles={roles} />);
-    expect(container.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(4);
-    await expectAccessible(container);
-  });
-
-  it("speaks English in English", () => {
-    rendered(<PermissionMatrix permissions={permissions} roles={roles} />, "en");
-    expect(screen.getByRole("rowheader", { name: "Irreversible action" })).toHaveAttribute(
-      "rowspan",
-      "8",
-    );
-  });
-});
 
 describe("the pages of a list of the administration", () => {
   it("break no rule of accessibility, the links of the pages keeping the rest of the address", async () => {

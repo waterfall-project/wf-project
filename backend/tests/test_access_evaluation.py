@@ -25,10 +25,10 @@ from waterfall.api.evaluation import Requires
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
     Actor,
-    granted_permissions,
+    holding,
     require,
 )
-from waterfall.core.access_roles.predefined import ADMINISTRATOR
+from waterfall.core.access_roles.predefined import ADMINISTRATOR, PROJECT_MANAGER
 from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
@@ -172,6 +172,36 @@ def test_an_account_given_two_roles_holds_the_permissions_of_both(
     assert api.request("PUT", path, headers=administrator, json=sent).status_code == 200
     assert me(api, headers)["permissions"] == ["users.read", CONSULT]
     assert [api.get(path, headers=headers).status_code for path in (USERS, ROLES)] == [200, 200]
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+def test_a_role_composed_of_two_actors_gives_its_holder_the_permissions_of_both(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # « Un rôle d'habilitation composé sur mesure permet à un utilisateur de cumuler des
+    # permissions relevant de deux acteurs différents. » : here, a role composed through the API
+    # of a permission of the project manager and one of the administrator, given to an account,
+    # makes both its effective permissions; their exercise awaits EP-05.
+    assert "planning.write" in PROJECT_MANAGER
+    assert "planning.write" not in ADMINISTRATOR
+    assert "users.write" in ADMINISTRATOR
+    assert "users.write" not in PROJECT_MANAGER
+    administrator = person(role(database, "Administration", permissions=ADMINISTRATOR))
+    label = "Planificateur administrateur"
+    sent: dict[str, object] = {"label": label, "permissions": ["planning.write"]}
+    created = api.post(ROLES, headers=administrator, json=sent)
+    assert created.status_code == 201
+    composed = created.json()["access_role_id"]
+    widened = {"label": label, "permissions": ["planning.write", "users.write"], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{composed}", headers=administrator, json=widened).status_code == 200
+    headers = person()
+    assert me(api, headers)["permissions"] == []
+    given = {"access_role_ids": [composed], "lock_version": 0}
+    attribution = f"{USERS}/{me(api, headers)['user_id']}/access-roles"
+    assert api.request("PUT", attribution, headers=administrator, json=given).status_code == 200
+    account = me(api, headers)
+    assert account["permissions"] == ["users.write", "planning.write"]
+    assert account["access_role_labels"] == [label]
 
 
 @pytest.mark.requirement("WF-ADM-0090-A")
@@ -340,8 +370,13 @@ def test_an_account_without_any_role_reads_its_own_account_and_the_catalogue(
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
+    "getInstallation": (),
     "getMe": (),
+    "updateMyPreferences": (),
+    "putMyAvatar": (),
+    "deleteMyAvatar": (),
     "closeMySessions": (),
+    "getUserAvatar": (),
     "listPermissions": (),
     "listUsers": ("users.read",),
     "getUser": ("users.read",),
@@ -361,8 +396,9 @@ ASKED: dict[str, tuple[str, ...]] = {
 
 
 # The operations that ask for no permission and still refuse by a 404 the object their path names:
-# it is the caller's own, and the task another account asked for does not exist for the caller.
-OWN_OBJECTS = {"getBackgroundTask"}
+# the task another account asked for does not exist for the caller, nor the avatar of an account
+# without one.
+PATH_OBJECTS = {"getBackgroundTask", "getUserAvatar"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
@@ -406,24 +442,29 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         needed = {refused_without(code) for code in permissions}
         assert needed <= responses, name
         if not permissions:
-            refused = {"403"} if name in OWN_OBJECTS else {"403", "404"}
+            refused = {"403"} if name in PATH_OBJECTS else {"403", "404"}
             assert not refused & responses, name
 
 
-def test_the_permissions_granted_by_given_roles_are_their_union_deleted_ones_apart(
-    database: Database,
+def test_the_roles_held_and_their_permissions_are_read_at_once_deleted_ones_apart(
+    api: ContractClient, database: Database, person: Person
 ) -> None:
+    # One reading of both, the roles by label, the permissions in the order of the catalogue, each
+    # once (#756); a role that grants nothing is held all the same.
     estimating = role(database, "Chiffreur", permissions=("estimate.write", "estimate.read"))
     reading = role(database, "Lecteur", permissions=("estimate.read", "users.read"))
     deleted = role(database, "Auditeur", permissions=("audit_log.read",), deleted=True)
+    empty = role(database, "Aucun", permissions=())
     role(database, "Pilote", permissions=("planning.read",))
+    user_id = UUID(me(api, person(reading, deleted, estimating, empty))["user_id"])
     with database.transaction() as session:
-        assert granted_permissions(session, [reading, deleted, estimating]) == (
-            "users.read",
-            "estimate.read",
-            "estimate.write",
-        )
-        assert granted_permissions(session, []) == ()
+        held = holding(session, user_id)
+    assert [(each.access_role_id, each.label) for each in held.roles] == [
+        (empty, "Aucun"),
+        (estimating, "Chiffreur"),
+        (reading, "Lecteur"),
+    ]
+    assert held.permissions == ("users.read", "estimate.read", "estimate.write")
 
 
 def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None:

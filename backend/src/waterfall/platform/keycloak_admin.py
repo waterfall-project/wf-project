@@ -3,14 +3,14 @@
 """The administration API of Keycloak, reached as the service account of the realm (PBS-2.5).
 
 Through it the service reads where an account comes from, creates a local account and removes one
-whose creation Waterfall could not complete, and closes the sessions of an account (WF-ADM-0070,
-WF-SEC-0020). The link that sets the password of a local account is made by the extension of
-Waterfall, which also mails it as the invitation of the account: never by
-``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The bootstrap
-finds the account of an address, tells whether it has a password, and, as the client of the
-bootstrap, gives the realm the language of the installation (#873) and asks the extension for the
-link of the installation, valid until it is used (WF-EXP-0020, #652). The token of the client is
-kept until shortly before it expires.
+whose creation Waterfall could not complete, closes the sessions of an account (WF-ADM-0070,
+WF-SEC-0020), and gives it the language its holder chose, that of its mails (WF-INTF-0160). The
+link that sets the password of a local account is made by the extension of Waterfall, which also
+mails it as the invitation of the account: never by ``execute-actions-email``, whose links would
+escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address, tells whether
+it has a password, and, as the client of the bootstrap, gives the realm the language of the
+installation (#873) and asks the extension for the link of the installation, valid until it is
+used (WF-EXP-0020, #652). The token of the client is kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -40,6 +40,8 @@ INSTALLATION_CLIENT = "waterfall-installation"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
 VALIDATION_FAILED = "VALIDATION_FAILED"
+# The attribute of an account of the realm that holds its language (WF-INTF-0160).
+LOCALE = "locale"
 # The field of a local identity each attribute of the realm holds, the username being its address.
 IDENTITY_POINTERS = {
     "username": "/email",
@@ -323,6 +325,27 @@ class KeycloakAdmin:
         response = self._as_service("POST", f"{self._admin}/users/{quote(subject, safe='')}/logout")
         if response.status_code != HTTPStatus.NOT_FOUND:
             expect(response, HTTPStatus.NO_CONTENT)
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Give an account of the realm the language it mails and shows its pages in.
+
+        ``None`` withdraws it: the realm then speaks its own language by default. An account the
+        realm no longer holds has no language left to set. The account is read, then written back
+        whole with its attribute ``locale`` changed: the realm keeps only the attributes it is sent.
+        """
+        user = f"{self._admin}/users/{quote(subject, safe='')}"
+        response = self._as_service("GET", user)
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return
+        held = dict(cast("Mapping[str, Any]", expect(response, HTTPStatus.OK).json()))
+        attributes = dict(cast("Mapping[str, list[str]]", held.get("attributes") or {}))
+        if locale is None:
+            attributes.pop(LOCALE, None)
+        else:
+            attributes[LOCALE] = [locale]
+        written = self._as_service("PUT", user, json={**held, "attributes": attributes})
+        if written.status_code != HTTPStatus.NOT_FOUND:
+            expect(written, HTTPStatus.NO_CONTENT)
 
     def _service_token(self, *, renew: bool = False) -> str:
         with self._token_lock:

@@ -110,14 +110,26 @@ def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
     structlog.reset_defaults()
 
 
+def binary_text(content: bytes | str) -> str:
+    """Read a binary content as the string its schema declares, each byte one character."""
+    return content.decode("latin-1") if isinstance(content, bytes) else content
+
+
 @pytest.fixture(scope="session")
 def contract() -> OpenAPI:
     """Read the interface contract, once.
 
     A refusal answers in ``application/problem+json``, JSON that openapi-core does not read by
-    itself: without this, no refusal could be checked against its schema.
+    itself: without this, no refusal could be checked against its schema. An image, a binary text
+    for the contract, is read as the text of its bytes, each one a character.
     """
-    config = Config(extra_media_type_deserializers={"application/problem+json": json.loads})
+    config = Config(
+        extra_media_type_deserializers={
+            "application/problem+json": json.loads,
+            "image/png": binary_text,
+            "image/jpeg": binary_text,
+        }
+    )
     return OpenAPI.from_file_path(str(CONTRACT), config=config)
 
 
