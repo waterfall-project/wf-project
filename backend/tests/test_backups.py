@@ -34,13 +34,14 @@ from waterfall.api.authentication import Services
 from waterfall.core.backups.interface import TakenBackup, add_backup
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
+from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
-from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
-from waterfall.worker.backup import MANIFEST, BackupTask, verified
+from waterfall.worker.backup import MANIFEST, BackupTask, dump, verified
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
@@ -326,6 +327,30 @@ def test_a_backup_the_object_storage_does_not_take_fails_as_its_storage_unavaila
     assert failed.status == "failed"
     assert failed.problem is not None
     assert failed.problem["params"] == {"component": "object_storage"}
+
+
+def test_the_role_of_the_service_cannot_dump_the_database_which_a_backup_dumps_as_its_owner(
+    service_database_url: str, database_url: str, tmp_path: Path
+) -> None:
+    # #701: the API and the worker connect as the role of the service, which holds only what the
+    # tables grant it; a dump reads every table, and that role cannot. The owner of the tables can.
+    with pytest.raises(UnavailableError):
+        dump("waterfall", service_database_url, tmp_path)
+    assert dump("waterfall", database_url, tmp_path).size_bytes > 0
+
+
+def test_the_worker_backs_up_as_the_owners_of_the_databases_and_connects_as_the_service(
+    platform_environment: dict[str, str],
+) -> None:
+    # #701: the backup the worker runs dumps each database as its owner, which the settings name
+    # apart from the address the worker connects by.
+    taking = BackupTask.of(load_worker_settings())
+    assert taking.databases == {
+        "waterfall": platform_environment["WATERFALL_OWNER_DATABASE_URL"],
+        "identity_provider": platform_environment["WATERFALL_KEYCLOAK_DATABASE_URL"],
+    }
+    assert platform_environment["WATERFALL_DATABASE_URL"] not in taking.databases.values()
+    assert taking.bucket.name == "backups"
 
 
 def backup_row(database: Database, queue: TaskQueue, key: str, *, days: int = 0) -> str:
