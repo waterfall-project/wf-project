@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The images of the platform: the PostgreSQL of the tests is the PostgreSQL of the service."""
+"""The images of the platform: the PostgreSQL and the Redis of the tests are the service's."""
 
 import re
 from pathlib import Path
@@ -23,6 +23,15 @@ def test_the_postgresql_of_the_chain_is_the_image_of_the_service_platform() -> N
     platform = postgres_images(ROOT / "deploy" / "compose" / "compose.service.yaml")
     assert len(chain) == 1
     assert platform == chain * 3
+
+
+def test_the_redis_of_the_chain_is_the_image_of_the_service_platform() -> None:
+    redis = re.compile(r"image:\s*(redis:\S+@sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
+    workflows = ROOT / ".github" / "workflows"
+    compose = ROOT / "deploy" / "compose" / "compose.service.yaml"
+    platform = redis.findall(compose.read_text(encoding="utf-8"))
+    for chain in ("back.yml", "front.yml"):
+        assert redis.findall((workflows / chain).read_text(encoding="utf-8")) == platform
 
 
 def test_redis_runs_as_its_own_user_and_its_command_does_not_carry_the_secret() -> None:

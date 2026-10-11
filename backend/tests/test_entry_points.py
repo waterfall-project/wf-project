@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 import waterfall
-import waterfall.worker.main
 
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
@@ -41,8 +40,3 @@ def test_the_api_and_the_worker_carry_the_same_version() -> None:
     worker = run("waterfall-worker").split()[-1]
     declared = tomllib.loads(PROJECT.read_text(encoding="utf-8"))["project"]["version"]
     assert api == worker == declared
-
-
-def test_the_worker_entry_point_returns_success(capsys: pytest.CaptureFixture[str]) -> None:
-    assert waterfall.worker.main.main() == 0
-    assert capsys.readouterr().out == f"waterfall-worker {waterfall.__version__}\n"

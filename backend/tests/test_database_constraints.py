@@ -26,6 +26,7 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
+from waterfall.platform.tasks import BackgroundTask
 
 
 def constraint_of(error: IntegrityError) -> str:
@@ -364,3 +365,46 @@ def test_a_role_grants_and_an_account_holds_only_what_exists_and_once(
         "fk_access_role_permission_access_role_id_access_role",
         "fk_user_access_role_access_role_id_access_role",
     }
+
+
+def write_task(**overrides: object) -> Executable:
+    """Give the insertion of a background task by hand, queued, with the changes asked for."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "kind": "identity_sync",
+        "status": "queued",
+        "progress": 0,
+        "payload": {},
+        "correlation_id": "req-1",
+        "attempts": 0,
+        "submitted_at": datetime(2026, 10, 11, 7, 0, tzinfo=UTC),
+    }
+    return insert(BackgroundTask).values(**{**columns, **overrides})
+
+
+ENDED = datetime(2026, 10, 11, 7, 5, tzinfo=UTC)
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"kind": "directory_sync"}, "ck_background_task_kind_known"),
+        ({"status": "cancelled"}, "ck_background_task_status_known"),
+        ({"progress": 101}, "ck_background_task_progress_bound"),
+        ({"progress": -1}, "ck_background_task_progress_bound"),
+        ({"attempts": -1}, "ck_background_task_attempts_not_negative"),
+        ({"payload": ["identity_sync"]}, "ck_background_task_payload_object"),
+        ({"status": "failed", "finished_at": ENDED}, "ck_background_task_problem_of_a_failure"),
+        ({"problem": {"code": "INTERNAL_ERROR"}}, "ck_background_task_problem_of_a_failure"),
+        ({"status": "succeeded"}, "ck_background_task_finished_at_end"),
+        ({"finished_at": ENDED}, "ck_background_task_finished_at_end"),
+        ({"correlation_id": "two words"}, "ck_background_task_correlation_id_form"),
+        ({"requested_by": uuid4()}, "fk_background_task_requested_by_user_account"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_task_that_breaks_a_rule(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    assert refusal(database, write_task(**overrides)) == constraint

@@ -270,6 +270,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "createAccessRole": (CHANGE,),
     "updateAccessRole": (CONSULT, CHANGE),
     "deleteAccessRole": (CONSULT, CHANGE),
+    "listBackgroundTasks": (),
+    "getBackgroundTask": (),
 }
 
 
@@ -294,7 +296,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     contract: OpenAPI, services: Services
 ) -> None:
     # A permission to consult missing is a 404, any other a 403: the operation declares the
-    # refusal it may give; one that declares neither asks for nothing.
+    # refusal it may give; one that declares neither asks for nothing. An operation that asks for
+    # nothing refuses nothing by a 403, and by a 404 only the object its path names.
     served: list[BaseRoute] = []
     for included in create_app(services).routes:
         router = getattr(included, "original_router", None)
@@ -313,7 +316,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         needed = {refused_without(code) for code in permissions}
         assert needed <= responses, name
         if not permissions:
-            assert not {"403", "404"} & responses, name
+            refused = {"403", "404"} if "{" not in relative else {"403"}
+            assert not refused & responses, name
 
 
 def test_the_permissions_granted_by_given_roles_are_their_union_deleted_ones_apart(

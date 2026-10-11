@@ -224,6 +224,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # Two associations of two keys: a row is added or removed, never changed.
     "access_role_permission": {"SELECT", "INSERT", "DELETE"},
     "user_access_role": {"SELECT", "INSERT", "DELETE"},
+    # Submitted, followed, run and ended; never deleted by the service until a rule of retention
+    # comes (§4.4.1).
+    "background_task": {"SELECT", "INSERT", "UPDATE"},
 }
 
 

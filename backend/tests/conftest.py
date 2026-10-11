@@ -33,6 +33,7 @@ from waterfall.platform.database import Base, Database, create_database_engine, 
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging
+from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 
 
@@ -224,3 +225,44 @@ def session(database: Database) -> Iterator[Session]:
     with Session(database.engine) as opened:
         yield opened
         opened.rollback()
+
+
+TEST_REDIS_VARIABLE = "WATERFALL_TEST_REDIS_URL"
+
+
+@pytest.fixture(scope="session")
+def redis_url() -> str:
+    """Give the Redis of the tests, which they alone use; without it, a test that needs it fails."""
+    address = os.environ.get(TEST_REDIS_VARIABLE)
+    if not address:
+        pytest.fail(
+            f"{TEST_REDIS_VARIABLE} is not set: give it the URL of a Redis the tests may write to "
+            "(the guide, 'Tests', says how)",
+            pytrace=False,
+        )
+    return address
+
+
+@pytest.fixture
+def queue(redis_url: str) -> Iterator[TaskQueue]:
+    """Give a queue of tasks on the Redis of the tests, in a stream of its own, deleted after."""
+    opened = TaskQueue.connect(redis_url, f"waterfall:test:{uuid4().hex}")
+    yield opened
+    opened.client.delete(opened.stream)
+    opened.close()
+
+
+@pytest.fixture
+def platform_queue(redis_url: str) -> Iterator[TaskQueue]:
+    """Give the queue every installation uses, on the Redis of the tests, emptied around a test."""
+    opened = TaskQueue.connect(redis_url)
+    opened.client.delete(opened.stream)
+    yield opened
+    opened.client.delete(opened.stream)
+    opened.close()
+
+
+@pytest.fixture
+def service_environment(service_database_url: str, redis_url: str) -> dict[str, str]:
+    """Give a process of the platform the database of the tests, as the service, and their Redis."""
+    return {"WATERFALL_DATABASE_URL": service_database_url, "WATERFALL_REDIS_URL": redis_url}
