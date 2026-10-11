@@ -71,3 +71,17 @@ rules:
     assertions:
       required: ['503']
     message: 'Une opération gardée par le jeton `bearer` déclare `503`.'
+  # Une opération qui reçoit un corps déclare le 400 d'un corps illisible et le 422 d'un champ
+  # manquant ou refusé : le service les rend pour toute opération à corps (#748).
+  rule/operation-with-body-declares-400-and-422:
+    subject:
+      type: Responses
+    where:
+      - subject:
+          type: Operation
+          property: requestBody
+        assertions:
+          defined: true
+    assertions:
+      required: ['400', '422']
+    message: 'Une opération qui reçoit un corps déclare `400` et `422`.'

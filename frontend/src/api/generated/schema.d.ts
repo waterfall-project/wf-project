@@ -4829,6 +4829,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
+        UnprocessableEntity: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2). */
         PayloadTooLarge: {
             headers: {
@@ -4849,15 +4858,6 @@ export interface components {
         };
         /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
         PreconditionFailed: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
-        UnprocessableEntity: {
             headers: {
                 [name: string]: unknown;
             };
@@ -5184,6 +5184,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5228,8 +5229,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5393,6 +5396,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -5445,6 +5449,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -5457,6 +5462,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5484,6 +5490,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -5759,6 +5766,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -5772,6 +5780,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5876,9 +5885,11 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6231,6 +6242,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferenceSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
@@ -6307,6 +6319,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Un code déjà porté par un autre nœud, actif ou désactivé (WF-REF-0070) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le nœud qui le porte ; rien n'est écrit. */
@@ -6354,6 +6367,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6409,6 +6423,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6430,6 +6445,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6518,6 +6534,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description `VALIDATION_FAILED`, `fields` localisant chaque refus ; ainsi un nœud désactivé, `/org_node_id` par `INACTIVE_REFERENCE_OBJECT`, rien n'étant écrit (WF-REF-0080). */
@@ -6556,6 +6573,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6599,6 +6617,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6620,6 +6639,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6667,6 +6687,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurationUnits"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
@@ -6772,6 +6793,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
@@ -6802,6 +6824,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6881,6 +6904,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -6902,6 +6926,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6968,6 +6993,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Un code déjà porté par une autre nature, active ou désactivée (WF-REF-0030) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la nature qui le porte ; rien n'est écrit. */
@@ -7015,6 +7041,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7067,6 +7094,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7088,6 +7116,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7155,6 +7184,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Un code ou un code comptable déjà portés par une autre catégorie, active ou désactivée (WF-REF-0040) : `ALREADY_EXISTS`, `fields` désignant chaque champ dont la valeur est prise, `/code` ou `/accounting_code`, par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la catégorie qui la porte ; rien n'est écrit. */
@@ -7202,6 +7232,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7254,6 +7285,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7275,6 +7307,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7380,6 +7413,7 @@ export interface operations {
                     "application/json": components["schemas"]["HourlyRate"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7487,6 +7521,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte. */
@@ -7551,6 +7586,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7642,6 +7678,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7712,6 +7749,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7786,6 +7824,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le sous-projet qui le porte. */
@@ -7797,6 +7836,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7859,6 +7899,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7872,6 +7913,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7935,6 +7977,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8028,9 +8071,11 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8118,6 +8163,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8130,6 +8176,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8210,6 +8257,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8223,6 +8271,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8250,6 +8299,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8262,6 +8312,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8319,10 +8370,12 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8405,10 +8458,12 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8438,10 +8493,12 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8535,6 +8592,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8649,6 +8707,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8693,6 +8752,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8737,6 +8797,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8750,6 +8811,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8780,11 +8842,13 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8815,6 +8879,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8862,9 +8927,11 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8894,6 +8961,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8937,6 +9005,7 @@ export interface operations {
                     "application/json": components["schemas"]["PastePlan"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -8979,11 +9048,13 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9536,6 +9607,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -9631,11 +9703,13 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9693,6 +9767,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -9706,6 +9781,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9734,10 +9810,12 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9873,9 +9951,11 @@ export interface operations {
                     "application/json": components["schemas"]["ActualCostLine"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9936,6 +10016,7 @@ export interface operations {
                     "application/json": components["schemas"]["FileUpload"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["UnprocessableEntity"];
@@ -9968,6 +10049,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9997,6 +10079,7 @@ export interface operations {
                     "application/json": components["schemas"]["ChunkedUpload"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -10102,6 +10185,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -10202,6 +10286,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -10214,6 +10299,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10241,6 +10327,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Projet invisible, ou révision inconnue ou d'un autre projet (WF-ADM-0110) : `NOT_FOUND`. */

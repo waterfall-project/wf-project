@@ -106,6 +106,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -166,6 +167,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -256,6 +258,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               completed: { $ref: ../../../fixtures/api/project_completed.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -341,6 +344,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -429,6 +433,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -439,6 +444,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects/{subproject_id}:
@@ -462,6 +468,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -476,6 +483,7 @@
             examples:
               code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteSubproject
@@ -594,6 +602,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -674,9 +683,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines/{timeline_id}:

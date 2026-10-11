@@ -3654,6 +3654,18 @@ d'identité ; s'il ne répond pas, l'opération rend 503 `COMPONENT_UNAVAILABLE`
 vérifie, comme celle du 401. Écarté : la règle écrite au seul README, qu'une réponse validée
 contre le contrat contredirait.
 
+## Toute opération à corps déclare 400 et 422 (EP-03, #748)
+
+Décision de l'auteur du 2026-10-11. `updateAccessRole` recevait le corps de `createAccessRole`,
+plus `lock_version`, sans déclarer ni 400 ni 422 ; le relevé a trouvé soixante opérations à corps
+dans le même cas, presque toutes d'EP-02. Le service rend pourtant les deux pour toute opération
+à corps : un corps illisible, absent ou qui n'est pas un objet, par 400 `MALFORMED_REQUEST` ; un
+champ manquant, d'un autre type ou refusé, par 422 et le code du champ
+(`backend/src/waterfall/api/problems.py`). Les deux réponses sont déclarées partout où il y a un
+corps (58 `400`, 29 `422` ajoutés), et la règle `rule/operation-with-body-declares-400-and-422`
+le tient. Écarté : ne corriger que `updateAccessRole`, l'oubli se serait reproduit à la prochaine
+opération.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

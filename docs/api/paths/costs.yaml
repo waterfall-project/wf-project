@@ -119,9 +119,11 @@
             examples:
               excluded: { $ref: ../../../fixtures/api/actual_cost_excluded.json }
               reinstated: { $ref: ../../../fixtures/api/actual_cost_reinstated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/cost-imports:

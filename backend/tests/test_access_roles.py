@@ -21,7 +21,6 @@ import psycopg
 import pytest
 from access_rows import ADMINISTRATION, holder, role
 from openapi_core import OpenAPI
-from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import ProgrammingError
@@ -557,15 +556,7 @@ def test_a_permission_outside_the_catalogue_is_refused(
 
 @pytest.mark.parametrize(
     "operation",
-    [
-        "createAccessRole",
-        # The contract declares no 422 for the change of a role: the answer, the one every refused
-        # value gets, is not the contract's until it does (#748).
-        pytest.param(
-            "updateAccessRole",
-            marks=pytest.mark.xfail(raises=ResponseNotFound, strict=True, reason="#748"),
-        ),
-    ],
+    ["createAccessRole", "updateAccessRole"],
 )
 def test_a_label_that_holds_a_nul_is_refused_at_its_field(
     api: ContractClient, database: Database, headers: dict[str, str], operation: str
