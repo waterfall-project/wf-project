@@ -9,7 +9,7 @@ reaches it and fails there, which the API says in its log and answers all the sa
 itself is tried against the platform (``test_keycloak_authentication.py``).
 """
 
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -331,20 +331,16 @@ def test_a_role_deleted_while_the_attribution_waits_for_the_guard_is_refused(
     # Read before the lock, the role would be given while deleted, held by an account.
     leaving = role(database, "Rôle supprimé")
     paul = account(database, "Durand", "Paul")
-    answers: list[Any] = []
-    attributing = threading.Thread(
-        target=lambda: answers.append(give(client, headers, paul, leaving))
-    )
-    with Session(database.engine) as deleting:
+    with ThreadPoolExecutor(1) as other, Session(database.engine) as deleting:
         lock_administrators(deleting)
-        attributing.start()
+        attributing = other.submit(give, client, headers, paul, leaving)
         wait_for_a_lock(database)
         deleting.execute(
             update(AccessRole).where(AccessRole.id == leaving).values(deleted_at=utc_now())
         )
         deleting.commit()
-    attributing.join(timeout=10)
-    (answer,) = answers
+        # What the thread raised is raised here, with its cause.
+        answer = attributing.result(timeout=10)
     assert problem(answer)[:2] == (422, "VALIDATION_FAILED")
     assert answer.json()["fields"] == [
         {"pointer": "/access_role_ids/0", "code": "UNKNOWN_ACCESS_ROLE"}
@@ -360,22 +356,18 @@ def test_a_write_that_waits_for_the_guard_holds_no_lock_on_the_account(
     # a write waiting for it holds nothing another one would wait for in turn. Locked first, the
     # account would be held while the write waits, and could not be locked here.
     paul = account(database, "Durand", "Paul")
-    answers: list[Any] = []
-    writing = threading.Thread(
-        target=lambda: answers.append(
-            activate(client, headers, paul, is_active=False)
-            if operation == "activation"
-            else give(client, headers, paul)
-        )
-    )
-    with Session(database.engine) as guarding:
+    with ThreadPoolExecutor(1) as other, Session(database.engine) as guarding:
         lock_administrators(guarding)
-        writing.start()
+        writing = (
+            other.submit(activate, client, headers, paul, is_active=False)
+            if operation == "activation"
+            else other.submit(give, client, headers, paul)
+        )
         wait_for_a_lock(database)
         locked = guarding.scalar(
             select(UserAccount.id).where(UserAccount.id == paul).with_for_update(nowait=True)
         )
         guarding.commit()
-    writing.join(timeout=10)
-    (answer,) = answers
+        # What the thread raised is raised here, with its cause.
+        answer = writing.result(timeout=10)
     assert (locked, answer.status_code) == (paul, 200)

@@ -859,6 +859,7 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
     # closes the sessions of both devices: neither refreshes its tokens, which Keycloak notifies
     # the front of.
     user_id, devices = signed_in_twice(database, colleague, "planning.read")
+    assert [api.get(ME, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body = {"is_active": False, "lock_version": 0}
     path = f"{USERS}/{user_id}/activation"
     response = api.request("PUT", path, headers=administrator, json=body)

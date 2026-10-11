@@ -9,7 +9,7 @@ which is the last administrator (WF-ARC-0020): the account says it.
 from dataclasses import dataclass
 
 # The condition the deactivation of the last administrator lacks (WF-ADM-0120).
-LAST_ADMINISTRATOR = "last_administrator"
+LAST_ADMINISTRATOR_CONDITION = "last_administrator"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +40,7 @@ def account_commands(
     if not is_active:
         state = CommandAvailability("reactivate")
     elif is_last_administrator:
-        state = CommandAvailability("deactivate", (LAST_ADMINISTRATOR,))
+        state = CommandAvailability("deactivate", (LAST_ADMINISTRATOR_CONDITION,))
     else:
         state = CommandAvailability("deactivate")
     return (state, CommandAvailability("set_access_roles"))
