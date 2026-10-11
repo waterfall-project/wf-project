@@ -8,10 +8,12 @@ answer is checked against the contract (``ContractClient``).
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import pytest
+from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
 from sqlalchemy import insert, update
 from sqlalchemy.orm import Session
@@ -152,16 +154,35 @@ def test_the_tasks_are_read_by_a_known_caller_alone(api: ContractClient) -> None
         assert (response.status_code, response.json()["code"]) == (401, "SESSION_REQUIRED")
 
 
-@pytest.mark.xfail(
-    reason="#799: the list declares no 422 for its parameters, which the service refuses",
-    strict=True,
-)
+def problem(response: Any) -> tuple[int, str, list[str]]:
+    """Give the status, the code and the pointers of the fields of a refusal."""
+    body = response.json()
+    pointers = [field["pointer"] for field in body.get("fields", [])]
+    return response.status_code, body["code"], pointers
+
+
 @pytest.mark.parametrize(
-    "query", ["?status=done", "?limit=0", "?offset=-1", "?finished_since=yesterday"]
+    ("query", "pointer"),
+    [
+        ("?status=done", "/query/status"),
+        ("?status=", "/query/status"),
+        ("?status=%00", "/query/status"),
+        ("?limit=0", "/query/limit"),
+        ("?offset=-1", "/query/offset"),
+        ("?finished_since=yesterday", "/query/finished_since"),
+        ("?finished_since=2026-10-02", "/query/finished_since"),
+        ("?finished_since=2026-10-02T00:00:00", "/query/finished_since"),
+    ],
 )
 def test_a_parameter_the_list_refuses_is_a_value_refused(
-    api: ContractClient, person: Person, query: str
+    api: ContractClient, person: Person, query: str, pointer: str
 ) -> None:
+    # A value outside the schema of a parameter is refused at its field (422), never a 500: an
+    # instant without its offset included. The contract does not declare the 422 of
+    # listBackgroundTasks yet (#799): the answer is read unchecked, and the reminder fails the day
+    # it does, when the answer is to be read through the contract.
     _, headers = person()
-    response = api.get(f"{TASKS}{query}", headers=headers)
-    assert (response.status_code, response.json()["code"]) == (422, "VALIDATION_FAILED")
+    refusal = problem(api.client.get(f"{TASKS}{query}", headers=headers))
+    assert refusal == (422, "VALIDATION_FAILED", [pointer])
+    with pytest.raises(ResponseNotFound, match=r"status: 422$"):
+        api.get(f"{TASKS}{query}", headers=headers)

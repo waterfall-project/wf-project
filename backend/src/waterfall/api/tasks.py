@@ -6,13 +6,14 @@ Each reads the tasks of its caller alone and asks for no permission: a task anot
 for, or that the platform scheduled, does not exist for the caller.
 """
 
-from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import AwareDatetime
 
 from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import BackgroundTaskRef, BackgroundTaskStatus, PaginationMeta
 from waterfall.api.queries import listed
 from waterfall.platform.errors import NotFoundError
@@ -40,9 +41,12 @@ def task_ref(row: BackgroundTask) -> BackgroundTaskRef:
 
 
 def task_filters(
-    status: Annotated[str | None, Query()] = None, finished_since: datetime | None = None
+    status: Text | None = None, finished_since: AwareDatetime | None = None
 ) -> TaskFilters:
-    """Read the states kept, separated by commas, and since when the finished tasks are kept."""
+    """Read the states kept, separated by commas, and since when the finished tasks are kept.
+
+    The moment is an instant: a date alone, or an hour without its offset, is refused (422).
+    """
     return TaskFilters(listed("status", status, BackgroundTaskStatus), finished_since)
 
 
