@@ -64,6 +64,7 @@ from test_keycloak_platform import (
     administering,
     ask_forgotten,
     claims,
+    lasts,
     mailed_link,
     password_grant,
     relay,
@@ -194,14 +195,6 @@ def locked_out(admin: httpx2.Client, account: Account) -> None:
             time.sleep(0.1)
         locked = password_grant(realm, account, PASSWORD)
         assert (locked.status_code, locked.json()["error"]) == (401, "invalid_grant"), locked.text
-
-
-def lasts(token: dict[str, Any], seconds: int) -> bool:
-    """Tell whether a token lives ``seconds``, or a second less.
-
-    Keycloak writes its end before its issue, which may fall the second after (#853).
-    """
-    return token["exp"] - token["iat"] in {seconds - 1, seconds}
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")

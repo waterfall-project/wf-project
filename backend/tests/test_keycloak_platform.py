@@ -342,11 +342,20 @@ def claims(token: str) -> dict[str, Any]:
     return cast("dict[str, Any]", json.loads(decoded))
 
 
+def lasts(token: dict[str, Any], seconds: int) -> bool:
+    """Tell whether a token lives ``seconds``, give or take a second.
+
+    Keycloak reads the clock once for its end and once for its issue, in either order: the second
+    may turn between the two (#853).
+    """
+    return token["exp"] - token["iat"] in {seconds - 1, seconds, seconds + 1}
+
+
 def test_the_realm_lends_tokens_of_five_minutes_to_the_service_account(
     service_token: str,
 ) -> None:
     read = claims(service_token)
-    assert read["exp"] - read["iat"] == 300
+    assert lasts(read, 300)
     assert read["azp"] == "waterfall-service"
 
 
