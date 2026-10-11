@@ -858,7 +858,8 @@ refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REF
 faux back ne garde rien (`MockupNotice`).
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
-`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
+`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
+celui des rôles, branché sur le service (plus bas) : les
 comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
 serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
 filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
@@ -879,23 +880,36 @@ contrat. Les rôles d'habilitation sont sur la grille dense eux aussi
 `holder_count_max`, `RangeFilter` de forme `count`, un entier depuis zéro ; une borne refusée dite
 à son champ, la liste non lue) —, sans pagination — le
 §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
-des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
+des permissions montre les rôles que la table retient, dans son ordre (US-0380) — une ligne par
 permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
 niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
 accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
+aucune commande. La recherche et les filtres de la table des rôles sont gardés avec les réglages de
+sa grille (`GridConfig.filters`, `kept-filters.ts`, sous `filters` de `GridPreferences`, tels que
+l'adresse les écrit) : enregistrés dès que la page en montre d'autres que ceux gardés — une lecture
+levée comprise —, et retrouvés seulement à l'ouverture de l'écran sur une adresse qui ne dit rien de
+la grille, ni tri, ni recherche, ni filtre, que l'écran remplace alors par celle des filtres gardés ;
+dans l'écran, une adresse qui ne dit rien est une lecture levée. L'écran des rôles est branché sur le
+service (US-0380/L2, #380) : à une session qui porte `access_roles.write`, la table crée un rôle en
+ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa cellule — la saisie de la
+grille, écrite par `updateAccessRole` depuis la version lue avec les permissions de la ligne — et le
+supprime depuis sa ligne — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite
+par sa condition, tant qu'un compte porte le rôle (`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matrice
+est le lieu de la modification des permissions, une case à cocher par permission et par rôle
+(`permission-matrix.tsx`), qui écrit le rôle entier, ses permissions dans l'ordre du catalogue, les
+autres cases du rôle attendant la réponse, dont la version sert l'écriture suivante. Un refus se dit
+par le catalogue des codes d'erreur au-dessus de la table ou de la matrice, sur la lecture d'où il
+est parti (`Reactivations`) — le dernier administrateur (`LAST_ADMINISTRATOR`), la version périmée
+avec l'offre de relire —, un libellé refusé à son champ ; toute écriture répondue relit la page.
+Pour les comptes, décidé par l'auteur le 2026-10-08 (#379, #515) : des boutons
 seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
 `users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
 en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
 « Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
 absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; à une session qui porte
-`access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
-et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
-sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
-409, WF-ADM-0090), et la désactivation du dernier compte actif qui porte les permissions de
+(WF-ADM-0060) ; la désactivation du dernier compte actif qui porte les permissions de
 modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
 pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
 le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient

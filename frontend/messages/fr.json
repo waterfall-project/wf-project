@@ -1250,9 +1250,11 @@
       "none": "Aucun rôle d’habilitation.",
       "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
       "create": "Créer un rôle",
-      "modify": "Modifier",
       "delete": "Supprimer",
-      "modifyRole": "Modifier « {name} »",
+      "creation": "Création d’un rôle",
+      "newLabel": "Nouveau rôle",
+      "created": "« {name} » créé.",
+      "deleted": "« {name} » supprimé.",
       "deleteRole": "Supprimer « {name} »",
       "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte.",
       "kindFilter": "Nature",
@@ -1266,7 +1268,8 @@
       "function": "Fonction",
       "permission": "Permission",
       "held": "Accordée",
-      "notHeld": "Non accordée"
+      "notHeld": "Non accordée",
+      "cell": "« {permission} » pour « {role} »"
     },
     "status": {
       "version": "Version installée : {version}",

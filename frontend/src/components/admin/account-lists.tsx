@@ -8,17 +8,14 @@
  * by origin, by node, by access role and by state, a page of the list the server pages, and the
  * commands of the accounts for a session that may modify them, which EP-03 wires; each access role,
  * predefined or composed, with how many accounts hold it (WF-ADM-0010, WF-ADM-0090), filtered by
- * kind and between bounds of their holders, and the commands of the roles for a session that may
- * modify them, which EP-03 wires; and the matrix of the permissions, a row for each permission of
- * the catalogue as `listPermissions` gives it, gathered under the name of the function of the
- * second level it covers — or the kind of the action it guards —, a column for each role, which
- * holds it or not (WF-ADM-0100), where EP-03 modifies a role. The forms belong to the epic of the
- * administration, and no screen creates a permission.
+ * kind and between bounds of their holders, and, for a session that may modify the roles, created in
+ * line, renamed in its cell and deleted from its row (US-0380, `role-commands.tsx`) — its
+ * permissions are written in their matrix (`permission-matrix.tsx`).
  *
  * A list says it is empty only when nothing narrows it: a search or a filter that retains nothing
  * keeps its grid, the search shown to be changed.
  */
-import { Check, KeyRound, ShieldCheck, Users } from "lucide-react";
+import { ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -30,23 +27,14 @@ import { OFFSET, type GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { RangeFilter } from "@/components/grid/range-filter";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
-import { CELL, ICON } from "@/components/projects/project-tables";
 import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { functionAt } from "@/navigation/functions";
 
 import { AccessRoleGrid, UserGrid } from "./admin-grid";
 import type { AccessRoleSort, User, UserPage, UserSort } from "./admin-grids";
-import { CreateCommand, LaterCommands, LaterNotice } from "./later-commands";
+import { LaterNotice } from "./later-commands";
 import { HOLDER_COUNT, PREDEFINED } from "./role-address";
+import { CreateRole, RoleCommands } from "./role-commands";
 import {
   ACCESS_ROLES,
   INCLUDE_INACTIVE,
@@ -59,7 +47,6 @@ import {
 } from "./user-address";
 
 type AccessRole = components["schemas"]["AccessRole"];
-type Permission = components["schemas"]["Permission"];
 
 /** An access role the accounts may be restricted to, by its identifier and its label. */
 export interface RoleChoice {
@@ -225,8 +212,8 @@ function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
 
 /**
  * The access roles, each predefined or composed, with how many accounts hold it, filtered by kind
- * and between bounds of their holders; for a session that may modify them, the command that
- * creates one, and those that modify and delete each. Bounds the API refuses (422) leave the list
+ * and between bounds of their holders; for a session that may modify them, the creation of one in
+ * line, its label entered in its cell and its deletion. Bounds the API refuses (422) leave the list
  * unread, the bound said at its field, a sentence standing for the grid.
  */
 export function AccessRoleList({
@@ -266,119 +253,13 @@ export function AccessRoleList({
   return (
     <ReferenceSection title={t("title")} icon={ShieldCheck}>
       {editable ? (
-        <LaterCommands>
-          <CreateCommand kind="role" />
-          <LaterNotice />
+        <RoleCommands>
+          <CreateRole />
           {shown}
-        </LaterCommands>
+        </RoleCommands>
       ) : (
         shown
       )}
-    </ReferenceSection>
-  );
-}
-
-/**
- * The permissions of the catalogue, in its order, gathered into runs of those that cover the same
- * function of the second level — or, outside any function, that are of the same kind. A run follows
- * the order of the catalogue: nothing is moved.
- */
-function runsOf(permissions: readonly Permission[]): Permission[][] {
-  const runs: Permission[][] = [];
-  for (const permission of permissions) {
-    const last = runs.at(-1);
-    const head = last?.[0];
-    if (last !== undefined && head !== undefined && sameRun(head, permission)) {
-      last.push(permission);
-    } else {
-      runs.push([permission]);
-    }
-  }
-  return runs;
-}
-
-/** Whether two permissions cover the same function, or are of the same kind outside any. */
-function sameRun(one: Permission, other: Permission): boolean {
-  const fbs = one.fbs_code ?? null;
-  return fbs === (other.fbs_code ?? null) && (fbs !== null || one.kind === other.kind);
-}
-
-/**
- * What heads a run: the name of its function — never its code of the FBS, an internal key the user
- * has no use for (decision of the author on #515, 2026-10-08) —, or the kind of its actions, for a
- * function the navigation does not know.
- */
-function RunHeading({ head }: { readonly head: Permission }) {
-  const t = useTranslations();
-  const fbs = head.fbs_code ?? null;
-  const fn = fbs === null ? undefined : functionAt(fbs);
-  return fn === undefined ? t(`enums.Permission.kind.${head.kind}`) : t(fn.label);
-}
-
-/** Whether a role holds a permission — said by a mark and a word, not by colour. */
-function Held({ held }: { readonly held: boolean }) {
-  const t = useTranslations("admin.permissions");
-  return held ? (
-    <span className="inline-flex items-center gap-1.5">
-      <Check aria-hidden="true" className={ICON} />
-      <span className="sr-only">{t("held")}</span>
-    </span>
-  ) : (
-    <span className="sr-only">{t("notHeld")}</span>
-  );
-}
-
-/**
- * The matrix of the permissions: a row for each permission of the catalogue, under the function it
- * covers, a column for each access role.
- */
-export function PermissionMatrix({
-  permissions,
-  roles,
-}: {
-  readonly permissions: readonly Permission[];
-  readonly roles: readonly AccessRole[];
-}) {
-  const t = useTranslations();
-  const title = t("admin.permissions.title");
-  // What each role holds, as the server lists it.
-  const holds = roles.map((role) => ({ role, codes: new Set<string>(role.permissions) }));
-  return (
-    <ReferenceSection title={title} icon={KeyRound}>
-      <Table aria-label={title} className="w-full">
-        <TableHeader>
-          <TableRow>
-            <TableHead className={CELL}>{t("admin.permissions.function")}</TableHead>
-            <TableHead className={CELL}>{t("admin.permissions.permission")}</TableHead>
-            {roles.map((role) => (
-              <TableHead key={role.access_role_id} className={`${CELL} text-center`}>
-                {role.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        {runsOf(permissions).map((run) => (
-          <TableBody key={run[0]?.code} className="border-t">
-            {run.map((permission, at) => (
-              <TableRow key={permission.code}>
-                {at === 0 ? (
-                  <TableHead scope="rowgroup" rowSpan={run.length} className={`${CELL} align-top`}>
-                    <RunHeading head={permission} />
-                  </TableHead>
-                ) : null}
-                <TableHead scope="row" className={`${CELL} font-normal`}>
-                  {t(`permissions.${permission.code}`)}
-                </TableHead>
-                {holds.map(({ role, codes }) => (
-                  <TableCell key={role.access_role_id} className={`${CELL} text-center`}>
-                    <Held held={codes.has(permission.code)} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        ))}
-      </Table>
     </ReferenceSection>
   );
 }

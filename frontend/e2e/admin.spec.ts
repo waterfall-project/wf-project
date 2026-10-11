@@ -195,7 +195,7 @@ test("offers the commands of the accounts, each available with EP-03 or unavaila
   ).not.toHaveAttribute("aria-disabled");
 });
 
-test("offers the commands of the access roles, each available with EP-03, and sorts the roles by the server", async ({
+test("deletes an access role from its row, its deletion unavailable while an account holds it, and sorts the roles by the server", async ({
   page,
 }) => {
   await page.goto("/admin/access-roles");
@@ -205,21 +205,27 @@ test("offers the commands of the access roles, each available with EP-03, and so
     roles,
     "/admin/access-roles?sort_by=holder_count&sort_order=asc",
   );
-  const told = page.getByRole("main").getByRole("status").filter({ hasText: /EP-03/ });
-  // A role an account holds is not deleted: its deletion is unavailable, and says nothing.
+  // A role an account holds is not deleted: its deletion is unavailable.
   await expect(
     roles.getByRole("button", { name: "Supprimer «\u00a0Chiffreur\u00a0»" }),
   ).toHaveAttribute("aria-disabled", "true");
+  // The fake back answers the deletion, and keeps nothing: the page read anew lists the role still.
   await roles.getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }).click();
-  await expect(told).toHaveText(
-    "Supprimer «\u00a0Administrateur\u00a0»\u00a0: disponible avec EP-03.",
-  );
-  await page.getByRole("button", { name: "Créer un rôle" }).click();
-  await expect(told).toHaveText("Créer un rôle\u00a0: disponible avec EP-03.");
-  // Every role stays in the matrix, whatever the grid asks.
   await expect(
-    page.getByRole("table", { name: "Permissions par fonction" }).getByRole("columnheader"),
-  ).toHaveCount(9);
+    page
+      .getByRole("main")
+      .getByRole("status")
+      .filter({ hasText: /supprimé/ }),
+  ).toHaveText("«\u00a0Administrateur\u00a0» supprimé.");
+  await expect(page.getByRole("form", { name: "Création d’un rôle" })).toBeVisible();
+  // A column of the matrix for each role the table retains, each cell a checkbox.
+  const matrix = page.getByRole("table", { name: "Permissions par fonction" });
+  await expect(matrix.getByRole("columnheader")).toHaveCount(9);
+  await expect(
+    matrix.getByRole("checkbox", {
+      name: "«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0Administrateur\u00a0»",
+    }),
+  ).toBeChecked();
 });
 
 test("filters the access roles by their kind and between bounds of their holders, under the names of the contract [WF-IHM-0130-A]", async ({

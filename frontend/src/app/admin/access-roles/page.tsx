@@ -6,26 +6,27 @@
  * filtered by the server as the address asks under the names of the contract (#515, EP-02/L42f) —
  * `sort_by`, `sort_order`, `search`, the kind `is_predefined`, the bounds of the holders
  * `holder_count_min` and `holder_count_max`, which, refused (422), leave the grid unread and are
- * said at their field —; the volumes of §4.6.2
- * count no roles, three of them predefined: the list holds in one page, which the contract does not
- * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
- * gives the catalogue, a column for each role (WF-ADM-0100), every role in the order the server
- * gives them, whatever the grid asks. A session that may modify the roles is offered the commands
- * to create, modify and delete one, which EP-03 wires (US-0380/L2); another, none. No screen creates
- * a permission. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
- * say.
+ * said at their field —, its sort and its filters kept with the settings of the grid; the volumes of
+ * §4.6.2 count no roles, three of them predefined: the list holds in one page, which the contract
+ * does not page, and says how many roles it retains —; and the matrix of the permissions by function
+ * of the second level, as `listPermissions` gives the catalogue, a column for each role the table
+ * retains, in its order (WF-ADM-0100, US-0380). A session that may modify the roles creates one in
+ * line, renames one in its cell, deletes one from its row, and writes their permissions in the
+ * matrix (US-0380, #380); another, none. No screen creates a permission. A read the API refuses, or
+ * cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { AccessRoleList, PermissionMatrix } from "@/components/admin/account-lists";
+import { AccessRoleList } from "@/components/admin/account-lists";
 import {
   ACCESS_ROLE_GRID_KEY,
   ACCESS_ROLE_SORTS,
   type AccessRoleSort,
 } from "@/components/admin/admin-grids";
+import { PermissionMatrix } from "@/components/admin/permission-matrix";
 import { HOLDER_COUNT, PREDEFINED, rolesQuery } from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
 import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
@@ -59,9 +60,8 @@ function AccessRolesHeader() {
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * Read the roles as the grid asks them — or the bounds the API refuses —, every role for the matrix
- * — the same reading when the grid asks nothing of the server —, and the catalogue of the
- * permissions.
+ * Read the roles as the grid asks them — or the bounds the API refuses —, which the matrix shows
+ * too, and the catalogue of the permissions.
  */
 async function readRoles(filters: {
   readonly query: GridQuery<AccessRoleSort>;
@@ -69,22 +69,15 @@ async function readRoles(filters: {
   readonly holders: Bounds;
 }) {
   const client = serverClient();
-  const asked = rolesQuery(filters);
-  const narrowed = Object.keys(asked).length > 0;
-  const [listed, every, permissions] = await Promise.all([
+  const [listed, permissions] = await Promise.all([
     readOrRefused("listAccessRoles", BOUNDS_REFUSED, () =>
-      client.GET("/access-roles", { params: { query: asked } }),
+      client.GET("/access-roles", { params: { query: rolesQuery(filters) } }),
     ),
-    narrowed ? readOrFail("listAccessRoles", () => client.GET("/access-roles")) : undefined,
     readOrFail("listPermissions", () => client.GET("/permissions")),
   ]);
-  const read = listed.kind === "read" ? listed.data : undefined;
-  return {
-    listed: read ?? [],
-    refused: listed.kind === "read" ? undefined : refusedBounds(listed.problem.fields ?? []),
-    every: every ?? read ?? [],
-    permissions,
-  };
+  return listed.kind === "read"
+    ? { listed: listed.data, refused: undefined, permissions }
+    : { listed: [], refused: refusedBounds(listed.problem.fields ?? []), permissions };
 }
 
 /** Render the access roles and the matrix of their permissions. */
@@ -101,7 +94,7 @@ export default async function AccessRolesPage({
   const query = readGridQuery(search, ACCESS_ROLE_SORTS, preferences?.sort);
   const predefined = readBoolean(search, PREDEFINED);
   const holders = readBounds(search, HOLDER_COUNT, "count");
-  const { listed, refused, every, permissions } = await readRoles({ query, predefined, holders });
+  const { listed, refused, permissions } = await readRoles({ query, predefined, holders });
   const editable = platformOffer(session?.permissions, "access_roles") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.access_roles}>
@@ -114,7 +107,7 @@ export default async function AccessRolesPage({
           filters={{ predefined, holders, refused }}
           editable={editable}
         />
-        <PermissionMatrix permissions={permissions} roles={every} />
+        <PermissionMatrix permissions={permissions} roles={listed} editable={editable} />
       </PendingAddress>
     </Screen>
   );
