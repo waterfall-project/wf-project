@@ -211,10 +211,11 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state and the attribution of its roles. The one active account that holds the
-    # permissions to modify the accounts and the access roles has its deactivation unavailable,
-    # the condition `last_administrator` missing (WF-ADM-0120); giving it more roles stays
-    # possible, and every other command listed is available.
+    # changes its state, the anonymisation of a deactivated one, and the attribution of its
+    # roles. The one active account that holds the permissions to modify the accounts and the
+    # access roles has its deactivation unavailable, the condition `last_administrator` missing
+    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
+    # available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -229,12 +230,20 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
         assert user["available_commands"] == listed[user["user_id"]]["available_commands"]
         last = user["user_id"] in administrators
         unmet = ["last_administrator"] if last else []
+        # A deactivated account not anonymised carries its anonymisation too (WF-ADM-0060).
+        anonymize: dict[str, Any] = {
+            "command": "anonymize",
+            "is_available": True,
+            "missing_conditions": [],
+        }
+        anonymization = [] if user["is_active"] else [anonymize]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
                 "is_available": not last,
                 "missing_conditions": unmet,
             },
+            *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
         ], user["last_name"]
 
