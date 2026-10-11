@@ -173,7 +173,6 @@ def test_the_deactivation_of_an_account_signed_in_twice_interrupts_both_at_their
     assert watching.held == [("close_sessions", 0)]
 
 
-@pytest.mark.requirement("WF-ADM-0120-A")
 @pytest.mark.requirement("WF-SEC-0020-A")
 def test_a_token_refreshed_after_a_deactivation_then_a_reactivation_is_refused(
     client: ContractClient,
@@ -201,6 +200,7 @@ def test_a_token_refreshed_after_a_deactivation_then_a_reactivation_is_refused(
     assert client.get(ME, headers=again).status_code == 200
 
 
+@pytest.mark.requirement("WF-ADM-0120-A")
 def test_the_deactivation_of_the_last_administrator_is_refused_until_a_second_one_is_active(
     client: ContractClient,
     database: Database,
