@@ -132,9 +132,9 @@ describe("the screen of the timelines", () => {
     // Deux chronologies d'un même projet portent des sélections distinctes: the customer's, the
     // two receptions alone, the core read whole.
     server.answers = { ...server.answers, [NODES]: "nodes_core" };
-    const table = text(
-      (await timelinesAt({ timeline: CUSTOMER })).split('aria-label="Revue client"')[1] ?? "",
-    );
+    const page = await timelinesAt({ timeline: CUSTOMER });
+    // The table, and the group it scrolls in, both bear the name of the timeline.
+    const table = text(page.slice(page.indexOf('aria-label="Revue client"')));
     expect(table).toContain("6 Réception des études");
     expect(table).toContain("18 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");

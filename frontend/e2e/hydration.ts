@@ -50,6 +50,34 @@ export async function openHydrated(page: Page, address: string): Promise<void> {
 }
 
 /**
+ * Wait until React has hydrated every element of the page the keyboard can reach, on any screen,
+ * of a project or not: React marks each element it hydrates with its props (`__reactProps$…`), a
+ * detail of its own, read by the paths alone. A walk by the keyboard needs it: an element that
+ * hydration renders anew drops the focus to the document, and the walk would start over. The
+ * tools of the development server of Next live in a shadow root of their own, out of reach of the
+ * search.
+ */
+export async function untilHydrated(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const reachable = [
+            ...document.querySelectorAll("a[href], button, input, select, textarea, [tabindex]"),
+          ];
+          return (
+            reachable.length > 0 &&
+            reachable.every((element) =>
+              Object.keys(element).some((key) => key.startsWith("__reactProps$")),
+            )
+          );
+        }),
+      { message: `React hydrated ${new URL(page.url()).pathname}`, timeout: WORKING },
+    )
+    .toBe(true);
+}
+
+/**
  * Open or close what a button discloses — a block of the navigation, a menu, the side bar — on a
  * page that may not be hydrated yet: no project is opened there, and nothing witnesses its
  * hydration. The button is pressed only while it does not say the state asked, so a press that

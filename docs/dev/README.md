@@ -1566,11 +1566,13 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
   est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et que les plus longs pèsent : en octobre 2026, le plus
-  long de trois morceaux jouait environ 140 s de parcours sur deux workers, celui de quatre
-  130 s, quand chaque morceau paie environ deux minutes d'image, d'installation et de
-  serveurs. Ce choix se revoit quand les parcours s'allongent : les durées par fichier se
-  lisent dans le journal de chaque morceau.
+  de parcours, à nombre de tests égal, et que les plus longs pèsent — sauf un fichier joué test
+  par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
+  à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
+  de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
+  minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
+  la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
+  par fichier se lisent dans le journal de chaque morceau.
 
 Le back suivra le même modèle dès qu'EP-03 lui donne une base et des parcours (#492, levier 5),
 et `back.yml` s'écrira ainsi :
@@ -1919,6 +1921,73 @@ sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API 
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
 contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
 
+L'accessibilité minimale de chaque écran (US-0200, WF-IHM-0100) se contrôle dans
+`frontend/e2e/accessibility.spec.ts`, sur les écrans de `frontend/e2e/routes.ts` : ceux de la table
+de `functions.json`, que lit aussi `screens.spec.ts`, et ceux qu'aucune table ne nomme — le projet
+lui-même, les pages du compte, la connexion et le mot de passe oublié, l'écran « introuvable ».
+`frontend/src/app/screens.test.ts` (`make test-front`) confronte chaque page de `frontend/src/app`
+à ces écrans et aux pages qui ne font que rediriger (`REDIRECTS`) : une page ajoutée sans son écran
+le fait échouer, comme une page de `REDIRECTS` qui ne fait pas que rediriger, ou une route qui en
+intercepte une autre. Chaque écran s'ouvre par son adresse dans une fenêtre de 1366 × 768 points,
+hydraté (`untilHydrated`, qui attend les clés que React pose sur chaque élément qu'atteint le
+clavier), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
+page remise en page comme le navigateur la remet quand on agrandit ; un facteur d'échelle de
+l'appareil changerait les pixels, pas la mise en page. Trois tests par écran contrôlent chacun les
+deux largeurs :
+
+- les règles d'axe pour WCAG A et AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe n'est pas WCAG —,
+  contraste compris, une fois en mode clair et une fois en mode sombre (`colorScheme`), chaque test
+  constatant d'abord le mode peint — aucun `data-theme`, le fond de la charte. Un texte qu'axe laisse
+  « incomplet » avec ses deux couleurs mesurées et une mesure qui échoue — un seul caractère sous le
+  rapport attendu, qu'il ne veut pas appeler un texte, ou un texte de la couleur de son fond — est un
+  écart, ses couleurs dites ; ce qu'axe laisse sans mesure (`unmeasured`), le test le note en
+  annotation, raison par raison (`elmPartiallyObscured`, `bgOverlap`…), les figures de courbe à part — un caractère seul
+  dont axe n'a pas mesuré les couleurs y compte sous sa brièveté, axe l'écrivant par-dessus la raison
+  qui l'a empêché de mesurer. En mode clair, les
+  règles des libellés des champs et des descriptions des images — `label`, `image-alt` et leurs
+  parentes — sont dites à part ;
+- le parcours au clavier (`walkByTab`, `frontend/e2e/tab-walk.ts`, la mesure dans la page par
+  `frontend/e2e/focus-probe.ts`) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
+  là où le premier parcours s'est arrêté, chaque fois jusqu'au retour au premier élément atteint.
+  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste, coupé
+  par la fenêtre et par la boîte de remplissage de chaque boîte qui le rogne le long de ses blocs
+  conteneurs, est l'élément lui-même : rien qui peigne n'est dessiné par-dessus, une couche que le
+  pointeur traverse comprise —, et rien d'autre n'y prend le pointeur, une couche transparente qui
+  capte les clics comprise (`covered`). Il porte un indicateur du focus : un contour ou une ombre
+  qu'il ne portait pas avant le parcours, quand rien n'avait le focus — ou, pour un élément né
+  depuis, qu'il ne porte plus une fois quitté ; un élément né depuis et disparu une fois quitté ne
+  se juge pas, et se dit (`unjudged`) —, non transparent, un côté au moins hors de ce que coupent
+  les boîtes qui le rognent et, à l'intérieur, pas sous ce qui le recouvre : ce que l'élément contient pour une ombre intérieure, un
+  élément positionné pour un contour. Un élément atteint deux fois avant le retour au premier est
+  un piège, comme un élément qui garde le focus d'un Tab à l'autre plus longtemps qu'un champ fait
+  de champs — le jour, le mois et l'année d'une date. Chaque élément que Tab peut atteindre —
+  affiché, actif, d'ordre clavier non négatif — doit être atteint lui-même, ou, pour un widget qui
+  déplace lui-même le focus (grille, arbre, menu, liste, groupe de radios, onglets, barre d'outils),
+  le focus doit entrer en lui ; chacun de ces widgets doit être entré (`stopless`) ; aucun élément
+  ne doit se trouver entier au-delà du bord d'une boîte qui cache ce qui la déborde, que le
+  navigateur fait défiler au focus mais que le pointeur n'atteint pas — une boîte que l'utilisateur
+  fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
+  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
+  l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
+  l'atteint encore à 911 (`lost`).
+
+`frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
+d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
+nommer y est nommé, et ce qu'ils doivent laisser passer passe. Les outils du serveur de
+développement de Next (`nextjs-portal`), que le front construit n'a pas, sont écartés d'axe et du
+parcours. Le fichier se joue test par test (`mode: "parallel"`) : Playwright répartit ses tests un à
+un entre les workers et les morceaux de la chaîne, et non le fichier en bloc ; chacun prend
+`test.slow()`, car il ouvre un écran à froid, que le serveur de développement compile à sa première
+visite, puis le contrôle deux fois. Un écart relevé se corrige dans l'écran, jamais en écartant une
+règle.
+
+Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
+un menu, le refus d'une cellule, l'éditeur d'une cellule — n'est pas parcouru, ni ce qu'un
+`details` fermé contient, ni un état qu'un geste atteint (un refus, `?import=`) ; axe ne juge pas le
+contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indicateur du focus
+(WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
+ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
+
 *Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
 
@@ -2207,7 +2276,8 @@ les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `curr
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
 compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
-contrôle dans le navigateur (US-0200) ; le reste de l'accessibilité d'un composant, dans ses
+contrôle dans le navigateur, sur chaque écran de la table, en clair et en sombre
+(`frontend/e2e/accessibility.spec.ts`, US-0200) ; le reste de l'accessibilité d'un composant, dans ses
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
 ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un

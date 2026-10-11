@@ -60,7 +60,10 @@ export function ListSection({
   );
 }
 
-/** A table of a list, named by its title, with its column headers. */
+/**
+ * A table of a list, named by its title, with its column headers, in a group of the same name that
+ * the keyboard reaches, and scrolls when the list overflows its box.
+ */
 export function ListTable({
   label,
   columns,
@@ -71,7 +74,7 @@ export function ListTable({
   readonly children: ReactNode;
 }) {
   return (
-    <Table aria-label={label} className="w-full">
+    <Table aria-label={label} list={label} className="w-full">
       <TableHeader>
         <TableRow>
           {columns.map((column) => (

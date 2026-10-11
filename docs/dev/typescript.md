@@ -110,12 +110,25 @@ jamais un, et un défaut se juge sous le nom qu'on lui donne.
 ### Accessibilité
 
 Un contrôle se trouve par son rôle et son nom accessible : un bouton est un `button`, un
-lien un `a`, une icône seule porte un nom. Tout se fait au clavier.
+lien un `a`, une icône seule porte un nom. Tout se fait au clavier : un lien ou un bouton ne sort
+de l'ordre du clavier (`tabIndex={-1}`) que dans un widget qui déplace lui-même le focus — une
+grille, un arbre, un menu, une barre d'outils. Le focus se voit : ce que Tab atteint prend, au
+focus, un contour ou un anneau qu'il ne porte pas sans lui, sur lui ou sur la boîte où il dessine
+son contenu, peint au-dessus de ce qu'il contient et que nulle boîte qui défile ne coupe. Une liste
+dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'ordre du clavier, un
+groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
+que `ListTable` et `TimelineTable` posent ; `scrollingList` pour une autre boîte, les valeurs d'une
+courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
+ne rend pas focalisable de lui-même un conteneur qui défile.
 
 *Pourquoi* : l'accessibilité minimale de la spécification (§3.6), et des parcours qui
 trouvent les éléments comme un utilisateur. *Contrôle* : les quelques règles `jsx-a11y`
-qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; le
-reste, la revue.
+qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; sur
+chaque écran de l'application, tel qu'il s'ouvre, `e2e/accessibility.spec.ts` (`make e2e`) : les
+règles d'axe pour WCAG A et AA, en clair et en sombre, les libellés et les descriptions, et le parcours
+au clavier, à 1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible`
+dans les tests des composants, pour une partie des dialogues, des menus et des formulaires que le
+harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
 
 ### Les tests
 

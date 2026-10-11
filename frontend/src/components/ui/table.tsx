@@ -13,17 +13,52 @@ import type { ComponentProps } from "react";
 
 import { cn } from "./utils";
 
-/** A table: its scrolling container, and the table itself. */
+/**
+ * What makes the box a list scrolls in a group the keyboard reaches, under the name of the list: a
+ * group, not a region, for the list is already in the region of its section, under the same name.
+ * Its focus is an outline of the ring drawn inside its edge, above what it holds — the outline of
+ * the browser, outside, would be cut by a box that scrolls around it. A dense grid needs none: its
+ * active cell takes the focus, and its arrows scroll it.
+ */
+export function scrollingList(name: string): {
+  readonly role: "group";
+  readonly "aria-label": string;
+  readonly tabIndex: 0;
+  readonly className: string;
+} {
+  return {
+    role: "group",
+    "aria-label": name,
+    tabIndex: 0,
+    className: "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+  };
+}
+
+/**
+ * A table: its scrolling container, and the table itself. The container of a list, whose cells
+ * take no focus, is a group named after it that Tab reaches (`list`, `scrollingList`): a list
+ * wider than its box — the permissions of every role, a list in a window zoomed to 150 % — then
+ * scrolls by the arrows of the keyboard, in every browser, Safari among them, which lets no box
+ * that scrolls take the focus of itself (WF-IHM-0100).
+ */
 export function Table({
   className,
   container,
+  list,
   ...props
-}: ComponentProps<"table"> & { readonly container?: ComponentProps<"div"> }) {
+}: ComponentProps<"table"> & {
+  readonly container?: ComponentProps<"div">;
+  /** The name of the list, for the group its container is; none for a dense grid. */
+  readonly list?: string;
+}) {
   const { className: containerClassName, ...containerProps } = container ?? {};
+  const { className: groupClassName, ...group } =
+    list === undefined ? { className: undefined } : scrollingList(list);
   return (
     <div
       data-slot="table-container"
-      className={cn("relative w-full overflow-auto", containerClassName)}
+      className={cn("relative w-full overflow-auto", groupClassName, containerClassName)}
+      {...group}
       {...containerProps}
     >
       <table
