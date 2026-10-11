@@ -190,6 +190,7 @@ Contributeur l'a acceptée.
 > À valider : la valeur de cette acceptation au regard des articles 1366 et 1367 du code civil ;
 > si l'identité déclarée, sans justificatif, suffit à établir la chaîne des droits qu'une double
 > licence suppose.
+>
 > À trancher : les données d'identité recueillies et leur conservation, au regard du RGPD.
 
 ## Article 12 — Droit applicable et langue
