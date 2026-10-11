@@ -95,7 +95,7 @@ export function newer(read: User, answered: User | undefined): User {
 /** The commands of the table of the accounts, and the refusals told above it. */
 export function UserCommands({ children }: { readonly children: ReactNode }) {
   return (
-    <Reactivations reads={USER_READS}>
+    <Reactivations reads={USER_READS} fill>
       <Writes>{children}</Writes>
     </Reactivations>
   );
