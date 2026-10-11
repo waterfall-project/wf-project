@@ -19,7 +19,7 @@ jour où elle a été soumise (CLA, article 6.2).
 Le noyau métier, le service d'API, le worker, le front, le contrat d'interface, la
 spécification et l'outillage du dépôt sont publiés en entier dans ce dépôt public, sous
 AGPL-3.0-only — ou, pour ce qui sert à s'intégrer à Waterfall, comme le contrat d'interface,
-sous une licence libre plus permissive. Toute version que le Bénéficiaire distribue ou héberge
+sous une licence libre plus permissive. Toute version que le Mainteneur distribue ou héberge
 a son code source publié ici, à l'identique.
 
 **Pourquoi.** Waterfall pilote des projets de dix ou quinze ans. Une organisation ne peut y
@@ -59,7 +59,7 @@ ni clé de licence, ni fonction masquée, ni opération réservée à une offre 
 
 **Pourquoi.** Une frontière que le contrat trace se vérifie : il suffit de lire les appels
 d'une offre payante. Et tout ce qu'une offre payante fait, un tiers peut le faire aussi, par le
-même contrat ; l'édition communautaire ne dépend donc jamais du Bénéficiaire pour s'ouvrir à
+même contrat ; l'édition communautaire ne dépend donc jamais du Mainteneur pour s'ouvrir à
 d'autres outils.
 
 > À trancher : cet engagement écarte des modules payants dans le noyau, activés par une clé de
@@ -83,7 +83,7 @@ Toute contribution reçue sous l'accord de contribution est publiée sous AGPL-3
 une autre licence approuvée par l'Open Source Initiative, y compris lorsqu'elle est aussi
 intégrée à une offre payante (CLA, article 6.1).
 
-**Pourquoi.** L'accord donne au Bénéficiaire le droit de distribuer une contribution sous
+**Pourquoi.** L'accord donne au Mainteneur le droit de distribuer une contribution sous
 d'autres conditions ; cet engagement garantit que ce droit s'ajoute à la licence libre, et ne la
 remplace jamais.
 
