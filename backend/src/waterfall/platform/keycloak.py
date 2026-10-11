@@ -3,8 +3,9 @@
 """The client of Keycloak: the keys of the realm, and how Keycloak is reached (PBS-2.5).
 
 An access token is validated by the public keys of the realm — signature, issuer, audience,
-expiry — and gives nothing but its subject and the moment it was issued (WF-ARC-0030), which tells
-a token issued before its holder closed her sessions (#668). The keys are kept, read again when a
+expiry — and gives nothing but its subject and the moment of the sign-in it comes from
+(WF-ARC-0030), which tells a token signed in for before its sessions were closed, by its holder or
+by the deactivation of the account (#668, #835). The keys are kept, read again when a
 token names a key that is not among them — the realm has added one — and when they have been
 kept for the life of an access token: a key the realm has removed stops serving within it. While
 Keycloak fails to give them — it does not answer, or answers what the realm does not serve —, the
@@ -135,8 +136,9 @@ class Keycloak:
 
         An expired token is ``SESSION_EXPIRED`` (401); any other fault — a key the realm does not
         have, a signature that does not match, another issuer, another audience, no subject, no
-        moment of issue, or a moment of sign-in that is none — is ``SESSION_REQUIRED`` (401). The
-        signature is checked first: an expired token signed by another key is not merely expired.
+        moment of issue, or a moment of sign-in that is none or that no date can hold — is
+        ``SESSION_REQUIRED`` (401). The signature is checked first: an expired token signed by
+        another key is not merely expired.
         """
         try:
             key_id = jwt.get_unverified_header(token).get("kid")
@@ -170,7 +172,12 @@ class Keycloak:
             or not is_moment(signed_in_at)
         ):
             raise UnauthenticatedError(SESSION_REQUIRED)
-        return Bearer(subject, datetime.fromtimestamp(signed_in_at, UTC))
+        try:
+            moment = datetime.fromtimestamp(signed_in_at, UTC)
+        except (OverflowError, OSError, ValueError):
+            # Signed, but beyond any date: ``1e20``, an infinity, not a number.
+            raise UnauthenticatedError(SESSION_REQUIRED) from None
+        return Bearer(subject, moment)
 
     def send(
         self, method: str, path: str, *, answered: Collection[int] = (), **options: Any
