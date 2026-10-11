@@ -718,7 +718,7 @@ class Backup(ContractModel):
     scope: Annotated[
         Scope,
         Field(
-            description="Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première."
+            description="Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris."
         ),
     ]
     origin: Origin | None = None

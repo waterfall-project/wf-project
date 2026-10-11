@@ -87,6 +87,26 @@ class ServiceSettings(Settings):
     keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
     keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
     service_client_secret: SecretStr = Field(min_length=1)
+    # The object storage, reached by the standard operations of S3 (PBS-3.3): its address, its
+    # region, the key of the platform, and the bucket of the backups — settings, so that an operator
+    # plugs in the storage they already run (WF-ARC-0050).
+    storage_address: str = Field(min_length=1, pattern="^https?://")
+    storage_region: str = Field(default="us-east-1", min_length=1)
+    storage_access_key: str = Field(min_length=1)
+    storage_secret: SecretStr = Field(min_length=1)
+    backups_bucket: str = Field(default="backups", min_length=1)
+
+
+class WorkerSettings(ServiceSettings):
+    """What the worker reads besides: the owners of the two databases a backup dumps (#701).
+
+    ``owner_database_url`` is the database of Waterfall as the owner of its tables reaches it, the
+    journal of audit included; ``keycloak_database_url``, the database of the identity provider as
+    its own role reaches it. The worker never acts as either but to dump them.
+    """
+
+    owner_database_url: SecretStr = Field(min_length=1)
+    keycloak_database_url: SecretStr = Field(min_length=1)
 
 
 def load_settings() -> Settings:
@@ -100,6 +120,11 @@ def load_settings() -> Settings:
 def load_service_settings() -> ServiceSettings:
     """Read the settings of a process that reaches Keycloak, as ``load_settings`` does."""
     return _load(ServiceSettings)
+
+
+def load_worker_settings() -> WorkerSettings:
+    """Read the settings of the worker, as ``load_settings`` does."""
+    return _load(WorkerSettings)
 
 
 def _load[Kind: Settings](kind: type[Kind]) -> Kind:

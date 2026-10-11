@@ -504,7 +504,7 @@ export interface paths {
         put?: never;
         /**
          * Déclencher une sauvegarde
-         * @description Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état cohérent, à l'exception du journal d'audit ; l'archive est vérifiée après sa production avant de passer `passed` (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+         * @description Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état cohérent, le journal d'audit compris, sauvegardé avec la base de Waterfall (WF-SEC-0030) ; l'archive est vérifiée après sa production, et la sauvegarde apparaît dans la liste avec le résultat de sa vérification (WF-ADM-0150). Confiée au worker (WF-ARC-0090), qui l'inscrit au journal d'audit. Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         post: operations["startBackup"];
         delete?: never;
@@ -546,7 +546,7 @@ export interface paths {
         };
         /**
          * Copier une sauvegarde hors de la plateforme
-         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150) : l'archive telle que le stockage objet la garde, rendue en flux. Elle porte les deux bases entières, comptes et réglages du fournisseur d'identité compris : sous la permission de consulter les sauvegardes et celle de les modifier (`backups.read`, `backups.write`, WF-ADM-0100).
          */
         get: operations["downloadBackup"];
         put?: never;
@@ -2963,7 +2963,7 @@ export interface components {
         AccessRoleUpdate: components["schemas"]["AccessRoleWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs deux vidages et d'un manifeste — la date, la version de l'application, la révision du schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
+        /** @description Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs deux vidages et d'un manifeste — la date, la version de l'application, la révision du schéma, les empreintes. Le journal d'audit en fait partie : il est sauvegardé avec la base de Waterfall (WF-SEC-0030), et une restauration réinscrit celles de ses inscriptions qui suivent la date de la sauvegarde (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
         Backup: {
             backup_id: components["schemas"]["Uuid"];
             taken_at: components["schemas"]["Timestamp"];
@@ -2973,7 +2973,7 @@ export interface components {
             /** @description Marquée à conserver, elle échappe à la rotation (WF-ADM-0170). */
             is_retained: boolean;
             /**
-             * @description Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
+             * @description Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris.
              * @enum {string}
              */
             scope: "database";

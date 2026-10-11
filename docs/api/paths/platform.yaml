@@ -35,8 +35,11 @@
     description: >-
       Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du
       fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état
-      cohérent, à l'exception du journal d'audit ; l'archive est vérifiée après sa production
-      avant de passer `passed` (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+      cohérent, le journal d'audit compris, sauvegardé avec la base de Waterfall (WF-SEC-0030) ;
+      l'archive est vérifiée après sa production, et la sauvegarde apparaît dans la liste avec le
+      résultat de sa vérification (WF-ADM-0150). Confiée au worker (WF-ARC-0090), qui l'inscrit au
+      journal d'audit. Sous la permission de modifier les sauvegardes (`backups.write`,
+      WF-ADM-0100).
     responses:
       '202':
         description: Sauvegarde mise en file.
@@ -95,7 +98,12 @@
     operationId: downloadBackup
     tags: [platform]
     summary: Copier une sauvegarde hors de la plateforme
-    description: La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+    description: >-
+      La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150) :
+      l'archive telle que le stockage objet la garde, rendue en flux. Elle porte les deux bases
+      entières, comptes et réglages du fournisseur d'identité compris : sous la permission de
+      consulter les sauvegardes et celle de les modifier (`backups.read`, `backups.write`,
+      WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:

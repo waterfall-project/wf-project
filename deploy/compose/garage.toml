@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Garage, the object storage of the platform (PBS-3.3), on one node: its layout is made at its start
+# (`--single-node`), and the key of the platform from the environment (`--default-access-key`,
+# GARAGE_DEFAULT_ACCESS_KEY and GARAGE_DEFAULT_SECRET_KEY), as is the secret of its RPC
+# (GARAGE_RPC_SECRET): this file holds no secret. Its metadata in SQLite, lighter than LMDB, which
+# maps a large part of the memory. The region is S3's own default, which the service assumes.
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+replication_factor = 1
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+[s3_api]
+s3_region = "us-east-1"
+api_bind_addr = "[::]:3900"
