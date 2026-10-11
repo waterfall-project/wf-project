@@ -692,11 +692,18 @@ describe("an anonymised account in the journal", () => {
     render(
       journal({ shown: designated, named: { ...NAMED, object: { label: null, kind: "user" } } }),
     );
+    // Each row by its date, in the zone of the machine — the hour moves with it, not the day.
     const rows = within(grid()).getAllByRole("row").slice(1, -1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringMatching(/Camille MartinAnonymisation d’un compteCompteCompte anonymisé/),
-      expect.stringMatching(/Camille MartinDésactivation d’un compteCompteCompte anonymisé/),
-      expect.stringMatching(/Camille MartinCréation d’un compteCompteCompte anonymisé/),
+      expect.stringMatching(
+        /^3 juin 2026, \d\d:\d\dCamille MartinAnonymisation d’un compteCompteCompte anonymisé/,
+      ),
+      expect.stringMatching(
+        /^2 mars 2026, \d\d:\d\dCamille MartinDésactivation d’un compteCompteCompte anonymisé/,
+      ),
+      expect.stringMatching(
+        /^12 janv\. 2026, \d\d:\d\dCamille MartinCréation d’un compteCompteCompte anonymisé/,
+      ),
     ]);
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
     expect(
