@@ -325,13 +325,16 @@ insert into user_access_role (user_account_id, access_role_id)
 /**
  * Remove the account of an address from Waterfall, if any, with the roles it holds: what a path
  * made, and that the service offers no way to delete. An account another references — one it
- * created, a task it asked — is refused, and the path fails rather than leave it half done.
+ * created, a task it asked — is refused, and the path fails rather than leave it half done: both
+ * deletions are one transaction, the roles kept when the account is.
  */
 function removeFromWaterfall(email: string): void {
   sql(
-    `delete from user_access_role
+    `begin;
+delete from user_access_role
   where user_account_id in (select id from user_account where email = :'email');
 delete from user_account where email = :'email';
+commit;
 `,
     { email },
   );
