@@ -138,6 +138,49 @@ active les rend toutes ; aucun défaut n'est démontré en production. Ouvert au
 `[EP-14] front : DenseGrid ne mémorise ni ses lignes ni ses cellules` (#620), décision
 reporté → EP-06, qui construit la grille de planning réelle et pourra mesurer.
 
+## Reprise de `main` après la livraison d'EP-03
+
+EP-03 (comptes, authentification et habilitations) est fusionné dans `main` avant EP-14. Quand il
+l'est, `epic/EP-14` reprend `main` par une fusion (pas de rebase), comme le veut la section
+« Branches » du README de la roadmap. Cette section dit ce qui attend cette reprise ; elle a été
+écrite le 2026-10-11 d'après une fusion d'essai d'`epic/EP-03` et d'`epic/EP-14` (22 fichiers en
+conflit), alors qu'EP-03 avait encore une douzaine de lots à livrer : refaire l'essai au moment
+de la reprise (`git merge-tree --write-tree --name-only origin/main origin/epic/EP-14`), la liste
+aura grossi.
+
+**Ce qu'EP-03 change au contrat, et qu'EP-14 doit suivre** (`docs/api/DECISIONS.md`, sections
+d'EP-03) :
+
+- l'authentification est déléguée au fournisseur d'identité : schéma `bearer`, famille `session`
+  retirée, remplacée par `me` (`getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`,
+  `deleteMyAvatar`) ; plus aucun écran de mot de passe ; les exemples `session*` sont devenus
+  `me*` (`fixtures/api/me*.json`) ;
+- toute opération gardée déclare `401` et `503` (`rule/protected-operation-declares-503`), toute
+  opération qui reçoit un corps `400` et `422` (`rule/operation-with-body-declares-400-and-422`) ;
+- tout libellé, nom ou code reçu exige un caractère qui n'est pas un blanc (`pattern: '\S'`) ;
+- le catalogue des permissions compte 51 codes : les fonctions en lecture seule (FBS-1.3, FBS-1.5,
+  FBS-2.1 à FBS-2.7) n'ont plus de permission de modifier ;
+- un tri à égalité se départage par l'ordre de la liste sans tri, puis par l'identifiant ;
+- de nouveaux codes d'erreur (`ACCOUNT_NOT_ADMITTED`…), chacun avec sa phrase dans les deux
+  catalogues du front.
+
+**Les conflits, par nature :**
+
+| Nature | Fichiers (essai du 2026-10-11) | Comment les régler |
+|---|---|---|
+| Engendrés | `frontend/src/api/generated/schema.d.ts`, `examples.d.ts`, `docs/api/INVENTORY.md`, `docs/api/waterfall.bundle.*` | ne pas les fusionner à la main : prendre une version, puis `make generate-client`, `make inventory` (et `make generate-server-models`, `make mock-data` si le contrat ou les exemples ont bougé) |
+| Supprimés d'un côté, modifiés de l'autre | `docs/api/paths/session.yaml`, `fixtures/api/session_without_roles.json` | garder la suppression, et reporter la modification d'EP-14 sur son successeur : le `422` précis d'`updateMyPreferences` (largeur de colonne sous vingt points, exemple `preferences_column_width_out_of_range`, L42r) remplace dans `docs/api/paths/me.yaml` la réponse `422` générique qu'EP-03 y a mise ; le rattachement de Sacha Lefèvre à « Atelier de câblage » (L44b) passe dans `fixtures/api/me_without_roles.json` |
+| Contrat | `docs/api/components/common.yaml`, `schemas/platform.yaml`, `schemas/projects.yaml`, `paths/exchanges.yaml`, `paths/platform.yaml`, `paths/projects.yaml`, `paths/reference.yaml`, `paths/revisions.yaml`, `paths/risks.yaml` | garder les deux côtés : les réponses `400`, `422`, `503` et les motifs `\S` d'EP-03, les opérations et les champs d'EP-14 ; puis `make lint-openapi`, qui signale toute opération d'EP-14 à compléter selon les règles ci-dessus |
+| Décisions | `docs/api/DECISIONS.md` | garder les sections des deux EPIC, dans l'ordre chronologique |
+| Catalogues et outils | `frontend/messages/fr.json`, `en.json`, `tools/paths.toml`, `tools/tests/test_mockhistory.py` | garder les deux côtés ; `make catalogs` dit une clé qui manque ou qui ne correspond plus à un code du contrat |
+| Front | `frontend/src/app/(home)/page.tsx`, `app/reference/pages.test.tsx`, `components/commands/outcome-notice.dom.test.tsx` | relire chaque côté : EP-03 a changé la session (plus de mot de passe, `getMe`, refus `ACCOUNT_DEACTIVATED` et `ACCOUNT_NOT_ADMITTED` sans renvoi à la connexion) |
+
+**Après la fusion**, avant la pull request de reprise : `make check BASE=origin/main`, puis le
+palier complet des deux côtés (`make check-back TIER=full`, `make check-front TIER=full`) ; les
+parcours du faux back échouent parfois par délai sous charge (EP-03, #736) : rejouer seuls ceux
+qui échouent avant de conclure. Le back d'EP-03 demande `WATERFALL_TEST_DATABASE_URL` et
+`WATERFALL_TEST_REDIS_URL` (guide, « Tests »).
+
 ## Conception
 
 Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, composants partagés,
