@@ -383,7 +383,16 @@
       du sous-arbre de celle du poste dans la révision en cours, la saisie aboutit et cette
       tâche ne porte plus le lot. Les révisions marquées le conservent, leurs tâches ne se
       déplaçant plus ; la réponse ne nomme pas la tâche qui perd son lot, que la grille de
-      planning relue montre sans rattachement.
+      planning relue montre sans rattachement. Ce que la saisie avance (WF-IHM-0110) : le
+      compteur du lotissement, toujours ; et, quand elle retire le rattachement de tâches de la
+      révision en cours, le compteur de chacune de ces tâches (`Node.lock_version`) et celui de
+      la structure principale (`CostStructure.lock_version`), comme une écriture de grille — une
+      cellule ou un collage lus avant elle sont refusés par 412 ; un lotissement saisi sans
+      retirer aucun rattachement n'avance que le sien. Elle est indisponible pendant un
+      traitement de fond qui écrit dans la révision en cours ou la fige — marquage, fusion,
+      survenance, application d'un import —, ce que la commande `update_work_breakdown` du
+      projet dit d'avance (`no_background_task_running`, WF-IHM-0080, WF-IHM-0090 ;
+      EP-14/L42s).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -407,6 +416,21 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Une condition que la commande `update_work_breakdown` dit manquante :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première qui manque, dans
+          l'ordre où la commande les liste — `project_not_terminal` sur un projet terminal, dont
+          le paramétrage ne se modifie plus (WF-CYC-0100), comme `updateProject` le refuse, puis
+          `no_background_task_running` tant qu'un traitement de fond écrit dans la révision en
+          cours ou la fige — marquage, fusion, survenance, application d'un import —, la saisie,
+          qui en retirerait des rattachements, attendant qu'il finisse (WF-IHM-0080, WF-IHM-0090 ;
+          EP-14/L42s). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              background_task: { $ref: ../../../fixtures/api/work_breakdown_background_task.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-

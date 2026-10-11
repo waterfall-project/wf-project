@@ -10,7 +10,9 @@
     description: >-
       Nomme chaque prérequis manquant (WF-CYC-0120), dont la catégorie de coût active de type
       provision pour risques, sans laquelle aucun risque ne peut être déclaré (WF-RIS-0010 ;
-      EP-14/L42p, #579).
+      EP-14/L42p, #579). Une installation neuve porte le calendrier par défaut et la catégorie
+      de provision pour risques de l'amorçage (WF-EXP-0020) : il lui manque la catégorie de
+      main-d'œuvre et le rôle de ressource (Vérif de WF-CYC-0120, `incomplete`).
     responses:
       '200':
         description: État du référentiel minimal.
@@ -630,8 +632,9 @@
           change la catégorie ou le calendrier du rôle, un objet désactivé, par
           `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés
           depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une
-          révision en cours sans aucune heure travaillée dans la semaine, ne recoupant jamais
-          celui d'un autre rôle de ses lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`,
+          révision en cours sans aucune heure travaillée dans la semaine : il ne recoupe jamais
+          celui d'un autre rôle de ses lignes de main-d'œuvre, ou, sur une tâche dont ce rôle est
+          le seul, il n'a aucune heure dans la semaine (EP-14/L42s) : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` nommant les rôles en cause et `params.projects` chaque projet
           en cause, par son libellé et son code (`project_label`, `project_code`), sans
           identifiant ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110).
@@ -1287,10 +1290,16 @@
           est rattachée à un rôle de ressource (WF-REF-0030) : `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` la première des conditions que la commande `change_kind` dit
           manquantes, `cost_type_unused`, puis `cost_type_unrated`, puis
-          `cost_type_without_role` ; nommant celle-ci, `params.resource_roles` les rôles rattachés
-          aux catégories de la nature, actifs ou désactivés, chacun par son identifiant, son code
-          et son libellé, qu'il faut d'abord rattacher à une catégorie de main-d'œuvre hors de la
-          nature (WF-IHM-0090). Un code déjà porté par
+          `cost_type_without_role`. Les deux premières se lèvent en rattachant les catégories en
+          cause à une autre nature du même type, ce qui n'est jamais indisponible
+          (`CostCategoryCommand`), et le refus les nomme (WF-IHM-0090 ; EP-14/L42s) :
+          `params.cost_categories`, les catégories de la nature employées pour
+          `cost_type_unused`, celles qui portent un taux horaire pour `cost_type_unrated`, actives
+          ou désactivées, chacune par son identifiant, son code et son libellé, dans l'ordre de
+          leur code. La dernière nomme des rôles : `params.resource_roles` les rôles
+          rattachés aux catégories de la nature, actifs ou désactivés, chacun par son identifiant,
+          son code et son libellé, qu'il faut d'abord rattacher à une catégorie de main-d'œuvre
+          hors de la nature. Un code déjà porté par
           une autre nature, active ou désactivée :
           `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` la nature qui le porte. Rien n'est écrit.
@@ -1318,12 +1327,16 @@
     description: >-
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
       (WF-REF-0010, WF-REF-0020). La désactivation et la réactivation sont toujours disponibles,
-      celle de la dernière nature de type provision pour risques comprise. Ses catégories restent
-      actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie active sous
-      une nature désactivée ne compte pas pour `active_provision_category` : la création d'un
-      projet et la déclaration d'un risque nomment alors ce qui leur manque (WF-REF-0030,
-      WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Relève de la permission de
-      modification des paramètres de coûts (WF-ADM-0100).
+      celle de la dernière nature de type provision pour risques comprise. « Désactiver une nature
+      de coût désactive ses catégories » (WF-REF-0010) : chacune de ses catégories actives est
+      désactivée avec elle, son compteur avance et son audit nomme l'auteur de la désactivation ;
+      la réactivation ne rend active que la nature, ses catégories se réactivant une à une
+      (`setCostCategoryActivation`). Désactiver la dernière nature de type provision pour risques
+      désactive donc sa dernière catégorie : la création d'un projet et la déclaration d'un risque
+      nomment alors ce qui leur manque (`active_provision_category` ; WF-REF-0030, WF-CYC-0120,
+      WF-RIS-0010 ; EP-14/L42s, C-291). L'écriture change l'état et les commandes des catégories
+      de la nature, que la réponse ne porte pas : le client relit leur liste. Relève de la
+      permission de modification des paramètres de coûts (WF-ADM-0100).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
@@ -1547,9 +1560,11 @@
     summary: Désactiver ou réactiver une catégorie de coût
     description: >-
       Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
-      (WF-REF-0010, WF-REF-0020). La réactivation est toujours disponible — une catégorie se
-      réactive même sous une nature désactivée, aucune exigence ne l'en empêchant. La
-      désactivation l'est aussi, celle de la dernière catégorie active de type provision pour
+      (WF-REF-0010, WF-REF-0020). « Une catégorie ne peut être réactivée que si sa nature est
+      active » (WF-REF-0010) : sous une nature désactivée, la réactivation est indisponible,
+      `cost_type_active` manquante, ce que la commande `reactivate` de la catégorie dit d'avance
+      (`available_commands`) ; la nature se réactive d'abord (EP-14/L42s, C-291). La désactivation
+      est toujours disponible, celle de la dernière catégorie active de type provision pour
       risques comprise : la création d'un projet et la déclaration d'un risque nomment alors ce qui
       leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de
       #578). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
@@ -1577,6 +1592,18 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La réactivation d'une catégorie dont la nature est désactivée, refusée, rien n'étant
+          écrit (WF-REF-0010 ; EP-14/L42s, C-291) : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `cost_type_active`, `params.conflicting_object_id` la
+          nature désactivée, à réactiver d'abord, comme le refus de la réactivation d'un nœud nomme
+          son parent (`org_node_parent_active`, WF-IHM-0090).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              type_inactive: { $ref: ../../../fixtures/api/cost_category_reactivation_refused.json }
       '412':
         description: >-
           La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa

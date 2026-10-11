@@ -358,13 +358,14 @@ describe("the empty states of the home", () => {
     );
   });
 
-  // A new installation; then a reference whose one category of provision for risks, PRV-001, was
-  // deactivated (EP-14/L42p).
+  // A new installation, which lacks the labour category and the role alone, its calendar by default
+  // bootstrapped (WF-EXP-0020, EP-14/L42s); then a reference whose one category of provision for
+  // risks, PRV-001, was deactivated (EP-14/L42p).
   it.each([
     [
       "reference_readiness_incomplete",
-      "a default calendar with working hours an active labour category",
-      ["/reference/resources", "/reference/costs"],
+      "an active labour category an active resource role",
+      ["/reference/costs", "/reference/resources"],
     ],
     [
       "reference_readiness_without_provision",
@@ -394,7 +395,7 @@ describe("the empty states of the home", () => {
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
     const html = await home();
-    expect(text(html)).toContain("a default calendar with working hours an active labour category");
+    expect(text(html)).toContain("an active labour category an active resource role");
     expect(links(html)).not.toContain("/reference/costs");
   });
 
@@ -419,7 +420,7 @@ describe("the empty states of the home", () => {
     expect(text(html)).toBe(
       "Projects Create a project The minimum reference data is incomplete. Show only my projects " +
         `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
-        "a default calendar with working hours an active labour category " +
+        "an active labour category an active resource role " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
     );
   });

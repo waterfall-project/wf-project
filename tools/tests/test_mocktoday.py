@@ -213,6 +213,30 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
     assert estimate["delta_to_previous_revision"] == estimate["delta_to_reference"]
 
 
+def test_an_order_item_no_task_bears_is_presented_without_a_total() -> None:
+    # WF-DEV-0060 : « un poste sans tâche rattachée est présenté sans total » ; Vérif : « les totaux
+    # par poste sont absents plutôt que nuls » (#586, #771, EP-14/L42s). Each order item of the
+    # work breakdown, in its order: one that no task bears has neither amount nor share computed.
+    reading = mockindicators.today()
+    other = mockwitness.OrderItem(universe(749), "Mise en service sur site")
+    borne, without = mockindicators.by_order_item(
+        reading, frozenset(), (*mockwitness.WORK_BREAKDOWN, other)
+    )
+    assert borne == mockindicators.by_order_item(reading, frozenset())[0]
+    assert _amount(cast("Node", borne)["amount"]) == Decimal("502434.56")
+    reason = {"is_computable": False, "value": None, "reason": "order_item_without_task"}
+    assert without == {
+        "key": universe(749),
+        "label": "Mise en service sur site",
+        "amount": reason,
+        "share": reason,
+    }
+    # A task that bears an order item the work breakdown does not have is an error of the witness,
+    # never an item left out in silence (relecture 1).
+    with pytest.raises(ValueError, match="not in the work breakdown"):
+        mockindicators.by_order_item(reading, frozenset(), (other,))
+
+
 def test_the_estimate_the_offer_kept_has_neither_gap_nor_provision(today: dict[str, Any]) -> None:
     offer = today["estimate_indicators_breakdown"]
     assert offer["context"]["revision_id"] == mockhistory.OFFER

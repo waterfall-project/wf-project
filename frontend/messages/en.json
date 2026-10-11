@@ -1653,6 +1653,8 @@
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears an order item or a work package.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
+    "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
+    "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error."
   },
@@ -1980,6 +1982,7 @@
     "ProjectCommand": {
       "update": "Edit the project",
       "update_win_probability": "Edit the win probability",
+      "update_work_breakdown": "Enter the work breakdown",
       "manage_contributors": "Manage contributors",
       "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
@@ -1987,6 +1990,7 @@
       "lose": "Declare the project lost",
       "abandon": "Abandon the project",
       "edit_risks": "Edit the risks",
+      "declare_risk": "Declare a risk",
       "declare_risk_occurrence": "Declare that a risk has occurred",
       "import_actual_costs": "Import actual costs",
       "exclude_cost_lines": "Exclude cost lines",
@@ -2022,6 +2026,7 @@
       "org_node_active": "organisation node active",
       "calendar_not_default": "calendar other than the default one",
       "calendar_active": "calendar active",
+      "cost_type_active": "cost type active",
       "cost_type_unused": "no category of the nature employed",
       "cost_type_unrated": "no category of the nature bearing an hourly rate",
       "cost_type_without_role": "no category of the nature attached to a resource role",
@@ -2036,7 +2041,8 @@
       "subproject_not_cited": "subproject cited by no marked revision",
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
-      "main_structure_without_tasks": "main structure without any task"
+      "main_structure_without_tasks": "main structure without any task",
+      "import_file_accepted": "file accepted by the report"
     },
     "ProjectExit": {
       "to_state": {
@@ -2072,6 +2078,7 @@
       "edit_estimate": "Edit the estimate",
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",
+      "declare_risk": "Declare a risk",
       "create_structure": "Create a structure",
       "merge_structure": "Merge a structure",
       "mark": "Mark the revision",
@@ -2302,7 +2309,8 @@
       "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
-      "hourly_rate_missing": "Hourly rate missing for the reference year."
+      "hourly_rate_missing": "Hourly rate missing for the reference year.",
+      "order_item_without_task": "No task bears this order item."
     },
     "CurveSeries": {
       "series": {

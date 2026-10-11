@@ -150,6 +150,11 @@
             "missing_conditions": []
           },
           {
+            "command": "declare_risk",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
             "command": "create_structure",
             "is_available": true,
             "missing_conditions": []

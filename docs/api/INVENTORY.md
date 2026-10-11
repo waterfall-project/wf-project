@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**163 opérations sur 127 chemins, dans 13 familles.**
+**164 opérations sur 127 chemins, dans 13 familles.**
 Le contrat cite **186 des 211 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -99,7 +99,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120, WF-RIS-0010 |
+| GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120, WF-EXP-0020, WF-RIS-0010 |
 | GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
@@ -143,7 +143,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050, WF-CYC-0060 |
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PRJ-0020 |
-| PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-DAT-0080, WF-PLA-0170, WF-PRJ-0020 |
+| PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-DAT-0080, WF-IHM-0080, WF-IHM-0090, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-CRE-0020, WF-PRJ-0050, WF-PRJ-0060 |
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
@@ -157,7 +157,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 28 opérations
+`paths/revisions.yaml` — 29 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -172,6 +172,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0170, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-PLA-0010, WF-PLA-0170, WF-RAE-0050, WF-RIS-0010 |
@@ -242,7 +243,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 |---|---|---|---|
 | POST | `/file-uploads` | Déposer un fichier | WF-ADM-0160, WF-DAT-0120 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0170 |
+| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0150, WF-PLA-0170 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0040, WF-INTF-0080, WF-PLA-0130 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0140 |

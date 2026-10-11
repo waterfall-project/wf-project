@@ -379,16 +379,14 @@ def commands(risk: Risk) -> list[JsonValue]:
 
 
 def is_active_provision(category: str) -> bool:
-    """Whether a category is active under an active nature: active of provision for risks.
+    """Whether a category of provision for risks is active (`active_provision_category`).
 
-    The definition of `active_provision_category` until C-291 makes the deactivation of a
-    nature deactivate its categories (#728).
+    An active category is under an active nature, the deactivation of a nature deactivating its
+    categories (WF-REF-0010; EP-14/L42s, C-291).
     """
     categories = cast("list[JsonObject]", fixture("volume/cost_categories")["items"])
-    natures = cast("list[JsonObject]", fixture("cost_types")["items"])
     [entry] = [each for each in categories if each["cost_category_id"] == category]
-    [nature] = [each for each in natures if each["cost_type_id"] == entry["cost_type_id"]]
-    return entry["is_active"] is True and nature["is_active"] is True
+    return entry["is_active"] is True
 
 
 def _actor() -> JsonObject:
