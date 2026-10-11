@@ -8,7 +8,7 @@ librement dans le document.
 
 Les trente-six entrées de la passe du 2026-10-03 sont tranchées et intégrées ; leurs
 décisions se lisent dans l'historique Git de ce fichier (dernière version complète au
-commit d314a11). Une seule attend son tour.
+commit d314a11). Deux attendent leur tour.
 
 ## 1. Les formats Excel de l'annexe B
 
@@ -37,3 +37,15 @@ commit d314a11). Une seule attend son tour.
     la ligne sans sous-projet (l'ensemble « hors sous-projet »).
 - **PO-01** : l'extraction des engagements et des heures relève de l'après-MVP ; le format
   étant versionné, il s'étendra sans rendre illisibles les fichiers existants.
+
+## 2. Le Vérif de WF-ADM-0120 ne constate pas la modification d'un rôle (#749)
+
+- **Où** : WF-ADM-0120, son Vérif.
+- **Quoi** : le corps interdit de retirer au dernier compte administrateur l'une des
+  permissions `users.write` ou `access_roles.write`, quel que soit le chemin — désactivation
+  du compte, retrait de son rôle, modification ou suppression d'un rôle. Le Vérif ne constate
+  que la désactivation et le retrait du rôle d'un compte : le refus de la modification d'un
+  rôle, qu'EP-03 réalise (US-0380/L1b), n'est constaté par aucune phrase. Relevé par la revue
+  d'US-0380/L1b ; décidé par l'auteur le 2026-10-11 : à intégrer à la prochaine passe.
+- **Texte proposé**, à ajouter au Vérif : « La modification d'un rôle qui retirerait l'une de
+  ces permissions au dernier compte qui les porte est refusée. »
