@@ -176,3 +176,6 @@ users:
         - manage-users
         - view-users
         - query-users
+        # To find the directories the realm federates, whose synchronisation the reading of the
+        # accounts asks for (WF-ADM-0070): a view of the realm, which masks their credentials.
+        - view-realm
