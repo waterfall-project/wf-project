@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Ce que le front doit savoir de l'installation avant toute session
-         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion.
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion. Avant l'amorçage de l'installation (WF-EXP-0020), qui en crée la ligne, l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         get: operations["getInstallation"];
         put?: never;
@@ -234,7 +234,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio.
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio. Un type annoncé (`Content-Type`) autre que `image/png` ou `image/jpeg`, ou un corps vide, est refusé par 400 `MALFORMED_REQUEST` ; un contenu qui n'est ni un PNG ni un JPEG, par 422 `VALIDATION_FAILED` au pointeur `""`, le corps entier. Seule la signature du contenu fait le type gardé : un JPEG annoncé PNG est enregistré en `image/jpeg`. Avant l'amorçage de l'installation (WF-EXP-0020), l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         put: operations["putMyAvatar"];
         post?: never;

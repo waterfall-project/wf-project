@@ -16,7 +16,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/health` | Sonde de vivacité | — |
-| GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-INTF-0160 |
+| GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
@@ -33,7 +33,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/me` | Mon compte et mes préférences | WF-ADM-0040, WF-ADM-0050, WF-ADM-0060, WF-ADM-0110, WF-ADM-0180, WF-ARC-0030, WF-IHM-0090, WF-SEC-0020 |
 | DELETE | `/me/sessions` | Me déconnecter | WF-ARC-0030, WF-SEC-0020 |
 | PATCH | `/me/preferences` | Modifier mes préférences d'affichage | WF-ADM-0040, WF-INTF-0160 |
-| PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080 |
+| PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080, WF-EXP-0020 |
 | DELETE | `/me/avatar` | Retirer mon avatar | WF-ADM-0080 |
 
 ## Comptes, rôles et permissions

@@ -92,7 +92,12 @@
       avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation :
       `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne,
       au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse
-      jamais 8 Mio.
+      jamais 8 Mio. Un type annoncé (`Content-Type`) autre que `image/png` ou `image/jpeg`, ou
+      un corps vide, est refusé par 400 `MALFORMED_REQUEST` ; un contenu qui n'est ni un PNG ni
+      un JPEG, par 422 `VALIDATION_FAILED` au pointeur `""`, le corps entier. Seule la
+      signature du contenu fait le type gardé : un JPEG annoncé PNG est enregistré en
+      `image/jpeg`. Avant l'amorçage de l'installation (WF-EXP-0020), l'opération répond 503
+      `COMPONENT_UNAVAILABLE`, `component` à `database`.
     requestBody:
       required: true
       content:
