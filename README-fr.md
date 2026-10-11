@@ -61,6 +61,7 @@ elle ne mesure rien.
 | `docs/api` | le contrat d'interface : **150 opérations** sur 116 chemins et 147 schémas, en OpenAPI écrit à la main, avec l'inventaire des endpoints et les décisions de conception |
 | `docs/roadmap` | le plan : quatorze EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
 | `docs/dev` | le guide de développement, les règles de codage par langage, et les règles que suivent les agents |
+| `docs/legal` | l'accord de licence de contribution et les engagements du projet envers son édition communautaire — brouillons en relecture |
 | `backend/` | un seul paquet Python : le noyau métier, le service d'API et le worker |
 | `frontend/` | l'application Next.js, son client engendré du contrat, ses parcours de bout en bout |
 | `tools/` | les outils du dépôt : couverture des exigences, contrôle de la roadmap, règles des sources, taille des lots |
