@@ -12,14 +12,27 @@
 
 import { decodeOrLost, type Settled, settled } from "@/api/problem";
 import { isMockAuthentication, serverClient } from "@/api/server";
-import { LOGIN_ROUTE, SIGN_OUT_HREF } from "@/navigation/login";
+import { LOGIN_ROUTE, signOutHref } from "@/navigation/login";
 import { identityProvider } from "@/session/provider";
+import { armSignOut, StoreUnreachable } from "@/session/store";
 import { closeRequestSessions } from "@/session/tokens";
 
 /** A sign-out done: the browser loads the document at the address it gives. */
 export interface SignedOff {
   readonly kind: "left";
   readonly address: string;
+}
+
+/** The silent sign-in that closes every workstation, armed; the service out of reach without Redis. */
+async function armedSignOut(): Promise<Settled | SignedOff> {
+  try {
+    return { kind: "left", address: signOutHref(await armSignOut()) };
+  } catch (error) {
+    if (!(error instanceof StoreUnreachable)) {
+      throw error;
+    }
+    return { kind: "unreachable" };
+  }
 }
 
 /**
@@ -34,12 +47,15 @@ export interface SignedOff {
  * When the session of the front the cookie names lives no more, the request does not leave, and
  * Keycloak may still hold the session of this browser, which would sign the user in again
  * without asking: the browser goes through a silent sign-in, whose token closes the sessions of
- * the account on all its workstations (`SIGN_OUT_HREF`, #689).
+ * the account on all its workstations (#689). Only this action arms it, under a ticket of one use
+ * that `/login` takes (`signOutHref`): a server action, which Next runs for a request of this front
+ * alone, never a link another site could make the browser follow. Redis out of reach, nothing is
+ * armed, and the screen says the service out of reach.
  */
 export async function signOut(): Promise<Settled | SignedOff> {
   const outcome = await decodeOrLost(() => serverClient().DELETE("/me/sessions"));
   if (outcome.kind === "lost") {
-    return { kind: "left", address: SIGN_OUT_HREF };
+    return armedSignOut();
   }
   const refused = outcome.kind === "refused" ? outcome.problem.code : undefined;
   const closed =

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as login } from "@/app/login/route";
 import { createIdentityProvider, type IdentityProvider } from "@/session/provider";
-import { openSession, readSession } from "@/session/store";
+import { armSignOut, openSession, readSession } from "@/session/store";
 import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provider";
@@ -243,7 +243,7 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
   it("closes the sessions of the account on all its workstations by the token of its silent sign-in, opens none, and leads to the sign-in [WF-SEC-0020-A]", async () => {
     const subject = crypto.randomUUID();
     const other = await elsewhere(subject);
-    const { address, cookie } = await start("", "?sign_out=1");
+    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
     const response = await back(realm.signIn(address, subject), cookie);
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/login");
@@ -255,7 +255,7 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
   });
 
   it("leads to the sign-in when the realm holds no session for the browser: no workstation left to close", async () => {
-    const { address, cookie } = await start("", "?sign_out=1");
+    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
     const signIn = new URL(address).searchParams.get("state") ?? "";
     const query = `?${new URLSearchParams({ error: "login_required", state: signIn }).toString()}`;
     const response = await back(query, cookie);
@@ -267,7 +267,7 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
     state.api = {
       "DELETE /me/sessions": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
     };
-    const { address, cookie } = await start("", "?sign_out=1");
+    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
     const response = await back(realm.signIn(address, crypto.randomUUID()), cookie);
     const location = new URL(response.headers.get("Location") ?? "");
     expect(`${location.origin}${location.pathname}`).toBe(

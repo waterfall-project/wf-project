@@ -33,6 +33,11 @@ vi.mock("@/session/provider", async (original) => ({
   ...(await original<typeof import("@/session/provider")>()),
   identityProvider: () => createIdentityProvider(TEST_SETTINGS),
 }));
+// The ticket of the sign-out of a session lost, which Redis keeps (`session.test.ts`).
+vi.mock("@/session/store", async (original) => ({
+  ...(await original<typeof import("@/session/store")>()),
+  armSignOut: () => Promise.resolve("armed-ticket"),
+}));
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookieJar()) }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -150,7 +155,7 @@ describe("signing out from the menu of the account", () => {
     await signOut();
     expect(sent).toEqual([]);
     expect(rememberedContext()).toBeUndefined();
-    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login?sign_out=1");
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login?sign_out=armed-ticket");
   });
 
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {

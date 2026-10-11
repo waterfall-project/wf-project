@@ -14,9 +14,10 @@
  *
  * It forgets the cookie of the session the browser held, if any: the sign-out leads here once the
  * sessions are closed, without touching the cookie itself (#724), and a session lost or refused
- * has nothing more to give. With `sign_out` (`SIGN_OUT_HREF`), the sign-in is the sign-out of a
- * session the front lost (#689): silent (`prompt=none`), its return closes the sessions of the
- * account rather than open one. Redis out of reach, the browser is told the sign-in could not be
+ * has nothing more to give. With `sign_out` and the ticket the server action of the sign-out armed
+ * (`signOutHref`), taken once, the sign-in is the sign-out of a session the front lost (#689):
+ * silent (`prompt=none`), its return closes the sessions of the account rather than open one. A
+ * ticket unknown, spent or too old — a link of another site — is a sign-in like any other. Redis out of reach, the browser is told the sign-in could not be
  * made, never a bare error (#687).
  *
  * On the fake back (`WATERFALL_AUTH=mock`), which grants the session the whole mock-up starts
@@ -30,7 +31,7 @@ import {
   signInUnavailableHref,
 } from "@/navigation/login";
 import { identityProvider, signInChecks } from "@/session/provider";
-import { rememberSignIn, StoreUnreachable } from "@/session/store";
+import { rememberSignIn, StoreUnreachable, takeSignOut } from "@/session/store";
 import { forgottenSessionCookie, signInCookie } from "@/session/tokens";
 
 /** A redirect of the sign-in, never kept by a cache. */
@@ -50,9 +51,11 @@ export async function GET(request: Request): Promise<Response> {
     // A relative address: behind a proxy, the address the request carries is not the browser's.
     return new Response(null, { status: 307, headers: { Location: target } });
   }
-  const signOut = searchParams.has(SIGN_OUT_PARAMETER);
+  const ticket = searchParams.get(SIGN_OUT_PARAMETER);
   const { state, nonce, verifier, challenge } = await signInChecks();
+  let signOut = false;
   try {
+    signOut = ticket !== null && (await takeSignOut(ticket));
     await rememberSignIn(state, { verifier, nonce, target, signOut });
   } catch (error) {
     if (!(error instanceof StoreUnreachable)) {

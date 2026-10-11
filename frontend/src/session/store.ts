@@ -7,6 +7,9 @@
  *
  * - a sign-in under way, by the `state` of its request: the PKCE verifier, the nonce and the
  *   screen aimed at, fifteen minutes at most, taken once;
+ * - the sign-out of a session the front lost, armed by the server action of the sign-out under a
+ *   ticket drawn at random, which `/login` takes once, a minute at most (#689): a link of another
+ *   site cannot sign anyone out;
  * - a session, by its identifier: the tokens, living as long as the session of Keycloak does —
  *   the lifetime of the refresh token, which each refresh gives anew;
  * - the sessions of an account, by its subject, which the back channel of Keycloak closes
@@ -18,12 +21,17 @@
  */
 import "server-only";
 
+import { randomBytes } from "node:crypto";
+
 import { createClient, ErrorReply } from "@redis/client";
 
 import { redisAddress } from "./settings";
 
 /** How long a sign-in may take, from the request to the return: fifteen minutes, in seconds. */
 export const SIGN_IN_LIFETIME = 15 * 60;
+
+/** How long an armed sign-out waits for the browser to load the sign-in: a minute, in seconds. */
+export const SIGN_OUT_LIFETIME = 60;
 
 /** A sign-in under way: what the return checks, and where it leads. */
 export interface SignIn {
@@ -51,6 +59,7 @@ export interface FrontSession {
 }
 
 const SIGN_IN = "wf:sign-in:";
+const SIGN_OUT = "wf:sign-out:";
 const SESSION = "wf:session:";
 const ACCOUNT = "wf:account:";
 const REFRESH = "wf:refresh:";
@@ -155,6 +164,25 @@ export async function rememberSignIn(state: string, signIn: SignIn): Promise<voi
 export async function takeSignIn(state: string): Promise<SignIn | undefined> {
   const text = await reaching((client) => client.getDel(`${SIGN_IN}${state}`));
   return text === null ? undefined : (JSON.parse(text) as SignIn);
+}
+
+/**
+ * Arm the sign-out of a session the front lost: the ticket, drawn at random, that `/login` takes
+ * once to sign in silently and close the sessions of the account (#689), for a minute at most.
+ */
+export async function armSignOut(): Promise<string> {
+  const ticket = randomBytes(32).toString("base64url");
+  await reaching((client) =>
+    client.set(`${SIGN_OUT}${ticket}`, "1", {
+      expiration: { type: "EX", value: SIGN_OUT_LIFETIME },
+    }),
+  );
+  return ticket;
+}
+
+/** Take an armed sign-out by its ticket: once, and never after its minute. */
+export async function takeSignOut(ticket: string): Promise<boolean> {
+  return (await reaching((client) => client.getDel(`${SIGN_OUT}${ticket}`))) !== null;
 }
 
 /** Open a session for as long as Keycloak keeps it, in seconds, filed under its account. */

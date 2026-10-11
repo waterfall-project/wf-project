@@ -23,11 +23,15 @@ export const NEXT_PARAMETER = "next";
 /**
  * The parameter of the sign-in route that makes it the sign-out of a session the front lost
  * (#689): a sign-in the realm answers silently, whose token closes the sessions of the account.
+ * It carries the ticket the server action of the sign-out armed, which the route takes once: a
+ * link of another site, which names none, is a sign-in like any other.
  */
 export const SIGN_OUT_PARAMETER = "sign_out";
 
-/** Where the sign-out of a session the front lost leads the browser. */
-export const SIGN_OUT_HREF = `${LOGIN_ROUTE}?${SIGN_OUT_PARAMETER}=1`;
+/** Where the sign-out of a session the front lost leads the browser: the ticket it armed. */
+export function signOutHref(ticket: string): string {
+  return `${LOGIN_ROUTE}?${new URLSearchParams({ [SIGN_OUT_PARAMETER]: ticket }).toString()}`;
+}
 
 /** The page that says a sign-in could not be made, the service out of reach (#687). */
 export const SIGN_IN_UNAVAILABLE_ROUTE = `${LOGIN_ROUTE}/unavailable`;

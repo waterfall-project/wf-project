@@ -4,7 +4,7 @@ import { createClient } from "@redis/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createIdentityProvider } from "@/session/provider";
-import { closeStore } from "@/session/store";
+import { armSignOut, closeStore } from "@/session/store";
 import { FRONT_CLIENT } from "@/session/settings";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { withTestRedis } from "@/test/session";
@@ -94,15 +94,29 @@ describe("the sign-in route on the identity provider", () => {
     ]);
   });
 
-  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account (#689)", async () => {
-    const response = await login("?sign_out=1");
+  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once (#689)", async () => {
+    const ticket = await armSignOut();
+    const response = await login(`?sign_out=${ticket}`);
     const query = new URL(response.headers.get("Location") ?? "").searchParams;
     expect(query.get("prompt")).toBe("none");
     expect((await kept(query.get("state") ?? "")).value).toMatchObject({
       signOut: true,
       target: "/",
     });
+    // Spent: the same address again is a sign-in like any other.
+    const again = new URL((await login(`?sign_out=${ticket}`)).headers.get("Location") ?? "");
+    expect(again.searchParams.has("prompt")).toBe(false);
   });
+
+  it.each(["1", "unknown-ticket", ""])(
+    "takes a sign-out no server action armed — a link of another site — for an ordinary sign-in: no silent sign-in, nothing closed at its return: %j",
+    async (ticket) => {
+      const response = await login(`?sign_out=${ticket}`);
+      const query = new URL(response.headers.get("Location") ?? "").searchParams;
+      expect(query.has("prompt")).toBe(false);
+      expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
+    },
+  );
 
   it("says the sign-in could not be made when Redis is out of reach, rather than fail bare (#687)", async () => {
     // A Redis nobody serves: the connection is refused.

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import { createIdentityProvider } from "@/session/provider";
 import { FRONT_CLIENT } from "@/session/settings";
-import { openSession, readSession } from "@/session/store";
+import { openSession, readSession, takeSignOut } from "@/session/store";
 import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
@@ -132,7 +132,15 @@ describe("the server action of the session", () => {
       },
     });
 
-    expect(await signOut()).toEqual({ kind: "left", address: "/login?sign_out=1" });
+    const left = await signOut();
+    expect(left.kind).toBe("left");
+    const address = new URL(left.kind === "left" ? left.address : "", "https://front.test");
+    expect(address.pathname).toBe("/login");
+    // The ticket only this action arms, which the sign-in takes once.
+    const ticket = address.searchParams.get("sign_out") ?? "";
+    expect(ticket).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(await takeSignOut(ticket)).toBe(true);
+    expect(await takeSignOut(ticket)).toBe(false);
     expect(sent).toEqual([]);
     expect(server.jar.held.get(SESSION_COOKIE)).toBe(lost);
   });

@@ -242,8 +242,12 @@ sans attendre Keycloak — l'API d'administration ferme aussi la session de Keyc
 témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
 `/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
 navigateur va au point de déconnexion du royaume. Quand la session que nomme le témoin ne vit plus,
-la requête ne part pas, et le navigateur passe par une connexion silencieuse (`/login?sign_out=1`,
-`prompt=none`) : son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
+la requête ne part pas, et le navigateur passe par une connexion silencieuse
+(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
+hasard, gardé une minute dans Redis, que `/login` prend une seule fois (`armSignOut`,
+`takeSignOut`) ; un ticket inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une
+navigation de premier niveau envoie avec le témoin `SameSite=Lax` — fait une connexion ordinaire,
+qui ne ferme rien. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
 qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
 Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
 écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
