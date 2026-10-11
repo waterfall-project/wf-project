@@ -1221,7 +1221,7 @@ traîne dans une procédure, et que la relancer soit sans danger.
 
 ## US-0430 — Déployer une plateforme de démonstration
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0050-A`
 - **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
 - **issue** : #564
