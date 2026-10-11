@@ -426,8 +426,9 @@ def put_user_activation(
     already: asking again closes those a failure of the provider left open. It notes the moment
     first, with the deactivation: from then on the API refuses every token of a sign-in before
     it, refreshed or not, and a failure of the provider does not outlive a reactivation (#835).
-    An anonymised account had its sessions closed when it was deactivated, and a local one is no
-    longer in the provider: its deactivation asked again closes nothing.
+    A local account anonymised is no longer in the provider: its deactivation asked again closes
+    nothing. One of the directory or of an external provider anonymised is still the provider's,
+    and has its sessions closed again, as any other.
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
@@ -439,7 +440,9 @@ def put_user_activation(
                 lock_version=body.lock_version.root,
                 act=act,
             )
-        is_closing = not body.is_active and changed.anonymized_at is None
+        is_closing = not body.is_active and not (
+            changed.anonymized_at is not None and changed.origin == LOCAL
+        )
         if is_closing:
             note_sessions_closed(session, user_id, utc_now())
         described = users(session, actor, [changed])[0]

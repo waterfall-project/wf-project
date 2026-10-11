@@ -11,7 +11,6 @@ provider's, and is not asked for. A local account removed indeed is tried agains
 (``test_keycloak_authentication``).
 """
 
-from collections.abc import Callable
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -368,29 +367,68 @@ def test_a_reactivation_slipped_before_the_write_leaves_the_account_active_until
     assert row(database, local)["anonymized_at"] is not None
 
 
+class Removing(Watching):
+    """The administration client, whose removal of an account succeeds.
+
+    The realm of test does not serve the administration API: the removal is noted and succeeds
+    here; the other calls go to the realm, which answers none.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Watch the pool of ``database``; nothing is removed yet."""
+        super().__init__(keycloak, settings, database)
+        self.removed: list[str] = []
+
+    def remove_account(self, subject: str) -> None:
+        """Note the removal, which succeeds."""
+        self._note("remove_account")
+        self.removed.append(subject)
+
+
 @pytest.fixture
-def anonymized(
-    client: ContractClient, database: Database, headers: dict[str, str], paul: UUID
-) -> tuple[UUID, Callable[[], dict[str, Any]]]:
-    """Anonymise Paul Durand by the API; give his identifier and his row then, to read again."""
-    assert anonymize(client, headers, paul, 0).status_code == 200
-    return paul, lambda: row(database, paul)
+def removing(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> tuple[ContractClient, Removing]:
+    """Give a client of the API whose administration client removes the accounts it is asked."""
+    administration = Removing(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, administration))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract), administration
 
 
-def test_the_deactivation_of_an_anonymized_account_asked_again_closes_no_session(
-    client: ContractClient,
+def test_the_deactivation_of_a_local_account_anonymized_asked_again_closes_no_session(
+    removing: tuple[ContractClient, Removing],
+    database: Database,
     headers: dict[str, str],
-    watching: Watching,
     logs: Logs,
-    anonymized: tuple[UUID, Callable[[], dict[str, Any]]],
 ) -> None:
-    # A call made by hand: the account is deactivated already, which answers 200; its sessions
-    # were closed with its deactivation, and the provider is not asked again.
-    paul, read = anonymized
-    before = read()
+    # A call made by hand: the account is deactivated already, which answers 200; a local account
+    # anonymised is no longer in the provider, which is not asked to close its sessions.
+    client, administration = removing
+    local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
+    assert anonymize(client, headers, local, 0).status_code == 200
+    before = row(database, local)
+    deactivation = {"is_active": False, "lock_version": 1}
+    path = f"{USERS}/{local}/activation"
+    assert client.request("PUT", path, headers=headers, json=deactivation).status_code == 200
+    assert row(database, local) == before
+    assert (administration.removed, administration.held) == (
+        ["kc-ines"],
+        [("remove_account", 0)],
+    )
+    assert logs.named("account.sessions_not_closed") == []
+
+
+def test_the_deactivation_of_an_account_of_the_directory_anonymized_asked_again_closes_its_sessions(
+    client: ContractClient, headers: dict[str, str], watching: Watching, logs: Logs, paul: UUID
+) -> None:
+    # An account of the directory anonymised is still the provider's: asking its deactivation
+    # again closes the sessions a failure of the provider left open, as for any other. The realm
+    # of test closes none: the failure is said in the log.
+    assert anonymize(client, headers, paul, 0).status_code == 200
     deactivation = {"is_active": False, "lock_version": 1}
     path = f"{USERS}/{paul}/activation"
-    assert client.request("PUT", path, headers=headers, json=deactivation).status_code == 200
-    assert read() == before
-    assert watching.held == []
-    assert logs.named("account.sessions_not_closed") == []
+    response = client.request("PUT", path, headers=headers, json=deactivation)
+    assert (response.status_code, response.json()["lock_version"]) == (200, 1)
+    assert watching.held == [("close_sessions", 0)]
+    (record,) = logs.named("account.sessions_not_closed")
+    assert record["user_id"] == str(paul)
