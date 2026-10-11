@@ -1133,7 +1133,8 @@ provisoire) ; il déplace US-0290 et son exigence vers EP-15, créé `à planifi
 durcissement qui suit la validation de l'auteur, avec ses « Constats reçus » : L42t (#774) et
 les constats de contrat ouverts pendant L42s (#785 à #792, #795), l'extension du harnais
 (#782), les reliquats des tests (#781, #784), l'e2e instable de la grille (#776), le refus d'une
-saisie sans heure (#779) et les constats de contrat de L44c (#802, #803). Les relectures de L44c et de L44d ne corrigent plus que les
+saisie sans heure (#779), les constats de contrat de L44c (#802, #803) et les mineurs de sa
+relecture (#806). Les relectures de L44c et de L44d ne corrigent plus que les
 bloquants et les majeurs ; leurs mineurs sont reportés → EP-15.
 
 ## US-0200 — Accessibilité minimale

@@ -100,6 +100,7 @@ d'EP-15 à son ouverture :
 - #802 — contrat : la lecture du lotissement ne dit pas si une tâche porte un poste ou un lot,
   si bien qu'EP-14/L44c confirme toute suppression ;
 - #803 — contrat : les exemples manquants des refus des chronologies et du 412 du lotissement ;
+- #806 — front : les mineurs de la relecture 1 d'EP-14/L44c, le lotissement dans sa grille ;
 - #92 [US-0290] et #127.
 
 ## Conception
