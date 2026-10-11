@@ -81,7 +81,7 @@ def put_avatar(session: Session, user_id: UUID, avatar: Avatar) -> None:
     )
 
 
-def remove_avatar(session: Session, user_id: UUID) -> None:
+def withdraw_avatar(session: Session, user_id: UUID) -> None:
     """Withdraw the avatar of an account, which shows its image by default again."""
     session.execute(
         update(UserAccount)

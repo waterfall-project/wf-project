@@ -19,7 +19,7 @@ from waterfall.core.users.interface import (
     image_type,
     put_avatar,
     read_avatar,
-    remove_avatar,
+    withdraw_avatar,
 )
 from waterfall.platform.errors import (
     BadRequestError,
@@ -88,7 +88,7 @@ def put_my_avatar(
 @router.delete("/me/avatar", operation_id="deleteMyAvatar", status_code=204, tags=["me"])
 def delete_my_avatar(account: Caller, session: Transaction) -> Response:
     """Withdraw the caller's avatar: its account shows its image by default (WF-ADM-0080)."""
-    remove_avatar(session, account.user_id)
+    withdraw_avatar(session, account.user_id)
     return Response(status_code=204)
 
 

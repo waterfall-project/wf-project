@@ -65,7 +65,7 @@ from waterfall.core.users.personal import (
     image_type,
     put_avatar,
     read_avatar,
-    remove_avatar,
+    withdraw_avatar,
 )
 from waterfall.core.users.states import set_state
 from waterfall.core.users.tables import UserAccount
@@ -116,8 +116,8 @@ __all__ = [
     "read_author",
     "read_avatar",
     "refuse",
-    "remove_avatar",
     "set_account_activation",
+    "withdraw_avatar",
 ]
 
 NAME_MAX_LENGTH = 100
