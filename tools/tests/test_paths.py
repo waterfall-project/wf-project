@@ -186,7 +186,12 @@ def test_what_the_tests_of_keycloak_run_on_wakes_their_family(changed: str) -> N
 
 @pytest.mark.parametrize(
     "changed",
-    ["docs/spec/waterfall-spec.md", "fixtures/api/permissions.json", "fixtures/examples.json"],
+    [
+        "docs/spec/waterfall-spec.md",
+        "fixtures/api/permissions.json",
+        "fixtures/examples.json",
+        "deploy/compose/compose.service.yaml",
+    ],
 )
 def test_what_the_tests_of_the_back_read_wakes_their_family(changed: str) -> None:
     touched = {family.name for family in paths.read().touched([changed])}

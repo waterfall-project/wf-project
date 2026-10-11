@@ -49,8 +49,16 @@ target = "check-contract"
 # change of the contract alone — a status, a header — is confronted with the service (#671). They
 # read what they test against besides: the tree of the functions in the projection of the
 # specification (WF-ADM-0100), the examples of the contract and the fixtures of the numeric
-# examples under fixtures/ — a change of these alone wakes them too (#794).
-paths = ["backend/**", "docs/api/**", "docs/spec/waterfall-spec.md", "fixtures/**"]
+# examples under fixtures/, and the file of the service platform, whose PostgreSQL they hold to the
+# chain's and whose Redis to its rules (test_platform_images.py) — a change of these alone wakes
+# them too (#794).
+paths = [
+    "backend/**",
+    "docs/api/**",
+    "docs/spec/waterfall-spec.md",
+    "fixtures/**",
+    "deploy/compose/compose.service.yaml",
+]
 target = "check-back"
 
 [families.roadmap]
