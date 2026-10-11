@@ -22,6 +22,8 @@ GROUP = "workers"
 FIELD = "task_id"
 # How long a socket waits for Redis, in seconds: more than a read of the worker waits.
 SOCKET_TIMEOUT = 10.0
+# Where a sweep of the entries left pending starts, and what Redis gives back once it has ended.
+SWEEP_START = "0-0"
 
 type RawEntry = tuple[str, Mapping[str, str] | None]
 
@@ -81,10 +83,17 @@ class TaskQueue:
         streams = cast("list[tuple[str, list[RawEntry]]]", answer)
         return [entry for _, raw in streams for entry in _entries(raw)]
 
-    def reclaim(self, consumer: str, idle_ms: int) -> list[Entry]:
-        """Take over the next entry another consumer has left pending for ``idle_ms`` at least."""
-        answer = self.client.xautoclaim(self.stream, GROUP, consumer, idle_ms, "0-0", count=1)
-        return _entries(answer[1])
+    def reclaim(
+        self, consumer: str, idle_ms: int, start: str = SWEEP_START
+    ) -> tuple[str, list[Entry]]:
+        """Take over the next entry another consumer has left pending for ``idle_ms`` at least.
+
+        Redis looks at a few pending entries from ``start`` on, and gives where to look next:
+        ``SWEEP_START`` once it has looked at them all. A sweep that always started again from the
+        first would never reach an idle entry behind recent ones.
+        """
+        answer = self.client.xautoclaim(self.stream, GROUP, consumer, idle_ms, start, count=1)
+        return answer[0], _entries(answer[1])
 
     def acknowledge(self, entry_id: str) -> None:
         """Say an entry done, and delete it from the stream."""

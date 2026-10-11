@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
-from waterfall.platform.queue import Entry, TaskQueue
+from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
 
 INTERNAL_ERROR = "INTERNAL_ERROR"
@@ -126,6 +126,8 @@ class Worker:
         self.handlers = handlers
         self.consumer = consumer or socket.gethostname()
         self.timing = timing or Timing()
+        # Where the next look for the entries left pending starts: each look goes on from the last.
+        self.sweep = SWEEP_START
 
     def run(self) -> None:
         """Take and run the tasks, until the process is stopped."""
@@ -145,13 +147,15 @@ class Worker:
         A stream that Redis lost is made again, and the pending tasks deposited again.
         """
         try:
-            entries = self.queue.reclaim(
-                self.consumer, round(self.timing.claim_after * 1000)
-            ) or self.queue.read(self.consumer, round(self.timing.block * 1000))
+            self.sweep, entries = self.queue.reclaim(
+                self.consumer, round(self.timing.claim_after * 1000), self.sweep
+            )
+            entries = entries or self.queue.read(self.consumer, round(self.timing.block * 1000))
         except ResponseError as error:
             if not str(error).startswith("NOGROUP"):
                 raise
             logger.warning("queue.lost")
+            self.sweep = SWEEP_START
             self.queue.prepare()
             self.redeposit()
             return False

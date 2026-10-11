@@ -23,7 +23,7 @@ from task_handlers import REQUEST, Runs, deposit, held_run, inscribe, inscriptio
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import FIELD, TaskQueue
+from waterfall.platform.queue import FIELD, GROUP, TaskQueue
 from waterfall.platform.tasks import BackgroundTask, Task, TaskError, TaskHandler, submit
 from waterfall.worker.runner import MAX_ATTEMPTS, Timing, Worker
 
@@ -322,3 +322,25 @@ def test_what_a_handler_gives_or_refuses_with_is_kept_as_json(
 def test_a_read_of_the_worker_waits_less_than_its_socket_waits_for_redis(queue: TaskQueue) -> None:
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     assert Timing().block < queue.client.connection_pool.connection_kwargs["socket_timeout"]
+
+
+def test_an_idle_entry_behind_more_recent_ones_than_a_look_covers_is_taken_over(
+    database: Database, queue: TaskQueue
+) -> None:
+    # Redis looks at ten pending entries at most for each entry asked for: a worker that looked
+    # from the first each time would never reach the twelfth. It goes on from where it stopped,
+    # and starts again from the first once it has seen them all.
+    tasks = [deposit(database, queue) for _ in range(12)]
+    queue.prepare()
+    left: list[str] = []
+    while taken := queue.read("stopped", 10):
+        left.extend(entry.entry_id for entry in taken)
+    queue.client.xclaim(queue.stream, GROUP, "stopped", 0, (left[-1],), idle=60_000)
+    runs = Runs()
+    taker = Worker(database, queue, {"identity_sync": runs}, "worker", Timing(30, 0.01))
+    assert (taker.step(), runs) == (False, [])
+    assert (taker.step(), runs) == (True, [tasks[-1]])
+    # The first, idle in its turn, is taken over once the look has ended its round.
+    queue.client.xclaim(queue.stream, GROUP, "stopped", 0, (left[0],), idle=60_000)
+    assert True in [taker.step() for _ in range(3)]
+    assert runs == [tasks[-1], tasks[0]]
