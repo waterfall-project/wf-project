@@ -132,6 +132,7 @@
               org_node: { $ref: ../../../fixtures/api/portfolio_workload_org_node.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/performance:
@@ -185,6 +186,7 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_cost_structure.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/risks:
@@ -253,6 +255,7 @@
               credit: { $ref: ../../../fixtures/api/portfolio_cost_curve_credit.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/pilot-health:
@@ -277,4 +280,5 @@
               witness: { $ref: ../../../fixtures/api/pilot_health.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

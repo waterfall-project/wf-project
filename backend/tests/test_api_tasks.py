@@ -13,7 +13,6 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import pytest
-from openapi_core.templating.responses.exceptions import ResponseNotFound
 from realm import KEY, TestRealm
 from sqlalchemy import insert, update
 from sqlalchemy.orm import Session
@@ -204,11 +203,8 @@ def test_a_parameter_the_list_refuses_is_a_value_refused(
     api: ContractClient, person: Person, query: str, pointer: str
 ) -> None:
     # A value outside the schema of a parameter is refused at its field (422), never a 500: an
-    # instant without its offset included. The contract does not declare the 422 of
-    # listBackgroundTasks yet (#799): the answer is read unchecked, and the reminder fails the day
-    # it does, when the answer is to be read through the contract.
+    # instant without its offset included. The contract declares that 422 (#799): the answer is
+    # read through it.
     _, headers = person()
-    refusal = problem(api.client.get(f"{TASKS}{query}", headers=headers))
+    refusal = problem(api.get(f"{TASKS}{query}", headers=headers))
     assert refusal == (422, "VALIDATION_FAILED", [pointer])
-    with pytest.raises(ResponseNotFound, match=r"status: 422$"):
-        api.get(f"{TASKS}{query}", headers=headers)
