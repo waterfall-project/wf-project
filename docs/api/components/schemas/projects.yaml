@@ -21,7 +21,7 @@ Project:
     - lock_version
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -233,7 +233,7 @@ ProjectCreate:
   type: object
   required: [label]
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -243,7 +243,7 @@ ProjectUpdate:
   type: object
   required: [lock_version]
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -349,7 +349,7 @@ OrderItem:
   required: [order_item_id, label, work_packages]
   properties:
     order_item_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     work_packages:
       type: array
       items: { $ref: '#/WorkPackage' }
@@ -359,7 +359,7 @@ WorkPackage:
   required: [work_package_id, label, deliverables]
   properties:
     work_package_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     deliverables:
       type: array
       items: { $ref: '#/Deliverable' }
@@ -369,7 +369,7 @@ Deliverable:
   required: [deliverable_id, label]
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 WorkBreakdownKind:
   type: string
@@ -387,8 +387,8 @@ Subproject:
     le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050).
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 50 }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     has_actual_costs: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -397,8 +397,8 @@ SubprojectWrite:
   type: object
   required: [code, label]
   properties:
-    code: { type: string, minLength: 1, maxLength: 50 }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 SubprojectUpdate:
   description: >-
