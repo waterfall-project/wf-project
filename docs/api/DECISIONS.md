@@ -3748,7 +3748,11 @@ tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manqu
 local est retiré du fournisseur d'identité **avant** l'écriture, hors transaction (#669), après
 une vérification sous transaction courte — le compte, son état, sa version — : si le fournisseur
 ne répond pas, 503 et rien n'est écrit, et l'anonymisation se redemande ; un compte que le
-fournisseur ne tient déjà plus est retiré. Un compte de l'annuaire ou d'un fournisseur externe
+fournisseur ne tient déjà plus est retiré. Une modification glissée entre la vérification et
+l'écriture fait refuser l'écriture, le compte étant déjà retiré du fournisseur : si c'est une
+réactivation, le compte local est actif hors du fournisseur, et personne ne s'y connecte, jusqu'à
+ce qu'on le désactive puis l'anonymise de nouveau, le retrait étant sans effet sur un compte que
+le fournisseur ne tient plus. Fermer cet écart est à trancher (#868). Un compte de l'annuaire ou d'un fournisseur externe
 n'est pas touché dans le fournisseur, et la lecture des comptes ne le recrée pas (WF-ADM-0070).
 Écarté : retirer le compte local après la validation, un échec du fournisseur seulement journalisé,
 qui laisse un compte anonymisé dans le fournisseur sans que personne le sache. La commande

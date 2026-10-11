@@ -299,3 +299,69 @@ def test_the_roles_of_an_anonymized_account_are_inscribed_without_its_name(
     assert (withdrawn.status_code, withdrawn.json()["access_role_ids"]) == (200, [])
     last = journal(database)[-1]
     assert (last["action"], last["object_label"]) == ("user_access_roles_set", None)
+
+
+class Slipping(Watching):
+    """The administration client, whose removal of an account succeeds, a reactivation slipped in.
+
+    The realm of test does not serve the administration API: the removal is noted and succeeds
+    here, and the first one lets the account be reactivated meanwhile, as an administrator
+    would between the check of the anonymisation and its write.
+    """
+
+    def __init__(
+        self, keycloak: Keycloak, settings: ServiceSettings, database: Database, user_id: UUID
+    ) -> None:
+        """Watch the pool of ``database``; reactivate ``user_id`` at the first removal."""
+        super().__init__(keycloak, settings, database)
+        self.database = database
+        self.user_id = user_id
+        self.removed: list[str] = []
+
+    def remove_account(self, subject: str) -> None:
+        """Note the removal; at the first one, reactivate the account around the service."""
+        self._note("remove_account")
+        self.removed.append(subject)
+        if len(self.removed) == 1:
+            with self.database.engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "UPDATE user_account SET state = 'active', "
+                        "lock_version = lock_version + 1 WHERE id = :id"
+                    ),
+                    {"id": self.user_id},
+                )
+
+
+def test_a_reactivation_slipped_before_the_write_leaves_the_account_active_until_anonymized_again(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    headers: dict[str, str],
+) -> None:
+    # The gap #868 is to close: the account is out of the provider, the write refused, and the
+    # local account active; deactivated, then anonymised again, it is removed once more, which
+    # the provider takes for done, and anonymised.
+    local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
+    slipping = Slipping(keycloak, realm_settings, database, local)
+    app = create_app(Services(database, keycloak, slipping))
+    client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    assert problem(anonymize(client, headers, local, 0)) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": 1},
+    )
+    stored = row(database, local)
+    assert (stored["state"], stored["last_name"], stored["anonymized_at"]) == (
+        "active",
+        "Roux",
+        None,
+    )
+    deactivation = {"is_active": False, "lock_version": 1}
+    path = f"{USERS}/{local}/activation"
+    assert client.request("PUT", path, headers=headers, json=deactivation).status_code == 200
+    assert anonymize(client, headers, local, 2).status_code == 200
+    assert slipping.removed == ["kc-ines", "kc-ines"]
+    assert slipping.held.count(("remove_account", 0)) == 2
+    assert row(database, local)["anonymized_at"] is not None

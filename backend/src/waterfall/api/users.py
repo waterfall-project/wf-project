@@ -465,9 +465,11 @@ def post_user_anonymization(
     checked in a short transaction, then removed from the provider out of any (#669), then
     anonymised: while the provider does not answer, 503, nothing is written, and the
     anonymisation is asked again. An account the write refuses after all — changed meanwhile —
-    stays deactivated, out of the provider, and is anonymised when asked again: the provider
-    removes an account it no longer holds. The account of the directory or of an external
-    provider is the provider's, which Waterfall does not touch.
+    is out of the provider all the same; if a reactivation slipped in between the check and the
+    write, it is a local account active out of the provider, which no one can sign in to, until
+    it is deactivated and anonymised again: the provider removes an account it no longer holds.
+    Whether that gap is closed is #868's to decide. The account of the directory or of an
+    external provider is the provider's, which Waterfall does not touch.
     """
     with services.database.transaction() as session:
         checked = check_account_anonymization(session, user_id, body.lock_version.root)
