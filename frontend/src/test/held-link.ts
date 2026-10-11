@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A link of the page under the hold of its navigations (#688): what a test clicks while a write of
- * the screen answers, to see whether the click is followed.
+ * the screen answers, to see whether the click is followed. A module of the browser, as the hold it
+ * renders: tests of the project `dom` alone import it.
  */
+"use client";
+
 import { fireEvent, renderHook } from "@testing-library/react";
 import { type Mock, vi } from "vitest";
 
