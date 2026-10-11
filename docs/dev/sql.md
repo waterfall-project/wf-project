@@ -125,7 +125,7 @@ inscriptions (WF-SEC-0030). Le rôle du service n'y a que `INSERT` et `SELECT`, 
 refuse la mise à jour, la suppression et la troncature à quiconque, propriétaire compris
 (`0003_audit_entry`) — à une exception : l'anonymisation d'un compte passe à NULL le libellé qui le
 désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le service n'a `UPDATE` que
-sur ces deux colonnes, et le déclencheur n'admet que cela (`0009_account_anonymization`, #702). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+sur ces deux colonnes, et le déclencheur n'admet que cela (`0010_account_anonymization`, #702). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.

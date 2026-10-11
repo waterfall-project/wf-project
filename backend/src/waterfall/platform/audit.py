@@ -17,7 +17,7 @@ refuses to update or delete an inscription: the role of the service has only ``I
 it in every inscription, as its author or as its object, and nothing else: their number, their
 dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0060). The role of
 the service may update those two columns alone, and the trigger admits that update alone
-(migration ``0009``).
+(migration ``0010``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them

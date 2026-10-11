@@ -222,7 +222,7 @@ def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of
     database: Database, statement: str
 ) -> None:
     # The service may update the two labels that name an account, and the trigger admits no other
-    # change of them than making null the name of an account (migration 0009).
+    # change of them than making null the name of an account (migration 0010).
     inscribe(database, role_created())
     with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
         connection.execute(text(statement))
