@@ -108,14 +108,13 @@ def scheduler() -> tuple[dict[str, str], list[str]]:
     ]
 
 
-@pytest.mark.requirement("WF-ADM-0070-A")
 def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an_administrator(
     database: Database, platform_queue: TaskQueue, service_environment: dict[str, str]
 ) -> None:
-    # « Une personne ajoutée à l'annuaire a un compte dans Waterfall au terme de la périodicité
-    # choisie, sans intervention. » : the periodicity is that of the scheduled reading, a day by
-    # default, which the worker runs as the one an administrator asks for (PBS-5.3); the reading
-    # itself comes with US-0370/L2.
+    # The criterion of US-0370 of its own: « la lecture se dépose en file à l'intervalle que fixe
+    # la configuration de l'installation, et le worker la prend comme celle qu'un administrateur
+    # demande (PBS-5.3) » — a day by default. The reading itself, and the accounts it gives
+    # (WF-ADM-0070-A), come with US-0370/L2.
     variable = "WATERFALL_IDENTITY_SYNC_INTERVAL"
     scheduled_with, shell = scheduler()
     assert scheduled_with[variable] == f"${{{variable}:-86400}}"

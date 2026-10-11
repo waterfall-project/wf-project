@@ -133,7 +133,6 @@ def test_a_task_refused_by_field_is_read_with_its_fields(
     }
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_task_another_account_or_the_platform_asked_for_is_not_found(
     api: ContractClient, database: Database, queue: TaskQueue, person: Person
 ) -> None:
@@ -148,7 +147,6 @@ def test_a_task_another_account_or_the_platform_asked_for_is_not_found(
     assert api.get(TASKS, headers=headers).json()["meta"]["total"] == 0
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_the_list_gives_the_tasks_of_the_caller_the_latest_first_as_its_filters_keep_them(
     api: ContractClient, database: Database, queue: TaskQueue, person: Person
 ) -> None:
@@ -176,7 +174,6 @@ def test_the_list_gives_the_tasks_of_the_caller_the_latest_first_as_its_filters_
     assert page["meta"] == {"limit": 1, "offset": 1, "total": 3}
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_the_tasks_are_read_by_a_known_caller_alone(api: ContractClient) -> None:
     for path in (TASKS, f"{TASKS}/{uuid4()}"):
         response = api.get(path)

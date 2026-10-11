@@ -27,6 +27,7 @@ from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, FIELD, GROUP, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.tasks import BackgroundTask, Task, TaskError, TaskHandler, submit
+from waterfall.worker.main import HANDLERS
 from waterfall.worker.runner import MAX_ATTEMPTS, Timing, Worker
 
 # Every entry pending is taken over at once: the tests stand for a worker started again.
@@ -61,11 +62,15 @@ def test_a_deposited_task_runs_in_the_worker_and_never_in_the_request_that_depos
     database: Database, queue: TaskQueue, worker: MakeWorker
 ) -> None:
     # « Aucun de ces traitements n'est joignable par un endpoint qui répondrait après l'avoir
-    # exécuté. » : the handlers are the worker's, which the API cannot reach; a request that
-    # deposits a task ends with it queued, deposited once its transaction is committed.
+    # exécuté. » : no handler the worker runs is in reach of the API, which cannot run one; a
+    # request that deposits a task ends with it queued, deposited once its transaction is
+    # committed, and not run. The worker has no handler of its own yet (US-0370/L2): the one this
+    # test registers lives with the tests, outside the package, which no endpoint imports.
     graph = grimp.build_graph("waterfall")
-    assert not graph.chain_exists("waterfall.api", "waterfall.worker", as_packages=True)
     runs = Runs()
+    for handler in [*HANDLERS.values(), runs]:
+        module = handler.__module__
+        assert module not in graph.modules or not graph.chain_exists("waterfall.api", module)
     with logging_context(correlation_id=REQUEST), database.transaction() as session:
         task_id = submit(session, queue, "identity_sync", None)
         assert queue.waiting() == set()
@@ -83,7 +88,6 @@ def test_a_deposited_task_runs_in_the_worker_and_never_in_the_request_that_depos
     assert queue.waiting() == set()
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_task_is_deposited_once_committed_and_under_a_correlation_alone(
     database: Database, queue: TaskQueue
 ) -> None:
@@ -182,7 +186,6 @@ def test_a_task_stopped_at_each_of_its_three_attempts_fails_without_a_fourth(
     assert queue.waiting() == set()
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_task_that_runs_elsewhere_is_left_pending_and_a_task_deposited_twice_runs_once(
     database: Database, queue: TaskQueue, worker: MakeWorker
 ) -> None:
@@ -256,7 +259,6 @@ def test_a_task_deposited_before_redis_is_emptied_runs_once_it_is_back(
     assert task(database, running).status == "running"
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 @pytest.mark.parametrize(("every", "named"), [(60, 0), (0, 1)], ids=["period", "due"])
 def test_a_task_whose_deposit_redis_refused_is_deposited_by_the_worker_at_start_then_each_period(
     database: Database, queue: TaskQueue, logs: Logs, every: float, named: int
