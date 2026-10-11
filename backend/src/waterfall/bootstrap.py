@@ -8,8 +8,10 @@ bootstraps apart, on an installation that has none yet: the local account of the
 the identity provider first, then, in one transaction, the row of the installation with its default
 language and its bounds, the three predefined roles labelled in that language, and the account in
 Waterfall, holding the administrator — the platform their author, each inscribed in the journal
-under the correlation of the command. Last, the link that sets the password of that account, valid
-until it is used, written alone on the standard output, its making inscribed without its token.
+under the correlation of the command. The realm is then given the language of the installation, at
+each run: an account that chose none reads its pages and its mails in it (#873). Last, the link
+that sets the password of that account, valid until it is used, written alone on the standard
+output, its making inscribed without its token.
 
 Run again, it creates nothing: it makes a new link, which replaces the one before, while the
 administrator has no password, and none afterwards. Keycloak is never asked inside a transaction
@@ -136,7 +138,8 @@ def _install(
         upgrade(engine)
         database = Database(engine)
         with _alone(engine):
-            administrator = _bootstrap(database, admin, settings)
+            administrator, language = _bootstrap(database, admin, settings)
+            installer.set_default_language(language)
             link = _link(database, (admin, installer), administrator)
     except InstallationRefusedError as refused:
         refusal = (refused.reason, {})
@@ -173,16 +176,23 @@ def _alone(engine: Engine) -> Generator[None]:
             connection.commit()
 
 
-def _bootstrap(database: Database, admin: KeycloakAdmin, settings: InstallationSettings) -> Account:
-    """Install what nobody may enter without, unless it is installed; give its administrator."""
+def _bootstrap(
+    database: Database, admin: KeycloakAdmin, settings: InstallationSettings
+) -> tuple[Account, str]:
+    """Install what nobody may enter without, unless it is installed.
+
+    Give its administrator and its language: those of the installation already made, whatever the
+    settings say now.
+    """
     with database.transaction() as session:
-        installed = session.get(Installation, THE_ROW) is not None
+        installation = session.get(Installation, THE_ROW)
+        language = None if installation is None else installation.default_language
         administrator = read_installation_administrator(session)
-    if installed:
+    if language is not None:
         if administrator is None:
             raise InstallationRefusedError(NO_ADMINISTRATOR)
         logger.info("installation.already_installed")
-        return administrator
+        return administrator, language
     roles = predefined_roles(settings.default_language)
     label = next(role.label for role in roles if role.key == "administrator")
     identity = Identity(label, FIRST_NAME, settings.admin_email)
@@ -212,7 +222,7 @@ def _bootstrap(database: Database, admin: KeycloakAdmin, settings: InstallationS
         named = (account.user_id, display_name(account.first_name, account.last_name))
         give_first_roles(session, named, [created["administrator"].access_role_id], act)
     logger.info("installation.installed", user_id=str(account.user_id))
-    return account
+    return account, settings.default_language
 
 
 def _left_by_a_broken_run(admin: KeycloakAdmin, email: str) -> str:

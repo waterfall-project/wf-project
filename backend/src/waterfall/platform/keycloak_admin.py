@@ -7,9 +7,10 @@ whose creation Waterfall could not complete, and closes the sessions of an accou
 WF-SEC-0020). The link that sets the password of a local account is made by the extension of
 Waterfall, which also mails it as the invitation of the account: never by
 ``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The bootstrap
-finds the account of an address, tells whether it has a password, and asks the extension, as the
-client of the bootstrap, for the link of the installation, valid until it is used (WF-EXP-0020,
-#652). The token of the client is kept until shortly before it expires.
+finds the account of an address, tells whether it has a password, and, as the client of the
+bootstrap, gives the realm the language of the installation (#873) and asks the extension for the
+link of the installation, valid until it is used (WF-EXP-0020, #652). The token of the client is
+kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -304,6 +305,14 @@ class KeycloakAdmin:
             message = f"POST {response.request.url.path} answered no link"
             raise IdentityProviderError(message)
         return url
+
+    def set_default_language(self, language: str) -> None:
+        """Give the realm ``language`` as its own, that of an account that chose none (#873).
+
+        Asked as the client of the bootstrap, which alone may change the realm (WF-INTF-0160).
+        """
+        response = self._as_service("PUT", self._admin, json={"defaultLocale": language})
+        expect(response, HTTPStatus.NO_CONTENT)
 
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).

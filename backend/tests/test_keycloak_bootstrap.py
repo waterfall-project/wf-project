@@ -45,6 +45,7 @@ from test_keycloak_platform import (
     SPENT,
     Browser,
     action_token,
+    administering,
     required,
     set_by_link,
 )
@@ -126,6 +127,22 @@ def logs() -> Iterator[Logs]:
     root.handlers[:] = handlers
     root.setLevel(level)
     structlog.reset_defaults()
+
+
+def realm_language() -> str | None:
+    """Read the language of the realm, that of an account that chose none."""
+    with administering() as realm:
+        return realm.get("").json().get("defaultLocale")
+
+
+@pytest.fixture(autouse=True)
+def kept_language() -> Iterator[None]:
+    """Give the realm back its language after the test: a bootstrap gives it its own (#873)."""
+    kept = realm_language()
+    yield
+    with administering() as realm:
+        restored = realm.put("", json={"defaultLocale": kept})
+        assert restored.status_code == 204, restored.text
 
 
 @pytest.fixture
@@ -282,6 +299,23 @@ def test_the_installation_applies_the_migrations_and_labels_its_roles_in_its_lan
     # The link reaches neither the journal nor the logs.
     token = link.split("key=", 1)[1]
     assert token not in logs.text
+
+
+def test_the_installation_gives_the_realm_its_language_at_each_run(
+    database_url: str, address: str
+) -> None:
+    # #873: an account that chose no language reads the pages and the mails of the realm in the
+    # language of the installation (WF-INTF-0160, « à défaut la langue par défaut de
+    # l'installation »), which the bootstrap gives the realm.
+    settings = settings_of(database_url, address, language="en")
+    link_of(settings)
+    assert realm_language() == "en"
+    # Taken back by the realm, it is given again at the next run: the language of the installation
+    # made, not that of the settings now.
+    with administering() as realm:
+        assert realm.put("", json={"defaultLocale": "fr"}).status_code == 204
+    link_of(settings.model_copy(update={"default_language": "fr"}))
+    assert realm_language() == "en"
 
 
 def refused(settings: InstallationSettings, logs: Logs) -> str:

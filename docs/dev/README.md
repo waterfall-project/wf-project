@@ -1353,7 +1353,7 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
 | `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
 | `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
-| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652) : ni l'API ni le worker ne le tiennent |
+| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent |
 
 Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
 exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration

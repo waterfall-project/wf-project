@@ -27,10 +27,12 @@ editUsernameAllowed: false
 resetPasswordAllowed: true
 rememberMe: false
 
-# The pages of Keycloak and its mails speak French and English, French first (WF-ADM-0140).
+# The pages of Keycloak and its mails speak French and English (WF-ADM-0140); to an account that
+# chose neither, the language of the installation (WF-INTF-0160), which its bootstrap gives the
+# realm (#873). `defaultLocale` is therefore not declared here: applied at each deployment, this
+# file would put back another one, and what it does not declare, it leaves as it is.
 internationalizationEnabled: true
 supportedLocales: [fr, en]
-defaultLocale: fr
 loginTheme: waterfall
 emailTheme: waterfall
 # The administration API answers a refused password in the words of this theme, console or not.
@@ -195,8 +197,14 @@ users:
         - manage-users
         - view-users
         - query-users
+  # The bootstrap gives the realm the language of the installation (#873): `manage-realm`, which
+  # the secret of the client of the bootstrap alone carries, held by the operator beside that of
+  # the administrator of the master realm.
   - username: service-account-waterfall-installation
     enabled: true
     serviceAccountClientId: waterfall-installation
     realmRoles:
       - waterfall-installation-link
+    clientRoles:
+      realm-management:
+        - manage-realm
