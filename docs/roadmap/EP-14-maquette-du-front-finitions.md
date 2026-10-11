@@ -21,6 +21,16 @@ Cet EPIC avance en parallèle d'EP-03 : il ne touche ni le contrat des comptes, 
 session, ni le journal d'audit, qu'EP-03 réalise. Il reprend les règles, la conception et le faux
 back d'EP-02, qui font foi pour lui.
 
+Le 2026-10-11, l'auteur resserre son périmètre (décision de l'auteur) : EP-14 achève les
+écrans que la maquette doit montrer pour être validée — jusqu'au lotissement, aux chronologies,
+au squelette et au rattachement (L44c, L44d) — et les parties du contrat déjà engagées (L42s),
+puis se fusionne dans `main` après EP-03. L'auteur valide ensuite la spécification 1.0, la
+maquette et le contrat par des pull requests de cadrage et d'ajustement, et le durcissement —
+les mineurs du contrat, l'adoption fine par les écrans de ce que L42s écrit, l'accessibilité des
+dialogues et des menus, les navigateurs — est reporté → EP-15, qui suit cette validation :
+polir un contrat et des écrans encore appelés à changer ferait payer deux fois chaque
+ajustement.
+
 ## Ce qui en fait partie
 
 - l'écran des sauvegardes, sa grille et ses commandes — sauvegarder, conserver, télécharger,
@@ -34,22 +44,25 @@ back d'EP-02, qui font foi pour lui.
   et les contributeurs (#592) — chacune suivie de son adoption par l'écran ;
 - l'univers témoin : les lectures sur toute la structure, et les risques à l'échelle (#528, qui
   ferme #287) ; les relectures lentes sous charge (#500) ;
-- l'accessibilité minimale (US-0200) et les navigateurs (US-0290), reprises d'EP-02 telles
-  quelles.
+- l'accessibilité minimale (US-0200), reprise d'EP-02 telle quelle ; les navigateurs (US-0290),
+  repris d'EP-02 avec elle, sont reportés → EP-15 (décision de l'auteur du 2026-10-11).
 
 ## Ce qui n'en fait pas partie
 
 - le comportement réel des écrans : il arrive avec l'EPIC de leur domaine — EP-04 pour le projet,
   EP-05 pour le référentiel, EP-13 pour les sauvegardes ;
 - les comptes, les rôles, la session et le journal d'audit : EP-03 ;
-- la restauration depuis un fichier déposé (#350) : EP-03, US-0440.
+- la restauration depuis un fichier déposé (#350) : EP-03, US-0440 ;
+- le durcissement après la validation de l'auteur — les constats de contrat reportés, dont
+  L42t (#774), l'adoption fine par les écrans de ce que L42s écrit au contrat, l'extension du
+  harnais d'accessibilité aux dialogues et aux menus (#782), les navigateurs (US-0290), les
+  reliquats des tests — : EP-15.
 
 ## Exigences réalisées
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
-| `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
 Les commandes des écrans ne réalisent aucune exigence en propre : comme en EP-02, leurs tests
 citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du domaine les clôt.
@@ -80,13 +93,20 @@ EP-02 fusionné dans `main` ; la branche `epic/EP-14` tirée de `main` après ce
 
 ## Définition de fini
 
-- chaque commande d'écriture qu'un écran de la maquette montre est branchée sur l'opération du
-  contrat, gardée par la permission et les commandes disponibles, et dit son succès et son refus ;
-- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme en sombre ;
-- les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne sur les quatre
-  navigateurs de la spécification ;
-- les constats du contrat que ces écrans ont faits sont soldés — appliqués dans `docs/api`, ou
-  écartés dans `DECISIONS.md` avec leur raison — et aucun n'est resté dans une tête.
+Réécrite par EP-14/L56 (décision de l'auteur du 2026-10-11) :
+
+- chaque commande d'écriture des écrans du référentiel, des sauvegardes et des paramètres du
+  projet — lotissement, chronologies, squelette et rattachement compris — est branchée sur
+  l'opération du contrat, gardée par la permission et les commandes disponibles, et dit son
+  succès et son refus ; les commandes que L42s ajoute au contrat — la déclaration d'un risque,
+  la fusion et son compte rendu — se montrent sans effet, comme les autres commandes que la
+  maquette ne branche pas, leur adoption reportée → EP-15 ;
+- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme en
+  sombre, et chaque écran se parcourt au clavier, aux deux largeurs (US-0200), sous l'écart
+  écrit pour les dialogues et les menus ;
+- chaque constat ouvert pendant l'EPIC porte sa décision : soldé — appliqué dans `docs/api`
+  ou dans le front, ou écarté dans `DECISIONS.md` avec sa raison —, ou reporté → EP-15 et noté
+  dans ses « Constats reçus » ; aucun n'est resté dans une tête.
 
 ## Constats reçus
 
@@ -204,7 +224,7 @@ les arrête dans `DECISIONS.md`, avec les options écartées.
   confirmée, en disant que les tâches restent et perdent leur rattachement (WF-PLA-0170).
   Écarté : un dialogue qui éditerait tout l'arbre, qui doublerait la grille ; des opérations par
   élément, que le contrat n'a pas et dont l'écriture entière a été décidée.
-- **Les chronologies (L44c)** se créent par leur libellé dans un dialogue de l'écran des
+- **Les chronologies (L44f, détachées de L44c par la coupe du 2026-10-11)** se créent par leur libellé dans un dialogue de l'écran des
   chronologies et se suppriment après confirmation, comme le projet liste `manage_timelines`.
   Écarté : garder par la seule permission `planning.write` de la session — un objet du projet
   liste ses commandes, règle d'EP-02.
@@ -245,6 +265,9 @@ projet. Ce harnais arrive **avant** les lots d'écran : il garde ensuite chacun 
 
 ### Les navigateurs (US-0290)
 
+Reportée → EP-15 par EP-14/L56 (décision de l'auteur du 2026-10-11) ; cette conception, validée
+au cadrage du 2026-10-09, est celle qu'EP-15 reprendra.
+
 Des projets Playwright `chrome` et `msedge` (canaux), `firefox` et `webkit`, à 1366 × 768, qui
 jouent les seuls parcours étiquetés des grilles, du Gantt et des courbes ; un projet `mobile` à
 360 points de large qui lit les vues d'indicateurs et du portefeuille : lisibles sans défilement
@@ -264,7 +287,10 @@ version majeure précédente, qui restent à la recette d'EP-13 (écarts d'US-02
 3. Les écrans, chacun après sa partie de contrat : L43d, L43e et L43f après L42h ; L43g après
    L42j ; L44c puis L44d après L42k.
 4. La clôture : la définition de fini constatée, chaque constat de #507 appliqué dans `docs/api`
-   ou écarté dans `DECISIONS.md`.
+   ou écarté dans `DECISIONS.md`. Depuis EP-14/L56 (décision de l'auteur du 2026-10-11) :
+   L44c, coupé à sa réalisation, puis sa part détachée L44f (les chronologies, #801) et L44d, la
+   synchronisation avec `main` après EP-03, et la clôture ; US-0290 et le durcissement passent à
+   EP-15.
 
 ## Notes de réalisation
 
@@ -1100,6 +1126,17 @@ le refus d'un lot hors de son poste.
 L54 (#783) puis US-0200 (#798), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
 ces notes gardent leurs apports d'abord.
 
+EP-14/L56, lot de cadrage du 2026-10-11, resserre le périmètre de l'EPIC sur la décision de
+l'auteur : il réécrit l'objet, ce qui en fait partie et la définition de fini ; il écrit sous
+US-0200 l'écart des dialogues, des menus et des éditeurs (#782, option (b), à titre
+provisoire) ; il déplace US-0290 et son exigence vers EP-15, créé `à planifier` pour le
+durcissement qui suit la validation de l'auteur, avec ses « Constats reçus » : L42t (#774) et
+les constats de contrat ouverts pendant L42s (#785 à #792, #795), l'extension du harnais
+(#782), les reliquats des tests (#781, #784), l'e2e instable de la grille (#776), le refus d'une
+saisie sans heure (#779), les constats de contrat de L44c (#802, #803) et les mineurs de sa
+relecture (#806). Les relectures de L44c et de L44d ne corrigent plus que les
+bloquants et les majeurs ; leurs mineurs sont reportés → EP-15.
+
 EP-14/L44c (#585), lot technique, fait adopter par les paramètres du projet ce que L42k a écrit au
 contrat pour le lotissement ; les chronologies, qu'il portait aussi, sont reportées à EP-14/L44f
 (#801), le lot ayant dépassé deux fois son estimation (coupe du 2026-10-11) :
@@ -1167,7 +1204,13 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
   d'information une description — le quatrième point du corps de WF-IHM-0100, que son Vérif
   ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne ;
 - propre à l'US : le contrôle de contraste joue en mode clair et en mode sombre — la charte
-  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive.
+  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive ;
+- écart : `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
+  visible. » : le harnais parcourt chaque écran tel qu'il s'ouvre ; les dialogues, les menus et
+  les éditeurs qu'un geste ouvre ne sont parcourus que par les tests de composants —
+  `expectAccessible`, sans contraste ni mise en page, et le focus que Radix rend —, à titre
+  provisoire (décision de l'auteur du 2026-10-11, #782) : les écrans s'ajustent encore à la
+  validation de l'auteur, et l'extension du harnais est reportée → EP-15.
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
@@ -1180,45 +1223,3 @@ critère propre des libellés et des descriptions (« Conception », « L'access
 en un lot, dont l'issue est la sienne ; si les écarts relevés l'imposent, elle se découpe en deux.
 
 **Hors périmètre.** L'aide en ligne, qui n'est pas dans cet EPIC.
-
----
-
-## US-0290 — Navigateurs et largeurs d'affichage
-
-- **statut** : à faire
-- **exigences** : `WF-CMP-0010-A`
-- **opérations** : aucune en propre
-- **issue** : #92
-
-**En tant que** chef de projet, **je veux** que les grilles, le Gantt et les courbes
-fonctionnent sur le navigateur de mon poste, et consulter les indicateurs depuis mon
-téléphone, **afin de** ne rien installer et de répondre à une question sur un projet loin de
-mon bureau.
-
-**Critères d'acceptation.**
-
-- `WF-CMP-0010-A` — « Les vues d'indicateurs se lisent sur un écran de 360 points de large et
-  n'y proposent aucune saisie. »
-- `WF-CMP-0010-A` — « Aucune fonction n'exige une installation sur le poste. »
-- propre à l'US : les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne
-  sur les quatre navigateurs de la spécification — Chrome et Edge par leurs canaux
-  Playwright, Firefox, et WebKit tenant lieu de Safari —, en version courante, à 1366 points
-  de large ;
-- écart : `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
-  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
-  à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
-  pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
-- écart : `WF-CMP-0010-A` — « Vérifiée en recette pour Safari et les terminaux mobiles. » : la
-  recette se tient sur la plateforme déployée, avec son procès-verbal — EP-13.
-
-**Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
-ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
-Firefox et WebKit ses deux autres moteurs, et le Safari réel reste à la recette (EP-13) —
-et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs. Aujourd'hui
-`make e2e-browsers` n'installe que Chromium et `playwright.config.ts` n'a qu'un projet
-`chromium` : l'US ajoute les projets `chrome`, `msedge`, `firefox`, `webkit` et `mobile`, étend la
-cible Make à tous les navigateurs, et donne à la chaîne une part `browsers` au palier complet, qui
-ne joue que les parcours étiquetés (« Conception », « Les navigateurs »). À 360 points, les vues
-sont en lecture seule : aucun champ, aucune cellule saisissable, aucune commande d'écriture ; les
-filtres de lecture restent (décision de l'auteur du 2026-10-09). L'US tient en un lot, dont l'issue
-est la sienne.
