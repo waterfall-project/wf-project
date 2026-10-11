@@ -15,10 +15,12 @@
  * It forgets the cookie of the session the browser held, if any: the sign-out leads here once the
  * sessions are closed, without touching the cookie itself (#724), and a session lost or refused
  * has nothing more to give. With `sign_out` and the ticket the server action of the sign-out armed
- * (`signOutHref`), taken once, the sign-in is the sign-out of a session the front lost (#689):
- * silent (`prompt=none`), its return closes the sessions of the account rather than open one. A
- * ticket unknown, spent or too old — a link of another site — is a sign-in like any other. Redis out of reach, the browser is told the sign-in could not be
- * made, never a bare error (#687).
+ * (`signOutHref`), taken once and only by the browser whose cookie it is bound to, the sign-in is
+ * the sign-out of a session the front lost (#689): silent (`prompt=none`), its return closes the
+ * sessions of the account rather than open one. A ticket unknown, spent or too old — a link of
+ * another site —, or armed for another cookie, or the browser holding none — a ticket a third
+ * party armed for itself —, is a sign-in like any other. Redis out of reach, the browser is told
+ * the sign-in could not be made, never a bare error (#687).
  *
  * On the fake back (`WATERFALL_AUTH=mock`), which grants the session the whole mock-up starts
  * from, there is nothing to sign in to: the route leads straight to the screen `next` names.
@@ -32,7 +34,7 @@ import {
 } from "@/navigation/login";
 import { identityProvider, signInChecks } from "@/session/provider";
 import { rememberSignIn, StoreUnreachable, takeSignOut } from "@/session/store";
-import { forgottenSessionCookie, signInCookie } from "@/session/tokens";
+import { forgottenSessionCookie, sessionIdOf, signInCookie } from "@/session/tokens";
 
 /** A redirect of the sign-in, never kept by a cache. */
 function redirect(location: string, ...cookies: string[]): Response {
@@ -52,10 +54,11 @@ export async function GET(request: Request): Promise<Response> {
     return new Response(null, { status: 307, headers: { Location: target } });
   }
   const ticket = searchParams.get(SIGN_OUT_PARAMETER);
+  const session = sessionIdOf(request);
   const { state, nonce, verifier, challenge } = await signInChecks();
   let signOut = false;
   try {
-    signOut = ticket !== null && (await takeSignOut(ticket));
+    signOut = ticket !== null && session !== undefined && (await takeSignOut(ticket, session));
     await rememberSignIn(state, { verifier, nonce, target, signOut });
   } catch (error) {
     if (!(error instanceof StoreUnreachable)) {

@@ -248,10 +248,14 @@ qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité
 confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
 la requête ne part pas, et le navigateur passe par une connexion silencieuse
 (`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
-hasard, gardé une minute dans Redis, que `/login` prend une seule fois (`armSignOut`,
-`takeSignOut`) ; un ticket inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une
-navigation de premier niveau envoie avec le témoin `SameSite=Lax` — fait une connexion ordinaire,
-qui ne ferme rien. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `wf_session` de la
+requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une
+seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
+inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
+envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin,
+font une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
+public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
+déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
 qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
 Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
 écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage

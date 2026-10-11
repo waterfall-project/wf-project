@@ -8,7 +8,7 @@ import { type ApiClient, createApiClient } from "@/api/client";
 import { createIdentityProvider } from "@/session/provider";
 import { FRONT_CLIENT } from "@/session/settings";
 import { openSession, readSession, takeSignOut } from "@/session/store";
-import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
+import { requestBearer, SESSION_COOKIE, SessionLost } from "@/session/tokens";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
@@ -136,13 +136,25 @@ describe("the server action of the session", () => {
     expect(left.kind).toBe("left");
     const address = new URL(left.kind === "left" ? left.address : "", "https://front.test");
     expect(address.pathname).toBe("/login");
-    // The ticket only this action arms, which the sign-in takes once.
+    // The ticket only this action arms, bound to the cookie of the request, which the sign-in
+    // takes once, and only for that cookie: one a third party arms for a cookie of its own signs
+    // no victim out.
     const ticket = address.searchParams.get("sign_out") ?? "";
     expect(ticket).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await takeSignOut(ticket)).toBe(true);
-    expect(await takeSignOut(ticket)).toBe(false);
+    expect(await takeSignOut(ticket, randomUUID())).toBe(false);
+    expect(await takeSignOut(ticket, lost)).toBe(true);
+    expect(await takeSignOut(ticket, lost)).toBe(false);
     expect(sent).toEqual([]);
     expect(server.jar.held.get(SESSION_COOKIE)).toBe(lost);
+  });
+
+  it("leads to the sign-in, nothing armed, when a request without the cookie finds its session lost: no browser to bind a ticket to", async () => {
+    server.client = createApiClient({
+      address: "http://api.test",
+      bearer: () => Promise.reject(new SessionLost()),
+      fetch: () => Promise.resolve(new Response(null, { status: 204 })),
+    });
+    expect(await signOut()).toEqual(TO_SIGN_IN);
   });
 
   it("touches no session of the front on the fake back, which grants its own", async () => {

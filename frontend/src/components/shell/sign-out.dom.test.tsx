@@ -28,7 +28,7 @@ vi.mock("@/api/server", () => ({
   isMockAuthentication: () => true,
 }));
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
-// The realm of the tests, and a request that holds no cookie: what a lost session reaches.
+// The realm of the tests: what a lost session reaches.
 vi.mock("@/session/provider", async (original) => ({
   ...(await original<typeof import("@/session/provider")>()),
   identityProvider: () => createIdentityProvider(TEST_SETTINGS),
@@ -38,7 +38,10 @@ vi.mock("@/session/store", async (original) => ({
   ...(await original<typeof import("@/session/store")>()),
   armSignOut: () => Promise.resolve("armed-ticket"),
 }));
-vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookieJar()) }));
+// The cookie of the session the front lost, to which the ticket is bound.
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve(cookieJar({ wf_session: "lost" })),
+}));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   usePathname: () => SCREEN,

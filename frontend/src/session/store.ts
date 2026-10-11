@@ -8,8 +8,9 @@
  * - a sign-in under way, by the `state` of its request: the PKCE verifier, the nonce and the
  *   screen aimed at, fifteen minutes at most, taken once;
  * - the sign-out of a session the front lost, armed by the server action of the sign-out under a
- *   ticket drawn at random, which `/login` takes once, a minute at most (#689): a link of another
- *   site cannot sign anyone out;
+ *   ticket drawn at random and bound to the cookie of the browser that asked for it, which
+ *   `/login` takes once, for that cookie only, a minute at most (#689): a link of another site,
+ *   or a ticket another armed, cannot sign anyone out;
  * - a session, by its identifier: the tokens, living as long as the session of Keycloak does —
  *   the lifetime of the refresh token, which each refresh gives anew;
  * - the sessions of an account, by its subject, which the back channel of Keycloak closes
@@ -64,8 +65,9 @@ const SESSION = "wf:session:";
 const ACCOUNT = "wf:account:";
 const REFRESH = "wf:refresh:";
 
-// Deletes the lock only if its holder still holds it: an expired lock taken by another is theirs.
-const RELEASE =
+// Deletes a key only if it still holds the value given: an expired lock taken by another is theirs,
+// and a ticket of the sign-out is taken by the browser it is bound to only.
+const DELETE_HELD =
   'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) end return 0';
 
 // Deletes the sessions of an account and its index at once: a session filed meanwhile is either
@@ -168,21 +170,28 @@ export async function takeSignIn(state: string): Promise<SignIn | undefined> {
 
 /**
  * Arm the sign-out of a session the front lost: the ticket, drawn at random, that `/login` takes
- * once to sign in silently and close the sessions of the account (#689), for a minute at most.
+ * once to sign in silently and close the sessions of the account (#689), for a minute at most —
+ * bound to the identifier the cookie of the browser holds, so that only this browser may take it.
  */
-export async function armSignOut(): Promise<string> {
+export async function armSignOut(session: string): Promise<string> {
   const ticket = randomBytes(32).toString("base64url");
   await reaching((client) =>
-    client.set(`${SIGN_OUT}${ticket}`, "1", {
+    client.set(`${SIGN_OUT}${ticket}`, session, {
       expiration: { type: "EX", value: SIGN_OUT_LIFETIME },
     }),
   );
   return ticket;
 }
 
-/** Take an armed sign-out by its ticket: once, and never after its minute. */
-export async function takeSignOut(ticket: string): Promise<boolean> {
-  return (await reaching((client) => client.getDel(`${SIGN_OUT}${ticket}`))) !== null;
+/**
+ * Take an armed sign-out by its ticket, for the identifier the cookie of the browser holds: once,
+ * never after its minute, and only by the browser it is bound to — another leaves it in place.
+ */
+export async function takeSignOut(ticket: string, session: string): Promise<boolean> {
+  const taken = await reaching((client) =>
+    client.eval(DELETE_HELD, { keys: [`${SIGN_OUT}${ticket}`], arguments: [session] }),
+  );
+  return taken === 1;
 }
 
 /** Open a session for as long as Keycloak keeps it, in seconds, filed under its account. */
@@ -246,5 +255,5 @@ export async function holdRefresh(id: string, holder: string, lifetime: number):
 
 /** Give the lock of the refresh of a session back, if its holder still holds it. */
 export async function releaseRefresh(id: string, holder: string): Promise<void> {
-  await (await redis()).eval(RELEASE, { keys: [`${REFRESH}${id}`], arguments: [holder] });
+  await (await redis()).eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] });
 }

@@ -24,6 +24,7 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
 import { Unreachable } from "@/api/client";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
@@ -31,6 +32,7 @@ import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { identityProvider, RealmUnreachable, REFRESH_TIMEOUT, type Tokens } from "./provider";
 import { CALLBACK_PATH } from "./settings";
 import {
+  armSignOut,
   type FrontSession,
   forgetAccount,
   forgetSession,
@@ -190,6 +192,23 @@ export async function bearerOf(
 /** The identifier of the session of the request, as its cookie names it. */
 async function requestSessionId(): Promise<string | undefined> {
   return (await cookies()).get(SESSION_COOKIE)?.value;
+}
+
+/** The identifier of the session a request to a route of the front holds in its cookie, if any. */
+export function sessionIdOf(request: Request): string | undefined {
+  const id = new NextRequest(request).cookies.get(SESSION_COOKIE)?.value;
+  return id === "" ? undefined : id;
+}
+
+/**
+ * Arm the sign-out of the session the request lost (#689), bound to the identifier its cookie
+ * holds: `/login` takes the ticket only from the browser that holds this cookie, never from one a
+ * link of another site brings, the ticket armed by a third party for a cookie of its own. The cookie
+ * stays as it is (#724). Without it, there is no ticket: the request had no session to lose.
+ */
+export async function armRequestSignOut(): Promise<string | undefined> {
+  const id = await requestSessionId();
+  return id === undefined ? undefined : armSignOut(id);
 }
 
 /**

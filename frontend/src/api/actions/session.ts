@@ -14,8 +14,8 @@ import { decodeOrLost, type Settled, settled } from "@/api/problem";
 import { isMockAuthentication, serverClient } from "@/api/server";
 import { LOGIN_ROUTE, signOutHref } from "@/navigation/login";
 import { identityProvider } from "@/session/provider";
-import { armSignOut, StoreUnreachable } from "@/session/store";
-import { closeRequestSessions } from "@/session/tokens";
+import { StoreUnreachable } from "@/session/store";
+import { armRequestSignOut, closeRequestSessions } from "@/session/tokens";
 
 /** A sign-out done: the browser loads the document at the address it gives. */
 export interface SignedOff {
@@ -23,10 +23,14 @@ export interface SignedOff {
   readonly address: string;
 }
 
-/** The silent sign-in that closes every workstation, armed; the service out of reach without Redis. */
+/**
+ * The silent sign-in that closes every workstation, armed for the cookie of this browser; the
+ * service out of reach without Redis.
+ */
 async function armedSignOut(): Promise<Settled | SignedOff> {
   try {
-    return { kind: "left", address: signOutHref(await armSignOut()) };
+    const ticket = await armRequestSignOut();
+    return { kind: "left", address: ticket === undefined ? LOGIN_ROUTE : signOutHref(ticket) };
   } catch (error) {
     if (!(error instanceof StoreUnreachable)) {
       throw error;
@@ -48,9 +52,11 @@ async function armedSignOut(): Promise<Settled | SignedOff> {
  * Keycloak may still hold the session of this browser, which would sign the user in again
  * without asking: the browser goes through a silent sign-in, whose token closes the sessions of
  * the account on all its workstations (#689). Only this action arms it, under a ticket of one use
- * that `/login` takes (`signOutHref`): a server action, which Next runs for a request of this front
- * alone, never a link another site could make the browser follow. Redis out of reach, nothing is
- * armed, and the screen says the service out of reach.
+ * bound to the cookie of the request (`armRequestSignOut`), that `/login` takes only from the
+ * browser holding that same cookie (`signOutHref`). The identifier of the action is public, and
+ * anyone may call it from a server of their own, with a cookie of their own: the ticket they get
+ * is bound to that cookie, and a victim led to it signs in like any other, nothing closed. Redis
+ * out of reach, nothing is armed, and the screen says the service out of reach.
  */
 export async function signOut(): Promise<Settled | SignedOff> {
   const outcome = await decodeOrLost(() => serverClient().DELETE("/me/sessions"));

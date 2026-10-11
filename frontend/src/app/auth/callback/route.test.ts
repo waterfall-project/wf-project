@@ -50,9 +50,13 @@ async function received(response: Response): Promise<string> {
   return [String(response.status), ...response.headers.entries(), await response.text()].join("\n");
 }
 
-/** Start a sign-in from a screen aimed at — or a sign-out: the answer of `/login`, and its cookie. */
-async function start(next: string, query = `?next=${encodeURIComponent(next)}`) {
-  const started = await login(new Request(`https://front.test/login${query}`));
+/**
+ * Start a sign-in from a screen aimed at — or a sign-out, in a browser holding the cookie of the
+ * session it lost: the answer of `/login`, and its cookie.
+ */
+async function start(next: string, query = `?next=${encodeURIComponent(next)}`, held = "") {
+  const headers: HeadersInit = held === "" ? {} : { Cookie: `${SESSION_COOKIE}=${held}` };
+  const started = await login(new Request(`https://front.test/login${query}`, { headers }));
   const address = started.headers.get("Location") ?? "";
   const [pair = ""] = (started.headers.getSetCookie()[0] ?? "").split(";");
   const [name = "", value = ""] = pair.split("=");
@@ -243,10 +247,16 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
     return id;
   }
 
+  /** Start the sign-out of a session this browser lost, the ticket armed for its cookie. */
+  async function lostSignOut() {
+    const lost = crypto.randomUUID();
+    return start("", `?sign_out=${await armSignOut(lost)}`, lost);
+  }
+
   it("closes the sessions of the account on all its workstations by the token of its silent sign-in, opens none, and leads to the sign-in [WF-SEC-0020-A]", async () => {
     const subject = crypto.randomUUID();
     const other = await elsewhere(subject);
-    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
+    const { address, cookie } = await lostSignOut();
     const response = await back(realm.signIn(address, subject), cookie);
     expect(response.status).toBe(303);
     expect(response.headers.get("Location")).toBe("/login");
@@ -258,7 +268,7 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
   });
 
   it("leads to the sign-in when the realm holds no session for the browser: no workstation left to close", async () => {
-    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
+    const { address, cookie } = await lostSignOut();
     const signIn = new URL(address).searchParams.get("state") ?? "";
     const query = `?${new URLSearchParams({ error: "login_required", state: signIn }).toString()}`;
     const response = await back(query, cookie);
@@ -270,7 +280,7 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
     state.api = {
       "DELETE /me/sessions": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
     };
-    const { address, cookie } = await start("", `?sign_out=${await armSignOut()}`);
+    const { address, cookie } = await lostSignOut();
     const response = await back(realm.signIn(address, crypto.randomUUID()), cookie);
     const location = new URL(response.headers.get("Location") ?? "");
     expect(`${location.origin}${location.pathname}`).toBe(

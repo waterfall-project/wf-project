@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { randomUUID } from "node:crypto";
+
 import { createClient } from "@redis/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -94,9 +96,19 @@ describe("the sign-in route on the identity provider", () => {
     ]);
   });
 
-  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once (#689)", async () => {
-    const ticket = await armSignOut();
-    const response = await login(`?sign_out=${ticket}`);
+  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once, by the browser whose cookie it is bound to only (#689) [WF-SEC-0020-A]", async () => {
+    const [mine, theirs] = [randomUUID(), randomUUID()];
+    const ticket = await armSignOut(mine);
+    // Another browser, or one without the cookie — a victim led to the ticket a third party armed
+    // for a cookie of its own —, signs in like any other, and leaves the ticket in place.
+    for (const headers of [{ Cookie: `wf_session=${theirs}` }, {}]) {
+      const query = new URL(
+        (await login(`?sign_out=${ticket}`, headers)).headers.get("Location") ?? "",
+      ).searchParams;
+      expect(query.has("prompt")).toBe(false);
+      expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
+    }
+    const response = await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` });
     const query = new URL(response.headers.get("Location") ?? "").searchParams;
     expect(query.get("prompt")).toBe("none");
     expect((await kept(query.get("state") ?? "")).value).toMatchObject({
@@ -104,14 +116,18 @@ describe("the sign-in route on the identity provider", () => {
       target: "/",
     });
     // Spent: the same address again is a sign-in like any other.
-    const again = new URL((await login(`?sign_out=${ticket}`)).headers.get("Location") ?? "");
+    const again = new URL(
+      (await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` })).headers.get(
+        "Location",
+      ) ?? "",
+    );
     expect(again.searchParams.has("prompt")).toBe(false);
   });
 
   it.each(["1", "unknown-ticket", ""])(
     "takes a sign-out no server action armed — a link of another site — for an ordinary sign-in: no silent sign-in, nothing closed at its return: %j",
     async (ticket) => {
-      const response = await login(`?sign_out=${ticket}`);
+      const response = await login(`?sign_out=${ticket}`, { Cookie: "wf_session=held" });
       const query = new URL(response.headers.get("Location") ?? "").searchParams;
       expect(query.has("prompt")).toBe(false);
       expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
