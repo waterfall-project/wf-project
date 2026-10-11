@@ -297,6 +297,8 @@
             schema: { $ref: ../components/schemas/access.yaml#/User }
             examples:
               attributed: { $ref: ../../../fixtures/api/user_access_roles_set.json }
+              cleared: { $ref: ../../../fixtures/api/user_access_roles_cleared.json }
+              two_roles: { $ref: ../../../fixtures/api/user_access_roles_two.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

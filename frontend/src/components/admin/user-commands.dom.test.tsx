@@ -49,6 +49,7 @@ const roles = (example("access_roles") as AccessRole[]).map((role) => ({
 }));
 const CHIFFREUR = "01926f3a-7c00-7000-8000-000000000705";
 const DIRECTION = "01926f3a-7c00-7000-8000-000000000701";
+const AUDITEUR = "01926f3a-7c00-7000-8000-000000000707";
 
 /** Serve the fake back, which keeps the settings of the grid, and give it back to read its calls. */
 function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
@@ -331,6 +332,51 @@ describe("the access roles of an account, cell by cell", () => {
         "PUT /users/{user_id}/access-roles",
         `/users/${sacha.user_id}/access-roles`,
         { access_role_ids: [CHIFFREUR], lock_version: sacha.lock_version },
+      ],
+    ]);
+  });
+
+  it("withdraws her one role from an account, which then holds none, and says so (WF-ADM-0050)", async () => {
+    const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_cleared" });
+    render(accounts());
+    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Inès Roux »" });
+    await userEvent.click(trigger);
+    const list = await screen.findByRole("group", { name: "Rôles de « Inès Roux »" });
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Pilotage de projet" }));
+    await waitFor(() => {
+      expect(told().textContent).toBe("Rôles de « Inès Roux » attribués.");
+    });
+    expect(trigger).toHaveTextContent("Aucun rôle");
+    expect(within(list).getByRole("checkbox", { name: "Pilotage de projet" })).not.toBeChecked();
+    const ines = account("Roux");
+    expect(writes(client)).toEqual([
+      [
+        "PUT /users/{user_id}/access-roles",
+        `/users/${ines.user_id}/access-roles`,
+        { access_role_ids: [], lock_version: ines.lock_version },
+      ],
+    ]);
+  });
+
+  it("attributes a second role to an account, which then holds both, in the order given (WF-ADM-0050)", async () => {
+    const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_two" });
+    render(accounts());
+    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    await userEvent.click(trigger);
+    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
+    await waitFor(() => {
+      expect(told().textContent).toBe("Rôles de « Noé Vidal » attribués.");
+    });
+    expect(trigger).toHaveTextContent(/^AuditeurChiffreur$/);
+    expect(within(list).getByRole("checkbox", { name: "Auditeur" })).toBeChecked();
+    expect(within(list).getByRole("checkbox", { name: "Chiffreur" })).toBeChecked();
+    const noe = account("Vidal");
+    expect(writes(client)).toEqual([
+      [
+        "PUT /users/{user_id}/access-roles",
+        `/users/${noe.user_id}/access-roles`,
+        { access_role_ids: [AUDITEUR, CHIFFREUR], lock_version: noe.lock_version },
       ],
     ]);
   });
