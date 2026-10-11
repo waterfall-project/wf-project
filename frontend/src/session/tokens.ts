@@ -23,8 +23,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { RequestCookies } from "next/dist/server/web/spec-extension/cookies";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
 import { Unreachable } from "@/api/client";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
@@ -199,10 +199,13 @@ async function requestSessionId(): Promise<string | undefined> {
  * from its header as `cookies()` reads it — by the class of Next behind it, the cookie given twice
  * taken at its last, its value decoded —, so that `/login` finds the identifier the ticket was armed
  * for (`armRequestSignOut`). The request Next hands a route is of its own class, which a
- * `NextRequest` made of it does not take: the cookies are read from its headers alone.
+ * `NextRequest` made of it does not take: one is made of its address and its headers alone, whose
+ * cookies Next reads by that same class.
  */
 export function sessionIdOf(request: Request): string | undefined {
-  const id = new RequestCookies(request.headers).get(SESSION_COOKIE)?.value;
+  const id = new NextRequest(request.url, { headers: request.headers }).cookies.get(
+    SESSION_COOKIE,
+  )?.value;
   return id === "" ? undefined : id;
 }
 
