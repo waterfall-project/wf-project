@@ -147,7 +147,8 @@ def test_each_image_is_the_last_stage_of_its_dockerfile_and_never_runs_as_root()
         last = stages(dockerfile)[-1]
         assert last[0].endswith(f" AS {images.STAGE}"), dockerfile
         users = [line.split()[1] for line in last if line.upper().startswith("USER ")]
-        assert not [user for user in users if user.split(":")[0] in {"root", "0"}], dockerfile
+        assert users, f"{dockerfile}: the stage says not which user runs it"
+        assert users[-1].split(":")[0] not in {"root", "0"}, dockerfile
     for context in ("frontend", "backend"):
         last = stages(REPOSITORY / context / "Dockerfile")[-1]
         assert [line for line in last if line.startswith("USER ")][-1] == "USER 1000:1000"

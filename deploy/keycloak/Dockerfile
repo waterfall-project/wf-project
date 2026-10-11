@@ -23,7 +23,8 @@ RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet package
 # only its jar is taken.
 FROM adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274 AS realm-applier
 
-# Keycloak runs as its own unprivileged user, 1000, that of its image.
+# Keycloak runs as its own unprivileged user, 1000, that of its image, said again at the end of the
+# stage: the image never runs as root, whatever its base sets.
 FROM keycloak/keycloak:26.5.7@sha256:45ae20191531eb608ddb0b775d012b40d3e4f942697f3214694887dd7c108d13 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
@@ -33,5 +34,6 @@ RUN /opt/keycloak/bin/kc.sh build --db=postgres --health-enabled=true --http-rel
 COPY --from=realm-applier /app/keycloak-config-cli.jar /opt/keycloak-config-cli/keycloak-config-cli.jar
 COPY realm/ /opt/keycloak/realm/
 COPY apply-realm.sh /opt/keycloak/bin/apply-realm
+USER 1000
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
 CMD ["start", "--optimized"]
