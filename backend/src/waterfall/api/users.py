@@ -15,7 +15,8 @@ transaction (#669): what Waterfall would refuse is refused before the provider i
 account is written once the provider has created it, and withdrawn from the provider if Waterfall
 refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
 withdrawn all its roles, has its sessions closed by the provider once the write is committed
-(WF-SEC-0020); a local account anonymised is removed from it then (WF-ADM-0060).
+(WF-SEC-0020). A local account to anonymise is removed from it before the anonymisation is
+written, once checked: while the provider does not answer, nothing is written (WF-ADM-0060).
 """
 
 from collections.abc import Sequence
@@ -69,6 +70,7 @@ from waterfall.core.users.interface import (
     address_taken,
     anonymize_account,
     change_account,
+    check_account_anonymization,
     create_local_account,
     display_name,
     identity_faults,
@@ -443,23 +445,6 @@ def put_user_activation(
     return described
 
 
-def remove_from_provider(admin: KeycloakAdmin, account: Account) -> None:
-    """Have the provider remove a local account once its anonymisation is committed (WF-ADM-0060).
-
-    The account of the directory or of an external provider is the provider's, which Waterfall
-    does not remove. A failure of Keycloak is said in the log and refuses nothing: the account is
-    anonymised all the same, and asking again removes it.
-    """
-    if account.origin != LOCAL:
-        return
-    try:
-        admin.remove_account(account.subject)
-    except (UnavailableError, IdentityProviderError):
-        logger.exception("account.not_removed_from_provider", user_id=str(account.user_id))
-        return
-    logger.info("account.removed_from_provider", user_id=str(account.user_id))
-
-
 @router.post(
     "/users/{user_id}/anonymization",
     operation_id="anonymizeUser",
@@ -476,16 +461,23 @@ def post_user_anonymization(
     """Anonymise a deactivated account at the request of its holder, for good (WF-ADM-0060).
 
     Its names, its address and its avatar are removed, and the journal of audit forgets its name
-    (WF-SEC-0030); an active account is refused. A local account is removed from the provider once
-    the anonymisation is committed, even one anonymised already: asking again removes it if a
-    failure of the provider left it there.
+    (WF-SEC-0030); an active account, or one anonymised already, is refused. A local account is
+    checked in a short transaction, then removed from the provider out of any (#669), then
+    anonymised: while the provider does not answer, 503, nothing is written, and the
+    anonymisation is asked again. An account the write refuses after all — changed meanwhile —
+    stays deactivated, out of the provider, and is anonymised when asked again: the provider
+    removes an account it no longer holds. The account of the directory or of an external
+    provider is the provider's, which Waterfall does not touch.
     """
+    with services.database.transaction() as session:
+        checked = check_account_anonymization(session, user_id, body.lock_version.root)
+    if checked.origin == LOCAL:
+        services.keycloak_admin.remove_account(checked.subject)
+        logger.info("account.removed_from_provider", user_id=str(user_id))
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
         anonymized = anonymize_account(session, user_id, body.lock_version.root, act)
-        described = users(session, actor, [anonymized])[0]
-    remove_from_provider(services.keycloak_admin, anonymized)
-    return described
+        return users(session, actor, [anonymized])[0]
 
 
 @router.put(

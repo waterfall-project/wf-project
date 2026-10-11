@@ -3,10 +3,12 @@
 """A deactivated account anonymised through the API (US-0360, #702, #832).
 
 The caller, Camille Martin, may consult and change the accounts. The account she anonymises, Paul
-Durand, a local account, acted and was acted upon before: the journal names him, and the account
-of Léa Petit, which he wrote, names him as its author. Keycloak is the realm of test, which serves
-keys and nothing of the administration API: the removal of a local account reaches it and fails
-there, which the API says in its log and answers all the same.
+Durand, an account of the directory, acted and was acted upon before: the journal names him, and
+the account of Léa Petit, which he wrote, names him as its author. Keycloak is the realm of test,
+which serves keys and nothing of the administration API: it does not answer the removal of a
+local account, which the API asks before writing anything — the account of the directory is the
+provider's, and is not asked for. A local account removed indeed is tried against the platform
+(``test_keycloak_authentication``).
 """
 
 from typing import Any
@@ -18,7 +20,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
-from support import ContractClient, Logs, Watching, bearer
+from support import ContractClient, Watching, bearer
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -60,7 +62,7 @@ def client(
 
 @pytest.fixture
 def paul(database: Database) -> UUID:
-    """Write Paul Durand's local account, deactivated, with a role and an avatar."""
+    """Write Paul Durand's account of the directory, deactivated, with a role and an avatar."""
     pilot = role(database, "Pilote", permissions=("planning.read",))
     return account(
         database,
@@ -68,6 +70,7 @@ def paul(database: Database) -> UUID:
         "Paul",
         roles=(pilot,),
         state="deactivated",
+        origin="directory",
         idp_subject="kc-paul",
         avatar=b"\x89PNG",
         avatar_media_type="image/png",
@@ -136,12 +139,10 @@ def test_an_anonymized_account_is_named_on_no_screen_of_the_accounts_and_is_not_
     )
     # Its acts stay attributed to it, by its identifier; its roles stay.
     assert body["access_role_labels"] == ["Pilote"]
+    # Its reactivation and its anonymisation stay listed, unavailable (WF-IHM-0090).
     assert body["available_commands"] == [
-        {
-            "command": "reactivate",
-            "is_available": False,
-            "missing_conditions": ["is_not_anonymized"],
-        }
+        {"command": command, "is_available": False, "missing_conditions": ["is_not_anonymized"]}
+        for command in ("reactivate", "anonymize")
     ]
     table = client.get(f"{USERS}?include_inactive=true", headers=headers)
     assert table.status_code == 200
@@ -203,8 +204,14 @@ def test_after_an_anonymization_no_inscription_names_the_account_and_none_else_c
 def test_an_active_account_is_not_anonymized_and_nothing_is_written(
     client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
 ) -> None:
-    active = account(database, "Roux", "Inès")
-    assert problem(anonymize(client, headers, active, 0)) == (409, "STATE_FORBIDS_OPERATION", {})
+    # Only a deactivated account is anonymised (WF-ADM-0060): the condition an active one lacks
+    # is named (#856), and the provider is not asked.
+    active = account(database, "Roux", "Inès", idp_subject="kc-ines")
+    assert problem(anonymize(client, headers, active, 0)) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "is_deactivated_account"},
+    )
     stored = row(database, active)
     assert (stored["last_name"], stored["anonymized_at"], stored["lock_version"]) == (
         "Roux",
@@ -214,43 +221,54 @@ def test_an_active_account_is_not_anonymized_and_nothing_is_written(
     assert (journal(database), watching.held) == ([], [])
 
 
-def test_a_local_account_anonymized_is_removed_from_the_provider_once_committed(
-    client: ContractClient,
-    headers: dict[str, str],
-    paul: UUID,
-    watching: Watching,
-    logs: Logs,
-) -> None:
-    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité ».
-    # Asked with no connection held (#669); the realm of test removes nothing: the failure is said
-    # in the log, and the anonymisation stands.
-    assert anonymize(client, headers, paul, 0).status_code == 200
-    assert watching.held == [("remove_account", 0)]
-    (failure,) = logs.named("account.not_removed_from_provider")
-    assert (failure["user_id"], failure["level"]) == (str(paul), "error")
-
-
-def test_an_account_anonymized_again_is_not_written_and_is_removed_again(
+def test_an_account_anonymized_already_is_refused_as_its_command_says_and_nothing_is_written(
     client: ContractClient,
     database: Database,
     headers: dict[str, str],
     paul: UUID,
     watching: Watching,
 ) -> None:
-    # Asking again removes it if a failure of the provider left it there.
+    # The anonymisation is irreversible, and its command says it unavailable once done (#856).
     assert anonymize(client, headers, paul, 0).status_code == 200
-    again = anonymize(client, headers, paul, 1)
-    assert (again.status_code, again.json()["lock_version"]) == (200, 1)
+    assert problem(anonymize(client, headers, paul, 1)) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "is_not_anonymized"},
+    )
     assert [entry["action"] for entry in journal(database)] == ["user_anonymize"]
-    assert watching.held == [("remove_account", 0)] * 2
+    assert (row(database, paul)["lock_version"], watching.held) == (1, [])
 
 
-def test_an_account_of_the_directory_anonymized_stays_in_the_provider(
+def test_a_local_account_the_provider_does_not_remove_is_not_anonymized_and_nothing_is_written(
     client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
 ) -> None:
-    # The directory is the provider's: Waterfall removes no account of it, and the reading of the
-    # accounts recognizes it by the subject the anonymisation keeps (WF-ADM-0070).
-    read = account(database, "Bernard", "Dominique", origin="directory", state="deactivated")
+    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité ». It
+    # is removed before the write, with no connection held (#669); the realm of test does not
+    # answer: 503, nothing is written, and the anonymisation is asked again (#856).
+    local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
+    assert problem(anonymize(client, headers, local, 0)) == (
+        503,
+        "COMPONENT_UNAVAILABLE",
+        {"component": "identity_provider"},
+    )
+    assert watching.held == [("remove_account", 0)]
+    stored = row(database, local)
+    assert (stored["last_name"], stored["email"], stored["anonymized_at"]) == (
+        "Roux",
+        "inès.roux@example.org",
+        None,
+    )
+    assert (stored["lock_version"], journal(database)) == (0, [])
+
+
+def test_an_account_of_an_external_provider_anonymized_stays_in_the_provider(
+    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
+) -> None:
+    # An external provider's account is the provider's, as one of the directory is (Paul's):
+    # Waterfall removes no account of it, and the reading of the accounts recognizes it by the
+    # subject the anonymisation keeps (WF-ADM-0070).
+    relayed = "identity_provider"
+    read = account(database, "Bernard", "Dominique", origin=relayed, state="deactivated")
     assert anonymize(client, headers, read, 0).status_code == 200
     assert row(database, read)["idp_subject"].startswith("subject-")
     assert watching.held == []

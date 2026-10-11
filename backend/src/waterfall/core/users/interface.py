@@ -65,7 +65,7 @@ from waterfall.core.users.listing import (
     find_accounts,
 )
 from waterfall.core.users.password_link import inscribe_link, lock_link_holder, not_local
-from waterfall.core.users.states import anonymize, set_state
+from waterfall.core.users.states import anonymize, check_anonymization, set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.errors import ConflictError, NotFoundError
@@ -94,6 +94,7 @@ __all__ = [
     "address_taken",
     "anonymize_account",
     "change_account",
+    "check_account_anonymization",
     "create_local_account",
     "display_name",
     "identity_faults",
@@ -296,12 +297,20 @@ def set_account_activation(
     )
 
 
+def check_account_anonymization(session: Session, user_id: UUID, lock_version: int) -> Account:
+    """Give the account to anonymise, its origin and subject, before the provider is asked.
+
+    Refused as its anonymisation would be (``anonymize_account``): the caller removes a local
+    account from the provider out of any transaction, then anonymises it (#669, WF-ADM-0060).
+    """
+    return _account(session, check_anonymization(session, user_id, lock_version))
+
+
 def anonymize_account(session: Session, user_id: UUID, lock_version: int, act: Act) -> Account:
     """Anonymise a deactivated account whose version is the one read, for good (``states``).
 
-    Refused if unknown (404), at another version (412), or active (409). The journal of audit
-    forgets its name in the same transaction (WF-SEC-0030); an account anonymised already is not
-    written.
+    Refused if unknown (404), at another version (412), anonymised already or active (409). The
+    journal of audit forgets its name in the same transaction (WF-SEC-0030).
     """
     return _account(session, anonymize(session, user_id, lock_version, act))
 

@@ -975,10 +975,20 @@ def test_a_local_account_anonymized_is_removed_from_the_realm(
     colleague: Account,
     admin: httpx2.Client,
 ) -> None:
-    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité ».
+    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité »,
+    # before the anonymisation is written (#856).
     row = known(database, colleague, state="deactivated")
     body = {"lock_version": 0}
     path = f"{USERS}/{row['id']}/anonymization"
     response = api.request("POST", path, headers=administrator, json=body)
     assert response.status_code == 200, response.text
+    assert (response.json()["anonymized_at"] is not None, response.json()["email"]) == (True, None)
     assert admin.get(f"/users/{colleague.id}").status_code == 404
+    # One the realm no longer holds — removed by an anonymisation the write refused after all —
+    # is anonymised when asked again.
+    gone = raw_account(email="gone@example.org", state="deactivated")
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**gone))
+    path = f"{USERS}/{gone['id']}/anonymization"
+    again = api.request("POST", path, headers=administrator, json=body)
+    assert (again.status_code, again.json()["email"]) == (200, None)
