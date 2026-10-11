@@ -120,6 +120,23 @@ target = "check-service"
 paths = ["frontend/**", "docs/api/**", "fixtures/api/**"]
 target = "check-front"
 
+[families.front-image]
+# The production image of the front (US-0430), which the chain publishes after a merge alone
+# (images.yml): a pull request that changes what makes it builds it and starts it first — its
+# Dockerfile and what it leaves out of its context, the configuration of Next, the dependencies.
+# A change of the code of the front alone is built by the front family, not into the image, which
+# holds what that build prerendered (make prerendered-front): the code of the pages decides it, and
+# the build of the image is paid where the image itself changes.
+paths = [
+    "frontend/Dockerfile",
+    "frontend/.dockerignore",
+    "frontend/next.config.ts",
+    "frontend/package.json",
+    "frontend/pnpm-lock.yaml",
+    "frontend/pnpm-workspace.yaml",
+]
+target = "check-front-image"
+
 [[generated]]
 paths = ["docs/spec/waterfall-spec.md"]
 by = "make build-doc"

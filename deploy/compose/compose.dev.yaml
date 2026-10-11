@@ -36,6 +36,8 @@ services:
   front:
     build:
       context: ../../frontend
+      # The image of development; the last stage is the one of production (US-0430).
+      target: development
     environment:
       WATERFALL_API_ADDRESS: http://mock:4010
       # The fake back grants the session: the front sends it a fixed token (src/api/server.ts).
