@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Ce que le front doit savoir de l'installation avant toute session
-         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion.
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris avant toute connexion. Avant l'amorçage de l'installation (WF-EXP-0020), qui en crée la ligne, l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         get: operations["getInstallation"];
         put?: never;
@@ -234,7 +234,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio.
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio. Un type annoncé (`Content-Type`) autre que `image/png` ou `image/jpeg`, ou un corps vide, est refusé par 400 `MALFORMED_REQUEST` ; un contenu qui n'est ni un PNG ni un JPEG, par 422 `VALIDATION_FAILED` au pointeur `""`, le corps entier. Seule la signature du contenu fait le type gardé : un JPEG annoncé PNG est enregistré en `image/jpeg`. Avant l'amorçage de l'installation (WF-EXP-0020), l'opération répond 503 `COMPONENT_UNAVAILABLE`, `component` à `database`.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -524,7 +524,7 @@ export interface paths {
         put?: never;
         /**
          * Déclencher une sauvegarde
-         * @description Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état cohérent, à l'exception du journal d'audit ; l'archive est vérifiée après sa production avant de passer `passed` (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+         * @description Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état cohérent, le journal d'audit compris, sauvegardé avec la base de Waterfall (WF-SEC-0030) ; l'archive est vérifiée après sa production, et la sauvegarde apparaît dans la liste avec le résultat de sa vérification (WF-ADM-0150). Confiée au worker (WF-ARC-0090), qui l'inscrit au journal d'audit. Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         post: operations["startBackup"];
         delete?: never;
@@ -566,7 +566,7 @@ export interface paths {
         };
         /**
          * Copier une sauvegarde hors de la plateforme
-         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+         * @description La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150) : l'archive telle que le stockage objet la garde, rendue en flux. Elle porte les deux bases entières, comptes et réglages du fournisseur d'identité compris : sous la permission de consulter les sauvegardes et celle de les modifier (`backups.read`, `backups.write`, WF-ADM-0100).
          */
         get: operations["downloadBackup"];
         put?: never;
@@ -2856,11 +2856,12 @@ export interface components {
                 column: string;
                 order: components["schemas"]["SortOrder"];
             } | null;
+            /** @description La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte. */
             filters?: {
-                [key: string]: unknown;
+                [key: string]: string;
             };
         };
-        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. */
+        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. Les préférences sont relues avec le compte à chaque requête : leur taille est bornée (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64 caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en défaut ; un nom trop long, au pointeur de l'objet qui le porte. */
         DisplayPreferences: {
             /**
              * @description Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du compte : le front résout la langue à chaque requête, l'API n'en localise aucune réponse (WF-ARC-0110).
@@ -2992,7 +2993,7 @@ export interface components {
         AccessRoleUpdate: components["schemas"]["AccessRoleWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs deux vidages et d'un manifeste — la date, la version de l'application, la révision du schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
+        /** @description Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs deux vidages et d'un manifeste — la date, la version de l'application, la révision du schéma, les empreintes. Le journal d'audit en fait partie : il est sauvegardé avec la base de Waterfall (WF-SEC-0030), et une restauration réinscrit celles de ses inscriptions qui suivent la date de la sauvegarde (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et n'y figurent pas (WF-DAT-0120). */
         Backup: {
             backup_id: components["schemas"]["Uuid"];
             taken_at: components["schemas"]["Timestamp"];
@@ -3002,7 +3003,7 @@ export interface components {
             /** @description Marquée à conserver, elle échappe à la rotation (WF-ADM-0170). */
             is_retained: boolean;
             /**
-             * @description Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
+             * @description Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris.
              * @enum {string}
              */
             scope: "database";

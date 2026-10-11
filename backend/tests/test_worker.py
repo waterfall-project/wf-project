@@ -26,8 +26,9 @@ from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, FIELD, GROUP, WORKER_TIMEOUT, TaskQueue
+from waterfall.platform.settings import load_worker_settings
 from waterfall.platform.tasks import BackgroundTask, Task, TaskError, TaskHandler, submit
-from waterfall.worker.main import HANDLERS
+from waterfall.worker.main import handlers
 from waterfall.worker.runner import MAX_ATTEMPTS, Timing, Worker
 
 # Every entry pending is taken over at once: the tests stand for a worker started again.
@@ -68,18 +69,19 @@ def interrupted(session: Session, task: Task) -> None:
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
+@pytest.mark.usefixtures("platform_environment")
 def test_a_deposited_task_runs_in_the_worker_and_never_in_the_request_that_deposits_it(
     database: Database, queue: TaskQueue, worker: MakeWorker
 ) -> None:
     # « Aucun de ces traitements n'est joignable par un endpoint qui répondrait après l'avoir
     # exécuté. » : no handler the worker runs is in reach of the API, which cannot run one; a
     # request that deposits a task ends with it queued, deposited once its transaction is
-    # committed, and not run. The worker has no handler of its own yet (US-0370/L2): the one this
-    # test registers lives with the tests, outside the package, which no endpoint imports.
+    # committed, and not run. The handlers of the worker, the backup's included, and the one this
+    # test registers, which lives with the tests, are out of reach of any endpoint.
     assert reachable_from_api("waterfall.platform.tasks")
     assert not reachable_from_api("waterfall.worker")
     runs = Runs()
-    for handler in [*HANDLERS.values(), runs]:
+    for handler in [*handlers(load_worker_settings()).values(), runs]:
         assert not reachable_from_api(handler.__module__)
     with logging_context(correlation_id=REQUEST), database.transaction() as session:
         task_id = submit(session, queue, "identity_sync", None)

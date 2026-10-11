@@ -22,6 +22,7 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
+from waterfall.core.backups.tables import Backup
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
@@ -463,3 +464,46 @@ def test_the_database_refuses_a_task_that_breaks_a_rule(
     database: Database, overrides: dict[str, object], constraint: str
 ) -> None:
     assert refusal(database, write_task(**overrides)) == constraint
+
+
+def write_backup(of_task: object, **overrides: object) -> Executable:
+    """Give the insertion of a backup by hand, verified, with the changes asked for."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "taken_at": ENDED,
+        "size_bytes": 2048,
+        "verification": "passed",
+        "origin": "manual",
+        "is_retained": False,
+        "object_key": f"backup-{of_task}.tar",
+        "application_version": "0.1.0",
+        "schema_revision": "0010",
+        "task_id": of_task,
+    }
+    return insert(Backup).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"verification": "skipped"}, "ck_backup_verification_known"),
+        ({"origin": "imported"}, "ck_backup_origin_known"),
+        ({"size_bytes": -1}, "ck_backup_size_bytes_not_negative"),
+        ({"task_id": uuid4()}, "fk_backup_task_id_background_task"),
+        ({"object_key": "taken.tar"}, "uq_backup_object_key"),
+        ({}, "uq_backup_task_id"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_backup_that_breaks_a_rule(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    task_id, other = uuid4(), uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(write_task(id=task_id, kind="backup"))
+        connection.execute(write_task(id=other, kind="backup"))
+        connection.execute(write_backup(other, object_key="taken.tar"))
+        if not overrides:
+            connection.execute(write_backup(task_id, object_key="first.tar"))
+    assert refusal(database, write_backup(task_id, **overrides)) == constraint

@@ -128,7 +128,7 @@ désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le servi
 sur ces deux colonnes, et le déclencheur n'admet que cela, un libellé au moins passé à NULL. Que le
 compte désigné soit anonymisé, c'est le module des comptes qui le vérifie, par un déclencheur à lui
 sur le journal, qui lit `user_account` : la fonction du journal ne lit la table d'aucun module
-(`0010_account_anonymization`, #702, #865). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+(`0011_account_anonymization`, #702, #865). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.

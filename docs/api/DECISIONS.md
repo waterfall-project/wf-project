@@ -3691,6 +3691,20 @@ blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contr
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
 
+## Les préférences d'affichage ont une taille bornée (EP-03, #874)
+
+Décision de l'auteur du 2026-10-11. `DisplayPreferences` ne bornait ni le nombre de grilles, ni la
+taille de leurs filtres, ni la longueur des noms : chaque `updateMyPreferences` pouvait ajouter des
+grilles, et les préférences sont relues avec le compte à chaque requête de son titulaire et dans la
+liste des comptes. Bornes : cent grilles ; un nom de grille, de colonne ou de filtre de 64
+caractères ; par grille, 64 colonnes masquées et 64 largeurs ; 20 filtres, chacun un texte de 500
+caractères au plus. Les noms d'aujourd'hui en ont moins de vingt, et la recherche elle-même s'arrête
+à 200 caractères. Un filtre devient un texte, ce que le front écrit déjà : la valeur du paramètre de
+l'adresse qui le porte. Le service, dont les modèles sont engendrés du contrat, refuse une borne
+passée par 422 `VALUE_TOO_LONG` ; un nom trop long l'est au pointeur de l'objet qui le porte, comme
+un NUL dans un nom, une clé n'étant pas un champ. Écarté : une borne sur la taille du document
+entier, que le contrat ne sait pas dire et qu'un code d'erreur par champ ne pointerait pas.
+
 ## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
 
 Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma
@@ -3767,6 +3781,18 @@ comptes sur le journal refuse ce passage quand le compte désigné n'a pas `anon
 plateforme ne lit la table d'aucun module (`docs/dev/sql.md`). Écarté : laisser la vérification au
 service seul, qu'une écriture qui le contourne ne rencontre pas.
 `User.available_commands` admet trois commandes.
+
+## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
+
+Décision de l'auteur du 2026-10-10 (#705), suivant WF-SEC-0030 révisée : le journal d'audit est
+sauvegardé avec la base de Waterfall. `Backup`, `Backup.scope` et `startBackup` le disent, à la
+place de « à l'exception du journal d'audit » qu'écrivait la décision 9 d'US-0350/L1 ; la
+restauration, qui relit les inscriptions postérieures à la sauvegarde et les réinscrit, reste à
+dire par son lot (US-0440/L2). `startBackup` est sous `backups.write`, comme toute écriture de la
+fonction ; `downloadBackup` demande `backups.read` puis `backups.write` : l'archive porte les deux
+bases entières, comptes et réglages du fournisseur d'identité compris, et son 403 déclaré n'avait
+pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
+plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
 
 ## Collage et annulation
 

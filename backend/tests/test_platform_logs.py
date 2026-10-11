@@ -14,6 +14,8 @@ from support import (
     DB_CREDENTIAL,
     DECODED_CREDENTIAL,
     ENCODED_CREDENTIAL,
+    KEYCLOAK_DATABASE_CREDENTIAL,
+    OWNER_CREDENTIAL,
     PLATFORM_SECRETS,
     REDIS_CREDENTIAL,
     SESSION_COOKIE,
@@ -28,7 +30,7 @@ from waterfall.platform.logs import (
     logging_context,
     mask_values,
 )
-from waterfall.platform.settings import Settings
+from waterfall.platform.settings import Settings, load_worker_settings
 
 
 def test_a_record_is_a_json_line_with_its_severity_its_time_and_its_author(logs: Logs) -> None:
@@ -125,9 +127,12 @@ def test_a_secret_that_contains_another_is_hidden_whole() -> None:
 def test_the_settings_give_each_secret_they_hold_and_the_password_of_a_url(
     platform_settings: Settings,
 ) -> None:
-    assert set(platform_settings.secret_values()) == {DB_CREDENTIAL, REDIS_CREDENTIAL} | set(
-        PLATFORM_SECRETS.values()
-    )
+    # The worker holds besides the addresses of the owners of the two databases it backs up.
+    owners = {"WATERFALL_OWNER_DATABASE_URL", "WATERFALL_KEYCLOAK_DATABASE_URL"}
+    service = {value for name, value in PLATFORM_SECRETS.items() if name not in owners}
+    assert set(platform_settings.secret_values()) == {DB_CREDENTIAL, REDIS_CREDENTIAL} | service
+    passwords = {DB_CREDENTIAL, REDIS_CREDENTIAL, OWNER_CREDENTIAL, KEYCLOAK_DATABASE_CREDENTIAL}
+    assert set(load_worker_settings().secret_values()) == passwords | set(PLATFORM_SECRETS.values())
 
 
 def fail_with(message: str) -> None:

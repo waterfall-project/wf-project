@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
-from support import ContractClient, Logs, Watching, bearer
+from support import ContractClient, Logs, Watching, bearer, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -56,7 +56,7 @@ def client(
     contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
 ) -> ContractClient:
     """Give a client of the API whose administration client is watched."""
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -345,7 +345,7 @@ def test_a_reactivation_slipped_before_the_write_leaves_the_account_active_until
     # the provider takes for done, and anonymised.
     local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
     slipping = Slipping(keycloak, realm_settings, database, local)
-    app = create_app(Services(database, keycloak, slipping))
+    app = create_app(Services(database, keycloak, slipping, *nowhere()))
     client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     assert problem(anonymize(client, headers, local, 0)) == (
         412,
@@ -391,7 +391,7 @@ def removing(
 ) -> tuple[ContractClient, Removing]:
     """Give a client of the API whose administration client removes the accounts it is asked."""
     administration = Removing(keycloak, realm_settings, database)
-    app = create_app(Services(database, keycloak, administration))
+    app = create_app(Services(database, keycloak, administration, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract), administration
 
 

@@ -37,7 +37,8 @@ DIRECTORY = "directory"
 # The language that follows the browser, then the installation: the realm's own by default.
 FOLLOWED = "default"
 # The fields of the preferences, and of the settings of a grid, that the contract never lets null.
-NEVER_NULL = (LANGUAGE, "theme", "highlight_tasks_added_after_reference", "grids")
+GRIDS = "grids"
+NEVER_NULL = (LANGUAGE, "theme", "highlight_tasks_added_after_reference", GRIDS)
 NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters")
 
 
@@ -82,7 +83,10 @@ def preference_change(body: DisplayPreferences) -> dict[str, Any]:
     faults = [
         FieldError(json_pointer(name), VALIDATION_FAILED) for name in null_fields(body, NEVER_NULL)
     ]
-    for grid_name, grid in (body.grids or {}).items():
+    # The generated type of a key, a bounded text (``constr``), is unknown to the type checker,
+    # which would hold the whole field unknown: it is read by its name, a text all the same.
+    grids: dict[str, GridPreferences | None] = getattr(body, GRIDS) or {}
+    for grid_name, grid in grids.items():
         if grid is not None:
             faults.extend(
                 FieldError(json_pointer("grids", grid_name, name), VALIDATION_FAILED)
