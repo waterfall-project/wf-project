@@ -558,9 +558,9 @@ def new_address() -> str:
 
 
 def changing_accounts(database: Database, account: Account) -> dict[str, str]:
-    """Make an account of the realm one Waterfall knows, which may change the accounts and give roles.
+    """Make an account of the realm one Waterfall knows, which may change the accounts.
 
-    Give the header of its token.
+    It may give roles as well. Give the header of its token.
     """
     row = known(database, account)
     role(
