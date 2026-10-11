@@ -232,15 +232,16 @@ def test_a_language_chosen_is_written_only_once_the_identity_provider_has_it(
     assert (response.status_code, response.json()["code"]) == (503, "COMPONENT_UNAVAILABLE")
     assert response.json()["params"] == {"component": "identity_provider"}
     assert preferences_of(database, user_id) == {"language": "fr"}
-    # The language it has already, sent again, does not ask the provider.
+    # The language it has already, sent again, is given to the provider all the same: the
+    # provider's may differ — another tab, the language picker of the sign-in page — and choosing
+    # the language shown again is what repairs it.
     kept = api.patch(PREFERENCES, headers=headers, json={"language": "fr", "theme": "dark"})
-    assert kept.status_code == 200, kept.text
+    assert (kept.status_code, kept.json()["code"]) == (503, "COMPONENT_UNAVAILABLE")
+    assert preferences_of(database, user_id) == {"language": "fr"}
+    # A change without a language — a theme, a grid — does not ask it.
+    themed = api.patch(PREFERENCES, headers=headers, json={"theme": "dark"})
+    assert themed.status_code == 200, themed.text
     assert preferences_of(database, user_id) == {"language": "fr", "theme": "dark"}
-    # Nor does following the browser, for an account that never chose.
-    _, newcomer = person(database, realm)
-    assert api.patch(PREFERENCES, headers=newcomer, json={"language": "default"}).json() == {
-        "language": "default"
-    }
 
 
 def test_the_language_of_an_account_of_a_directory_is_not_asked_of_the_provider(

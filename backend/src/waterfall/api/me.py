@@ -103,16 +103,16 @@ def patch_my_preferences(
     A language chosen is also the account's in the identity provider, which mails in it
     (WF-INTF-0160): the provider is told first, outside of any transaction (#669), and while it
     does not answer nothing is written — the change is never presented as done. The preferences
-    are written next. A change that keeps the language — a grid, a theme — does not call it; nor
-    does that of an account of a directory, whose attributes are the directory's, which the realm
-    federates read only, and which the provider mails nothing (WF-ADM-0140).
+    are written next. A language sent is given to the provider even when Waterfall already holds
+    it: the provider's may differ — another tab, or the language picker of the realm's sign-in
+    page, which writes it too — and choosing the language shown again repairs the disagreement. A
+    change without a language — a grid, a theme — does not call it; nor does that of an account
+    of a directory, whose attributes are the directory's, which the realm federates read only, and
+    which the provider mails nothing (WF-ADM-0140).
     """
     sent = preference_change(body)
     language = sent.get(LANGUAGE)
-    chosen = language is not None and language != account.display_preferences.get(
-        LANGUAGE, FOLLOWED
-    )
-    if chosen and account.origin != DIRECTORY:
+    if language is not None and account.origin != DIRECTORY:
         locale = None if language == FOLLOWED else language
         services.keycloak_admin.set_locale(account.subject, locale)
     with services.database.transaction() as session:
