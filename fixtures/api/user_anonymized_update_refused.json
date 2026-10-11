@@ -1,5 +1,5 @@
 {
-  "summary": "Un nom donné au compte anonymisé d'Alix Moreau refusé : l'anonymisation est irréversible, et rien n'est écrit (WF-ADM-0060).",
+  "summary": "Un nom donné au compte d'Alix Moreau, anonymisé aujourd'hui, refusé : l'anonymisation est irréversible, et rien n'est écrit (WF-ADM-0060).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,

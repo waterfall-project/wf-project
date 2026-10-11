@@ -297,6 +297,36 @@ def test_the_account_of_the_caller_is_written_alike_wherever_it_is_read() -> Non
     assert all(each == audits[0] for each in audits)
 
 
+def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None:
+    # The anonymisation of Alix Moreau is the sequel of a write made today: the account the list
+    # reads, deactivated, one version further, without its names, and the journal that named it
+    # renamed nothing else (#832).
+    read = {each["user_id"]: each for each in fixture("users")["items"]}
+    forgotten = {"last_name", "first_name", "email", "anonymized_at", "available_commands"}
+    for name in ("user_anonymized", "users_anonymized"):
+        value = fixture(name)
+        anonymized = value.get("items", [value])[0]
+        before = read[anonymized["user_id"]]
+        assert before["anonymized_at"] is None, name
+        assert _instant(anonymized["anonymized_at"]) == TODAY, name
+        assert anonymized["audit"]["updated_at"] == anonymized["anonymized_at"], name
+        assert anonymized["lock_version"] == before["lock_version"] + 1, name
+        assert {anonymized[key] for key in ("last_name", "first_name", "email")} == {None}, name
+        kept = forgotten | {"audit", "lock_version"}
+        assert {key: value for key, value in anonymized.items() if key not in kept} == {
+            key: value for key, value in before.items() if key not in kept
+        }, name
+    journal = {each["audit_event_id"]: each for each in fixture("audit_events")["items"]}
+    anonymization, *history = fixture("audit_events_anonymized_object")["items"]
+    assert (anonymization["action"], _instant(anonymization["occurred_at"])) == (
+        "user_anonymize",
+        TODAY,
+    )
+    for inscription in history:
+        named = journal[inscription["audit_event_id"]]
+        assert inscription == {**named, "object": {**named["object"], "label": None}}
+
+
 # --- The actual costs (C3) ----------------------------------------------------------------------
 
 

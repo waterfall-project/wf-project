@@ -1,5 +1,5 @@
 {
-  "summary": "La réactivation du compte anonymisé d'Alix Moreau refusée : l'anonymisation est irréversible, et rien n'est écrit (WF-ADM-0060).",
+  "summary": "La réactivation du compte d'Alix Moreau, anonymisé aujourd'hui, refusée : l'anonymisation est irréversible, et rien n'est écrit (WF-ADM-0060).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
