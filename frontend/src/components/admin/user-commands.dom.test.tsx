@@ -159,6 +159,25 @@ describe("the table of the accounts, its own entry", () => {
     expect(screen.queryByRole("status", { name: "Commandes des comptes" })).toBeNull();
   });
 
+  it("presents no command an account does not list: neither its switch nor its roles", () => {
+    // Dominique Bernard read as a session would that the server listed none of her commands for.
+    const bernard = account("Bernard");
+    render(
+      accounts(
+        true,
+        users.items.map((user) =>
+          user.user_id === bernard.user_id ? { ...user, available_commands: [] } : user,
+        ),
+      ),
+    );
+    const row = within(grid()).getByText("Bernard").closest("tr") as HTMLElement;
+    expect(within(row).queryByRole("switch")).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^Rôles de/ })).toBeNull();
+    expect(row).toHaveTextContent("Manager");
+    expect(row).toHaveTextContent("Actif");
+    expect(within(grid()).getAllByRole("switch")).toHaveLength(6);
+  });
+
   it("renames a local account in its cell from the version read, its name shown as the server answers it; the name of an account of the directory is not entered [WF-ADM-0050-A]", async () => {
     const client = serve({ "PATCH /users/{user_id}": "user_renamed" });
     render(accounts());
