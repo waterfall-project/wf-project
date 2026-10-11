@@ -114,6 +114,7 @@ __all__ = [
     "read_account_label",
     "read_account_of_subject",
     "read_author",
+    "read_authors",
     "read_avatar",
     "refuse",
     "set_account_activation",
@@ -200,6 +201,24 @@ def read_author(session: Session, user_id: UUID | None) -> Author | None:
         return None
     author = session.get_one(UserAccount, user_id)
     return Author(user_id, display_name(author.first_name, author.last_name))
+
+
+def read_authors(session: Session, user_ids: Collection[UUID]) -> dict[UUID, Author]:
+    """Name the accounts given as they are shown today, deactivated ones included.
+
+    An identifier no account bears is left out.
+    """
+    if not user_ids:
+        return {}
+    found = session.execute(
+        select(UserAccount.id, UserAccount.first_name, UserAccount.last_name).where(
+            UserAccount.id.in_(user_ids)
+        )
+    )
+    return {
+        user_id: Author(user_id, display_name(first_name, last_name))
+        for user_id, first_name, last_name in found
+    }
 
 
 def active_accounts(session: Session, user_ids: Collection[UUID]) -> frozenset[UUID]:

@@ -392,6 +392,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "deleteAccessRole": (CONSULT, CHANGE),
     "listBackgroundTasks": (),
     "getBackgroundTask": (),
+    "listAuditEvents": ("audit_log.read",),
+    "listAuditFacets": ("audit_log.read",),
 }
 
 

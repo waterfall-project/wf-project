@@ -17,7 +17,9 @@ refuses to update or delete an inscription: the role of the service has only ``I
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them
-names the collation it lowers in.
+names the collation it lowers in. The action and the nature of the object sort in the order of
+their enumerations in the contract, not as texts: by their rank, an expression an index of its own
+serves (``ACTION_RANK``, ``OBJECT_KIND_RANK``).
 """
 
 from collections.abc import Mapping, Sequence
@@ -26,7 +28,7 @@ from datetime import datetime
 from typing import Any, Literal, get_args
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Text, insert
+from sqlalchemy import CheckConstraint, Index, Text, insert, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -81,6 +83,19 @@ def _in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({', '.join(repr(value) for value in values)})"
 
 
+def _rank(column: str, values: tuple[str, ...]) -> str:
+    """Give the expression of the rank of a column's value in an enumeration, from 1."""
+    array = ", ".join(f"{value!r}::text" for value in values)
+    return f"array_position(ARRAY[{array}], {column})"
+
+
+# The orders of the contract (``AuditAction``, ``AuditObjectKind``), as the journal sorts them and
+# their indexes hold them: a query names the very expression an index holds, or the index is not
+# used. A new value is a migration of the constraint and of the index.
+ACTION_RANK = _rank("action", ACTIONS)
+OBJECT_KIND_RANK = _rank("object_kind", OBJECT_KINDS)
+
+
 class AuditEntry(Base):
     """An inscription of the journal: what was done, when, by whom, on what, in which project."""
 
@@ -105,15 +120,17 @@ class AuditEntry(Base):
         ),
         CheckConstraint("jsonb_typeof(params) = 'object'", name="params_object"),
         CheckConstraint("correlation_id ~ '^[A-Za-z0-9._-]{1,64}$'", name="correlation_id_form"),
+        Index("ix_audit_entry_action_rank", text(ACTION_RANK)),
+        Index("ix_audit_entry_object_kind_rank", text(OBJECT_KIND_RANK)),
     )
 
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
-    # action, nature and object, project, correlation — and its sorts on the date and on the
-    # texts, which share their collation: the name of the author, the label, the code of the
-    # project, the correlation. Left to US-0410/L2: the sorts on the action and on the nature,
-    # in the order of the enumerations of the contract, which an index on the text does not
-    # serve and an index on the expression of that order will; and the search on the label,
-    # which no index serves yet. At one instant, the order of inscription is that of the
+    # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
+    # which share their collation — the name of the author, the label, the code of the project,
+    # the correlation —, and on the ranks of the action and of the nature (migration ``0010``).
+    # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
+    # no index serves: a B-tree does not find a text inside another, and a trigram index serves
+    # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the
     # identifiers, drawn in time order.
     id: Mapped[UUID] = mapped_column(primary_key=True)
     occurred_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
