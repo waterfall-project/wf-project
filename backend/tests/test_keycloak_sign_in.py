@@ -14,6 +14,7 @@ aimed at — is proved by the paths against the service (``frontend/e2e/service/
 
 import html
 import secrets
+import subprocess
 import time
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
@@ -66,6 +67,7 @@ from test_keycloak_platform import (
     mailed_link,
     password_grant,
     relay,
+    required,
     set_by_link,
 )
 
@@ -175,14 +177,31 @@ def test_a_password_of_eleven_characters_or_the_address_of_the_account_is_refuse
     assert reset("k7#Qw2ZpX9vR").status_code == 204
 
 
-def locked_out(account: Account) -> None:
-    """Fail ten sign-ins of an account, then find that its own password no longer signs it in."""
+def locked_out(admin: httpx2.Client, account: Account) -> None:
+    """Fail ten sign-ins of an account, then find that its own password no longer signs it in.
+
+    Keycloak counts a failure in the background (``DefaultBruteForceProtector``): the account is
+    locked once its detection says so, which is waited for, five seconds at most (#853).
+    """
     with httpx2.Client(base_url=realm_address(), timeout=30) as realm:
         for _ in range(10):
             failed = password_grant(realm, account, "not-the-password")
             assert (failed.status_code, failed.json()["error"]) == (401, "invalid_grant")
+        detection = f"/attack-detection/brute-force/users/{account.id}"
+        deadline = time.monotonic() + 5
+        while not admin.get(detection).json()["disabled"]:
+            assert time.monotonic() < deadline, "the tenth failure locked nothing"
+            time.sleep(0.1)
         locked = password_grant(realm, account, PASSWORD)
-        assert locked.status_code != 200, locked.text
+        assert (locked.status_code, locked.json()["error"]) == (401, "invalid_grant"), locked.text
+
+
+def lasts(token: dict[str, Any], seconds: int) -> bool:
+    """Tell whether a token lives ``seconds``, or a second less.
+
+    Keycloak writes its end before its issue, which may fall the second after (#853).
+    """
+    return token["exp"] - token["iat"] in {seconds - 1, seconds}
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
@@ -193,7 +212,7 @@ def test_ten_failures_lock_the_account_for_fifteen_minutes(
     # account refuses even its password; the realm locks it for fifteen minutes whatever the count
     # of failures, never for good — the settings of the lock, and its state. That a lock ends
     # when its time is out is proved on a lock made short, below.
-    locked_out(local_account)
+    locked_out(admin, local_account)
     state = admin.get(f"/attack-detection/brute-force/users/{local_account.id}").json()
     assert (state["disabled"], state["numFailures"]) == (True, 10)
     with administering() as realm_admin:
@@ -207,6 +226,10 @@ def test_ten_failures_lock_the_account_for_fifteen_minutes(
             "bruteForceStrategy",
             "waitIncrementSeconds",
             "maxFailureWaitSeconds",
+            "maxTemporaryLockouts",
+            "maxDeltaTimeSeconds",
+            "quickLoginCheckMilliSeconds",
+            "minimumQuickLoginWaitSeconds",
         )
     }
     assert lock == {
@@ -217,15 +240,24 @@ def test_ten_failures_lock_the_account_for_fifteen_minutes(
         "bruteForceStrategy": "MULTIPLE",
         "waitIncrementSeconds": 900,
         "maxFailureWaitSeconds": 900,
+        # No count of temporary locks that would turn into a permanent one.
+        "maxTemporaryLockouts": 0,
+        # The ten failures are those within fifteen minutes; no lock for failures in quick
+        # succession, which would lock the account before its tenth.
+        "maxDeltaTimeSeconds": 899,
+        "quickLoginCheckMilliSeconds": 0,
+        "minimumQuickLoginWaitSeconds": 0,
     }
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
-def test_a_locked_account_signs_in_again_once_its_lock_is_over(local_account: Account) -> None:
+def test_a_locked_account_signs_in_again_once_its_lock_is_over(
+    admin: httpx2.Client, local_account: Account
+) -> None:
     # « Dix échecs verrouillent le compte, qui se déverrouille après quinze minutes » : the
     # fifteen minutes are two seconds here; once they are over, the password signs in again.
     with realm_set(waitIncrementSeconds=2, maxFailureWaitSeconds=2):
-        locked_out(local_account)
+        locked_out(admin, local_account)
         time.sleep(3)
         with httpx2.Client(base_url=realm_address(), timeout=30) as realm:
             unlocked = password_grant(realm, local_account, PASSWORD)
@@ -253,7 +285,7 @@ def test_a_link_used_once_or_after_its_hour_is_refused(
     link = api.post(link_path(user_id), headers=administrator).json()
     # A link lives the hour of the realm, which the token it carries says.
     lifespan = claims(link["url"].split("key=", 1)[1].split("&", 1)[0])
-    assert lifespan["exp"] - lifespan["iat"] == 3600
+    assert lasts(lifespan, 3600)
     _, done = set_by_link(link["url"], PASSWORD)
     assert done.status_code == 200, done.text
     used = Browser().get(link["url"])
@@ -269,7 +301,7 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     ask_forgotten(browser, local_account)
     url = mailed_link(local_account.email, whole=True)
     lifespan = action_token(url)
-    assert lifespan["exp"] - lifespan["iat"] == 3600
+    assert lasts(lifespan, 3600)
     form = browser.get(url)
     assert 'name="password-new"' in form.text, form.text
     password = secrets.token_urlsafe(24)
@@ -284,6 +316,52 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     assert 'name="password-new"' not in said
 
 
+KEYCLOAK_CONTAINER_VARIABLE = "WATERFALL_TEST_KEYCLOAK_CONTAINER"
+
+
+def restart_keycloak() -> None:
+    """Restart the container of Keycloak, then wait until the realm answers, three minutes at most.
+
+    ``make test-keycloak`` names the container: no other test runs while it restarts.
+    """
+    container = required(KEYCLOAK_CONTAINER_VARIABLE)
+    subprocess.run(["docker", "restart", container], check=True, capture_output=True)
+    deadline = time.monotonic() + 180
+    while True:
+        try:
+            if httpx2.get(realm_address(), timeout=5).status_code == 200:
+                return
+        except httpx2.HTTPError:
+            pass
+        assert time.monotonic() < deadline, "Keycloak did not answer again"
+        time.sleep(2)
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+@pytest.mark.xfail(
+    reason="#852: Keycloak keeps the use of its own link in memory alone; a restart forgets it",
+    strict=True,
+)
+def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart(
+    local_account: Account,
+) -> None:
+    # « Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé » : refused
+    # still once Keycloak restarted within its hour, whatever Keycloak keeps of its use (#852).
+    browser = Browser()
+    ask_forgotten(browser, local_account)
+    url = mailed_link(local_account.email, whole=True)
+    form = browser.get(url)
+    assert 'name="password-new"' in form.text, form.text
+    password = secrets.token_urlsafe(24)
+    done = browser.submit(form, {"password-new": password, "password-confirm": password})
+    assert done.status_code == 302, done.text
+    restart_keycloak()
+    used = Browser().get(url)
+    said = html.unescape(used.text)
+    assert 'name="password-new"' not in said, said
+    assert used.status_code == 400, said
+
+
 @pytest.mark.requirement("WF-ADM-0140-A")
 def test_a_link_for_a_forgotten_password_after_its_hour_is_refused(local_account: Account) -> None:
     # « Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé. » The hour
@@ -293,11 +371,11 @@ def test_a_link_for_a_forgotten_password_after_its_hour_is_refused(local_account
         ask_forgotten(browser, local_account)
     url = mailed_link(local_account.email, whole=True)
     lifespan = action_token(url)
-    assert lifespan["exp"] - lifespan["iat"] == 1
+    assert lasts(lifespan, 1)
     # Keycloak refuses a token once its whole-second clock is past "exp": wait from the token's
-    # own hour, not from the request, which the mail it sends makes last. Host and container
-    # share the clock.
-    time.sleep(max(0.0, lifespan["exp"] + 1.1 - time.time()))
+    # own hour, not from the request, which the mail it sends makes last. Host and container share
+    # the clock; two seconds more would cover one that drifts a little (#853).
+    time.sleep(max(0.0, lifespan["exp"] + 2 - time.time()))
     expired = Browser().get(url)
     assert expired.status_code == 400, expired.text
     said = html.unescape(expired.text)
@@ -488,15 +566,14 @@ def test_on_an_installation_without_directory_nor_provider_a_local_account_signs
 @pytest.mark.requirement("WF-SEC-0020-A")
 def test_a_refresh_token_idle_beyond_its_two_hours_is_refused(local_account: Account) -> None:
     # « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé » : it is lent for
-    # the two hours of the session left idle, which a second plays here. The return to the
-    # sign-in, then to the screen aimed at, is the front's (frontend/e2e/service/).
+    # the two hours of the session left idle, which a second plays here, set once the tokens are
+    # obtained — the exchange of the code takes what it takes (#860). The return to the sign-in,
+    # then to the screen aimed at, is the front's (frontend/e2e/service/).
     tokens = tokens_of(local_account.email, PASSWORD)
     assert tokens["refresh_expires_in"] == 7200
     with realm_set(ssoSessionIdleTimeout=1):
-        idle = tokens_of(local_account.email, PASSWORD)
-        assert idle["refresh_expires_in"] == 1
         time.sleep(2.1)
-        again = refreshed(idle["refresh_token"])
+        again = refreshed(tokens["refresh_token"])
     assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
 
 
