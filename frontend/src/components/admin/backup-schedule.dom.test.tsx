@@ -16,6 +16,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -105,22 +106,6 @@ async function openForm(
 /** Save the form. */
 async function save(form: HTMLElement) {
   await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-}
-
-/** Hold every call of the fake back until the function given back is called. */
-function held(): { readonly timing: FakeTiming; readonly release: () => void } {
-  const settles: (() => void)[] = [];
-  const until = new Promise<void>((settle) => {
-    settles.push(settle);
-  });
-  return {
-    timing: { hold: () => until },
-    release: () => {
-      for (const settle of settles) {
-        settle();
-      }
-    },
-  };
 }
 
 /** What the section of the schedule last said beside its command. */

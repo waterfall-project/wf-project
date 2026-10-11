@@ -9,9 +9,15 @@
  * too — a `missing_permission` by its label, a `missing_condition` by its own, a `state` by its
  * label in the enumeration the envelope names with it (`state_enum`, #413), the object it is the
  * state of named by the sentence, the lines that bear a sub-project (`estimate_lines`) by their
- * numbers and their labels; a state without its enumeration, or of an enumeration the
- * catalogue does not know, adds nothing. A
- * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
+ * numbers and their labels, the roles a nature or a category keeps in labour (`resource_roles`) by
+ * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
+ * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the lines
+ * and the projects beyond a few counted, the notice listing them; a state without its enumeration,
+ * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
+ * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
+ * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
+ * its roles, which never overlap, named when the screen read them (`ProblemLanguage.names`), or,
+ * none given, the default calendar of a task without a line of labour. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
  * of the envelope: the smallest or the largest value a field admits (`minimum`, `maximum`) is said
  * with the refusal, and a form says the refusal of each field at the field, by the same sentence
@@ -35,10 +41,15 @@ export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "param
   readonly fields?: readonly Pick<components["schemas"]["FieldProblem"], "params">[] | undefined;
 };
 
-/** The language to write in, and its catalogue. */
+/** The language to write in, its catalogue, and the names of the objects the screen read. */
 export interface ProblemLanguage {
   readonly locale: Locale;
   readonly messages: Catalogue;
+  /**
+   * The names of the objects the screen read, by identifier: what names the roles a refusal gives by
+   * their identifiers alone (`resource_role_ids`); none, and they are left unnamed.
+   */
+  readonly names?: Readonly<Record<string, string>> | undefined;
 }
 
 /** Name a code a parameter carries — `users.write`, `revision_draft` — by its label. */
@@ -59,6 +70,7 @@ type Reader = (
   label: Label,
   locale: Locale,
   say: Say,
+  names: Readonly<Record<string, string>>,
 ) => Detail | undefined;
 
 /** A line of an estimate a refusal names (`estimate_lines`): its number and its label. */
@@ -68,8 +80,8 @@ export interface NamedLine {
 }
 
 /**
- * How many lines a refusal names in its sentence; beyond, the sentence counts them, and the notice
- * of the refusal lists them under it (`namedLines`).
+ * How many lines — or projects — a refusal names in its sentence; beyond, the sentence counts them,
+ * and the notice of the refusal lists them under it (`namedLines`, `namedProjects`).
  */
 export const LINES_IN_SENTENCE = 5;
 
@@ -102,6 +114,62 @@ export function namedLines(params: Readonly<Record<string, unknown>> | undefined
 /** A list of names joined as the language of the reader joins them: « a, b et c ». */
 function conjunction(names: readonly string[], locale: Locale): string {
   return new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(names);
+}
+
+/** The items of a list a parameter holds that have the shape given; none for any other value. */
+function itemsOf<T>(value: unknown, shaped: (item: unknown) => item is T): T[] {
+  return (Array.isArray(value) ? value : []).filter(shaped);
+}
+
+/** Whether a value is an object whose properties named hold texts — or null, for those allowed. */
+function hasTexts(value: unknown, texts: readonly string[], nullable: readonly string[] = []) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const record = value as Readonly<Record<string, unknown>>;
+  return (
+    texts.every((key) => typeof record[key] === "string") &&
+    nullable.every((key) => record[key] === null || typeof record[key] === "string")
+  );
+}
+
+/** A role a refusal names by its code and its label (`resource_roles`, EP-14/L42r). */
+interface NamedRole {
+  readonly code: string;
+  readonly label: string;
+}
+
+/** A project a refusal names by its label and its code, null for one without (`projects`). */
+export interface NamedProject {
+  readonly project_label: string;
+  readonly project_code: string | null;
+}
+
+/** Whether a value is a role a refusal names, by its code and its label. */
+function isNamedRole(value: unknown): value is NamedRole {
+  return hasTexts(value, ["code", "label"]);
+}
+
+/** Whether a value is a project a refusal names, by its label and its code, if any. */
+function isNamedProject(value: unknown): value is NamedProject {
+  return hasTexts(value, ["project_label"], ["project_code"]);
+}
+
+/**
+ * The projects the parameters of a refusal name (`projects`), in the order of the server; a
+ * malformed one is left out.
+ */
+export function namedProjects(
+  params: Readonly<Record<string, unknown>> | undefined,
+): NamedProject[] {
+  return itemsOf(params?.projects, isNamedProject);
+}
+
+/** The name of a project a refusal names: its label and its code, its label alone without one. */
+export function projectName({ project_label, project_code }: NamedProject, say: Say): string {
+  return project_code === null
+    ? project_label
+    : say("codedName", { code: project_code, label: project_label });
 }
 
 /** An enumeration of the contract a refused state is a value of (`Problem.params.state_enum`). */
@@ -152,6 +220,45 @@ const DETAILS: readonly Reader[] = [
     return named.length === 0
       ? undefined
       : ["estimate_lines", { lines: conjunction(named, locale) }];
+  },
+  // The roles that keep a nature or a category in labour, to attach first to another category of
+  // labour — outside the nature, for a nature — (WF-REF-0030, WF-REF-0040, WF-IHM-0090).
+  ({ resource_roles, missing_condition }, _label, locale, say) => {
+    const named = itemsOf(resource_roles, isNamedRole).map(({ code, label }) =>
+      say("codedName", { code, label }),
+    );
+    const of = missing_condition === "cost_type_without_role" ? "cost_type" : "cost_category";
+    return named.length === 0
+      ? undefined
+      : ["resource_roles", { roles: conjunction(named, locale), of }];
+  },
+  // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap,
+  // given by their identifiers alone and named as the screen read them; none given, the default
+  // calendar of a task without a line of labour.
+  ({ resource_role_ids }, _label, locale, _say, names) => {
+    if (Array.isArray(resource_role_ids) && resource_role_ids.length === 0) {
+      return ["resource_role_ids_none", {}];
+    }
+    const ids = itemsOf(resource_role_ids, (id): id is string => typeof id === "string");
+    const named = ids.map((id) => names[id]).filter((name) => name !== undefined);
+    if (ids.length === 0) {
+      return undefined;
+    }
+    // One role alone: its calendar has no hour; several: their calendars never overlap.
+    const count = ids.length;
+    return named.length === 0
+      ? ["resource_role_ids_unnamed", { count }]
+      : ["resource_role_ids", { roles: conjunction(named, locale), count }];
+  },
+  // Each project by its label and its code, by its label alone without one (WF-PLA-0010); beyond a
+  // few, counted, the notice listing them.
+  (params, _label, locale, say) => {
+    const projects = namedProjects(params);
+    if (projects.length > LINES_IN_SENTENCE) {
+      return ["projects_listed", { count: projects.length }];
+    }
+    const named = projects.map((project) => projectName(project, say));
+    return named.length === 0 ? undefined : ["projects", { projects: conjunction(named, locale) }];
   },
   ({ state, state_enum }, label) => {
     const told = stateIn(state_enum);
@@ -219,7 +326,7 @@ function labelIn(messages: Catalogue): Label {
 /** Render a refusal of the API as a sentence in the reader's language. */
 export function problemMessage(
   problem: ProblemText,
-  { locale, messages }: ProblemLanguage,
+  { locale, messages, names = {} }: ProblemLanguage,
 ): string {
   const t = createTranslator({ locale, messages });
   const label = labelIn(messages);
@@ -229,7 +336,7 @@ export function problemMessage(
     ...(problem.fields ?? []).map((field) => field.params ?? {}),
   ];
   const details = every
-    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale, say)))
+    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale, say, names)))
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => say(key, values));
   return [t(`errors.${problem.code}`), ...details].join(" ");

@@ -18,6 +18,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 
 import type { Subproject } from "./settings-grids";
@@ -30,6 +31,22 @@ const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A write whose server action rejects once `until` settles — the API out of reach, as `fetch`
+// rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
+vi.mock("@/api/actions/projects", async (original) => {
+  const actual = await original<typeof import("@/api/actions/projects")>();
+  return {
+    ...actual,
+    writeSubproject: async (...asked: Parameters<typeof actual.writeSubproject>) => {
+      if (failing.until === undefined) {
+        return actual.writeSubproject(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
+  };
+});
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -80,22 +97,6 @@ function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
   return client;
 }
 
-/** Hold every call of the fake back until the function given back is called. */
-function held(): { readonly timing: FakeTiming; readonly release: () => void } {
-  const settles: (() => void)[] = [];
-  const until = new Promise<void>((settle) => {
-    settles.push(settle);
-  });
-  return {
-    timing: { hold: () => until },
-    release: () => {
-      for (const settle of settles) {
-        settle();
-      }
-    },
-  };
-}
-
 /**
  * The list of the sub-projects, in French, as the project lists `update` — or does not —, and the
  * revision in progress whose estimate the session reads, if any.
@@ -135,6 +136,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  failing.until = undefined;
   vi.restoreAllMocks();
   refresh.mockClear();
   router.refresh.mockClear();
@@ -221,6 +223,86 @@ describe("the creation and the modification of a sub-project", () => {
     expect(label).toHaveValue("Poste de commande principal");
   });
 
+  it("keeps the modification of a sub-project waiting while its write of the dialog closed is under way, then opens on the version the answer brings (#661, #734)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list());
+    const command = () =>
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(command());
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // Opened anew now, the form would write from the version 1, which its own answer replaces: the
+    // command, whose cell has the focus back, waits and says why — that of another row does not.
+    expect(command().closest("td")).toHaveFocus();
+    expect(command()).toHaveAttribute("aria-disabled", "true");
+    expect(command()).toHaveAttribute("aria-busy", "true");
+    expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-CMD\u00a0»" }),
+    ).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command());
+    expect(screen.queryByRole("dialog")).toBeNull();
+    release();
+    await vi.waitFor(() => {
+      expect(command()).not.toHaveAttribute("aria-disabled");
+    });
+    await userEvent.click(command());
+    const reopened = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(within(reopened).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    expect(client.calls[1]?.body).toMatchObject({ lock_version: 2 });
+  });
+
+  it.each([
+    ["answered", {}, "status", "«\u00a0SP-ESS\u00a0» enregistré."],
+    [
+      "refused",
+      { [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } } },
+      "alert",
+      "Cet élément existe déjà.",
+    ],
+    ["rejected, the API out of reach", {}, "alert", "Le service est injoignable"],
+  ] satisfies [string, FakeAnswers, "status" | "alert", string][])(
+    "frees the modification of a sub-project once its write of the dialog closed is %s, says it, and opens its form again (#734)",
+    async (outcome, answers, role, said) => {
+      const { timing, until, release } = held();
+      failing.until = outcome.startsWith("rejected") ? until : undefined;
+      const client = serve(answers, timing);
+      render(list());
+      const name = "Modifier «\u00a0SP-ESS\u00a0»";
+      const command = () => within(grid()).getByRole("button", { name });
+      await userEvent.click(command());
+      const form = screen.getByRole("dialog", { name });
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(command()).toHaveAttribute("aria-disabled", "true");
+      release();
+      // What the answer did, said in the region of the list or above it, the form gone.
+      await vi.waitFor(() => {
+        expect(screen.getAllByRole(role).map((region) => region.textContent)).toContainEqual(
+          expect.stringContaining(said),
+        );
+      });
+      // A server action rejected asked nothing of the fake back.
+      expect(client.calls).toHaveLength(outcome.startsWith("rejected") ? 0 : 1);
+      await vi.waitFor(() => {
+        expect(command()).not.toHaveAttribute("aria-disabled");
+      });
+      await userEvent.click(command());
+      expect(screen.getByRole("dialog", { name })).toBeVisible();
+    },
+  );
+
   it("tells the modification of a sub-project answered for another one as a failure of the service, the form kept open", async () => {
     const client = serve();
     render(list());
@@ -250,7 +332,7 @@ describe("the creation and the modification of a sub-project", () => {
 
   it("says at the code a code another sub-project of the project bears, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
     serve({
-      [UPDATE]: { problem: { ...(example("subproject_code_taken") as Problem), status: 409 } },
+      [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } },
     });
     render(list());
     await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
@@ -415,11 +497,12 @@ describe("the deletion of a sub-project", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("tells above the list a deletion the server refuses, naming the first condition it misses", async () => {
-    // Listed available on the reading, refused by the server, a marked revision citing the
-    // sub-project meanwhile (§4.4.1, EP-14/L42l).
+  it("tells above the list a deletion the server refuses, naming the first condition it misses [WF-PRJ-0050-A]", async () => {
+    // La suppression d'un sous-projet cité par une révision marquée est refusée : listed available
+    // on the reading, refused by the server, a marked revision citing the sub-project meanwhile
+    // (§4.4.1, EP-14/L42l).
     serve({
-      [DELETE]: { problem: { ...(example("subproject_delete_cited") as Problem), status: 409 } },
+      [DELETE]: { problem: example("subproject_delete_cited") as Problem & { status: 409 } },
     });
     render(list(AVAILABLE, DELETABLE));
     await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
@@ -438,7 +521,7 @@ describe("the deletion of a sub-project", () => {
     // et nomme ces lignes — passées à « SP-REC » depuis la lecture (EP-14/L42q).
     serve({
       [DELETE]: {
-        problem: { ...(example("subproject_delete_estimated") as Problem), status: 409 },
+        problem: example("subproject_delete_estimated") as Problem & { status: 409 },
       },
     });
     render(list(AVAILABLE, DELETABLE));

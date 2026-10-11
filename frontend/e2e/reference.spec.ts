@@ -167,11 +167,12 @@ test("sorts and searches each list of the settings of the resources by the serve
   test.slow();
   await page.goto("/reference/resources");
   const roles = page.getByRole("grid", { name: "Rôles de ressources" });
-  // A header of the roles asks the server for its sort, under the names of the grid.
+  // A header of the roles asks the server for its sort, under the names of the grid: the code of
+  // a role among them (EP-14/L42r).
   await sortUntilAddress(
-    roles.getByRole("columnheader", { name: "Heures par mois" }),
+    roles.getByRole("columnheader", { name: "Code", exact: true }),
     roles,
-    "/reference/resources?role_sort_by=monthly_hours&role_sort_order=asc",
+    "/reference/resources?role_sort_by=code&role_sort_order=asc",
   );
   // The tree sorts nothing, folds and unfolds, and its search keeps the sort of the roles.
   const tree = page.getByRole("treegrid", { name: "Arbre d’organisation" });
@@ -185,7 +186,7 @@ test("sorts and searches each list of the settings of the resources by the serve
     .getByRole("searchbox", { name: "Rechercher dans «\u00a0Arbre d’organisation\u00a0»" })
     .fill("BE");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/role_sort_by=monthly_hours.*&org_search=BE$/, { timeout: WORKING });
+  await expect(page).toHaveURL(/role_sort_by=code.*&org_search=BE$/, { timeout: WORKING });
 
   // The deactivated objects asked of the server, each offered to be reactivated.
   await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
@@ -294,6 +295,12 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
     { timeout: WORKING },
   );
+  // The code of the roles, filtered by the server under the name of their grid (EP-14/L42r).
+  await page.getByRole("searchbox", { name: "Code du rôle" }).fill("AUT");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/role_monthly_hours_min=300000&role_code=AUT$/, {
+    timeout: WORKING,
+  });
 });
 
 test("creates a category, enters a rate and deactivates a nature, the mock-up saying the fake back keeps nothing (EP-02/L43a)", async ({

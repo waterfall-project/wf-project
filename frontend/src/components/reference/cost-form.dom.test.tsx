@@ -53,11 +53,6 @@ const created = example("cost_category_created") as CostCategory;
 /** The natures of the witness, as the page offers them to a category, every one active. */
 const ACTIVE: readonly NatureChoice[] = types.items.map(natureChoice);
 
-/** A refusal of the contract, by the name of its example and its status. */
-function refusal<S extends number>(name: string, status: S): Problem & { status: S } {
-  return { ...(example(name) as Problem), status };
-}
-
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}) {
   const client = fakeClient({
@@ -138,7 +133,7 @@ afterEach(() => {
 
 describe("the refusals by field of the server", () => {
   it("says at its field the refusal of a nature whose code exists already, naming the nature that holds it, the form kept to be corrected [WF-REF-0030-A]", async () => {
-    serve({ [TYPES]: { problem: refusal("cost_type_code_taken", 409) } });
+    serve({ [TYPES]: { problem: example("cost_type_code_taken") as Problem & { status: 409 } } });
     render(natures());
     await userEvent.click(screen.getByRole("button", { name: "Nouvelle nature" }));
     const form = dialog("Nouvelle nature de coût");
@@ -165,7 +160,9 @@ describe("the refusals by field of the server", () => {
   });
 
   it("says at each field the code and the accounting code of a category that exist already, each naming the category that holds it [WF-REF-0040-A]", async () => {
-    serve({ [CATEGORIES]: { problem: refusal("cost_category_codes_taken", 409) } });
+    serve({
+      [CATEGORIES]: { problem: example("cost_category_codes_taken") as Problem & { status: 409 } },
+    });
     render(categoryList());
     await userEvent.click(screen.getByRole("button", { name: "Nouvelle catégorie" }));
     const form = dialog("Nouvelle catégorie de coût");
@@ -194,7 +191,11 @@ describe("the refusals by field of the server", () => {
   });
 
   it("says generically the category that holds an accounting code taken when the list does not show it", async () => {
-    serve({ [CATEGORY]: { problem: refusal("cost_category_accounting_code_taken", 409) } });
+    serve({
+      [CATEGORY]: {
+        problem: example("cost_category_accounting_code_taken") as Problem & { status: 409 },
+      },
+    });
     const [subcontracting] = first;
     if (subcontracting === undefined) {
       throw new Error("the volumes hold the subcontracting");
@@ -219,7 +220,7 @@ describe("the refusals by field of the server", () => {
   it("says at their fields a nature the reference data does not have, an inactive one, and an accounting code the server requires", async () => {
     serve({
       [CATEGORIES]: [
-        { problem: refusal("cost_category_creation_refused", 422) },
+        { problem: example("cost_category_creation_refused") as Problem & { status: 422 } },
         {
           problem: {
             code: "VALIDATION_FAILED",
@@ -254,7 +255,9 @@ describe("the refusals by field of the server", () => {
   });
 
   it("says at their fields a code too long and a name required, as the server judges them", async () => {
-    serve({ [TYPES]: { problem: refusal("cost_type_creation_refused", 422) } });
+    serve({
+      [TYPES]: { problem: example("cost_type_creation_refused") as Problem & { status: 422 } },
+    });
     render(natures());
     await userEvent.click(screen.getByRole("button", { name: "Nouvelle nature" }));
     const form = dialog("Nouvelle nature de coût");
@@ -277,7 +280,9 @@ describe("the refusals by field of the server", () => {
   });
 
   it("says at its field the name of a category the server finds too long", async () => {
-    serve({ [CATEGORY]: { problem: refusal("cost_category_update_refused", 422) } });
+    serve({
+      [CATEGORY]: { problem: example("cost_category_update_refused") as Problem & { status: 422 } },
+    });
     render(categoryList());
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
@@ -341,7 +346,9 @@ describe("the type of a nature, as its commands say it", () => {
 
   it("offers the type of a nature that lists its change available, and says the refusal of the server that finds a category employed meanwhile [WF-REF-0030-A] [WF-IHM-0090-A]", async () => {
     const supplies = example("cost_type_created") as CostType;
-    const client = serve({ [TYPE]: { problem: refusal("cost_type_kind_refused", 409) } });
+    const client = serve({
+      [TYPE]: { problem: example("cost_type_kind_refused") as Problem & { status: 409 } },
+    });
     render(natures([supplies]));
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Fournitures\u00a0»" }),
@@ -428,7 +435,7 @@ describe("the nature of a category, as its commands say it", () => {
     );
     // Le rattachement d'une catégorie employée à une nature d'un autre type est refusé, de même que
     // celui d'une catégorie qui porte un taux, ou à laquelle un rôle de ressource est rattaché, à une
-    // nature hors main-d'œuvre. The roles the refusal names (EP-14/L42r) are the next lot's to say.
+    // nature hors main-d'œuvre. The roles a refusal names are said with it (EP-14/L54).
     expect(
       within(nature)
         .getAllByRole("option")
@@ -532,7 +539,7 @@ describe("the nature of a category, as its commands say it", () => {
   ])(
     "says the refusal %s of a category attached to a nature of another type, naming the condition it lacks [WF-IHM-0090-A]",
     async (name, condition) => {
-      const client = serve({ [CATEGORY]: { problem: refusal(name, 409) } });
+      const client = serve({ [CATEGORY]: { problem: example(name) as Problem & { status: 409 } } });
       render(categoryList([created], ACTIVE));
       await userEvent.click(
         screen.getByRole("button", { name: "Modifier «\u00a0Petites fournitures\u00a0»" }),
@@ -553,4 +560,44 @@ describe("the nature of a category, as its commands say it", () => {
       expect(refresh).not.toHaveBeenCalled();
     },
   );
+
+  it("says the refusal of a labour category a role is attached to, passed under a nature out of labour, naming the roles to attach elsewhere first [WF-REF-0040-A]", async () => {
+    // A variant of the mechanical engineering of level 1 (MO-003): its change of type listed
+    // available, the one value changed, as the reading would list it of a category without rate —
+    // the server finds the automation engineer attached to it (`cost_category_role_kind_refused`).
+    const mechanical = volumes.find((category) => category.code === "MO-003");
+    if (mechanical === undefined) {
+      throw new Error("the volumes hold the mechanical engineering");
+    }
+    const free: CostCategory = {
+      ...mechanical,
+      available_commands: mechanical.available_commands.map((each) =>
+        each.command === "change_cost_type"
+          ? { ...each, is_available: true, missing_conditions: [] }
+          : each,
+      ),
+    };
+    serve({
+      [CATEGORY]: {
+        problem: example("cost_category_role_kind_refused") as Problem & { status: 409 },
+      },
+    });
+    render(categoryList([free], ACTIVE));
+    const name = `Modifier «\u00a0${mechanical.label}\u00a0»`;
+    await userEvent.click(screen.getByRole("button", { name }));
+    const form = dialog(name);
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Nature" }),
+      "DEB · Débours",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    // Le rattachement […] d'une catégorie […] à laquelle un rôle de ressource est rattaché, à une
+    // nature hors main-d'œuvre est refusé : the roles named by their labels and codes, which the
+    // screen of the costs does not read.
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Condition non remplie : catégorie rattachée à aucun rôle de ressource. Rôles à rattacher " +
+        "d’abord à une autre catégorie de main-d’œuvre : Automaticien (AUTOM).",
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });

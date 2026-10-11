@@ -255,8 +255,9 @@ ligne déplacée ne lève. Il atteint les lignes de la structure principale, jam
 structure, la structure propre d'un risque.
 Les lignes ne sont nommées une à une que lorsque le serveur refuse une suppression lue disponible
 (`params.estimate_lines`) : chacune par son numéro dans sa structure, tel que la grille le montre, et
-son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile
-(`LINES_IN_SENTENCE`, `OutcomeNotice`), et le refus rappelle qu'une ligne de provision change de
+son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile,
+hors de l'alerte, qui la lirait d'un trait, et décrite par sa phrase (`LINES_IN_SENTENCE`,
+`OutcomeNotice`, #765), et le refus rappelle qu'une ligne de provision change de
 sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une ligne
 par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas (`structure_label`,
 demandé dans #764). Les
@@ -274,10 +275,13 @@ ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture 
 compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
 l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le
 formulaire, la confirmation ou le dialogue d'où elle est partie, jamais un autre ouvert depuis
-(compteur d'ouvertures, `key`, #672). Une modification d'un sous-projet ou de la liste des
-contributeurs rouverte pendant qu'une écriture du dialogue fermé est en route part encore de la
-version d'avant, que sa réponse remplace, et le serveur la refuse (412) : la décision de #661 ne leur
-est pas encore appliquée (#734). Les pièces communes du
+(compteur d'ouvertures, `key`, #672). La commande qui ouvre une modification attend, inactive,
+`aria-busy` et décrite par « Enregistrement en cours… », la réponse d'une écriture du dialogue fermé,
+quelle qu'elle soit, pour que le dialogue s'ouvre sur la version qu'elle apporte (#661, #734) : celle
+d'un sous-projet tant que la modification de ce sous-projet est en route, les autres lignes restant
+offertes (`onWriting` de `ReferenceForm`, `writing` de `SubprojectCommands`, la description cachée
+mais pour un lecteur d'écran dans la cellule, son titre la disant à l'œil) ; celle des contributeurs
+tant que la liste s'écrit — le compteur d'ouvertures y reste en garde-fou. Les pièces communes du
 référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
 les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
 
@@ -672,8 +676,9 @@ ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé 
 profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
 `fold.tsx`), son code et son niveau, filtrée par code (`code`), par niveau (`level`, offert parmi
 ceux de l'arbre entier) et par état, le serveur rendant les nœuds retenus et leurs ancêtres, qu'un
-filtre déplie une fois ; les rôles, triés par le serveur sur chacune de leurs colonnes, filtrés par
-nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
+filtre déplie une fois ; les rôles, chacun par son libellé et son code (EP-14/L42r), triés par le
+serveur sur chacune de leurs colonnes, cherchés par lui sur le libellé et le code, filtrés par code
+(`code`, comme celui des nœuds), par nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
 calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
 de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
 calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, filtrés par
@@ -764,7 +769,10 @@ que si elle liste `change_kind` disponible, et se présente sinon figé, en lect
 employée (`cost_type_unused`) —, la description du dialogue le disant aussi ; une catégorie ne se
 voit proposer une nature d'un autre type que si elle liste `change_cost_type` disponible, et sinon
 les natures de son type seules, ses conditions dites sous le choix — employée, porteuse de taux
-(#577). Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
+(#577), rattachée à un rôle (EP-14/L42r) ; le refus du serveur d'un changement de type, la
+condition levée depuis la lecture, nomme les rôles en cause, par leur libellé et leur code, à
+rattacher d'abord à une autre catégorie de main-d'œuvre — d'une autre nature, pour une nature —
+(`params.resource_roles`, `problemMessage`, WF-IHM-0090), que l'écran des coûts ne lit pas. Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
 qui écrit, la page lit toutes les natures avec `include_inactive=true` (`every` de `CostDialog`),
 une lecture entière distincte des choix du filtre, qu'elle ne fait pas quand ceux-ci comprennent déjà
 les désactivées ; une catégorie sous une nature désactivée se voit ainsi proposer les natures
@@ -846,17 +854,21 @@ il l'est, et la liste le montre choisi — le contrat ne refuse un parent désac
 modification le change ; désactivé, il garde sa profondeur
 quand le nœud au-dessus de lui est offert, ou qu'il est une racine, et alors sa place — dans l'arbre
 lu, le front ne réordonnant rien, ou sous son propre parent quand la ligne de la liste le nomme — ; à
-la fin sans décalage sinon. Un rôle s'écrit par son
-libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du rôle
-modifié marqué désactivé (WF-REF-0090), nommé sans marque quand la liste n'est pas lue, faute de savoir
-s'il l'est — et sa
+la fin sans décalage sinon. Un rôle s'écrit par son code, unique, désactivés compris (EP-14/L42r),
+son libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du
+rôle modifié marqué désactivé quand il l'est (WF-REF-0090), nommé sans marque quand la liste n'est pas
+lue, faute de savoir s'il l'est, ou quand toutes les catégories lues le disent actif, une catégorie
+dont la nature a quitté la main-d'œuvre (`read` d'`offered`, #714) : un garde-fou seul, le contrat
+interdisant ce cas depuis EP-14/L42r (`docs/api/DECISIONS.md`, la mention de L42r dans la section de
+L42j) — et sa
 capacité, heures par mois et effectif, saisis dans la langue du lecteur (WF-REF-0100) ; son nœud se
 fixe à la création, et sa modification le nomme sans l'offrir : un rôle se recrée sous un autre nœud
 (§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît au type de sa nature, que chaque catégorie dit
 (`cost_type_kind`, `labourOf` de `kinds.ts`, EP-14/L43g) : la page ne lit pas les natures pour cela.
 Une session à qui l'API refuse les catégories ne peut en choisir aucune : « Nouveau
 rôle » ne lui est pas offert (WF-IHM-0090), et la modification nomme la catégorie du rôle comme sa ligne
-la nomme. La modification d'un objet répondue pour un autre objet est une panne du service
+la nomme. Un code pris se dit au champ, le rôle qui le porte nommé par le libellé que le refus donne
+(`conflicting_object_label`), la liste lue sans les désactivés pouvant ne pas le montrer. La modification d'un objet répondue pour un autre objet est une panne du service
 (`INTERNAL_ERROR`), dite sous le formulaire comme la réponse d'une cellule pour une autre ligne. Un
 calendrier s'écrit par son libellé
 et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier se désigne
@@ -875,7 +887,18 @@ désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des heures hors de 0 à 2
 négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un calendrier,
 désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon générique
 sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre de relire ;
-l'écran dit que le faux back ne garde rien (`MockupNotice`).
+l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait une tâche sans
+heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est refusée
+(`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la semaine. »)
+en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par son seul
+libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de
+l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `resource_role_ids` : les
+rôles dont les calendriers ne se recoupent aucun jour, que le refus ne donne que par leurs
+identifiants — la page, pour une session qui écrit, lit tous les rôles, désactivés compris comme elle
+le peut (`readEveryRole`), et les prête à chaque avis de leurs deux listes (`RoleNames`, `KnownNames`
+d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit sans nom quand elle
+n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
+défaut vidé ou désigné.
 
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
 #512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
@@ -1221,7 +1244,9 @@ la grille avec la cellule d'où le bloc a été collé et le nombre de lignes é
 (`PasteAppliedNotice`), chaque refus comme à l'aperçu, lu dans la réponse et jamais dans le plan,
 jusqu'à ce que l'utilisateur ferme l'avis ou colle à nouveau ; les refus y sont une région nommée,
 atteinte au clavier, dont la hauteur est bornée — ils défilent, la grille reste dans la fenêtre
-(défaut n° 13), la phrase et la fermeture hors du défilement. Un collage entièrement écrit ne dit
+(défaut n° 13), la phrase et la fermeture hors du défilement —, hors de l'alerte, qui ne dit que la
+cellule, le nombre de lignes écrites et celui des lignes refusées, « listées ci-dessous » — une phrase
+à elle, l'aperçu gardant la sienne —, et qui la décrit (#765). Un collage entièrement écrit ne dit
 rien de plus que sa grille. Échap abandonne, une
 réponse arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien
 du contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
@@ -1963,7 +1988,9 @@ ses paramètres, jamais une phrase.
   service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
   statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
-  `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
+  `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
+  quand l'écran les a lus (`names`, et `KnownNames` pour tous les avis d'un écran) ; les lignes
+  ou les projets nommés au-delà de la phrase, hors de l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
   (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
   `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
   `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names`, ou à défaut par le

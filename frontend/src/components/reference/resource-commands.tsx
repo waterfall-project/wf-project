@@ -245,6 +245,7 @@ export function OrgNodeDialog({
 export function ResourceRoleDialog({
   nodes,
   categories,
+  read,
   calendars,
 }: {
   /** The nodes of the whole tree, in its order, each with its depth and its state. */
@@ -254,6 +255,12 @@ export function ResourceRoleDialog({
    * were not read, and the category of a role is named as its row names it.
    */
   readonly categories: readonly Choice[] | undefined;
+  /**
+   * The categories read, of every type, which say the state of the one a role keeps when it is not
+   * offered: active, a nature that left labour, it is no deactivated one (#714) — a guard, the
+   * contract forbidding the case since EP-14/L42r.
+   */
+  readonly read?: readonly Choice[] | undefined;
   /** The calendars, in the order of the server. */
   readonly calendars: readonly Choice[];
 }) {
@@ -296,6 +303,7 @@ export function ResourceRoleDialog({
           role === undefined
             ? undefined
             : { id: role.cost_category_id, label: role.cost_category_label },
+          read,
         ),
       ),
     ),

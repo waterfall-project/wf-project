@@ -75,6 +75,11 @@ function told(): HTMLElement {
   return notice;
 }
 
+/** The rows a paste applied did not write, in their region, out of the notice (#765). */
+function refusals(): HTMLElement {
+  return screen.getByRole("region", { name: "Lignes refusées par le collage" });
+}
+
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
@@ -106,20 +111,20 @@ describe("a paste applied", () => {
     // with its reason and its cells.
     expect(told()).toHaveTextContent(
       new RegExp(
-        `^Collage appliqué à partir de la ligne ${ROW.toString()}, colonne « Libellé » : 2 lignes ont été écrites\\.1 ligne est refusée :`,
+        `^Collage appliqué à partir de la ligne ${ROW.toString()}, colonne « Libellé » : 2 lignes ont été écrites\\.1 ligne est refusée, listée ci-dessous\\.$`,
       ),
     );
-    expect(within(told()).getByRole("listitem")).toHaveTextContent(
+    expect(within(refusals()).getByRole("listitem")).toHaveTextContent(
       "Ligne 2 du bloc — Catégorie de coût inconnue.",
     );
-    expect(within(told()).getByText("Essais")).toBeVisible();
+    expect(within(refusals()).getByText("Essais")).toBeVisible();
   });
 
   it("is told until dismissed, the focus given back to the cell pasted on", async () => {
     serve();
     renderGrid();
     await pasteAndApply(UNKNOWN);
-    await userEvent.click(within(told()).getByRole("button", { name: "Fermer l’avis" }));
+    await userEvent.click(screen.getByRole("button", { name: "Fermer l’avis" }));
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -153,10 +158,10 @@ describe("a paste applied", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
     expect(told()).toHaveTextContent("2 lignes ont été écrites.");
-    expect(within(told()).getByRole("listitem")).toHaveTextContent(
+    expect(within(refusals()).getByRole("listitem")).toHaveTextContent(
       "Ligne 2 du bloc — Catégorie de coût inconnue.",
     );
-    expect(within(told()).getByText("Mise en service")).toBeVisible();
+    expect(within(refusals()).getByText("Mise en service")).toBeVisible();
   });
 
   it("refused for a structure changed since its preview offers to read it anew, the grid left as it was", async () => {

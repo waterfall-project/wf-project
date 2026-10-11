@@ -46,11 +46,6 @@ vi.mock("next/navigation", async (original) => ({
 
 type Backup = components["schemas"]["Backup"];
 
-/** A refusal of the contract, by the example that describes it, on the status it declares. */
-function refusal<Status extends number>(name: string, status: Status) {
-  return { problem: { ...(example(name) as Problem), status } };
-}
-
 const START = "POST /backups";
 const RETAIN = "PATCH /backups/{backup_id}";
 const RESTORE = "POST /restores";
@@ -307,7 +302,7 @@ describe("the commands of the backups", () => {
   });
 
   it("say above the list a backup refused while another runs, naming the condition that lacks (409) [WF-IHM-0090-A]", async () => {
-    serve({ [START]: refusal("backup_start_refused", 409) });
+    serve({ [START]: { problem: example("backup_start_refused") as Problem & { status: 409 } } });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -316,7 +311,7 @@ describe("the commands of the backups", () => {
   });
 
   it("say above the list a marking refused while a restoration runs, naming the condition that lacks (409), the row left as read", async () => {
-    serve({ [RETAIN]: refusal("backup_retain_refused", 409) });
+    serve({ [RETAIN]: { problem: example("backup_retain_refused") as Problem & { status: 409 } } });
     render(list());
     await userEvent.click(
       within(row(KEPT)).getByRole("button", {
@@ -531,7 +526,11 @@ describe("the restoration of the platform", () => {
       };
     });
     serve(
-      { [RESTORE]: refusal("restore_during_backup_refused", 409) },
+      {
+        [RESTORE]: {
+          problem: example("restore_during_backup_refused") as Problem & { status: 409 },
+        },
+      },
       { hold: (route) => (route === RESTORE ? answered : undefined) },
     );
     render(list());
@@ -560,7 +559,9 @@ describe("the restoration of the platform", () => {
   });
 
   it("says at the date it states a date confirmed that is not that of the backup (422), the page read anew, and stays open [WF-ADM-0160-A]", async () => {
-    const client = serve({ [RESTORE]: refusal("restore_date_mismatch", 422) });
+    const client = serve({
+      [RESTORE]: { problem: example("restore_date_mismatch") as Problem & { status: 422 } },
+    });
     const { rerender } = render(list());
     await userEvent.click(
       within(row(LAST_NIGHT)).getByRole("button", {
@@ -613,7 +614,9 @@ describe("the restoration of the platform", () => {
   });
 
   it("tells a restoration refused in the dialog, which stays open; Escape closes it asking nothing more", async () => {
-    const client = serve({ [RESTORE]: refusal("restore_unverified_refused", 409) });
+    const client = serve({
+      [RESTORE]: { problem: example("restore_unverified_refused") as Problem & { status: 409 } },
+    });
     render(list());
     await userEvent.click(
       within(row(KEPT)).getByRole("button", {

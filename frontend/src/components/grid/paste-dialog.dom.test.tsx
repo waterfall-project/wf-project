@@ -107,7 +107,7 @@ describe("the notice of a paste applied", () => {
     },
   );
 
-  it("lists the rows refused in a region of its own, named, reached by the keyboard and bounded, the sentence and the command out of it", async () => {
+  it("lists the rows refused in a region of its own, named, described by the alert, reached by the keyboard and bounded, the sentence and the command out of it", async () => {
     // However many rows are refused, the grid under the notice stays in the window (#163): the
     // height a region takes is measured by a browser alone, which the journeys would do once the
     // fake back serves a partial paste.
@@ -115,6 +115,17 @@ describe("the notice of a paste applied", () => {
       <PasteAppliedNotice applied={report} onClear={vi.fn()} onDismissed={vi.fn()} />,
     );
     const refused = screen.getByRole("region", { name: "Lignes refusées par le collage" });
+    // The alert says how many rows were written and refused, never the rows, which it would read
+    // at once however many they are (#765): they are out of it, described by what it says.
+    const alert = screen.getByRole("alert");
+    // Its own sentence: the rows are listed below it, out of it, not after a colon (#765).
+    expect(alert).toHaveTextContent(
+      /2 lignes ont été écrites\.1 ligne est refusée, listée ci-dessous\.$/,
+    );
+    expect(within(alert).queryByRole("listitem")).toBeNull();
+    expect(refused).toHaveAccessibleDescription(
+      /^Collage appliqué .*écrites\.\s?1 ligne est refusée, listée ci-dessous\.$/,
+    );
     expect(refused).toHaveAttribute("tabindex", "0");
     expect(refused).toHaveClass("max-h-40", "overflow-y-auto");
     expect(within(refused).getByRole("listitem")).toHaveTextContent(

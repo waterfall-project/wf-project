@@ -20,7 +20,7 @@ import {
 } from "@/test/fixtures";
 
 import type { CostCategory } from "./cost-kinds";
-import { type Choice, labourOf } from "./kinds";
+import { categoryChoice, type Choice, labourOf } from "./kinds";
 import { type Calendar, DAYS, type OrgNode, type ResourceRole } from "./resource-grids";
 import {
   CalendarList,
@@ -73,10 +73,10 @@ const NODE_CHOICES: NodeOffered[] = tree.map((node) => ({
 /** The nodes of the tree read without the deactivated ones. */
 const ACTIVE_NODES = NODE_CHOICES.filter((node) => node.active);
 
+const VOLUMES = (example("volume/cost_categories") as { items: CostCategory[] }).items;
+
 /** The first categories of labour of the volumes, as the page offers them to a role. */
-const LABOUR: Choice[] = (
-  labourOf((example("volume/cost_categories") as { items: CostCategory[] }).items) ?? []
-).slice(0, 2);
+const LABOUR: Choice[] = (labourOf(VOLUMES) ?? []).slice(0, 2);
 
 /** The calendars, the thirty-nine-hour week deactivated among them. */
 const CALENDAR_CHOICES: Choice[] = calendars.items.map((calendar) => ({
@@ -142,10 +142,10 @@ function organisation(
 
 /**
  * The roles of the witness, for a session that may write them or not, the categories of labour as
- * the page read them — none when it could not read them.
+ * the page read them — none when it could not read them —, or those of the categories given.
  */
-function roleList(editable = true, categoriesRead = true) {
-  const labour = categoriesRead ? LABOUR : undefined;
+function roleList(editable = true, categoriesRead = true, read?: readonly CostCategory[]) {
+  const labour = read === undefined ? (categoriesRead ? LABOUR : undefined) : labourOf(read);
   return inFrench(
     <ResourceRoleList
       rows={roles.items}
@@ -155,10 +155,11 @@ function roleList(editable = true, categoriesRead = true) {
       readsInactive
       editable={editable}
       nodes={NODE_CHOICES}
-      categories={labour}
+      categories={read === undefined ? labour : read.map(categoryChoice)}
       labour={labour}
       calendars={CALENDAR_CHOICES}
       filters={{
+        code: undefined,
         orgNode: undefined,
         category: undefined,
         calendar: undefined,
@@ -709,6 +710,42 @@ describe("the resource roles", () => {
     expect(announced()).toContain("« Dessinateur électricien » créé.");
   });
 
+  it("says at the code the refusal of a code another role holds, deactivated ones counted, naming it [WF-REF-0090-A]", async () => {
+    serve({
+      [ROLES]: { problem: example("resource_role_code_taken") as Problem & { status: 409 } },
+    });
+    render(roleList());
+    const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
+    const code = within(form).getByRole("textbox", { name: "Code" });
+    await userEvent.type(code, "AUTOM");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Dessinateur");
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Nœud d’organisation" }),
+      "DT · Direction technique",
+    );
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Catégorie de coût" }),
+      LABOUR[0]?.id ?? "",
+    );
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Calendrier" }),
+      "Semaine standard",
+    );
+    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "520");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    // La création d'un rôle dont le code existe déjà est refusée : said at the code, the role that
+    // holds it named by the label the refusal gives, the list read without it or not.
+    await vi.waitFor(() => {
+      expect(code).toHaveFocus();
+    });
+    expect(code).toHaveAccessibleDescription(
+      "Cet élément existe déjà. Déjà porté par «\u00a0Automaticien\u00a0».",
+    );
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("says at the node the refusal of a node deactivated meanwhile", async () => {
     serve({
       [ROLES]: { problem: example("resource_role_creation_refused") as Problem & { status: 422 } },
@@ -865,6 +902,29 @@ describe("the resource roles", () => {
     expect(category).toHaveValue(technician?.cost_category_id);
     // Not read is not deactivated: the category is named as the row names it, without a mark.
     expect(options(category)).toEqual(["Choisir…", technician?.cost_category_label]);
+  });
+
+  it("names the category a role keeps, active though its nature left labour, without the mark of a deactivated one (#714)", async () => {
+    // A variant of two categories of the volumes, of a state the contract forbids since EP-14/L42r
+    // — the category of a role leaves labour no more —, which the screen holds as a guard: the
+    // commissioning (MO-002), the technician's, under a nature out of labour, the one value changed.
+    const read = VOLUMES.filter(({ code }) => code === "MO-001" || code === "MO-002").map(
+      (category) =>
+        category.code === "MO-002"
+          ? { ...category, cost_type_kind: "non_labor" as const }
+          : category,
+    );
+    serve();
+    render(roleList(true, true, read));
+    const form = await opened(
+      "Modifier «\u00a0Technicien de mise en service\u00a0»",
+      "Modifier «\u00a0Technicien de mise en service\u00a0»",
+    );
+    expect(options(within(form).getByRole("combobox", { name: "Catégorie de coût" }))).toEqual([
+      "Choisir…",
+      "MO-001 · Ingénierie électrique",
+      "MO-002 · Mise en service",
+    ]);
   });
 
   it("deactivates an active role from its row, its row then as the server answers it", async () => {
