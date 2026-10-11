@@ -1,14 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-  within,
-} from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -16,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
@@ -28,6 +19,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import type { CostCategory, CostType } from "./cost-grids";
 import { type NatureChoice, natureChoice } from "./cost-kinds";
@@ -517,17 +509,8 @@ describe("a write whose dialog is closed, and the focus", () => {
       { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
       { hold: () => answer.until },
     );
-    renderHook(() => {
-      useNavigationHold();
-    });
     render(categoryList());
-    const followed = vi.fn((event: MouseEvent) => {
-      event.preventDefault();
-    });
-    const link = document.createElement("a");
-    link.href = "/portfolio";
-    link.addEventListener("click", followed);
-    document.body.append(link);
+    const link = heldLink();
     try {
       await userEvent.click(
         screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
@@ -536,7 +519,6 @@ describe("a write whose dialog is closed, and the focus", () => {
       await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
       await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
       expect(screen.queryByRole("dialog")).toBeNull();
-      fireEvent.pointerDown(link);
       link.click();
       await act(async () => {
         answer.release();
@@ -545,7 +527,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
       const alert = await screen.findByRole("alert");
       expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
-      expect(followed).not.toHaveBeenCalled();
+      expect(link.followed).not.toHaveBeenCalled();
     } finally {
       link.remove();
     }

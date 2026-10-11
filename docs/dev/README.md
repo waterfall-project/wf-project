@@ -260,7 +260,8 @@ qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; 
 Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
 écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
 appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
-référentiel, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
+référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
+export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
 `useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
 navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
 appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
