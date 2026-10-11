@@ -170,6 +170,7 @@ def test_the_models_generated_from_the_contract_wake_its_family_when_only_the_ba
         "backend/tests/test_keycloak_authentication.py",
         "backend/tests/conftest.py",
         "backend/tests/support.py",
+        "backend/tests/access_rows.py",
         "backend/tests/test_migrations.py",
         "backend/src/waterfall/platform/keycloak.py",
         "backend/src/waterfall/api/authentication.py",
