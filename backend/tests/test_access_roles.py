@@ -414,7 +414,6 @@ def test_the_roles_are_sorted_by_their_number_of_holders_equals_by_label(
     ]
 
 
-@pytest.mark.requirement("WF-IHM-0060-A")
 @pytest.mark.parametrize(
     "query",
     ["", "?sort_order=desc", "?sort_by=is_predefined&sort_order=desc", "?sort_by=holder_count"],

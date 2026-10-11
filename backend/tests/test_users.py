@@ -274,7 +274,6 @@ def test_the_accounts_are_sorted_on_each_other_column_both_ways_equals_by_name(
     ]
 
 
-@pytest.mark.requirement("WF-IHM-0060-A")
 @pytest.mark.parametrize("column", ["last_name", "origin", "access_roles", "is_active"])
 def test_the_pages_of_accounts_equal_on_the_sort_neither_repeat_nor_skip_one(
     api: ContractClient, database: Database, headers: dict[str, str], column: str
@@ -387,7 +386,6 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
     return response.status_code, body["code"], body.get("fields", [])
 
 
-@pytest.mark.xfail(raises=ResponseNotFound, strict=True, reason="#799")
 @pytest.mark.parametrize(
     ("query", "pointer"),
     [
@@ -404,15 +402,17 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
 def test_a_parameter_the_table_refuses_is_a_value_refused(
     api: ContractClient, headers: dict[str, str], query: str, pointer: str
 ) -> None:
-    # A value outside the schema of a parameter is refused at its field (422), never a 500; the
-    # contract does not declare the 422 of listUsers yet (#799).
-    response = api.get(f"{USERS}{query}", headers=headers)
-    status, code, fields = problem(response)
+    # A value outside the schema of a parameter is refused at its field (422), never a 500. The
+    # contract does not declare the 422 of listUsers yet (#799): the answer is read unchecked, and
+    # the reminder fails the day it does, when the answer is to be read through the contract.
+    status, code, fields = problem(api.client.get(f"{USERS}{query}", headers=headers))
     assert (status, code, [field["pointer"] for field in fields]) == (
         422,
         "VALIDATION_FAILED",
         [pointer],
     )
+    with pytest.raises(ResponseNotFound, match=r"status: 422$"):
+        api.get(f"{USERS}{query}", headers=headers)
 
 
 @pytest.mark.parametrize("path", [USERS, f"{USERS}/{uuid4()}"])
