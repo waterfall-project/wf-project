@@ -229,9 +229,8 @@ def categories_of(
 ) -> list[JsonValue]:
     """Return the categories of a nature, each with its nature resolved at the reading.
 
-    Its label, its kind, and whether it is active (`cost_type_is_active`): a form keeps the active
-    categories of an active nature of provision for risks, until C-291 deactivates them with their
-    nature (#728).
+    Its label, its kind, and whether it is active (`cost_type_is_active`); a category of a
+    deactivated nature is deactivated with it (WF-REF-0010; EP-14/L42s, C-291).
     """
     return [
         {
@@ -243,7 +242,7 @@ def categories_of(
             "cost_type_kind": nature["kind"],
             "cost_type_is_active": nature["is_active"],
             "accounting_code": f"{account}{rank:03d}",
-            "is_active": True,
+            "is_active": nature["is_active"],
             "audit": _AUDIT,
             "lock_version": 1,
         }

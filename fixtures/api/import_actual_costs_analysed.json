@@ -11,6 +11,7 @@
       "format_version": "1",
       "read_count": 2,
       "rejected": [],
+      "refusals": [],
       "differences": [
         {
           "change": "updated",

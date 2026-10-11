@@ -311,8 +311,6 @@ _KEYS = {
     "provision_cost_category_id": ("catégories de coût",),
     "provision_subproject_id": ("sous-projets",),
     "order_item_id": ("postes, lots et livrables du lotissement",),
-    "order_item_node_id": _STRUCTURE,
-    "work_package_node_ids": _STRUCTURE,
     "task_node_id": _STRUCTURE,
     "work_package_id": ("postes, lots et livrables du lotissement",),
     "deliverable_id": ("postes, lots et livrables du lotissement",),

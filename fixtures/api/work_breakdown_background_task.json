@@ -1,0 +1,11 @@
+{
+  "summary": "La saisie du lotissement du projet témoin pendant le marquage de sa révision en cours (`revision_marking`) : refusée, la condition manquante nommée — aucun traitement de fond en cours —, la saisie pouvant retirer le rattachement de tâches que le marquage fige ; rien n'est écrit, et elle aboutit une fois le marquage fini (WF-PLA-0170, WF-IHM-0080, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "no_background_task_running"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001154"
+  }
+}

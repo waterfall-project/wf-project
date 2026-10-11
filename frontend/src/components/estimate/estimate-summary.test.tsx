@@ -119,14 +119,27 @@ describe("the summary of the estimate", () => {
     expect(html).not.toContain("previous marked revision");
   });
 
-  it("breaks the total down by order item as the API gives it, and leaves the order items out of a planning not structured in them, rather than nil [WF-DEV-0060-A]", () => {
+  it("breaks the total down by order item as the API gives it, and presents an order item no task bears without a total, rather than nil [WF-DEV-0060-A]", () => {
     expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
       /Par sous-projet .* Par poste Fourniture et montage des armoires 502 434,56 \(0,76 %\)$/,
     );
+    // EP-14/L42s: every order item is given, its amount not computed when no task bears it.
     const indicators = example("estimate_indicators") as EstimateIndicators;
+    const without = {
+      is_computable: false,
+      value: null,
+      reason: "order_item_without_task",
+    } as const;
+    const unborne = indicators.by_order_item.map((item) => ({
+      ...item,
+      amount: without,
+      share: without,
+    }));
     expect(
-      text(renderSummary({ ...indicators, by_order_item: null }, [] satisfies MissingRates)),
-    ).not.toContain("Par poste");
+      text(renderSummary({ ...indicators, by_order_item: unborne }, [] satisfies MissingRates)),
+    ).toMatch(
+      /Par poste Fourniture et montage des armoires Non calculable — Aucune tâche ne porte ce poste\.$/,
+    );
   });
 
   it("says an amount by order item the API could not compute, with its reason", () => {

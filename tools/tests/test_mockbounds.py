@@ -178,14 +178,16 @@ def refusals(text: str) -> str:
 
 
 def published() -> dict[tuple[str, str], dict[str, Decimal]]:
-    """Return every bound of every body of a write, by operation and pointer — but the counter.
+    """Return every bound of every body of a write, by operation and pointer — but the counters.
 
-    `lock_version` is a counter, not an entry: its 412 says it is stale (WF-IHM-0110).
+    `lock_version` is a counter, not an entry: its 412 says it is stale (WF-IHM-0110); so are the
+    counters a confirmation sends back, those of the structures a merge read (`StructureMerge`,
+    `…_lock_version`, EP-14/L42s).
     """
     found: dict[tuple[str, str], dict[str, Decimal]] = {}
     for name, (file, text) in operations().items():
         for at, side, bound in bounds(body(text), file):
-            if not at.endswith("/lock_version"):
+            if not at.endswith("lock_version"):
                 found.setdefault((name, at), {})[side] = bound
     return found
 
@@ -280,16 +282,22 @@ def test_a_value_out_of_its_bounds_is_refused_with_the_one_bound_it_crosses(
 
 
 @pytest.mark.parametrize("operation", sorted({operation for operation, _ in REFUSED}))
-def test_each_refusal_is_cited_last_under_its_422_after_the_first_the_fake_back_serves(
+def test_the_refusals_of_the_bounds_form_one_block_after_the_first_example(
     operation: str,
 ) -> None:
+    # The first example of the 422, the one the fake back serves, stays first; the refusals of the
+    # bounds come after it, together, whatever other examples come before or after them
+    # (EP-14/L42s). A 422 without an example before its bounds has its refusals first, in the order
+    # of their names.
     names = {name for (each, _), name in REFUSED.items() if each == operation}
     cited = re.findall(r"fixtures/api/(\w+)\.json", refusals(operations()[operation][1]))
-    assert set(cited[-len(names) :]) == names
     assert cited[0] == FIRST.get(operation, cited[0])
-    if operation not in FIRST:
-        # The 422 had no example before its bound: the refusal is the first, the fake back's.
-        assert cited == sorted(names)
+    start = min(cited.index(name) for name in names)
+    assert set(cited[start : start + len(names)]) == names
+    if operation in FIRST:
+        assert start > 0
+    else:
+        assert cited[: len(names)] == sorted(names)
 
 
 def test_the_examples_keep_within_the_bounds() -> None:

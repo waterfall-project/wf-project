@@ -79,12 +79,13 @@ def test_the_nodes_render_the_payment_delays_the_curve_of_the_disbursements_appl
         if node["kind"] == mockcore.ESTIMATE_LINE
     }
     # Every line has its delay (WF-DEV-0020): in the core, a month for the subcontracting and the
-    # terminal blocks, nought for the others, labour and provision included; drawn about it, a
-    # month for every disbursement, nought for the labour.
+    # terminal blocks, nought for the others, labour included; drawn about it, a month for every
+    # disbursement, nought for the labour. A provision carries none, and stays at the date of its
+    # task (WF-IND-0100, EP-14/L42s): it renders nil, which the curve reads as nought.
     expected = {
         number: PAYMENT_DELAY if number in {STUDIES_LINE, BLOCKS} else 0 for number in rendered
     }
-    assert rendered == expected
+    assert rendered == {**expected, mockwitness.N.PROVISION: None}
     for row in reading.lines:
         if row.number >= mockwitness.GENERATED:
             expected[row.number] = 0 if row.hours else PAYMENT_DELAY

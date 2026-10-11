@@ -416,11 +416,11 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     quantity and its unit disbursement from its risk, and takes neither, nor its category
     (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered. Its subproject is the
     one its risk designates, computed too: the line does not rewrite the designation of the risk,
-    which changes only while it is identified (`update_provision`, EP-14/L42p).
+    which changes only while it is identified (`update_provision`, EP-14/L42p). Nor does it take
+    a payment delay, which it does not carry (WF-DEV-0020; EP-14/L42s).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
-        editable.append("estimate_line.payment_delay_days")
         computed: list[JsonValue] = [
             "estimate_line.quantity",
             "estimate_line.unit_disbursement",

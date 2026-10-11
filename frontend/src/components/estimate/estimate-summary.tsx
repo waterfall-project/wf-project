@@ -201,7 +201,6 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
   const reference = indicators.delta_to_reference;
   const delta = indicators.delta_to_previous_revision;
   const provisions = indicators.provisions_identified;
-  const orderItems = indicators.by_order_item;
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-2">
       <Figure name={t("total")} amount={indicators.total} />
@@ -210,7 +209,7 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
-      {orderItems === null ? null : <Breakdown name={t("byOrderItem")} items={orderItems} />}
+      <Breakdown name={t("byOrderItem")} items={indicators.by_order_item} />
     </dl>
   );
 }

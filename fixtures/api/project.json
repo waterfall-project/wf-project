@@ -25,6 +25,11 @@
         ]
       },
       {
+        "command": "update_work_breakdown",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "manage_contributors",
         "is_available": true,
         "missing_conditions": []

@@ -101,6 +101,8 @@ describe("a command of a screen", () => {
       "Modifier le devis",
       "Réestimer le reste à engager",
       "Modifier les risques",
+      // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
+      "Déclarer un risque",
       "Créer une structure",
       "Fusionner une structure",
       "Marquer la révision",

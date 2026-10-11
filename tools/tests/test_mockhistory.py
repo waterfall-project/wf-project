@@ -17,6 +17,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import (
+    REPOSITORY,
     mockcore,
     mockdata,
     mockhistory,
@@ -788,3 +789,57 @@ def test_a_labour_line_is_priced_at_the_one_rate_of_its_category_in_each_revisio
         lines = {row.number: row.amounts for row in revisions[name]}
         for number in (563, 566):
             assert lines[number].budgeted != lines[number].reestimated, (name, number)
+
+
+def test_a_line_of_provision_offers_no_payment_delay_it_does_not_carry() -> None:
+    # WF-DEV-0020 : « un délai de paiement […] saisissable sur toute ligne autre qu'une ligne de
+    # provision, qui n'en porte pas » (#733, EP-14/L42s): every provision of every reading of the
+    # witness renders none, and does not offer it; sent, it is refused by its motive.
+    provisions = [
+        node
+        for path in sorted(mockwitness.FIXTURES.rglob("*.json"))
+        for node in _nodes(json.loads(path.read_text(encoding="utf-8"))["value"])
+        if node["estimate_line"]["is_computed"] is True
+    ]
+    assert provisions
+    for node in provisions:
+        assert node["estimate_line"]["payment_delay_days"] is None, node["node_id"]
+        assert "estimate_line.payment_delay_days" not in node["editable_fields"], node["node_id"]
+    api = REPOSITORY / "docs" / "api"
+    schemas = (api / "components" / "schemas" / "revisions.yaml").read_text(encoding="utf-8")
+
+    def schema(name: str) -> str:
+        return " ".join(schemas.split(f"\n{name}:\n", 1)[1].split("  properties:", 1)[0].split())
+
+    said = schema("EstimateLineUpdate")
+    assert "le délai de paiement d'une ligne de provision, qui n'en porte pas" in said
+    assert "`FIELD_NOT_ACCEPTED`" in said
+    assert "    - FIELD_NOT_ACCEPTED\n" in (api / "components" / "common.yaml").read_text(
+        encoding="utf-8"
+    )
+    # The motive of every field a node does not accept, neither entered nor computed for it — but
+    # the payment delay of a line of labour, which the specification wants entered: not codified,
+    # followed by #785 (relecture 1).
+    assert "le débours ou le délai de paiement d'une ligne de main-d'œuvre" not in said
+    assert "Le délai de paiement d'une ligne de main-d'œuvre" in said.split("#785", 1)[0]
+    paths = (api / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    update = paths.split("operationId: updateEstimateLine\n", 1)[1].split("operationId:", 1)[0]
+    for name, text in (
+        ("EstimateLineWrite", schema("EstimateLineWrite")),
+        ("TaskFacetUpdate", schema("TaskFacetUpdate")),
+        ("PastePreview", schema("PastePreview")),
+        ("updateEstimateLine", update.split("'422':", 1)[1]),
+    ):
+        assert "`FIELD_NOT_ACCEPTED`" in text, name
+
+
+def _nodes(value: Any) -> list[dict[str, Any]]:
+    """Return every node of a line of the estimate that a value read from JSON holds."""
+    if isinstance(value, list):
+        return [found for item in cast("list[Any]", value) for found in _nodes(item)]
+    if not isinstance(value, dict):
+        return []
+    entry = cast("dict[str, Any]", value)
+    line = isinstance(entry.get("estimate_line"), dict) and "editable_fields" in entry
+    found = [entry] if line else []
+    return [*found, *(each for item in entry.values() for each in _nodes(item))]

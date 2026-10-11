@@ -25,6 +25,11 @@
         ]
       },
       {
+        "command": "update_work_breakdown",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "manage_contributors",
         "is_available": true,
         "missing_conditions": []
@@ -58,6 +63,11 @@
       },
       {
         "command": "edit_risks",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "declare_risk",
         "is_available": true,
         "missing_conditions": []
       },

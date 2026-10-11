@@ -1653,6 +1653,8 @@
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un poste ou un lot.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
+    "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
+    "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service."
   },
@@ -1980,6 +1982,7 @@
     "ProjectCommand": {
       "update": "Modifier le projet",
       "update_win_probability": "Modifier la probabilité de gain",
+      "update_work_breakdown": "Saisir le lotissement",
       "manage_contributors": "Gérer les contributeurs",
       "manage_timelines": "Gérer les chronologies",
       "create_revision": "Créer une révision",
@@ -1987,6 +1990,7 @@
       "lose": "Déclarer le projet perdu",
       "abandon": "Abandonner le projet",
       "edit_risks": "Modifier les risques",
+      "declare_risk": "Déclarer un risque",
       "declare_risk_occurrence": "Déclarer la survenance d’un risque",
       "import_actual_costs": "Importer les coûts réels",
       "exclude_cost_lines": "Exclure des lignes de coût",
@@ -2022,6 +2026,7 @@
       "org_node_active": "nœud d’organisation actif",
       "calendar_not_default": "calendrier autre que celui par défaut",
       "calendar_active": "calendrier actif",
+      "cost_type_active": "nature de coût active",
       "cost_type_unused": "aucune catégorie de la nature employée",
       "cost_type_unrated": "aucune catégorie de la nature portant un taux horaire",
       "cost_type_without_role": "aucune catégorie de la nature rattachée à un rôle de ressource",
@@ -2036,7 +2041,8 @@
       "subproject_not_cited": "sous-projet cité par aucune révision marquée",
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
-      "main_structure_without_tasks": "structure principale sans aucune tâche"
+      "main_structure_without_tasks": "structure principale sans aucune tâche",
+      "import_file_accepted": "fichier accepté par le compte rendu"
     },
     "ProjectExit": {
       "to_state": {
@@ -2072,6 +2078,7 @@
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",
+      "declare_risk": "Déclarer un risque",
       "create_structure": "Créer une structure",
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
@@ -2302,7 +2309,8 @@
       "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
       "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
-      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence."
+      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence.",
+      "order_item_without_task": "Aucune tâche ne porte ce poste."
     },
     "CurveSeries": {
       "series": {

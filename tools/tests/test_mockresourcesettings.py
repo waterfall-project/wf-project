@@ -241,6 +241,26 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
         assert "`params.projects`" in refusals, operation
         assert "(`project_label`, `project_code`), sans identifiant ni tâche" in refusals, operation
         assert "params.tasks" not in refusals, operation
+    # The task whose role is the only one loses its hours by the role's calendar alone: each text
+    # of the refusal says it beside the calendars that never meet (#766, EP-14/L42s, relecture 1).
+    revisions = (API / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+
+    def flat(text: str) -> str:
+        return " ".join(text.split())
+
+    def described(operation: str) -> str:
+        return revisions.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
+
+    texts = {
+        "updateResourceRole": flat(_block("updateResourceRole").split("'422':", 1)[1]),
+        "createNode": flat(described("createNode").split("    parameters:", 1)[0]),
+        "updateEstimateLine": flat(described("updateEstimateLine").split("'422':", 1)[1]),
+        "resource_role_ids": problem.split("`resource_role_ids` pour", 1)[1].split("; `", 1)[0],
+    }
+    for name, text in texts.items():
+        assert re.search(r"ne (?:recoupe|se recoupent) jamais", text), name
+        assert "sur une tâche dont ce rôle est le seul" in text, name
+        assert "aucune heure dans la semaine" in text, name
 
 
 def _roles_by_task(structure: str) -> dict[str, set[str]]:

@@ -46,7 +46,7 @@ REFUSALS = {
 }
 """The motives by field of a write of the cost settings, by pointer (`createCostCategory`)."""
 
-TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, str]]] = {
+TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
     "cost_type_code_taken": (409, "ALREADY_EXISTS", [("/code", "ALREADY_EXISTS")], {}),
     "cost_type_creation_refused": (
         422,
@@ -54,7 +54,22 @@ TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, str]]] = {
         [("/code", "VALUE_TOO_LONG"), ("/label", "VALUE_REQUIRED")],
         {},
     ),
-    "cost_type_kind_refused": (409, "STATE_FORBIDS_OPERATION", [], {"missing_condition": UNUSED}),
+    "cost_type_kind_refused": (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        [],
+        {
+            "missing_condition": UNUSED,
+            "cost_categories": [
+                {"cost_category_id": universe(401), "code": "ACH-001", "label": "Sous-traitance"},
+                {
+                    "cost_category_id": universe(403),
+                    "code": "ACH-002",
+                    "label": "Matériel électrique",
+                },
+            ],
+        },
+    ),
     "cost_type_update_refused": (422, "VALIDATION_FAILED", [("/label", "VALUE_REQUIRED")], {}),
     "cost_category_codes_taken": (
         409,
@@ -112,11 +127,18 @@ SAID = {
 }
 """What the summary of each refusal says of the value sent, by the fields and motives it tells."""
 
-RELIT = ("updateCostCategory", "setHourlyRate", "createResourceRole", "updateResourceRole")
+RELIT = (
+    "updateCostCategory",
+    "setHourlyRate",
+    "createResourceRole",
+    "updateResourceRole",
+    "setCostTypeActivation",
+)
 """The writes of the reference that change the commands of other objects than the one written,
 which the answer does not bear (#577): each says the client reads the lists anew — a role attached
-to a category freezes its move and the kind of its nature (EP-14/L42r). Those #578 named change none
-since its rule was withdrawn (EP-14/L42p)."""
+to a category freezes its move and the kind of its nature (EP-14/L42r); a nature deactivated
+deactivates its categories, whose reactivation it withholds (C-291, EP-14/L42s). Those #578 named
+otherwise change none since its rule was withdrawn (EP-14/L42p)."""
 
 TOO_LONG = {
     "cost_type_creation_refused": ("CostTypeWrite", "code", 36, "trente-six"),
@@ -269,7 +291,25 @@ def test_the_refused_change_of_kind_names_the_condition_its_command_misses(
     assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert [refused["params"]["missing_condition"]] == change["missing_conditions"]
     assert set(refused) == {"code", "status", "params", "correlation_id"}
-    assert list(refused["params"]) == ["missing_condition"]
+    # The condition is lifted by moving the categories employed under another nature of the same
+    # kind, never unavailable: the refusal names them all, by code (WF-IHM-0090; #766,
+    # EP-14/L42s) — those of the nature that a line of an example bears.
+    lines = {
+        entry["estimate_line"]["cost_category_id"]
+        for each in examples.values()
+        for entry in _walk(each["value"])
+        if isinstance(entry.get("estimate_line"), dict)
+    }
+    employed = sorted(
+        (c for c in _categories().values() if c["cost_type_id"] == universe(462)),
+        key=lambda category: category["code"],
+    )
+    assert refused["params"]["cost_categories"] == [
+        {key: category[key] for key in ("cost_category_id", "code", "label")}
+        for category in employed
+        if category["cost_category_id"] in lines
+    ]
+    assert list(refused["params"]) == ["missing_condition", "cost_categories"]
 
 
 # --- The nature of a category: of the same kind once employed, or once it bears rates (#577) ----
@@ -369,10 +409,13 @@ def test_no_file_of_the_contract_names_the_conditions_of_the_withdrawn_rule() ->
         text = path.read_text(encoding="utf-8")
         for condition in WITHDRAWN:
             assert condition not in text, (path.name, condition)
-    for name in ("setCostTypeActivation", "setCostCategoryActivation"):
-        text = (API / "paths" / "reference.yaml").read_text(encoding="utf-8")
-        block = text.split(f"operationId: {name}\n", 1)[1].split("operationId:", 1)[0]
-        assert "\n      '409':" not in block, name
+    text = (API / "paths" / "reference.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: setCostTypeActivation\n", 1)[1].split("operationId:", 1)[0]
+    assert "\n      '409':" not in block
+    # The reactivation of a category refused under a deactivated nature is C-291, not #578.
+    said = conflict_said(text, "setCostCategoryActivation")
+    assert "`params.missing_condition` à `cost_type_active`" in " ".join(said.split())
+    assert "C-291" in said
 
 
 @pytest.mark.parametrize(
@@ -402,7 +445,10 @@ def test_a_refused_change_of_kind_names_the_first_condition_missing_in_the_order
 
 @pytest.mark.parametrize(
     ("operation", "condition"),
-    [("updateCostType", WITHOUT_ROLE), ("updateCostCategory", CATEGORY_WITHOUT_ROLE)],
+    [
+        ("updateCostType", "La dernière nomme des rôles :"),
+        ("updateCostCategory", f"`{CATEGORY_WITHOUT_ROLE}` ; nommant celle-ci,"),
+    ],
 )
 def test_a_change_of_kind_refused_for_its_roles_names_them(operation: str, condition: str) -> None:
     # WF-IHM-0090: a condition that an action lifts says what to do — move the roles named, all of
@@ -413,7 +459,7 @@ def test_a_change_of_kind_refused_for_its_roles_names_them(operation: str, condi
             (API / "paths" / "reference.yaml").read_text(encoding="utf-8"), operation
         ).split()
     )
-    assert f"`{condition}` ; nommant celle-ci, `params.resource_roles` les rôles" in said
+    assert f"{condition} `params.resource_roles` les rôles" in said
     assert "chacun par son identifiant, son code et son libellé" in said
     assert "resource_role_ids" not in said
     common = (API / "components" / "common.yaml").read_text(encoding="utf-8")

@@ -47,7 +47,10 @@ TOLD: dict[str, tuple[str, str, dict[str, Any]]] = {
     "task_attach_outside_order_item": (
         "/work_package_id",
         "WORK_PACKAGE_OUTSIDE_ORDER_ITEM",
-        {"order_item_node_id": CONTROL_STATION, "work_package_node_ids": [universe(521)]},
+        {
+            "order_item_task": {"node_id": CONTROL_STATION, "label": "Poste de commande"},
+            "work_package_tasks": [{"node_id": universe(521), "label": "Études"}],
+        },
     ),
     "task_attach_exclusive": ("/work_package_id", "WORK_BREAKDOWN_ITEMS_EXCLUSIVE", {}),
     "task_attach_main_structure_only": (
@@ -207,9 +210,11 @@ def test_the_skeleton_is_offered_on_a_main_structure_that_reads_empty_and_there_
     assert read["items"] != []
     assert read["totals"]["task_count"] > 0
     assert (SKELETON, False, [WITHOUT_TASKS]) in _commands(witness)
-    # Its other commands are those of the witness's; the skeleton advances the counter read.
-    others = [command for command in _commands(revision) if command[0] != SKELETON]
-    assert others == [command for command in _commands(witness) if command[0] != SKELETON]
+    # Its other commands are those of the witness's, but the declaration of a risk, which a main
+    # structure without task forbids (EP-14/L42s); the skeleton advances the counter read.
+    own = (SKELETON, "declare_risk")
+    others = [command for command in _commands(revision) if command[0] not in own]
+    assert others == [command for command in _commands(witness) if command[0] not in own]
     assert fixture("skeleton_generated")["structure_lock_version"] == structure["lock_version"] + 1
 
 
@@ -227,9 +232,9 @@ def test_the_project_created_today_carries_the_revision_opened_without_task() ->
     assert opened["audit"]["updated_at"] >= revision["audit"]["created_at"]
     for key in ("created_at", "created_by"):
         assert opened["audit"][key] == created["audit"][key], key
-    # Its commands are those of the project created, but the entry of the risks, which passes to
-    # the revision in progress (WF-RIS-0020), a revision to create, which it has, and the loss,
-    # open in pricing (WF-CYC-0060).
+    # Its commands are those of the project created, but the entry of the risks and the
+    # declaration of one, which pass to the revision in progress (WF-RIS-0020; EP-14/L42s), a
+    # revision to create, which it has, and the loss, open in pricing (WF-CYC-0060).
     changed: dict[str, tuple[bool, list[str]]] = {
         "create_revision": (False, ["no_current_revision"]),
         "lose": (True, []),
@@ -237,10 +242,11 @@ def test_the_project_created_today_carries_the_revision_opened_without_task() ->
     expected = [
         (command, *changed.get(command, (available, missing)))
         for command, available, missing in _commands(created)
-        if command != "edit_risks"
+        if command not in ("edit_risks", "declare_risk")
     ]
     assert _commands(opened) == expected
     assert ("edit_risks", True, []) in _commands(revision)
+    assert ("declare_risk", False, ["at_least_one_task"]) in _commands(revision)
 
 
 def test_the_skeleton_of_the_default_breakdown_is_two_summaries_and_their_end_milestones() -> None:
@@ -395,3 +401,173 @@ def test_the_timeline_created_is_a_new_one_no_task_is_yet_inscribed_to(
     inscribed = {entry["timeline_id"] for _, entry in _read(examples, {"kind", "timeline_id"})}
     assert created["timeline_id"] not in inscribed
     assert re.fullmatch(r".{1,200}", created["label"])
+
+
+# --- The tasks named by their label, the reports before a merge and an import (EP-14/L42s) -------
+
+PATHS = REPOSITORY / "docs" / "api" / "paths"
+
+
+def _core() -> dict[str, Entry]:
+    """Return the tasks of the core of the witness, by their node."""
+    return {node["node_id"]: node for node in fixture("nodes_core")["items"] if node.get("task")}
+
+
+def _named(node: str) -> Entry:
+    """Return how a refusal names a task of the core: its node and its label (WF-IHM-0080)."""
+    return {"node_id": node, "label": _core()[node]["task"]["label"]}
+
+
+WIRING = universe(mockwitness.N.WIRING)
+"""« Câblage des armoires », that the variants of #775 and #771 make bear the work package."""
+
+OUTSIDE = {"order_item_task": _named(CONTROL_STATION), "work_package_tasks": [_named(WIRING)]}
+"""How the variant names the tasks of the order item and of the work package (WF-PLA-0170)."""
+
+
+def test_every_refusal_of_a_package_out_of_its_order_item_names_the_tasks_by_their_label() -> None:
+    # #775: the refusal of moveNodes, as of updateTaskFacet, createNode and an import, names the
+    # task of the order item and those of the packages as the merge that fails does (EP-14/L42k).
+    for path in sorted(REPOSITORY.joinpath("docs", "api").rglob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        assert "order_item_node_id" not in text, path.name
+        assert "work_package_node_ids" not in text, path.name
+    moved = fixture("nodes_move_outside_order_item")
+    [field] = moved["fields"]
+    assert (field["pointer"], field["code"]) == ("/node_ids/0", "WORK_PACKAGE_OUTSIDE_ORDER_ITEM")
+    assert (
+        field["params"] == OUTSIDE == fixture("task_merge_outside_order_item")["problem"]["params"]
+    )
+    assert "variante déclarée" in _summary("nodes_move_outside_order_item")
+    assert "nodes_move_outside_order_item" in (PATHS / "revisions.yaml").read_text(encoding="utf-8")
+
+
+def test_the_report_before_a_merge_says_what_it_would_do_and_what_refuses_it() -> None:
+    # WF-REV-0050 : « Avant application, la fusion présente un compte rendu » — a reading of the
+    # path of the merge (#771); its Vérif: the started task the amendment withdraws is named
+    # completed, kept, its date nil until the merge is applied.
+    revisions = (PATHS / "revisions.yaml").read_text(encoding="utf-8")
+    path = revisions.split("structures/{structure_id}/merge:\n", 1)[1].split("\n/", 1)[0]
+    assert path.index("operationId: getStructureMergeReport") < path.index("mergeCostStructure")
+    report = fixture("structure_merge_report")
+    [kept] = [each for each in report["differences"] if each["change"] == "kept"]
+    [completed] = report["completed_tasks"]
+    desks = universe(mockwitness.N.DESKS)
+    assert _core()[desks]["task"]["progress"] == "started"
+    assert kept["lineage_id"] == completed["lineage_id"] == _core()[desks]["lineage_id"]
+    assert kept["label"] == completed["label"] == _core()[desks]["task"]["label"]
+    assert (completed["completed_on"], report["refusals"]) == (None, [])
+    refused = fixture("structure_merge_report_refused")
+    [refusal] = refused["refusals"]
+    assert refusal == {"code": "WORK_PACKAGE_OUTSIDE_ORDER_ITEM", "params": OUTSIDE}
+    assert refused["completed_tasks"] == []
+    for name in ("structure_merge_report", "structure_merge_report_refused"):
+        assert "variante déclarée" in _summary(name), name
+
+
+def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> None:
+    # The user confirms what he read: the counters of the main structure and of the amendment the
+    # report read, required by the confirmation, refused by 412 if either changed (WF-REV-0050,
+    # WF-IHM-0110; relecture 1).
+    counters = ["main_structure_lock_version", "amendment_lock_version"]
+    schemas = _schemas("revisions.yaml")
+    for schema in ("StructureMerge", "StructureMergeReport"):
+        block = schemas.split(f"\n{schema}:\n", 1)[1].split("\n\n", 1)[0]
+        required = block.split("properties:", 1)[0]
+        assert all(counter in required for counter in counters), schema
+    revisions = (PATHS / "revisions.yaml").read_text(encoding="utf-8")
+    merge = revisions.split("operationId: mergeCostStructure\n", 1)[1].split("operationId:", 1)[0]
+    stale = " ".join(merge.split("      '412':\n", 1)[1].split("content:", 1)[0].split())
+    assert "`STALE_LOCK_VERSION`" in stale
+    # The counter a 412 names is the one of the object the path names, the amendment, and nothing
+    # else, even when the main structure alone changed (#296); the check of both counters and the
+    # deposit of the task are one transaction (relecture 2).
+    assert "le compteur courant du différentiel, l'objet que le chemin nomme" in stale
+    assert "la première qui a changé" not in stale
+    assert "le client relit le compte rendu, qui rend l'un et l'autre" in stale
+    assert "en une seule transaction" in stale
+    # What the report read changes in either tree: 412; what changes outside them makes the task of
+    # the merge fail on the motive of the refusal (relecture 2).
+    report = revisions.split("operationId: getStructureMergeReport\n", 1)[1]
+    read = " ".join(report.split("parameters:", 1)[0].split())
+    assert (
+        "dans la structure principale ou dans le différentiel fait refuser la confirmation" in read
+    )
+    assert "par 412" in read
+    assert "hors des deux arbres" in read
+    assert "fait échouer la tâche de fond sur le motif du refus" in read
+    [main] = [each for each in fixture("structures") if each["kind"] == "main"]
+    for name in ("structure_merge_report", "structure_merge_report_refused"):
+        report = fixture(name)
+        assert report["main_structure_lock_version"] == main["lock_version"], name
+        assert report["amendment_lock_version"] >= 0, name
+
+
+def test_a_file_that_would_move_a_package_out_or_pass_the_horizon_is_rejected_whole() -> None:
+    # WF-INTF-0040 : « Un fichier qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche
+    # de son poste est rejeté au compte rendu, qui nomme les deux tâches, comme un planning qui
+    # dépasse l'horizon (WF-PLA-0150) » (#771): not a line, the whole file, nothing applied.
+    for path in sorted(mockwitness.FIXTURES.glob("import_*.json")):
+        report = json.loads(path.read_text(encoding="utf-8"))["value"].get("report")
+        if report is not None and path.stem != "import_planning_rejected":
+            assert report["refusals"] == [], path.name
+    rejected = fixture("import_planning_rejected")["report"]
+    commissioning = universe(mockwitness.N.COMMISSIONING)
+    assert rejected["refusals"] == [
+        {"code": "WORK_PACKAGE_OUTSIDE_ORDER_ITEM", "params": OUTSIDE},
+        {"code": "PROJECT_HORIZON_EXCEEDED", "params": {"task": _named(commissioning)}},
+    ]
+    assert (
+        "WORK_PACKAGE_OUTSIDE_ORDER_ITEM"
+        not in _schemas("exchanges.yaml")
+        .split("\nImportRejection:\n", 1)[1]
+        .split("Une tâche que le fichier", 1)[0]
+    )
+    assert "PROJECT_HORIZON_EXCEEDED" in _enumeration(
+        COMMON.read_text(encoding="utf-8"), "ErrorCode"
+    )
+    applied = fixture("import_apply_rejected")
+    assert (applied["status"], applied["params"]) == (
+        409,
+        {"missing_condition": "import_file_accepted"},
+    )
+    conditions = _enumeration(_schemas("projects.yaml"), "CommandCondition")
+    assert "import_file_accepted" in conditions
+
+
+def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_its_order() -> None:
+    # #775: the entry of the work breakdown withdraws the attachment of tasks of the current
+    # revision. Its command follows update and holds its conditions — no example shows it during
+    # a background task, which no project example reads —, and its 409 names each condition the
+    # command says missing in an example, then no_background_task_running, in that order (M2).
+    enumerated = _enumeration(_schemas("projects.yaml"), "ProjectCommand")
+    assert (
+        enumerated.index("update_work_breakdown") == enumerated.index("update_win_probability") + 1
+    )
+    missing: list[str] = []
+    for path in sorted(mockwitness.FIXTURES.glob("project*.json")):
+        value = cast("Entry", json.loads(path.read_text(encoding="utf-8"))["value"])
+        for project in cast("list[Entry]", value.get("items", [value])):
+            listed = {
+                each["command"]: each
+                for each in cast("list[Entry]", project.get("available_commands", []))
+            }
+            if "update" not in listed:
+                continue
+            breakdown = listed["update_work_breakdown"]
+            assert breakdown["missing_conditions"] == listed["update"]["missing_conditions"], path
+            missing += [each for each in breakdown["missing_conditions"] if each not in missing]
+    assert missing == ["project_not_terminal"]
+    refused = fixture("work_breakdown_background_task")
+    assert refused["params"] == {"missing_condition": "no_background_task_running"}
+    said = " ".join((PATHS / "projects.yaml").read_text(encoding="utf-8").split())
+    said = said.split("operationId: setWorkBreakdown", 1)[1].split("operationId:", 1)[0]
+    conflict = said.split("'409':", 1)[1].split("content:", 1)[0]
+    told = [conflict.index(f"`{each}`") for each in [*missing, "no_background_task_running"]]
+    assert told == sorted(told)
+    for counter in (
+        "`Node.lock_version`",
+        "`CostStructure.lock_version`",
+        "`update_work_breakdown`",
+    ):
+        assert counter in said, counter

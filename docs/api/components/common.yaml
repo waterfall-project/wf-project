@@ -157,8 +157,10 @@ Problem:
         WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas
         (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` pour une écriture qui laisserait une
         tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont
-        les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
-        tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que
+        les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle
+        est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le
+        calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par
+        leurs seuls identifiants, que
         la session d'une modification du référentiel peut nommer, lisant tous les rôles
         (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes
         (`resource_role_label`) ; `resource_roles` quand
@@ -167,7 +169,13 @@ Problem:
         désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
         `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à
         rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature,
-        refusée (WF-IHM-0090) ; `tasks` pour une saisie d'une révision — `createNode`,
+        refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme
+        `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les
+        catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un
+        taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son
+        identifiant, son code et son libellé (`cost_category_id`, `code`,
+        `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type
+        (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`,
         `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou
         importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) :
         les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`,
@@ -186,12 +194,22 @@ Problem:
         : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure
         principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de
         `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ;
-        EP-14/L42k). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et
+        EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif
+        (`ImportReport.refusals`) et le compte rendu préalable d'une fusion
+        (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la
+        durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche
+        en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que
+        le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans
+        `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou
         le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
-        WF-PLA-0170 ; EP-14/L42k) ; `order_item_node_id` et `work_package_node_ids`, la tâche du
-        poste et celles de ses lots qui sortiraient de son sous-arbre
-        (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170) ; `task_node_id`, dans
+        WF-PLA-0170 ; EP-14/L42k) ; `order_item_task` et `work_package_tasks`, la tâche du poste
+        et celles de ses lots qui sortiraient de son sous-arbre, chacune par son nœud et son
+        libellé (`node_id`, `label`), comme l'échec d'une fusion (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+        `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul
+        pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres
+        au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`,
+        dans
         `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
@@ -370,8 +388,10 @@ ErrorCode:
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
     # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; le dernier aussi d'un
-    # déplacement (`moveNodes`) et d'une ligne importée qui sortiraient la tâche d'un lot du
-    # sous-arbre de celle de son poste, et le code d'une fusion qui échoue pour ce motif (`mergeCostStructure`) — une saisie du
+    # déplacement (`moveNodes`) qui sortirait la tâche d'un lot du sous-arbre de celle de son
+    # poste, le motif qui rejette entier un fichier d'import (`ImportReport.refusals`,
+    # EP-14/L42s), et le code d'une fusion qui échoue pour ce motif (`mergeCostStructure`) — une
+    # saisie du
     # lotissement qui range un lot sous un autre poste retire le rattachement, sans refus
     # (`setWorkBreakdown`, EP-14/L42k). `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` refuse un
     # rattachement posé sur une tâche d'un différentiel ou du devis propre d'un risque, qui n'en
@@ -384,6 +404,17 @@ ErrorCode:
     - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
     - WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY
     - DUPLICATE_WORK_BREAKDOWN_ITEM
+    # Un planning qui porterait la durée du projet, de la date de début de sa première tâche à la
+    # date de fin de sa dernière, au-delà de quinze ans ; le motif qui rejette entier un fichier
+    # d'import, `params.task` nommant la tâche en cause (`ImportReport.refusals`, WF-PLA-0150 ;
+    # EP-14/L42s).
+    - PROJECT_HORIZON_EXCEEDED
+    # Un champ que le nœud n'accepte pas, ni saisi ni calculé pour lui (`editable_fields`) : le
+    # délai de paiement d'une ligne de provision, qui n'en porte pas (WF-DEV-0020), un champ
+    # d'une autre nature de ligne (`EstimateLineWrite`, `EstimateLineUpdate`), la durée d'un
+    # jalon (`TaskFacetUpdate`), et le motif d'une cellule collée sur une telle colonne
+    # (`PastePreview` ; EP-14/L42s).
+    - FIELD_NOT_ACCEPTED
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

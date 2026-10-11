@@ -482,11 +482,11 @@ describe("the keyboard of a grid", () => {
     render(grid());
     // Along the row of the provision: its quantity, its unit disbursement and its sub-project — the
     // one its risk designates (EP-14/L42p) — are computed, and it accepts neither category, nor
-    // role, nor effort: its label and its payment delay alone are entered.
+    // role, nor effort, nor a payment delay, which it does not carry (EP-14/L42s): its label alone
+    // is entered.
     cell(PROVISION, "label").focus();
-    await userEvent.keyboard("{Enter}{Tab}");
     expect(cell(PROVISION, "subproject")).toHaveAttribute("aria-readonly", "true");
-    expect(cell(PROVISION, "payment_delay_days")).toHaveFocus();
+    expect(cell(PROVISION, "payment_delay_days")).toHaveAttribute("aria-readonly", "true");
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
     expect(cell(OCCURRED, "label")).toHaveFocus();
