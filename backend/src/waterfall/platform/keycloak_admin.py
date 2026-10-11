@@ -7,10 +7,11 @@ whose creation Waterfall could not complete, closes the sessions of an account (
 WF-SEC-0020), and gives it the language its holder chose, that of its mails (WF-INTF-0160). The
 link that sets the password of a local account is made by the extension of Waterfall, which also
 mails it as the invitation of the account: never by ``execute-actions-email``, whose links would
-escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address, tells whether
-it has a password, and, as the client of the bootstrap, gives the realm the language of the
-installation (#873) and asks the extension for the link of the installation, valid until it is
-used (WF-EXP-0020, #652). The token of the client is kept until shortly before it expires.
+escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address and, as the
+client of the bootstrap, gives the realm the language of the installation (#873) and asks the
+extension for the link of the installation, valid until it is used and only for an account without
+a password (WF-EXP-0020, #652, #884). The token of the client is kept until shortly before it
+expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -22,6 +23,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from http import HTTPStatus
 from typing import Any, Literal, cast
 from urllib.parse import quote
@@ -55,6 +57,20 @@ IDENTITY_POINTERS = {
 type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
 
 logger = get_logger(__name__)
+
+
+class NoInstallationLink(Enum):
+    """Why the extension made no link of the installation: the status and the code it refused by."""
+
+    # The account has a password, however it was set: the link is for one without (#884).
+    CREDENTIAL_HELD = (HTTPStatus.CONFLICT, "has_password")
+    # The realm holds the account as no local one: read from a directory, or relayed.
+    NOT_LOCAL = (HTTPStatus.CONFLICT, "not_local")
+    # The realm no longer holds the account: removed in its console.
+    UNKNOWN_USER = (HTTPStatus.NOT_FOUND, "unknown_user")
+
+
+REFUSALS_OF_THE_INSTALLATION_LINK = frozenset(why.value for why in NoInstallationLink)
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,26 +299,18 @@ class KeycloakAdmin:
                 return _text(user, "id") or None
         return None
 
-    def has_password(self, subject: str) -> bool | None:
-        """Tell whether an account of the realm has a password, or ``None`` if it has no account."""
-        path = f"{self._admin}/users/{quote(subject, safe='')}/credentials"
-        response = self._as_service("GET", path)
-        if response.status_code == HTTPStatus.NOT_FOUND:
-            return None
-        held = cast("list[Mapping[str, Any]]", expect(response, HTTPStatus.OK).json())
-        return any(_text(credential, "type") == "password" for credential in held)
-
-    def make_installation_link(self, subject: str) -> str | None:
+    def make_installation_link(self, subject: str) -> str | NoInstallationLink:
         """Have the extension make the link of the installation, valid until it is used.
 
         Asked as the client of the bootstrap, which alone may (WF-EXP-0020, #652); the link replaces
-        the one made before it, as any link does. ``None`` if the realm holds the account as no
-        local one.
+        the one made before it, as any link does. The extension makes none for an account that has
+        a password, holds as no local one, or no longer holds: it says which (#884).
         """
         path = f"{self._extension}/users/{quote(subject, safe='')}"
         response = self._as_service("POST", path)
-        if _not_local(response):
-            return None
+        refused = (response.status_code, _text(_document(response), "error"))
+        if refused in REFUSALS_OF_THE_INSTALLATION_LINK:
+            return NoInstallationLink(refused)
         url = _text(_document(expect(response, HTTPStatus.OK)), "url")
         if not url:
             message = f"POST {response.request.url.path} answered no link"

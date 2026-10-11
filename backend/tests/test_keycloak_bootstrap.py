@@ -243,6 +243,33 @@ def test_a_second_installation_creates_nothing_and_replaces_the_link_until_a_pas
     assert counts(admin, database, address) == created
 
 
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_an_administrator_given_a_password_another_way_is_given_no_link_and_its_link_serves_no_more(
+    admin: httpx2.Client, database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # « … tant que l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » Set
+    # here by the console, not by the link: the extension refuses a new link (#884), and the link
+    # made before no longer opens the form.
+    settings = settings_of(database_url, address)
+    link = link_of(settings)
+    with database.transaction() as session:
+        subject = session.scalars(select(UserAccount.idp_subject)).one()
+    given = admin.put(
+        f"/users/{subject}/reset-password",
+        json={"type": "password", "value": PASSWORD, "temporary": False},
+    )
+    assert given.status_code == 204, given.text
+    assert installed(settings) == (0, "")
+    assert len(logs.named("installation.no_link")) == 1
+    with database.transaction() as session:
+        made = session.scalars(
+            select(AuditEntry.action).where(AuditEntry.action == "password_link_create")
+        ).all()
+    assert made == ["password_link_create"]
+    spent = Browser().get(link)
+    assert (spent.status_code, SPENT in html.unescape(spent.text)) == (400, True)
+
+
 def test_two_installations_run_at_once_make_one(
     admin: httpx2.Client, database: Database, database_url: str, address: str
 ) -> None:

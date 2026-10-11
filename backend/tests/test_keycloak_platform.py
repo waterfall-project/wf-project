@@ -500,6 +500,38 @@ def test_the_client_of_the_bootstrap_gets_a_link_valid_until_used_and_sends_no_i
     assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
 
 
+def test_the_client_of_the_bootstrap_gets_no_link_for_an_account_with_a_password(
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    service_token: str,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # The link of the installation is for an account without a password (#884); the link of an
+    # hour, which an administrator gives, is not.
+    set_password(admin, local_account.id, PASSWORD)
+    refused = link_of(backchannel, local_account.id, installation_token)
+    assert (refused.status_code, refused.json()) == (409, {"error": "has_password"})
+    assert link_of(backchannel, local_account.id, service_token).status_code == 200
+
+
+def test_the_link_of_the_installation_serves_no_more_once_the_account_has_a_password(
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # A password set another way — the console here, or "forgot password" — spends the link of
+    # the installation, which no longer opens the form (#884).
+    made = link_of(backchannel, local_account.id, installation_token)
+    assert made.status_code == 200, made.text
+    url = made.json()["url"]
+    # Opened, not confirmed: it is valid, and not spent.
+    assert Browser().get(url).status_code == 200
+    set_password(admin, local_account.id, PASSWORD)
+    assert refused_as(Browser().get(url)) == "spent"
+
+
 def refused_as(page: httpx2.Response) -> str:
     """Say how the page of a link refuses it: spent, or replaced; it says one, never both."""
     assert page.status_code == 400, page.text

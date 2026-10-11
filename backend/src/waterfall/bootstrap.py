@@ -43,7 +43,6 @@ from waterfall.core.users.interface import (
     display_name,
     identity_faults,
     inscribe_password_link,
-    password_link_holder,
     read_installation_administrator,
 )
 from waterfall.migrations.runner import upgrade
@@ -53,7 +52,12 @@ from waterfall.platform.database import Database, create_database_engine, utc_no
 from waterfall.platform.errors import ServiceError
 from waterfall.platform.installation import THE_ROW, Installation
 from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import INSTALLATION_CLIENT, KeycloakAdmin, LocalIdentity
+from waterfall.platform.keycloak_admin import (
+    INSTALLATION_CLIENT,
+    KeycloakAdmin,
+    LocalIdentity,
+    NoInstallationLink,
+)
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import (
     InstallationSettings,
@@ -141,7 +145,7 @@ def _install(
         with _alone(engine):
             administrator, language = _bootstrap(database, admin, settings)
             installer.set_default_language(language)
-            link = _link(database, (admin, installer), administrator)
+            link = _link(database, installer, administrator)
     except InstallationRefusedError as refused:
         refusal = (refused.reason, {})
     except ServiceError as refused:
@@ -241,26 +245,22 @@ def _left_by_a_broken_run(admin: KeycloakAdmin, email: str) -> str:
     return held.subject
 
 
-def _link(
-    database: Database, clients: tuple[KeycloakAdmin, KeycloakAdmin], administrator: Account
-) -> str | None:
+def _link(database: Database, installer: KeycloakAdmin, administrator: Account) -> str | None:
     """Make the link of the administrator, valid until it is used, while it has no password.
 
-    ``clients`` are the service account, which reads the account, and the client of the bootstrap,
-    which alone makes such a link. A deactivated account, or one no longer local, has none (409);
-    nor has one the realm no longer holds — removed in its console.
+    ``installer`` is the client of the bootstrap, which alone makes such a link. The extension
+    alone tells whether the account has a password, however it was set: then there is no link
+    (#884). One the realm holds as no local one, or no longer holds — removed in its console —,
+    is refused; so is one deactivated in Waterfall, when the link is inscribed (409), and the link
+    is not given.
     """
-    admin, installer = clients
-    has_password = admin.has_password(administrator.subject)
-    if has_password is None:
-        raise InstallationRefusedError(ADMINISTRATOR_NOT_IN_PROVIDER)
-    if has_password:
+    made = installer.make_installation_link(administrator.subject)
+    if made is NoInstallationLink.CREDENTIAL_HELD:
         return None
-    with database.transaction() as session:
-        password_link_holder(session, administrator.user_id)
-    link = installer.make_installation_link(administrator.subject)
-    if link is None:
+    if made is NoInstallationLink.NOT_LOCAL:
         raise InstallationRefusedError(ADMINISTRATOR_NOT_LOCAL)
+    if made is NoInstallationLink.UNKNOWN_USER:
+        raise InstallationRefusedError(ADMINISTRATOR_NOT_IN_PROVIDER)
     with database.transaction() as session:
         inscribe_password_link(session, administrator.user_id, Act(None, utc_now()))
-    return link
+    return made

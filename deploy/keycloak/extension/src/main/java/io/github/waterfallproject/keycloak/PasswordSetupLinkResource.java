@@ -21,6 +21,7 @@ import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager.AuthResult;
 import org.keycloak.services.resources.LoginActionsService;
@@ -39,7 +40,8 @@ import org.keycloak.urls.UrlType;
  * <p>Asked under the realm role {@link #INSTALLATION_ROLE} — held by the client of the bootstrap
  * alone, never by the service account —, the same entry point answers the link of the
  * installation, {@code {"url": …}}: valid until it is used, once, and under the same nonce
- * (WF-ADM-0140, WF-EXP-0020, #652).
+ * (WF-ADM-0140, WF-EXP-0020, #652). It is only for an account without a password: one that has a
+ * password is refused (409), and its link stops being valid once it has one (#884).
  *
  * <p>{@code POST /realms/{realm}/password-setup-link/users/{id}/invitation}, under the same token,
  * mails the account a link made the same way, with the invitation of the email theme, and answers
@@ -83,6 +85,9 @@ public final class PasswordSetupLinkResource {
     }
     UserModel user = target.user();
     if (holds(realm, target.caller(), INSTALLATION_ROLE)) {
+      if (hasPassword(user)) {
+        return refusal(Status.CONFLICT, "has_password");
+      }
       return Response.ok(Map.of("url", link(realm, user, UNTIL_USED))).build();
     }
     int expiration = expiration(realm);
@@ -123,6 +128,19 @@ public final class PasswordSetupLinkResource {
   /** Writes when a link stops being valid, as the contract's timestamps are written. */
   static String expiresAt(int expiration) {
     return Instant.ofEpochSecond(expiration).toString();
+  }
+
+  /** Tells whether a link expires at the end of the link of the installation, its use alone. */
+  static boolean isUntilUsed(Long expiration) {
+    return expiration != null && expiration == UNTIL_USED;
+  }
+
+  /** Tells whether an account has a password, however it was set. */
+  static boolean hasPassword(UserModel user) {
+    return user.credentialManager()
+        .getStoredCredentialsByTypeStream(PasswordCredentialModel.TYPE)
+        .findAny()
+        .isPresent();
   }
 
   /** Tells whether the mail settings of a realm name a server to send by. */
