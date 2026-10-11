@@ -131,15 +131,25 @@ test("ten failures lock the account, which the realm unlocks after fifteen minut
   await failTenTimes(page, jeanne);
   // Locked, the account refuses its own password.
   await refusedSignIn(page, jeanne);
-  // The lock lasts fifteen minutes, which a path does not wait: the realm says so, and lifts none
-  // for good.
+  // The lock lasts fifteen minutes, which a path does not wait: the realm says so — a lock of
+  // fifteen minutes per ten failures, never more —, and lifts none for good.
   expect(
     await realmSettings(request, [
       "bruteForceProtected",
       "permanentLockout",
+      "failureFactor",
+      "bruteForceStrategy",
+      "waitIncrementSeconds",
       "maxFailureWaitSeconds",
     ]),
-  ).toEqual({ bruteForceProtected: true, permanentLockout: false, maxFailureWaitSeconds: 900 });
+  ).toEqual({
+    bruteForceProtected: true,
+    permanentLockout: false,
+    failureFactor: 10,
+    bruteForceStrategy: "MULTIPLE",
+    waitIncrementSeconds: 900,
+    maxFailureWaitSeconds: 900,
+  });
   await unlock(request, jeanne.email);
   await signIn(page, jeanne, ACCOUNT);
 });

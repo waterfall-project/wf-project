@@ -110,10 +110,10 @@ async function administrator(request: APIRequestContext): Promise<Record<string,
   return { Authorization: `Bearer ${token}` };
 }
 
-/** The administration API of the realm, as its administrator. */
-async function administering(request: APIRequestContext) {
+/** The administration API of a realm — that of Waterfall by default —, as its administrator. */
+async function administering(request: APIRequestContext, realm = "waterfall") {
   const headers = await administrator(request);
-  const admin = `${KEYCLOAK}/admin/realms/waterfall`;
+  const admin = `${KEYCLOAK}/admin/realms/${realm}`;
   return {
     get: (path: string, params?: Record<string, string>) =>
       request.get(`${admin}${path}`, { headers, ...(params === undefined ? {} : { params }) }),
@@ -124,9 +124,13 @@ async function administering(request: APIRequestContext) {
   };
 }
 
-/** The identifier of an account in the realm, by its address. */
-async function realmUser(request: APIRequestContext, email: string): Promise<string> {
-  const realm = await administering(request);
+/** The identifier of an account in a realm — that of Waterfall by default —, by its address. */
+async function realmUser(
+  request: APIRequestContext,
+  email: string,
+  name = "waterfall",
+): Promise<string> {
+  const realm = await administering(request, name);
   const users = await realm.get("/users", { email, exact: "true" });
   expect(users.ok()).toBe(true);
   const [user] = (await users.json()) as { id: string }[];
@@ -158,6 +162,38 @@ export async function accountOfTheRealmAlone(
   return { person, id: await realmUser(request, email) };
 }
 
+/**
+ * A person new to the external provider, and so to Waterfall, whatever the platform saw before:
+ * made in the realm of the provider, as its administration would.
+ */
+export async function newToTheProvider(request: APIRequestContext): Promise<Person> {
+  const login = `camille.${randomBytes(6).toString("hex")}`;
+  const email = `${login}@external.test`;
+  const made = await (
+    await administering(request, "external")
+  ).post("/users", {
+    username: login,
+    email,
+    firstName: "Camille",
+    lastName: "Nouvelle",
+    enabled: true,
+    emailVerified: true,
+    credentials: [{ type: "password", value: EXTERNAL.password, temporary: false }],
+  });
+  expect(made.status()).toBe(201);
+  return { ...EXTERNAL, login, email, name: "Camille Nouvelle" };
+}
+
+/** Remove a person new to the provider from its realm, and the account it brought to Waterfall's. */
+export async function removeFromTheProvider(
+  request: APIRequestContext,
+  person: Person,
+): Promise<void> {
+  const id = await realmUser(request, person.email, "external");
+  expect((await (await administering(request, "external")).delete(`/users/${id}`)).ok()).toBe(true);
+  await removeFromRealm(request, await realmUser(request, person.email));
+}
+
 /** Remove an account from the realm, as its administration does. */
 export async function removeFromRealm(request: APIRequestContext, id: string): Promise<void> {
   expect((await (await administering(request)).delete(`/users/${id}`)).ok()).toBe(true);
@@ -180,7 +216,7 @@ export async function unlock(request: APIRequestContext, email: string): Promise
 }
 
 /** The settings of the realm a path reads or changes: its lifetimes and its lock. */
-export type RealmSettings = Readonly<Record<string, number | boolean>>;
+export type RealmSettings = Readonly<Record<string, number | boolean | string>>;
 
 /** Read settings of the realm. */
 export async function realmSettings(

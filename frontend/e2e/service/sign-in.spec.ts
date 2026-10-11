@@ -20,9 +20,11 @@ import {
   giveIdentifiers,
   grantRole,
   localAccount,
+  newToTheProvider,
   type Person,
   REALM,
   removeFromRealm,
+  removeFromTheProvider,
   signIn,
   under,
   waterfallAccount,
@@ -66,29 +68,38 @@ async function readsTheAccounts(page: Page): Promise<boolean> {
 
 test("a local account, an account of the directory and one of the external provider each sign in, and act as their roles in Waterfall allow — none without one [WF-ARC-0030-A] [WF-ADM-0180-A]", async ({
   browser,
+  request,
 }) => {
   // Three people, each signed in at the realm and her screens read twice: a path of one piece.
   test.setTimeout(90_000);
-  // The person of the provider is unknown to Waterfall on a platform that never saw her, as the
-  // chain's: her first sign-in creates her account, from the provider, without a role.
+  // A person new to the provider, whom Waterfall has never seen, whatever the platform saw before:
+  // her first sign-in creates her account, from the provider, without a role.
+  const external = await newToTheProvider(request);
+  expect(waterfallAccount(external.email)).toBeUndefined();
   const origins = new Map([
     [local, "Créé dans Waterfall"],
     [DIRECTORY, "Importé de l’annuaire"],
-    [EXTERNAL, "Créé par le fournisseur d’identité"],
+    [external, "Créé par le fournisseur d’identité"],
   ]);
-  for (const [person, origin] of origins) {
-    withdrawRoles(person.email);
-    const page = await workstation(browser);
-    await signIn(page, person, ACCOUNT);
-    await expect(page.getByRole("main")).toContainText(origin);
-    expect(waterfallAccount(person.email)?.roles).toBe(0);
-    expect(await readsTheAccounts(page)).toBe(false);
-    grantRole(person.email, "Consultation des comptes (parcours)", ["users.read"]);
-    expect(await readsTheAccounts(page)).toBe(true);
-    withdrawRoles(person.email);
-    await page.context().close();
+  try {
+    for (const [person, origin] of origins) {
+      const page = await workstation(browser);
+      await signIn(page, person, ACCOUNT);
+      await expect(page.getByRole("main")).toContainText(origin);
+      expect(waterfallAccount(person.email)?.roles).toBe(0);
+      expect(await readsTheAccounts(page)).toBe(false);
+      grantRole(person.email, "Consultation des comptes (parcours)", ["users.read"]);
+      expect(await readsTheAccounts(page)).toBe(true);
+      await page.context().close();
+    }
+    expect(waterfallAccount(external.email)?.origin).toBe("identity_provider");
+  } finally {
+    // The roles withdrawn once asserted, never before: an account the path found with a role says so.
+    for (const person of origins.keys()) {
+      withdrawRoles(person.email);
+    }
+    await removeFromTheProvider(request, external);
   }
-  expect(waterfallAccount(EXTERNAL.email)?.origin).toBe("identity_provider");
 });
 
 test("an account of the directory signs in with its identifiers of the directory, and Waterfall shows it no screen of a password [WF-ADM-0140-A]", async ({
@@ -115,6 +126,12 @@ test("a session left idle beyond the life of its refresh token leads back to the
 }) => {
   // Three people signed in twice, and the life of a session waited for: a path of one piece.
   test.setTimeout(90_000);
+  // Signed in under the idle life shortened to three seconds — not shortened once signed in, as the
+  // test of the service does (#860): the session of the front lives in Redis as long as the realm
+  // said at the sign-in (`refresh_expires_in`), and its access token for its own five minutes, which
+  // a shorter idle life given afterwards changes for neither — the screen would read on, without
+  // the front asking the realm anything. Three seconds leave the exchange of the code the margin the
+  // single second of #860 does not.
   const people = [local, DIRECTORY, EXTERNAL];
   // The screen aimed at, with its query.
   const aimed = `${ACCOUNT}?section=preferences&from=idle`;
