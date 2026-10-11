@@ -8,7 +8,7 @@ connect as — and as the owner of the tables, whom only the trigger stops (WF-S
 
 from dataclasses import replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -16,6 +16,7 @@ import pytest
 from openapi_core import OpenAPI
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
+from sqlalchemy.orm import Session
 from support import operations, service_role
 
 from waterfall.api.app import create_app
@@ -28,12 +29,13 @@ from waterfall.platform.audit import (
     AuditEntry,
     AuditError,
     AuditObject,
+    AuditObjectKind,
     AuditProject,
     AuditRevision,
     Inscription,
     record,
 )
-from waterfall.platform.database import Base, Database
+from waterfall.platform.database import Database
 from waterfall.platform.logs import logging_context
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
@@ -157,6 +159,20 @@ def test_an_inscription_refuses_a_field_named_as_a_secret_at_any_depth(
     assert count(database) == 0
 
 
+@pytest.mark.parametrize("kind", [kind for kind in OBJECT_KINDS if kind != "backup"])
+def test_an_object_without_a_label_but_a_backup_is_a_defect_said_before_the_database(
+    kind: str,
+) -> None:
+    # Refused by the module as its other rules are, not by the constraint of the table: the
+    # session reaches no database.
+    audited = AuditObject(cast("AuditObjectKind", kind), uuid4(), None)
+    with (
+        logging_context(correlation_id=CORRELATION),
+        pytest.raises(AuditError, match="label"),
+    ):
+        record(Session(), role_created(audited=audited))
+
+
 def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> None:
     assert list(ACTIONS) == [action.value for action in models.AuditAction]
     assert list(OBJECT_KINDS) == [kind.value for kind in models.AuditObjectKind]
@@ -207,42 +223,24 @@ def read_labels(database: Database) -> list[str | None]:
         return list(connection.execute(text("SELECT object_label FROM audit_entry")).scalars())
 
 
-# What the service needs on each table, and why; a table the code declares and this does not
-# fails the test below, which says so (docs/dev/sql.md, "Le rôle du service").
-SERVICE_RIGHTS: dict[str, set[str]] = {
-    # Read by getInstallation, its settings changed by an administrator, its row inserted by the
-    # bootstrap (US-0420); never deleted: it is the installation.
-    "installation": {"SELECT", "INSERT", "UPDATE"},
-    # Created, read, changed, deactivated; never deleted (WF-DAT-0080).
-    "user_account": {"SELECT", "INSERT", "UPDATE"},
-    # Inscribed and read; neither changed nor deleted (WF-SEC-0030).
-    "audit_entry": {"SELECT", "INSERT"},
-    # The catalogue, written by the migrations alone and read by the service (WF-ADM-0100).
-    "permission": {"SELECT"},
-    # Created, read, changed, marked deleted; never removed (WF-DAT-0080).
-    "access_role": {"SELECT", "INSERT", "UPDATE"},
-    # Two associations of two keys: a row is added or removed, never changed.
-    "access_role_permission": {"SELECT", "INSERT", "DELETE"},
-    "user_access_role": {"SELECT", "INSERT", "DELETE"},
-    # Submitted, followed, run and ended; never deleted by the service until a rule of retention
-    # comes (§4.4.1).
-    "background_task": {"SELECT", "INSERT", "UPDATE"},
-}
-
-
 @pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_nothing_more(
     database: Database,
 ) -> None:
+    # The role the service connects through may inscribe and read, nothing else: no update, no
+    # deletion, no truncation, and none of the attributes that would let it pass around its rights
+    # — a superuser, a maker of roles, an owner of a table.
     service = service_role(database.engine.url)
     with database.engine.connect() as connection:
-        grants = connection.execute(
+        on_journal = connection.execute(
             text(
-                "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
-                "WHERE grantee = :role"
+                "SELECT privilege FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', "
+                "'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege "
+                "WHERE has_table_privilege(:role, 'audit_entry', privilege)"
             ),
             {"role": service},
-        ).all()
+        ).scalars()
+        held = set(on_journal)
         role = connection.execute(
             text(
                 "SELECT rolsuper, rolcreaterole, rolbypassrls, "
@@ -258,13 +256,7 @@ def test_the_role_of_the_service_holds_insert_and_select_on_the_journal_and_noth
             ),
             {"role": service},
         ).one()
-    held: dict[str, set[str]] = {}
-    for table, privilege in grants:
-        held.setdefault(table, set()).add(privilege)
-    tables = {table.name for table in Base.metadata.sorted_tables}
-    undeclared = tables - SERVICE_RIGHTS.keys()
-    assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
-    assert held == {name: SERVICE_RIGHTS[name] for name in tables}
+    assert held == {"SELECT", "INSERT"}
     assert tuple(role) == (False, False, False, 0)
     assert tuple(connected_as) == (True, False)
 

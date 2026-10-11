@@ -2421,8 +2421,11 @@ contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section 
    et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
    ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
    `ruff format` (dans `backend/`) le mettent aux règles du dépôt. Une table nouvelle accorde ses
-   droits au rôle du service dans la même migration (sql.md, « Le rôle du service ») : sans eux,
-   l'API ne la lit pas, et les tests du service non plus.
+   droits au rôle du service dans la même migration, le rôle nommé par la base où elle s'applique
+   (`format('GRANT … ON <table> TO %I', current_database() || '_service')`, dans un bloc `DO` ; un
+   nom de base de 55 octets au plus), et les déclare, avec leur raison, dans `SERVICE_RIGHTS`
+   (`tests/test_migrations.py`) (sql.md, « Le rôle du service ») : sans eux, l'API ne la lit pas,
+   et les tests du service non plus ; sans leur déclaration, le test des droits échoue.
 4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare une base migrée
    à une base créée par les tables du code (contraintes, index, colonnes et défauts, lus dans le
    catalogue de PostgreSQL) échoue tant que les deux ne disent pas la même chose, et

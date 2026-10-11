@@ -26,7 +26,7 @@ from waterfall.core.access_roles.tables import (
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Base, create_database_engine, engine_url
+from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
 
@@ -227,21 +227,83 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
     assert from_the_migrations == from_the_code
 
 
+def granted_to(engine: Engine, role: str) -> tuple[int, bool]:
+    """Count the rights a role holds on the tables, and tell whether it was granted the schema.
+
+    Granted to the role itself: every role may use ``public`` through ``PUBLIC`` besides.
+    """
+    with engine.connect() as connection:
+        held, usage = connection.execute(
+            text(
+                "SELECT (SELECT count(*) FROM information_schema.role_table_grants "
+                "WHERE grantee = :role), EXISTS (SELECT FROM pg_namespace, "
+                "aclexplode(nspacl) AS acl WHERE nspname = 'public' "
+                "AND acl.grantee = to_regrole(:role) AND acl.privilege_type = 'USAGE')"
+            ),
+            {"role": role},
+        ).one()
+    return int(held), bool(usage)
+
+
 def test_the_descent_of_the_journal_and_of_the_role_takes_back_what_they_granted(
     empty_engine: Engine,
 ) -> None:
+    # The rights are counted before the descent: none after it would prove nothing of a role
+    # misnamed, which never held any.
+    role = service_role(empty_engine.url)
     upgrade(empty_engine)
+    held, usage = granted_to(empty_engine, role)
+    assert (held > 0, usage) == (True, True)
     downgrade(empty_engine, "0001")
+    assert granted_to(empty_engine, role) == (0, False)
     with empty_engine.connect() as connection:
-        granted = connection.execute(
-            text("SELECT count(*) FROM information_schema.role_table_grants WHERE grantee = :role"),
-            {"role": service_role(empty_engine.url)},
-        ).scalar_one()
         journal = connection.execute(text("SELECT to_regclass('audit_entry')")).scalar_one()
-        assert (granted, journal) == (0, None)
+        assert journal is None
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
+
+
+# What the service needs on each table, and why; a table the code declares and this does not
+# fails the test below, which says so (docs/dev/sql.md, "Le rôle du service").
+SERVICE_RIGHTS: dict[str, set[str]] = {
+    # Read by getInstallation, its settings changed by an administrator, its row inserted by the
+    # bootstrap (US-0420); never deleted: it is the installation.
+    "installation": {"SELECT", "INSERT", "UPDATE"},
+    # Created, read, changed, deactivated; never deleted (WF-DAT-0080).
+    "user_account": {"SELECT", "INSERT", "UPDATE"},
+    # Inscribed and read; neither changed nor deleted (WF-SEC-0030).
+    "audit_entry": {"SELECT", "INSERT"},
+    # The catalogue, written by the migrations alone and read by the service (WF-ADM-0100).
+    "permission": {"SELECT"},
+    # Created, read, changed, marked deleted; never removed (WF-DAT-0080).
+    "access_role": {"SELECT", "INSERT", "UPDATE"},
+    # Two associations of two keys: a row is added or removed, never changed.
+    "access_role_permission": {"SELECT", "INSERT", "DELETE"},
+    "user_access_role": {"SELECT", "INSERT", "DELETE"},
+    # Submitted, followed, run and ended; never deleted by the service until a rule of retention
+    # comes (§4.4.1).
+    "background_task": {"SELECT", "INSERT", "UPDATE"},
+}
+
+
+def test_the_role_of_the_service_holds_what_each_table_declares(database: Database) -> None:
+    service = service_role(database.engine.url)
+    with database.engine.connect() as connection:
+        grants = connection.execute(
+            text(
+                "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
+                "WHERE grantee = :role"
+            ),
+            {"role": service},
+        ).all()
+    held: dict[str, set[str]] = {}
+    for table, privilege in grants:
+        held.setdefault(table, set()).add(privilege)
+    tables = {table.name for table in Base.metadata.sorted_tables}
+    undeclared = tables - SERVICE_RIGHTS.keys()
+    assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
+    assert held == {name: SERVICE_RIGHTS[name] for name in tables}
 
 
 def privileges(engine: Engine, role: str) -> set[tuple[str, str]]:
@@ -269,6 +331,15 @@ def test_two_databases_of_one_server_share_no_role_of_the_service(database_url: 
         assert ("audit_entry", "INSERT") in privileges(second, other)
         assert ("user_account", "DELETE") not in privileges(first, own)
         assert (privileges(first, other), privileges(second, own)) == (set(), set())
+
+
+def test_a_database_of_fifty_five_bytes_has_its_role_of_the_service(database_url: str) -> None:
+    # The longest name a database may have: with its suffix, the role's is 63 bytes, the most an
+    # identifier holds.
+    with scratch_database(database_url, prefix="w" * 22) as longest:
+        assert len(longest.url.database or "") == 55
+        upgrade(longest)
+        assert granted_to(longest, service_role(longest.url))[1]
 
 
 def test_a_database_whose_role_of_the_service_would_be_cut_short_is_refused(

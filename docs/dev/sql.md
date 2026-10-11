@@ -136,16 +136,22 @@ migration qui crée une table lui accorde ce dont le service a besoin, au plus `
 `INSERT`, `UPDATE` et `DELETE`, jamais `TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT`
 seulement. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
 base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
-d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
+d'un même serveur n'en partagent ni le mot de passe ni les droits. Le nom d'une base tient donc en
+55 octets au plus : avec son suffixe, celui du rôle dépasserait les 63 octets d'un identifiant de
+PostgreSQL, que la migration `0002` refuse plutôt que de le tronquer. Une migration nomme le rôle
+par la base où elle s'applique, jamais en dur :
+`EXECUTE format('GRANT SELECT, INSERT ON <table> TO %I', current_database() || '_service')`, dans
+un bloc `DO`. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
 (`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 
-*Contrôle* : le test de `tests/test_audit_journal.py` qui lit les droits du rôle sur chaque
-table que la `Base` déclare et les compare à ceux qu'il attend, table par table, chacun avec sa
-raison : une table nouvelle sans entrée le fait échouer. Un test qui supprime ce que le service
-ne supprime pas passe par le propriétaire (fixture `owner`).
+*Contrôle* : le test de `tests/test_migrations.py` qui lit les droits du rôle sur chaque table
+que la `Base` déclare et les compare à ceux que `SERVICE_RIGHTS` attend, table par table, chacun
+avec sa raison : une table nouvelle sans entrée le fait échouer. Ceux du journal d'audit, un test
+de `tests/test_audit_journal.py` les éprouve à part (WF-SEC-0030). Un test qui supprime ce que le
+service ne supprime pas passe par le propriétaire (fixture `owner`).
 
 ### Migrations : deux temps, et chacune compatible avec le code voisin
 

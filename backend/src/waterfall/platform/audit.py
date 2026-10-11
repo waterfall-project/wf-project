@@ -210,7 +210,8 @@ def record(session: Session, inscription: Inscription) -> UUID:
 
     The correlation identifier is the one bound to the logs of the request or of the task
     (WF-OBS-0020): an action done outside any is a defect, refused. A field of ``params`` whose
-    name evokes a secret is refused too, at any depth.
+    name evokes a secret is refused too, at any depth, and an object without a label but a backup,
+    which the table refuses as well.
     """
     correlation_id = get_contextvars().get("correlation_id")
     if not isinstance(correlation_id, str):
@@ -221,8 +222,11 @@ def record(session: Session, inscription: Inscription) -> UUID:
     if secret is not None:
         message = f"an inscription does not carry a secret: field {secret!r}"
         raise AuditError(message)
-    identifier = new_id()
     actor, audited, project = inscription.actor, inscription.audited, inscription.project
+    if audited.label is None and audited.kind != "backup":
+        message = f"an object of kind {audited.kind!r} is inscribed with its label"
+        raise AuditError(message)
+    identifier = new_id()
     revision = audited.revision
     session.execute(
         insert(AuditEntry).values(
