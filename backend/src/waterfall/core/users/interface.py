@@ -11,8 +11,9 @@ WF-IHM-0090); a local account created, and the identity of an account changed (`
 account deactivated or reactivated, and an account locked at the version read for a write of the
 roles it holds, which notes the change (``states``); a deactivated account anonymised, for good
 (``states``, WF-ADM-0060); the moment its holder closed its sessions, which refuses the tokens
-issued before (#668). An anonymised account has no name nor address: what names it is ``None``,
-which the front shows as the neutral label of its catalogue.
+issued before (#668); and what its holder sets alone, its preferences and its avatar
+(``personal``, WF-ADM-0040, WF-ADM-0080). An anonymised account has no name nor address: what
+names it is ``None``, which the front shows as the neutral label of its catalogue.
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -65,6 +66,14 @@ from waterfall.core.users.listing import (
     find_accounts,
 )
 from waterfall.core.users.password_link import inscribe_link, lock_link_holder, not_local
+from waterfall.core.users.personal import (
+    Avatar,
+    change_preferences,
+    image_type,
+    put_avatar,
+    read_avatar,
+    withdraw_avatar,
+)
 from waterfall.core.users.states import anonymize, check_anonymization, set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
@@ -82,6 +91,7 @@ __all__ = [
     "AccountSort",
     "AccountState",
     "Author",
+    "Avatar",
     "CommandAvailability",
     "Identity",
     "IdentityChange",
@@ -94,10 +104,12 @@ __all__ = [
     "address_taken",
     "anonymize_account",
     "change_account",
+    "change_preferences",
     "check_account_anonymization",
     "create_local_account",
     "display_name",
     "identity_faults",
+    "image_type",
     "inscribe_password_link",
     "is_address",
     "list_accounts",
@@ -107,12 +119,15 @@ __all__ = [
     "origin_of",
     "password_link_holder",
     "password_link_not_local",
+    "put_avatar",
     "read_account",
     "read_account_label",
     "read_account_of_subject",
     "read_author",
+    "read_avatar",
     "refuse",
     "set_account_activation",
+    "withdraw_avatar",
 ]
 
 NAME_MAX_LENGTH = 100

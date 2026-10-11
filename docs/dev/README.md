@@ -2112,7 +2112,9 @@ ses paramètres, jamais une phrase.
   404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
   `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
   un refus par champ se dit par des `FieldError(pointer, code, params)`, le pointeur étant celui
-  du contrat (`/label` dans le corps, `/query/from` dans la requête). Il ne construit jamais
+  du contrat (`/label` dans le corps, `/query/from` dans la requête) ; une clé envoyée par le
+  client s'y échappe comme RFC 6901 le veut, `~` en `~0` et `/` en `~1` (`json_pointer` de
+  `waterfall.platform.errors`, #750). Il ne construit jamais
   de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
   erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
   dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
@@ -2181,8 +2183,10 @@ ses paramètres, jamais une phrase.
   transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
   `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
   privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
-  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait — ne prend pas
-  `Transaction`, mais ouvre les siennes avant et après l'appel. Un jeton absent ou invalide est
+  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
+  `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
+  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
+  et après l'appel. Un jeton absent ou invalide est
   un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton dont la
   connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
   tombe dans sa seconde — `closeMySessions` et la désactivation en notent l'heure,

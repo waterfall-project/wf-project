@@ -28,9 +28,10 @@ from waterfall.core.access_roles.attributions import (
 from waterfall.core.access_roles.evaluation import (
     PERMISSION_MISSING,
     Actor,
+    Holding,
     actor_of,
     effective_permissions,
-    granted_permissions,
+    holding,
     require,
 )
 from waterfall.core.access_roles.predefined import PredefinedRole, predefined_roles
@@ -66,6 +67,7 @@ __all__ = [
     "Attribution",
     "CataloguePermission",
     "HeldRole",
+    "Holding",
     "PredefinedRole",
     "RoleFilters",
     "RoleSort",
@@ -77,9 +79,9 @@ __all__ = [
     "delete_role",
     "effective_permissions",
     "give_first_roles",
-    "granted_permissions",
     "guard_deactivation",
     "guard_last_administrator",
+    "holding",
     "holding_one_of",
     "labels_held",
     "list_permissions",
