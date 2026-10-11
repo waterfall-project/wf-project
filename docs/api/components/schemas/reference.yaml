@@ -28,9 +28,10 @@ ReferenceCommand:
     réactivation d'un nœud dont le parent est désactivé est indisponible,
     `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé,
     `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut,
-    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute
-    autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation
-    d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; la
+    réactivation d'une catégorie dont la nature est désactivée, `cost_type_active` manquante
+    (WF-REF-0010 ; EP-14/L42s, C-291). Toute autre est disponible dès qu'elle est listée : aucune
+    exigence ne conditionne la réactivation d'un rôle à sa catégorie ou à son calendrier.
 
 ReferenceCommandAvailability:
   type: object
@@ -403,12 +404,11 @@ CostTypeCommand:
     un rôle de ressource, actif ou désactivé, `cost_type_without_role` (WF-REF-0030) ; le reste
     de la nature, son code et son libellé, se modifie toujours. La désactivation et la
     réactivation sont toujours disponibles : la dernière nature de type provision pour risques se
-    désactive comme une autre ; ses catégories
-    restent actives — la cascade de C-291 n'est pas au contrat (#728) —, mais une catégorie
-    active sous une nature désactivée ne compte pas pour `active_provision_category`, et la
+    désactive comme une autre, et ses catégories avec elle (WF-REF-0010 ; EP-14/L42s, C-291) — la
     création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque
-    (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Toutes relèvent de la
-    permission de modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+    (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Toutes
+    relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`,
+    WF-ADM-0100).
 
 CostTypeCommandAvailability:
   type: object
@@ -501,11 +501,14 @@ CostCategoryCommand:
     main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
     #577), et, `cost_category_without_role` manquante, tant qu'un rôle de ressource, actif ou
     désactivé, lui est rattaché : une catégorie qui porte des taux horaires, ou à laquelle un rôle
-    est rattaché, ne quitte pas la main-d'œuvre (WF-REF-0040, WF-REF-0090). La désactivation et
-    la réactivation sont toujours disponibles : la dernière catégorie active de type provision
-    pour risques se désactive comme une autre, la création d'un projet et la déclaration d'un
-    risque nommant alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p,
-    qui retire la règle de #578). Le rattachement à une autre nature du même type n'est pas une
+    est rattaché, ne quitte pas la main-d'œuvre (WF-REF-0040, WF-REF-0090). La désactivation est
+    toujours disponible : la dernière catégorie active de type provision pour risques se
+    désactive comme une autre, la création d'un projet et la déclaration d'un risque nommant
+    alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la
+    règle de #578). La réactivation est indisponible sous une nature désactivée,
+    `cost_type_active` manquante : « une catégorie ne peut être réactivée que si sa nature est
+    active » (WF-REF-0010 ; EP-14/L42s, C-291). Le rattachement à une autre nature du même type
+    n'est pas une
     commande : rien ne le rend indisponible, employée ou non, et il se fait par
     `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de
     modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
@@ -578,11 +581,10 @@ CostCategoryImage:
     cost_type_is_active:
       type: boolean
       description: >-
-        Si la nature est active, résolu à la lecture comme son type. Jusqu'à C-291 (#728), une
-        catégorie active ne compte comme catégorie de provision pour risques que sous une nature
-        active de ce type (`active_provision_category`) : le formulaire qui déclare un risque ne
-        retient que les catégories actives dont la nature est active et de type provision pour
-        risques, sans relire les natures (WF-RIS-0010, WF-ARC-0020).
+        Si la nature est active, résolu à la lecture comme son type. Une catégorie active l'est
+        toujours sous une nature active, la désactivation d'une nature désactivant ses catégories
+        (WF-REF-0010 ; EP-14/L42s, C-291) : faux, la catégorie est désactivée et sa réactivation
+        indisponible tant que la nature l'est (`cost_type_active`).
     accounting_code:
       type: string
       minLength: 1
@@ -909,13 +911,14 @@ ReferenceReadiness:
       description: >-
         Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier
         par défaut actif dont au moins un jour de la semaine compte des heures travaillées
-        (`default_calendar_with_hours`) ; une catégorie de coût active dont la nature relève de la
-        main-d'œuvre (`active_cost_category`) ; une catégorie de coût active dont la nature est de
-        type provision pour risques (`active_provision_category`) — jusqu'à C-291 (#728), une
-        catégorie active sous une nature active de ce type : une catégorie active d'une nature
-        désactivée ne compte pas —, sans laquelle aucun risque ne peut être déclaré (EP-14/L42p,
-        #579) ; un rôle de ressource actif
-        (`active_resource_role`). Vide quand `is_complete` est vrai.
+        (`default_calendar_with_hours`) ; une catégorie de main-d'œuvre active — une catégorie de
+        coût active dont la nature relève de la main-d'œuvre (`active_cost_category`) ; une
+        catégorie de coût active dont la nature est de
+        type provision pour risques (`active_provision_category`), sans laquelle aucun risque ne
+        peut être déclaré (EP-14/L42p, #579) ; un rôle de ressource actif
+        (`active_resource_role`). Vide quand `is_complete` est vrai. Une installation neuve,
+        dont la seule catégorie est celle des provisions pour risques, manque de la catégorie de
+        main-d'œuvre et du rôle (Vérif de WF-CYC-0120).
       items:
         type: string
         enum:

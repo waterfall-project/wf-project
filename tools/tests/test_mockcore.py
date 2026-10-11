@@ -124,16 +124,14 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     # Neither amount is entered; a labour line enters its role and its hours, not a
     # disbursement; another its disbursement, not hours; a provision none of them, nor its
     # nature: its quantity and its disbursement come from its risk, and its subproject is the one
-    # its risk designates (EP-14/L42p, revue 1).
+    # its risk designates (EP-14/L42p, revue 1); nor a payment delay, which it does not carry
+    # (WF-DEV-0020, EP-14/L42s).
     for node in estimate.values():
         assert not any("amount" in name for name in node["editable_fields"]), node["node_id"]
     assert "estimate_line.hours" in estimate[LABOUR]["editable_fields"]
     assert "estimate_line.unit_disbursement" not in estimate[LABOUR]["editable_fields"]
     assert "estimate_line.hours" not in estimate[BLOCKS]["editable_fields"]
-    assert estimate[PROVISION]["editable_fields"] == [
-        "estimate_line.label",
-        "estimate_line.payment_delay_days",
-    ]
+    assert estimate[PROVISION]["editable_fields"] == ["estimate_line.label"]
     assert estimate[PROVISION]["computed_fields"] == [
         "estimate_line.quantity",
         "estimate_line.unit_disbursement",

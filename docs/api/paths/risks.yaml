@@ -60,7 +60,9 @@
       identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la
       révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule
       `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks`
-      (`RevisionCommand`). La ligne de provision porte la catégorie que le risque désigne parmi
+      (`RevisionCommand`), et la commande `declare_risk` dit d'avance si elle aboutirait — une
+      structure principale avec une tâche, une catégorie active de type provision pour risques
+      (EP-14/L42s). La ligne de provision porte la catégorie que le risque désigne parmi
       les catégories actives de type provision pour risques, retenue sans être demandée quand il
       n'en existe qu'une, et appartient au sous-projet qu'il désigne, facultativement
       (WF-RIS-0010 ; EP-14/L42p, #579, C-299) : le formulaire lit les catégories actives
@@ -84,28 +86,36 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Aucune catégorie de coût active n'est de type provision pour risques — jusqu'à C-291
-          (#728), aucune catégorie active sous une nature active de ce type : la provision n'a pas
-          de catégorie où se ranger (WF-RIS-0010). `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` à `active_provision_category`, que la création d'un projet
-          exige aussi (WF-CYC-0120). Les conditions se jugent dans cet ordre, et le refus nomme la
-          première qui manque : `at_least_one_task` — une structure principale sans tâche
-          (WF-RIS-0010), dont le 409 reste à décrire (#728) —, puis `active_provision_category`.
-          Ce 409 précède le 422 : sans catégorie active, aucune désignation ne serait valable, et
-          les champs ne sont pas jugés. Rien n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque.
+          Le projet est terminal, `project_not_terminal` (WF-CYC-0100), ou un traitement de fond
+          court sur la révision en cours, `no_background_task_running` : les conditions d'état de
+          la saisie des risques. Ou la structure principale de la révision en cours, ou de celle
+          que la déclaration créerait, ne comporte aucune tâche : « La déclaration d'un risque
+          sur une structure principale sans tâche est refusée, en nommant la condition
+          manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se ranger ;
+          `at_least_one_task` (EP-14/L42s). Ou aucune catégorie de coût active n'est de type
+          provision pour risques : la provision n'a pas de catégorie où se ranger (WF-RIS-0010) ;
+          `active_provision_category`, que la création d'un projet exige aussi (WF-CYC-0120). Les
+          conditions se jugent dans l'ordre où la commande `declare_risk` les liste, et le refus
+          nomme la première qui manque : `project_not_terminal`, puis
+          `no_background_task_running`, puis `at_least_one_task`, puis
+          `active_provision_category`. Ce 409 précède le 422 : sans tâche ni catégorie active,
+          aucune désignation ne serait valable, et les champs ne sont pas jugés. Rien n'est
+          écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               without_provision_category: { $ref: ../../../fixtures/api/risk_without_provision_category.json }
+              without_task: { $ref: ../../../fixtures/api/risk_without_task.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou
           plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/provision_cost_category_id`
           omise quand plusieurs catégories actives sont de type provision pour risques,
           `VALUE_REQUIRED`, inconnue, `UNKNOWN_COST_CATEGORY`, désactivée,
-          `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ou sous une nature désactivée —,
-          ou d'une nature d'un autre type,
+          `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ce qu'est toute catégorie
+          d'une nature désactivée (WF-REF-0010, C-291) —, ou d'une nature d'un autre type,
           `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas,
           `UNKNOWN_SUBPROJECT` (WF-RIS-0010). Rien n'est écrit.
         content:

@@ -74,9 +74,9 @@ Risk:
     provision_cost_category_is_active:
       type: boolean
       description: >-
-        Calculé à la lecture : vrai quand cette catégorie est active et que sa nature l'est aussi
-        — la définition d'une catégorie active de type provision pour risques jusqu'à C-291
-        (#728). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie
+        Calculé à la lecture : vrai quand cette catégorie est active — sa nature l'est alors aussi,
+        la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s,
+        C-291). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie
         (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans
         comparer la catégorie aux listes du référentiel.
     provision_subproject_id:
@@ -179,12 +179,14 @@ RiskWrite:
   type: object
   required: [label, probability]
   description: >-
-    Déclaration d'un risque (WF-RIS-0010). La catégorie de sa provision se désigne parmi les
-    catégories actives de type provision pour risques — jusqu'à C-291 (#728), une catégorie
-    active sous une nature active de ce type ; quand il n'en existe qu'une, elle est retenue sans
-    être demandée, et le champ peut être omis. Sans aucune, la déclaration est refusée par 409,
-    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`. Le
-    sous-projet de la provision est facultatif.
+    Déclaration d'un risque (WF-RIS-0010). Sur une structure principale sans tâche, elle est
+    refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `at_least_one_task`
+    (EP-14/L42s). La catégorie de sa provision se désigne parmi les catégories actives de type
+    provision pour risques ; quand il n'en existe qu'une, elle est retenue sans être demandée, et
+    le champ peut être omis. Sans aucune, la déclaration est refusée par 409, de même,
+    `params.missing_condition` à `active_provision_category`. La commande `declare_risk` dit
+    d'avance l'une et l'autre condition (EP-14/L42s). Le sous-projet de la provision est
+    facultatif.
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -198,8 +200,8 @@ RiskWrite:
         La catégorie que porte la ligne de provision (WF-RIS-0010, WF-REF-0030). Omise à la
         déclaration, elle est la seule catégorie active de type provision pour risques ; omise
         quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue,
-        `UNKNOWN_COST_CATEGORY` ; désactivée, ou sous une nature désactivée,
-        `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010) ; d'une nature d'un autre type,
+        `UNKNOWN_COST_CATEGORY` ; désactivée, ce qu'est toute catégorie d'une nature
+        désactivée, `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010, C-291) ; d'une nature d'un autre type,
         `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ;
         `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa
         catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la

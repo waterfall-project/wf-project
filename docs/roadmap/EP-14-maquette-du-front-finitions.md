@@ -1043,6 +1043,63 @@ composants, dont 21 ouvrent un dialogue ou un menu ; les jetons de la charte, me
 composants pour le focus qu'un dialogue ou un menu rend en se fermant. Les dialogues, les menus et les
 éditeurs hors du harnais sont suivis par #782.
 
+EP-14/L42s (#773), lot de contrat ajouté le 2026-10-10, auquel #775 s'est joint le même jour, solde
+les écarts du contrat à la spécification que L42p, L42r et L42k ont relevés, et ferme ce qui restait
+de #586 :
+
+- #728 : désactiver une nature désactive ses catégories, et une catégorie ne se réactive pas sous
+  une nature désactivée (C-291, `cost_type_active`) — la définition provisoire
+  d'`active_provision_category` disparaît — ; une installation neuve manque de la catégorie de
+  main-d'œuvre et du rôle (`reference_readiness_incomplete`) ; la déclaration d'un risque sur une
+  structure principale sans tâche est refusée par `at_least_one_task` (`risk_without_task`) ;
+- #733 : la ligne de provision ne porte pas de délai de paiement — ni à la saisie, ni à la lecture,
+  qui le rend nul —, et l'envoyer est refusé par `FIELD_NOT_ACCEPTED` ;
+- #766 : le 422 d'`updateResourceRole` couvre la tâche dont le rôle est le seul ; le refus d'un
+  changement de type nomme les catégories en cause de `cost_type_unused` et `cost_type_unrated`
+  (`params.cost_categories`) ;
+- #771 : la fusion a son compte rendu préalable (`getStructureMergeReport`) ; un fichier d'import
+  qui sortirait la tâche d'un lot du sous-arbre de son poste, ou dépasserait l'horizon, est rejeté
+  entier (`ImportReport.refusals`, `PROJECT_HORIZON_EXCEEDED`, `import_file_accepted`) ; chaque
+  poste du lotissement a son total, celui qu'aucune tâche ne porte présenté sans total
+  (`order_item_without_task`) ;
+- #775 : la saisie du lotissement attend la fin d'un traitement de fond (`update_work_breakdown`,
+  `no_background_task_running`) et dit les compteurs qu'elle avance ; le refus d'un lot hors de son
+  poste nomme la tâche du poste et celles des lots par leur libellé, dans `moveNodes` comme dans
+  `updateTaskFacet`, `createNode` et l'import.
+
+La relecture 1 a ajouté : la confirmation d'une fusion porte les compteurs des deux structures que
+le compte rendu a lus, refusée par 412 si l'une a changé ; la déclaration d'un risque a sa commande,
+`declare_risk`, qui dit d'avance `at_least_one_task` puis `active_provision_category` (décision de
+l'agent de livraison) ; le 409 de `setWorkBreakdown` nomme `project_not_terminal` avant
+`no_background_task_running` ; le rôle seul sur sa tâche vaut aussi pour `createNode` et
+`updateEstimateLine` ; `FIELD_NOT_ACCEPTED` vaut pour tout champ qu'un nœud n'accepte pas, sauf le
+délai de paiement d'une ligne de main-d'œuvre (#785) ; le refus de la réactivation d'une catégorie
+nomme sa nature ; `by_order_item` a au moins un poste. Les constats hors du lot sont ouverts en
+sous-issues de #773 : #785 à #792. La relecture 2 : le 412 de la confirmation d'une fusion nomme
+toujours le compteur du différentiel, l'objet que le chemin nomme (#296), le contrôle des deux
+compteurs et le dépôt de la tâche se faisant en une seule transaction ; `declare_risk` et le 409 de
+`createRisk` nomment d'abord les conditions d'état de la saisie des risques, `project_not_terminal`
+puis `no_background_task_running`, puis `at_least_one_task` et `active_provision_category` ; les
+conditions qui suspendent `edit_risks` ou exigent `may_create_revision` nomment aussi
+`declare_risk`.
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front ne change que pour
+compiler, tenir ses catalogues et ses tests : la ligne de provision n'offre plus son délai de
+paiement, le résumé du devis présente toujours ses postes, l'accueil d'une installation neuve
+nomme la catégorie de main-d'œuvre et le rôle, et le bouton « Déclarer un risque » paraît désormais,
+sans effet, dans la région « Commandes » d'une révision, comme les autres commandes non câblées.
+L'adoption revient à un lot du front : la
+réactivation d'une catégorie dite indisponible sous une nature désactivée, et la désactivation d'une
+nature confirmée en disant ses catégories ; les catégories que nomme le refus d'un changement de
+type ; la déclaration d'un risque offerte selon `declare_risk` ; le compte rendu préalable de la
+fusion, sa confirmation offerte seulement sans motif de refus et renvoyant les compteurs lus ; le
+compte rendu d'un import rejeté entier, l'abandon seul offert ; le poste sans tâche présenté sans
+total ; la saisie du lotissement indisponible pendant un traitement de fond ; les tâches nommées par
+le refus d'un lot hors de son poste.
+
+L54 (#783) puis US-0200 (#798), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+ces notes gardent leurs apports d'abord.
+
 ## US-0200 — Accessibilité minimale
 
 - **statut** : fini

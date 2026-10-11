@@ -47,6 +47,13 @@
         ]
       },
       {
+        "command": "declare_risk",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
         "command": "create_structure",
         "is_available": false,
         "missing_conditions": [

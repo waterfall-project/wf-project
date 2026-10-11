@@ -1,0 +1,11 @@
+{
+  "summary": "L'application du planning MS Project dont le compte rendu rejette le fichier entier (`import_planning_rejected`), demandée malgré lui : refusée, la condition manquante nommée — un fichier que le compte rendu accepte ; rien n'est appliqué, et seul l'abandon reste offert (WF-INTF-0040, WF-PLA-0150, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "import_file_accepted"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001153"
+  }
+}

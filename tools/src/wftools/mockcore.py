@@ -326,14 +326,15 @@ class Amounts:
         }
 
 
-def payment_delay(line: Line) -> int:
+def payment_delay(line: Line) -> int | None:
     """Return the payment delay a line renders, in days: nought unless the witness gives one.
 
-    Every line of the estimate has a payment delay (WF-DEV-0020) — labour and a provision
-    included, paid as they are worked unless said otherwise —; the curve of the disbursements
-    shifts each line by the delay its node renders (WF-IND-0100).
+    Every line of the estimate has a payment delay (WF-DEV-0020) — labour included, paid as it is
+    worked unless said otherwise —, but a provision, which carries none and stays at the date of
+    its task (WF-DEV-0020, WF-IND-0100; EP-14/L42s): it renders nil. The curve of the
+    disbursements shifts each line by the delay its node renders.
     """
-    return line.payment_delay_days
+    return None if line.is_provision else line.payment_delay_days
 
 
 def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:

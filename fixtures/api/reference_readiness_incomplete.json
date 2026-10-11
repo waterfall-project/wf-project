@@ -1,10 +1,10 @@
 {
-  "summary": "Une installation neuve : il manque un calendrier par défaut pourvu d'heures travaillées et une catégorie de coût active ; un rôle de ressource actif existe déjà.",
+  "summary": "Une installation neuve, dont la seule catégorie est celle des provisions pour risques : l'amorçage a créé le calendrier par défaut, pourvu d'heures travaillées, et la nature et la catégorie de provision pour risques ; il manque une catégorie de main-d'œuvre active et un rôle de ressource actif. Une variante contrefactuelle : le référentiel du témoin est complet (WF-CYC-0120, WF-EXP-0020).",
   "value": {
     "is_complete": false,
     "missing": [
-      "default_calendar_with_hours",
-      "active_cost_category"
+      "active_cost_category",
+      "active_resource_role"
     ]
   }
 }

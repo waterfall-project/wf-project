@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockwitness
+from wftools import REPOSITORY, mockdata, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -199,19 +199,42 @@ def _description(operation: str) -> str:
     raise AssertionError(message)
 
 
-def test_until_c291_an_active_category_of_provision_is_one_under_an_active_nature() -> None:
-    # #728: without the cascade of C-291, the condition says the nature active.
-    said = "sous une nature active de ce type"
-    reference = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
-    assert said in _flat(reference.split("\nReferenceReadiness:\n", 1)[1])
-    assert "une catégorie active sous une nature désactivée ne compte pas" in _schema(
-        "reference.yaml", "CostTypeCommand"
+def test_with_c291_a_nature_deactivates_its_categories_and_the_provisional_definition_is_gone() -> (
+    None
+):
+    # C-291, now in the contract (#728, EP-14/L42s): « Désactiver une nature de coût désactive ses
+    # catégories ; une catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010).
+    for path in sorted(API.rglob("*.yaml")):
+        assert "jusqu'à C-291" not in _flat(path.read_text(encoding="utf-8")), path.name
+    assert "désactive ses catégories" in _description("setCostTypeActivation")
+    assert "ne compte pas pour `active_provision_category`" not in _description(
+        "setCostTypeActivation"
     )
-    assert "rattachée à une nature active de ce type" in _schema(
-        "projects.yaml", "CommandCondition"
+    assert "`cost_type_active`" in _description("setCostCategoryActivation")
+    assert "se réactive même sous une nature désactivée" not in _description(
+        "setCostCategoryActivation"
     )
-    assert "ne compte pas pour `active_provision_category`" in _description("setCostTypeActivation")
-    assert "sous une nature désactivée" in _schema("risks.yaml", "RiskWrite")
+    said = _flat(_block("setCostCategoryActivation", "409"))
+    assert "`cost_type_active`" in said
+    assert "fixtures/api/cost_category_reactivation_refused.json" in said
+    # The refusal names the nature to reactivate first, as that of a node names its parent (#532,
+    # WF-IHM-0090): the debours, deactivated by `cost_type_deactivated` (relecture 1).
+    refused = fixture("cost_category_reactivation_refused")
+    parent = fixture("org_node_reactivation_refused")
+    assert list(refused["params"]) == list(parent["params"])
+    nature = fixture("cost_type_deactivated")
+    assert nature["is_active"] is False
+    assert refused["params"] == {
+        "missing_condition": "cost_type_active",
+        "conflicting_object_id": nature["cost_type_id"],
+    }
+    assert "conflicting_object_id" in _flat(_block("setCostCategoryActivation", "409"))
+    assert "cost_type_deactivated" in _summary("cost_category_reactivation_refused")
+    conditions = _enumeration(
+        (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
+    )
+    assert "cost_type_active" in conditions
+    assert "`cost_type_active`" in _schema("reference.yaml", "CostCategoryCommand")
 
 
 def test_an_unchanged_category_deactivated_since_is_kept_at_the_modification() -> None:
@@ -241,26 +264,210 @@ def test_the_category_of_a_risk_says_whether_it_is_still_active() -> None:
 def test_the_command_of_the_provision_names_identified_alone_and_the_refusals_their_order() -> None:
     assert "ne nomme que `risk_identified`" in _schema("risks.yaml", "RiskCommand")
     said = _flat(_block("createRisk", "409"))
-    assert said.index("`at_least_one_task`") < said.index("puis `active_provision_category`")
+    assert said.index("`at_least_one_task`, puis") < said.index("puis `active_provision_category`")
     assert "Ce 409 précède le 422" in said
+
+
+def test_a_risk_declared_on_a_main_structure_without_task_is_refused_naming_the_condition() -> None:
+    # WF-RIS-0010 : « La déclaration d'un risque sur une structure principale sans tâche est
+    # refusée, en nommant la condition manquante » (#728, EP-14/L42s). The project created today,
+    # passed to Chiffrage, bears the revision without task: no variant.
+    said = _flat(_block("createRisk", "409"))
+    cited = re.findall(r"fixtures/api/(\w+)\.json", said)
+    assert cited == ["risk_without_provision_category", "risk_without_task"]
+    refused = fixture("risk_without_task")
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["params"] == {"missing_condition": "at_least_one_task"}
+    project = fixture("project_revision_opened")
+    assert project["label"] in _summary("risk_without_task")
+    assert COUNTERFACTUAL not in _summary("risk_without_task")
+    [main] = [each for each in fixture("structures_without_tasks") if each["kind"] == "main"]
+    assert main["revision_id"] == project["current_revision_id"]
+    assert fixture("nodes_empty")["totals"]["task_count"] == 0
+    general = _schema("projects.yaml", "CommandCondition")
+    assert "`at_least_one_task` manque à la déclaration d'un risque" in general
+    assert "`at_least_one_task`" in _schema("risks.yaml", "RiskWrite")
+
+
+DECLARE = "declare_risk"
+"""The command that says ahead whether a risk may be declared (EP-14/L42s, relecture 1)."""
+
+
+def _declaration(commands: list[Entry]) -> Entry:
+    """Return the declaration among commands, checked to follow the entry of the risks."""
+    names = [each["command"] for each in commands]
+    assert names.index(DECLARE) == names.index("edit_risks") + 1
+    return commands[names.index(DECLARE)]
+
+
+def test_the_declaration_of_a_risk_says_ahead_the_conditions_its_409_names() -> None:
+    # WF-IHM-0090: a command a state makes impossible is shown unavailable with its condition —
+    # the revision without task of the project created today, unavailable; the current revision of
+    # the witness, available; its own conditions first, in the order of the 409, then those of the
+    # entry of the risks — none listed where the entry is not (relecture 1).
+    for file, schema in (
+        ("revisions.yaml", "RevisionCommand"),
+        ("projects.yaml", "ProjectCommand"),
+    ):
+        assert DECLARE in _enumeration((SCHEMAS / file).read_text(encoding="utf-8"), schema)
+    without = _declaration(fixture("revision_without_tasks")["available_commands"])
+    assert without == {
+        "command": DECLARE,
+        "is_available": False,
+        "missing_conditions": ["at_least_one_task"],
+    }
+    current = _declaration(fixture("revision")["available_commands"])
+    assert (current["is_available"], current["missing_conditions"]) == (True, [])
+    for name in ("revision_marking", "revision_importing"):
+        commands = fixture(name)["available_commands"]
+        entry = next(each for each in commands if each["command"] == "edit_risks")
+        assert _declaration(commands)["missing_conditions"] == entry["missing_conditions"]
+    # On a project without a current revision, the revision the declaration would create: none of
+    # the project created today, which has no revision at all, nor of the offer in pricing.
+    for name, missing in (
+        ("project_created", ["at_least_one_task"]),
+        ("project_pricing", ["at_least_one_task"]),
+        ("project_without_current_revision", []),
+    ):
+        assert _declaration(fixture(name)["available_commands"])["missing_conditions"] == missing
+    for path in sorted(mockwitness.FIXTURES.glob("*.json")):
+        listed = [each["command"] for each in _commands(json.loads(path.read_text("utf-8")))]
+        assert listed.count("edit_risks") == listed.count(DECLARE), path.name
+    said = _flat(_block("createRisk", "409"))
+    assert "la commande `declare_risk` les liste" in said
+
+
+def _commands(value: object) -> list[Entry]:
+    """Return every availability of a command an example holds, however deep, in its order."""
+    found: list[Entry] = []
+    if isinstance(value, dict):
+        entry = cast("Entry", value)
+        if "command" in entry and "missing_conditions" in entry:
+            found.append(entry)
+        for each in entry.values():
+            found += _commands(each)
+    elif isinstance(value, list):
+        for each in cast("list[object]", value):
+            found += _commands(each)
+    return found
+
+
+STATE_FIRST = [
+    "project_not_terminal",
+    "no_background_task_running",
+    "at_least_one_task",
+    ACTIVE_PROVISION,
+]
+"""The conditions of the declaration in their order: those of the state of the entry of the risks,
+then its own (relecture 2, as `update_work_breakdown`)."""
+
+
+def _in_order(text: str, names: list[str]) -> bool:
+    """Tell whether a text names each condition, in the order given."""
+    at = [text.find(f"`{name}`") for name in names]
+    return -1 not in at and at == sorted(at)
+
+
+def test_the_declaration_names_the_state_of_the_entry_before_its_own_conditions() -> None:
+    # WF-IHM-0090: the conditions of the state of the entry of the risks first — on a terminal
+    # project or during a task in the background, a task added would not make the declaration
+    # possible —, then the main structure with a task, then the active category (WF-RIS-0010;
+    # relecture 2).
+    revision = (SCHEMAS / "revisions.yaml").read_text(encoding="utf-8")
+    said = _flat(
+        revision.split("\nRevisionCommand:\n", 1)[1].split("\nRevisionCommandAvailability:")[0]
+    )
+    paragraph = said.split(f"`{DECLARE}` dit d'avance", 1)[1].split("`generate_skeleton`", 1)[0]
+    assert _in_order(paragraph, STATE_FIRST)
+    assert "les autres conditions d'`edit_risks`" in paragraph
+    project = _flat((SCHEMAS / "projects.yaml").read_text(encoding="utf-8"))
+    commands = project.split("ProjectCommand: type: string", 1)[1].split(
+        "ProjectCommandAvailability:"
+    )[0]
+    assert _in_order(
+        commands.split(f"`{DECLARE}` la suit", 1)[1], [*STATE_FIRST, "may_create_revision"]
+    )
+    general = project.split("CommandCondition: type: string", 1)[1].split(" enum: ", 1)[0]
+    # `at_least_one_task`, the condition the sentence is of, between those of the state and the
+    # active category.
+    told = general.split("`at_least_one_task` manque à la déclaration", 1)[1].split("(EP-14/L42s)")[
+        0
+    ]
+    told = told.split("`createRisk` la nomme dans son 409, après", 1)[1]
+    assert _in_order(told, [name for name in STATE_FIRST if name != "at_least_one_task"])
+    assert told.index("`no_background_task_running`, et avant `active_provision_category`") > 0
+    refused = _flat(_block("createRisk", "409"))
+    first = " puis ".join(f"`{name}`," for name in STATE_FIRST).rstrip(",")
+    assert f"nomme la première qui manque : {first}" in refused
+    assert "de la révision en cours, ou de celle que la déclaration créerait" in refused
+    # The examples name the conditions in that order, `project_not_terminal` first on a terminal
+    # project; those of the entry of the risks alone, where the structure is not judged.
+    for path in sorted(mockwitness.FIXTURES.glob("*.json")):
+        for entry in _commands(json.loads(path.read_text("utf-8"))):
+            if entry["command"] == DECLARE:
+                missing = cast("list[str]", entry["missing_conditions"])
+                known = [name for name in missing if name in STATE_FIRST]
+                assert known == [name for name in STATE_FIRST if name in missing], path.name
+                assert missing[: len(known)] == known, path.name
+    assert "la déclaration d'un risque indisponible faute de tâche" in _summary(
+        "revision_without_tasks"
+    )
+    assert "la déclaration d'un risque, qui attend une tâche" in _summary("project_pricing")
+
+
+def test_the_conditions_name_the_declaration_wherever_they_name_the_entry_of_the_risks() -> None:
+    # A command a background task or a revision to create suspends is named with them: the
+    # declaration of a risk wherever the entry of the risks is (WF-IHM-0090; relecture 2).
+    general = _flat((SCHEMAS / "projects.yaml").read_text(encoding="utf-8"))
+    general = general.split("CommandCondition: type: string", 1)[1].split(" enum: ", 1)[0]
+    named = [part for part in re.split(r"(?<=[.;]) ", general) if "edit_risks" in part]
+    assert len(named) >= 3
+    for part in named:
+        assert f"`{DECLARE}`" in part or f"`ProjectCommand.{DECLARE}`" in part, part
+    assert f"et des risques, la déclaration d'un risque (`{DECLARE}`)" in general
+
+
+def test_a_fresh_installation_misses_the_labour_category_and_the_role_alone() -> None:
+    # WF-CYC-0120, Vérif : « Sur une installation neuve, dont la seule catégorie est celle des
+    # provisions pour risques, la création est refusée en nommant la catégorie de main-d'œuvre et
+    # le rôle manquants » — the calendar by default is bootstrapped (WF-EXP-0020; #728).
+    fresh = fixture("reference_readiness_incomplete")
+    assert fresh == {
+        "is_complete": False,
+        "missing": ["active_cost_category", "active_resource_role"],
+    }
+    assert "installation neuve" in _summary("reference_readiness_incomplete")
+    assert "catégorie de main-d'œuvre active" in _summary("reference_readiness_incomplete")
+    readiness = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
+    assert "catégorie de main-d'œuvre active" in _flat(
+        readiness.split("\nReferenceReadiness:\n")[1]
+    )
 
 
 # --- The answers of the second review (revue 2) --------------------------------------------------
 
 
-def test_a_deactivated_nature_of_provision_marks_its_category_with_its_nature_inactive() -> None:
-    # A form keeps the active categories of an active nature of provision for risks (#728).
+def test_a_deactivated_nature_deactivates_its_category_whose_reactivation_it_withholds() -> None:
+    # A category of a deactivated nature is deactivated with it, and its reactivation misses
+    # `cost_type_active` until the nature is reactivated (WF-REF-0010; EP-14/L42s, C-291).
     [nature] = [n for n in fixture("cost_types")["items"] if n["kind"] == "provision"]
     entries = [(universe(404), "Provisions pour risques")]
     [active] = cast("list[Entry]", mockdata.categories_of(entries, "PRV", "681", nature))
     inactive_nature = {**nature, "is_active": False}
     [inactive] = cast("list[Entry]", mockdata.categories_of(entries, "PRV", "681", inactive_nature))
-    assert active["cost_type_is_active"] is True
-    assert inactive["cost_type_is_active"] is False
-    assert inactive["is_active"] is True
+    assert (active["is_active"], active["cost_type_is_active"]) == (True, True)
+    assert (inactive["is_active"], inactive["cost_type_is_active"]) == (False, False)
+    [state, _] = mockreference.category_commands(inactive, set(), set(), set())
+    assert state == {
+        "command": "reactivate",
+        "is_available": False,
+        "missing_conditions": ["cost_type_active"],
+    }
+    reactivated_nature = {**inactive, "cost_type_is_active": True}
+    [state, _] = mockreference.category_commands(reactivated_nature, set(), set(), set())
+    assert state == {"command": "reactivate", "is_available": True, "missing_conditions": []}
     [witness] = _provision_categories()
-    assert witness["cost_type_is_active"] is True
-    assert "`cost_type_is_active`" in _schema("projects.yaml", "CommandCondition")
+    assert (witness["is_active"], witness["cost_type_is_active"]) == (True, True)
 
 
 def test_a_designation_set_to_nil_advances_the_risk_and_names_who_deleted() -> None:

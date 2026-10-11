@@ -94,23 +94,29 @@ CommandCondition:
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
     Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
-    saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un
-    différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les
-    imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles.
+    saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque
+    (`declare_risk`), l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de
+    la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la
+    lisent, restent disponibles.
     Pendant l'application d'un import de planning, de devis ou de reste à engager
     (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
     qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
     dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`,
-    `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —,
+    `edit_remaining`, `edit_risks`, `declare_risk`, `create_structure`, `merge_structure`,
+    `mark`, `abandon` —,
     la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles.
+    Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage,
+    fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement
+    (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la
+    révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s).
     L'analyse d'un
     import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
     coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090,
     WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
     cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une
     commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
-    (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la
-    déclaration d'un
+    (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
+    déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
     risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
     l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
     manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
@@ -124,13 +130,18 @@ CommandCondition:
     désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut,
     tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par
     défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les
-    opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. Trois tiennent aux
+    opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. `cost_type_active`
+    manque à la réactivation d'une catégorie de coût dont la nature est désactivée : « une
+    catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010 ; EP-14/L42s,
+    C-291) ; la catégorie la nomme (`CostCategory.available_commands`), et
+    `setCostCategoryActivation` dans son 409. Trois tiennent aux
     catégories d'une nature de coût, et la nature les nomme (`CostType.available_commands`) :
     `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée
     est employée, `cost_type_unrated` quand l'une porte un taux horaire, `cost_type_without_role`
     quand un rôle de ressource, actif ou désactivé, est rattaché à l'une (WF-REF-0030) ;
-    `updateCostType` nomme dans son 409 la première qui manque, dans cet ordre, et pour la
-    dernière les rôles en cause (`params.resource_roles`). Trois tiennent à
+    `updateCostType` nomme dans son 409 la première qui manque, dans cet ordre, avec les
+    catégories en cause pour les deux premières (`params.cost_categories`, EP-14/L42s) et les
+    rôles en cause pour la dernière (`params.resource_roles`). Trois tiennent à
     une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) :
     `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est
     employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030,
@@ -140,13 +151,23 @@ CommandCondition:
     (`params.resource_roles`).
     `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
     écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
-    risques — jusqu'à C-291 (#728), quand aucune catégorie active n'est rattachée à une nature
-    active de ce type (WF-RIS-0010 ; EP-14/L42p, #579) : aucune commande ne la liste — la saisie des risques
-    (`edit_risks`) modifie, réexamine et supprime sans elle —, et `createRisk` et `reviewRisk` la
-    nomment dans leur 409 ; le formulaire qui déclare un risque la sait d'avance par les catégories
-    qu'il lit pour en proposer le choix, dont il retient les actives dont la nature est active et
-    de type provision pour risques (`listCostCategories`, `cost_type_is_active`, `cost_type_kind`),
-    et la création d'un projet l'exige (`ReferenceReadiness.missing`, WF-CYC-0120).
+    risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature
+    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et
+    supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
+    `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la
+    catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet
+    l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). `at_least_one_task` manque à la déclaration d'un
+    risque sur une révision dont la structure principale ne comporte aucune tâche : « La
+    déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la
+    condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se
+    ranger ; `createRisk` la nomme dans son 409, après les conditions d'état de la saisie des
+    risques, `project_not_terminal` puis `no_background_task_running`, et avant
+    `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans
+    révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks`
+    (EP-14/L42s).
+    `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
+    fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
+    offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
@@ -214,6 +235,7 @@ CommandCondition:
     - org_node_active
     - calendar_not_default
     - calendar_active
+    - cost_type_active
     - cost_type_unused
     - cost_type_unrated
     - cost_type_without_role
@@ -229,12 +251,14 @@ CommandCondition:
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
     - main_structure_without_tasks
+    - import_file_accepted
 
 ProjectCommand:
   type: string
   enum:
     - update
     - update_win_probability
+    - update_work_breakdown
     - manage_contributors
     - manage_timelines
     - create_revision
@@ -242,6 +266,7 @@ ProjectCommand:
     - lose
     - abandon
     - edit_risks
+    - declare_risk
     - declare_risk_occurrence
     - import_actual_costs
     - exclude_cost_lines
@@ -254,7 +279,12 @@ ProjectCommand:
     lotissement (WF-PRJ-0020) et ses sous-projets (WF-PRJ-0050), que chaque sous-projet détaille
     (`Subproject.available_commands`) —, et parmi eux la probabilité de gain, dont
     `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à
-    partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090) ; ses contributeurs ;
+    partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090), et le lotissement,
+    dont `update_work_breakdown`, toujours listée avec `update`, dit les conditions : celles
+    d'`update` d'abord — `project_not_terminal` sur un projet terminal —, puis
+    `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
+    cours ou la fige — sa saisie retire le rattachement des tâches de la révision en cours
+    (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs ;
     ses chronologies — en créer une, en supprimer une (`createTimeline`, `deleteTimeline`) :
     `manage_timelines`, gardée par `planning.write`, la permission du planning dont elles sont
     une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et indisponible sur
@@ -275,7 +305,13 @@ ProjectCommand:
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
     marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
     et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
-    est en cours, la commande n'est plus listée sur le projet, mais sur elle.
+    est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
+    suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
+    même ordre : celles de l'état d'abord, `project_not_terminal` puis
+    `no_background_task_running`, puis `at_least_one_task` et `active_provision_category`, puis
+    `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
+    marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
+    manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
 
 ProjectCommandAvailability:
   type: object

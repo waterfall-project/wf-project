@@ -90,7 +90,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_remaining_analysed";
+    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_rejected" | "import_remaining_analysed";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -130,6 +130,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
     200: "structures" | "structures_amendments" | "structures_without_tasks";
+  };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
+    200: "structure_merge_report" | "structure_merge_report_refused";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";

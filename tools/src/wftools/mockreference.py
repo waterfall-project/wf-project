@@ -68,6 +68,9 @@ UNUSED, UNRATED = "cost_category_unused", "cost_category_unrated"
 WITHOUT_ROLE = "cost_category_without_role"
 """The condition the move misses for a category a resource role is attached to (WF-REF-0040)."""
 
+TYPE_ACTIVE = "cost_type_active"
+"""The condition the reactivation of a category misses under a deactivated nature (C-291)."""
+
 _count, _amount, _example = mocktext.count, mocktext.amount, mocktext.example
 
 
@@ -93,8 +96,10 @@ def category_commands(
     The move under a nature of another kind misses `cost_category_unused` while a line bears the
     category, `cost_category_unrated` while it bears hourly rates, and `cost_category_without_role`
     while a resource role, active or not, is attached to it (WF-REF-0040, WF-REF-0050) — in that
-    order. Its state always changes: the last active category of provision for risks goes as any
-    other, the rule of #578 withdrawn (WF-REF-0030, WF-CYC-0120, WF-RIS-0010; EP-14/L42p).
+    order. Its deactivation is always available: the last active category of provision for risks
+    goes as any other, the rule of #578 withdrawn (WF-REF-0030, WF-CYC-0120, WF-RIS-0010;
+    EP-14/L42p). Its reactivation misses `cost_type_active` under a deactivated nature
+    (WF-REF-0010; EP-14/L42s, C-291).
     """
     identifier = cast("str", category["cost_category_id"])
     missing = [
@@ -106,7 +111,11 @@ def category_commands(
         )
         if held
     ]
-    state = commands("deactivate" if category["is_active"] is True else "reactivate")
+    if category["is_active"] is True:
+        state = commands("deactivate")
+    else:
+        inactive = category.get("cost_type_is_active") is False
+        state = commands("reactivate", [TYPE_ACTIVE] if inactive else [])
     return [*state, *commands(CHANGE_COST_TYPE, missing)]
 
 

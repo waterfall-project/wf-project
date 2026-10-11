@@ -57,7 +57,9 @@ from wftools.mockwitness import (
     OFFER_MARKED,
     TODAY,
     TRACKED,
+    WORK_BREAKDOWN,
     CostLine,
+    OrderItem,
     Task,
     by_identifier,
     fixture,
@@ -79,6 +81,9 @@ PROJECT, UNASSIGNED = "project", "unassigned"
 _NO_ACTUAL, _NO_PLANNED, _NO_EARNED = "no_actual_cost", "no_planned_value", "no_earned_value"
 _NO_BUDGET, _NO_SPENDING = "no_reference_budget", "no_actual_or_remaining"
 _MISSING = "hourly_rate_missing"
+
+_WITHOUT_TASK = "order_item_without_task"
+"""Why an order item that no task bears has no total: « présenté sans total » (WF-DEV-0060)."""
 
 
 # --- The revisions read -------------------------------------------------------------------------
@@ -182,13 +187,14 @@ def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
     """Return the payment delay of each line, in days, as its node renders it (WF-IND-0100).
 
     The curve of the disbursements shifts a line by the delay the grid of the estimate shows
-    for it, read from the same node.
+    for it, read from the same node; a provision renders none, and stays at the date of its task.
     """
-    return {
-        row.number: cast("int", cast("JsonObject", row.node[row.kind])["payment_delay_days"])
-        for row in rows
-        if row.kind == mockcore.ESTIMATE_LINE
-    }
+    delays: dict[int, int] = {}
+    for row in rows:
+        if row.kind == mockcore.ESTIMATE_LINE:
+            delay = cast("JsonObject", row.node[row.kind])["payment_delay_days"]
+            delays[row.number] = 0 if delay is None else cast("int", delay)
+    return delays
 
 
 def today(roots: Iterable[Task] | None = None) -> Reading:
@@ -558,6 +564,33 @@ def order_items(reading: Reading) -> list[Group]:
     return groups
 
 
+def by_order_item(
+    reading: Reading,
+    missing: frozenset[str],
+    breakdown: Sequence[OrderItem] = WORK_BREAKDOWN,
+) -> list[JsonValue]:
+    """Return each order item of the work breakdown, in its order, with its total (WF-DEV-0060).
+
+    The total of the subtree of the task that bears it, and its share; an order item that no task
+    bears is presented without a total: neither its amount nor its share is computed, rather than
+    nought (EP-14/L42s). A task that bears an order item the work breakdown does not have is an
+    error of the witness, never an item left out.
+    """
+    groups = order_items(reading)
+    parts = _parts(reading, groups, missing, whole=False)
+    borne = {group.key: part for group, part in zip(groups, parts, strict=True)}
+    unknown = set(borne) - {item.identifier for item in breakdown}
+    if unknown:
+        message = f"order items borne but not in the work breakdown: {sorted(unknown)}"
+        raise ValueError(message)
+    without = not_computable(_WITHOUT_TASK)
+    return [
+        borne.get(item.identifier)
+        or {"key": item.identifier, "label": item.label, "amount": without, "share": without}
+        for item in breakdown
+    ]
+
+
 def estimate(
     reading: Reading,
     *,
@@ -584,13 +617,12 @@ def estimate(
             return not_computable(_MISSING, {"missing_rates": absent})
         return computable(money(total - _base(other.lines)))
 
-    items = order_items(reading)
     return {
         "context": context(reading, stored=reading.revision != mockhistory.CURRENT),
         "total": _amount(reading, lines, missing),
         "by_cost_type": _parts(reading, natures(lines), missing),
         "by_subproject": _parts(reading, subprojects(reading, lines), missing),
-        "by_order_item": _parts(reading, items, missing, whole=False) if items else None,
+        "by_order_item": by_order_item(reading, missing),
         "provisions_identified": money(
             _base(line for line in lines if mockhistory.is_provision(line))
         ),
