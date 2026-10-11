@@ -6,20 +6,31 @@
  * and of Redis, the secret of the client of the front — may be written into it by `next build`
  * (WF-SEC-0010). Next writes into the build the `env` of its configuration and every
  * `process.env.NEXT_PUBLIC_*` the code reads: the configuration is loaded, and the sources read.
- * The image itself was started and asked by hand when the lot was made; no work of the chain
- * starts it yet. A check of the chain that builds and starts it on the pull requests is to come,
- * and with it what these tests do not see — a page prerendered by the build.
+ * These tests read the configuration and the sources; two checks of the chain see what they cannot.
+ * `make prerendered-front`, of the family `front` and so at every change of the front, reads the
+ * manifest of the production build it made — after `build-front` in the fast tier, after the
+ * paths and their measure in the full one — and fails if `next build` prerendered any page but
+ * `/_global-error` and `/icon.svg`. The family `front-image` (`make check-front-image`), at a pull
+ * request that changes `frontend/Dockerfile`, `.dockerignore`, `next.config.ts`, `package.json`,
+ * `pnpm-lock.yaml` or `pnpm-workspace.yaml`, builds the image, starts it and asks it.
  *
  * `next build` also writes keys of its own into its output, and so into the image: the key of
  * the closures of the server actions (`encryptionKey`, `.next/server/server-reference-manifest.*`)
- * and those of the draft mode (`previewMode*`, `.next/prerender-manifest.json`). They protect
- * nothing as long as the front has no closure for Next to encrypt and no draft mode: a server
- * action lives in a module of `src/api/actions/` that opens on `"use server"`, never inline in a
- * function, and nothing reads `draftMode`. The last tests hold it; the key of the server actions
- * is to be set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one
- * of the build (#825).
+ * and those of the draft mode (`previewMode*`, `.next/prerender-manifest.json`). Whoever pulls the
+ * image reads them. The keys of the draft mode matter even with no draft mode in the front:
+ * Next compares `previewModeId` with the cookie `__prerender_bypass` and the header
+ * `x-prerender-revalidate` at every request to a prerendered page, so that with it anyone may pass
+ * the cache by and have the prerendered pages made anew, and no variable replaces it when Node
+ * runs. That is of no matter as long as no prerendered page holds anything but what is public,
+ * which `make prerendered-front` holds. The key of the server actions protects nothing as long as
+ * the front has no closure for Next to encrypt: a server action lives in a module of
+ * `src/api/actions/` that opens on `"use server"`, never inline in a function, and nothing is
+ * cached by `"use cache"`. And the keys of the draft mode would let anyone enter it if the front
+ * had one: nothing reads `draftMode`, and there is no router of pages with its `setDraftMode` or
+ * `setPreviewData`. The last tests hold it; the key of the server actions is to be set at start by
+ * `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the build (#825).
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import type { NextConfig } from "next";
@@ -56,17 +67,20 @@ function uncommented(source: string): string {
  */
 const DIRECTIVE = /["']use (?:server|cache)\b[^"'\n]*["']/g;
 
+/** What enters the draft mode: `draftMode` of the router of the app, the calls of that of pages. */
+const DRAFT = /\b(?:draftMode|setDraftMode|setPreviewData|clearPreviewData)\b/g;
+
 /**
  * What a module of the build, named from the root of the front, writes that a key of the build
  * would protect: every directive of a server function but the one that opens a module of
- * `src/api/actions/`, and every use of `draftMode`.
+ * `src/api/actions/`, and every name that enters the draft mode.
  */
 function keyed(path: string, source: string): string[] {
   const code = uncommented(source);
   const directives = [...code.matchAll(DIRECTIVE)].map(([directive]) => directive);
   const opening =
     path.startsWith("src/api/actions/") && /^\s*["']use server["']/.test(code) ? 1 : 0;
-  const draft = /\bdraftMode\b/.test(code) ? ["draftMode"] : [];
+  const draft = [...code.matchAll(DRAFT)].map(([name]) => name);
   return [...directives.slice(opening), ...draft];
 }
 
@@ -96,6 +110,13 @@ describe("the build of the front", () => {
     expect(offending).toEqual([]);
   });
 
+  it("has no router of pages, whose handlers may enter the draft mode", () => {
+    const pages = [join(FRONT, "pages"), join(FRONT, "src", "pages")]
+      .filter((path) => existsSync(path))
+      .map((path) => relative(FRONT, path));
+    expect(pages).toEqual([]);
+  });
+
   it("allows a server directive only where it opens a module of the actions", () => {
     const opening = '// SPDX\n/** The actions. */\n"use server";\n\nexport async function a() {}\n';
     expect(keyed("src/api/actions/load.ts", opening)).toEqual([]);
@@ -116,9 +137,17 @@ describe("the build of the front", () => {
     );
   });
 
-  it("finds draftMode, and neither it nor a directive in a comment", () => {
+  it("finds what enters the draft mode, and neither it nor a directive in a comment", () => {
     expect(keyed("src/app/page.tsx", 'import { draftMode } from "next/headers";\n')).toEqual([
       "draftMode",
+    ]);
+    const handler =
+      "export default function preview(req, res) {\n  res.setDraftMode({ enable: true });\n" +
+      "  res.setPreviewData({});\n  res.clearPreviewData();\n}\n";
+    expect(keyed("src/pages/api/preview.ts", handler)).toEqual([
+      "setDraftMode",
+      "setPreviewData",
+      "clearPreviewData",
     ]);
     const commented =
       '// "use server" and draftMode are not used\n/* "use cache" */\nconst a = 1;\n';

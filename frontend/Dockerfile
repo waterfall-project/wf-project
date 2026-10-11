@@ -11,11 +11,17 @@
 #   building (WF-SEC-0010). `next build` does write keys of its own into its output, and so into
 #   the image: the key of the closures of the server actions (`encryptionKey`,
 #   `.next/server/server-reference-manifest.*`) and those of the draft mode (`previewMode*`,
-#   `.next/prerender-manifest.json`). They protect nothing as long as the front has no closure for
-#   Next to encrypt and no draft mode — no server action written inline in a function, no
-#   `draftMode` —, which `src/next-config.test.ts` holds; the key of the server actions is to be
-#   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
-#   build (#825).
+#   `.next/prerender-manifest.json`), which whoever pulls the image reads. Next compares
+#   `previewModeId` with the cookie `__prerender_bypass` and the header `x-prerender-revalidate` at
+#   every request to a prerendered page, and no variable replaces it when Node runs: with it,
+#   anyone may pass the cache by and have the prerendered pages made anew. That is of no matter as
+#   long as no prerendered page holds anything but what is public, which `make prerendered-front`
+#   holds. The key of the server actions protects nothing as long as the front has no closure for
+#   Next to encrypt — no server action written inline in a function, no `"use cache"` —, and that
+#   of the draft mode would let anyone enter it if the front had one — it has no `draftMode` and no
+#   router of pages —, which `src/next-config.test.ts` holds. The key of the server actions is to
+#   be set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of
+#   the build (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
 FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node
 
