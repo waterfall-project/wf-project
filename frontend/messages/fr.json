@@ -61,6 +61,9 @@
     "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
+    "signIn": "Connexion",
+    "signInHelp": "Votre mot de passe se fixe et se change sur la page de votre compte du fournisseur d’identité.",
+    "realmPage": "Gérer mon mot de passe",
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
@@ -834,7 +837,8 @@
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
     "signIn": "Se connecter",
-    "dismiss": "Fermer l’avis"
+    "dismiss": "Fermer l’avis",
+    "leftRefused": "{count, plural, one {Une modification faite sur un écran que vous avez quitté a été refusée : elle n’est pas enregistrée.} other {# modifications faites sur des écrans que vous avez quittés ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."

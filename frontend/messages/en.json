@@ -61,6 +61,9 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
+    "signIn": "Sign-in",
+    "signInHelp": "Your password is set and changed on the page of your account at the identity provider.",
+    "realmPage": "Manage my password",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -834,7 +837,8 @@
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "leftRefused": "{count, plural, one {A change made on a screen you left was refused: it is not saved.} other {# changes made on screens you left were refused: they are not saved.}}"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."

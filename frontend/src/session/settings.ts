@@ -66,6 +66,16 @@ export function sessionSettings(): SessionSettings {
   };
 }
 
+/**
+ * The page of the account at the realm, where a local account sets and changes its password: the
+ * identity provider holds it, and no screen of Waterfall asks for one (WF-ADM-0140). None without
+ * the address of Keycloak — the mode of the fake back, which has no realm.
+ */
+export function realmAccountPage(): string | undefined {
+  const address = process.env.WATERFALL_KEYCLOAK_ADDRESS;
+  return address === undefined || address === "" ? undefined : `${realmUnder(address)}/account`;
+}
+
 /** The address of the Redis of the platform, where the sessions are kept. */
 export function redisAddress(): string {
   return required("WATERFALL_REDIS_URL");

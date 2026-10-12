@@ -91,6 +91,22 @@ describe("the screen of the account", () => {
     expect(await accountMetadata()).toEqual({ title: "Mon compte — Waterfall" });
   });
 
+  it.each([
+    ["a local account, to its page at the realm, which holds its password", "me", true],
+    ["an account of the directory, which has no password there to change", "me_directory", false],
+  ] as const)("leads %s", async (_, me, offered) => {
+    vi.stubEnv("WATERFALL_KEYCLOAK_ADDRESS", "https://keycloak.example/auth/");
+    try {
+      server.answers = { ...server.answers, "GET /me": me };
+      const page = html(await AccountPage());
+      const realm = "https://keycloak.example/auth/realms/waterfall/account";
+      expect(page.includes(`href="${realm}"`)).toBe(offered);
+      expect(text(page).includes("Gérer mon mot de passe")).toBe(offered);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("offers the preferences the account chose", async () => {
     server.answers = { ...server.answers, "GET /me": "me_english" };
     const page = html(await AccountPage());
