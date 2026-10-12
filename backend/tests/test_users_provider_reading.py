@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session
 from support import raw_account, wait_for_a_lock
 
 from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
-
 from waterfall.core.users.interface import (
     HeldAccount,
     NotAdmitted,
