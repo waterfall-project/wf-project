@@ -90,6 +90,7 @@ describe("the start of the server of the front", () => {
     "WATERFALL_FRONT_ADDRESS",
     "WATERFALL_FRONT_CLIENT_SECRET",
     "WATERFALL_REDIS_URL",
+    "WATERFALL_API_ADDRESS",
     "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
   ])("stops without %s, naming it [WF-SEC-0010-A]", async (name) => {
     vi.stubEnv(name, undefined);
@@ -104,8 +105,9 @@ describe("the start of the server of the front", () => {
     expectStopped("WATERFALL_FRONT_CLIENT_SECRET, WATERFALL_REDIS_URL must be set");
   });
 
-  it("asks the development server for the session alone, not for the key of the server actions", async () => {
+  it("asks the development server for the session alone, not for the API nor the key of the server actions", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("WATERFALL_API_ADDRESS", undefined);
     vi.stubEnv("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY", undefined);
     await register();
     expectGoesOn();

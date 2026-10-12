@@ -63,6 +63,7 @@ REQUIRED = (
     "WATERFALL_FRONT_ADDRESS",
     "WATERFALL_FRONT_CLIENT_SECRET",
     "WATERFALL_REDIS_URL",
+    "WATERFALL_API_ADDRESS",
     "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
 )
 """What the front does not start without (``frontend/src/startup.ts``)."""

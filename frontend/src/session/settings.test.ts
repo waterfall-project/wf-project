@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { redisAddress, sessionSettings } from "./settings";
+import { SESSION_VARIABLES, redisAddress, sessionSettings } from "./settings";
 
 beforeEach(() => {
   vi.stubEnv("WATERFALL_KEYCLOAK_ADDRESS", "http://localhost:8080/auth/");
@@ -39,5 +39,16 @@ describe("the settings of the session", () => {
     vi.stubEnv(name, "");
     const read = name === "WATERFALL_REDIS_URL" ? redisAddress : sessionSettings;
     expect(read).toThrow(`${name} must be set`);
+  });
+
+  it("ask nothing more than SESSION_VARIABLES, which the start of the server checks", () => {
+    for (const name of Object.keys(process.env)) {
+      vi.stubEnv(name, undefined);
+    }
+    for (const name of SESSION_VARIABLES) {
+      vi.stubEnv(name, "https://waterfall.example");
+    }
+    expect(sessionSettings).not.toThrow();
+    expect(redisAddress).not.toThrow();
   });
 });

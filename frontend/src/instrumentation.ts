@@ -13,9 +13,8 @@ import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 /** Check the settings of the front as its server starts; fail naming what is missing. */
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) {
-    return;
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+    const { checkStart } = await import("@/startup");
+    checkStart();
   }
-  const { checkStart } = await import("@/startup");
-  checkStart();
 }
