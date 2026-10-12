@@ -23,6 +23,9 @@ from wftools.production import Answer
 from wftools.restoration_trial import (
     API_CALL,
     MARKER,
+    PATIENCE,
+    PAUSE,
+    WATCH,
     Administrator,
     Api,
     Clock,
@@ -166,13 +169,14 @@ ANSWERS: dict[str, list[Said]] = {
     "POST /restores": [(202, {"task_id": "r"})],
     "GET /tasks/r": [
         (200, {"status": "queued"}),
+        (200, {"status": "running"}),
         (401, {"code": "SESSION_REVOKED"}),
         (200, {"status": "succeeded"}),
     ],
     "GET /access-roles/m": [(404, {"code": "NOT_FOUND"})],
 }
-# The probe through a restoration: before it begins, in maintenance, then ok, as long as the task
-# of the restoration is followed.
+# The probe through a restoration: before it begins — the task read with the token that asked for
+# it —, in maintenance, then ok, as long as the task of the restoration is followed.
 THROUGH = ("ok", "maintenance", "ok", "ok", "ok")
 
 
@@ -182,8 +186,9 @@ def test_a_backup_asked_of_the_api_is_restored_and_the_platform_comes_back_from_
 ) -> None:
     # #948, point 2: the backup asked for, waited for and listed verified; a role made after it;
     # its restoration asked for with its date confirmed, followed by the probe through the
-    # maintenance to ok, the administrator signed in at the first ok after the maintenance and
-    # again once a token is refused; the role made after the backup is then no more.
+    # maintenance to ok — the task read before it with the token that asked for it —, the
+    # administrator signed in at the first ok after the maintenance and again once a token is
+    # refused; the role made after the backup is then no more.
     api = FakeApi(ANSWERS)
     clock = FakeClock()
     trial_of(api, probes(*THROUGH), clock).run()
@@ -197,6 +202,7 @@ def test_a_backup_asked_of_the_api_is_restored_and_the_platform_comes_back_from_
         ("GET", "/tasks/r"),
         ("GET", "/tasks/r"),
         ("GET", "/tasks/r"),
+        ("GET", "/tasks/r"),
         ("GET", "/access-roles/m"),
     ]
     assert api.asked[4]["body"] == {"label": MARKER, "permissions": []}
@@ -206,15 +212,16 @@ def test_a_backup_asked_of_the_api_is_restored_and_the_platform_comes_back_from_
         "acknowledged_backup_taken_at": BACKUP["taken_at"],
     }
     assert [asked["token"] for asked in api.asked] == [
-        *["token-1"] * 6,
+        *["token-1"] * 7,
         "token-2",
         "token-2",
         "token-3",
         "token-3",
     ]
-    # One pause for the backup still running; then one before the maintenance, one in it, one for
-    # the restoration still queued, and one for the token refused.
+    # One pause for the backup still running; then a short one before the maintenance, one in it,
+    # one for the restoration still running, and one for the token refused.
     assert clock.pauses == 1 + 4
+    assert clock.time == PAUSE + WATCH + 3 * PAUSE
     for command in api.commands:
         assert command == [*COMPOSE, "exec", "-T", "api", "python", "-c", API_CALL]
         assert not any("token" in word for word in command[:-1])
@@ -224,13 +231,30 @@ def test_a_backup_asked_of_the_api_is_restored_and_the_platform_comes_back_from_
     assert "the role made after the backup gone" in said
 
 
+@pytest.mark.requirement("WF-ADM-0160-A")
 def test_a_restoration_the_probe_never_says_in_maintenance_fails_the_trial() -> None:
-    # Until the probe says the maintenance, the restoration has not begun: the task is not read,
-    # and the trial does not conclude on a platform that was never in maintenance.
-    api = FakeApi(ANSWERS)
+    # Until the probe says the maintenance, the restoration has not begun: the trial does not
+    # conclude on a platform that was never in maintenance, even once its task has succeeded.
+    running = {**ANSWERS, "GET /tasks/r": [(200, {"status": "running"})] * 1300}
     with pytest.raises(TrialError, match="did not say the maintenance in 600 s"):
-        trial_of(api, probes(*["ok"] * 400)).run()
-    assert ("GET", "/tasks/r") not in api.calls()
+        trial_of(FakeApi(running), probes(*["ok"] * 1300)).run()
+    succeeded = {**ANSWERS, "GET /tasks/r": [(200, {"status": "succeeded"})]}
+    with pytest.raises(TrialError, match="succeeded without the maintenance being seen"):
+        trial_of(FakeApi(succeeded), probes("ok")).run()
+    unread = {**ANSWERS, "GET /tasks/r": [(500, {"code": "INTERNAL_ERROR"})]}
+    with pytest.raises(TrialError, match="does not read \\(500\\)"):
+        trial_of(FakeApi(unread), probes("ok")).run()
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_restoration_that_fails_before_the_maintenance_fails_the_trial_with_its_problem() -> None:
+    # A restoration refused before it begins never puts the platform in maintenance: the trial
+    # says its problem at once, not the maintenance unseen after its whole patience.
+    failed = {**ANSWERS, "GET /tasks/r": [(200, {"status": "failed", "problem": {"code": "Z"}})]}
+    clock = FakeClock()
+    with pytest.raises(TrialError, match=re.escape("failed: {'code': 'Z'}")):
+        trial_of(FakeApi(failed), probes("ok", "ok"), clock).run()
+    assert clock.time < PATIENCE
 
 
 def test_a_role_made_after_the_backup_that_is_refused_or_survives_its_restoration_fails() -> None:
