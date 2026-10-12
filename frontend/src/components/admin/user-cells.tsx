@@ -22,7 +22,7 @@
  *   (`AnonymizeCommand`).
  *
  * While a write of its row is under way, whatever its cell, each is marked busy, and the switch, the
- * roles and the anonymisation unavailable: a press asks nothing (`UserWrites.busy`).
+ * roles, the link and the anonymisation unavailable: a press asks nothing (`UserWrites.busy`).
  *
  * In a dense grid, each is out of the order of tabulation, the grid being one stop: Enter on its cell
  * presses it (`CELL_COMMAND`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
@@ -259,7 +259,10 @@ const DEACTIVATED: CommandOffer = {
 /**
  * The command that asks the link of a local account, named after it — unavailable while the account
  * is deactivated, as the server would refuse it —; none for another account, which sets no password
- * in Waterfall, nor for an anonymised one, withdrawn from the identity provider (WF-ADM-0060).
+ * in Waterfall, nor for an anonymised one, withdrawn from the identity provider (WF-ADM-0060). Marked
+ * busy while a write of its row is under way, or its link, and unavailable the while, or while a
+ * deactivation asked is unanswered: no link is given for an account being deactivated
+ * (WF-ADM-0140), and a press asks nothing.
  */
 export function SetupLinkCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
@@ -273,13 +276,14 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
   }
   const command = t("password_link.command", { name });
   const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
-  const pending = writes.linking.has(user.user_id);
+  const busy = writes.busy.has(user.user_id) || writes.linking.has(user.user_id);
+  const held = busy || writes.asked.get(user.user_id)?.is_active === false;
   return (
     <>
       <CellCommand
         aria-label={command}
-        aria-busy={pending}
-        aria-disabled={lacking === undefined ? undefined : true}
+        aria-busy={busy}
+        aria-disabled={lacking === undefined && !held ? undefined : true}
         aria-describedby={lacking === undefined ? undefined : described}
         title={lacking}
         className={UNAVAILABLE}
@@ -289,7 +293,7 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
             writes.say(told("unmet", { command, condition: lacking }));
             return;
           }
-          if (!pending) {
+          if (!held) {
             writes.giveLink(user, name, event.currentTarget);
           }
         }}

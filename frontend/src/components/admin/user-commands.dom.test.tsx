@@ -815,6 +815,31 @@ describe("the link to set the password", () => {
     );
     expect(writes(client)).toEqual([]);
   });
+
+  it("marks the link of an account busy and unavailable while its deactivation is asked, a press asking nothing", async () => {
+    const held = heldActivation();
+    const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Noé Vidal\u00a0»",
+    });
+    await userEvent.click(
+      within(grid()).getByRole("switch", { name: "Compte de «\u00a0Noé Vidal\u00a0» actif" }),
+    );
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "true");
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    held.release();
+    // Deactivated, the account is given no link: the command stays unavailable.
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "false");
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
+  });
 });
 
 describe("the filters of the table", () => {
