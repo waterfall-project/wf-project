@@ -459,10 +459,13 @@ def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
     assert docker.pushed() == [f"ghcr.io/waterfall-project/front:{COMMIT}"]
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.usefixtures("checkout")
 def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_named(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les
+    # trouve pas. » : for the images, in the file system of each one before it is published (#824).
     docker = Docker(holding=b"WATERFALL_REDIS_PASSWORD=chain-only-redis\n")
     assert docker.main("epic/EP-03", "--push") == 2
     assert docker.pushed() == []
@@ -471,12 +474,14 @@ def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_
     assert "chain-only-redis" not in error
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_a_value_is_found_across_two_chunks_of_an_image() -> None:
     values = {"mark": "development-only"}
     assert images.held([b"xx develop", b"ment-only yy"], values) == ["mark"]
     assert images.held([b"xx develop", b"ment yy"], values) == []
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_values_searched_are_the_secrets_of_the_chain_and_the_mark_of_the_development() -> None:
     values = images.development_values()
     job = yaml.safe_load(images.WORKSTATION_SECRETS.read_text(encoding="utf-8"))["jobs"]["check"]
@@ -485,6 +490,7 @@ def test_the_values_searched_are_the_secrets_of_the_chain_and_the_mark_of_the_de
     assert set(values.values()) == secrets | {images.DEVELOPMENT_MARK}
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_every_value_of_the_development_platform_carries_the_mark_searched() -> None:
     development = REPOSITORY / "deploy" / "keycloak" / "development"
     values = [
