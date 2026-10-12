@@ -83,8 +83,14 @@ export async function expectSignInPage(page: Page): Promise<void> {
 export async function giveIdentifiers(page: Page, person: Person): Promise<void> {
   await expectSignInPage(page);
   if (person.provider === undefined) {
-    await page.getByLabel(/^(Courriel|Email)$/).fill(person.login);
-    await page.getByLabel(/^(Mot de passe|Password)$/).fill(person.password);
+    // The label of the identifier carries the mark of a field required (« Courriel * »), that of
+    // the password none: the one is found as part of its label, the other whole, apart from the
+    // button that shows it (« Afficher le mot de passe »).
+    await page.getByLabel("Courriel").or(page.getByLabel("Email")).fill(person.login);
+    await page
+      .getByLabel("Mot de passe", { exact: true })
+      .or(page.getByLabel("Password", { exact: true }))
+      .fill(person.password);
     await signInButton(page).click();
     return;
   }
