@@ -445,13 +445,13 @@ def test_the_sorts_on_the_action_and_on_the_nature_are_served_by_their_index(
 
 
 @pytest.mark.requirement("WF-ARC-0110-A")
-def test_the_inscription_of_one_action_is_the_same_codes_and_data_for_every_reader(
+def test_the_inscription_of_one_action_is_no_sentence_but_the_same_codes_for_every_reader(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    # « Le journal d'audit d'une même action se lit dans la langue de chaque lecteur » : the
-    # inscription is kept as a code and data, and the API gives it alike to a reader in French
-    # and to one in English, whatever their browsers ask; the front words it in each one's
-    # language.
+    # « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur » : the inscription
+    # is kept as codes and data, and the API gives no sentence of it, but the same codes and data
+    # to a reader in French and to one in English, whatever their browsers ask. That each reads it
+    # in his own language is the front's to word, and its test's (US-0410/L2b, #913).
     administrator = f"subject-{uuid4()}"
     manager = role(database, "Gestion", permissions=("access_roles.read", "access_roles.write"))
     account(database, "Martin", "Claire", roles=(manager,), idp_subject=administrator)
