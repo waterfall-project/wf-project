@@ -91,17 +91,18 @@ test("a browser asking for English gets the interface in English at the first si
   browser,
   request,
 }) => {
-  // Three workstations, each signing in at the realm: a path of one piece.
-  test.setTimeout(90_000);
+  // Three accounts and three workstations, each signing in at the realm: a path of one piece.
+  test.setTimeout(150_000);
   const answer = await request.get(`${API}/installation`);
   expect(answer.status()).toBe(200);
   const { default_language: installed } = (await answer.json()) as { default_language: string };
-  const newcomer = await localAccount(browser, administrator);
   for (const [locale, language] of [
     ["en-US", "en"],
     ["fr-FR", "fr"],
     ["de-DE", installed],
   ] as const) {
+    // An account of its own for each browser: each sign-in is its first, no language chosen yet.
+    const newcomer = await localAccount(browser, administrator);
     const page = await workstation(browser, locale);
     await signInAt(page, newcomer, ACCOUNT);
     await expect(page.locator("html")).toHaveAttribute("lang", language);
