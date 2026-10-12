@@ -273,6 +273,24 @@ def test_an_anonymization_by_an_account_being_anonymized_waits_and_neither_deadl
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_account_anonymizing_itself_is_inscribed_by_no_name(
+    database: Database, paul: UUID
+) -> None:
+    # « Après anonymisation d'un compte, aucune inscription ne porte plus son nom » — of the
+    # anonymisation itself, when its author is the account anonymised: his name is read once
+    # the transaction has emptied it, and the inscription names him by none.
+    with logging_context(correlation_id="req-paul"), database.transaction() as session:
+        anonymize_account(session, paul, 0, Act(paul, utc_now()))
+    entries = journal(database)
+    assert [
+        (entry["action"], entry["actor_user_id"], entry["actor_display_name"])
+        for entry in entries
+        if entry["action"] == "user_anonymize"
+    ] == [("user_anonymize", str(paul), None)]
+    assert not [entry for entry in entries if names_paul(entry)]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_after_an_anonymization_no_inscription_names_the_account_and_none_else_changes(
     client: ContractClient, database: Database, headers: dict[str, str], paul: UUID
 ) -> None:

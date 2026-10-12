@@ -232,7 +232,9 @@ séparerait plus.
   d'un compte avec des rôles prend le verrou du dernier administrateur avant d'écrire le
   compte. Seule exception, le verrou de l'oubli, que l'anonymisation prend **après** avoir
   verrouillé le compte qu'elle anonymise : elle nomme son auteur avant de le prendre, sans quoi
-  l'anonymisation de cet auteur, qui tient sa ligne et attend ce verrou, l'attendrait en retour.
+  l'anonymisation de cet auteur, qui tient sa ligne et attend ce verrou, l'attendrait en retour ;
+  et après avoir vidé les noms du compte, sans quoi un compte qui s'anonymise lui-même garderait
+  son nom dans l'inscription de son anonymisation.
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.

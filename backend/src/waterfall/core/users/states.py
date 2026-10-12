@@ -81,15 +81,16 @@ def anonymize(session: Session, user_id: UUID, lock_version: int, act: Act) -> U
     The account is locked, then read under the lock: refused if unknown (404), if its version is
     not the one read (412), or if it is anonymised already or active (409). Its names, its address
     and its avatar become null, and the journal forgets its name, in the same transaction; the
-    anonymisation is then inscribed, naming the account by no label. Its author is named before
-    the lock of the forgetting is taken: an anonymisation of that author holds its row, then
-    waits for that lock, which this one would hold while it waits for the row.
+    anonymisation is then inscribed, naming the account by no label. Its author is named once
+    the names are emptied — an account anonymising itself is named by none — and before the lock
+    of the forgetting is taken: an anonymisation of that author holds its row, then waits for
+    that lock, which this one would hold while it waits for the row.
     """
     account = lock_account_at(session, user_id, lock_version)
     refuse_anonymization(account)
-    actor = inscribed_actor(session, act.author)
     values: dict[str, object] = {**dict.fromkeys(FORGOTTEN), "anonymized_at": act.at}
     account = change_columns(session, user_id, values, lock_version, Stamp(act.author, act.at))
+    actor = inscribed_actor(session, act.author)
     forget_account(session, user_id)
     audited = AuditObject("user", account.id, None)
     record(session, Inscription("user_anonymize", actor, audited, act.at, params={}))
