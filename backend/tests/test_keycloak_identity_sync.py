@@ -623,6 +623,45 @@ def test_a_local_account_renamed_signs_in_by_its_new_address_and_is_mailed_there
     ]
 
 
+class Choosing(Watching):
+    """An administration client before whose first write of an account its holder picks English."""
+
+    def __init__(self, keycloak: Keycloak, database: Database) -> None:
+        """Watch ``database``; no language is chosen yet."""
+        super().__init__(keycloak, served_settings(), database)
+        self.chosen: list[str] = []
+
+    def _as_service(self, method: str, path: str, **options: Any) -> httpx2.Response:
+        if method == "PUT" and not self.chosen:
+            self.chosen.append(path)
+            self.set_locale(path.rsplit("/", 1)[-1], "en")
+        return super()._as_service(method, path, **options)
+
+
+def test_a_change_of_identity_keeps_the_language_its_holder_chose_meanwhile(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    administrator: Administrator,
+    made: Callable[[str, str], Account],
+) -> None:
+    # The realm is given the names and the address alone: a language chosen while the change is
+    # carried (setMyPreferences, WF-INTF-0160) is not written over by what was read before.
+    paul = made("Paul", "Durand")
+    row = known(database, paul, last_name="Durand", first_name="Paul")
+    KeycloakAdmin(keycloak, served_settings()).set_locale(paul.id, "fr")
+    choosing = Choosing(keycloak, database)
+    app = create_app(Services(database, keycloak, choosing, *nowhere()))
+    client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    body = {"last_name": "Dumas", "lock_version": 0}
+    changed = client.patch(f"{USERS}/{row['id']}", headers=administrator.headers, json=body)
+    assert changed.status_code == 200, changed.text
+    assert len(choosing.chosen) == 1
+    with service_admin(served_settings()) as admin:
+        held = admin.get(f"/users/{paul.id}").json()
+    assert (held["lastName"], held["attributes"]["locale"]) == ("Dumas", ["en"])
+
+
 class Overtaken(Watching):
     """An administration client after whose change of an identity another write passes."""
 

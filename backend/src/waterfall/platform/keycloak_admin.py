@@ -225,18 +225,13 @@ class KeycloakAdmin:
         """Give a local account of the realm another name, first name or address (#810).
 
         ``False`` if another account of the realm holds the address. Refused if the user profile
-        of the realm refuses a field (422). The account is read, then written back whole: the realm
-        keeps only the attributes it is sent.
+        of the realm refuses a field (422). Only these are sent: the realm keeps what a write does
+        not name, the attributes included — a language chosen meanwhile is not written over.
         """
-        user = f"{self._admin}/users/{quote(subject, safe='')}"
-        held = cast(
-            "Mapping[str, Any]", expect(self._as_service("GET", user), HTTPStatus.OK).json()
-        )
         written = self._as_service(
             "PUT",
-            user,
+            f"{self._admin}/users/{quote(subject, safe='')}",
             json={
-                **held,
                 "username": identity.email,
                 "email": identity.email,
                 "firstName": identity.first_name,
