@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**158 opérations sur 124 chemins, dans 13 familles.**
+**159 opérations sur 125 chemins, dans 13 familles.**
 Le contrat cite **187 des 211 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -38,7 +38,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 ## Comptes, rôles et permissions
 
-`paths/access.yaml` — 16 opérations
+`paths/access.yaml` — 17 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -47,6 +47,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060, WF-ADM-0070 |
 | PUT | `/users/{user_id}/activation` | Désactiver ou réactiver un compte | WF-ADM-0060, WF-ADM-0120, WF-SEC-0020 |
+| POST | `/users/{user_id}/anonymization` | Anonymiser un compte désactivé | WF-ADM-0060, WF-ADM-0070, WF-ADM-0100, WF-SEC-0030 |
 | PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |

@@ -9,11 +9,13 @@ address (WF-ADM-0180, #707), and the reading of the accounts of the provider and
 (``provider``, WF-ADM-0070); an
 account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
 each one carries and the condition the deactivation of the last administrator lacks (WF-ADM-0050,
-WF-IHM-0090); a local account created, and the identity of an
-account changed (``identity``); an account deactivated or reactivated, and an account locked at the
-version read for a write of the roles it holds, which notes the change (``states``); the moment its
-holder closed its sessions, which refuses the tokens issued before (#668); and what its holder sets
-alone, its preferences and its avatar (``personal``, WF-ADM-0040, WF-ADM-0080).
+WF-IHM-0090); a local account created, and the identity of an account changed (``identity``); an
+account deactivated or reactivated, and an account locked at the version read for a write of the
+roles it holds, which notes the change (``states``); a deactivated account anonymised, for good
+(``states``, WF-ADM-0060); the moment its holder closed its sessions, which refuses the tokens
+issued before (#668); and what its holder sets alone, its preferences and its avatar
+(``personal``, WF-ADM-0040, WF-ADM-0080). An anonymised account has no name nor address: what
+names it is ``None``, which the front shows as the neutral label of its catalogue.
 """
 
 from collections.abc import Collection, Iterable, Mapping
@@ -37,7 +39,12 @@ from waterfall.core.users.accounts import (
     lock_account_at,
     note_sessions_closed,
 )
-from waterfall.core.users.commands import LAST_ADMINISTRATOR, CommandAvailability, account_commands
+from waterfall.core.users.commands import (
+    LAST_ADMINISTRATOR_CONDITION,
+    AccountState,
+    CommandAvailability,
+    account_commands,
+)
 from waterfall.core.users.identity import (
     Identity,
     IdentityChange,
@@ -80,14 +87,14 @@ from waterfall.core.users.provider import (
     record_report,
     unheld_accounts,
 )
-from waterfall.core.users.states import set_state
+from waterfall.core.users.states import anonymize, check_anonymization, set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.errors import ConflictError, NotFoundError
 from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
-    "LAST_ADMINISTRATOR",
+    "LAST_ADMINISTRATOR_CONDITION",
     "NAME_MAX_LENGTH",
     "Account",
     "AccountColumn",
@@ -96,6 +103,7 @@ __all__ = [
     "AccountLabel",
     "AccountPage",
     "AccountSort",
+    "AccountState",
     "Author",
     "Avatar",
     "CommandAvailability",
@@ -110,8 +118,10 @@ __all__ = [
     "add_account_of_provider",
     "address_holder",
     "address_taken",
+    "anonymize_account",
     "change_account",
     "change_preferences",
+    "check_account_anonymization",
     "check_account_change",
     "create_local_account",
     "deactivate_unheld",
@@ -146,21 +156,27 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class AccountLabel:
-    """What another module needs to show an account: who it is, and whether it may sign in."""
+    """What another module needs to show an account: who it is, and whether it may sign in.
+
+    The names and the address of an anonymised account are ``None``.
+    """
 
     user_id: UUID
-    last_name: str
-    first_name: str
-    email: str
+    last_name: str | None
+    first_name: str | None
+    email: str | None
     is_active: bool
 
 
 @dataclass(frozen=True, slots=True)
 class Author:
-    """The account that wrote a row, named as it is shown; the platform is no author (``None``)."""
+    """The account that wrote a row, named as it is shown; the platform is no author (``None``).
+
+    An anonymised account is named by no name (``None``).
+    """
 
     user_id: UUID
-    display_name: str
+    display_name: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,9 +185,10 @@ class Account:
 
     user_id: UUID
     subject: str
-    last_name: str
-    first_name: str
-    email: str
+    last_name: str | None
+    first_name: str | None
+    email: str | None
+    anonymized_at: datetime | None
     is_active: bool
     origin: str
     display_preferences: Mapping[str, Any]
@@ -280,6 +297,24 @@ def set_account_activation(
     )
 
 
+def check_account_anonymization(session: Session, user_id: UUID, lock_version: int) -> Account:
+    """Give the account to anonymise, its origin and subject, before the provider is asked.
+
+    Refused as its anonymisation would be (``anonymize_account``): the caller removes a local
+    account from the provider out of any transaction, then anonymises it (#669, WF-ADM-0060).
+    """
+    return _account(session, check_anonymization(session, user_id, lock_version))
+
+
+def anonymize_account(session: Session, user_id: UUID, lock_version: int, act: Act) -> Account:
+    """Anonymise a deactivated account whose version is the one read, for good (``states``).
+
+    Refused if unknown (404), at another version (412), anonymised already or active (409). The
+    journal of audit forgets its name in the same transaction (WF-SEC-0030).
+    """
+    return _account(session, anonymize(session, user_id, lock_version, act))
+
+
 def lock_account_for_change(session: Session, user_id: UUID, lock_version: int) -> AccountLabel:
     """Lock an account at the version read, for a write of the roles it holds; or refuse (404, 412).
 
@@ -348,6 +383,7 @@ def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
             last_name=account.last_name,
             first_name=account.first_name,
             email=account.email,
+            anonymized_at=account.anonymized_at,
             is_active=account.state == "active",
             origin=account.origin,
             display_preferences=dict(account.display_preferences),

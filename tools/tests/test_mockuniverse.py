@@ -211,10 +211,11 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state and the attribution of its roles. The one active account that holds the
-    # permissions to modify the accounts and the access roles has its deactivation unavailable,
-    # the condition `last_administrator` missing (WF-ADM-0120); giving it more roles stays
-    # possible, and every other command listed is available.
+    # changes its state, the anonymisation of a deactivated one, and the attribution of its
+    # roles. The one active account that holds the permissions to modify the accounts and the
+    # access roles has its deactivation unavailable, the condition `last_administrator` missing
+    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
+    # available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -229,12 +230,20 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
         assert user["available_commands"] == listed[user["user_id"]]["available_commands"]
         last = user["user_id"] in administrators
         unmet = ["last_administrator"] if last else []
+        # A deactivated account not anonymised carries its anonymisation too (WF-ADM-0060).
+        anonymize: dict[str, Any] = {
+            "command": "anonymize",
+            "is_available": True,
+            "missing_conditions": [],
+        }
+        anonymization = [] if user["is_active"] else [anonymize]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
                 "is_available": not last,
                 "missing_conditions": unmet,
             },
+            *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
         ], user["last_name"]
 
@@ -286,6 +295,36 @@ def test_the_account_of_the_caller_is_written_alike_wherever_it_is_read() -> Non
         audits.append((mine["audit"], mine["lock_version"]))
         assert _instant(mine["audit"]["updated_at"]) <= TODAY, name
     assert all(each == audits[0] for each in audits)
+
+
+def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None:
+    # The anonymisation of Alix Moreau is the sequel of a write made today: the account the list
+    # reads, deactivated, one version further, without its names, and the journal that named it
+    # renamed nothing else (#832).
+    read = {each["user_id"]: each for each in fixture("users")["items"]}
+    forgotten = {"last_name", "first_name", "email", "anonymized_at", "available_commands"}
+    for name in ("user_anonymized", "users_anonymized"):
+        value = fixture(name)
+        anonymized = value.get("items", [value])[0]
+        before = read[anonymized["user_id"]]
+        assert before["anonymized_at"] is None, name
+        assert _instant(anonymized["anonymized_at"]) == TODAY, name
+        assert anonymized["audit"]["updated_at"] == anonymized["anonymized_at"], name
+        assert anonymized["lock_version"] == before["lock_version"] + 1, name
+        assert {anonymized[key] for key in ("last_name", "first_name", "email")} == {None}, name
+        kept = forgotten | {"audit", "lock_version"}
+        assert {key: value for key, value in anonymized.items() if key not in kept} == {
+            key: value for key, value in before.items() if key not in kept
+        }, name
+    journal = {each["audit_event_id"]: each for each in fixture("audit_events")["items"]}
+    anonymization, *history = fixture("audit_events_anonymized_object")["items"]
+    assert (anonymization["action"], _instant(anonymization["occurred_at"])) == (
+        "user_anonymize",
+        TODAY,
+    )
+    for inscription in history:
+        named = journal[inscription["audit_event_id"]]
+        assert inscription == {**named, "object": {**named["object"], "label": None}}
 
 
 # --- The actual costs (C3) ----------------------------------------------------------------------

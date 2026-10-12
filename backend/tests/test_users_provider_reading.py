@@ -114,6 +114,16 @@ def test_a_local_account_is_never_followed(session: Session) -> None:
     assert session.get_one(UserAccount, row["id"]).last_name == "Martin"
 
 
+def test_an_anonymized_account_is_neither_renamed_nor_created_again(session: Session) -> None:
+    # Found by the subject its anonymisation keeps (WF-ADM-0070, WF-ADM-0060).
+    named = {"last_name": "Annuaire", "first_name": "Dominique", "email": "d@x.org"}
+    row = held(session, **dict.fromkeys(named), anonymized_at=NOON, state="deactivated")
+    assert follow(session, of_provider(row, **named), NOON) == "unchanged"
+    stored = session.get_one(UserAccount, row["id"])
+    assert (stored.last_name, stored.email, stored.lock_version) == (None, None, 0)
+    assert session.scalars(select(UserAccount.id).where(UserAccount.email == "d@x.org")).all() == []
+
+
 @pytest.mark.parametrize(
     ("changed", "reason"),
     [

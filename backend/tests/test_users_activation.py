@@ -9,8 +9,8 @@ reaches it and fails there, which the API says in its log and answers all the sa
 itself is tried against the platform (``test_keycloak_authentication.py``).
 """
 
-import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -46,6 +46,14 @@ DIRECTION = (*ADMINISTRATION, "users.read")
 def headers(database: Database, realm: TestRealm) -> dict[str, str]:
     """Write the account of the caller, Camille Martin, and her role; give her token's header."""
     held = role(database, "Gestion des comptes", permissions=("users.read", "users.write"))
+    account(database, "Martin", "Camille", roles=(held,), id=CALLER, idp_subject=CAMILLE)
+    return bearer(realm.token(CAMILLE, KEY))
+
+
+@pytest.fixture
+def managing(database: Database, realm: TestRealm) -> dict[str, str]:
+    """Write Camille Martin, who may also change the roles, and so give them (#834)."""
+    held = role(database, "Gestion des comptes et des rôles", permissions=DIRECTION)
     account(database, "Martin", "Camille", roles=(held,), id=CALLER, idp_subject=CAMILLE)
     return bearer(realm.token(CAMILLE, KEY))
 
@@ -213,9 +221,7 @@ def test_the_deactivation_of_the_last_administrator_is_refused_until_a_second_on
     # permission. »
     jeanne_id, direction = jeanne
     account(database, "Durand", "Paul", roles=(direction,), state="deactivated")
-    (announced, _) = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()[
-        "available_commands"
-    ]
+    (announced,) = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()["available_commands"]
     assert announced == {
         "command": "deactivate",
         "is_available": False,
@@ -240,31 +246,49 @@ def test_the_deactivation_of_the_last_administrator_is_refused_until_a_second_on
 
 @pytest.mark.requirement("WF-ADM-0120-A")
 def test_roles_that_take_the_administration_from_the_last_administrator_are_refused(
-    client: ContractClient,
-    database: Database,
-    headers: dict[str, str],
-    jeanne: tuple[UUID, UUID],
+    client: ContractClient, database: Database, realm: TestRealm, jeanne: tuple[UUID, UUID]
 ) -> None:
     # « … de même que le retrait de son rôle. » Giving her more stays possible; « Elle est acceptée
-    # dès qu'un second compte actif porte la permission. »
+    # dès qu'un second compte actif porte la permission. » Only an administrator gives roles (#834):
+    # the last one is the only one who may withdraw hers.
     jeanne_id, direction = jeanne
+    herself = bearer(realm.token(JEANNE, KEY))
     pilot = role(database, "Pilote", permissions=("planning.read",))
-    assert problem(give(client, headers, jeanne_id, pilot)) == (409, "LAST_ADMINISTRATOR", {})
+    assert problem(give(client, herself, jeanne_id, pilot)) == (409, "LAST_ADMINISTRATOR", {})
     assert (row(database, jeanne_id), journal(database)) == (("active", 0, None), [])
-    more = give(client, headers, jeanne_id, direction, pilot)
+    more = give(client, herself, jeanne_id, direction, pilot)
     assert more.json()["access_role_labels"] == ["Direction", "Pilote"]
     account(database, "Durand", "Paul", roles=(direction,))
-    assert give(client, headers, jeanne_id, pilot).json()["access_role_labels"] == ["Pilote"]
+    assert give(client, herself, jeanne_id, pilot).json()["access_role_labels"] == ["Pilote"]
+
+
+def test_who_may_change_the_accounts_but_not_the_roles_does_not_give_himself_the_administration(
+    client: ContractClient, database: Database, headers: dict[str, str], jeanne: tuple[UUID, UUID]
+) -> None:
+    # The identifier of the role of the administration is read in the table of the accounts; giving
+    # it is managing the roles (FBS-1.2, WF-ADM-0090), refused without that permission (#834).
+    jeanne_id, direction = jeanne
+    read = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()
+    assert read["access_role_ids"] == [str(direction)]
+    refused = give(client, headers, CALLER, direction)
+    assert problem(refused) == (
+        403,
+        "PERMISSION_MISSING",
+        {"missing_permission": "access_roles.write"},
+    )
+    assert (row(database, CALLER), journal(database)) == (("active", 0, None), [])
+    me = client.get(ME, headers=headers).json()
+    assert "access_roles.write" not in me["permissions"]
 
 
 def test_the_roles_of_an_account_are_replaced_and_the_attribution_inscribed(
-    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
+    client: ContractClient, database: Database, managing: dict[str, str], watching: Watching
 ) -> None:
     pilot, estimator, auditor = (
         role(database, label) for label in ("Pilote", "Chiffreur", "Audit")
     )
     paul = account(database, "Durand", "Paul", roles=(pilot, estimator))
-    response = give(client, headers, paul, auditor, estimator, auditor)
+    response = give(client, managing, paul, auditor, estimator, auditor)
     assert response.status_code == 200, response.text
     # A role sent twice is held once; the one kept is not given again.
     assert (response.json()["access_role_labels"], response.json()["lock_version"]) == (
@@ -285,30 +309,30 @@ def test_the_roles_of_an_account_are_replaced_and_the_attribution_inscribed(
     # Roles remain: the sessions of the account are not closed.
     assert watching.held == []
     # The same roles again change nothing, and write nothing.
-    assert give(client, headers, paul, estimator, auditor).json()["lock_version"] == 1
+    assert give(client, managing, paul, estimator, auditor).json()["lock_version"] == 1
     assert len(journal(database)) == 1
 
 
 def test_an_account_withdrawn_all_its_roles_has_its_sessions_closed(
-    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
+    client: ContractClient, database: Database, managing: dict[str, str], watching: Watching
 ) -> None:
     pilot = role(database, "Pilote", permissions=("planning.read",))
     paul = account(database, "Durand", "Paul", roles=(pilot,))
-    response = give(client, headers, paul)
+    response = give(client, managing, paul)
     assert (response.status_code, response.json()["access_role_ids"]) == (200, [])
     assert watching.held == [("close_sessions", 0)]
     # An account that held none and still holds none loses nothing: its sessions stay.
-    assert give(client, headers, paul).status_code == 200
+    assert give(client, managing, paul).status_code == 200
     assert watching.held == [("close_sessions", 0)]
 
 
 def test_a_role_the_installation_lacks_or_deleted_is_refused_at_its_rank(
-    client: ContractClient, database: Database, headers: dict[str, str]
+    client: ContractClient, database: Database, managing: dict[str, str]
 ) -> None:
     pilot = role(database, "Pilote")
     deleted = role(database, "Ancien", deleted=True)
     paul = account(database, "Durand", "Paul")
-    response = give(client, headers, paul, pilot, deleted, uuid4())
+    response = give(client, managing, paul, pilot, deleted, uuid4())
     assert problem(response)[:2] == (422, "VALIDATION_FAILED")
     assert response.json()["fields"] == [
         {"pointer": "/access_role_ids/1", "code": "UNKNOWN_ACCESS_ROLE"},
@@ -319,7 +343,7 @@ def test_a_role_the_installation_lacks_or_deleted_is_refused_at_its_rank(
 
 @pytest.mark.parametrize("operation", ["activation", "access-roles"])
 def test_a_write_at_another_version_or_on_no_account_is_refused(
-    client: ContractClient, database: Database, headers: dict[str, str], operation: str
+    client: ContractClient, database: Database, managing: dict[str, str], operation: str
 ) -> None:
     paul = account(database, "Durand", "Paul", lock_version=3)
     sent: dict[str, object] = (
@@ -332,7 +356,7 @@ def test_a_write_at_another_version_or_on_no_account_is_refused(
     for user_id, version, expected in refusals:
         path = f"{USERS}/{user_id}/{operation}"
         body = {**sent, "lock_version": version}
-        assert problem(client.request("PUT", path, headers=headers, json=body)) == expected
+        assert problem(client.request("PUT", path, headers=managing, json=body)) == expected
     assert (row(database, paul), journal(database)) == (("active", 3, None), [])
 
 
@@ -354,27 +378,23 @@ def test_an_account_deactivated_again_keeps_its_version_and_has_its_sessions_clo
 
 
 def test_a_role_deleted_while_the_attribution_waits_for_the_guard_is_refused(
-    client: ContractClient, database: Database, headers: dict[str, str]
+    client: ContractClient, database: Database, managing: dict[str, str]
 ) -> None:
     # The attribution takes the lock of the guard before it reads the roles sent: the deletion,
     # which holds it while it counts the holders, has marked the role deleted when they are read.
     # Read before the lock, the role would be given while deleted, held by an account.
     leaving = role(database, "Rôle supprimé")
     paul = account(database, "Durand", "Paul")
-    answers: list[Any] = []
-    attributing = threading.Thread(
-        target=lambda: answers.append(give(client, headers, paul, leaving))
-    )
-    with Session(database.engine) as deleting:
+    with ThreadPoolExecutor(1) as other, Session(database.engine) as deleting:
         lock_administrators(deleting)
-        attributing.start()
+        attributing = other.submit(give, client, managing, paul, leaving)
         wait_for_a_lock(database)
         deleting.execute(
             update(AccessRole).where(AccessRole.id == leaving).values(deleted_at=utc_now())
         )
         deleting.commit()
-    attributing.join(timeout=10)
-    (answer,) = answers
+        # What the thread raised is raised here, with its cause.
+        answer = attributing.result(timeout=10)
     assert problem(answer)[:2] == (422, "VALIDATION_FAILED")
     assert answer.json()["fields"] == [
         {"pointer": "/access_role_ids/0", "code": "UNKNOWN_ACCESS_ROLE"}
@@ -384,28 +404,24 @@ def test_a_role_deleted_while_the_attribution_waits_for_the_guard_is_refused(
 
 @pytest.mark.parametrize("operation", ["activation", "access-roles"])
 def test_a_write_that_waits_for_the_guard_holds_no_lock_on_the_account(
-    client: ContractClient, database: Database, headers: dict[str, str], operation: str
+    client: ContractClient, database: Database, managing: dict[str, str], operation: str
 ) -> None:
     # The lock of the guard is taken before the account is locked, by every write that takes it:
     # a write waiting for it holds nothing another one would wait for in turn. Locked first, the
     # account would be held while the write waits, and could not be locked here.
     paul = account(database, "Durand", "Paul")
-    answers: list[Any] = []
-    writing = threading.Thread(
-        target=lambda: answers.append(
-            activate(client, headers, paul, is_active=False)
-            if operation == "activation"
-            else give(client, headers, paul)
-        )
-    )
-    with Session(database.engine) as guarding:
+    with ThreadPoolExecutor(1) as other, Session(database.engine) as guarding:
         lock_administrators(guarding)
-        writing.start()
+        writing = (
+            other.submit(activate, client, managing, paul, is_active=False)
+            if operation == "activation"
+            else other.submit(give, client, managing, paul)
+        )
         wait_for_a_lock(database)
         locked = guarding.scalar(
             select(UserAccount.id).where(UserAccount.id == paul).with_for_update(nowait=True)
         )
         guarding.commit()
-    writing.join(timeout=10)
-    (answer,) = answers
+        # What the thread raised is raised here, with its cause.
+        answer = writing.result(timeout=10)
     assert (locked, answer.status_code) == (paul, 200)

@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The filters of the journal of audit (FBS-1.5, WF-SEC-0030): by period, by author — an account,
- * or whether an account or the platform acted —, by action, by project, by object, its nature and
- * the one object whose history the address asks, and by the correlation of a request (WF-OBS-0020).
- * The authors and the projects to choose are those the whole journal names (`listAuditFacets`),
- * which the consultation of the journal alone reads (WF-ADM-0100). A filter chosen only changes the address,
+ * The filters of the journal of audit (FBS-1.5, WF-SEC-0030): by period, by author — an account, or
+ * whether an account or the platform acted —, by action, by project, by object, its nature and the
+ * one object whose history the address asks, and by the correlation of a request (WF-OBS-0020). The
+ * authors and the projects to choose are those the whole journal names (`listAuditFacets`), which
+ * the consultation of the journal alone reads (WF-ADM-0100) — an account anonymised by the neutral
+ * label, never by a name it no longer has (WF-ADM-0060). A filter chosen only changes the address,
  * under the names of the contract (`audit-address.ts`), back to the first page; the page reads anew
  * the inscriptions the server retains. The front filters nothing. A change goes on from the address
  * last asked (`usePendingAddress`): a filter chosen right after a sort or another filter keeps it.
@@ -27,6 +28,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useOptimistic, useTransition } from "react";
 
+import { useAccountNaming } from "@/components/account/account-name";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { readValues, valuesHref } from "@/components/grid/filters";
 import {
@@ -67,11 +69,15 @@ import {
   TO,
   USER,
 } from "./audit-address";
+import { useObjectName } from "./audit-cells";
 
-/** An account author of an inscription, by its identifier and the name it shows today. */
+/**
+ * An account author of an inscription, by its identifier and the name it shows today: none for an
+ * anonymised account, which the neutral label names.
+ */
 export interface AuthorChoice {
   readonly id: string;
-  readonly name: string;
+  readonly name: string | null;
 }
 
 /** A project of the journal, by its identifier, its code and its label. */
@@ -206,13 +212,16 @@ export interface AuditFilterBarProps {
   /** The projects of the journal, by their codes and labels, whether the session may open them or not. */
   readonly projects: readonly ProjectChoice[];
   /**
-   * The names the inscriptions shown give what the address names and no choice offers: the author,
-   * the project, the object whose history is asked.
+   * The names the inscriptions shown give what the address names and no choice offers: the author
+   * — null for an anonymised account —, the project, the object whose history is asked.
    */
   readonly named: {
-    readonly user: string | undefined;
+    readonly user: string | null | undefined;
     readonly project: Omit<ProjectChoice, "id"> | undefined;
-    /** The object, by its label — none for a backup, named by its nature. */
+    /**
+     * The object, by its label — none for a backup, named by its nature, and for an anonymised
+     * account, named by the neutral label.
+     */
     readonly object:
       { readonly label: string | null; readonly kind: (typeof OBJECT_KINDS)[number] } | undefined;
   };
@@ -223,12 +232,14 @@ export interface AuditFilterBarProps {
 /** Render the filters of the journal, as the address asks them. */
 export function AuditFilterBar({ filters, users, projects, named, refused }: AuditFilterBarProps) {
   const t = useTranslations();
+  const naming = useAccountNaming();
+  const objectName = useObjectName();
   const ids = { user: useId(), project: useId(), kind: useId() };
   const actors: FilterValue<(typeof ACTOR_KINDS)[number]>[] = ACTOR_KINDS.map((kind) => ({
     value: kind,
     text: t(`enums.AuditActorKind.${kind}`),
   }));
-  const authors = users.map((user) => ({ value: user.id, text: user.name }));
+  const authors = users.map((user) => ({ value: user.id, text: naming.kept(user.name) }));
   const projectName = ({ code, label }: Omit<ProjectChoice, "id">) =>
     t("admin.auditLog.project", { code, label });
   const offered = projects.map((project) => ({ value: project.id, text: projectName(project) }));
@@ -275,7 +286,7 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
             every={t("admin.auditLog.filters.everyUser")}
             choices={authors}
             chosen={filters.user}
-            unknown={named.user}
+            unknown={named.user === undefined ? undefined : naming.kept(named.user)}
             page={AUDIT_PAGE}
           />
         )}
@@ -301,11 +312,7 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
         />
         {filters.object === undefined ? null : (
           <ObjectShown
-            name={
-              named.object === undefined
-                ? filters.object
-                : (named.object.label ?? t(`enums.AuditObjectKind.${named.object.kind}`))
-            }
+            name={named.object === undefined ? filters.object : objectName(named.object)}
             returnTo={ids.kind}
           />
         )}

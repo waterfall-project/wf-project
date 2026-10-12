@@ -566,13 +566,13 @@ def new_address() -> str:
 def changing_accounts(database: Database, account: Account) -> dict[str, str]:
     """Make an account of the realm one Waterfall knows, which may change the accounts.
 
-    Give the header of its token.
+    It may give roles as well. Give the header of its token.
     """
     row = known(database, account)
     role(
         database,
         "Gestion des comptes",
-        permissions=("users.read", "users.write"),
+        permissions=("users.read", "users.write", "access_roles.write"),
         holders=(row["id"],),
     )
     return bearer(tokens_of(account.email, PASSWORD))
@@ -630,8 +630,9 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     assert (held.get("federationLink"), held["enabled"]) == (None, True)
     assert admin.get(f"/users/{subject}/federated-identity").json() == []
     assert admin.get(f"/users/{subject}/credentials").json() == []
-    # Invited by the extension, with a link of its own (#651).
+    # Invited by the extension, with a link of its own (#651), which the answer says (#816).
     assert action_token(mailed_link(email.lower()))["typ"] == EXTENSION_ACTION
+    assert body["invitation_sent"] is True
     # Keycloak is asked with no connection of the database held (#669).
     assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
 
@@ -865,6 +866,8 @@ def test_an_account_is_created_on_a_realm_without_a_mail_server_its_link_given_b
     with mail_server(server):
         response = api.post(USERS, headers=administrator, json=jeanne(new_address()))
     assert response.status_code == 201, response.text
+    # The answer says it, and the screen offers the link at once (#816).
+    assert response.json()["invitation_sent"] is False
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],
@@ -900,7 +903,7 @@ def test_an_account_whose_invitation_fails_is_created_all_the_same(
     vanishing: ContractClient, administrator: dict[str, str], logs: Logs
 ) -> None:
     response = vanishing.post(USERS, headers=administrator, json=jeanne(new_address()))
-    assert response.status_code == 201, response.text
+    assert (response.status_code, response.json()["invitation_sent"]) == (201, False)
     (record,) = logs.named("account.invitation_not_sent")
     assert (record["user_id"], record["reason"], record["level"]) == (
         response.json()["user_id"],
@@ -941,6 +944,7 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
     # closes the sessions of both devices: neither refreshes its tokens, which Keycloak notifies
     # the front of.
     user_id, devices = signed_in_twice(database, colleague, "planning.read")
+    assert [api.get(ME, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body = {"is_active": False, "lock_version": 0}
     path = f"{USERS}/{user_id}/activation"
     response = api.request("PUT", path, headers=administrator, json=body)
@@ -968,3 +972,29 @@ def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_
         assert (answer.status_code, answer.json()["code"]) == (404, "NOT_FOUND")
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+def test_a_local_account_anonymized_is_removed_from_the_realm(
+    api: ContractClient,
+    database: Database,
+    administrator: dict[str, str],
+    colleague: Account,
+    admin: httpx2.Client,
+) -> None:
+    # WF-ADM-0060: « un compte local anonymisé est en outre retiré du fournisseur d'identité »,
+    # before the anonymisation is written (#856).
+    row = known(database, colleague, state="deactivated")
+    body = {"lock_version": 0}
+    path = f"{USERS}/{row['id']}/anonymization"
+    response = api.request("POST", path, headers=administrator, json=body)
+    assert response.status_code == 200, response.text
+    assert (response.json()["anonymized_at"] is not None, response.json()["email"]) == (True, None)
+    assert admin.get(f"/users/{colleague.id}").status_code == 404
+    # One the realm no longer holds — removed by an anonymisation the write refused after all —
+    # is anonymised when asked again.
+    gone = raw_account(email="gone@example.org", state="deactivated")
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**gone))
+    path = f"{USERS}/{gone['id']}/anonymization"
+    again = api.request("POST", path, headers=administrator, json=body)
+    assert (again.status_code, again.json()["email"]) == (200, None)

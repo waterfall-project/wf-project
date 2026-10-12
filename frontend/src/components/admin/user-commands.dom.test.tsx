@@ -43,6 +43,7 @@ vi.mock("next/navigation", async (original) => ({
 type Schemas = components["schemas"];
 
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
+const anonymized = (example("users_anonymized") as { items: User[] }).items;
 const roles = (example("access_roles") as AccessRole[]).map((role) => ({
   id: role.access_role_id,
   label: role.label,
@@ -156,6 +157,7 @@ describe("the table of the accounts, its own entry", () => {
     render(accounts(false));
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Rôles de/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Anonymiser/ })).toBeNull();
     expect(screen.queryByRole("status", { name: "Commandes des comptes" })).toBeNull();
   });
 
@@ -268,6 +270,56 @@ describe("the table of the accounts, its own entry", () => {
     });
     expect(trigger).toHaveAttribute("aria-busy", "false");
     expect(writes(client)).toHaveLength(1);
+  });
+});
+
+describe("the anonymisation of an account", () => {
+  it("offers the anonymisation of a deactivated account alone, as the account lists it, saying it is available with EP-03 and asking nothing [WF-ADM-0060-A]", async () => {
+    const client = serve({});
+    render(accounts());
+    // Alix Moreau is the one account deactivated, and the one offered her anonymisation.
+    const anonymization = within(grid()).getByRole("button", { name: /^Anonymiser «/ });
+    expect(anonymization).toHaveAccessibleName("Anonymiser «\u00a0Alix Moreau\u00a0»");
+    expect(anonymization).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(anonymization);
+    expect(told().textContent).toBe(
+      "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
+    );
+    expect(writes(client)).toEqual([]);
+  });
+
+  it("presents the reactivation and the anonymisation of an anonymised account unavailable, each naming the condition it lacks, and its names not entered [WF-ADM-0060-A]", async () => {
+    const client = serve({});
+    render(accounts(true, anonymized));
+    const unmet = "Condition non remplie\u00a0: compte non anonymisé.";
+    const reactivation = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00a0Compte anonymisé\u00a0» actif",
+    });
+    expect(reactivation).toHaveAttribute("aria-disabled", "true");
+    expect(reactivation).toHaveAccessibleDescription(unmet);
+    // A press does not run it: it says the condition it lacks.
+    await userEvent.click(reactivation);
+    expect(reactivation).not.toBeChecked();
+    expect(screen.getAllByRole("status").map((region) => region.textContent)).toContain(
+      `La réactivation de «\u00a0Compte anonymisé\u00a0» est indisponible. ${unmet}`,
+    );
+    // Its anonymisation stays listed, unavailable: it is not done twice.
+    const anonymization = within(grid()).getByRole("button", {
+      name: "Anonymiser «\u00a0Compte anonymisé\u00a0»",
+    });
+    expect(anonymization).toHaveAttribute("aria-disabled", "true");
+    expect(anonymization).toHaveAccessibleDescription(unmet);
+    await userEvent.click(anonymization);
+    expect(told().textContent).toBe(`Anonymiser «\u00a0Compte anonymisé\u00a0»\u00a0: ${unmet}`);
+    // Its roles may still be attributed, as the account lists it.
+    expect(
+      within(grid()).getByRole("button", { name: "Rôles de «\u00a0Compte anonymisé\u00a0»" }),
+    ).not.toHaveAttribute("aria-disabled");
+    // It has no name to enter: the neutral label in its cell is not entered.
+    within(grid()).getByText("Compte anonymisé").closest<HTMLElement>("[tabindex]")?.focus();
+    await userEvent.keyboard("Moreau{Enter}");
+    expect(writes(client)).toEqual([]);
+    expect(grid()).not.toHaveTextContent(/Moreau/);
   });
 });
 

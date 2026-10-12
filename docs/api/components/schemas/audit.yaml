@@ -9,8 +9,8 @@ AuditAction:
     son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la
     sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût,
     l'application d'un import, la création et la modification des comptes — dont leur
-    désactivation et leur réactivation, et le lien qui fixe un mot de passe, sans son jeton
-    (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution
+    désactivation et leur réactivation, leur anonymisation (`user_anonymize`, WF-ADM-0060), et le
+    lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution
     des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une
     modification du contrat.
   enum:
@@ -26,6 +26,7 @@ AuditAction:
     - user_update
     - user_deactivate
     - user_reactivate
+    - user_anonymize
     - password_link_create
     - access_role_create
     - access_role_update
@@ -80,7 +81,10 @@ AuditObject:
         Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le
         numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché
         d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a
-        pas : sa date est celle de l'inscription.
+        pas : sa date est celle de l'inscription ; nul pour un compte anonymisé, dont
+        l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule
+        modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente
+        sous le libellé neutre de son catalogue.
     revision:
       anyOf: [{ $ref: '#/AuditRevision' }, { type: 'null' }]
       description: >-
@@ -147,7 +151,9 @@ AuditEvent:
       allOf: [{ $ref: ../common.yaml#/ActorRef }]
       description: >-
         L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa
-        désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même —
+        désactivation (WF-ADM-0060) — nul après son anonymisation, qui l'efface de toutes les
+        inscriptions dont il est l'auteur, leur nombre, leurs dates et leurs actions inchangés
+        (WF-SEC-0030) — ; `platform` pour ce que la plateforme fait d'elle-même —
         une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur
         d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée.
     action: { $ref: '#/AuditAction' }
@@ -169,10 +175,11 @@ AuditActorFacet:
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name:
-      type: string
+      anyOf: [{ type: string }, { type: 'null' }]
       description: >-
         Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime
-        jamais (WF-ADM-0060).
+        jamais (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le
+        libellé neutre de son catalogue.
 
 AuditFacets:
   type: object

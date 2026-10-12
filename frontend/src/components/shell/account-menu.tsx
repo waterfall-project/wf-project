@@ -30,6 +30,7 @@ import { updateLanguage, updateTheme } from "@/api/actions/preferences";
 import { signOut } from "@/api/actions/session";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useAccountNaming } from "@/components/account/account-name";
 import { initials } from "@/components/account/initials";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useForgetTasks } from "@/components/tasks/task-tracker";
@@ -184,7 +185,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const forgetTasks = useForgetTasks();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const name = t("accountMenu.name", { first: account.first_name, last: account.last_name });
+  const name = useAccountNaming().person(account);
   const mark = initials(account, locale);
   const write = (apply: () => Promise<Written>) => {
     startTransition(async () => {

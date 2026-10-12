@@ -9,8 +9,9 @@ recognises a person by her address (motif of WF-ADM-0050) —, and the attachmen
 relayed by an external provider is not: a provider lax about addresses would open the account of
 another (#707). The reading follows besides the name, the first name and the address of the
 accounts the provider holds, and deactivates those it no longer holds. A local account is
-Waterfall's, which the reading never touches. Each write is inscribed in the journal of audit, by
-the platform (WF-DAT-0070).
+Waterfall's, which the reading never touches, and an anonymised one stays so: the reading finds it
+by the subject the anonymisation keeps, and neither renames it nor creates another (WF-ADM-0070).
+Each write is inscribed in the journal of audit, by the platform (WF-DAT-0070).
 """
 
 from collections.abc import Collection
@@ -152,7 +153,8 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
         admitted = admit(session, provider, at)
         return admitted if isinstance(admitted, NotAdmitted) else admitted[1]
     account = lock_account(session, found.id)
-    if account.origin == LOCAL:
+    # Waterfall's own, or anonymised for good (WF-ADM-0060): the reading changes neither.
+    if account.origin == LOCAL or account.anonymized_at is not None:
         return "unchanged"
     refusal = _refusal(provider)
     if refusal is not None:

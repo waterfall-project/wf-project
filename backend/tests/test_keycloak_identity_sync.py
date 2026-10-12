@@ -333,6 +333,43 @@ def test_the_last_administrator_withdrawn_from_the_directory_stays_active_and_is
     assert (kept.state, kept.lock_version) == ("active", account.lock_version)
 
 
+@pytest.mark.requirement("WF-ADM-0070-A")
+@pytest.mark.usefixtures("realm_known")
+def test_an_anonymized_account_whose_person_is_still_in_the_directory_stays_anonymized(
+    api: ContractClient, database: Database, reading: IdentitySync, administrator: Administrator
+) -> None:
+    # « Un compte anonymisé dont la personne figure encore dans l'annuaire reste anonymisé après
+    # synchronisation, et aucun compte n'est créé à son nom. » : the reading finds her by the
+    # subject the anonymisation keeps.
+    read_accounts(database, reading)
+    dominique = of_the_directory(database)
+    path = f"{USERS}/{dominique.id}"
+    deactivated = api.request(
+        "PUT",
+        f"{path}/activation",
+        headers=administrator.headers,
+        json={"is_active": False, "lock_version": dominique.lock_version},
+    )
+    assert deactivated.status_code == 200, deactivated.text
+    lock_version = deactivated.json()["lock_version"]
+    anonymized = api.post(
+        f"{path}/anonymization", headers=administrator.headers, json={"lock_version": lock_version}
+    )
+    assert anonymized.status_code == 200, anonymized.text
+    assert counts(read_accounts(database, reading)) == (0, 0, 0, [], [])
+    with database.transaction() as session:
+        kept = session.get_one(UserAccount, dominique.id)
+        assert (kept.idp_subject, kept.state, kept.email, kept.last_name) == (
+            dominique.idp_subject,
+            "deactivated",
+            None,
+            None,
+        )
+        assert kept.anonymized_at is not None
+        named = select(UserAccount.id).where(UserAccount.first_name == "Dominique")
+        assert session.scalars(named).all() == []
+
+
 # --- WF-ADM-0180: the directory withdrawn, then federated again (#844) --------------------------
 
 
