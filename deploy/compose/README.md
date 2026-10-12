@@ -67,7 +67,13 @@ PostgreSQL a son administrateur, `postgres`, dont le mot de passe,
 `WATERFALL_POSTGRES_ADMIN_PASSWORD`, ne sert qu'aux services d'initialisation qui créent, à chaque
 démarrage et s'ils manquent, les rôles et les bases (`waterfall-database.sql`,
 `keycloak-database.sql` et les scripts des rôles) ; il n'est lu qu'au premier démarrage, qui le
-crée. Les migrations et l'amorçage passent par `waterfall`, propriétaire de la base et de ses
+crée. Pour le changer ensuite, on le change dans le serveur, puis dans `.env` :
+
+```sh
+docker compose -f compose.prod.yaml exec postgres psql -U postgres -c "ALTER ROLE postgres PASSWORD '<nouveau>'"
+```
+
+Les migrations et l'amorçage passent par `waterfall`, propriétaire de la base et de ses
 tables, qui n'est pas superutilisateur et ne crée ni rôle ni base (`WATERFALL_POSTGRES_PASSWORD`) ;
 l'API, le worker et le planificateur, par le rôle du service, qui ne tient que ce que les tables lui
 accordent ; les sauvegardes, par le rôle de sauvegarde.

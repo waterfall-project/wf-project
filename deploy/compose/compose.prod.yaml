@@ -108,7 +108,8 @@ services:
       timeout: 5s
       retries: 30
 
-  # The administrator of the server, postgres, made at the first start alone, as is its password.
+  # The administrator of the server, postgres, made at the first start alone, as is its password:
+  # to change it afterwards, ALTER ROLE postgres PASSWORD '...' in the container, then in .env.
   postgres:
     image: *postgres-image
     environment:

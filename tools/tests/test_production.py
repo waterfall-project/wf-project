@@ -627,7 +627,6 @@ def test_an_answer_in_https_without_hsts_or_a_header_of_caddy_fails(
         production.check_security_headers(Browser(fake.send), PLATFORM)
 
 
-@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_console_of_keycloak_and_its_realm_master_must_not_be_served() -> None:
     production.check_console_hidden(Browser(FakePlatform({}).send), PLATFORM)
     served = FakePlatform({path: fixed(200) for path in production.HIDDEN})

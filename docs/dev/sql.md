@@ -143,7 +143,8 @@ seulement, et `UPDATE` sur les deux libellés qu'une anonymisation efface. Un r�
 base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
 d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
-(`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
+(`deploy/compose/service-database-role.sql`). En production, c'est
+`deploy/compose/waterfall-database.sql` qui crée `waterfall_service`, avant les migrations. Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 
