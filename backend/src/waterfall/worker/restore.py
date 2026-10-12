@@ -41,13 +41,17 @@ FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 # ``DETAIL``, ``CONTEXT``, ``Command was:`` — quote the rows of the dump, the secrets of the clients
 # of the identity provider and the digests of its passwords among them, which no mask of the
 # journal knows (WF-OBS-0020): they are left out, and so is a value the error quotes — from the
-# first quotation mark to the last, a value may hold one. A server that does not say its severity
-# in English (``ERREUR:``, lc_messages of a PostgreSQL of the IT department) says its message in a
-# language whose quotation marks are unknown here: all it says is masked, the mask failing closed.
+# first opening quotation mark, of whatever form, to the end of the line: a value may hold a
+# quotation mark or a line break that cuts it, and a few bytes may follow it. The mask fails
+# closed, losing only what the message says after it. A server that does not say its severity in
+# English (``ERREUR:``, lc_messages of a PostgreSQL of the IT department) says its message in a
+# language whose words are unknown here: all it says is masked.
 ERROR_LINE = "pg_restore: error: "
 SERVER_ERROR = "ERROR:"
 SEPARATOR = ": "
-QUOTED = (re.compile(r'".*"'), re.compile(r"\u00ab.*\u00bb"))
+# Any quotation mark, opening or closing, in English and in other languages: a German message
+# opens its value with », a Danish one with the single angle quotation mark.
+QUOTED = re.compile("[\"'\u00ab\u00bb\u2039\u203a\u201c\u201d\u201e\u2018\u2019\u201a].*")
 MASK = "..."
 
 # The event a database the restoration cannot reach writes to the journal of the service.
@@ -157,6 +161,5 @@ def _masked(line: str) -> str:
         return line
     if not said.startswith(SERVER_ERROR):
         return ERROR_LINE + done + separator + MASK
-    for quoted in QUOTED:
-        said = quoted.sub(f'"{MASK}"', said)
+    said = QUOTED.sub(f'"{MASK}"', said, count=1)
     return ERROR_LINE + done + separator + said
