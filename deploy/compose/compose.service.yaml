@@ -187,6 +187,28 @@ services:
       redis:
         condition: service_healthy
 
+  # The bootstrap of the installation (US-0420): the migrations, then what nobody may enter without,
+  # and the link of its first administrator, written on its standard output — then stops. Run by
+  # `make service-install` and `make e2e-service`, once the realm is applied, never by service-up.
+  # As the owner of the tables (#701), and the only service that holds the secret of the client of
+  # the bootstrap, whose links are valid until they are used (#652). The address of the
+  # administrator and the language of the installation are development values unless the
+  # environment says others.
+  install:
+    <<: *back
+    profiles: [install]
+    environment:
+      <<: [*back-environment, *keycloak-client-environment]
+      WATERFALL_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
+      WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?export WATERFALL_INSTALLATION_CLIENT_SECRET}
+      WATERFALL_ADMIN_EMAIL: ${WATERFALL_ADMIN_EMAIL:-administrateur@waterfall.test}
+      WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
+    command: ["waterfall-api", "install"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of
   # the platform taken from the environment (garage.toml). It keeps its data in a volume, as the
   # databases do; its memory is bounded, for the machine of a demonstration (WF-CMP-0020).
@@ -322,6 +344,7 @@ services:
       WATERFALL_FRONT_BACKCHANNEL: ${WATERFALL_FRONT_BACKCHANNEL:-http://host.docker.internal:3000}
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?export WATERFALL_FRONT_CLIENT_SECRET}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
+      WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?export WATERFALL_INSTALLATION_CLIENT_SECRET}
     volumes:
       - ../keycloak/development:/opt/keycloak/realm/development:ro
     restart: "no"

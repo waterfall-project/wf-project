@@ -301,7 +301,10 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
 - le lien d'installation (#652) : un second rôle, `waterfall-installation-link`, que seul
   l'amorçage porte, fait rendre au même point d'entrée un lien qui vaut jusqu'à son emploi
   (WF-ADM-0140), à usage unique et soumis au même nonce ; le compte de service ordinaire ne
-  produit que des liens d'une heure ;
+  produit que des liens d'une heure. Ce lien ne vaut que pour un compte sans mot de passe
+  (#884) : le point d'entrée refuse de le fabriquer pour un compte qui en a un (409
+  `has_password`), et refuse de l'ouvrir, comme un lien déjà servi, dès que le compte en a un,
+  quelle que soit la voie qui l'a posé — « mot de passe oublié », console ;
 - `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte » ;
 - `local-account-only` (#650) : la règle de politique qui refuse tout mot de passe à un compte
   qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
@@ -1266,7 +1269,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API

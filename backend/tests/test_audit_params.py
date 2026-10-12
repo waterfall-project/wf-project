@@ -117,7 +117,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> None:
     for requested_by in (author, None):
         task_id = deposit(database, queue, "backup", requested_by)
         taken = TakenBackup(
-            task_id, taken_at, 2048, f"{task_id}.tar", __version__, "0012", is_verified=True
+            task_id, taken_at, 2048, f"{task_id}.tar", __version__, "0013", is_verified=True
         )
         with logging_context(correlation_id=CORRELATION), database.transaction() as session:
             add_backup(session, taken, Act(requested_by, taken_at))

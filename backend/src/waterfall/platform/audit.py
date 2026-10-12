@@ -19,7 +19,7 @@ dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0
 the service may update those two columns alone, and the trigger of the journal admits that update
 alone, one label at least made null; that the account is anonymised, the module of the accounts
 checks, by a trigger of its own on this table, for the platform reads no table of a module
-(migration ``0010``).
+(migration ``0011``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them
@@ -144,7 +144,7 @@ class AuditEntry(Base):
     # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
     # which share their collation — the name of the author, the label, the code of the project,
     # the correlation —, on the author, an account before the platform, and on the ranks of the
-    # action and of the nature (migration ``0012``).
+    # action and of the nature (migration ``0013``).
     # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
     # no index serves: a B-tree does not find a text inside another, and a trigram index serves
     # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the

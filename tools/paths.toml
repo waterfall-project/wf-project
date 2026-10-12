@@ -90,6 +90,10 @@ paths = [
     "backend/tests/test_keycloak_*.py",
     "backend/tests/conftest.py",
     "backend/tests/support.py",
+    # The accounts and roles written around the service, which they take (#886).
+    "backend/tests/access_rows.py",
+    # The scratch database and the head of the migrations, that of the bootstrap (US-0420).
+    "backend/tests/test_migrations.py",
     "backend/src/waterfall/**",
     "backend/pyproject.toml",
     "backend/coverage-keycloak.toml",

@@ -25,7 +25,7 @@ dependencies = [
 # One package, two processes: the API and the worker start from the same distribution, and
 # so carry the same version by construction (WF-ARC-0010).
 [project.scripts]
-waterfall-api = "waterfall.api.main:main"
+waterfall-api = "waterfall.bootstrap:main"
 waterfall-worker = "waterfall.worker.main:main"
 waterfall-migrate = "waterfall.migrations.runner:main"
 
@@ -70,6 +70,8 @@ omit = [
     # platform try it, and `make test-keycloak` measures it to the same thresholds
     # (coverage-keycloak.toml); this measure runs no Keycloak.
     "src/waterfall/platform/keycloak_admin.py",
+    # The bootstrap, which creates the administrator in Keycloak: tried and measured likewise.
+    "src/waterfall/bootstrap.py",
 ]
 
 [tool.coverage.report]
@@ -94,9 +96,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them"
+name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap, which applies the migrations, is imported by none"
 type = "layers"
-layers = ["waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
+layers = ["waterfall.bootstrap", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

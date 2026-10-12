@@ -31,6 +31,7 @@ jobs:
       WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin
       WATERFALL_FRONT_CLIENT_SECRET: chain-only-front-client
       WATERFALL_SERVICE_CLIENT_SECRET: chain-only-service-client
+      WATERFALL_INSTALLATION_CLIENT_SECRET: chain-only-installation-client
       WATERFALL_STORAGE_SECRET: chain-only-storage-secret
       # Garage wants the secret of its RPC in 64 hexadecimal digits.
       WATERFALL_STORAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
