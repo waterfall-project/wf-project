@@ -63,6 +63,7 @@ from waterfall.core.users.interface import (
     NAME_MAX_LENGTH,
     Skipped,
     SkippedAccount,
+    SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
     latest_report,
@@ -529,13 +530,15 @@ def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
 ) -> None:
     # Relayed by the external provider at the address an account of Waterfall holds, a person is
     # not attached (#707): ``ALREADY_EXISTS``. With a name longer than a column holds:
-    # ``VALIDATION_FAILED``. Both are left, and the report names them. The account ``realm_known``
+    # ``VALIDATION_FAILED``. Both are left, and the report names them: the first by her subject and
+    # the account that bears her address, which it does not copy (#920). The account ``realm_known``
     # gave her, which the service may not delete, the owner deletes.
     tokens_of(EXTERNAL_USERNAME, EXTERNAL_CREDENTIAL, provider=EXTERNAL_PROVIDER)
     with owner.begin() as connection:
         connection.execute(delete(UserAccount).where(UserAccount.email == EXTERNAL_EMAIL))
+    holder = raw_account(email=EXTERNAL_EMAIL)
     with database.transaction() as session:
-        session.execute(insert(UserAccount).values(**raw_account(email=EXTERNAL_EMAIL)))
+        session.execute(insert(UserAccount).values(**holder))
     long_address = f"long-{uuid4().hex[:8]}@example.org"
     user = {"username": long_address, "email": long_address, "enabled": True}
     created = admin.post("/users", json={**user, "firstName": "Jeanne", "lastName": "L" * 101})
@@ -546,14 +549,13 @@ def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
         linked = admin.post(f"/users/{subject}/federated-identity/{EXTERNAL_PROVIDER}", json=link)
         assert linked.status_code == 204, linked.text
         report = read_accounts(database, reading)
-        # Each a person of the provider, named as it holds her (#918).
-        persons = [each for each in report.skipped if isinstance(each, SkippedPerson)]
-        assert len(persons) == len(report.skipped)
-        assert sorted((each.email, each.code) for each in persons) == [
-            (EXTERNAL_EMAIL, "ALREADY_EXISTS"),
-            (long_address, "VALIDATION_FAILED"),
-        ]
-        (long,) = (each for each in persons if each.email == long_address)
+        (taken, long) = sorted(report.skipped, key=lambda each: each.code)
+        assert isinstance(taken, SkippedAddressHeld)
+        assert (taken.user_id, taken.code) == (holder["id"], "ALREADY_EXISTS")
+        assert taken.subject != subject
+        # The other, a person of the provider, named as it holds her (#918).
+        assert isinstance(long, SkippedPerson)
+        assert (long.email, long.code) == (long_address, "VALIDATION_FAILED")
         assert (long.subject, long.last_name, long.first_name) == (subject, "L" * 101, "Jeanne")
         with database.transaction() as session:
             named = select(UserAccount.id).where(UserAccount.email == long_address)

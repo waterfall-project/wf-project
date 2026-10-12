@@ -11,6 +11,7 @@ provider (#919) — is tried here against PostgreSQL: it runs once its transacti
 never if what registered it is rolled back, and asks the provider with no connection held.
 """
 
+import json
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -29,6 +30,7 @@ from task_handlers import deposit, task
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.users.interface import (
+    Skipped,
     SkippedAccount,
     SkippedPerson,
     SyncReport,
@@ -37,11 +39,11 @@ from waterfall.core.users.interface import (
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak, unavailable
-from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
+from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, ProviderAccount
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask, Task
-from waterfall.worker.identity_sync import IdentitySync, after_commit
+from waterfall.worker.identity_sync import IdentitySync, after_commit, write_accounts
 from waterfall.worker.runner import Worker
 
 SYNCS = "/api/v1/identity-syncs"
@@ -88,7 +90,7 @@ def reported(
     """Keep the report of a reading the platform scheduled, ended at ``finished_at``."""
     task_id = deposit(database, queue)
     with database.transaction() as session:
-        skipped = [SkippedAccount(kept, "LAST_ADMINISTRATOR"), HUGO]
+        skipped: list[Skipped] = [SkippedAccount(kept, "LAST_ADMINISTRATOR"), HUGO]
         report = SyncReport(task_id, finished_at, created, 1, 0, 2, skipped, ["o@x.org"])
         record_report(session, report)
     return task_id
@@ -228,6 +230,49 @@ def test_an_account_the_report_names_and_anonymized_since_is_named_by_no_name(
         "code": "LAST_ADMINISTRATOR",
     }
     assert "dominique" not in response.text.lower()
+
+
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_the_account_that_bears_the_address_of_a_person_left_is_named_as_it_reads_now(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # « Après anonymisation d'un compte désactivé, aucun écran — journal d'audit compris — ne
+    # présente plus son nom ni son adresse » : a person relayed at the address of an account is
+    # left without one (#707), and the report keeps her subject and that account's identifier, not
+    # the address, which is the account's (#920).
+    _, headers = person("users.read")
+    holder = account(database, "Bernard", "Dominique", origin="directory")
+    address = "dominique.bernard@example.org"
+    relayed = ProviderAccount(
+        "kc-7f3a",
+        "Roux",
+        "Camille",
+        "Dominique.Bernard@example.org",
+        is_federated=False,
+        is_relayed=True,
+    )
+    task_id = deposit(database, queue)
+    with database.transaction() as session:
+        written = write_accounts(session, [relayed], [], NIGHT)
+        record_report(session, SyncReport(task_id, NIGHT, 0, 0, 0, 0, written.skipped, []))
+    entry = {"kind": "person", "user_id": str(holder), "subject": "kc-7f3a"}
+    unnamed = {"last_name": None, "first_name": None, "email": None, "code": "ALREADY_EXISTS"}
+    named = {"last_name": "Bernard", "first_name": "Dominique", "email": address}
+    response = api.get(LATEST, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped"] == [{**entry, **unnamed, **named}]
+    anonymized(database, holder)
+    response = api.get(LATEST, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped"] == [{**entry, **unnamed}]
+    assert address not in response.text.lower()
+    with database.transaction() as session:
+        stored = session.scalars(
+            select(IdentitySyncReport.skipped).where(IdentitySyncReport.task_id == task_id)
+        ).one()
+    assert stored == [{**entry, **unnamed}]
+    kept = json.dumps(stored).lower()
+    assert all(personal not in kept for personal in (address, "roux", "camille"))
 
 
 class Restoring(Watching):

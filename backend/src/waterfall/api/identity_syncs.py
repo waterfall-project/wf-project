@@ -5,11 +5,13 @@
 The reading is the worker's (WF-ARC-0090): the request deposits the task and answers at once, and
 the report of the latest reading that ended — asked for, or the one the platform schedules — is read
 apart. Asking for one is a write of the accounts; reading its report, a consultation of them. An
-account of Waterfall the report names is read as it is when the report is: an account anonymised
-since has no name nor address (#920).
+account of Waterfall the report names — one left as it was, or the one that bears the address of a
+person left without an account — is read as it is when the report is: an account anonymised since
+has no name nor address (#920).
 """
 
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -21,6 +23,7 @@ from waterfall.api.tasks import task_ref
 from waterfall.core.users.interface import (
     Skipped,
     SkippedAccount,
+    SkippedAddressHeld,
     latest_report,
     read_account_label,
 )
@@ -74,14 +77,18 @@ def get_latest_identity_sync(session: Transaction) -> IdentitySyncReport:
 def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
     """Describe what a reading left as it was: an account as it is now, or a person."""
     if isinstance(entry, SkippedAccount):
-        label = read_account_label(session, entry.user_id)
         return {
             "kind": "account",
-            "user_id": entry.user_id,
+            **named(session, entry.user_id),
             "subject": None,
-            "last_name": None if label is None else label.last_name,
-            "first_name": None if label is None else label.first_name,
-            "email": None if label is None else label.email,
+            "code": entry.code,
+        }
+    if isinstance(entry, SkippedAddressHeld):
+        # The account that bears her address, as it is now: no copy of it was kept (#920).
+        return {
+            "kind": "person",
+            **named(session, entry.user_id),
+            "subject": entry.subject,
             "code": entry.code,
         }
     return {
@@ -92,4 +99,15 @@ def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
         "first_name": entry.first_name,
         "email": entry.email,
         "code": entry.code,
+    }
+
+
+def named(session: Session, user_id: UUID | None) -> dict[str, Any]:
+    """Name an account of Waterfall as it is now: no name nor address if anonymised, or if none."""
+    label = None if user_id is None else read_account_label(session, user_id)
+    return {
+        "user_id": user_id,
+        "last_name": None if label is None else label.last_name,
+        "first_name": None if label is None else label.first_name,
+        "email": None if label is None else label.email,
     }

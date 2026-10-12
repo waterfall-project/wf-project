@@ -397,11 +397,13 @@ def skipped_of(engine: Engine, task_id: UUID) -> list[dict[str, Any]]:
 def test_the_reports_kept_name_an_account_of_waterfall_by_its_identifier_alone(
     empty_engine: Engine,
 ) -> None:
-    # The last administrator kept by the account that bears its address, whatever its case; an
-    # entry that named a person by her address alone, or an account none bears any more, dropped
-    # (#920). The descent names again by an address each entry that has one.
+    # The last administrator kept by the account that bears its address, whatever its case; a
+    # person whose address an account bears, by her subject and that account, nothing personal
+    # kept; an entry that named a person by her address alone, or an account none bears any more,
+    # dropped (#920). The descent names again by an address each entry that has one.
     upgrade(empty_engine, "0015")
     kept = raw_account(email="Dominique.Bernard@example.org", origin="directory")
+    camille = {"kind": "person", "subject": "kc-camille", "last_name": "Roux", "first_name": "Cam"}
     with empty_engine.begin() as connection:
         connection.execute(insert(UserAccount).values(**kept))
         former = kept_report(
@@ -410,11 +412,20 @@ def test_the_reports_kept_name_an_account_of_waterfall_by_its_identifier_alone(
                 {"email": "camille@external.test", "code": "ALREADY_EXISTS"},
                 {"email": "dominique.bernard@EXAMPLE.org", "code": "LAST_ADMINISTRATOR"},
                 {"email": "gone@example.org", "code": "LAST_ADMINISTRATOR"},
+                {**camille, "email": "DOMINIQUE.bernard@example.org", "code": "ALREADY_EXISTS"},
+                {**camille, "email": "gone@example.org", "code": "ALREADY_EXISTS"},
             ],
         )
     upgrade(empty_engine)
     by_identifier = {"kind": "account", "user_id": str(kept["id"]), "code": "LAST_ADMINISTRATOR"}
-    assert skipped_of(empty_engine, former) == [by_identifier]
+    held_by = {
+        "kind": "person",
+        "subject": "kc-camille",
+        "user_id": str(kept["id"]),
+        **dict.fromkeys(("last_name", "first_name", "email")),
+        "code": "ALREADY_EXISTS",
+    }
+    assert skipped_of(empty_engine, former) == [by_identifier, held_by]
     hugo = {"kind": "person", "subject": "kc-hugo", "last_name": "Garnier", "first_name": "Hugo"}
     with empty_engine.begin() as connection:
         latest = kept_report(
@@ -422,11 +433,13 @@ def test_the_reports_kept_name_an_account_of_waterfall_by_its_identifier_alone(
             [
                 {**hugo, "email": None, "code": "EMAIL_MISSING"},
                 by_identifier,
-                {**hugo, "email": "hugo@example.org", "code": "ALREADY_EXISTS"},
+                {**hugo, "email": "hugo@example.org", "code": "VALIDATION_FAILED"},
+                {**held_by, "user_id": None},
             ],
         )
     downgrade(empty_engine, "0015")
     named = {"email": "Dominique.Bernard@example.org", "code": "LAST_ADMINISTRATOR"}
-    assert skipped_of(empty_engine, former) == [named]
-    again = [named, {"email": "hugo@example.org", "code": "ALREADY_EXISTS"}]
+    taken = {"email": "Dominique.Bernard@example.org", "code": "ALREADY_EXISTS"}
+    assert skipped_of(empty_engine, former) == [named, taken]
+    again = [named, {"email": "hugo@example.org", "code": "VALIDATION_FAILED"}]
     assert skipped_of(empty_engine, latest) == again

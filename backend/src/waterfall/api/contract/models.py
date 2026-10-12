@@ -703,7 +703,10 @@ class IdentitySyncSkipped(ContractModel):
     )
     kind: Kind2
     user_id: Annotated[
-        Uuid | None, Field(description="Le compte de Waterfall ; nul pour une personne.")
+        Uuid | None,
+        Field(
+            description="Le compte de Waterfall ; pour une personne, le compte qui porte son adresse (`ALREADY_EXISTS`), nul s'il n'en portait plus aucun quand elle a été écartée, et nul pour tout autre motif."
+        ),
     ]
     subject: Annotated[
         str | None,
@@ -714,25 +717,25 @@ class IdentitySyncSkipped(ContractModel):
     last_name: Annotated[
         str | None,
         Field(
-            description="Le nom du compte à la consultation, nul s'il est anonymisé ; celui de la personne chez le fournisseur, vide s'il n'en tient pas."
+            description="Le nom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du compte qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui de la personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas."
         ),
     ]
     first_name: Annotated[
         str | None,
         Field(
-            description="Le prénom du compte à la consultation, nul s'il est anonymisé ; celui de la personne chez le fournisseur, vide s'il n'en tient pas."
+            description="Le prénom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du compte qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui de la personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas."
         ),
     ]
     email: Annotated[
         str | None,
         Field(
-            description="L'adresse du compte à la consultation, nulle s'il est anonymisé ; celle de la personne chez le fournisseur, nulle s'il n'en tient pas (`EMAIL_MISSING`)."
+            description="L'adresse du compte à la consultation — pour une personne `ALREADY_EXISTS`, celle du compte qui la porte —, nulle s'il est anonymisé ou s'il n'y a pas de compte ; celle de la personne chez le fournisseur pour tout autre motif, nulle s'il n'en tient pas (`EMAIL_MISSING`)."
         ),
     ]
     code: Annotated[
         ErrorCode,
         Field(
-            description="Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ; `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED`, un nom ou un prénom vide, ou plus long que ce que Waterfall garde."
+            description="Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ; `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un compte, qu'elle ne rattache pas (#707), ce compte désigné par `user_id` ; `VALIDATION_FAILED`, un nom ou un prénom vide, ou plus long que ce que Waterfall garde."
         ),
     ]
 

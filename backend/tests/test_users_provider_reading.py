@@ -29,6 +29,7 @@ from waterfall.core.users.interface import (
     NotAdmitted,
     NotFollowed,
     SkippedAccount,
+    SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
     deactivate_unheld,
@@ -212,7 +213,8 @@ def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
     database: Database,
 ) -> None:
     # A person without an address is named, by her subject and her names (#918); an account of
-    # Waterfall is named by its identifier alone, none of its personal data copied (#920).
+    # Waterfall is named by its identifier alone, none of its personal data copied — the one that
+    # bears the address of a person left without an account too, with her subject (#920).
     with database.transaction() as session:
         renamed = held(session)
         gone = held(session, email="dominique.bernard@example.org")
@@ -228,9 +230,7 @@ def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
         )
     assert written.skipped == [
         SkippedPerson(without_address.subject, "Garnier", "Hugo", None, "EMAIL_MISSING"),
-        SkippedPerson(
-            relayed.subject, "Martin", "Claire", "DOMINIQUE.bernard@example.org", "ALREADY_EXISTS"
-        ),
+        SkippedAddressHeld(relayed.subject, gone["id"], "ALREADY_EXISTS"),
         SkippedAccount(renamed["id"], "VALIDATION_FAILED"),
         SkippedAccount(gone["id"], "LAST_ADMINISTRATOR"),
     ]
@@ -292,6 +292,8 @@ def test_the_report_read_is_that_of_the_latest_reading(session: Session) -> None
             [
                 SkippedAccount(uuid4(), "LAST_ADMINISTRATOR"),
                 SkippedPerson("kc-hugo", "Garnier", "Hugo", None, "EMAIL_MISSING"),
+                SkippedAddressHeld("kc-camille", uuid4(), "ALREADY_EXISTS"),
+                SkippedAddressHeld("kc-lou", None, "ALREADY_EXISTS"),
             ],
             ["orphan@x.org"],
         )

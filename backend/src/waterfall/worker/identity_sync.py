@@ -13,7 +13,8 @@ the provider is given back the identity Waterfall holds of it, if it holds anoth
 password — left by a creation Waterfall did not complete (#811) — are removed from the provider,
 once old enough that no creation is still under way. Every write of Waterfall is the platform's
 (WF-DAT-0070), and the report is kept; it names an account of Waterfall by its identifier alone, a
-person of the provider as it holds her (#918, #920).
+person of the provider as it holds her — but for one whose address an account bears, named by her
+subject and that account (#918, #920).
 
 What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
 lock of the rule of the last administrator is taken before any row of an account, as the routes
@@ -42,6 +43,7 @@ from waterfall.core.users.interface import (
     NotFollowed,
     Skipped,
     SkippedAccount,
+    SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
     deactivate_unheld,
@@ -215,9 +217,15 @@ class Written:
 
 
 def skipped_of(person: ProviderAccount, not_followed: NotFollowed, code: str) -> Skipped:
-    """Name what the reading left: an account of Waterfall by its identifier alone (#920)."""
+    """Name what the reading left: an account of Waterfall by its identifier alone (#920).
+
+    A person whose address an account bears is named by her subject and that account: the address
+    is the account's, which the report no more copies than its names.
+    """
     if not_followed.user_id is not None:
         return SkippedAccount(not_followed.user_id, code)
+    if not_followed.reason == NotAdmitted.ADDRESS_TAKEN:
+        return SkippedAddressHeld(person.subject, not_followed.holder, code)
     email = person.email or None
     return SkippedPerson(person.subject, person.last_name, person.first_name, email, code)
 

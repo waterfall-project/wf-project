@@ -3867,7 +3867,19 @@ Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped
 - **une personne du fournisseur** sans compte (`person`) est nommée par son identifiant chez lui,
   `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas : `EMAIL_MISSING`
   entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall ne sait pas
-  reconnaître, n'est plus ignorée en silence.
+  reconnaître, n'est plus ignorée en silence. Sauf celle qu'un compte de Waterfall prive de son
+  adresse (`ALREADY_EXISTS`, une personne relayée par un fournisseur externe, #707) : cette
+  adresse est celle du compte, que le compte rendu ne copie pas plus que son nom, et
+  l'anonymisation du compte l'y laisserait. L'entrée garde l'identifiant de la personne chez le
+  fournisseur, `subject`, et celui du compte qui porte l'adresse, `user_id` — nul si aucun ne la
+  portait plus quand elle a été écartée —, rien de personnel ; son nom, son prénom et son adresse
+  sont ceux du compte, lus à la consultation comme pour une entrée `account`, nuls s'il est
+  anonymisé depuis (décision de livraison, application de #920). `account` porte donc `user_id`
+  et jamais `subject` ; `person` porte toujours `subject`, et `user_id` pour `ALREADY_EXISTS`
+  seulement. Écartées : le nom que le fournisseur tient de la personne, gardé à côté de
+  l'identifiant du compte — deux identités dans une entrée, que l'écran ne distinguerait que par
+  son motif ; une entrée `account` désignant le compte porteur — elle dirait laissé tel quel un
+  compte que la lecture n'a pas touché.
 
 Une seule forme, fermée — `additionalProperties: false`, chaque propriété exigée, nulle quand elle
 ne vaut pas pour la nature de l'entrée —, comme `ActorRef` dit par `kind` un compte ou la

@@ -147,10 +147,15 @@ def _attach(
 
 @dataclass(frozen=True, slots=True)
 class NotFollowed:
-    """Why the reading left a person as it was, and her account, ``None`` if she has none."""
+    """Why the reading left a person as it was, and her account, ``None`` if she has none.
+
+    ``holder``, for a person without an account whose address another account bears, is that
+    account, ``None`` if none bears it any more once refused.
+    """
 
     reason: NotAdmitted
     user_id: UUID | None
+    holder: UUID | None = None
 
 
 def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followed | NotFollowed:
@@ -159,6 +164,7 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
     Her account is created or attached if she has none; else its name, its first name and its
     address follow the provider's, refused if another account holds the address — unless it is
     local: Waterfall's identity is then the provider's to take back, if it holds another (#919).
+    A person refused for her address another account bears is told with that account (#920).
     An account is locked only to be written, then read again under the lock: the reading holds no
     row it leaves as it was.
     """
@@ -166,7 +172,10 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
     if found is None:
         admitted = admit(session, provider, at)
         if isinstance(admitted, NotAdmitted):
-            return NotFollowed(admitted, None)
+            taken = admitted == NotAdmitted.ADDRESS_TAKEN
+            return NotFollowed(
+                admitted, None, address_holder(session, provider.email) if taken else None
+            )
         return admitted[1]
     if found.origin == LOCAL:
         return "restored" if _held_otherwise(found, provider) else "unchanged"
@@ -313,7 +322,20 @@ class SkippedPerson:
     code: str
 
 
-type Skipped = SkippedAccount | SkippedPerson
+@dataclass(frozen=True, slots=True)
+class SkippedAddressHeld:
+    """A person of the provider given no account, her address borne by an account of Waterfall.
+
+    Her subject, and that account by its identifier alone, ``None`` if none bore the address any
+    more: the address is that account's, and is no more copied than its names (#920).
+    """
+
+    subject: str
+    user_id: UUID | None
+    code: str
+
+
+type Skipped = SkippedAccount | SkippedPerson | SkippedAddressHeld
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,6 +361,17 @@ class SyncReport:
 def _kept(skipped: Skipped) -> dict[str, str | None]:
     if isinstance(skipped, SkippedAccount):
         return {"kind": "account", "user_id": str(skipped.user_id), "code": skipped.code}
+    if isinstance(skipped, SkippedAddressHeld):
+        user_id = None if skipped.user_id is None else str(skipped.user_id)
+        return {
+            "kind": "person",
+            "subject": skipped.subject,
+            "user_id": user_id,
+            "last_name": None,
+            "first_name": None,
+            "email": None,
+            "code": skipped.code,
+        }
     return {
         "kind": "person",
         "subject": skipped.subject,
@@ -353,6 +386,11 @@ def _read(kept: dict[str, str | None]) -> Skipped:
     code = str(kept["code"])
     if kept["kind"] == "account":
         return SkippedAccount(UUID(str(kept["user_id"])), code)
+    if "user_id" in kept:
+        user_id = kept["user_id"]
+        return SkippedAddressHeld(
+            str(kept["subject"]), None if user_id is None else UUID(user_id), code
+        )
     return SkippedPerson(
         str(kept["subject"]), str(kept["last_name"]), str(kept["first_name"]), kept["email"], code
     )
