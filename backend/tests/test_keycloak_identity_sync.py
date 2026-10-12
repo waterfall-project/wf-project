@@ -30,6 +30,8 @@ from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
@@ -863,6 +865,94 @@ def test_an_identity_the_realm_cannot_take_back_is_logged(
         with service_admin(served_settings()) as admin:
             for subject in taken:
                 admin.delete(f"/users/{subject}")
+
+
+class Refusing(Database):
+    """The database of the test, which refuses one transaction once told, after those let pass."""
+
+    def __init__(self, database: Database) -> None:
+        """Share the engine of ``database``; refuse nothing yet."""
+        super().__init__(database.engine)
+        self.passing: int | None = None
+
+    @contextmanager
+    def transaction(self) -> Generator[Session]:
+        """Refuse the transaction told, as a database that does not answer; run the others."""
+        if self.passing == 0:
+            self.passing = None
+            statement = "BEGIN"
+            raise OperationalError(statement, None, ConnectionError("no answer"))
+        if self.passing is not None:
+            self.passing -= 1
+        with super().transaction() as session:
+            yield session
+
+
+@pytest.fixture
+def refusing(
+    contract: OpenAPI, database: Database, keycloak: Keycloak
+) -> Callable[[UUID], ContractClient]:
+    """Give a maker of clients of the API whose change of an account another write overtakes.
+
+    Once the change refused, the database refuses to read the account again.
+    """
+
+    def client(user_id: UUID) -> ContractClient:
+        refused = Refusing(database)
+
+        def refuse_the_reading_again() -> None:
+            refused.passing = 1
+
+        overtaken = Overtaken(keycloak, database, user_id, refuse_the_reading_again)
+        app = create_app(Services(refused, keycloak, overtaken, *nowhere()))
+        return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+    return client
+
+
+def test_a_change_refused_whose_account_cannot_be_read_again_gives_the_realm_its_former_identity(
+    refusing: Callable[[UUID], ContractClient],
+    database: Database,
+    administrator: Administrator,
+    made: Callable[[str, str], Account],
+    logs: Logs,
+) -> None:
+    # The write of the change is refused, then the database refuses to read the account again: the
+    # realm is given back the identity read before the change, and the log says why (#810).
+    paul = made("Paul", "Durand")
+    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
+    body = {"last_name": "Dumas", "lock_version": 0}
+    refused = refusing(user_id).patch(
+        f"{USERS}/{user_id}", headers=administrator.headers, json=body
+    )
+    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    (record,) = logs.named("account.identity_not_reread")
+    assert record["user_id"] == str(user_id)
+    assert logs.named("account.identity_not_restored") == []
+    with service_admin(served_settings()) as admin:
+        held = admin.get(f"/users/{paul.id}").json()
+    assert (held["lastName"], held["firstName"], held["email"]) == ("Durand", "Paul", paul.email)
+
+
+def test_a_change_refused_of_an_account_attached_meanwhile_gives_the_realm_its_former_identity(
+    overtaking: Callable[..., ContractClient],
+    database: Database,
+    administrator: Administrator,
+    made: Callable[[str, str], Account],
+) -> None:
+    # The account was attached meanwhile to a person of the directory (#707): what Waterfall holds
+    # now is not the local account the realm took the change of, which gets back its identity read
+    # before the change (#810).
+    paul = made("Paul", "Durand")
+    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
+    attached = {"idp_subject": f"directory-{uuid4()}", "origin": "directory"}
+    client = overtaking(user_id, last_name="Durand-Martin", **attached)
+    body = {"last_name": "Dumas", "lock_version": 0}
+    refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
+    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    with service_admin(served_settings()) as admin:
+        held = admin.get(f"/users/{paul.id}").json()
+    assert (held["lastName"], held["firstName"], held["email"]) == ("Durand", "Paul", paul.email)
 
 
 # --- WF-ARC-0090: the reading of the accounts asked for -----------------------------------------
