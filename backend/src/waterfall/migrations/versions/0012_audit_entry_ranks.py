@@ -8,6 +8,10 @@ index on the text does not serve. Each gets an index of its own, on the very exp
 names (``ACTION_RANK``, ``OBJECT_KIND_RANK`` of ``waterfall.platform.audit``), written out here
 as a migration does not read the code that follows it.
 
+It sorts the author an account before the platform, then by its name — an account anonymised,
+which has lost it, after the names (``ACTOR_ORDER``): the index on the name alone, which put the
+platform and the anonymised accounts together, gives way to one on that order.
+
 Created in the transaction of the migration, not ``CONCURRENTLY``: the journal ships in the same
 version as this migration, and holds at most the inscriptions of an installation that has just
 been made when it runs.
@@ -69,13 +73,23 @@ def _rank(column: str, values: tuple[str, ...]) -> str:
     return f"array_position(ARRAY[{array}], {column})"
 
 
+ACTOR_NAME_INDEX = "ix_audit_entry_actor_display_name"
+ACTOR_ORDER_INDEX = "ix_audit_entry_actor_order"
+
+
 def upgrade() -> None:
-    """Index the rank of the action and that of the nature of the object."""
+    """Index the ranks of the action and of the nature of the object, and the author's order."""
     for name, (column, values) in RANKS.items():
         op.create_index(name, TABLE, [sa.text(_rank(column, values))])
+    op.drop_index(ACTOR_NAME_INDEX, table_name=TABLE)
+    op.create_index(
+        ACTOR_ORDER_INDEX, TABLE, [sa.text("(actor_user_id IS NULL)"), "actor_display_name"]
+    )
 
 
 def downgrade() -> None:
-    """Drop the two indexes; the journal sorts as before, without them."""
+    """Drop the three indexes, and index the name of the author alone again, as ``0003`` did."""
+    op.drop_index(ACTOR_ORDER_INDEX, table_name=TABLE)
+    op.create_index(ACTOR_NAME_INDEX, TABLE, ["actor_display_name"])
     for name in RANKS:
         op.drop_index(name, table_name=TABLE)

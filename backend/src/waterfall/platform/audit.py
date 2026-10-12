@@ -104,6 +104,9 @@ def _rank(column: str, values: tuple[str, ...]) -> str:
 # used. A new value is a migration of the constraint and of the index.
 ACTION_RANK = _rank("action", ACTIONS)
 OBJECT_KIND_RANK = _rank("object_kind", OBJECT_KINDS)
+# The order of the author, which its index holds: an account before the platform, then by its name,
+# an account anonymised, which has lost it, after the names.
+ACTOR_ORDER = ("(actor_user_id IS NULL)", "actor_display_name")
 
 
 class AuditEntry(Base):
@@ -134,12 +137,14 @@ class AuditEntry(Base):
         CheckConstraint("correlation_id ~ '^[A-Za-z0-9._-]{1,64}$'", name="correlation_id_form"),
         Index("ix_audit_entry_action_rank", text(ACTION_RANK)),
         Index("ix_audit_entry_object_kind_rank", text(OBJECT_KIND_RANK)),
+        Index("ix_audit_entry_actor_order", text(ACTOR_ORDER[0]), ACTOR_ORDER[1]),
     )
 
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
     # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
     # which share their collation — the name of the author, the label, the code of the project,
-    # the correlation —, and on the ranks of the action and of the nature (migration ``0012``).
+    # the correlation —, on the author, an account before the platform, and on the ranks of the
+    # action and of the nature (migration ``0012``).
     # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
     # no index serves: a B-tree does not find a text inside another, and a trigram index serves
     # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the
@@ -148,7 +153,7 @@ class AuditEntry(Base):
     occurred_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
     # The account that acted, and its name at that moment; both null for the platform.
     actor_user_id: Mapped[UUID | None] = mapped_column(index=True)
-    actor_display_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS), index=True)
+    actor_display_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
     action: Mapped[str] = mapped_column(Text, index=True)
     object_kind: Mapped[str] = mapped_column(Text, index=True)
     object_id: Mapped[UUID] = mapped_column(index=True)

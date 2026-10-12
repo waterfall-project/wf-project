@@ -171,7 +171,8 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
 
     An account by the name it shows today, read from the accounts — by the name its latest
     inscription keeps if none bears it any longer —, in the order of the names compared code point
-    by code point, then of the identifiers.
+    by code point, then of the identifiers; an account anonymised, which has lost its name, after
+    the names, as the sort of the journal puts it.
     """
     named = journal_actors(session)
     today = read_authors(session, [actor.user_id for actor in named])
@@ -182,7 +183,7 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
             else (actor.user_id, actor.display_name)
             for actor in named
         ),
-        key=lambda actor: (actor[1] or "", actor[0]),
+        key=lambda actor: (actor[1] is None, actor[1] or "", actor[0]),
     )
     return AuditFacets.model_validate(
         {

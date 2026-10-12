@@ -7,9 +7,10 @@ period, author, action, project, object, correlation and a search on the label t
 keeps — the filters combine (WF-IHM-0130) —, and sorted on each of its seven columns
 (WF-IHM-0060). Without a sort, by date, the latest first, two inscriptions of one instant in the
 reverse order of their inscription; a sort on another column keeps that order between two
-inscriptions it holds equal, whichever its direction. A column without a value — the platform,
-which shows no name, a backup, which has no label, an inscription without a project — comes
-after the others in the ascending order, before them in the descending one. Nothing here writes:
+inscriptions it holds equal, whichever its direction. A column without a value — a backup, which
+has no label, an inscription without a project — comes after the others in the ascending order,
+before them in the descending one; on the author, an account anonymised, which has lost its name,
+comes after the names, and the platform, which has none, after the accounts. Nothing here writes:
 the journal is read only.
 """
 
@@ -25,6 +26,7 @@ from sqlalchemy.sql.elements import UnaryExpression
 
 from waterfall.platform.audit import (
     ACTION_RANK,
+    ACTOR_ORDER,
     OBJECT_KIND_RANK,
     AuditEntry,
     AuditProject,
@@ -36,14 +38,15 @@ type AuditColumn = Literal[
 ]
 type ActorKind = Literal["user", "platform"]
 
-# The expression each column other than the date sorts by.
-_SORTED_BY: dict[str, SQLColumnExpression[Any]] = {
-    "actor": AuditEntry.actor_display_name,
-    "action": literal_column(ACTION_RANK),
-    "object_kind": literal_column(OBJECT_KIND_RANK),
-    "object_label": AuditEntry.object_label,
-    "project": AuditEntry.project_code,
-    "correlation_id": AuditEntry.correlation_id,
+# The expressions each column other than the date sorts by, in turn: the author is an account
+# before the platform (``ACTOR_ORDER``), then by its name.
+_SORTED_BY: dict[str, tuple[SQLColumnExpression[Any], ...]] = {
+    "actor": (literal_column(ACTOR_ORDER[0]), AuditEntry.actor_display_name),
+    "action": (literal_column(ACTION_RANK),),
+    "object_kind": (literal_column(OBJECT_KIND_RANK),),
+    "object_label": (AuditEntry.object_label,),
+    "project": (AuditEntry.project_code,),
+    "correlation_id": (AuditEntry.correlation_id,),
 }
 
 
@@ -125,15 +128,16 @@ def _order(sort: AuditSort) -> list[UnaryExpression[Any]]:
     """Give the order of the page: the column asked for, then the journal's own order.
 
     PostgreSQL puts a null last in the ascending order and first in the descending one, as the
-    contract does.
+    contract does: the name of an account anonymised after the names, and the platform after the
+    accounts.
     """
     latest: list[UnaryExpression[Any]] = [AuditEntry.occurred_at.desc(), AuditEntry.id.desc()]
     if sort.column is None or sort.column == "occurred_at":
         if sort.descending is False:
             return [AuditEntry.occurred_at.asc(), AuditEntry.id.asc()]
         return latest
-    expression = _SORTED_BY[sort.column]
-    return [expression.desc() if sort.descending else expression.asc(), *latest]
+    asked = [each.desc() if sort.descending else each.asc() for each in _SORTED_BY[sort.column]]
+    return [*asked, *latest]
 
 
 def journal_query(filters: AuditFilters, sort: AuditSort) -> Select[AuditEntry]:

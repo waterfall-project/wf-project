@@ -429,9 +429,13 @@ def test_a_journal_without_any_inscription_has_no_facet(
 
 @pytest.mark.parametrize(
     ("column", "index"),
-    [("action", "ix_audit_entry_action_rank"), ("object_kind", "ix_audit_entry_object_kind_rank")],
+    [
+        ("action", "ix_audit_entry_action_rank"),
+        ("object_kind", "ix_audit_entry_object_kind_rank"),
+        ("actor", "ix_audit_entry_actor_order"),
+    ],
 )
-def test_the_sorts_on_the_action_and_on_the_nature_are_served_by_their_index(
+def test_the_sorts_on_the_action_the_nature_and_the_author_are_served_by_their_index(
     database: Database, column: AuditColumn, index: str
 ) -> None:
     # The query names the very expression the index holds: the planner, a sequential reading
@@ -484,3 +488,65 @@ def test_the_inscription_of_one_action_is_no_sentence_but_the_same_codes_for_eve
         "Auditeur",
     )
     assert event["params"] == {"permissions": [CONSULTATION]}
+
+
+def anonymized(database: Database, last_name: str) -> UUID:
+    """Write an account anonymised: deactivated, its names and its address forgotten."""
+    user_id = account(database, last_name, "Anonyme", state="deactivated")
+    with database.transaction() as session:
+        session.execute(
+            update(UserAccount)
+            .where(UserAccount.id == user_id)
+            .values(last_name=None, first_name=None, email=None, anonymized_at=at(10))
+        )
+    return user_id
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+@pytest.mark.parametrize(
+    ("order", "kept"),
+    [
+        ("asc", ["Claire", "bruno", "anonyme", "plateforme 2", "plateforme 1"]),
+        ("desc", ["plateforme 2", "plateforme 1", "anonyme", "bruno", "Claire"]),
+    ],
+)
+def test_the_author_sorts_an_anonymized_account_after_the_names_and_before_the_platform(
+    api: ContractClient, database: Database, reader: dict[str, str], order: str, kept: list[str]
+) -> None:
+    # « Chaque colonne d'une table plate se trie dans les deux sens » — the author: an account
+    # anonymised has lost its name, but is an account, after the names and before the platform,
+    # which has none (contract, ``sort_by``); the descending order is the mirror. The platform
+    # acts before and after it: by their dates alone, they would mix.
+    forgotten = AuditActor(anonymized(database, "Oubli"), None)
+    journal = (
+        Written(at(1), None, "user_create", "user", "plateforme 1", "sync-a"),
+        Written(at(2), forgotten, "access_role_delete", "access_role", "anonyme", "req-b"),
+        Written(at(3), BRUNO, "access_role_delete", "access_role", "bruno", "req-c"),
+        Written(at(4), CLAIRE, "access_role_delete", "access_role", "Claire", "req-d"),
+        Written(at(5), None, "user_create", "user", "plateforme 2", "sync-e"),
+    )
+    write(database, journal)
+    assert labels(read(api, reader, sort_by="actor", sort_order=order)) == kept
+
+
+def test_the_facets_name_an_anonymized_account_after_the_names(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # As the sort of the journal puts it: the names in their order, then the accounts anonymised,
+    # which have none, by their identifiers; the platform is no author.
+    first, second = sorted(anonymized(database, name) for name in ("Oubli", "Effacé"))
+    claire = account(database, "Martin", "Claire", email="claire@example.org")
+    journal = (
+        Written(at(1), AuditActor(second, None), "access_role_delete", "access_role", "a", "r-a"),
+        Written(at(2), AuditActor(claire, "Claire Martin"), "user_update", "user", "b", "r-b"),
+        Written(at(3), AuditActor(first, None), "access_role_delete", "access_role", "c", "r-c"),
+        Written(at(4), None, "user_create", "user", "d", "r-d"),
+    )
+    write(database, journal)
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    assert response.json()["actors"] == [
+        {"user_id": str(claire), "display_name": "Claire Martin"},
+        {"user_id": str(first), "display_name": None},
+        {"user_id": str(second), "display_name": None},
+    ]
