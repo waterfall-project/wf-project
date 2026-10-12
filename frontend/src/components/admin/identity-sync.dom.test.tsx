@@ -128,7 +128,7 @@ describe("the reading of the accounts", () => {
     expect(within(section()).getByText("2 comptes créés, sans rôle")).toBeVisible();
   });
 
-  it("presents what the last reading did, the last administrator kept and reported, a person without an address named by her identifier at the provider, each by the motive of the catalogue [WF-ADM-0070-A]", async () => {
+  it("presents what the last reading did, the last administrator kept and reported, a person without an address named by her identifier at the provider, a person whose address an account holds named by that account, each by the motive of the catalogue [WF-ADM-0070-A]", async () => {
     serve({});
     const { container } = open(report("identity_sync_report_flagged"));
     const counts = within(section())
@@ -140,7 +140,7 @@ describe("the reading of the accounts", () => {
       "Aucun compte désactivé",
       "1 identité de compte local rétablie dans le fournisseur",
       "1 compte local retiré du fournisseur",
-      "2 signalés, laissés tels quels",
+      "3 signalés, laissés tels quels",
     ]);
     const toggle = screen.getByRole("button", { name: "Détails de la dernière lecture" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -162,7 +162,16 @@ describe("the reading of the accounts", () => {
         "Identifiant chez le fournisseur : 5b0c8e2a-3f6d-4a1e-9c47-2d8f1e6a7b90",
         "Le fournisseur d’identité ne tient aucune adresse pour cette personne.",
       ],
+      [
+        "Personne du fournisseur d’identité",
+        "Adresse portée par le compte Dominique Bernard",
+        "Identifiant chez le fournisseur : ef2f3c85-8bd7-4fec-bfa9-7f0a46f62620",
+        "Cet élément existe déjà.",
+      ],
     ]);
+    // The person whose address an account holds keeps nothing of her own but her identifier: the
+    // account is named, never the address it holds (#920).
+    expect(skipped[2]?.filter((line) => line.includes("@"))).toEqual([]);
     const removed = within(shown).getByRole("region", {
       name: "Comptes locaux retirés du fournisseur d’identité",
     });

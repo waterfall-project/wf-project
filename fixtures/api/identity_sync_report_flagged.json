@@ -1,5 +1,5 @@
 {
-  "summary": "Variante contrefactuelle de la lecture de cette nuit : Dominique Bernard, retirée de l'annuaire, porterait seule l'administration ; son compte reste actif et la lecture le signale (WF-ADM-0120), gardé par son seul identifiant et nommé tel qu'il se lit à la consultation (#920). Hugo Garnier, que l'annuaire tient sans adresse, n'a pas de compte, et la lecture le nomme (#918). La lecture a créé deux comptes, sans rôle, mis à jour un nom, rétabli dans le fournisseur l'identité que Waterfall tient de Lucas Petit, qu'un report resté sans réponse y avait laissée autre (WF-ADM-0050, #919), et retiré du fournisseur le compte local de Jeanne Montgolfier, laissé sans mot de passe par une création interrompue (WF-ADM-0070, #811).",
+  "summary": "Variante contrefactuelle de la lecture de cette nuit : Dominique Bernard, retirée de l'annuaire, porterait seule l'administration ; son compte reste actif et la lecture le signale (WF-ADM-0120), gardé par son seul identifiant et nommé tel qu'il se lit à la consultation (#920). Hugo Garnier, que l'annuaire tient sans adresse, n'a pas de compte, et la lecture le nomme (#918). Une personne relayée par un fournisseur externe à l'adresse que porte le compte de Dominique Bernard est écartée, gardée par son identifiant chez le fournisseur et celui du compte, que le compte rendu nomme tel qu'il se lit à la consultation (#920). La lecture a créé deux comptes, sans rôle, mis à jour un nom, rétabli dans le fournisseur l'identité que Waterfall tient de Lucas Petit, qu'un report resté sans réponse y avait laissée autre (WF-ADM-0050, #919), et retiré du fournisseur le compte local de Jeanne Montgolfier, laissé sans mot de passe par une création interrompue (WF-ADM-0070, #811).",
   "value": {
     "task_id": "01926f3a-7c00-7000-8000-000000000942",
     "finished_at": "2026-06-03T02:00:00Z",
@@ -25,6 +25,15 @@
         "first_name": "Hugo",
         "email": null,
         "code": "EMAIL_MISSING"
+      },
+      {
+        "kind": "person",
+        "user_id": "01926f3a-7c00-7000-8000-000000000302",
+        "subject": "ef2f3c85-8bd7-4fec-bfa9-7f0a46f62620",
+        "last_name": "Bernard",
+        "first_name": "Dominique",
+        "email": "dominique.bernard@example.com",
+        "code": "ALREADY_EXISTS"
       }
     ],
     "removed": [
