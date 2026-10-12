@@ -138,6 +138,10 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
 
   await page.goBack();
   await expect(page).toHaveURL("/");
+  // The address changes at the popstate already: the screen of the account is gone only once the
+  // home shows in its place.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+  await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
   const bar = page.getByRole("banner");
   await expect(bar.getByRole("alert")).toHaveCount(0);
   cut();
