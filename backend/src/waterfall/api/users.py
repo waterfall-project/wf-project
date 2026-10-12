@@ -396,7 +396,10 @@ def patch_user(
     For a local account Waterfall is the authority (WF-ADM-0050): its new identity is carried to
     the provider, which signs it in and mails it by its address (#810), out of any transaction
     (#669) — checked first, carried, then written; a write refused after all gives the provider
-    back the identity Waterfall holds then.
+    back the identity Waterfall holds then, read again in a short transaction. It gives back the
+    one read before the change if the account cannot be read again, which is logged
+    (``account.identity_not_reread``), or if it is no longer the local account the provider knows
+    by that subject (#707).
     """
     sent = identity_change(body)
     lock_version = body.lock_version.root
