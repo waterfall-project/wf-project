@@ -436,8 +436,16 @@ class KeycloakAdmin:
         """Give an account of the realm the language it mails and shows its pages in.
 
         ``None`` withdraws it: the realm then speaks its own language by default. An account the
-        realm no longer holds has no language left to set. The account is read, then written back
-        whole with its attribute ``locale`` changed: the realm keeps only the attributes it is sent.
+        realm no longer holds has no language left to set. The account is read, then its identity
+        and its attributes are written back, ``locale`` changed: the realm keeps only the attributes
+        it is sent.
+
+        Nothing else goes back. Keycloak 26.5.7 applies ``enabled``, ``emailVerified`` and
+        ``requiredActions`` when a PUT names them, and leaves them as they are when it does not
+        (``UserResource.updateUserFromRep``): sent back as read, ``enabled: true`` would clear the
+        failed sign-ins of an account locked for a while, and would enable again an account
+        disabled meanwhile, as an ``emailVerified`` read before would undo the one the extension
+        sets when a password is chosen.
 
         Why the identity read just before goes back with it: a PUT that carries ``attributes``
         replaces every attribute, and the identity it does not name is erased — Keycloak 26.5.7
@@ -455,13 +463,14 @@ class KeycloakAdmin:
         response = self._as_service("GET", user)
         if response.status_code == HTTPStatus.NOT_FOUND:
             return
-        held = dict(cast("Mapping[str, Any]", expect(response, HTTPStatus.OK).json()))
+        held = cast("Mapping[str, Any]", expect(response, HTTPStatus.OK).json())
         attributes = dict(cast("Mapping[str, list[str]]", held.get("attributes") or {}))
         if locale is None:
             attributes.pop(LOCALE, None)
         else:
             attributes[LOCALE] = [locale]
-        written = self._as_service("PUT", user, json={**held, "attributes": attributes})
+        identity = {name: held.get(name) for name in IDENTITY_POINTERS}
+        written = self._as_service("PUT", user, json={**identity, "attributes": attributes})
         if written.status_code != HTTPStatus.NOT_FOUND:
             expect(written, HTTPStatus.NO_CONTENT)
 

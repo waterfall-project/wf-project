@@ -38,6 +38,7 @@ from test_keycloak_platform import (
     claims,
     mailed,
 )
+from test_keycloak_sign_in import locked_out
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -55,6 +56,8 @@ RESET_SUBJECTS = {
 }
 # An identifier the realm gives to no account.
 NOBODY = "00000000-0000-4000-8000-000000000000"
+# What may go in the write of a language: the identity the realm requires with the attributes.
+SENT_WITH_A_LANGUAGE = {"username", "email", "firstName", "lastName", "attributes"}
 
 
 @pytest.fixture
@@ -184,6 +187,62 @@ def test_the_language_of_a_person_of_the_directory_stays_in_waterfall(
     assert response.json() == {"language": "en"}
     assert locale_of(admin, claims(tokens["access_token"])["sub"]) is None
     assert [call for call, _ in watching.held] == ["read_account"]
+
+
+class Meanwhile(KeycloakAdmin):
+    """An administration client before whose write of a language the account is otherwise changed.
+
+    Between the read and the write of ``set_locale``, the account is verified, disabled and asked
+    an action, as the extension or the console may do; the body of the write is noted.
+    """
+
+    def __init__(self, keycloak: Keycloak, admin: httpx2.Client) -> None:
+        """Change the account through ``admin``; nothing is written yet."""
+        super().__init__(keycloak, served_settings())
+        self.admin = admin
+        self.sent: list[dict[str, Any]] = []
+
+    def _as_service(self, method: str, path: str, **options: Any) -> httpx2.Response:
+        if method == "PUT":
+            subject = path.rsplit("/", 1)[-1]
+            meanwhile = {
+                "emailVerified": True,
+                "enabled": False,
+                "requiredActions": ["CONFIGURE_TOTP"],
+            }
+            changed = self.admin.put(f"/users/{subject}", json=meanwhile)
+            assert changed.status_code == 204, changed.text
+            self.sent.append(options["json"])
+        return super()._as_service(method, path, **options)
+
+
+def test_a_language_set_keeps_what_the_account_was_given_meanwhile(
+    keycloak: Keycloak, admin: httpx2.Client, local_account: Account
+) -> None:
+    # Only the identity and the attributes go back: an address verified by the extension, an
+    # account disabled or asked an action from the console while the language is written are
+    # not undone by what was read before.
+    meanwhile = Meanwhile(keycloak, admin)
+    meanwhile.set_locale(local_account.id, "en")
+    assert [set(sent) for sent in meanwhile.sent] == [SENT_WITH_A_LANGUAGE]
+    after = held(admin, local_account.id)
+    assert after["attributes"]["locale"] == ["en"]
+    kept = (after["emailVerified"], after["enabled"], after["requiredActions"])
+    assert kept == (True, False, ["CONFIGURE_TOTP"])
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_a_language_set_leaves_a_locked_account_locked(
+    keycloak: Keycloak, admin: httpx2.Client, local_account: Account
+) -> None:
+    # « Dix échecs verrouillent le compte, qui se déverrouille après quinze minutes » — not as
+    # soon as its holder, signed in on another device, changes their language: Keycloak clears
+    # the failures of a locked account written ``enabled: true``, and the write names none.
+    locked_out(admin, local_account)
+    KeycloakAdmin(keycloak, served_settings()).set_locale(local_account.id, "en")
+    assert locale_of(admin, local_account.id) == ["en"]
+    state = admin.get(f"/attack-detection/brute-force/users/{local_account.id}").json()
+    assert (state["disabled"], state["numFailures"]) == (True, 10)
 
 
 def test_an_account_the_realm_does_not_hold_has_no_language_to_set(
