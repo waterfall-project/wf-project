@@ -150,11 +150,15 @@ target = "check-front"
 # Dockerfile and what it leaves out of its context, the configuration of Next, the dependencies.
 # A change of the code of the front alone is built by the front family, not into the image, which
 # holds what that build prerendered (make prerendered-front): the code of the pages decides it, and
-# the build of the image is paid where the image itself changes.
+# the build of the image is paid where the image itself changes. What the server checks as it
+# starts — its hook and the settings it stops without (#825) — is held on the image started.
 paths = [
     "frontend/Dockerfile",
     "frontend/.dockerignore",
     "frontend/next.config.ts",
+    "frontend/src/instrumentation.ts",
+    "frontend/src/startup.ts",
+    "frontend/src/session/settings.ts",
     "frontend/package.json",
     "frontend/pnpm-lock.yaml",
     "frontend/pnpm-workspace.yaml",

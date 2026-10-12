@@ -28,12 +28,14 @@ class Docker:
         self,
         *,
         manifest: str = MANIFEST,
-        statuses: tuple[int | None, int | None] = (200, 500),
-        refused: bool = True,
+        status: int | None = 200,
+        stops: bool = True,
+        says: bool = True,
     ) -> None:
         self.manifest = manifest
-        self.statuses = statuses
-        self.refused = refused
+        self.status = status
+        self.stops = stops
+        self.says = says
         self.started: list[list[str]] = []
         self.removed: list[str] = []
         self.ran: list[list[str]] = []
@@ -41,6 +43,23 @@ class Docker:
     def run(self, command: list[str]) -> int:
         self.ran.append(command)
         return 0
+
+    def environment(self, container: str) -> dict[str, str]:
+        """Return the variables a container was started with."""
+        command = self.started[int(container.removeprefix("container-")) - 1]
+        pairs = [command[i + 1] for i, word in enumerate(command) if word == "-e"]
+        return dict(pair.split("=", 1) for pair in pairs)
+
+    def said(self, container: str) -> str:
+        """Return what the server of a container writes to its logs."""
+        environment = self.environment(container)
+        if not self.says:
+            return "Ready"
+        if environment.get("WATERFALL_AUTH") == "mock":
+            return f"Error: {frontimage.REFUSAL}"
+        if missing := [name for name in frontimage.REQUIRED if name not in environment]:
+            return f"Error: {', '.join(missing)} must be set"
+        return "Ready"
 
     def read(self, command: list[str]) -> tuple[int, str]:
         if "--entrypoint" in command:
@@ -50,19 +69,21 @@ class Docker:
             return 0, f"container-{len(self.started)}\n"
         if command[:2] == ["docker", "port"]:
             return 0, f"{ADDRESS}\n"
+        if command[:2] == ["docker", "inspect"]:
+            return 0, "false 1\n" if self.stops else "true 0\n"
         if command[:2] == ["docker", "logs"]:
-            mocked = "WATERFALL_AUTH=mock" in self.started[-1]
-            return 0, f"Error: {frontimage.REFUSAL}" if mocked and self.refused else "Ready"
+            return 0, self.said(command[-1])
         if command[:3] == ["docker", "rm", "--force"]:
             self.removed.append(command[-1])
         return 0, ""
 
     def fetch(self, host: str, port: int) -> int | None:
         assert f"{host}:{port}" == ADDRESS
-        return self.statuses[len(self.started) - 1]
+        return self.status
 
 
-def test_an_image_that_answers_refuses_the_fake_back_and_prerenders_nothing_passes(
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_an_image_that_starts_with_its_settings_alone_and_refuses_the_fake_back_passes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     docker = Docker()
@@ -70,14 +91,16 @@ def test_an_image_that_answers_refuses_the_fake_back_and_prerenders_nothing_pass
     assert docker.ran == [
         ["docker", "build", "--target", "production", "--tag", frontimage.IMAGE, "frontend"]
     ]
-    assert [command[-2:] for command in docker.started] == [
-        ["127.0.0.1::3000", frontimage.IMAGE],
-        ["WATERFALL_AUTH=mock", frontimage.IMAGE],
+    started = [docker.environment(f"container-{i + 1}") for i in range(len(docker.started))]
+    assert started[0] == frontimage.SETTINGS
+    assert [set(frontimage.SETTINGS) - set(each) for each in started[1:-1]] == [
+        {name} for name in frontimage.REQUIRED
     ]
-    assert not [command for command in docker.started if "WATERFALL_E2E=1" in command]
-    assert docker.removed == ["container-1", "container-2"]
+    assert started[-1] == {**frontimage.SETTINGS, "WATERFALL_AUTH": "mock"}
+    assert docker.removed == [f"container-{i + 1}" for i in range(len(docker.started))]
     output = capsys.readouterr().out
-    assert "/ answers 200" in output
+    assert "/ answers 200 with the settings of the production Compose" in output
+    assert "without WATERFALL_REDIS_URL, the front stops naming it" in output
     assert "WATERFALL_AUTH=mock without WATERFALL_E2E is refused" in output
 
 
@@ -89,9 +112,14 @@ def test_an_image_that_answers_refuses_the_fake_back_and_prerenders_nothing_pass
             "next build prerendered /login",
         ),
         (Docker(manifest="{"), "the prerender manifest does not read"),
-        (Docker(statuses=(500, 500)), "/ answered 500 without a variable of the platform"),
-        (Docker(statuses=(200, 200)), "is not refused: / answered 200"),
-        (Docker(refused=False), "is not refused: / answered 500"),
+        (Docker(status=500), "/ answered 500 with the settings of the production Compose"),
+        (
+            Docker(says=False),
+            (
+                "without WATERFALL_KEYCLOAK_ADDRESS: the front stopped (1) without saying "
+                "WATERFALL_KEYCLOAK_ADDRESS"
+            ),
+        ),
     ],
 )
 def test_an_image_that_does_not_do_what_it_must_fails_naming_it(
@@ -102,8 +130,24 @@ def test_an_image_that_does_not_do_what_it_must_fails_naming_it(
     assert len(docker.removed) == len(docker.started)
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_a_front_that_starts_without_a_secret_fails_the_check_and_its_container_is_removed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    docker = Docker(stops=False)
+    with pytest.raises(frontimage.FrontImageError, match="did not stop within 0 s"):
+        frontimage.stop(docker.read, {}, wait=0)
+    assert docker.removed == ["container-1"]
+    monkeypatch.setattr(frontimage, "WAIT", 0.0)
+    assert frontimage.main([], docker.run, docker.read, docker.fetch) == 1
+    said = "without WATERFALL_KEYCLOAK_ADDRESS: the front did not stop within 0 s"
+    assert said in capsys.readouterr().err
+    assert len(docker.removed) == len(docker.started)
+
+
 def test_a_front_that_never_answers_fails_and_its_container_is_removed() -> None:
-    docker = Docker(statuses=(None, None))
+    docker = Docker(status=None)
     with pytest.raises(frontimage.FrontImageError, match="did not answer"):
         frontimage.answer(docker.read, docker.fetch, {}, wait=0)
     assert docker.removed == ["container-1"]
@@ -190,7 +234,13 @@ def test_the_chain_holds_what_the_build_of_the_measure_prerendered() -> None:
 
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:
     declaration = paths.read()
-    for changed in ("frontend/Dockerfile", "frontend/next.config.ts", "frontend/pnpm-lock.yaml"):
+    for changed in (
+        "frontend/Dockerfile",
+        "frontend/next.config.ts",
+        "frontend/pnpm-lock.yaml",
+        "frontend/src/instrumentation.ts",
+        "frontend/src/startup.ts",
+    ):
         assert "front-image" in {family.name for family in declaration.touched([changed])}
 
 
