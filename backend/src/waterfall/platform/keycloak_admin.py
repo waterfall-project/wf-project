@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The administration API of Keycloak, reached as the service account of the realm (PBS-2.5).
 
-Through it the service reads where an account comes from, creates a local account and removes one
-whose creation Waterfall could not complete, closes the sessions of an account (WF-ADM-0070,
-WF-SEC-0020), and gives it the language its holder chose, that of its mails (WF-INTF-0160). The
+Through it the service reads where an account comes from, creates a local account, changes its
+identity and removes one whose creation Waterfall could not complete, closes the sessions of an
+account (WF-ADM-0070, WF-SEC-0020), and gives it the language its holder chose, that of its mails
+(WF-INTF-0160). The worker has the directories the realm federates synchronised, then reads the
+accounts of the realm by pages (WF-ADM-0070). The
 link that sets the password of a local account is made by the extension of Waterfall, which also
 mails it as the invitation of the account: never by ``execute-actions-email``, whose links would
 escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address and, as the
@@ -22,7 +24,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from http import HTTPStatus
 from typing import Any, Literal, cast
@@ -44,6 +46,11 @@ TOKEN_MARGIN_SECONDS = 30.0
 VALIDATION_FAILED = "VALIDATION_FAILED"
 # The attribute of an account of the realm that holds its language (WF-INTF-0160).
 LOCALE = "locale"
+# The accounts of the realm are read by pages of that many.
+PAGE_SIZE = 100
+# The kind of the components of the realm that federate a directory, and the one that does.
+USER_STORAGE = "org.keycloak.storage.UserStorageProvider"
+DIRECTORY = "ldap"
 # The field of a local identity each attribute of the realm holds, the username being its address.
 IDENTITY_POINTERS = {
     "username": "/email",
@@ -88,6 +95,21 @@ class ProviderAccount:
     is_federated: bool
     # Linked to an external provider the realm relays to: the account has a federated identity.
     is_relayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RealmAccount:
+    """An account of the realm as its list describes it: who, and whether a directory holds it.
+
+    Whether an external provider relays it is not listed: ``read_account`` tells.
+    """
+
+    subject: str
+    last_name: str
+    first_name: str
+    email: str
+    is_federated: bool
+    created_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +255,82 @@ class KeycloakAdmin:
             raise refused_identity(response)
         location = expect(response, HTTPStatus.CREATED).headers["Location"]
         return location.rstrip("/").rsplit("/", 1)[-1]
+
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Give a local account of the realm another name, first name or address (#810).
+
+        ``False`` if another account of the realm holds the address. Refused if the user profile
+        of the realm refuses a field (422). Only these are sent: the realm keeps what a write does
+        not name, the attributes included — a language chosen meanwhile is not written over.
+        """
+        written = self._as_service(
+            "PUT",
+            f"{self._admin}/users/{quote(subject, safe='')}",
+            json={
+                "username": identity.email,
+                "email": identity.email,
+                "firstName": identity.first_name,
+                "lastName": identity.last_name,
+            },
+        )
+        if written.status_code == HTTPStatus.CONFLICT:
+            return False
+        if written.status_code == HTTPStatus.BAD_REQUEST:
+            raise refused_identity(written)
+        expect(written, HTTPStatus.NO_CONTENT)
+        return True
+
+    def synchronize_directories(self) -> None:
+        """Have the realm read again, whole, each directory it federates and has enabled.
+
+        A person the directory no longer holds is then no longer an account of the realm.
+        """
+        listed = self._as_service("GET", f"{self._admin}/components", params={"type": USER_STORAGE})
+        for component in cast("list[Mapping[str, Any]]", expect(listed, HTTPStatus.OK).json()):
+            config = cast("Mapping[str, list[str]]", component.get("config") or {})
+            if component.get("providerId") != DIRECTORY or config.get("enabled") == ["false"]:
+                continue
+            path = f"{self._admin}/user-storage/{quote(str(component['id']), safe='')}/sync"
+            done = self._as_service("POST", path, params={"action": "triggerFullSync"})
+            outcome = _document(expect(done, HTTPStatus.OK))
+            logger.info(
+                "identity_provider.directory_synchronised",
+                added=outcome.get("added"),
+                updated=outcome.get("updated"),
+                failed=outcome.get("failed"),
+            )
+
+    def list_accounts(self) -> list[RealmAccount]:
+        """Read every account of the realm, by pages; the service accounts of its clients aside."""
+        accounts: list[RealmAccount] = []
+        first = 0
+        while True:
+            asked = {"first": first, "max": PAGE_SIZE}
+            listed = self._as_service("GET", f"{self._admin}/users", params=asked)
+            page = cast("list[Mapping[str, Any]]", expect(listed, HTTPStatus.OK).json())
+            accounts.extend(
+                RealmAccount(
+                    subject=_text(user, "id"),
+                    last_name=_text(user, "lastName"),
+                    first_name=_text(user, "firstName"),
+                    email=_text(user, "email"),
+                    is_federated=bool(user.get("federationLink")),
+                    created_at=datetime.fromtimestamp(user["createdTimestamp"] / 1000, UTC),
+                )
+                for user in page
+                if not user.get("serviceAccountClientLink")
+            )
+            if len(page) < PAGE_SIZE:
+                return accounts
+            first += PAGE_SIZE
+
+    def has_password(self, subject: str) -> bool:
+        """Tell whether an account of the realm has ever been given a password."""
+        path = f"{self._admin}/users/{quote(subject, safe='')}/credentials"
+        credentials = cast(
+            "list[Mapping[str, Any]]", expect(self._as_service("GET", path), HTTPStatus.OK).json()
+        )
+        return any(credential.get("type") == "password" for credential in credentials)
 
     def remove_account(self, subject: str) -> None:
         """Remove an account of the realm; one it no longer holds is removed already."""

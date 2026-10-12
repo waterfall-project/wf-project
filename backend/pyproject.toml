@@ -70,6 +70,8 @@ omit = [
     # platform try it, and `make test-keycloak` measures it to the same thresholds
     # (coverage-keycloak.toml); this measure runs no Keycloak.
     "src/waterfall/platform/keycloak_admin.py",
+    # The reading of the accounts, which asks Keycloak at each step: measured with it.
+    "src/waterfall/worker/identity_sync.py",
     # The bootstrap, which creates the administrator in Keycloak: tried and measured likewise.
     "src/waterfall/bootstrap.py",
 ]

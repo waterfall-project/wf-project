@@ -9,7 +9,13 @@ import { createIdentityProvider } from "@/session/provider";
 import { FRONT_CLIENT } from "@/session/settings";
 import { openSession, readSession, takeSignOut } from "@/session/store";
 import { requestBearer, SESSION_COOKIE, SessionLost } from "@/session/tokens";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
@@ -57,14 +63,28 @@ beforeEach(() => {
 // The sign-out done, the browser loads the sign-in.
 const TO_SIGN_IN = { kind: "left", address: "/login" } as const;
 
+// The refusals of a token the contract gives: expired, or of a sign-in before the sessions closed.
+const EXPIRED = example("session_expired") as Problem & { status: 401 };
+const REVOKED = example("session_revoked") as Problem & { status: 401 };
+
 describe("the server action of the session", () => {
   it("closes the sessions of the account, and holds the user signed out when there was none left", async () => {
     const client = serve({ "DELETE /me/sessions": { status: 204 } });
     expect(await signOut()).toEqual(TO_SIGN_IN);
     expect(client.calls.map((call) => call.route)).toEqual(["DELETE /me/sessions"]);
 
-    serve({ "DELETE /me/sessions": { problem: { code: "SESSION_EXPIRED", status: 401 } } });
+    serve({ "DELETE /me/sessions": { problem: EXPIRED } });
     expect(await signOut()).toEqual(TO_SIGN_IN);
+  });
+
+  it("leads to a sign-in that asks for the identifiers again when the API refuses the token as of a sign-in before the sessions closed, the sessions the front keeps of the account forgotten: the session of the realm would sign the user in again to the same refusal (#855) [WF-SEC-0020-A]", async () => {
+    const subject = randomUUID();
+    const [elsewhere, here] = [await workstation(subject), await workstation(subject)];
+    server.jar = cookieJar({ [SESSION_COOKIE]: here });
+    serve({ "DELETE /me/sessions": { problem: REVOKED } });
+    expect(await signOut()).toEqual({ kind: "left", address: "/login?next=%2F&reauthenticate=1" });
+    expect(await readSession(here)).toBeUndefined();
+    expect(await readSession(elsewhere)).toBeUndefined();
   });
 
   it("holds a deactivated account signed out too: its sessions are closed already", async () => {
@@ -104,7 +124,7 @@ describe("the server action of the session", () => {
 
   it.each([
     ["once the API has closed them", { status: 204 }],
-    ["when the API finds none left", { problem: { code: "SESSION_EXPIRED", status: 401 } }],
+    ["when the API finds none left", { problem: EXPIRED }],
   ] as const)(
     "forgets every session the front keeps of the account, %s, and leaves the cookie to the sign-in, lest Next render the page anew without a session (#724) [WF-SEC-0020-A]",
     async (_, answer) => {

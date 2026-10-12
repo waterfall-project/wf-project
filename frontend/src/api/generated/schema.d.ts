@@ -216,7 +216,7 @@ export interface paths {
         post?: never;
         /**
          * Me déconnecter
-         * @description Ferme toutes les sessions du compte, sur tous ses postes, et non la seule du navigateur qui le demande : la déconnexion « sur tous ses postes » de WF-SEC-0020. L'API demande au fournisseur d'identité de fermer les sessions du compte, qui le notifie au front ; les jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). La désactivation d'un compte et le retrait de tous ses rôles suivent le même chemin (`setUserActivation`, `setUserAccessRoles`).
+         * @description Ferme toutes les sessions du compte, sur tous ses postes, et non la seule du navigateur qui le demande : la déconnexion « sur tous ses postes » de WF-SEC-0020. L'API demande au fournisseur d'identité de fermer les sessions du compte, qui le notifie au front ; les jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). L'heure de la fermeture est notée avant l'appel au fournisseur : un jeton d'une connexion qui la précède est refusé par 401 `SESSION_REVOKED`, même si le fournisseur a manqué la fermeture, et la personne se reconnecte en redonnant ses identifiants (#855). La désactivation d'un compte et le retrait de tous ses rôles suivent le même chemin (`setUserActivation`, `setUserAccessRoles`).
          */
         delete: operations["closeMySessions"];
         options?: never;
@@ -307,7 +307,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un compte
-         * @description Un compte se désactive, jamais ne se supprime : ses actes doivent rester attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée : l'anonymisation est irréversible (WF-ADM-0060).
+         * @description Un compte se désactive, jamais ne se supprime : ses actes doivent rester attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions (WF-SEC-0020) — un jeton d'une connexion qui la précède est refusé par 401 `SESSION_REVOKED`, même après la réactivation (#835) — et est refusée s'il est le dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée : l'anonymisation est irréversible (WF-ADM-0060).
          */
         put: operations["setUserActivation"];
         post?: never;
@@ -347,7 +347,7 @@ export interface paths {
         get?: never;
         /**
          * Attribuer les rôles d'habilitation d'un compte
-         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier les comptes (`users.write`), celle de modifier les rôles d'habilitation (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que `users.write` ne se donne pas le rôle administrateur.
+         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020) : un jeton d'une connexion qui le précède est refusé par 401 `SESSION_REVOKED`, même après qu'un rôle lui est rendu, et la personne se reconnecte (#855). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier les comptes (`users.write`), celle de modifier les rôles d'habilitation (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que `users.write` ne se donne pas le rôle administrateur.
          */
         put: operations["setUserAccessRoles"];
         post?: never;
@@ -408,7 +408,7 @@ export interface paths {
         put?: never;
         /**
          * Lire les comptes du fournisseur d'identité
-         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090).
+         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`). Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
          */
         post: operations["startIdentitySync"];
         delete?: never;
@@ -426,7 +426,7 @@ export interface paths {
         };
         /**
          * Compte rendu de la dernière lecture des comptes
-         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité, et ceux qu'elle a laissés tels quels avec leur motif (WF-ADM-0070).
+         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels quels avec leur motif, et les comptes locaux qu'elle retire du fournisseur — retirés, ou à retirer : le retrait suit la validation de la lecture, un retrait qui échoue est journalisé et la lecture suivante nomme de nouveau l'adresse (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
          */
         get: operations["getLatestIdentitySync"];
         put?: never;
@@ -2653,7 +2653,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2787,7 +2787,7 @@ export interface components {
             finished_at?: components["schemas"]["Timestamp"] | null;
             /** @description Motif de l'échec, absent tant que la tâche n'a pas échoué. */
             problem?: components["schemas"]["Problem"] | null;
-            /** @description Où lire le résultat, lorsque la tâche en produit un. */
+            /** @description Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la tâche : une lecture achevée depuis l'a remplacé. */
             result_url?: string | null;
         };
         PaginationMeta: {
@@ -2954,16 +2954,25 @@ export interface components {
             /** @description Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140). */
             expires_at: components["schemas"]["Timestamp"];
         };
-        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
+        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
         IdentitySyncReport: {
+            /** @description La tâche de la lecture (`BackgroundTaskRef.task_id`). */
+            task_id: components["schemas"]["Uuid"];
+            /** @description Fin de la lecture. */
+            finished_at: components["schemas"]["Timestamp"];
+            /** @description Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas. */
             created: number;
+            /** @description Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de l'annuaire a rattachés par leur adresse (#707). */
             updated: number;
+            /** @description Comptes désactivés parce que le fournisseur ne les connaît plus. */
             deactivated: number;
-            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120). */
+            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
             skipped: {
                 email: string;
                 code: components["schemas"]["ErrorCode"];
             }[];
+            /** @description Les adresses des comptes locaux que la lecture retire du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse. */
+            removed: string[];
         };
         Permission: {
             code: components["schemas"]["PermissionCode"];
@@ -4897,7 +4906,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`, WF-SEC-0020) ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait. */
+        /** @description Jeton absent ou invalide (`SESSION_REQUIRED`), ou expiré (`SESSION_EXPIRED`), WF-SEC-0020 ; jeton d'une connexion qui précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde — déconnexion, désactivation, retrait de tous ses rôles —, rafraîchi ou non (`SESSION_REVOKED`, WF-SEC-0020) : la connexion qui suit redemande les identifiants, la session du fournisseur d'identité pouvant vivre encore si sa fermeture a échoué, alors qu'une simple expiration ne les redemande pas (#855) ; un jeton à la fois expiré et antérieur à la fermeture reçoit d'abord `SESSION_EXPIRED`, l'expiration primant, et le rafraîchissement qui suit mène à `SESSION_REVOKED` ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;

@@ -210,9 +210,12 @@ ErrorCode:
     - CONFIRMATION_REQUIRED
     # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé (WF-ADM-0060), ou que
     # Waterfall n'admet pas, que le front distingue de l'absence de jeton pour ne pas renvoyer à
-    # une connexion qui bouclerait.
+    # une connexion qui bouclerait. Un jeton expiré est `SESSION_EXPIRED` ; un jeton d'une
+    # connexion antérieure à la dernière fermeture des sessions du compte, `SESSION_REVOKED`, sur
+    # lequel seul le front redemande les identifiants (#855).
     - SESSION_REQUIRED
     - SESSION_EXPIRED
+    - SESSION_REVOKED
     - ACCOUNT_DEACTIVATED
     - ACCOUNT_NOT_ADMITTED
     # 403 — permission présente, condition manquante : `params.missing_permission`
@@ -410,4 +413,7 @@ BackgroundTaskRef:
       anyOf:
         - type: string
         - type: 'null'
-      description: Où lire le résultat, lorsque la tâche en produit un.
+      description: >-
+        Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
+        (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
+        tâche : une lecture achevée depuis l'a remplacé.

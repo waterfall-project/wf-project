@@ -8,7 +8,7 @@
  * attacker's own, opens no session there. The state is then taken once from Redis — unknown,
  * already used or older than fifteen minutes, the sign-in starts again —, the code is exchanged
  * with its PKCE verifier, the ID token checked against its nonce, and the session of the front
- * opened: its tokens in Redis, its opaque identifier alone in the cookie `wf_session` —
+ * opened: its tokens in Redis, its opaque identifier alone in the cookie `__Host-wf_session` —
  * `HttpOnly`, `Secure`, `SameSite=Lax` —, so that the browser holds no token (WF-ARC-0030). The
  * browser goes on to the screen the request aimed at, its address whole, query included.
  *
@@ -34,7 +34,7 @@ import { randomBytes } from "node:crypto";
 import { reach } from "@/api/problem";
 import { isMockAuthentication, tokenClient } from "@/api/server";
 import { HOME } from "@/navigation/home";
-import { LOGIN_ROUTE, signInUnavailableHref } from "@/navigation/login";
+import { asksIdentifiers, LOGIN_ROUTE, loginHref, signInUnavailableHref } from "@/navigation/login";
 import { identityProvider, RealmUnreachable, type SignedIn } from "@/session/provider";
 import {
   forgetAccount,
@@ -59,13 +59,24 @@ function redirect(location: string, ...cookies: string[]): Response {
   return new Response(null, { status: 303, headers });
 }
 
+/** Whether the API refused a token as of a sign-in that precedes the closing of the sessions. */
+function isRevoked(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && "code" in error && asksIdentifiers(error.code)
+  );
+}
+
 /**
  * Close the sessions of the account a silent sign-in found, on all its workstations, and lead to
- * the sign-in — or, the API not closing them, end at least the session of this browser at the realm.
+ * the sign-in — asking for the identifiers again when its token was of a session closed already —,
+ * or, the API not closing them, end at least the session of this browser at the realm.
  */
 async function closeEverywhere(signedIn: SignedIn, spent: string): Promise<Response> {
   const answer = await reach(() => tokenClient(signedIn.accessToken).DELETE("/me/sessions"));
   await forgetAccount(signedIn.subject);
+  if (answer?.response.status === 401 && isRevoked(answer.error)) {
+    return redirect(loginHref(HOME, true), spent);
+  }
   if (answer?.response.ok !== true) {
     console.error("The sign-out of a lost session did not close it", answer?.response.status);
     return redirect(identityProvider().signOutAddress().href, spent);
@@ -119,7 +130,10 @@ export async function GET(request: Request): Promise<Response> {
       throw error;
     }
     console.error("A sign-in could not be made", error);
-    // The cookie forgotten too: the layout of the page would read Redis for it, out of reach.
+    // The cookie forgotten too: the layout of the page would read Redis for it, out of reach. Not
+    // asked again: a return that followed `prompt=login` comes after the realm signed her in anew,
+    // which renewed `auth_time`; any other return loses nothing, a token of a session closed since
+    // being refused `SESSION_REVOKED`, whose sign-in asks for the identifiers (#855).
     return redirect(
       signInUnavailableHref(target),
       forgottenSessionCookie(),

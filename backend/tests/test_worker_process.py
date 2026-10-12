@@ -114,7 +114,7 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     # The criterion of US-0370 of its own: « la lecture se dépose en file à l'intervalle que fixe
     # la configuration de l'installation, et le worker la prend comme celle qu'un administrateur
     # demande (PBS-5.3) » — a day by default. The reading itself, and the accounts it gives
-    # (WF-ADM-0070-A), come with US-0370/L2.
+    # (WF-ADM-0070-A), are tried against the platform (test_keycloak_identity_sync.py).
     variable = "WATERFALL_IDENTITY_SYNC_INTERVAL"
     scheduled_with, shell = scheduler()
     assert scheduled_with[variable] == f"${{{variable}:-86400}}"

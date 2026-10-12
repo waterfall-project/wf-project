@@ -1011,6 +1011,10 @@
       "title": "Session requise",
       "explanation": "L’écran demande une session ouverte : connectez-vous, vous y reviendrez ensuite."
     },
+    "revoked": {
+      "title": "Session fermée",
+      "explanation": "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles : connectez-vous en saisissant à nouveau vos identifiants, vous reviendrez ensuite à l’écran."
+    },
     "deactivated": {
       "title": "Compte désactivé",
       "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
@@ -1426,6 +1430,7 @@
     "CONFIRMATION_REQUIRED": "Cette opération demande une confirmation explicite.",
     "SESSION_REQUIRED": "Vous devez vous connecter.",
     "SESSION_EXPIRED": "Votre session a expiré ; reconnectez-vous.",
+    "SESSION_REVOKED": "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles ; reconnectez-vous en saisissant à nouveau vos identifiants.",
     "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
     "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
     "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",

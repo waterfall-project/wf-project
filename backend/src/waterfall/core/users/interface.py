@@ -4,7 +4,9 @@
 
 The label of an account; the author of a row, named as it is shown; which accounts are active;
 the account the identity provider knows by a subject, as the account itself reads it; the account
-of a person the provider knows and Waterfall not yet, created without any role (WF-ADM-0180); an
+of a person the provider knows and Waterfall not yet, created without any role or attached by her
+address (WF-ADM-0180, #707), and the reading of the accounts of the provider and its report
+(``provider``, WF-ADM-0070); an
 account read, and the table of the accounts, filtered, sorted and read by pages, with the commands
 each one carries and the condition the deactivation of the last administrator lacks (WF-ADM-0050,
 WF-IHM-0090); a local account created, and the identity of an account changed (``identity``); an
@@ -20,7 +22,6 @@ what names it is ``None``, which the front shows as the neutral label of its cat
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -29,9 +30,7 @@ from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
     NOT_FOUND,
-    NewAccount,
     Stamp,
-    add_account_if_absent,
     address_holder,
     address_taken,
     change_columns,
@@ -55,9 +54,9 @@ from waterfall.core.users.identity import (
     create_local,
     display_name,
     identity_faults,
-    inscribe,
     inscribed_actor,
     is_address,
+    planned_change,
     refuse,
 )
 from waterfall.core.users.listing import (
@@ -77,6 +76,20 @@ from waterfall.core.users.personal import (
     read_avatar,
     withdraw_avatar,
 )
+from waterfall.core.users.provider import (
+    NAME_MAX_LENGTH,
+    HeldAccount,
+    NotAdmitted,
+    SyncReport,
+    admit,
+    deactivate_unheld,
+    follow,
+    known_subjects,
+    latest_report,
+    origin_of,
+    record_report,
+    unheld_accounts,
+)
 from waterfall.core.users.states import anonymize, check_anonymization, set_state
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
@@ -85,6 +98,7 @@ from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
     "LAST_ADMINISTRATOR_CONDITION",
+    "NAME_MAX_LENGTH",
     "Account",
     "AccountColumn",
     "AccountExpression",
@@ -96,10 +110,12 @@ __all__ = [
     "Author",
     "Avatar",
     "CommandAvailability",
+    "HeldAccount",
     "Identity",
     "IdentityChange",
     "NotAdmitted",
     "Page",
+    "SyncReport",
     "account_commands",
     "active_accounts",
     "add_account_of_provider",
@@ -109,13 +125,18 @@ __all__ = [
     "change_account",
     "change_preferences",
     "check_account_anonymization",
+    "check_account_change",
     "create_local_account",
+    "deactivate_unheld",
     "display_name",
+    "follow",
     "identity_faults",
     "image_type",
     "inscribe_password_link",
     "inscribed_actor",
     "is_address",
+    "known_subjects",
+    "latest_report",
     "list_accounts",
     "lock_account_for_change",
     "note_account_change",
@@ -131,26 +152,12 @@ __all__ = [
     "read_authors",
     "read_avatar",
     "read_installation_administrator",
+    "record_report",
     "refuse",
     "set_account_activation",
+    "unheld_accounts",
     "withdraw_avatar",
 ]
-
-NAME_MAX_LENGTH = 100
-
-
-class NotAdmitted(StrEnum):
-    """Why a person the provider knows is not given an account at her first request."""
-
-    # The realm holds no account for the subject of the token, or no longer.
-    UNKNOWN_TO_PROVIDER = "unknown_to_provider"
-    # A local account of the provider, which only Waterfall creates (WF-ADM-0070).
-    LOCAL_ACCOUNT = "local_account"
-    NO_ADDRESS = "no_address"
-    # A name or a first name empty, or longer than a column holds.
-    NAME_NOT_STORABLE = "name_not_storable"
-    # The address is held by another account (WF-ADM-0050).
-    ADDRESS_TAKEN = "address_taken"
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,57 +267,19 @@ def read_account_of_subject(session: Session, subject: str) -> Account | None:
     return None if account is None else _account(session, account)
 
 
-def origin_of(provider: ProviderAccount) -> str | None:
-    """Say where an account of the provider comes from, if Waterfall admits it on its own.
-
-    A person of the directory before the first reading of the accounts, and a person relayed by
-    an external provider, are admitted at their first request (WF-ADM-0180, WF-ADM-0070). A
-    local account of the provider is not: a local account is created from Waterfall, which
-    creates it in the provider (WF-ADM-0070).
-    """
-    if provider.is_federated:
-        return "directory"
-    if provider.is_relayed:
-        return "identity_provider"
-    return None
-
-
-def _storable(name: str) -> bool:
-    return 1 <= len(name) <= NAME_MAX_LENGTH
-
-
 def add_account_of_provider(
     session: Session, provider: ProviderAccount, at: datetime
 ) -> Account | NotAdmitted:
-    """Create, without any role, the account of a person the provider knows and Waterfall not yet.
+    """Give the account of a person the provider holds and Waterfall not yet (``provider``).
 
-    It takes the name, the first name and the address the provider transmits, the platform as
-    its author (WF-ADM-0180), and inscribes the creation in the journal of audit, under the
-    correlation of the request (#703). When the provider does not admit the person
-    (``origin_of``), when she lacks a name or an address, or when her address is held by another
-    account, it creates nothing and says why.
+    Created without any role, or attached by her address if she comes from the directory, the
+    platform its author, and inscribed in the journal of audit (#703, #707). When the provider does
+    not admit the person (``origin_of``), when she lacks a name or an address, or when her address
+    is held by another account and she comes from an external provider, nothing is written, and
+    why is said.
     """
-    origin = origin_of(provider)
-    if origin is None:
-        return NotAdmitted.LOCAL_ACCOUNT
-    if not provider.email:
-        return NotAdmitted.NO_ADDRESS
-    if not (_storable(provider.last_name) and _storable(provider.first_name)):
-        return NotAdmitted.NAME_NOT_STORABLE
-    new = NewAccount(
-        last_name=provider.last_name,
-        first_name=provider.first_name,
-        email=provider.email,
-        idp_subject=provider.subject,
-        origin=origin,
-    )
-    account, inserted = add_account_if_absent(session, new, Stamp(None, at))
-    if account is None:
-        return NotAdmitted.ADDRESS_TAKEN
-    # A concurrent first request of the same person created it: that one inscribed it.
-    if inserted:
-        inscribe(session, "user_create", account, Act(None, at), {"origin": origin})
-    return _account(session, account)
+    admitted = admit(session, provider, at)
+    return admitted if isinstance(admitted, NotAdmitted) else _account(session, admitted[0])
 
 
 def create_local_account(session: Session, identity: Identity, subject: str, act: Act) -> Account:
@@ -326,6 +295,22 @@ def change_account(
 ) -> Account:
     """Change the identity of an account whose version is the one read (``identity``)."""
     return _account(session, change(session, user_id, sent, lock_version, act))
+
+
+def check_account_change(
+    session: Session, user_id: UUID, sent: IdentityChange, lock_version: int
+) -> tuple[Account, Mapping[str, str]]:
+    """Give an account and what a change would write of its identity, before the provider is told.
+
+    Refused as the change would be (``change_account``), another account holding the new address
+    included (409): the caller carries a local account's to the provider out of any transaction,
+    then changes it (#669, #810).
+    """
+    account, changed = planned_change(session, user_id, sent, lock_version)
+    holder = address_holder(session, changed["email"]) if "email" in changed else None
+    if holder not in {None, user_id}:
+        raise address_taken(holder)
+    return _account(session, account), changed
 
 
 def set_account_activation(

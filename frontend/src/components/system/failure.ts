@@ -8,8 +8,8 @@
  * than its `digest` — its message and its class stay on the server. An error that sets its
  * own `digest` keeps it: the API out of reach carries `UNREACHABLE_DIGEST`, a request the front
  * held no session for `SESSION_LOST_DIGEST`, a refusal of the API for want of a session
- * `SESSION_REQUIRED_DIGEST`, one for a deactivated account
- * `ACCOUNT_DEACTIVATED_DIGEST`, one for an account Waterfall does not admit
+ * `SESSION_REQUIRED_DIGEST`, one for a session closed `SESSION_REVOKED_DIGEST`, one for a
+ * deactivated account `ACCOUNT_DEACTIVATED_DIGEST`, one for an account Waterfall does not admit
  * `ACCOUNT_NOT_ADMITTED_DIGEST`, which the boundary tells apart; an unexpected
  * answer of the API carries the correlation identifier of the request (WF-OBS-0020), which
  * the API wrote in its logs, behind `CORRELATION_PREFIX`; any other error — an answer without
@@ -40,6 +40,13 @@ export const SESSION_LOST_DIGEST = "WATERFALL_SESSION_LOST";
  */
 export const SESSION_REQUIRED_DIGEST = "WATERFALL_SESSION_REQUIRED";
 
+/**
+ * The digest of an error that says the API refused the read, the token being of a sign-in that
+ * precedes the closing of the sessions of the account (401 `SESSION_REVOKED`, #855): the screen of
+ * failure offers a sign-in that asks for the identifiers again, by a link — as for want of a session.
+ */
+export const SESSION_REVOKED_DIGEST = "WATERFALL_SESSION_REVOKED";
+
 /** The digest of an error that says the API refused the read, the account being deactivated. */
 export const ACCOUNT_DEACTIVATED_DIGEST = "WATERFALL_ACCOUNT_DEACTIVATED";
 
@@ -63,12 +70,14 @@ export type BoundaryError = Error & { readonly digest?: string | undefined };
 /**
  * What the screen of failure says: the API out of reach, no session — the front held none, and
  * the screen leads to the sign-in page at once, or the API refused the one it held, and the screen
- * offers the way to sign in —, the account deactivated or not admitted, or a defect, with its
+ * offers the way to sign in —, the session closed — the screen offers a sign-in that asks for
+ * the identifiers again —, the account deactivated or not admitted, or a defect, with its
  * reference when the error carries one.
  */
 export type Failure =
   | {
-      readonly kind: "unreachable" | "session_lost" | "signed_out" | "deactivated" | "not_admitted";
+      readonly kind:
+        "unreachable" | "session_lost" | "signed_out" | "revoked" | "deactivated" | "not_admitted";
     }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
@@ -93,6 +102,9 @@ export function failureOf(error: BoundaryError): Failure {
   }
   if (error.digest === SESSION_REQUIRED_DIGEST) {
     return { kind: "signed_out" };
+  }
+  if (error.digest === SESSION_REVOKED_DIGEST) {
+    return { kind: "revoked" };
   }
   if (error.digest === ACCOUNT_DEACTIVATED_DIGEST) {
     return { kind: "deactivated" };

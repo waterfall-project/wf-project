@@ -12,6 +12,7 @@ import {
   SESSION_REQUIRED_DIGEST,
 } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { example, type Problem } from "@/test/fixtures";
 
 import { OutcomeNotice } from "./outcome-notice";
 import { rejected } from "./rejection";
@@ -88,6 +89,26 @@ describe("the notice of an outcome", () => {
     expect(router.push).not.toHaveBeenCalled();
     expect(router.prefetch).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["session_revoked", "/login?next=%2Faccount&reauthenticate=1", "Votre session a été fermée"],
+    ["session_expired", "/login?next=%2Faccount", "Votre session a expiré"],
+  ] as const)(
+    "says an action refused as %s, and leads to a sign-in that asks for the identifiers again for a session closed only (#855) [WF-SEC-0020-A]",
+    (name, href, sentence) => {
+      const problem = example(name) as Problem;
+      render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+          <OutcomeNotice
+            outcome={{ kind: "signed_out", problem, conflictingObjectId: null }}
+            onClear={vi.fn()}
+          />
+        </NextIntlClientProvider>,
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(sentence);
+      expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute("href", href);
+    },
+  );
 
   it("says an account deactivated or not admitted without leading to the sign-in page, which would loop", () => {
     const lost = Object.assign(new Error("Server Components render"), {

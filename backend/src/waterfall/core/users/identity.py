@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The identity of an account — its name, first name and address —, as Waterfall writes it.
 
-A local account is Waterfall's: it is created in the identity provider, then here, and its
-identity changes here alone — the provider does not follow yet (#810). That of an account of the
+A local account is Waterfall's: it is created in the identity provider, then here, and a change of
+its identity is carried to the provider before it is written here (#810). That of an account of the
 directory or of an external provider is the provider's: a value that differs from the one held is
 refused, the field sent unchanged is not (WF-ADM-0050, WF-ADM-0070). An address is received as
 written, case included, and compared without regard to it: one ``@``, a local part and a domain
@@ -180,16 +180,15 @@ def create_local(session: Session, identity: Identity, subject: str, act: Act) -
     return account
 
 
-def change(
-    session: Session, user_id: UUID, sent: IdentityChange, lock_version: int, act: Act
-) -> UserAccount:
-    """Change the identity of an account whose version is the one read, and inscribe it.
+def planned_change(
+    session: Session, user_id: UUID, sent: IdentityChange, lock_version: int
+) -> tuple[UserAccount, dict[str, str]]:
+    """Lock an account and give what a change would write of its identity, or refuse it.
 
     The account is locked, then read under the lock: refused if unknown (404), if its version is
     not the one read (412), if the account is anonymised and a name or the address is sent — the
-    anonymisation is irreversible (409, WF-ADM-0060) —, if a field is in fault — the identity of an
-    account the provider holds changed included (422) —, or if another account holds the new
-    address (409). A change that changes nothing writes nothing.
+    anonymisation is irreversible (409, WF-ADM-0060) —, or if a field is in fault — the identity of
+    an account the provider holds changed included (422).
     """
     account = lock_account_at(session, user_id, lock_version)
     changed = {
@@ -206,6 +205,18 @@ def change(
     if account.origin != LOCAL:
         faults.extend(FieldError(f"/{name}", FIELD_READ_ONLY) for name in changed)
     refuse(tuple(faults))
+    return account, changed
+
+
+def change(
+    session: Session, user_id: UUID, sent: IdentityChange, lock_version: int, act: Act
+) -> UserAccount:
+    """Change the identity of an account whose version is the one read, and inscribe it.
+
+    Refused as ``planned_change`` refuses, or if another account holds the new address (409). A
+    change that changes nothing writes nothing.
+    """
+    account, changed = planned_change(session, user_id, sent, lock_version)
     if not changed:
         return account
     # Only a new address may be held by another account.

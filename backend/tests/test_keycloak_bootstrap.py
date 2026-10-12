@@ -14,7 +14,6 @@ the browser, from the link to the screens, is the front's (``frontend/e2e/servic
 import html
 import io
 import json
-import logging
 import os
 import subprocess
 import sys
@@ -25,11 +24,10 @@ from uuid import uuid4
 
 import httpx2
 import pytest
-import structlog
 from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import Engine, func, insert, select, text, update
-from support import CONTRACT, ContractClient, Logs
+from support import CONTRACT, ContractClient, Logs, captured_logs
 from test_keycloak_authentication import (
     ME,
     bearer,
@@ -62,7 +60,6 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.logs import configure_logging
 from waterfall.platform.settings import InstallationSettings
 
 pytestmark = pytest.mark.keycloak
@@ -131,14 +128,8 @@ def logs() -> Iterator[Logs]:
     The fixture of ``conftest.py`` would give the process the secrets of a platform of test,
     which the Keycloak of the platform refuses.
     """
-    root = logging.getLogger()
-    handlers, level = list(root.handlers), root.level
-    stream = io.StringIO()
-    configure_logging("DEBUG", stream)
-    yield Logs(stream)
-    root.handlers[:] = handlers
-    root.setLevel(level)
-    structlog.reset_defaults()
+    with captured_logs() as logs:
+        yield logs
 
 
 def realm_language() -> str | None:

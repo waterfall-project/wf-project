@@ -10,6 +10,7 @@ import {
   ACCOUNT_NOT_ADMITTED_DIGEST,
   failureOf,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
 
@@ -311,6 +312,19 @@ describe("a read a screen cannot do without", () => {
       digest: SESSION_REQUIRED_DIGEST,
     });
   });
+
+  it.each([
+    ["session_revoked", SESSION_REVOKED_DIGEST],
+    ["session_expired", SESSION_REQUIRED_DIGEST],
+  ] as const)(
+    "throws a token refused as %s for want of a session, which asks for the identifiers again for a session closed only (#855)",
+    async (name, digest) => {
+      const problem = example(name) as Problem & { status: 401 };
+      const read = readiness(fakeClient({ "GET /reference/readiness": { problem } }));
+      await expect(read).rejects.toBeInstanceOf(SignedOut);
+      await expect(read).rejects.toMatchObject({ operation: "getReferenceReadiness", digest });
+    },
+  );
 
   it.each([
     ["ACCOUNT_DEACTIVATED", ACCOUNT_DEACTIVATED_DIGEST],

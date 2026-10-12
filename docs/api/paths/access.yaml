@@ -241,8 +241,9 @@
     description: >-
       Un compte se désactive, jamais ne se supprime : ses actes doivent rester
       attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
-      (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
-      d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
+      (WF-SEC-0020) — un jeton d'une connexion qui la précède est refusé par 401
+      `SESSION_REVOKED`, même après la réactivation (#835) — et est refusée s'il est le
+      dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
       l'anonymisation est irréversible (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
@@ -348,7 +349,9 @@
     description: >-
       Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs
       permissions ; la modification s'applique immédiatement, sans reconnexion
-      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le
+      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020) : un jeton
+      d'une connexion qui le précède est refusé par 401 `SESSION_REVOKED`, même après qu'un rôle
+      lui est rendu, et la personne se reconnecte (#855). Le
       retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
       compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
       donner davantage reste possible, et la commande `set_access_roles` de ce compte reste
@@ -482,13 +485,20 @@
       créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070).
       Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur
       une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au
-      worker (WF-ARC-0090).
+      worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire
+      qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est
+      rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes
+      locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe
+      en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`).
+      Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
     responses:
       '202':
         description: Synchronisation mise en file.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/identity_sync_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -500,14 +510,20 @@
     summary: Compte rendu de la dernière lecture des comptes
     description: >-
       Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du
-      fournisseur d'identité, et ceux qu'elle a laissés tels quels avec leur motif
-      (WF-ADM-0070).
+      fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels
+      quels avec leur motif, et les comptes locaux qu'elle retire du fournisseur — retirés, ou
+      à retirer : le retrait suit la validation de la lecture, un retrait qui échoue est
+      journalisé et la lecture suivante nomme de nouveau l'adresse (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant
+      qu'aucune lecture n'a abouti.
     responses:
       '200':
         description: Compte rendu de la dernière lecture (WF-ADM-0070, WF-ADM-0130).
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/IdentitySyncReport }
+            examples:
+              witness: { $ref: ../../../fixtures/api/identity_sync_report.json }
+              flagged: { $ref: ../../../fixtures/api/identity_sync_report_flagged.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

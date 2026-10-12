@@ -12,7 +12,8 @@
 
 import { decodeOrLost, type Settled, settled } from "@/api/problem";
 import { isMockAuthentication, serverClient } from "@/api/server";
-import { LOGIN_ROUTE, signOutHref } from "@/navigation/login";
+import { HOME } from "@/navigation/home";
+import { asksIdentifiers, LOGIN_ROUTE, loginHref, signOutHref } from "@/navigation/login";
 import { identityProvider } from "@/session/provider";
 import { StoreUnreachable } from "@/session/store";
 import { armRequestSignOut, closeRequestSessions } from "@/session/tokens";
@@ -44,7 +45,10 @@ async function armedSignOut(): Promise<Settled | SignedOff> {
  * close them, and the front forgets those it keeps, without waiting for the back channel; the
  * browser then loads the sign-in, which forgets the cookie (#724). Without one (401), or the
  * account deactivated (401 `ACCOUNT_DEACTIVATED`), whose sessions are closed already, there is none
- * to close: the user is signed out all the same. An account Waterfall does not admit (401
+ * to close: the user is signed out all the same. A token of a sign-in that precedes the closing
+ * of the sessions (401 `SESSION_REVOKED`) leads to a sign-in that asks for the identifiers again:
+ * the session of the realm, whose closing was missed, would sign the user in again without them,
+ * to the same refusal (#855). An account Waterfall does not admit (401
  * `ACCOUNT_NOT_ADMITTED`) holds a session of the realm the API does not close: the browser ends it
  * at the realm. The API out of reach, nothing is closed, and the screen says so.
  *
@@ -76,9 +80,9 @@ export async function signOut(): Promise<Settled | SignedOff> {
     return { kind: "left", address: LOGIN_ROUTE };
   }
   await closeRequestSessions();
-  return {
-    kind: "left",
-    address:
-      refused === "ACCOUNT_NOT_ADMITTED" ? identityProvider().signOutAddress().href : LOGIN_ROUTE,
-  };
+  if (refused === "ACCOUNT_NOT_ADMITTED") {
+    return { kind: "left", address: identityProvider().signOutAddress().href };
+  }
+  const revoked = outcome.kind === "signed_out" && asksIdentifiers(outcome.problem.code);
+  return { kind: "left", address: revoked ? loginHref(HOME, true) : LOGIN_ROUTE };
 }

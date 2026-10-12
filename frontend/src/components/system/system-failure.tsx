@@ -6,7 +6,8 @@
  * leads to the sign-in page at once, without a click, a whole document loaded — the sign-in opens
  * a session that lives, and cannot loop —; a read the API refused for want of a session offers
  * the link to it, and goes nowhere by itself: the token the front held was refused, and another
- * could be too. Either way the sign-in comes back to the screen (`loginHref`, from the address
+ * could be too; the session closed (`SESSION_REVOKED`), that link asks for the identifiers again
+ * (#855). Either way the sign-in comes back to the screen (`loginHref`, from the address
  * the browser shows). Any other error is unexpected, with the reference that finds it again in
  * the logs when it carries one. An account Waterfall does not admit is offered the way out: the
  * realm signs it in again at each sign-in, and the shell offers it no menu of the account (#664).
@@ -33,6 +34,7 @@ const TEXTS = {
   unreachable: "unreachable",
   session_lost: "signedOut",
   signed_out: "signedOut",
+  revoked: "revoked",
   deactivated: "deactivated",
   not_admitted: "notAdmitted",
   unexpected: "unexpected",
@@ -88,6 +90,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
         )}
         {failure.kind === "session_lost" ? <LeadToSignIn /> : null}
         {failure.kind === "signed_out" ? <SignIn /> : null}
+        {failure.kind === "revoked" ? <SignIn reauthenticate /> : null}
         {failure.kind === "not_admitted" ? <RealmSignOut /> : null}
       </div>
       <Button type="button" size="sm" onClick={retry}>

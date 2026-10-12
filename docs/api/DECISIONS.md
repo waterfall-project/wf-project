@@ -3809,6 +3809,44 @@ bases entières, comptes et réglages du fournisseur d'identité compris, et son
 pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
 plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
 
+## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
+
+`IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
+`finished_at`) : la plateforme en planifie une chaque jour, et l'écran des comptes montre la
+dernière qui a abouti, demandée ou non. Il nomme aussi, dans `removed`, les adresses des comptes
+locaux que la lecture retire du fournisseur d'identité — inconnus de Waterfall, sans mot de
+passe, laissés par une création interrompue —, décision de l'auteur du 2026-10-11 (#811). Le
+compte rendu s'inscrit dans la transaction de la lecture, et le retrait ne suit que sa
+validation : une adresse de `removed` est celle d'un compte retiré, ou à retirer. Un retrait qui
+échoue est journalisé, et la lecture suivante, qui retrouve le compte, nomme de nouveau son
+adresse. Un
+rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
+les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
+adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXISTS` et
+`VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un compte laissé tel quel.
+`startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
+`getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
+compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
+
+## La session révoquée (EP-03/US-0350/L5c, #855)
+
+Décision de l'auteur du 2026-10-11 (#855). Un jeton dont la connexion (`auth_time`, à défaut
+`iat`) précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde, est refusé
+par 401 `SESSION_REVOKED`, et non plus `SESSION_EXPIRED`, que garde la seule expiration du jeton.
+La fermeture que le fournisseur d'identité a manquée — une panne pendant la déconnexion ou la
+désactivation — laisse vivre sa session : une connexion ordinaire en rendrait un jeton de la même
+connexion, de nouveau refusé, jusqu'à la fin de cette session, deux heures plus tard au moins. Sur
+ce code seulement, le front mène à une connexion qui force l'authentification (`prompt=login`),
+et le fournisseur renouvelle `auth_time` ; une expiration ne redemande pas d'identifiants. Le
+retrait de tous les rôles d'un compte note aussi l'heure de la fermeture (`setUserAccessRoles`),
+comme la déconnexion et la désactivation : une fermeture manquée n'y survit pas à un rôle rendu.
+Un jeton à la fois expiré et antérieur à la fermeture reçoit `SESSION_EXPIRED` : l'expiration
+prime, constatée par la validation du jeton avant que le compte soit lu ; le front rafraîchit
+alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED`.
+Écartés : redemander les identifiants à toute expiration, que rien ne justifie après cinq
+minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
+qui ne sort de l'impasse que la personne qui sait se déconnecter.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

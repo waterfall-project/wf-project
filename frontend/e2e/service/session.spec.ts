@@ -15,20 +15,28 @@ import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { compileAnswered } from "../compile";
 import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
-import { accountButton, closeInTheRealm, DIRECTORY, expectSignInPage, signIn } from "./realm";
+import {
+  accountButton,
+  closeInTheRealm,
+  closeSessionsMissedByTheRealm,
+  DIRECTORY,
+  expectSignInPage,
+  reauthenticate,
+  signIn,
+} from "./realm";
 
 heldToTheContract();
 
 // The routes a sign-in, a sign-out and a closing in the realm reach by a redirect or by Keycloak,
 // compiled before the paths wait for them: the return of a sign-in, the screen of the account under
-// the shell, the back channel.
+// the shell, the home page a sign-out signs in again to, the back channel.
 test.beforeEach(async ({ request }) => {
-  await compileAnswered(request, "/auth/callback", ACCOUNT, "/auth/backchannel-logout");
+  await compileAnswered(request, "/auth/callback", ACCOUNT, "/", "/auth/backchannel-logout");
 });
 
 const ACCOUNT = "/account";
 // The cookie of the session of the front, its opaque identifier alone (`src/session/tokens.ts`).
-const SESSION_COOKIE = "wf_session";
+const SESSION_COOKIE = "__Host-wf_session";
 // A token of the realm, whatever its kind: three parts in base64url, the first two JSON objects.
 const TOKEN = /eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/;
 
@@ -169,4 +177,53 @@ test("a user whose session the front lost signs out of every workstation all the
   await expectSignInPage(here);
   await expectClosed(elsewhere);
   await close();
+});
+
+/**
+ * Wait until a sign-in made now falls in a later second than a closing of the sessions: the API
+ * refuses a sign-in of the very second of the closing (`auth_time`, in seconds, #855).
+ */
+async function pastTheSecondOf(closed: number): Promise<void> {
+  const next = (Math.floor(closed / 1000) + 1) * 1000;
+  await expect.poll(() => Date.now()).toBeGreaterThanOrEqual(next);
+}
+
+test("a user whose sessions were closed while the realm missed it signs in again by giving her identifiers anew, never to the same refusal (#855) [WF-SEC-0020-A]", async ({
+  page,
+}) => {
+  await signIn(page, DIRECTORY, ACCOUNT);
+  const closed = closeSessionsMissedByTheRealm(DIRECTORY.email);
+  await page.goto(ACCOUNT);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Session fermée");
+  await pastTheSecondOf(closed);
+  await page.getByRole("link", { name: "Se connecter" }).click();
+  // The session of the realm lives, and yet the realm asks for the password.
+  await reauthenticate(page, DIRECTORY);
+  await expect(page).toHaveURL(ACCOUNT);
+  await expect(page.getByRole("main")).toContainText(DIRECTORY.email);
+});
+
+test("a user whose session the front lost, and whose sessions were closed while the realm missed it, signs out all the same: to the sign-in page, which asks only for her password, her username shown read-only, nothing looping (#689, #855) [WF-SEC-0020-A]", async ({
+  page,
+}) => {
+  await signIn(page, DIRECTORY, ACCOUNT);
+  const closed = closeSessionsMissedByTheRealm(DIRECTORY.email);
+  const front = new URL(page.url());
+  await page.context().addCookies([
+    {
+      name: SESSION_COOKIE,
+      value: "lost",
+      domain: front.hostname,
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+    },
+  ]);
+  // The silent sign-in brings a token of the session the realm kept, which the API refuses.
+  await signOut(page);
+  await expectSignInPage(page);
+  await pastTheSecondOf(closed);
+  await reauthenticate(page, DIRECTORY);
+  await expect(accountButton(page, DIRECTORY)).toBeVisible();
 });

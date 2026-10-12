@@ -24,7 +24,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.backups.tables import Backup
-from waterfall.core.users.tables import UserAccount
+from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
@@ -213,6 +213,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         UserAccessRole.__tablename__,
         BackgroundTask.__tablename__,
         Backup.__tablename__,
+        IdentitySyncReport.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -289,6 +290,8 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "background_task": {"SELECT", "INSERT", "UPDATE"},
     # Recorded by the worker and read; neither marked nor deleted until EP-13 (WF-ADM-0170).
     "backup": {"SELECT", "INSERT"},
+    # The report of a reading of the accounts, kept and read; neither changed nor deleted.
+    "identity_sync_report": {"SELECT", "INSERT"},
 }
 
 

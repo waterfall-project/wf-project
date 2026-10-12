@@ -4,8 +4,10 @@
 
 import io
 import json
+import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -13,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
+import structlog
 from fastapi.testclient import TestClient
 from httpx2 import Response
 from jsonschema_path import SchemaPath
@@ -32,6 +35,7 @@ from waterfall.platform.keycloak_admin import (
     PasswordLink,
     ProviderAccount,
 )
+from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
@@ -244,6 +248,21 @@ def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str
             yield at
 
 
+@contextmanager
+def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
+    """Capture the logs in memory, ``secrets`` masked as a service masks its own, then restore."""
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    stream = io.StringIO()
+    configure_logging("DEBUG", stream, secrets)
+    try:
+        yield Logs(stream)
+    finally:
+        root.handlers[:] = handlers
+        root.setLevel(level)
+        structlog.reset_defaults()
+
+
 class ContractClient:
     """A client of the application whose every answer is checked against the contract."""
 
@@ -385,6 +404,11 @@ class Watching(KeycloakAdmin):
         """Note, then have the extension mail an account its invitation."""
         self._note("send_invitation")
         return super().send_invitation(subject)
+
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Note, then give a local account of the realm another identity."""
+        self._note("change_identity")
+        return super().change_identity(subject, identity)
 
     def close_sessions(self, subject: str) -> None:
         """Note, then close the sessions of an account."""

@@ -8,6 +8,7 @@ import {
   correlationDigest,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
 
@@ -48,6 +49,14 @@ describe("a server action whose promise rejected", () => {
         conflictingObjectId: null,
       });
     }
+  });
+
+  it("is signed out as of a session closed by its digest, which the notice says, its sign-in asking for the identifiers again (#855)", () => {
+    expect(rejected(thrown(SESSION_REVOKED_DIGEST))).toEqual({
+      kind: "signed_out",
+      problem: { code: "SESSION_REVOKED", status: 401 },
+      conflictingObjectId: null,
+    });
   });
 
   it.each([

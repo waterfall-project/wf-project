@@ -331,24 +331,54 @@ RestoreRequest:
 
 IdentitySyncReport:
   type: object
-  required: [created, updated, deactivated, skipped]
+  required: [task_id, finished_at, created, updated, deactivated, skipped, removed]
   description: >-
-    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`).
-    Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120
-    interdit de désactiver est conservé actif et signalé (WF-ADM-0070).
+    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou
+    la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas
+    concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et
+    signalé (WF-ADM-0070).
   properties:
-    created: { type: integer, minimum: 0 }
-    updated: { type: integer, minimum: 0 }
-    deactivated: { type: integer, minimum: 0 }
+    task_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: La tâche de la lecture (`BackgroundTaskRef.task_id`).
+    finished_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: Fin de la lecture.
+    created:
+      type: integer
+      minimum: 0
+      description: Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas.
+    updated:
+      type: integer
+      minimum: 0
+      description: >-
+        Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de
+        l'annuaire a rattachés par leur adresse (#707).
+    deactivated:
+      type: integer
+      minimum: 0
+      description: Comptes désactivés parce que le fournisseur ne les connaît plus.
     skipped:
       type: array
       description: >-
         Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du
         catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne
-        connaît plus (WF-ADM-0120).
+        connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un
+        fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte
+        dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou
+        plus long que ce que Waterfall garde.
       items:
         type: object
         required: [email, code]
         properties:
           email: { type: string }
           code: { $ref: ../common.yaml#/ErrorCode }
+    removed:
+      type: array
+      description: >-
+        Les adresses des comptes locaux que la lecture retire du fournisseur d'identité :
+        inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a
+        pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse
+        nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui
+        échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse.
+      items: { type: string }

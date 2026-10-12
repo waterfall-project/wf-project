@@ -151,12 +151,53 @@ def test_a_person_whose_identity_cannot_be_kept_is_not_admitted(
     assert session.scalar(select(func.count()).select_from(UserAccount)) == 0
 
 
-def test_an_address_another_account_holds_admits_nobody(session: Session) -> None:
-    session.execute(
-        insert(UserAccount).values(**raw_account(email="Dominique.Annuaire@waterfall.test"))
-    )
-    assert add_account_of_provider(session, person(), NOON) == NotAdmitted.ADDRESS_TAKEN
+def test_a_person_relayed_at_an_address_another_account_holds_is_not_admitted(
+    session: Session,
+) -> None:
+    # #707: a provider lax about addresses would open the account of another; that one is intact.
+    held = raw_account(email="Dominique.Annuaire@waterfall.test")
+    session.execute(insert(UserAccount).values(**held))
+    relayed = person(is_federated=False, is_relayed=True)
+    assert add_account_of_provider(session, relayed, NOON) == NotAdmitted.ADDRESS_TAKEN
     assert read_account_of_subject(session, SUBJECT) is None
+    kept = session.get_one(UserAccount, held["id"])
+    assert (kept.idp_subject, kept.origin, kept.lock_version) == (held["idp_subject"], "local", 0)
+    assert inscriptions(session) == []
+
+
+def test_a_person_of_the_directory_at_an_address_an_account_holds_is_attached_to_it(
+    session: Session,
+) -> None:
+    # #707: the directory recognises a person by her address (motif of WF-ADM-0050); the account
+    # is hers from now on, with its state and its roles, and the attachment is inscribed.
+    held = raw_account(
+        email="Dominique.Annuaire@waterfall.test", last_name="Annuaire", first_name="Dom"
+    )
+    session.execute(insert(UserAccount).values(**held))
+    attached = add_account_of_provider(session, person(), NOON)
+    assert isinstance(attached, Account)
+    assert (attached.user_id, attached.subject, attached.origin) == (
+        held["id"],
+        SUBJECT,
+        "directory",
+    )
+    assert (attached.first_name, attached.email) == (
+        "Dominique",
+        "dominique.annuaire@waterfall.test",
+    )
+    assert (attached.updated_by, attached.updated_at, attached.lock_version) == (None, NOON, 1)
+    assert inscriptions(session) == [
+        (
+            "user_update",
+            None,
+            held["id"],
+            "Dominique Annuaire",
+            {"fields": ["first_name", "email"], "attached": True},
+            CORRELATION,
+        )
+    ]
+    # Attached once: found by her subject from now on.
+    assert add_account_of_provider(session, person(), NOON) == attached
 
 
 def test_a_person_created_twice_is_one_account(session: Session) -> None:
