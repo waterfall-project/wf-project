@@ -1084,6 +1084,12 @@ class AuditParams(ContractModel):
             description="`user_update` : les champs de l'identité que la modification a changés, dans l'ordre du compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après."
         ),
     ] = None
+    attached: Annotated[
+        bool | None,
+        Field(
+            description="`user_update` : vrai quand la modification rattache le compte à une personne de l'annuaire qui porte son adresse (#707) — le compte prend son identifiant chez le fournisseur et vient désormais de l'annuaire ; absent sinon."
+        ),
+    ] = None
     permissions: Annotated[
         list[PermissionCode] | None,
         Field(

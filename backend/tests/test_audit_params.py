@@ -5,8 +5,9 @@
 ``AuditParams`` is a closed object: a parameter the contract does not declare, or of another type,
 makes ``listAuditEvents`` fail as a whole on the inscription that carries it. Each writer of the
 core is called here by the function its route or its task calls, and every inscription it writes
-is read back through the model of the contract. A module of the core that inscribes and is not
-called here fails the test: a writer to come is tried as these are.
+is read back through the model of the contract. A module of the core that inscribes — by
+``record``, or by the ``inscribe`` of the accounts — and is not called here fails the test: a
+writer to come is tried as these are.
 """
 
 import ast
@@ -32,12 +33,16 @@ from waterfall.core.access_roles.interface import (
 )
 from waterfall.core.backups.interface import TakenBackup, add_backup
 from waterfall.core.users.interface import (
+    HeldAccount,
     Identity,
     IdentityChange,
+    NotAdmitted,
     add_account_of_provider,
     anonymize_account,
     change_account,
     create_local_account,
+    deactivate_unheld,
+    follow,
     inscribe_password_link,
     set_account_activation,
 )
@@ -56,20 +61,26 @@ WRITERS = {
     "waterfall.core.access_roles.roles",
     "waterfall.core.backups.interface",
     "waterfall.core.users.identity",
+    "waterfall.core.users.password_link",
+    "waterfall.core.users.provider",
     "waterfall.core.users.states",
+}
+# What a module imports to inscribe: the inscription of the journal, or that of the accounts.
+INSCRIPTIONS = {
+    ("waterfall.platform.audit", "record"),
+    ("waterfall.core.users.identity", "inscribe"),
 }
 
 
 def inscribing_modules() -> set[str]:
-    """Name the modules of the service that import ``record``, the inscription of the journal."""
+    """Name the modules of the service that import an inscription (``INSCRIPTIONS``)."""
     root = Path(waterfall.__file__).parent
     found: set[str] = set()
     for path in root.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         if any(
             isinstance(node, ast.ImportFrom)
-            and node.module == "waterfall.platform.audit"
-            and any(alias.name == "record" for alias in node.names)
+            and any((node.module, alias.name) in INSCRIPTIONS for alias in node.names)
             for node in ast.walk(tree)
         ):
             parts = path.relative_to(root.parent).with_suffix("").parts
@@ -80,8 +91,9 @@ def inscribing_modules() -> set[str]:
 def write_every_action(database: Database, queue: TaskQueue) -> UUID:
     """Do each action the core inscribes, by the functions the routes and the worker call.
 
-    Camille Martin is the author of each, but the accounts of the provider — added by the
-    platform — and one of the two backups, which the platform takes; give her identifier.
+    Camille Martin is the author of each, but the accounts of the provider — added, followed,
+    attached and deactivated by the platform (WF-ADM-0070) — and one of the two backups, which
+    the platform takes; give her identifier.
     """
     author = account(database, "Martin", "Camille")
     act = Act(author, utc_now())
@@ -119,6 +131,21 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             )
             with database.transaction() as session:
                 add_account_of_provider(session, provider, platform.at)
+        renamed_paul = ProviderAccount(
+            "kc-paul", "Durand", "Paul", "kc-paul@example.org", is_federated=True, is_relayed=False
+        )
+        with database.transaction() as session:
+            follow(session, renamed_paul, platform.at)
+        # A new federation gives Léa, whose address an account holds, another subject (#707).
+        lea = ProviderAccount(
+            "kc-lea-2", "Durand", "Léa", "kc-lea@example.org", is_federated=True, is_relayed=False
+        )
+        with database.transaction() as session:
+            attached = add_account_of_provider(session, lea, platform.at)
+        assert not isinstance(attached, NotAdmitted)
+        with database.transaction() as session:
+            held = HeldAccount(attached.user_id, "kc-lea-2", "kc-lea@example.org")
+            assert deactivate_unheld(session, held, platform.at)
         with database.transaction() as session:
             delete_role(session, pilot.access_role_id, act)
     for requested_by in (author, None):
@@ -152,6 +179,9 @@ def test_each_writer_of_the_journal_inscribes_parameters_the_contract_reads(
         ("backup", None, None),
         ("user_create", None, None),
         ("user_create", None, None),
+        ("user_deactivate", None, None),
+        ("user_update", None, None),
+        ("user_update", None, None),
     ]
     by_camille = [each for each in attributed if each[1] is not None]
     assert {(actor, name) for _, actor, name in by_camille} == {(author, "Camille Martin")}
@@ -177,6 +207,8 @@ def test_each_writer_of_the_journal_inscribes_parameters_the_contract_reads(
         "user_anonymize",
         "backup",
     }
+    # The attachment of a person of the directory to the account of her address says so (#707).
+    assert ("user_update", {"fields": ["first_name"], "attached": True}) in written
     for action, params in written:
         read = AuditParams.model_validate(params)
         assert read.model_dump(mode="json", exclude_unset=True) == params, action

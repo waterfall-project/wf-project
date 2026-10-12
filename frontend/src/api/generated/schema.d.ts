@@ -3137,6 +3137,8 @@ export interface components {
             origin?: components["schemas"]["UserOrigin"];
             /** @description `user_update` : les champs de l'identité que la modification a changés, dans l'ordre du compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après. */
             fields?: components["schemas"]["AuditUserField"][];
+            /** @description `user_update` : vrai quand la modification rattache le compte à une personne de l'annuaire qui porte son adresse (#707) — le compte prend son identifiant chez le fournisseur et vient désormais de l'annuaire ; absent sinon. */
+            attached?: boolean;
             /** @description `access_role_create` : les permissions du rôle créé, dans l'ordre du catalogue. */
             permissions?: components["schemas"]["PermissionCode"][];
             /** @description `access_role_update` : les permissions que la modification a données au rôle, dans l'ordre du catalogue ; vide si elle n'en a donné aucune. */
