@@ -162,8 +162,12 @@ test("an account without an avatar shows its initials without one [WF-ADM-0080-A
   const page = await workstation(browser, "fr-FR");
   await signInAt(page, second, AVATAR);
   const main = page.getByRole("main");
-  // No avatar: the initials, the default image.
+  // No avatar: the initials, the default image. The image of an avatar is put in the page only
+  // once loaded, so its absence alone proves nothing: what the server renders only for an account
+  // without one — the line that says so, and no withdrawal offered — does.
   await expect(main.getByText("JM", { exact: true })).toBeVisible();
+  await expect(main.getByText("Aucune image : vos initiales en tiennent lieu.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retirer l’avatar" })).toHaveCount(0);
   await expect(main.getByRole("img", { name: "Jeanne Montgolfier" })).toHaveCount(0);
   await page.context().close();
 });
