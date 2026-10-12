@@ -128,8 +128,11 @@ def inscribed_actor(session: Session, author: UUID | None) -> AuditActor | None:
     account (#867): an anonymisation, which locks it for update, either waits for the inscription
     to be committed, then forgets the name in it, or is waited for, and the name read is the null
     of an anonymised account. A request in flight never inscribes the name of an account the
-    anonymisation has forgotten (WF-SEC-0030). Taken after the locks of the write, just before the
-    inscription: a write on the account of its own author already holds its row.
+    anonymisation has forgotten (WF-SEC-0030). Taken after every other lock of the transaction,
+    just before the inscription: a write on the account of its own author already holds its row. A
+    transaction that inscribes twice takes the locks of its second write before its first
+    inscription — the creation of an account with roles takes the lock of the last administrator
+    before it is written.
     """
     if author is None:
         return None

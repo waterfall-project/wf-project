@@ -224,7 +224,13 @@ séparerait plus.
   l'inscrit, juste avant l'inscription, sous `FOR SHARE` de sa ligne (`inscribed_actor` du
   module des comptes, #867) : l'anonymisation, qui la tient `FOR UPDATE`, attend l'inscription
   puis l'oublie, ou se fait attendre et le nom lu est nul. Un écrivain du journal ne reçoit de
-  son appelant que l'identifiant de l'auteur (`Act`).
+  son appelant que l'identifiant de l'auteur (`Act`). Ce `FOR SHARE` vient après **tous** les
+  autres verrous de la transaction — de ligne comme consultatifs — : une écriture qui prendrait
+  un verrou après lui interbloquerait avec celle qui prend ce verrou puis verrouille la ligne
+  de l'auteur (désactivation, attribution de ses rôles). Une transaction qui inscrit deux fois
+  prend donc les verrous de sa seconde écriture avant sa première inscription : la création
+  d'un compte avec des rôles prend le verrou du dernier administrateur avant d'écrire le
+  compte.
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.

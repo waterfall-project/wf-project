@@ -51,6 +51,7 @@ from waterfall.core.access_roles.interface import (
     guard_deactivation,
     holding_one_of,
     labels_held,
+    lock_administrators,
     roles_held_by,
     set_access_roles,
     sole_administrator,
@@ -283,9 +284,13 @@ def write_new_account(
     """Write the local account the provider holds under its subject, with its first roles.
 
     ``created`` is its identity and that subject. The roles are read again under the guard of the
-    last administrator, and the address by the unique index: refused, nothing is written.
+    last administrator, and the address by the unique index: refused, nothing is written. With
+    roles, the lock of the guard is taken first: the creation, inscribed, holds its author's row
+    for share, which a deactivation or an attribution of that author locks after the guard.
     """
     identity, subject = created
+    if role_ids:
+        lock_administrators(session)
     account = create_local_account(session, identity, subject, act)
     label = display_name(account.first_name, account.last_name)
     give_first_roles(session, (account.user_id, label), role_ids, act)
