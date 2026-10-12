@@ -234,5 +234,9 @@ describe("a failure to reach Redis", () => {
       unreached(Object.assign(new TypeError("Invalid URL"), { code: "ERR_INVALID_URL" })),
     ).toBe(false);
     expect(unreached(new Error("a defect"))).toBe(false);
+    const cert = Object.assign(new Error("Hostname/IP does not match certificate's altnames"), {
+      code: "ERR_TLS_CERT_ALTNAME_INVALID",
+    });
+    expect(unreached(new ReconnectStrategyError(cert, cert))).toBe(false);
   });
 });
