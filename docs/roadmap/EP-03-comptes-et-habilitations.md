@@ -1337,7 +1337,7 @@ US-0410). `getInstallation` rend la langue par défaut posée à l'amorçage (US
 
 ## US-0410 — Journal d'audit, et aucun texte rendu par l'API
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-SEC-0030-A`, `WF-ADM-0190-A`, `WF-ARC-0110-A`
 - **opérations** : `listAuditEvents`, `listAuditFacets` — les écritures des comptes et des
   rôles l'alimentent

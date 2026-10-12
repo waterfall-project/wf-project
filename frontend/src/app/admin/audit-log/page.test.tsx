@@ -306,8 +306,14 @@ describe("the journal of audit", () => {
     expect(links.filter((link) => link.startsWith("couts-reels"))).toEqual([]);
   });
 
-  it("names the project and its objects without a link where the session may not open the project", async () => {
-    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
+  it.each([
+    ["the session may not open the project", "projects_empty"],
+    [
+      "the API finds no list of projects, a service that serves none yet",
+      { problem: { code: "NOT_FOUND", status: 404 } },
+    ],
+  ] as const)("names the project and its objects without a link where %s", async (_, projects) => {
+    server.answers = { ...server.answers, "GET /projects": projects };
     const page = await journal();
     // Only the links of the journal itself remain: the correlations.
     expect(
