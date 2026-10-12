@@ -3121,6 +3121,37 @@ export interface components {
             code: string;
             label: string;
         };
+        /**
+         * @description Un champ de l'identité d'un compte qu'une modification change (`user_update`), nommé comme la colonne de la table des comptes, que le front rend par son catalogue (WF-ARC-0110).
+         * @enum {string}
+         */
+        AuditUserField: "last_name" | "first_name" | "email";
+        /** @description Un rôle d'habilitation donné ou retiré à un compte, par son identifiant et son libellé au moment de l'action : un rôle supprimé depuis se nomme toujours (WF-ADM-0090). */
+        AuditAccessRole: {
+            access_role_id: components["schemas"]["Uuid"];
+            label: string;
+        };
+        /** @description Ce que l'action a fait à son objet, propre à chaque action, en codes, en identifiants et en libellés gardés au moment de l'action, jamais en phrase : le front le rend dans la langue du lecteur (WF-ARC-0110), et le journal dit ainsi qui a donné quel droit (WF-SEC-0030, #706). Un objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation, la réactivation et l'anonymisation d'un compte, le lien qui fixe un mot de passe, la suppression d'un rôle — et, jusqu'à l'EPIC qui les réalise, pour les actions d'un projet, de la sauvegarde et de la restauration. Un paramètre nouveau est une modification du contrat. */
+        AuditParams: {
+            /** @description `user_create` : l'origine du compte créé — par un administrateur (`local`), par la lecture du fournisseur d'identité (`directory`), à la première connexion d'une personne relayée par un fournisseur externe (`identity_provider`). */
+            origin?: components["schemas"]["UserOrigin"];
+            /** @description `user_update` : les champs de l'identité que la modification a changés, dans l'ordre du compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après. */
+            fields?: components["schemas"]["AuditUserField"][];
+            /** @description `user_update` : vrai quand la modification rattache le compte à une personne de l'annuaire qui porte son adresse (#707) — le compte prend son identifiant chez le fournisseur et vient désormais de l'annuaire ; absent sinon. */
+            attached?: boolean;
+            /** @description `access_role_create` : les permissions du rôle créé, dans l'ordre du catalogue. */
+            permissions?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : les permissions que la modification a données au rôle, dans l'ordre du catalogue ; vide si elle n'en a donné aucune. */
+            permissions_granted?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : les permissions que la modification a retirées au rôle, dans l'ordre du catalogue ; vide si elle n'en a retiré aucune. */
+            permissions_withdrawn?: components["schemas"]["PermissionCode"][];
+            /** @description `access_role_update` : le libellé du rôle avant la modification, quand elle l'a changé ; absent sinon. Le libellé d'après est celui de l'objet (`AuditObject.label`). */
+            previous_label?: string;
+            /** @description `user_access_roles_set` : les rôles que l'attribution a donnés au compte, dans l'ordre où il les tient ; vide si elle n'en a donné aucun. À la création d'un compte, ses premiers rôles. */
+            access_roles_granted?: components["schemas"]["AuditAccessRole"][];
+            /** @description `user_access_roles_set` : les rôles que l'attribution a retirés au compte ; vide si elle n'en a retiré aucun. */
+            access_roles_withdrawn?: components["schemas"]["AuditAccessRole"][];
+        };
         /** @description Une inscription du journal d'audit : la date, l'auteur, l'action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030), et l'identifiant de corrélation de la requête ou de la tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son inscription `restore` s'écrit une fois la restauration faite (WF-ADM-0160, #539). Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même corrélation : la fusion d'un avenant inscrit `amendment_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050). */
         AuditEvent: {
             audit_event_id: components["schemas"]["Uuid"];
@@ -3132,6 +3163,7 @@ export interface components {
             object: components["schemas"]["AuditObject"];
             /** @description Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde. */
             project: components["schemas"]["AuditProject"] | null;
+            params: components["schemas"]["AuditParams"];
             /** @description L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme. */
             correlation_id: string;
         };
@@ -3143,7 +3175,7 @@ export interface components {
         };
         /** @description Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les lire, sans celle de lire les comptes ni les projets (WF-ADM-0100). */
         AuditFacets: {
-            /** @description Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant ; la plateforme n'y est pas : `actor_kind` la retient. */
+            /** @description Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant — un compte anonymisé, qui n'a plus de nom, après les noms — ; la plateforme n'y est pas : `actor_kind` la retient. */
             actors: components["schemas"]["AuditActorFacet"][];
             /** @description Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par l'appelant, comme le journal les nomme. */
             projects: components["schemas"]["AuditProject"][];
@@ -4876,7 +4908,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Jeton absent ou invalide (`SESSION_REQUIRED`), ou expiré (`SESSION_EXPIRED`), WF-SEC-0020 ; jeton d'une connexion qui précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde — déconnexion, désactivation, retrait de tous ses rôles —, rafraîchi ou non (`SESSION_REVOKED`, WF-SEC-0020) : la connexion qui suit redemande les identifiants, la session du fournisseur d'identité pouvant vivre encore si sa fermeture a échoué, alors qu'une simple expiration ne les redemande pas (#855) ; un jeton à la fois expiré et antérieur à la fermeture reçoit d'abord `SESSION_EXPIRED`, l'expiration primant, et le rafraîchissement qui suit mène à `SESSION_REVOKED` ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait. */
+        /** @description Jeton absent ou invalide (`SESSION_REQUIRED`), ou expiré (`SESSION_EXPIRED`), WF-SEC-0020 ; jeton d'une connexion qui précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde — déconnexion, désactivation, retrait de tous ses rôles —, rafraîchi ou non (`SESSION_REVOKED`, WF-SEC-0020) : la connexion qui suit redemande les identifiants, la session du fournisseur d'identité pouvant vivre encore si sa fermeture a échoué, alors qu'une simple expiration ne les redemande pas (#855) ; un jeton à la fois expiré et antérieur à la fermeture reçoit d'abord `SESSION_EXPIRED`, l'expiration primant, et le jeton rafraîchi, si le fournisseur d'identité a manqué la fermeture, reçoit `SESSION_REVOKED` ; s'il a fermé la session, le rafraîchissement lui-même est refusé ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -6267,7 +6299,7 @@ export interface operations {
                 search?: components["parameters"]["Search"];
                 /** @description Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une corrélation que le journal ne porte pas ne retient rien. */
                 correlation_id?: string;
-                /** @description Colonne du tri ; absente, la date. Les colonnes du journal qui se trient (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, la plateforme, qui n'en a pas, après les comptes dans l'ordre croissant ; l'action et la nature de l'objet, dans l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans libellé — une sauvegarde — après les autres dans l'ordre croissant ; le projet, par son code, une inscription sans projet après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par caractère dans l'ordre des points de code Unicode. */
+                /** @description Colonne du tri ; absente, la date. Les colonnes du journal qui se trient (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, dans l'ordre croissant un compte anonymisé, qui n'en a plus, après les noms, et la plateforme, qui n'en a pas, après les comptes ; l'action et la nature de l'objet, dans l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans libellé — une sauvegarde, un compte anonymisé — après les autres dans l'ordre croissant ; le projet, par son code, une inscription sans projet après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par caractère dans l'ordre des points de code Unicode. */
                 sort_by?: "occurred_at" | "actor" | "action" | "object_kind" | "object_label" | "project" | "correlation_id";
                 /** @description Sens du tri ; absent, décroissant pour la date — les inscriptions les plus récentes d'abord —, croissant pour toute autre colonne. */
                 sort_order?: components["schemas"]["SortOrder"];

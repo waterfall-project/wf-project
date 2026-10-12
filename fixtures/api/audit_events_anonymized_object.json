@@ -18,6 +18,7 @@
           "revision": null
         },
         "project": null,
+        "params": {},
         "correlation_id": "01926f3a-7c00-7000-8000-000800000040"
       },
       {
@@ -36,6 +37,7 @@
           "revision": null
         },
         "project": null,
+        "params": {},
         "correlation_id": "01926f3a-7c00-7000-8000-000800000020"
       },
       {
@@ -54,6 +56,9 @@
           "revision": null
         },
         "project": null,
+        "params": {
+          "origin": "local"
+        },
         "correlation_id": "01926f3a-7c00-7000-8000-000800000014"
       }
     ],

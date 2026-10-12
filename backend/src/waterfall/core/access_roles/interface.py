@@ -8,8 +8,9 @@ of an action against them (WF-ADM-0110); the first roles of an account created, 
 an account set, under the guard (``attributions``); the description of the three predefined roles,
 for the bootstrap (WF-ADM-0010); the guard of the last administrator, which every write that may
 take the administration from an account runs under, the deactivation of an account by its own
-refusal, that account read, and the lock of the rule, which a write of many accounts takes before
-any of their rows (WF-ADM-0120); and what the table of the accounts filters and sorts
+refusal, that account read, and the lock of the rule, which a write takes before any of the rows it
+locks — a write of many accounts before any of their rows, a creation with roles before its
+author's (WF-ADM-0120); and what the table of the accounts filters and sorts
 of the roles each one holds (``listUsers``).
 """
 

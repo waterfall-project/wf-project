@@ -187,24 +187,26 @@ def problem(response: Any) -> tuple[int, str, list[str]]:
 
 
 @pytest.mark.parametrize(
-    ("query", "pointer"),
+    ("query", "pointer", "code"),
     [
-        ("?status=done", "/query/status"),
-        ("?status=", "/query/status"),
-        ("?status=%00", "/query/status"),
-        ("?limit=0", "/query/limit"),
-        ("?offset=-1", "/query/offset"),
-        ("?finished_since=yesterday", "/query/finished_since"),
-        ("?finished_since=2026-10-02", "/query/finished_since"),
-        ("?finished_since=2026-10-02T00:00:00", "/query/finished_since"),
+        ("?status=done", "/query/status", "VALIDATION_FAILED"),
+        ("?status=", "/query/status", "VALIDATION_FAILED"),
+        ("?status=%00", "/query/status", "VALIDATION_FAILED"),
+        ("?limit=0", "/query/limit", "VALUE_OUT_OF_RANGE"),
+        ("?offset=-1", "/query/offset", "VALUE_OUT_OF_RANGE"),
+        ("?finished_since=yesterday", "/query/finished_since", "DATE_INVALID"),
+        ("?finished_since=2026-10-02", "/query/finished_since", "DATE_INVALID"),
+        ("?finished_since=2026-10-02T00:00:00", "/query/finished_since", "DATE_INVALID"),
     ],
 )
 def test_a_parameter_the_list_refuses_is_a_value_refused(
-    api: ContractClient, person: Person, query: str, pointer: str
+    api: ContractClient, person: Person, query: str, pointer: str, code: str
 ) -> None:
-    # A value outside the schema of a parameter is refused at its field (422), never a 500: an
-    # instant without its offset included. The contract declares that 422 (#799): the answer is
-    # read through it.
+    # A value outside the schema of a parameter is refused at its field (422), never a 500, with
+    # the code of its fault: an instant that does not parse, or without its offset, is a date
+    # refused (``DATE_INVALID``). The contract declares that 422 (#799): the answer is read
+    # through it.
     _, headers = person()
-    refusal = problem(api.get(f"{TASKS}{query}", headers=headers))
-    assert refusal == (422, "VALIDATION_FAILED", [pointer])
+    response = api.get(f"{TASKS}{query}", headers=headers)
+    assert problem(response) == (422, "VALIDATION_FAILED", [pointer])
+    assert [field["code"] for field in response.json()["fields"]] == [code]

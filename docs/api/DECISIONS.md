@@ -3782,6 +3782,23 @@ plateforme ne lit la table d'aucun module (`docs/dev/sql.md`). Écarté : laisse
 service seul, qu'une écriture qui le contourne ne rencontre pas.
 `User.available_commands` admet trois commandes.
 
+## Le journal d'audit rend les paramètres de l'action (EP-03/US-0410/L2, #706)
+
+Décision de l'auteur du 2026-10-10. `AuditEvent` disait qui avait changé les rôles de qui, mais
+pas lesquels : l'« afin de » d'US-0410, dire après coup qui a donné quel droit, ne se lisait pas,
+quand l'inscription garde ces données depuis US-0410/L1. Il rend `params`, un `AuditParams` : un
+seul objet fermé, dont chaque propriété dit l'action qui la porte — l'origine d'un compte créé,
+les champs d'une identité modifiée et, quand la modification le rattache à une personne de
+l'annuaire qui porte son adresse, ce rattachement (`attached`, #707), les permissions d'un rôle
+créé, données ou retirées par sa modification et son libellé d'avant, les rôles donnés ou
+retirés à un compte, chacun par son identifiant et son libellé du moment —, en codes, en
+identifiants et en libellés, jamais en phrase (WF-ARC-0110). Une action qui n'a rien à dire de
+plus que son objet rend un objet vide.
+Écarté : un schéma par action, choisi par `action` (`oneOf` à discriminant), que le discriminant
+d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
+dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
+qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+
 ## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
 
 Décision de l'auteur du 2026-10-10 (#705), suivant WF-SEC-0030 révisée : le journal d'audit est
@@ -3807,8 +3824,9 @@ validation : une adresse de `removed` est celle d'un compte retiré, ou à retir
 adresse. Un
 rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
 les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
-adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXISTS` et
-`VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un compte laissé tel quel.
+adresse, et s'inscrit au journal comme une modification du compte, `params.attached` à vrai.
+`ALREADY_EXISTS` et `VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un
+compte laissé tel quel.
 `startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
 `getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
 compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
@@ -3827,7 +3845,9 @@ retrait de tous les rôles d'un compte note aussi l'heure de la fermeture (`setU
 comme la déconnexion et la désactivation : une fermeture manquée n'y survit pas à un rôle rendu.
 Un jeton à la fois expiré et antérieur à la fermeture reçoit `SESSION_EXPIRED` : l'expiration
 prime, constatée par la validation du jeton avant que le compte soit lu ; le front rafraîchit
-alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED`.
+alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED` si le fournisseur a
+manqué la fermeture ; s'il a fermé la session, c'est le rafraîchissement lui-même qu'il refuse
+(#940).
 Écartés : redemander les identifiants à toute expiration, que rien ne justifie après cinq
 minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
 qui ne sort de l'impasse que la personne qui sait se déconnecter.

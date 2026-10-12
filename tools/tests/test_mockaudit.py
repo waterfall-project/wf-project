@@ -165,6 +165,32 @@ def test_an_account_is_given_the_roles_created_after_it_once_they_exist(
     assert [event["object"]["label"] for event in given] == ["Camille Martin"]
 
 
+def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
+    journal: dict[str, Node],
+) -> None:
+    # The origin of an account created, the permissions of a role created, the roles given to an
+    # account by their identifiers and labels; nothing for any other action of the universe (#706).
+    users = {user["user_id"]: user for user in fixture("users")["items"]}
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    for event in _events(journal["audit_events"]):
+        named = event["object"]["object_id"]
+        if event["action"] == "user_create":
+            assert event["params"] == {"origin": users[named]["origin"]}
+        elif event["action"] == "access_role_create":
+            assert event["params"] == {"permissions": roles[named]["permissions"]}
+        elif event["action"] == "user_access_roles_set":
+            granted = [
+                {"access_role_id": held, "label": roles[held]["label"]}
+                for held in users[named]["access_role_ids"]
+            ]
+            assert event["params"] == {
+                "access_roles_granted": granted,
+                "access_roles_withdrawn": [],
+            }
+        else:
+            assert event["params"] == {}, event["action"]
+
+
 def test_the_other_readings_are_pages_and_filters_of_the_one_journal(
     journal: dict[str, Node],
 ) -> None:

@@ -33,7 +33,10 @@ from test_keycloak_platform import (
     EXTERNAL_PROVIDER,
     PASSWORD,
     Account,
+    Browser,
+    ask_forgotten,
     claims,
+    mailed,
 )
 
 from waterfall.api.app import create_app
@@ -45,6 +48,11 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 pytestmark = pytest.mark.keycloak
 
 PREFERENCES = "/api/v1/me/preferences"
+# The subject of the mail that resets a password, in each language of the email theme.
+RESET_SUBJECTS = {
+    "fr": "Réinitialiser votre mot de passe Waterfall",
+    "en": "Reset your Waterfall password",
+}
 # An identifier the realm gives to no account.
 NOBODY = "00000000-0000-4000-8000-000000000000"
 
@@ -184,3 +192,26 @@ def test_an_account_the_realm_does_not_hold_has_no_language_to_set(
     # Nothing to set, and nothing created to set it on.
     KeycloakAdmin(keycloak, served_settings()).set_locale(NOBODY, "en")
     assert admin.get(f"/users/{NOBODY}").status_code == 404
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(("language", "other"), [("en", "fr"), ("fr", "en")])
+def test_a_mail_to_reset_a_password_leaves_the_provider_in_the_language_of_the_account(
+    api: ContractClient,
+    database: Database,
+    local_account: Account,
+    language: str,
+    other: str,
+) -> None:
+    # « Un courriel de réinitialisation part du fournisseur d'identité, dans la langue du compte » :
+    # the language chosen in Waterfall, whatever the browser that asks for the mail has chosen on
+    # the sign-in page of the realm.
+    known(database, local_account)
+    headers = bearer(tokens_of(local_account.email, PASSWORD))
+    assert api.patch(PREFERENCES, headers=headers, json={"language": language}).status_code == 200
+    browser = Browser()
+    browser.cookies["KEYCLOAK_LOCALE"] = other
+    ask_forgotten(browser, local_account)
+    mail = mailed(local_account.email)
+    assert mail["Subject"] == RESET_SUBJECTS[language]
+    assert mail["Subject"] != RESET_SUBJECTS[other]

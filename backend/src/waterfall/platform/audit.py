@@ -23,7 +23,9 @@ checks, by a trigger of its own on this table, for the platform reads no table o
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them
-names the collation it lowers in.
+names the collation it lowers in. The action and the nature of the object sort in the order of
+their enumerations in the contract, not as texts: by their rank, an expression an index of its own
+serves (``ACTION_RANK``, ``OBJECT_KIND_RANK``).
 """
 
 from collections.abc import Mapping, Sequence
@@ -32,7 +34,7 @@ from datetime import datetime
 from typing import Any, Literal, get_args
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Text, func, insert, select, update
+from sqlalchemy import CheckConstraint, Index, Text, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -78,6 +80,9 @@ type AuditObjectKind = Literal[
     "external_backup_upload",
 ]
 ACTIONS: tuple[str, ...] = get_args(AuditAction.__value__)
+# The natures of objects an inscription may name without a label: a backup, which has none, and an
+# account, whose name an anonymisation forgets (WF-ADM-0060).
+UNLABELED_KINDS = ("backup", "user")
 OBJECT_KINDS: tuple[str, ...] = get_args(AuditObjectKind.__value__)
 
 # What the data of an inscription may hold: codes, identifiers in text, numbers, never a float.
@@ -86,6 +91,22 @@ type AuditValue = str | int | bool | Sequence[AuditValue] | Mapping[str, AuditVa
 
 def _in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({', '.join(repr(value) for value in values)})"
+
+
+def _rank(column: str, values: tuple[str, ...]) -> str:
+    """Give the expression of the rank of a column's value in an enumeration, from 1."""
+    array = ", ".join(f"{value!r}::text" for value in values)
+    return f"array_position(ARRAY[{array}], {column})"
+
+
+# The orders of the contract (``AuditAction``, ``AuditObjectKind``), as the journal sorts them and
+# their indexes hold them: a query names the very expression an index holds, or the index is not
+# used. A new value is a migration of the constraint and of the index.
+ACTION_RANK = _rank("action", ACTIONS)
+OBJECT_KIND_RANK = _rank("object_kind", OBJECT_KINDS)
+# The order of the author, which its index holds: an account before the platform, then by its name,
+# an account anonymised, which has lost it, after the names.
+ACTOR_ORDER = ("(actor_user_id IS NULL)", "actor_display_name")
 
 
 class AuditEntry(Base):
@@ -105,7 +126,8 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
-            "object_label IS NOT NULL OR object_kind IN ('backup', 'user')", name="object_labeled"
+            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)}",
+            name="object_labeled",
         ),
         CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
@@ -113,21 +135,25 @@ class AuditEntry(Base):
         ),
         CheckConstraint("jsonb_typeof(params) = 'object'", name="params_object"),
         CheckConstraint("correlation_id ~ '^[A-Za-z0-9._-]{1,64}$'", name="correlation_id_form"),
+        Index("ix_audit_entry_action_rank", text(ACTION_RANK)),
+        Index("ix_audit_entry_object_kind_rank", text(OBJECT_KIND_RANK)),
+        Index("ix_audit_entry_actor_order", text(ACTOR_ORDER[0]), ACTOR_ORDER[1]),
     )
 
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
-    # action, nature and object, project, correlation — and its sorts on the date and on the
-    # texts, which share their collation: the name of the author, the label, the code of the
-    # project, the correlation. Left to US-0410/L2: the sorts on the action and on the nature,
-    # in the order of the enumerations of the contract, which an index on the text does not
-    # serve and an index on the expression of that order will; and the search on the label,
-    # which no index serves yet. At one instant, the order of inscription is that of the
+    # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
+    # which share their collation — the name of the author, the label, the code of the project,
+    # the correlation —, on the author, an account before the platform, and on the ranks of the
+    # action and of the nature (migration ``0014``).
+    # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
+    # no index serves: a B-tree does not find a text inside another, and a trigram index serves
+    # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the
     # identifiers, drawn in time order.
     id: Mapped[UUID] = mapped_column(primary_key=True)
     occurred_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
     # The account that acted, and its name at that moment; both null for the platform.
     actor_user_id: Mapped[UUID | None] = mapped_column(index=True)
-    actor_display_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS), index=True)
+    actor_display_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
     action: Mapped[str] = mapped_column(Text, index=True)
     object_kind: Mapped[str] = mapped_column(Text, index=True)
     object_id: Mapped[UUID] = mapped_column(index=True)
@@ -201,15 +227,14 @@ class Inscription:
 
 @dataclass(frozen=True, slots=True)
 class Act:
-    """Who acts — an account, or ``None`` for the platform — and when."""
+    """Who acts — an account, or ``None`` for the platform — and when.
 
-    actor: AuditActor | None
+    The account by its identifier alone: the journal names it as it is when the action is
+    inscribed, read in the transaction that inscribes it (``inscribed_actor`` of the accounts).
+    """
+
+    author: UUID | None
     at: datetime
-
-    @property
-    def author(self) -> UUID | None:
-        """The account that writes the row, ``None`` for the platform."""
-        return None if self.actor is None else self.actor.user_id
 
 
 class AuditError(Exception):
@@ -221,7 +246,8 @@ def record(session: Session, inscription: Inscription) -> UUID:
 
     The correlation identifier is the one bound to the logs of the request or of the task
     (WF-OBS-0020): an action done outside any is a defect, refused. A field of ``params`` whose
-    name evokes a secret is refused too, at any depth.
+    name evokes a secret is refused too, at any depth, and an object without a label but a backup
+    or an account — an anonymised one has lost its name —, which the table refuses as well.
     """
     correlation_id = get_contextvars().get("correlation_id")
     if not isinstance(correlation_id, str):
@@ -232,8 +258,11 @@ def record(session: Session, inscription: Inscription) -> UUID:
     if secret is not None:
         message = f"an inscription does not carry a secret: field {secret!r}"
         raise AuditError(message)
-    identifier = new_id()
     actor, audited, project = inscription.actor, inscription.audited, inscription.project
+    if audited.label is None and audited.kind not in UNLABELED_KINDS:
+        message = f"an object of kind {audited.kind!r} is inscribed without its label"
+        raise AuditError(message)
+    identifier = new_id()
     revision = audited.revision
     session.execute(
         insert(AuditEntry).values(

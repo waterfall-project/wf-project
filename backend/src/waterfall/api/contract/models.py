@@ -1057,6 +1057,77 @@ class AuditProject(ContractModel):
     label: str
 
 
+class AuditUserField(StrEnum):
+    last_name = "last_name"
+    first_name = "first_name"
+    email = "email"
+
+
+class AuditAccessRole(ContractModel):
+    access_role_id: Uuid
+    label: str
+
+
+class AuditParams(ContractModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    origin: Annotated[
+        UserOrigin | None,
+        Field(
+            description="`user_create` : l'origine du compte créé — par un administrateur (`local`), par la lecture du fournisseur d'identité (`directory`), à la première connexion d'une personne relayée par un fournisseur externe (`identity_provider`)."
+        ),
+    ] = None
+    fields: Annotated[
+        list[AuditUserField] | None,
+        Field(
+            description="`user_update` : les champs de l'identité que la modification a changés, dans l'ordre du compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après."
+        ),
+    ] = None
+    attached: Annotated[
+        bool | None,
+        Field(
+            description="`user_update` : vrai quand la modification rattache le compte à une personne de l'annuaire qui porte son adresse (#707) — le compte prend son identifiant chez le fournisseur et vient désormais de l'annuaire ; absent sinon."
+        ),
+    ] = None
+    permissions: Annotated[
+        list[PermissionCode] | None,
+        Field(
+            description="`access_role_create` : les permissions du rôle créé, dans l'ordre du catalogue."
+        ),
+    ] = None
+    permissions_granted: Annotated[
+        list[PermissionCode] | None,
+        Field(
+            description="`access_role_update` : les permissions que la modification a données au rôle, dans l'ordre du catalogue ; vide si elle n'en a donné aucune."
+        ),
+    ] = None
+    permissions_withdrawn: Annotated[
+        list[PermissionCode] | None,
+        Field(
+            description="`access_role_update` : les permissions que la modification a retirées au rôle, dans l'ordre du catalogue ; vide si elle n'en a retiré aucune."
+        ),
+    ] = None
+    previous_label: Annotated[
+        str | None,
+        Field(
+            description="`access_role_update` : le libellé du rôle avant la modification, quand elle l'a changé ; absent sinon. Le libellé d'après est celui de l'objet (`AuditObject.label`)."
+        ),
+    ] = None
+    access_roles_granted: Annotated[
+        list[AuditAccessRole] | None,
+        Field(
+            description="`user_access_roles_set` : les rôles que l'attribution a donnés au compte, dans l'ordre où il les tient ; vide si elle n'en a donné aucun. À la création d'un compte, ses premiers rôles."
+        ),
+    ] = None
+    access_roles_withdrawn: Annotated[
+        list[AuditAccessRole] | None,
+        Field(
+            description="`user_access_roles_set` : les rôles que l'attribution a retirés au compte ; vide si elle n'en a retiré aucun."
+        ),
+    ] = None
+
+
 class AuditEvent(ContractModel):
     audit_event_id: Uuid
     occurred_at: Annotated[
@@ -1079,6 +1150,7 @@ class AuditEvent(ContractModel):
             description="Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde."
         ),
     ]
+    params: AuditParams
     correlation_id: Annotated[
         str,
         Field(
@@ -1102,7 +1174,7 @@ class AuditFacets(ContractModel):
     actors: Annotated[
         list[AuditActorFacet],
         Field(
-            description="Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant ; la plateforme n'y est pas : `actor_kind` la retient."
+            description="Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant — un compte anonymisé, qui n'a plus de nom, après les noms — ; la plateforme n'y est pas : `actor_kind` la retient."
         ),
     ]
     projects: Annotated[
