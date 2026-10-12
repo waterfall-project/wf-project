@@ -7,7 +7,9 @@
  * the platform; the action and the nature of the object, in words; the object and the project, by
  * the names the inscription keeps — an account anonymised by the neutral label —, each a link to it
  * when the session may consult it (WF-ADM-0110), its name alone otherwise; the link to the
- * history of the object, the journal filtered on it; and the correlation, a link to the inscriptions
+ * history of the object, the journal filtered on it; what the action did to its object, composed in
+ * the language of the reader from the codes and the identifiers the inscription keeps, never a
+ * sentence of the API (WF-ARC-0110); and the correlation, a link to the inscriptions
  * of its request alone (WF-OBS-0020). A link is out of the order of tabulation,
  * the grid being one stop, which follows it on Enter (`grid-keyboard.ts`).
  */
@@ -16,12 +18,13 @@
 import { History } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
+import { formatLocale } from "@/i18n/format";
 
 import {
   type AuditAction,
@@ -62,6 +65,87 @@ export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
 export function ActionCell({ action }: { readonly action: AuditAction }) {
   const t = useTranslations("enums.AuditAction");
   return t(action);
+}
+
+/** The parameters of an inscription, as the contract gives them: codes, identifiers, labels kept. */
+type AuditParams = AuditEvent["params"];
+type PermissionCode = components["schemas"]["PermissionCode"];
+type AuditAccessRole = components["schemas"]["AuditAccessRole"];
+
+/**
+ * What an action did to its object, in sentences of the language of the reader, composed from the
+ * parameters the inscription keeps (WF-ARC-0110, #706) — the origin of an account created; the
+ * fields of the identity a modification changed, and its attachment to the directory; the
+ * permissions of a role created, those a modification granted and withdrew, and the label it bore
+ * before; the roles an attribution granted and withdrew, by the labels they bore then
+ * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
+ * an action whose object says it all.
+ */
+export function useAuditDetails(): (action: AuditAction, params: AuditParams) => string | undefined {
+  const t = useTranslations();
+  const said = useTranslations("admin.auditLog.details");
+  const locale = useLocale();
+  const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" });
+  const listed = (items: readonly string[]) => list.format(items);
+  const permissions = (codes: readonly PermissionCode[]) =>
+    listed(codes.map((code) => t(`permissions.${code}`)));
+  const roles = (held: readonly AuditAccessRole[]) => listed(held.map((role) => role.label));
+  return (action, params) => {
+    const parts: string[] = [];
+    if (params.origin !== undefined) {
+      parts.push(t(`enums.UserOrigin.${params.origin}`));
+    }
+    if (params.fields !== undefined && params.fields.length > 0) {
+      const fields = listed(params.fields.map((field) => t(`enums.AuditUserField.${field}`)));
+      parts.push(said("fields", { count: params.fields.length, fields }));
+    }
+    if (params.attached === true) {
+      parts.push(said("attached"));
+    }
+    if (params.previous_label !== undefined) {
+      parts.push(said("renamed", { label: params.previous_label }));
+    }
+    if (params.permissions !== undefined) {
+      const count = params.permissions.length;
+      parts.push(said("permissions", { count, permissions: permissions(params.permissions) }));
+    }
+    for (const [key, codes] of [
+      ["permissionsGranted", params.permissions_granted],
+      ["permissionsWithdrawn", params.permissions_withdrawn],
+    ] as const) {
+      if (codes !== undefined && codes.length > 0) {
+        parts.push(said(key, { count: codes.length, permissions: permissions(codes) }));
+      }
+    }
+    const granted = params.access_roles_granted ?? [];
+    const withdrawn = params.access_roles_withdrawn ?? [];
+    if (granted.length > 0) {
+      parts.push(said("rolesGranted", { count: granted.length, roles: roles(granted) }));
+    }
+    if (withdrawn.length > 0) {
+      parts.push(said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }));
+    }
+    if (action === "user_access_roles_set" && granted.length === 0 && withdrawn.length === 0) {
+      parts.push(said("noRoleChanged"));
+    }
+    return parts.length === 0
+      ? undefined
+      : parts.reduce((first, second) => said("then", { first, second }));
+  };
+}
+
+/**
+ * Render what the action of an inscription did to its object, in the language of the reader; its
+ * whole sentence on hover, the cell cutting it short. Nothing for an action whose object says it
+ * all.
+ */
+export function DetailsCell({ event }: { readonly event: AuditEvent }) {
+  const details = useAuditDetails()(event.action, event.params);
+  return details === undefined ? null : (
+    <span title={details} className="block truncate">
+      {details}
+    </span>
+  );
 }
 
 /** Render the nature of the object of an inscription, in words. */

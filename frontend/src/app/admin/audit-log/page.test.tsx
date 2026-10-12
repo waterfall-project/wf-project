@@ -127,7 +127,7 @@ describe("the journal of audit", () => {
   it("presents each inscription with its author, its action, its object and its project as it keeps them, and how many the server retained", async () => {
     const page = await journal();
     const shown = rows(page);
-    expect(shown[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet Corrélation");
+    expect(shown[0]).toBe("Date Auteur Action Détail Nature de l’objet Objet Projet Corrélation");
     expect(shown[1]).toBe(
       "Camille Martin Application d’un import Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000034",
     );
@@ -200,7 +200,7 @@ describe("the journal of audit", () => {
     const page = await journal();
     expect(sorted(page)[0]).toBe("Date ascending");
     expect(queriesOf(EVENTS)).toEqual([{ sort_by: "occurred_at", sort_order: "asc" }]);
-    expect(rows(page)[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet");
+    expect(rows(page)[0]).toBe("Date Auteur Action Détail Nature de l’objet Objet Projet");
     // The address is the truth: a sort it asks wins over the one kept.
     server.clients = [];
     await journal({ sort_by: "occurred_at", sort_order: "desc" });
@@ -326,14 +326,23 @@ describe("the journal of audit", () => {
     expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
 
-  it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A]", async () => {
-    const page = text(await journal());
-    for (const command of ["Modifier", "Supprimer", "Créer", "Effacer"]) {
-      expect(page).not.toContain(command);
+  it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A] [WF-ADM-0190-A]", async () => {
+    const page = await journal();
+    // No cell of the grid takes an entry, nor holds a control: its links lead elsewhere.
+    const body = /<tbody[^>]*>(.*?)<\/tbody>/.exec(gridOf(page))?.[1] ?? "";
+    expect(body).not.toMatch(/<(button|input|select|textarea|form)\b|contenteditable/);
+    // The controls of the page are those of its filters, its columns, its sorts and its pages.
+    const controls = [...page.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((button) =>
+      text(button[0]),
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) {
+      expect(control).not.toMatch(/Modifier|Supprimer|Effacer|Créer|Retirer|Annuler/);
     }
+    expect(page).not.toMatch(/<form[^>]*method="post"/i);
   });
 
-  it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A]", async () => {
+  it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A] [WF-ADM-0190-A]", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     await expect(journal()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     // The session alone is read: nothing of the journal, its facets or the projects.
@@ -396,6 +405,21 @@ describe("the journal of audit", () => {
       NEWEST,
       { from: "2028-02-29T23:59:59.5+02:00", to: "2026-05-01T08:00:00Z", ...NEWEST },
     ]);
+  });
+
+  it("presents nothing of a month without any action, which it asks the server for [WF-ADM-0190-A]", async () => {
+    server.answers = { ...server.answers, [EVENTS]: "audit_events_empty" };
+    const month = { from: "2026-07-01T00:00:00Z", to: "2026-08-01T00:00:00Z" };
+    const page = await journal(month);
+    expect(queriesOf(EVENTS)).toEqual([{ ...month, ...NEWEST }]);
+    // The grid holds no inscription — it says no row answers —, and the filters are kept.
+    expect(rows(page)).toEqual([
+      "Date Auteur Action Détail Nature de l’objet Objet Projet Corrélation",
+      "Aucune ligne ne répond à la demande.",
+      "Aucune inscription",
+    ]);
+    expect(text(page)).not.toContain("Le journal ne tient aucune inscription.");
+    expect(page).toContain('aria-label="Filtres du journal"');
   });
 
   it("says the journal holds nothing only when nothing narrows it", async () => {

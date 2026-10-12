@@ -194,6 +194,7 @@
       "occurredAt": "Date",
       "author": "Auteur",
       "auditAction": "Action",
+      "auditDetails": "Détail",
       "objectKind": "Nature de l’objet",
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",
@@ -1383,6 +1384,18 @@
       "history": "Histoire de « {object} »",
       "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "details": {
+        "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
+        "attached": "Rattaché à la personne de l’annuaire qui porte son adresse",
+        "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",
+        "renamed": "Auparavant « {label} »",
+        "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
+        "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "noRoleChanged": "Aucun rôle donné ni retiré",
+        "then": "{first} ; {second}"
+      },
       "filters": {
         "label": "Filtres du journal",
         "period": "Période",
