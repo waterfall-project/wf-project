@@ -4,9 +4,10 @@
  * The bootstrap of a new installation, as its first administrator meets it (US-0420, WF-EXP-0020):
  * the link `make e2e-service` gives (`E2E_INSTALLATION_LINK`) sets its password — once: empty when
  * an earlier run on the platform set it, the administrator then signing in with the password the
- * paths gave it, which the result of the path says; never in the chain, whose platform is new —; signed in, it holds the role « Administrateur », and finds the three predefined
- * roles and the catalogue of the permissions. The project `installation`, on which every other
- * path depends: they act through this administrator.
+ * paths gave it, which the result of the path says; never in the chain, whose platform is new —;
+ * signed in, it holds the role « Administrateur », and finds the three predefined roles and the
+ * catalogue of the permissions. The project `installation`, on which every other path depends: they
+ * act through this administrator.
  */
 import { expect, test } from "@playwright/test";
 

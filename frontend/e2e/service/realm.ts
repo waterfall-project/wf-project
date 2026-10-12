@@ -618,26 +618,26 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     /**
      * Give a local account the role of a label — made of the permissions given unless the
      * installation holds it already, so that the runs on a platform kept make it once —, in place
-     * of those it holds. Never both permissions of the administration.
+     * of those it holds. Never both permissions of the administration, those of the role held
+     * included: the guard fails before anything is written.
      */
     give: async (
       id: string,
       label: string,
       permissions: readonly Schemas["PermissionCode"][],
     ): Promise<void> => {
+      const search = new URLSearchParams({ search: label }).toString();
+      const found = (
+        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
+      ).find((one) => one.label === label);
+      const granted = found?.permissions ?? permissions;
       expect(
-        ADMINISTRATION.every((permission) => permissions.includes(permission)),
+        ADMINISTRATION.every((permission) => granted.includes(permission)),
         `the role ${label} gives both permissions of the administration`,
       ).toBe(false);
-      const search = new URLSearchParams({ search: label }).toString();
-      const held = await read<Schemas["AccessRole"][]>(
-        request,
-        await current(),
-        `/access-roles?${search}`,
-      );
       const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
       const role =
-        held.find((one) => one.label === label)?.access_role_id ??
+        found?.access_role_id ??
         (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
           .access_role_id;
       const { lock_version: version } = await read<Schemas["User"]>(

@@ -86,7 +86,7 @@ test("an administrator creates a role, renames it, gives it a permission in the 
     await label.fill(created);
     await create.click({ timeout: 1_000 });
   });
-  await expect(createdTold).toHaveCount(1, { timeout: WORKING });
+  await expect(told).toHaveText(`${quoted(created)} créé.`, { timeout: WORKING });
   const cell = roles.getByRole("gridcell", { name: created, exact: true });
   await expect(cell).toBeVisible({ timeout: WORKING });
 
@@ -129,7 +129,9 @@ test("an administrator creates a role, renames it, gives it a permission in the 
     await expect(refused).toHaveCount(1, { timeout: WORKING });
     await expect(users).toBeChecked({ timeout: WORKING });
   } finally {
-    // Accepted, the refusal gone, the role is given back what the paths beside act through.
+    // Once the write is answered — the box shows it asked at once —, accepted, the refusal gone,
+    // the role is given back what the paths beside act through.
+    await expect(users).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
     if (!(await users.isChecked())) {
       await users.click();
       await expect(users).toBeChecked({ timeout: WORKING });
@@ -186,7 +188,8 @@ test("the last administrator is refused its deactivation, presented unavailable,
 
   // The withdrawal of its role is refused by the server, and the role shown as it was.
   const held = page.getByRole("group", { name: `Rôles de ${name}` });
-  await openMenu(accounts.getByRole("button", { name: `Rôles de ${name}` }), held);
+  const roles = accounts.getByRole("button", { name: `Rôles de ${name}` });
+  await openMenu(roles, held);
   const administration = held.getByRole("checkbox", { name: "Administrateur", exact: true });
   await expect(administration).toBeChecked();
   try {
@@ -196,8 +199,10 @@ test("the last administrator is refused its deactivation, presented unavailable,
     });
     await expect(administration).toBeChecked();
   } finally {
-    // Accepted, the refusal gone, the account would hold no role, and could not give it back to
-    // itself: the role is given back in the database, for the runs to come on the platform kept.
+    // Once the write is answered — its cell busy until then —, accepted, the refusal gone, the
+    // account would hold no role, and could not give it back to itself: the role is given back in
+    // the database, for the runs to come on the platform kept.
+    await expect(roles).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
     if (waterfallAccount(ADMINISTRATOR.email)?.roles === 0) {
       grantRole(ADMINISTRATOR.email, "Administrateur", []);
     }

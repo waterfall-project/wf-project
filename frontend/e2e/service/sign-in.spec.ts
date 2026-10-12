@@ -118,6 +118,16 @@ test("a local account, an account of the directory and one of the external provi
   }
 });
 
+// The guard of the paths: an account given the role of the administration, held already with both
+// its permissions whatever the paths ask, would lift the refusals of `roles.spec.ts`.
+test("the administrator of the paths gives no account a role that holds both permissions of the administration, the role held already included: refused before the role is written (#879)", async () => {
+  const { id, email } = await administrator.create();
+  await expect(administrator.give(id, "Administrateur", [])).rejects.toThrow(
+    "the role Administrateur gives both permissions of the administration",
+  );
+  expect(waterfallAccount(email)?.roles).toBe(0);
+});
+
 test("an account of the directory signs in with its identifiers of the directory, and Waterfall shows it no screen of a password [WF-ADM-0140-A]", async ({
   page,
 }) => {
