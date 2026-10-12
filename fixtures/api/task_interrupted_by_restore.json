@@ -1,0 +1,16 @@
+{
+  "summary": "Variante contrefactuelle déclarée : la plateforme restaurée à 14 h 08 depuis un vidage pris pendant une sauvegarde du 2 juin 2026 à 1 h, encore en cours dans ce vidage ; la restauration la trouve en cours dans la base restaurée et la fait échouer, sans la relancer ni écraser son archive (WF-ADM-0160, #892).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000938",
+    "kind": "backup",
+    "status": "failed",
+    "progress": 0,
+    "submitted_at": "2026-06-02T01:00:00Z",
+    "finished_at": "2026-06-03T14:08:00Z",
+    "problem": {
+      "code": "TASK_INTERRUPTED_BY_RESTORE",
+      "status": 409
+    },
+    "result_url": null
+  }
+}

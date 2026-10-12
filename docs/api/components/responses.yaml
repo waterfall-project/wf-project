@@ -98,7 +98,9 @@ PortfolioPeriodRefused:
 ServiceUnavailable:
   description: >-
     Un composant indisponible empêche l'opération ; `params.component` le nomme et
-    l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Toute opération gardée le
+    l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Pendant la maintenance d'une
+    restauration (`startRestore`), toute opération répond ainsi, `component` à `database`, sauf
+    `getLiveness`, qui dit la maintenance (WF-ADM-0160, #604). Toute opération gardée le
     déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur
     d'identité (`identity_provider`).
   content:

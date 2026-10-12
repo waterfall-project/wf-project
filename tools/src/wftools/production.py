@@ -21,7 +21,10 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 - the console of Keycloak and its realm master are not served (404);
 - the first administrator sets their password by the link, signs in through the front, at the root
   of the domain, and Keycloak under ``/auth``, and the front opens the session: its cookie set, a
-  page of the front that names them.
+  page of the front that names them;
+- asked for by ``WATERFALL_TRIAL_RESTORATION=1``, a backup and its restoration by the API, the
+  restoration followed by the liveness probe to its end (``wftools.restoration_trial``, US-0440,
+  #948): left out until the chain starts the service of the restoration.
 
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what
@@ -47,6 +50,16 @@ from pathlib import Path
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from wftools import REPOSITORY
+from wftools.restoration_trial import (
+    Administrator,
+    Api,
+    Ask,
+    Restoration,
+    RestorationTrial,
+    TrialError,
+    probe_of,
+    wanted,
+)
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
@@ -309,14 +322,17 @@ def _output(read: Read, command: list[str]) -> str:
 
 def trial(
     compose: list[str], read: Read, platform: Platform, email: str, send: Callable[[Path], Send]
-) -> None:
-    """Bootstrap the started platform and hold it."""
+) -> tuple[Callable[[], Browser], Send]:
+    """Bootstrap the started platform and hold it.
+
+    Give how to sign the first administrator in again, in a browser of their own, and the sender
+    of the requests to the platform.
+    """
     link = installation_link(
         _output(read, [*compose, "run", "--rm", "--no-TTY", "install"]), platform
     )
     print("  the bootstrap wrote the link of the first administrator")
-    probe = [*compose, "exec", "-T", "api", "python", "-c", LIVENESS]
-    check_liveness(_output(read, probe))
+    check_liveness(_output(read, liveness_command(compose)))
     print("  the API answers its liveness probe: ok")
     psql = [*compose, "exec", "-T", "postgres", "psql", "--username=postgres", "--no-psqlrc"]
     rights = [*psql, "--tuples-only", "--no-align", f"--command={OWNER_RIGHTS}"]
@@ -339,6 +355,33 @@ def trial(
         sign_in(browser, platform, email, password)
         check_signed_in(browser, platform, email)
         print(f"  the first administrator signs in at {platform.address}, and the front names them")
+
+    def signed_in() -> Browser:
+        again = Browser(sent)
+        sign_in(again, platform, email, password)
+        return again
+
+    return signed_in, sent
+
+
+def liveness_command(compose: list[str]) -> list[str]:
+    """Return the command that asks the API its liveness probe, inside its container."""
+    return [*compose, "exec", "-T", "api", "python", "-c", LIVENESS]
+
+
+def back_up_and_restore(
+    compose: list[str],
+    read: Read,
+    platform: Platform,
+    signed: tuple[Callable[[], Browser], Send],
+    restoration: Restoration,
+) -> None:
+    """Back the platform up by its API, and restore it (``wftools.restoration_trial``)."""
+    signed_in, sent = signed
+    administrator = Administrator(signed_in, sent, platform.address, restoration.client_secret)
+    api = Api(compose, restoration.ask)
+    probe = probe_of(read, liveness_command(compose))
+    RestorationTrial(api, administrator, probe, restoration.clock).run()
 
 
 class _Loopback(http.client.HTTPSConnection):
@@ -423,6 +466,7 @@ def main(
     run: Run | None = None,
     read: Read | None = None,
     send: Callable[[Platform], Callable[[Path], Send]] = sender,
+    ask: Ask | None = None,
 ) -> int:
     """Start the platform, hold it, and remove it; fail naming what it does not do."""
     given = dict(os.environ if environment is None else environment)
@@ -435,6 +479,10 @@ def main(
         return 1
     run = run or _runner(started)
     read = read or _reader(started)
+    restoration = None
+    if wanted(given):
+        secret = given.get("WATERFALL_FRONT_CLIENT_SECRET", "")
+        restoration = Restoration(ask or _asker(started), secret)
     compose = compose_command(given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
@@ -442,9 +490,14 @@ def main(
     try:
         if code := run(up):
             return code
-        trial(compose, read, platform, started["WATERFALL_ADMIN_EMAIL"], send(platform))
+        email = started["WATERFALL_ADMIN_EMAIL"]
+        signed = trial(compose, read, platform, email, send(platform))
+        if restoration is None:
+            print("  the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)")
+        else:
+            back_up_and_restore(compose, read, platform, signed, restoration)
         failed = False
-    except ProductionError as error:
+    except (ProductionError, TrialError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
     finally:
@@ -484,6 +537,24 @@ def _reader(environment: Mapping[str, str]) -> Read:
         return done.returncode, done.stdout
 
     return read
+
+
+def _asker(environment: Mapping[str, str]) -> Ask:
+    def ask(command: list[str], given: str) -> tuple[int, str]:
+        done = subprocess.run(
+            command,
+            cwd=REPOSITORY,
+            env=dict(environment),
+            input=given,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if done.returncode != 0:
+            print(done.stderr, file=sys.stderr)
+        return done.returncode, done.stdout
+
+    return ask
 
 
 if __name__ == "__main__":

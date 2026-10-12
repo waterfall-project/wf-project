@@ -16,7 +16,17 @@ from uuid import UUID
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError
-from sqlalchemy import CheckConstraint, SmallInteger, Text, event, func, insert, select
+from sqlalchemy import (
+    CheckConstraint,
+    Connection,
+    SmallInteger,
+    Text,
+    event,
+    func,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -25,6 +35,7 @@ from waterfall.platform.database import Base, UtcDateTime, utc_now
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import get_logger
 from waterfall.platform.queue import TaskQueue
+from waterfall.platform.restoration import keep, write_back
 
 # The kinds and the states of the contract (``BackgroundTaskRef.kind``, ``BackgroundTaskStatus``),
 # in its order; a new one is a change of the contract, then a migration of the constraint.
@@ -43,6 +54,8 @@ KINDS: tuple[str, ...] = get_args(TaskKind.__value__)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 FINISHED = ("succeeded", "failed")
+# Why a task that a restoration finds pending in the restored database fails (#892).
+INTERRUPTED = {"code": "TASK_INTERRUPTED_BY_RESTORE", "status": 409}
 
 logger = get_logger(__name__)
 
@@ -186,3 +199,32 @@ def list_tasks(
     latest = (BackgroundTask.submitted_at.desc(), BackgroundTask.id.desc())
     page = select(BackgroundTask).where(*kept).order_by(*latest).limit(limit).offset(offset)
     return list(session.scalars(page)), total or 0
+
+
+def keep_tasks(connection: Connection, task_ids: Collection[UUID]) -> None:
+    """Keep, before a restoration, the tasks it writes back: its own, and the backups' (#893)."""
+    keep(connection, BackgroundTask, BackgroundTask.id.in_(task_ids))
+
+
+def write_back_tasks(connection: Connection, restoration: UUID, at: datetime) -> None:
+    """Write back the tasks kept that the restored database lacks, then fail those it holds pending.
+
+    A task kept comes back without its requester where the restored database lacks the account.
+    Every task the restored database holds queued or running fails, under its own correlation, but
+    the restoration's (#892): run again, the backup the dump caught running would write over its
+    archive.
+    """
+    write_back(connection, BackgroundTask, unsure={"requested_by"})
+    problem = func.jsonb_build_object(
+        "code",
+        INTERRUPTED["code"],
+        "status",
+        INTERRUPTED["status"],
+        "correlation_id",
+        BackgroundTask.correlation_id,
+    )
+    connection.execute(
+        update(BackgroundTask)
+        .where(BackgroundTask.status.in_(PENDING), BackgroundTask.id != restoration)
+        .values(status="failed", problem=problem, finished_at=at)
+    )

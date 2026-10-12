@@ -26,6 +26,9 @@ export interface Examples {
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
   };
+  "GET /health": {
+    200: "liveness" | "liveness_maintenance";
+  };
   "GET /identity-syncs/latest": {
     200: "identity_sync_report" | "identity_sync_report_anonymized" | "identity_sync_report_flagged";
   };
@@ -198,7 +201,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
@@ -286,6 +289,9 @@ export interface Examples {
   };
   "POST /reference/resource-roles": {
     201: "resource_role_created";
+  };
+  "POST /restores": {
+    202: "task_restore_queued";
   };
   "POST /users": {
     201: "user_created" | "user_created_invited";

@@ -12,8 +12,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Sonde de vivacité
-         * @description Répond dès que le processus est démarré, sans toucher aucun composant de données.
+         * Sonde de vivacité, et la maintenance d'une restauration
+         * @description Répond dès que le processus est démarré, sans toucher aucun composant de données. Elle dit aussi la maintenance d'une restauration (`startRestore`, WF-ADM-0160) : `status` vaut `maintenance` tant que la plateforme est en maintenance, toute autre opération répondant alors 503 `COMPONENT_UNAVAILABLE`, et `ok` une fois la maintenance levée, la restauration aboutie. Le front l'interroge pour savoir quand la restauration a abouti : l'état de maintenance ne dépend pas de la base que la restauration recrée, et la tâche de la restauration n'est pas lisible pendant la maintenance (#604). Une plateforme en maintenance est vivante : la sonde répond 200.
          */
         get: operations["getLiveness"];
         put?: never;
@@ -652,7 +652,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurer la plateforme
-         * @description Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive : la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`, `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à `restore`) met ensuite la plateforme en maintenance : toutes les sessions sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090).
+         * @description Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de restaurer la plateforme (`platform_restore`). Une archive d'une version plus récente que l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive : la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`, `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc sans qu'aucune session soit fermée ni rien écrit. La tâche (`BackgroundTaskRef.kind` à `restore`) met ensuite la plateforme en maintenance : toutes les sessions sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début (WF-ARC-0090). Pendant la maintenance, la tâche n'est pas lisible : `getLiveness` dit la maintenance et sa levée (#604). La confirmation nomme la date de la sauvegarde : `acknowledged_backup_taken_at` est celle de la sauvegarde désignée, et une autre date est une confirmation qui ne la nomme pas, refusée par 400 `CONFIRMATION_REQUIRED` ; une sauvegarde ou un dépôt inconnus, 404 ; une restauration déjà en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Les tâches restaurées encore en file ou en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892) ; la liste des sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893, #894). Le royaume du fournisseur d'identité garde la configuration de l'installation qui restaure — ses clients et ses adresses — ; ses comptes et leurs mots de passe sont ceux de la sauvegarde (#955).
          */
         post: operations["startRestore"];
         delete?: never;
@@ -2653,7 +2653,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "EMAIL_MISSING" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "EMAIL_MISSING" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "TASK_INTERRUPTED_BY_RESTORE" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -4906,7 +4906,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Un composant indisponible empêche l'opération ; `params.component` le nomme et l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Toute opération gardée le déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur d'identité (`identity_provider`). */
+        /** @description Un composant indisponible empêche l'opération ; `params.component` le nomme et l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Pendant la maintenance d'une restauration (`startRestore`), toute opération répond ainsi, `component` à `database`, sauf `getLiveness`, qui dit la maintenance (WF-ADM-0160, #604). Toute opération gardée le déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur d'identité (`identity_provider`). */
         ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -5068,15 +5068,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Le processus répond. */
+            /** @description Le processus répond ; en maintenance ou non. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        status: "ok";
+                        /**
+                         * @description `ok` : la plateforme sert ses opérations ; `maintenance` : une restauration la tient en maintenance, et seule cette sonde répond.
+                         * @enum {string}
+                         */
+                        status: "ok" | "maintenance";
                     };
                 };
             };
@@ -6274,10 +6277,35 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
-            400: components["responses"]["BadRequest"];
+            /** @description Requête mal formée (`MALFORMED_REQUEST`), ou une confirmation qui ne nomme pas la date de la sauvegarde désignée (`CONFIRMATION_REQUIRED`, WF-ADM-0160). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
+            /** @description Sauvegarde ou dépôt inconnus, ou lecture des sauvegardes refusée, sans distinction (WF-ADM-0110). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Une restauration est déjà en file ou en cours : `STATE_FORBIDS_OPERATION`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
             422: {
                 headers: {

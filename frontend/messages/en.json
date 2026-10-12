@@ -1549,7 +1549,8 @@
     "UNKNOWN_ACCESS_ROLE": "This access role does not exist.",
     "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
     "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
-    "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored."
+    "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
+    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",

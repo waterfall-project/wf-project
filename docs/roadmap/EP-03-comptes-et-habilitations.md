@@ -729,7 +729,10 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
   publier, sur un nom local, amorce, et vérifie la sonde de vie et la connexion du premier
   administrateur ; une sauvegarde et sa restauration par l'API s'y ajoutent avec US-0440/L2
-  (#569).
+  (#569) : `make production-trial` demande une sauvegarde puis une restauration par l'API,
+  la restauration suivie par la sonde de vie jusqu'à la levée de la maintenance (#948,
+  point 2). L2 pose l'étape derrière la garde `WATERFALL_TRIAL_RESTORATION` ; US-0440/L2b
+  (#985), qui démarre le service de restauration, la lève.
 
 ### Stockage objet
 
@@ -781,7 +784,7 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   Une restauration interrompue reprend depuis le début et ne lève la maintenance qu'une fois
   finie (WF-ARC-0090).
 - **Le service de restauration** (auteur, 2026-10-12, #953, #954, #955), que réalise
-  US-0440/L2 :
+  US-0440/L2b (#985, coupé d'US-0440/L2 le 2026-10-13) :
   - **ce qu'il tient** : sur le modèle de l'amorçage, un service de l'image `waterfall`, sous
     la commande `waterfall-restore`, est le seul processus de la plateforme à tenir l'adresse
     du propriétaire de la base de Waterfall (`waterfall`, #701) et celle du propriétaire de la
@@ -829,7 +832,7 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     un constat avant de choisir une autre voie. Test : une sauvegarde restaurée sur une
     installation aux secrets et au domaine différents laisse le front et l'API parler à
     Keycloak, et l'administrateur de la source s'y connecte ;
-  - **sa place dans Compose**, que réalise US-0440/L2 : dans `compose.service.yaml` et
+  - **sa place dans Compose**, que réalise US-0440/L2b : dans `compose.service.yaml` et
     `compose.prod.yaml`, un service `restore` de l'image `waterfall`, sous
     `waterfall-restore`, `restart: unless-stopped`, qui tient Redis, le stockage objet, les
     deux adresses des propriétaires, le secret du client de l'amorçage et le compte de service ;
@@ -859,6 +862,48 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     vidage, et aucune exemption de la règle S603 de Ruff n'est faite. Test : une inscription
     faite pendant la sauvegarde est présente une fois exactement après la restauration, et
     l'inscription de la sauvegarde l'est aussi.
+- **Ce qu'en font US-0440/L2 et US-0440/L2b** (#604, #907 ; coupe du 2026-10-13, #985) : L2
+  livre la logique de la restauration, indépendante de son exécutant et éprouvée sans lui
+  contre PostgreSQL — ce qui est gardé et réinscrit, le remplacement, le refus d'une archive
+  plus récente, l'inscription de la restauration —, #907, le contrat (`getLiveness`,
+  `startRestore` et ses refus, `TASK_INTERRUPTED_BY_RESTORE`) et l'étape gardée de l'essai de
+  production ; L2b livre l'exécutant — `startRestore` servi, la maintenance, les sessions, la
+  reprise, le service de restauration et le dépôt par morceaux (#350) — qui appelle cette
+  logique :
+  - **la demande** (L2b ; `startRestore`, sous `platform_restore`) nomme la sauvegarde et sa
+    date : une date qui n'est pas la sienne est une confirmation qui ne la nomme pas, 400
+    `CONFIRMATION_REQUIRED` ; une restauration déjà en file ou en cours, 409
+    `STATE_FORBIDS_OPERATION`. La tâche porte la clé de l'archive : elle ne lit pas la base
+    qu'elle remplace pour la trouver ;
+  - **la maintenance** (L2b) est tenue hors de la base que la restauration recrée, dans Redis,
+    sous une clé de la plateforme qui nomme la tâche de restauration ; tant qu'elle y est, toute
+    opération répond 503 `COMPONENT_UNAVAILABLE` (`component` à `database`), sauf `getLiveness`,
+    publique, qui dit `maintenance` puis `ok` à sa levée : c'est elle que le front interroge
+    pour savoir quand la restauration a abouti (#604), `getBackgroundTask` n'étant pas servie
+    pendant la maintenance ;
+  - **les sessions** (L2b) : le service de restauration ferme toutes celles du fournisseur
+    d'identité, puis celles du front, que Redis garde ; il les ferme de nouveau à la fin, avec
+    les caches ;
+  - **ce qui est gardé** (L2) — le journal, la table `backup`, la ligne de la tâche de
+    restauration et celles des tâches des sauvegardes gardées, et les droits du rôle du service
+    — est copié, une fois, dans un schéma à part de la même base, que le remplacement ne touche
+    pas : une restauration reprise après une interruption le retrouve, et ne relit pas une base
+    déjà à demi remplacée ; il est réinscrit, puis le schéma supprimé, dans une seule
+    transaction. Une ligne gardée dont le demandeur manque à la base restaurée y revient sans
+    demandeur. Ce qui est gardé et réinscrit est l'affaire du module des sauvegardes, que le
+    service appelle autour du remplacement, et que les tests éprouvent sans lui ;
+  - **le remplacement** (L2) : le schéma de la base de Waterfall est supprimé et recréé, puis le
+    vidage restauré en une transaction, sans propriétaire ni droits de la source
+    (`pg_restore --no-owner --no-privileges`) — le rôle du service d'une autre installation
+    porte un autre nom ; les droits gardés sont rendus au rôle du service de l'installation
+    après les migrations. La base du fournisseur d'identité est remplacée de même, sous son
+    propriétaire ;
+  - **la reprise** (L2b) : le service de restauration qui reprend une restauration interrompue
+    lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne ;
+    pendant la maintenance, le worker n'exécute aucune tâche ;
+  - **un vidage dont la base cesse de répondre** (L2, #907) échoue en composant injoignable,
+    503, et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
+    l'erreur interne que si elle répond.
 - **Reproduire une installation** est une restauration entière : la seconde installation
   devient une copie de la première, comptes et fournisseur d'identité compris (WF-ADM-0160,
   décision de l'auteur du 2026-10-09).
@@ -904,7 +949,15 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    les deux bases, Waterfall et le fournisseur d'identité (WF-ADM-0150), et que la restauration
    laisse le journal d'audit en place et s'y inscrit (WF-ADM-0160 révisée) ; le refus d'une
    sauvegarde d'une version plus récente se nomme ; `BackgroundTaskRef.kind` gagne ce qui
-   manque pour suivre la restauration jusqu'à la levée de la maintenance.
+   manque pour suivre la restauration jusqu'à la levée de la maintenance. Décision de l'auteur
+   du 2026-10-10 (#604), portée par US-0440/L2 : rien, `restore` y est déjà ; c'est
+   `getLiveness`, publique, qui dit la maintenance (`status` à `maintenance`) et sa fin (`ok`),
+   l'état de maintenance ne dépendant pas de la base que la restauration recrée ; toute autre
+   opération répond 503 `COMPONENT_UNAVAILABLE` pendant la maintenance. `startRestore` déclare
+   aussi son 404 (sauvegarde ou dépôt inconnus), son 400 `CONFIRMATION_REQUIRED` (une date qui
+   n'est pas celle de la sauvegarde) et son 409 (une restauration déjà en file ou en cours) ; le
+   code `TASK_INTERRUPTED_BY_RESTORE` dit l'échec d'une tâche restaurée en file ou en cours
+   (#892).
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
    une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
 11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque

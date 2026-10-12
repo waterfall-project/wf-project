@@ -195,6 +195,29 @@ def service_database_url(database_url: str) -> Iterator[str]:
     server.dispose()
 
 
+@pytest.fixture(scope="session")
+def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
+    """Create, for this run, a role of the backup as the platform does (#895): its name, password.
+
+    A member of ``pg_read_all_data``, which reads every table of every database of the server and
+    can neither write nor turn a trigger off; it owns nothing.
+    """
+    name, password = f"waterfall_test_backup_{uuid4().hex}", uuid4().hex
+    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(
+            text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{password}' IN ROLE pg_read_all_data")
+        )
+    yield name, password
+    with server.connect() as connection:
+        connection.execute(
+            text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = :name"),
+            {"name": name},
+        )
+        connection.execute(text(f'DROP ROLE "{name}"'))
+    server.dispose()
+
+
 @pytest.fixture
 def database(database_url: str, service_database_url: str) -> Iterator[Database]:
     """Give the migrated database as the service sees it, emptied afterwards of every row.

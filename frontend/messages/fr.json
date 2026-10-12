@@ -1549,7 +1549,8 @@
     "UNKNOWN_ACCESS_ROLE": "Ce rôle d’habilitation n’existe pas.",
     "UNKNOWN_ORG_NODE": "Ce nœud d’organisation n’existe pas.",
     "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
-    "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas."
+    "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
+    "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
