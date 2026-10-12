@@ -32,7 +32,11 @@ from task_handlers import REQUEST, deposit
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.backups.interface import keep_for_restoration, write_back_after_restoration
+from waterfall.core.backups.interface import (
+    inscribe_restoration,
+    keep_for_restoration,
+    write_back_after_restoration,
+)
 from waterfall.core.backups.tables import Backup
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
@@ -273,7 +277,8 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
 ) -> None:
     # #894: the backup is dated before its dumps; an inscription made between the two is in the
     # dump and after the date. Written back by its identifier, it is there once; the inscription
-    # of the backup, made after the dump, and one made after the backup, are there too.
+    # of the backup, made after the dump, and one made after the backup, are there too; the
+    # restoration, inscribed once done, is the last.
     during: list[UUID] = []
     reach = backup.reached
 
@@ -297,6 +302,13 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     assert dated > taken.taken_at
     inscribed = (AuditEntry.action == "backup", AuditEntry.object_id == taken.id)
     assert count(installation.database, *inscribed) == 1
+    # « … et la dernière inscription est la restauration elle-même. »
+    with logging_context(correlation_id=REQUEST), installation.database.transaction() as session:
+        inscribe_restoration(session, taken.id, None, utc_now())
+    with installation.database.transaction() as session:
+        latest = AuditEntry.occurred_at.desc(), AuditEntry.id.desc()
+        last = session.scalars(select(AuditEntry).order_by(*latest).limit(1)).one()
+    assert (last.action, last.object_kind, last.object_id) == ("restore", "backup", taken.id)
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")

@@ -19,7 +19,14 @@ from sqlalchemy.orm import Session
 
 from waterfall.core.backups.tables import Backup
 from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import Act, AuditEntry, AuditObject, Inscription, record
+from waterfall.platform.audit import (
+    Act,
+    AuditActor,
+    AuditEntry,
+    AuditObject,
+    Inscription,
+    record,
+)
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.restoration import begin_keeping, end_keeping, is_kept, keep, write_back
@@ -110,6 +117,17 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("backup", actor, audited, act.at))
     return backup_id
+
+
+def inscribe_restoration(
+    session: Session, backup_id: UUID, actor: AuditActor | None, at: datetime
+) -> None:
+    """Inscribe a restoration of a backup, once it is done: the last inscription (WF-ADM-0160).
+
+    ``actor`` is who asked for it, named as they were when they asked: the restored database may
+    not hold their account. The inscription carries no parameter, as that of a backup.
+    """
+    record(session, Inscription("restore", actor, AuditObject("backup", backup_id, None), at))
 
 
 def keep_for_restoration(connection: Connection, restoration: UUID) -> None:

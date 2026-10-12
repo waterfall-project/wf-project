@@ -32,11 +32,12 @@ from sqlalchemy.orm import Session
 from waterfall import __version__
 from waterfall.core.backups.interface import (
     NOT_FOUND,
+    inscribe_restoration,
     keep_for_restoration,
     write_back_after_restoration,
 )
 from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import AuditActor, AuditObject, Inscription, record
+from waterfall.platform.audit import AuditActor
 from waterfall.platform.database import create_database_engine, utc_now
 from waterfall.platform.errors import NotFoundError, UnprocessableError
 from waterfall.platform.logs import get_logger
@@ -195,7 +196,7 @@ class RestoreTask:
                 owner.dispose()
         self.provider.close_every_session()
         self.maintenance.close_front_sessions()
-        record(session, Inscription("restore", actor, AuditObject("backup", backup_id, None), at))
+        inscribe_restoration(session, backup_id, actor, at)
         self.maintenance.lift()
         logger.info("restore.done", backup_id=str(backup_id))
         return {"backup_id": str(backup_id)}

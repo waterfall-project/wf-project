@@ -63,6 +63,8 @@ _SEQUELS = {
     "task_succeeded.json",
     "task_failed.json",
     "task_restore_backup_newer_version.json",
+    "task_restore_queued.json",
+    "task_interrupted_by_restore.json",
     "task_mark_relaunched.json",
     "task_import_queued.json",
     "task_import_succeeded.json",
