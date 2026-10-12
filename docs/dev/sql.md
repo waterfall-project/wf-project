@@ -220,6 +220,11 @@ séparerait plus.
   tient »).
 - Une règle qui porte sur un ensemble de lignes — le dernier administrateur — prend un verrou
   consultatif de transaction (`pg_advisory_xact_lock`), toujours le même pour la même règle.
+- Le nom de l'auteur qu'une inscription du journal garde se lit dans la transaction qui
+  l'inscrit, juste avant l'inscription, sous `FOR SHARE` de sa ligne (`inscribed_actor` du
+  module des comptes, #867) : l'anonymisation, qui la tient `FOR UPDATE`, attend l'inscription
+  puis l'oublie, ou se fait attendre et le nom lu est nul. Un écrivain du journal ne reçoit de
+  son appelant que l'identifiant de l'auteur (`Act`).
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.
