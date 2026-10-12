@@ -301,6 +301,20 @@ def test_after_a_scheduled_reading_a_person_of_the_directory_has_an_account_befo
     assert counts(read_accounts(database, reading)) == (0, 0, 0, [], [])
 
 
+@pytest.mark.usefixtures("realm_known")
+def test_the_reading_finds_the_directory_without_ever_holding_its_secret(
+    database: Database, reading: IdentitySync, admin: httpx2.Client, logs: Logs
+) -> None:
+    # The service account may view the realm, to find the directories it federates and have them
+    # synchronised; the realm masks their bind credential, which neither the logs nor the report
+    # carry.
+    report = read_accounts(database, reading)
+    assert BIND_CREDENTIAL not in logs.text
+    assert BIND_CREDENTIAL not in repr(report)
+    (component,) = admin.get("/components", params={"type": USER_STORAGE}).json()
+    assert component["config"]["bindCredential"] == ["**********"]
+
+
 @pytest.mark.requirement("WF-ADM-0070-A")
 @pytest.mark.usefixtures("realm_known")
 def test_a_person_withdrawn_from_the_directory_has_her_account_deactivated_at_the_next_reading(
