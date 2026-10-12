@@ -90,17 +90,31 @@ return redis.call("del", KEYS[1])`;
 /** How many times a lost connection is tried again, a tenth of a second apart, before it fails. */
 const RECONNECTIONS = 5;
 
+/**
+ * The client of the Redis of the platform at its address, not connected yet. An address the client
+ * cannot read fails naming the variable, and only it: the failure of the client quotes the address,
+ * password included, and the log of the server would keep it (WF-SEC-0010).
+ */
+function clientOf(address: string) {
+  try {
+    return createClient({
+      url: address,
+      // A command fails at once while Redis is out of reach, rather than wait in a queue; and a
+      // connection that cannot be made fails, rather than keep the request waiting for ever.
+      disableOfflineQueue: true,
+      socket: {
+        reconnectStrategy: (retries: number, cause: Error) =>
+          retries < RECONNECTIONS ? 100 : cause,
+      },
+    });
+  } catch {
+    throw new Error("WATERFALL_REDIS_URL is not a valid Redis address");
+  }
+}
+
 /** Connect to the Redis of the platform, at its address. */
 function connect(address: string) {
-  const client = createClient({
-    url: address,
-    // A command fails at once while Redis is out of reach, rather than wait in a queue; and a
-    // connection that cannot be made fails, rather than keep the request waiting for ever.
-    disableOfflineQueue: true,
-    socket: {
-      reconnectStrategy: (retries: number, cause: Error) => (retries < RECONNECTIONS ? 100 : cause),
-    },
-  });
+  const client = clientOf(address);
   client.on("error", (error: unknown) => {
     console.error("The sessions of the front cannot reach Redis", error);
   });

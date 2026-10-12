@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 
 import { createClient, ErrorReply, ReconnectStrategyError } from "@redis/client";
 import { describe, expect, it, vi } from "vitest";
@@ -188,6 +189,20 @@ describe("the store of the sessions of the front", () => {
       }
     },
   );
+
+  it("fails naming the variable, never quoting the address and its password, when the address of Redis is badly written [WF-SEC-0010-A]", async () => {
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://waterfall:s3cret-of-redis@[127.0.0.1:6379/0");
+    try {
+      const failure: unknown = await readSession(randomUUID()).catch((thrown: unknown) => thrown);
+      expect(failure).toBeInstanceOf(Error);
+      expect(inspect(failure)).toMatch(/WATERFALL_REDIS_URL/);
+      expect(inspect(failure)).not.toMatch(/s3cret-of-redis/);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("a failure to reach Redis", () => {
