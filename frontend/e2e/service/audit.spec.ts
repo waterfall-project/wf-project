@@ -58,12 +58,24 @@ function inscription(page: Page, grid: string, label: string): Locator {
   return page.getByRole("grid", { name: grid }).getByRole("row").filter({ hasText: label });
 }
 
-/** Whether an inscription is dated of the moment it was made, give or take a minute. */
-async function datedOfTheDay(row: Locator, after: number): Promise<void> {
-  const instant = await row.locator("time").getAttribute("datetime");
+/**
+ * Whether an inscription is dated of the moment it was made, give or take a minute, and presents the
+ * day as the browser of its reader writes today in her language — the tag `formatLocale` builds its
+ * formatters with.
+ */
+async function datedOfTheDay(row: Locator, after: number, tag: string): Promise<void> {
+  const time = row.locator("time");
+  const instant = await time.getAttribute("datetime");
   const at = Date.parse(instant ?? "");
   expect(at).toBeGreaterThanOrEqual(after - 60_000);
   expect(at).toBeLessThanOrEqual(Date.now() + 60_000);
+  const today = await row
+    .page()
+    .evaluate(
+      (locale) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date()),
+      tag,
+    );
+  await expect(time).toContainText(today);
 }
 
 /** Choose a language in the menu of the account, as its holder does: her preference. */
@@ -110,7 +122,7 @@ test("an attribution of a role, the journal filtered on its author and its actio
     await expect(french).toContainText(`Rôle donné : ${role}`);
     await expect(french).toContainText("Jeanne Montgolfier");
     await expect(french).toContainText("Hors projet");
-    await datedOfTheDay(french, before);
+    await datedOfTheDay(french, before, "fr");
     // Nothing on the view modifies nor deletes an inscription: no control in its rows, and none
     // that says so around them.
     await expect(french.getByRole("button")).toHaveCount(0);
@@ -137,7 +149,7 @@ test("an attribution of a role, the journal filtered on its author and its actio
     await expect(english).toContainText(`Role granted: ${role}`);
     await expect(english).toContainText("Jeanne Montgolfier");
     await expect(english).toContainText("No project");
-    await datedOfTheDay(english, before);
+    await datedOfTheDay(english, before, "en-GB");
     await reader.context().close();
     await author.context().close();
   } finally {
