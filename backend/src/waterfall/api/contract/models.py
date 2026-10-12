@@ -62,6 +62,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
     UNKNOWN_COST_TYPE = "UNKNOWN_COST_TYPE"
     UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
+    EMAIL_MISSING = "EMAIL_MISSING"
     UNKNOWN_ACCESS_ROLE = "UNKNOWN_ACCESS_ROLE"
     UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
     FIELD_READ_ONLY = "FIELD_READ_ONLY"
@@ -691,9 +692,52 @@ class PasswordSetupLink(ContractModel):
     ]
 
 
-class SkippedItem(ContractModel):
-    email: str
-    code: ErrorCode
+class Kind2(StrEnum):
+    account = "account"
+    person = "person"
+
+
+class IdentitySyncSkipped(ContractModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Kind2
+    user_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le compte de Waterfall ; pour une personne, le compte qui porte son adresse (`ALREADY_EXISTS`), nul s'il n'en portait plus aucun quand elle a été écartée, et nul pour tout autre motif."
+        ),
+    ]
+    subject: Annotated[
+        str | None,
+        Field(
+            description="L'identifiant de la personne chez le fournisseur d'identité ; nul pour un compte."
+        ),
+    ]
+    last_name: Annotated[
+        str | None,
+        Field(
+            description="Le nom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du compte qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui de la personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas."
+        ),
+    ]
+    first_name: Annotated[
+        str | None,
+        Field(
+            description="Le prénom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du compte qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui de la personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas."
+        ),
+    ]
+    email: Annotated[
+        str | None,
+        Field(
+            description="L'adresse du compte à la consultation — pour une personne `ALREADY_EXISTS`, celle du compte qui la porte —, nulle s'il est anonymisé ou s'il n'y a pas de compte ; celle de la personne chez le fournisseur pour tout autre motif, nulle s'il n'en tient pas (`EMAIL_MISSING`)."
+        ),
+    ]
+    code: Annotated[
+        ErrorCode,
+        Field(
+            description="Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ; `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un compte, qu'elle ne rattache pas (#707), ce compte désigné par `user_id` ; `VALIDATION_FAILED`, un nom ou un prénom vide, ou plus long que ce que Waterfall garde."
+        ),
+    ]
 
 
 class IdentitySyncReport(ContractModel):
@@ -719,10 +763,17 @@ class IdentitySyncReport(ContractModel):
         int,
         Field(description="Comptes désactivés parce que le fournisseur ne les connaît plus.", ge=0),
     ]
-    skipped: Annotated[
-        list[SkippedItem],
+    restored: Annotated[
+        int,
         Field(
-            description="Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde."
+            description="Comptes créés dans Waterfall dont le fournisseur tenait un autre nom, un autre prénom ou une autre adresse, et dont la lecture rétablit dans le fournisseur l'identité que Waterfall tient, puisqu'il en fait foi (WF-ADM-0050, #919). Le rétablissement suit la validation de la lecture : un compte compté ici est rétabli, ou à rétablir ; un rétablissement qui échoue est journalisé, et la lecture suivante le compte de nouveau. Un compte anonymisé n'est jamais rétabli.",
+            ge=0,
+        ),
+    ]
+    skipped: Annotated[
+        list[IdentitySyncSkipped],
+        Field(
+            description="Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un compte de Waterfall, ou une personne du fournisseur qui n'en a pas."
         ),
     ]
     removed: Annotated[
@@ -733,7 +784,7 @@ class IdentitySyncReport(ContractModel):
     ]
 
 
-class Kind2(StrEnum):
+class Kind3(StrEnum):
     function_read = "function_read"
     function_write = "function_write"
     irreversible = "irreversible"
@@ -743,7 +794,7 @@ class Kind2(StrEnum):
 class Permission(ContractModel):
     code: PermissionCode
     kind: Annotated[
-        Kind2,
+        Kind3,
         Field(
             description="Consultation ou modification d'une fonction, action irréversible, ou permission structurante — créer un projet, consulter tous les projets (WF-ADM-0100)."
         ),
@@ -2277,13 +2328,13 @@ class Computable(ContractModel):
     ] = None
 
 
-class Kind3(StrEnum):
+class Kind4(StrEnum):
     timeline = "timeline"
     milestone_tracking = "milestone_tracking"
 
 
 class TrackingEntry(ContractModel):
-    kind: Kind3
+    kind: Kind4
     timeline_id: Uuid | None = None
 
 
@@ -3874,7 +3925,7 @@ class ImportApply(ContractModel):
     confirmed: Literal[True]
 
 
-class Kind4(StrEnum):
+class Kind5(StrEnum):
     ms_project_schedule = "ms_project_schedule"
     estimate = "estimate"
     remaining = "remaining"
@@ -3888,7 +3939,7 @@ class Depth(RootModel[int]):
 
 
 class ExportRequest(ContractModel):
-    kind: Kind4
+    kind: Kind5
     revision_id: Annotated[
         Uuid,
         Field(

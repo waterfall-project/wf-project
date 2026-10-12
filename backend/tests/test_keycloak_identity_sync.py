@@ -7,14 +7,16 @@ of test it federates: a person of the directory gets an account before any sign-
 directory no longer retains — by a filter of its federation, or the federation removed — is
 deactivated, the last administrator kept and reported (WF-ADM-0070, WF-ADM-0180). A person of the
 directory is attached by her address to the account that holds it (#707); the local accounts of the
-realm Waterfall does not know and that never had a password are removed (#811); a change of the
-identity of a local account reaches the realm (#810). Run by ``make test-keycloak``, with the
-variables of ``test_keycloak_authentication.py``, whose helpers it takes. A test that changes the
-federation of the realm gives it back, whatever happens.
+realm Waterfall does not know and that never had a password are removed (#811); the reading gives
+the realm back the identity of a local account it holds otherwise (#919), which a change of the
+identity carries to it (#810, ``test_keycloak_identity_change.py``). Run by
+``make test-keycloak``, with the variables of ``test_keycloak_authentication.py``, whose helpers it
+takes. A test that changes the federation of the realm gives it back, whatever happens.
 
 The realm keeps the accounts of other tests and of its own installation, that the database of the
-test does not know: each test of a reading makes Waterfall know them first (``realm_known``), so
-that the reading neither creates them nor removes them.
+test does not know: each test of a reading makes Waterfall know them first (``realm_known``), as
+the realm holds them, so that the reading neither creates them, nor removes them, nor gives them
+another identity.
 """
 
 import time
@@ -29,9 +31,7 @@ import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from sqlalchemy import Engine, delete, insert, select, update
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
+from sqlalchemy import Engine, delete, insert, select
 from support import ContractClient, Logs, Watching, captured_logs, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
@@ -53,18 +53,25 @@ from test_keycloak_platform import (
     PASSWORD,
     Account,
     administering,
-    mailed_link,
     set_password,
 )
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.interface import roles_held_by
-from waterfall.core.users.interface import SyncReport, latest_report, record_report
+from waterfall.core.users.interface import (
+    NAME_MAX_LENGTH,
+    Skipped,
+    SkippedAccount,
+    SkippedAddressHeld,
+    SkippedPerson,
+    SyncReport,
+    latest_report,
+    record_report,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
+from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import logging_context
@@ -172,16 +179,28 @@ def user_of(database: Database, subject: str) -> UUID:
 
 @pytest.fixture
 def realm_known(database: Database, reading: IdentitySync) -> None:
-    """Make Waterfall know, as local ones, the accounts the realm holds but the directory's."""
+    """Make Waterfall know, as local ones, the accounts the realm holds but the directory's.
+
+    Each as the realm holds it: the reading gives the realm back the identity Waterfall holds of a
+    local account (#919). One whose names or address Waterfall cannot hold, as an account
+    anonymised, which the reading leaves alone.
+    """
     with database.transaction() as session:
         held = set(session.scalars(select(UserAccount.idp_subject)))
         for account in reading.admin.list_accounts():
             if account.is_federated or account.subject in held:
                 continue
-            email = account.email or f"{account.subject}@realm.test"
-            session.execute(
-                insert(UserAccount).values(**raw_account(email=email, idp_subject=account.subject))
-            )
+            identity = {
+                "last_name": account.last_name,
+                "first_name": account.first_name,
+                "email": account.email,
+            }
+            if all(1 <= len(value) <= NAME_MAX_LENGTH for value in identity.values()):
+                row = raw_account(idp_subject=account.subject, **identity)
+            else:
+                gone = {"state": "deactivated", "anonymized_at": utc_now()}
+                row = raw_account(idp_subject=account.subject, **dict.fromkeys(identity), **gone)
+            session.execute(insert(UserAccount).values(**row))
 
 
 def read_accounts(
@@ -203,7 +222,7 @@ def read_accounts(
     return report
 
 
-def counts(report: SyncReport) -> tuple[int, int, int, list[tuple[str, str]], list[str]]:
+def counts(report: SyncReport) -> tuple[int, int, int, list[Skipped], list[str]]:
     """Give what a report counts, then what it names."""
     return report.created, report.updated, report.deactivated, report.skipped, report.removed
 
@@ -359,7 +378,8 @@ def test_the_last_administrator_withdrawn_from_the_directory_stays_active_and_is
     role(database, "Administration", permissions=ADMINISTRATION, holders=(account.id,))
     with directory_retaining(WITHOUT_DOMINIQUE):
         report = read_accounts(database, reading)
-    assert counts(report) == (0, 0, 0, [(DIRECTORY_EMAIL, "LAST_ADMINISTRATOR")], [])
+    # Named by its identifier alone (#920).
+    assert counts(report) == (0, 0, 0, [SkippedAccount(account.id, "LAST_ADMINISTRATOR")], [])
     kept = of_the_directory(database)
     assert (kept.state, kept.lock_version) == ("active", account.lock_version)
 
@@ -510,13 +530,15 @@ def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
 ) -> None:
     # Relayed by the external provider at the address an account of Waterfall holds, a person is
     # not attached (#707): ``ALREADY_EXISTS``. With a name longer than a column holds:
-    # ``VALIDATION_FAILED``. Both are left, and the report names them. The account ``realm_known``
+    # ``VALIDATION_FAILED``. Both are left, and the report names them: the first by her subject and
+    # the account that bears her address, which it does not copy (#920). The account ``realm_known``
     # gave her, which the service may not delete, the owner deletes.
     tokens_of(EXTERNAL_USERNAME, EXTERNAL_CREDENTIAL, provider=EXTERNAL_PROVIDER)
     with owner.begin() as connection:
         connection.execute(delete(UserAccount).where(UserAccount.email == EXTERNAL_EMAIL))
+    holder = raw_account(email=EXTERNAL_EMAIL)
     with database.transaction() as session:
-        session.execute(insert(UserAccount).values(**raw_account(email=EXTERNAL_EMAIL)))
+        session.execute(insert(UserAccount).values(**holder))
     long_address = f"long-{uuid4().hex[:8]}@example.org"
     user = {"username": long_address, "email": long_address, "enabled": True}
     created = admin.post("/users", json={**user, "firstName": "Jeanne", "lastName": "L" * 101})
@@ -527,10 +549,14 @@ def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
         linked = admin.post(f"/users/{subject}/federated-identity/{EXTERNAL_PROVIDER}", json=link)
         assert linked.status_code == 204, linked.text
         report = read_accounts(database, reading)
-        assert sorted(report.skipped) == [
-            (EXTERNAL_EMAIL, "ALREADY_EXISTS"),
-            (long_address, "VALIDATION_FAILED"),
-        ]
+        (taken, long) = sorted(report.skipped, key=lambda each: each.code)
+        assert isinstance(taken, SkippedAddressHeld)
+        assert (taken.user_id, taken.code) == (holder["id"], "ALREADY_EXISTS")
+        assert taken.subject != subject
+        # The other, a person of the provider, named as it holds her (#918).
+        assert isinstance(long, SkippedPerson)
+        assert (long.email, long.code) == (long_address, "VALIDATION_FAILED")
+        assert (long.subject, long.last_name, long.first_name) == (subject, "L" * 101, "Jeanne")
         with database.transaction() as session:
             named = select(UserAccount.id).where(UserAccount.email == long_address)
             assert session.scalars(named).all() == []
@@ -658,316 +684,31 @@ def test_a_reading_stopped_before_its_end_leaves_the_base_and_the_realm_as_they_
         admin.delete(f"/users/{subject}")
 
 
-# --- #810: the identity of a local account reaches the realm -------------------------------------
+# --- #919: the realm given back the identity of a local account ------------------------------
 
 
-def test_a_local_account_renamed_signs_in_by_its_new_address_and_is_mailed_there(
-    api: ContractClient,
-    database: Database,
-    administrator: Administrator,
-    watching: Watching,
-    made: Callable[[str, str], Account],
+@pytest.mark.requirement("WF-ADM-0070-A")
+@pytest.mark.usefixtures("realm_known")
+def test_a_local_account_the_realm_holds_otherwise_is_given_back_its_identity_by_the_reading(
+    database: Database, reading: IdentitySync, made: Callable[[str, str], Account]
 ) -> None:
-    # Waterfall is the authority on a local account (motif of WF-ADM-0050): the realm, which
-    # signs it in and mails it by its address, takes its new identity, asked out of any
-    # transaction (#669, #810).
+    # « Un compte local créé depuis Waterfall existe dans le fournisseur d'identité. » : as
+    # Waterfall holds it, which is its authority (WF-ADM-0050). A report of updateUser applied by
+    # the realm but left unanswered gave it another identity: the reading gives Waterfall's back,
+    # once committed, and changes nothing of the account in Waterfall (#919).
     paul = made("Paul", "Durand")
     row = known(database, paul, last_name="Durand", first_name="Paul")
-    address = f"Paul.{uuid4().hex[:8]}@Mairie.test"
-    sent = {"last_name": "Dumas", "email": address, "lock_version": 0}
-    changed = api.patch(f"{USERS}/{row['id']}", headers=administrator.headers, json=sent)
-    assert changed.status_code == 200, changed.text
-    assert (changed.json()["last_name"], changed.json()["email"]) == ("Dumas", address)
-    assert ("change_identity", 0) in watching.held
-    held = watching.read_account(paul.id)
+    elsewhere = LocalIdentity("Dumas", "Paul", f"paul.{uuid4().hex[:8]}@mairie.test")
+    assert reading.admin.change_identity(paul.id, elsewhere)
+    report = read_accounts(database, reading)
+    assert (report.updated, report.restored, report.skipped) == (0, 1, [])
+    held = reading.admin.read_account(paul.id)
     assert held is not None
-    assert (held.last_name, held.first_name, held.email) == ("Dumas", "Paul", address.lower())
-    assert api.get(ME, headers=bearer(tokens_of(address.lower(), PASSWORD))).status_code == 200
-    assert watching.send_invitation(paul.id) is None
-    assert mailed_link(address.lower())
-    assert journal(database, UUID(str(row["id"]))) == [
-        ("user_update", administrator.user_id, {"fields": ["last_name", "email"]})
-    ]
-    # Inscribed under the correlation of the request.
+    assert (held.last_name, held.first_name, held.email) == ("Durand", "Paul", paul.email)
     with database.transaction() as session:
-        inscribed = select(AuditEntry.correlation_id).where(AuditEntry.object_id == row["id"])
-        assert session.scalars(inscribed).all() == [changed.headers[HEADER]]
-
-
-class Choosing(Watching):
-    """An administration client before whose first write of an account its holder picks English."""
-
-    def __init__(self, keycloak: Keycloak, database: Database) -> None:
-        """Watch ``database``; no language is chosen yet."""
-        super().__init__(keycloak, served_settings(), database)
-        self.chosen: list[str] = []
-
-    def _as_service(self, method: str, path: str, **options: Any) -> httpx2.Response:
-        if method == "PUT" and not self.chosen:
-            self.chosen.append(path)
-            self.set_locale(path.rsplit("/", 1)[-1], "en")
-        return super()._as_service(method, path, **options)
-
-
-def test_a_change_of_identity_keeps_the_language_its_holder_chose_meanwhile(
-    contract: OpenAPI,
-    database: Database,
-    keycloak: Keycloak,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-) -> None:
-    # The realm is given the names and the address alone: a language chosen while the change is
-    # carried (setMyPreferences, WF-INTF-0160) is not written over by what was read before.
-    paul = made("Paul", "Durand")
-    row = known(database, paul, last_name="Durand", first_name="Paul")
-    KeycloakAdmin(keycloak, served_settings()).set_locale(paul.id, "fr")
-    choosing = Choosing(keycloak, database)
-    app = create_app(Services(database, keycloak, choosing, *nowhere()))
-    client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
-    body = {"last_name": "Dumas", "lock_version": 0}
-    changed = client.patch(f"{USERS}/{row['id']}", headers=administrator.headers, json=body)
-    assert changed.status_code == 200, changed.text
-    assert len(choosing.chosen) == 1
-    with service_admin(served_settings()) as admin:
-        held = admin.get(f"/users/{paul.id}").json()
-    assert (held["lastName"], held["attributes"]["locale"]) == ("Dumas", ["en"])
-
-
-class Overtaken(Watching):
-    """An administration client after whose change of an identity another write passes."""
-
-    def __init__(
-        self,
-        keycloak: Keycloak,
-        database: Database,
-        user_id: UUID,
-        meanwhile: Callable[[], None] | None = None,
-        **values: str,
-    ) -> None:
-        """Watch ``database``, where ``user_id`` takes ``values`` and its next version meanwhile."""
-        super().__init__(keycloak, served_settings(), database)
-        self.database = database
-        self.user_id = user_id
-        self.meanwhile = meanwhile
-        self.values = values
-
-    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
-        """Change the identity, then write the account, as another write would; then the rest."""
-        done = super().change_identity(subject, identity)
-        if done and self.held == [("change_identity", 0)]:
-            with self.database.transaction() as session:
-                session.execute(
-                    update(UserAccount)
-                    .where(UserAccount.id == self.user_id)
-                    .values(lock_version=UserAccount.lock_version + 1, **self.values)
-                )
-            if self.meanwhile is not None:
-                self.meanwhile()
-        return done
-
-
-@pytest.fixture
-def overtaking(
-    contract: OpenAPI, database: Database, keycloak: Keycloak
-) -> Callable[..., ContractClient]:
-    """Give a maker of clients of the API whose change of an account another write overtakes.
-
-    The other write gives the account the values asked for, then what runs ``meanwhile`` runs.
-    """
-
-    def client(
-        user_id: UUID, meanwhile: Callable[[], None] | None = None, **values: str
-    ) -> ContractClient:
-        overtaken = Overtaken(keycloak, database, user_id, meanwhile, **values)
-        app = create_app(Services(database, keycloak, overtaken, *nowhere()))
-        return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
-
-    return client
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        ({"last_name": "Dumas (Paul)"}, (422, "VALIDATION_FAILED")),
-        ({"email": "taken"}, (409, "ALREADY_EXISTS")),
-        ({"last_name": "Dumas"}, (412, "STALE_LOCK_VERSION")),
-    ],
-    ids=["a name the realm refuses", "an address it holds", "a write passed meanwhile"],
-)
-def test_a_change_of_a_local_account_refused_leaves_the_realm_as_it_was(
-    overtaking: Callable[..., ContractClient],
-    database: Database,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-    case: tuple[dict[str, str], tuple[int, str]],
-) -> None:
-    # Refused by the realm, which holds the address of an account Waterfall does not know, or by
-    # Waterfall once the realm took it — the realm then given back what it held (#810).
-    sent, refusal = case
-    paul = made("Paul", "Durand")
-    row = known(database, paul, last_name="Durand", first_name="Paul")
-    user_id = UUID(str(row["id"]))
-    if sent.get("email") == "taken":
-        sent = {"email": made("Jeanne", "Orpheline").email.upper()}
-    body = {**sent, "lock_version": 0}
-    refused = overtaking(user_id).patch(
-        f"{USERS}/{user_id}", headers=administrator.headers, json=body
-    )
-    assert (refused.status_code, refused.json()["code"]) == refusal
-    with database.transaction() as session:
-        assert session.get_one(UserAccount, user_id).last_name == "Durand"
-    assert journal(database, user_id) == []
-    with service_admin(served_settings()) as admin:
-        held = admin.get(f"/users/{paul.id}").json()
-    assert (held["lastName"], held["email"]) == ("Durand", paul.email)
-
-
-def test_a_change_refused_after_another_gives_the_realm_the_identity_waterfall_holds_then(
-    overtaking: Callable[..., ContractClient],
-    database: Database,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-) -> None:
-    # Another administrator renamed Paul while the realm took the change: the realm is given back
-    # the identity Waterfall holds at the refusal, read again, not the one read before (#810).
-    paul = made("Paul", "Durand")
-    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
-    client = overtaking(user_id, last_name="Durand-Martin")
-    body = {"last_name": "Dumas", "lock_version": 0}
-    refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
-    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
-    with service_admin(served_settings()) as admin:
-        held = admin.get(f"/users/{paul.id}").json()
-    assert (held["lastName"], held["firstName"], held["email"]) == (
-        "Durand-Martin",
-        "Paul",
-        paul.email,
-    )
-
-
-def test_an_identity_the_realm_cannot_take_back_is_logged(
-    overtaking: Callable[..., ContractClient],
-    database: Database,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-    logs: Logs,
-) -> None:
-    # An account of the realm took Paul's former address meanwhile: the realm cannot be given it
-    # back, which the log says; the refusal is what the caller is told (#810).
-    paul = made("Paul", "Durand")
-    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
-    taken: list[str] = []
-
-    def take_the_former_address() -> None:
-        with service_admin(served_settings()) as admin:
-            user = {"username": paul.email, "email": paul.email, "enabled": True}
-            names = {"firstName": "Jeanne", "lastName": "Orpheline"}
-            created = admin.post("/users", json={**user, **names})
-        assert created.status_code == 201, created.text
-        taken.append(created.headers["Location"].rsplit("/", 1)[-1])
-
-    address = f"paul.{uuid4().hex[:8]}@mairie.test"
-    client = overtaking(user_id, take_the_former_address)
-    body = {"email": address, "lock_version": 0}
-    try:
-        refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
-        assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
-        (record,) = logs.named("account.identity_not_restored")
-        assert (record["user_id"], record["reason"]) == (str(user_id), "address_taken")
-        with service_admin(served_settings()) as admin:
-            assert admin.get(f"/users/{paul.id}").json()["email"] == address
-    finally:
-        with service_admin(served_settings()) as admin:
-            for subject in taken:
-                admin.delete(f"/users/{subject}")
-
-
-class Refusing(Database):
-    """The database of the test, which refuses one transaction once told, after those let pass."""
-
-    def __init__(self, database: Database) -> None:
-        """Share the engine of ``database``; refuse nothing yet."""
-        super().__init__(database.engine)
-        self.passing: int | None = None
-
-    @contextmanager
-    def transaction(self) -> Generator[Session]:
-        """Refuse the transaction told, as a database that does not answer; run the others."""
-        if self.passing == 0:
-            self.passing = None
-            statement = "BEGIN"
-            raise OperationalError(statement, None, ConnectionError("no answer"))
-        if self.passing is not None:
-            self.passing -= 1
-        with super().transaction() as session:
-            yield session
-
-
-@pytest.fixture
-def refusing(
-    contract: OpenAPI, database: Database, keycloak: Keycloak
-) -> Callable[[UUID], ContractClient]:
-    """Give a maker of clients of the API whose change of an account another write overtakes.
-
-    Once the change refused, the database refuses to read the account again.
-    """
-
-    def client(user_id: UUID) -> ContractClient:
-        refused = Refusing(database)
-
-        def refuse_the_reading_again() -> None:
-            refused.passing = 1
-
-        overtaken = Overtaken(keycloak, database, user_id, refuse_the_reading_again)
-        app = create_app(Services(refused, keycloak, overtaken, *nowhere()))
-        return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
-
-    return client
-
-
-def test_a_change_refused_whose_account_cannot_be_read_again_gives_the_realm_its_former_identity(
-    refusing: Callable[[UUID], ContractClient],
-    database: Database,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-    logs: Logs,
-) -> None:
-    # The write of the change is refused, then the database refuses to read the account again: the
-    # realm is given back the identity read before the change, and the log says why (#810).
-    paul = made("Paul", "Durand")
-    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
-    body = {"last_name": "Dumas", "lock_version": 0}
-    refused = refusing(user_id).patch(
-        f"{USERS}/{user_id}", headers=administrator.headers, json=body
-    )
-    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
-    (record,) = logs.named("account.identity_not_reread")
-    assert record["user_id"] == str(user_id)
-    assert logs.named("account.identity_not_restored") == []
-    with service_admin(served_settings()) as admin:
-        held = admin.get(f"/users/{paul.id}").json()
-    assert (held["lastName"], held["firstName"], held["email"]) == ("Durand", "Paul", paul.email)
-
-
-def test_a_change_refused_of_an_account_attached_meanwhile_gives_the_realm_its_former_identity(
-    overtaking: Callable[..., ContractClient],
-    database: Database,
-    administrator: Administrator,
-    made: Callable[[str, str], Account],
-) -> None:
-    # The account was attached meanwhile to a person of the directory (#707): what Waterfall holds
-    # now is not the local account the realm took the change of, which gets back its identity read
-    # before the change (#810).
-    paul = made("Paul", "Durand")
-    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
-    attached = {"idp_subject": f"directory-{uuid4()}", "origin": "directory"}
-    client = overtaking(user_id, last_name="Durand-Martin", **attached)
-    body = {"last_name": "Dumas", "lock_version": 0}
-    refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
-    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
-    with service_admin(served_settings()) as admin:
-        held = admin.get(f"/users/{paul.id}").json()
-    assert (held["lastName"], held["firstName"], held["email"]) == ("Durand", "Paul", paul.email)
+        stored = session.get_one(UserAccount, row["id"])
+        assert (stored.last_name, stored.email, stored.lock_version) == ("Durand", paul.email, 0)
+    assert read_accounts(database, reading).restored == 0
 
 
 # --- WF-ARC-0090: the reading of the accounts asked for -----------------------------------------

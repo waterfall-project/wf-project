@@ -3852,6 +3852,52 @@ compte laissé tel quel.
 `getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
 compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
 
+## Le compte rendu de la lecture des comptes, sans donnée d'un compte (EP-03/US-0370/L2b, #918, #919, #920)
+
+Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped`
+(`IdentitySyncSkipped`) dit par `kind` ce qu'elle désigne :
+
+- **un compte de Waterfall** (`account`) — le dernier administrateur gardé, un compte dont la
+  nouvelle adresse est portée par un autre, dont le nouveau nom ne se garde pas ou dont le
+  fournisseur ne tient plus d'adresse — n'est gardé dans le compte rendu que par son
+  identifiant : le compte rendu n'en copie ni le nom ni l'adresse, que l'anonymisation devrait
+  sinon poursuivre dans chaque compte rendu (#920). Son nom, son prénom et son adresse sont lus à
+  la consultation, nuls pour un compte anonymisé depuis, que le front présente sous le libellé
+  neutre ;
+- **une personne du fournisseur** sans compte (`person`) est nommée par son identifiant chez lui,
+  `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas : `EMAIL_MISSING`
+  entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall ne sait pas
+  reconnaître, n'est plus ignorée en silence. Sauf celle qu'un compte de Waterfall prive de son
+  adresse (`ALREADY_EXISTS`, une personne relayée par un fournisseur externe, #707) : cette
+  adresse est celle du compte, que le compte rendu ne copie pas plus que son nom, et
+  l'anonymisation du compte l'y laisserait. L'entrée garde l'identifiant de la personne chez le
+  fournisseur, `subject`, et celui du compte qui porte l'adresse, `user_id` — nul si aucun ne la
+  portait plus quand elle a été écartée —, rien de personnel ; son nom, son prénom et son adresse
+  sont ceux du compte, lus à la consultation comme pour une entrée `account`, nuls s'il est
+  anonymisé depuis (décision de livraison, application de #920). `account` porte donc `user_id`
+  et jamais `subject` ; `person` porte toujours `subject`, et `user_id` pour `ALREADY_EXISTS`
+  seulement. Écartées : le nom que le fournisseur tient de la personne, gardé à côté de
+  l'identifiant du compte — deux identités dans une entrée, que l'écran ne distinguerait que par
+  son motif ; une entrée `account` désignant le compte porteur — elle dirait laissé tel quel un
+  compte que la lecture n'a pas touché.
+
+Une seule forme, fermée — `additionalProperties: false`, chaque propriété exigée, nulle quand elle
+ne vaut pas pour la nature de l'entrée —, comme `ActorRef` dit par `kind` un compte ou la
+plateforme. Écartées : l'adresse rendue facultative dans la forme `{email, code}` — une entrée
+sans adresse ne désignerait plus personne, et l'adresse d'un compte de Waterfall resterait
+copiée ; deux formes réunies par `oneOf` — le contrat n'en compose aucune de deux objets, que le
+client du service et ses tests ne lisent pas (`AmbiguousCompositionError`) ; une liste à part pour
+les personnes sans adresse — une seconde forme pour un même signalement.
+
+`restored` compte les comptes locaux dont la lecture rétablit l'identité dans le fournisseur : le
+nom, le prénom ou l'adresse que Keycloak en tient diffèrent de ceux de Waterfall, qui en fait foi
+(WF-ADM-0050) — un report d'`updateUser` resté sans réponse, ou une modification faite dans la
+console du fournisseur (#919). L'adresse s'y compare sans égard à la casse, que le fournisseur ne
+garde pas. Comme `removed`, le compte suit la validation de la lecture : rétabli, ou à rétablir.
+Un compteur plutôt que la liste des comptes : l'écran ne nomme pas plus les comptes rétablis que
+les comptes mis à jour, et le journal de la plateforme dit chacun. Écarté : les compter dans
+`updated`, qui dit les comptes que la lecture change dans Waterfall.
+
 ## La session révoquée (EP-03/US-0350/L5c, #855)
 
 Décision de l'auteur du 2026-10-11 (#855). Un jeton dont la connexion (`auth_time`, à défaut

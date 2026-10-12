@@ -7,23 +7,33 @@ by pages (WF-ADM-0070). Each person of the directory or of an external provider 
 without any role, or is attached by her address to the account that holds it if she comes from the
 directory (#707); the accounts the provider holds follow its name, first name and address; those it
 no longer holds are deactivated, each under the guard of the last administrator, who is kept active
-and reported (WF-ADM-0120). A local account is never touched. The local accounts of the provider
-that Waterfall does not know and that never had a password — left by a creation Waterfall did not
-complete (#811) — are removed from the provider, once old enough that no creation is still under
-way. Every write of Waterfall is the platform's (WF-DAT-0070), and the report is kept.
+and reported (WF-ADM-0120). A local account is never changed in Waterfall, which is its authority:
+the provider is given back the identity Waterfall holds of it, if it holds another (WF-ADM-0050,
+#919). The local accounts of the provider that Waterfall does not know and that never had a
+password — left by a creation Waterfall did not complete (#811) — are removed from the provider,
+once old enough that no creation is still under way. Every write of Waterfall is the platform's
+(WF-DAT-0070), and the report is kept; it names an account of Waterfall by its identifier alone, a
+person of the provider as it holds her — but for one whose address an account bears, named by her
+subject and that account (#918, #920). A local account the provider holds of a directory is never
+given back its identity there: it is logged.
 
 What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
 lock of the rule of the last administrator is taken before any row of an account, as the routes
 that change an account take it: the reading and a route never wait each on what the other holds.
-The orphans are named in the report, and removed from the provider once it is committed: a reading
-stopped before removes none, and the next one, which finds them again, removes them (#811).
+The orphans and the identities to give back are told in the report, and the provider is written
+once it is committed, out of any transaction (#669): a reading stopped before writes nothing there,
+and the next one, which finds them again, does. Each identity given back is read again first, in a
+short transaction of its own that locks nothing: a change of the account committed since is what
+the provider gets, and an account anonymised since is left alone (WF-ADM-0060).
 """
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import event
+from sqlalchemy import Connection, Engine, event
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, SessionTransaction
 from structlog.contextvars import get_contextvars
 
@@ -31,15 +41,21 @@ from waterfall.core.access_roles.interface import guard_deactivation, lock_admin
 from waterfall.core.users.interface import (
     HeldAccount,
     NotAdmitted,
+    NotFollowed,
+    Skipped,
+    SkippedAccount,
+    SkippedAddressHeld,
+    SkippedPerson,
     SyncReport,
     deactivate_unheld,
     follow,
+    identity_to_restore,
     known_subjects,
     record_report,
     unheld_accounts,
 )
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import ConflictError, UnavailableError
+from waterfall.platform.errors import ConflictError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount, RealmAccount
 from waterfall.platform.logs import get_logger, logging_context
@@ -53,6 +69,7 @@ GRACE = timedelta(hours=1)
 REPORTED = {
     NotAdmitted.ADDRESS_TAKEN: "ALREADY_EXISTS",
     NotAdmitted.NAME_NOT_STORABLE: "VALIDATION_FAILED",
+    NotAdmitted.NO_ADDRESS: "EMAIL_MISSING",
 }
 LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
 
@@ -91,18 +108,26 @@ class IdentitySync:
             for account in unheld_accounts(session, held)
             if self.admin.read_account(account.subject) is None
         ]
-        counts, skipped = write_accounts(session, people, unheld, utc_now())
+        written = write_accounts(session, people, unheld, utc_now())
+        counts = written.counts
         report = SyncReport(
             task.task_id,
             utc_now(),
             counts["created"],
             counts["updated"],
             counts["deactivated"],
-            skipped,
+            counts["restored"],
+            written.skipped,
             [account.email for account in removable],
         )
         record_report(session, report)
-        after_commit(session, lambda: self.remove(removable))
+        bind = session.get_bind()
+
+        def once_committed() -> None:
+            self.remove(removable)
+            self.restore(bind, written.restorable)
+
+        after_commit(session, once_committed)
         return {
             "created": report.created,
             "updated": report.updated,
@@ -155,37 +180,89 @@ class IdentitySync:
             else:
                 logger.info("identity_sync.orphan_removed", subject=account.subject)
 
+    def restore(self, bind: Engine | Connection, subjects: list[str]) -> None:
+        """Give the provider back the identity Waterfall holds of each local account (#919).
+
+        Read again in a short transaction, then written out of any. One the provider does not take
+        back — unreachable, refusing a field, or holding its address for another account — is
+        said in the log: the next reading finds it again.
+        """
+        for subject in subjects:
+            try:
+                with Session(bind) as session, session.begin():
+                    identity = identity_to_restore(session, subject)
+                if identity is None:
+                    continue
+                restored = self.admin.change_identity(subject, identity)
+            except (SQLAlchemyError, UnavailableError, IdentityProviderError, UnprocessableError):
+                logger.exception("identity_sync.identity_not_restored", subject=subject)
+            else:
+                if restored:
+                    logger.info("identity_sync.identity_restored", subject=subject)
+                else:
+                    logger.warning("identity_sync.identity_not_restored", subject=subject)
+
+
+@dataclass(slots=True)
+class Written:
+    """What the reading wrote: its counts, what it left as it was, the identities to give back."""
+
+    counts: dict[str, int] = field(
+        default_factory=lambda: dict.fromkeys(
+            ("created", "updated", "unchanged", "restored", "deactivated"), 0
+        )
+    )
+    skipped: list[Skipped] = field(default_factory=list[Skipped])
+    # The subjects of the local accounts whose identity the provider holds otherwise (#919).
+    restorable: list[str] = field(default_factory=list[str])
+
+
+def skipped_of(person: ProviderAccount, not_followed: NotFollowed, code: str) -> Skipped:
+    """Name what the reading left: an account of Waterfall by its identifier alone (#920).
+
+    A person whose address an account bears is named by her subject and that account: the address
+    is the account's, which the report no more copies than its names.
+    """
+    if not_followed.user_id is not None:
+        return SkippedAccount(not_followed.user_id, code)
+    if not_followed.reason == NotAdmitted.ADDRESS_TAKEN:
+        return SkippedAddressHeld(person.subject, not_followed.holder, code)
+    email = person.email or None
+    return SkippedPerson(person.subject, person.last_name, person.first_name, email, code)
+
 
 def write_accounts(
     session: Session, people: list[ProviderAccount], unheld: list[HeldAccount], at: datetime
-) -> tuple[dict[str, int], list[tuple[str, str]]]:
-    """Follow the persons, then deactivate the accounts no longer held; give counts and skipped.
+) -> Written:
+    """Follow the persons, then deactivate the accounts no longer held; tell what was written.
 
     Under the lock of the rule, taken before any row: each deactivation runs under the guard of the
     last administrator, who is kept and reported (WF-ADM-0120).
     """
     lock_administrators(session)
-    counts = {"created": 0, "updated": 0, "unchanged": 0, "deactivated": 0}
-    skipped: list[tuple[str, str]] = []
+    written = Written()
     for person in people:
         followed = follow(session, person, at)
-        if isinstance(followed, NotAdmitted):
-            code = REPORTED.get(followed)
+        if isinstance(followed, NotFollowed):
+            code = REPORTED.get(followed.reason)
             if code is not None:
-                skipped.append((person.email, code))
-            logger.info("identity_sync.not_followed", subject=person.subject, reason=followed)
-        else:
-            counts[followed] += 1
+                written.skipped.append(skipped_of(person, followed, code))
+            reason = followed.reason
+            logger.info("identity_sync.not_followed", subject=person.subject, reason=reason)
+            continue
+        written.counts[followed] += 1
+        if followed == "restored":
+            written.restorable.append(person.subject)
     for account in unheld:
         try:
             with session.begin_nested(), guard_deactivation(session):
                 deactivated = deactivate_unheld(session, account, at)
         except ConflictError:
-            skipped.append((account.email, LAST_ADMINISTRATOR))
+            written.skipped.append(SkippedAccount(account.user_id, LAST_ADMINISTRATOR))
             logger.warning("identity_sync.last_administrator_kept", user_id=str(account.user_id))
         else:
-            counts["deactivated"] += deactivated
-    return counts, skipped
+            written.counts["deactivated"] += deactivated
+    return written
 
 
 def after_commit(session: Session, action: Callable[[], None]) -> None:

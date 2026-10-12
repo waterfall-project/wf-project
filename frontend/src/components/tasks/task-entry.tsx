@@ -5,7 +5,7 @@
  * user named it after —, where it stands, how far it has gone while it runs, and, failed, its
  * motive in a sentence of the catalogue and the offer to run the same command again — or,
  * without the command, the way to do it from the screen of its object —; succeeded, the offer
- * to read the screen anew, and to download its result when it made one — an export —, which
+ * to read the screen anew, and to download its result when it made a file — an export —, which
  * the server of Next hands on from the API as a stream (`app/tasks/[taskId]/result`). Before each
  * download, the entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the
  * task unknown, the session lost — is told by the notice of the entry, and a task that no longer
@@ -47,6 +47,7 @@ import { resultHref, withoutRefusal } from "./result-refusal";
 import {
   type EndKind,
   type EndLine,
+  givesFile,
   isPolled,
   type Refusal,
   type TrackedTask,
@@ -338,9 +339,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen /> : null}
-      {task.status === "succeeded" && task.result_url != null ? (
-        <DownloadResult entry={entry} name={name} dispatch={dispatch} />
-      ) : null}
+      {givesFile(task) ? <DownloadResult entry={entry} name={name} dispatch={dispatch} /> : null}
       {entry.resultUnavailable === true ? (
         <p role="alert" className="text-destructive">
           {t("tasks.resultUnavailable")}
