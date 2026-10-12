@@ -15,12 +15,17 @@ way. Every write of Waterfall is the platform's (WF-DAT-0070), and the report is
 What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
 lock of the rule of the last administrator is taken before any row of an account, as the routes
 that change an account take it: the reading and a route never wait each on what the other holds.
+The orphans are named in the report, and removed from the provider once it is committed: a reading
+stopped before removes none, and the next one, which finds them again, removes them (#811).
 """
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
+from sqlalchemy import event
 from sqlalchemy.orm import Session
+from structlog.contextvars import get_contextvars
 
 from waterfall.core.access_roles.interface import guard_deactivation, lock_administrators
 from waterfall.core.users.interface import (
@@ -34,10 +39,10 @@ from waterfall.core.users.interface import (
     unheld_accounts,
 )
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import ConflictError
-from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.errors import ConflictError, UnavailableError
+from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount, RealmAccount
-from waterfall.platform.logs import get_logger
+from waterfall.platform.logs import get_logger, logging_context
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import Task
 
@@ -67,7 +72,7 @@ class IdentitySync:
         return cls(KeycloakAdmin(Keycloak(settings), settings))
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
-        """Read, follow, deactivate, remove; keep the report, and give its counts."""
+        """Read, follow, deactivate; keep the report, remove the orphans once it is committed."""
         self.admin.synchronize_directories()
         listed = self.admin.list_accounts()
         known = known_subjects(session)
@@ -79,7 +84,7 @@ class IdentitySync:
                 people.append(person)
             elif person:
                 orphans.append(account)
-        removed = self.remove_orphans(orphans)
+        removable = self.removable(orphans)
         held = {account.subject for account in listed}
         unheld = [
             account
@@ -94,9 +99,10 @@ class IdentitySync:
             counts["updated"],
             counts["deactivated"],
             skipped,
-            removed,
+            [account.email for account in removable],
         )
         record_report(session, report)
+        after_commit(session, lambda: self.remove(removable))
         return {
             "created": report.created,
             "updated": report.updated,
@@ -124,20 +130,30 @@ class IdentitySync:
             return False
         return read if read.is_relayed else True
 
-    def remove_orphans(self, orphans: list[RealmAccount]) -> list[str]:
-        """Remove the local accounts of the realm unknown to Waterfall, without a password (#811).
+    def removable(self, orphans: list[RealmAccount]) -> list[RealmAccount]:
+        """Give the local accounts of the realm unknown to Waterfall, without a password (#811).
 
         Only those older than the grace: a creation under way is in the provider before Waterfall.
         """
-        removed: list[str] = []
         before = utc_now() - self.grace
+        return [
+            account
+            for account in orphans
+            if account.created_at <= before and not self.admin.has_password(account.subject)
+        ]
+
+    def remove(self, orphans: list[RealmAccount]) -> None:
+        """Remove the orphans from the realm; one the realm does not let go is said in the log.
+
+        The next reading finds it again, and removes it.
+        """
         for account in orphans:
-            if account.created_at > before or self.admin.has_password(account.subject):
-                continue
-            self.admin.remove_account(account.subject)
-            logger.info("identity_sync.orphan_removed", subject=account.subject)
-            removed.append(account.email)
-        return removed
+            try:
+                self.admin.remove_account(account.subject)
+            except (UnavailableError, IdentityProviderError):
+                logger.exception("identity_sync.orphan_not_removed", subject=account.subject)
+            else:
+                logger.info("identity_sync.orphan_removed", subject=account.subject)
 
 
 def write_accounts(
@@ -170,3 +186,20 @@ def write_accounts(
         else:
             counts["deactivated"] += deactivated
     return counts, skipped
+
+
+def after_commit(session: Session, action: Callable[[], None]) -> None:
+    """Run an action once the transaction of a session is committed, under the logs' context.
+
+    Not at the release of a savepoint of it, nor if it is rolled back. The session ends with its
+    transaction (``Database.transaction``): the action runs once.
+    """
+    context = get_contextvars()
+
+    def run(committed: Session) -> None:
+        if committed.get_nested_transaction() is not None:
+            return
+        with logging_context(**context):
+            action()
+
+    event.listen(session, "after_commit", run)

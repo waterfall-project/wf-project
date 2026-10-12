@@ -532,13 +532,17 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
     passe — laissés par une création que Waterfall n'a pas menée à son terme, Keycloak ayant
     créé le compte puis répondu trop tard — sont retirés du royaume et nommés dans le compte rendu
     (#811), une fois âgés d'une heure : une création en cours est chez Keycloak avant d'être dans
-    Waterfall ;
-  - tout ce qui se demande à Keycloak — synchronisation, lecture, retraits — précède les
-    écritures. Le verrou de la règle du dernier administrateur est pris avant elles, avant toute
-    ligne d'un compte, dans l'ordre des routes qui modifient un compte : verrou consultatif, puis
-    lignes ; chaque désactivation s'écrit sous la garde, et un compte ne se verrouille que pour
-    être écrit, relu sous le verrou. Le compte rendu est gardé dans
-    `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche réussie y renvoie.
+    Waterfall. Les orphelins à retirer sont nommés dans le compte rendu, inscrit dans la
+    transaction de la lecture ; leur retrait de Keycloak n'a lieu qu'après la validation de cette
+    transaction. Une lecture arrêtée avant ne retire donc rien ; un retrait qui échoue est
+    journalisé, et la lecture suivante, qui retrouve l'orphelin, le retire à nouveau ;
+  - tout ce qui se demande à Keycloak — synchronisation, lecture — précède les écritures, les
+    retraits des orphelins mis à part, qui les suivent. Le verrou de la règle du dernier
+    administrateur est pris avant elles, avant toute ligne d'un compte, dans l'ordre des routes
+    qui modifient un compte : verrou consultatif, puis lignes ; chaque désactivation s'écrit sous
+    la garde, et un compte ne se verrouille que pour être écrit, relu sous le verrou. Le compte
+    rendu est gardé dans `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche
+    réussie y renvoie.
 
 ### Journal d'audit
 

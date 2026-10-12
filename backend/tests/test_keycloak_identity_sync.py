@@ -30,7 +30,7 @@ from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from sqlalchemy import insert, select, update
-from support import ContractClient, Watching, nowhere, raw_account
+from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -58,14 +58,15 @@ from test_keycloak_platform import (
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.interface import roles_held_by
-from waterfall.core.users.interface import SyncReport, latest_report
+from waterfall.core.users.interface import SyncReport, latest_report, record_report
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
-from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import logging_context
-from waterfall.platform.tasks import submit
+from waterfall.platform.tasks import BackgroundTask, submit
+from waterfall.worker import identity_sync
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.runner import Worker
 
@@ -515,6 +516,79 @@ def test_the_local_accounts_waterfall_does_not_know_and_without_password_are_rem
     finally:
         for subject in subjects.values():
             admin.delete(f"/users/{subject}")
+
+
+class Unremoving(Watching):
+    """An administration client whose removal of an account Keycloak does not answer."""
+
+    def __init__(self, keycloak: Keycloak, database: Database) -> None:
+        """Watch ``database``; no removal is asked yet."""
+        super().__init__(keycloak, served_settings(), database)
+        self.asked: list[str] = []
+
+    def remove_account(self, subject: str) -> None:
+        """Note the account, then fail as a realm that does not answer."""
+        self.asked.append(subject)
+        raise unavailable()
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+@pytest.mark.usefixtures("realm_known")
+def test_a_reading_stopped_before_its_end_leaves_the_base_and_the_realm_as_they_were(
+    database: Database,
+    keycloak: Keycloak,
+    admin: httpx2.Client,
+    logs: Logs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « L'arrêt du worker pendant une tâche laisse la base inchangée, et la tâche est reprise après
+    # redémarrage. » : for the reading of the accounts, stopped once its persons are followed,
+    # before its report. Its orphans are removed from the realm once its transaction is committed
+    # only: a reading stopped removes none, and one the realm does not let go is removed by the
+    # next reading (#811).
+    reading = IdentitySync(KeycloakAdmin(keycloak, served_settings()))
+    orphan = f"orphan-{uuid4().hex[:8]}@example.org"
+    subject = imported(orphan, hours_ago=2)
+    queue, _ = nowhere()
+    correlation = f"reading-{uuid4().hex}"
+    try:
+        with logging_context(correlation_id=correlation), database.transaction() as session:
+            task_id = submit(session, queue, "identity_sync", None)
+
+        def stopped(_session: object, _report: SyncReport) -> None:
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(identity_sync, "record_report", stopped)
+        with pytest.raises(KeyboardInterrupt):
+            Worker(database, queue, {"identity_sync": reading}, "worker").run_task(task_id)
+        monkeypatch.setattr(identity_sync, "record_report", record_report)
+        with database.transaction() as session:
+            task = session.get_one(BackgroundTask, task_id)
+            assert (task.status, task.attempts) == ("running", 1)
+            named = select(UserAccount.id).where(UserAccount.email == DIRECTORY_EMAIL)
+            assert session.scalars(named).all() == []
+            assert session.scalars(select(AuditEntry.id)).all() == []
+            assert latest_report(session) is None
+        assert admin.get(f"/users/{subject}").status_code == 200
+        # Run again, the realm not answering the removal.
+        unremoving = Unremoving(keycloak, database)
+        refusing = IdentitySync(unremoving)
+        assert Worker(database, queue, {"identity_sync": refusing}, "worker").run_task(task_id)
+        with database.transaction() as session:
+            task = session.get_one(BackgroundTask, task_id)
+            assert (task.status, task.attempts) == ("succeeded", 2)
+            report = latest_report(session)
+        assert report is not None
+        assert counts(report) == (1, 0, 0, [], [orphan])
+        assert unremoving.asked == [subject]
+        assert admin.get(f"/users/{subject}").status_code == 200
+        (record,) = logs.named("identity_sync.orphan_not_removed")
+        assert (record["subject"], record["correlation_id"]) == (subject, correlation)
+        assert counts(read_accounts(database, reading)) == (0, 0, 0, [], [orphan])
+        assert admin.get(f"/users/{subject}").status_code == 404
+    finally:
+        queue.close()
+        admin.delete(f"/users/{subject}")
 
 
 # --- #810: the identity of a local account reaches the realm -------------------------------------
