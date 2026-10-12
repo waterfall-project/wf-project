@@ -9,6 +9,7 @@ the front prerendered is held without Docker too, on every change of the front
 """
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -104,6 +105,33 @@ def test_an_image_that_starts_with_its_settings_alone_and_refuses_the_fake_back_
     assert "/ answers 200 with the settings of the production Compose" in output
     assert "without WATERFALL_REDIS_URL, the front stops naming it" in output
     assert "WATERFALL_AUTH=mock without WATERFALL_E2E is refused" in output
+
+
+def test_the_settings_of_the_check_are_those_of_the_front_in_the_production_compose() -> None:
+    # The image is started as compose.prod.yaml starts it: a variable added to the service front,
+    # and not here, would go untried (#952).
+    production = REPOSITORY / "deploy" / "compose" / "compose.prod.yaml"
+    front = yaml.safe_load(production.read_text(encoding="utf-8"))["services"]["front"]
+    assert set(frontimage.SETTINGS) == set(front["environment"])
+
+
+def test_what_the_check_removes_one_by_one_is_what_the_front_does_not_start_without() -> None:
+    # startVariables() of frontend/src/startup.ts, in production: the variables of the session, then
+    # the address of the API and the key of the server actions (#952).
+    source = REPOSITORY / "frontend" / "src"
+    startup = (source / "startup.ts").read_text(encoding="utf-8")
+    settings = (source / "session" / "settings.ts").read_text(encoding="utf-8")
+    assert "production ? [...SESSION_VARIABLES, API_ADDRESS, ACTIONS_KEY]" in startup
+    session = re.search(r"SESSION_VARIABLES = \[(.*?)\] as const", settings, re.DOTALL)
+    assert session is not None
+    constants = dict(re.findall(r'export const (\w+) = "(\w+)";', startup))
+    expected = (
+        *re.findall(r'"(\w+)"', session.group(1)),
+        constants["API_ADDRESS"],
+        constants["ACTIONS_KEY"],
+    )
+    assert expected == frontimage.REQUIRED
+    assert set(frontimage.REQUIRED) <= set(frontimage.SETTINGS)
 
 
 @pytest.mark.parametrize(
@@ -245,6 +273,8 @@ def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:
         "frontend/pnpm-lock.yaml",
         "frontend/src/instrumentation.ts",
         "frontend/src/startup.ts",
+        "frontend/src/session/settings.ts",
+        "frontend/src/api/server.ts",
     ):
         assert "front-image" in {family.name for family in declaration.touched([changed])}
 

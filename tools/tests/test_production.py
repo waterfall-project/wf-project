@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 import yaml
 
-from wftools import REPOSITORY, images, production
+from wftools import REPOSITORY, images, paths, production
 from wftools.production import Answer, Browser, Platform, ProductionError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -342,6 +342,24 @@ def test_the_chain_tries_the_platform_in_the_full_tier_and_on_the_images_publish
         "run": "make production-trial",
     }
     assert set(job["env"]) == set(trial["jobs"]["trial"]["env"])
+
+
+def test_a_change_of_the_platform_or_of_its_trial_wakes_the_production_family() -> None:
+    declaration = paths.read()
+    mounted = [
+        f"deploy/compose/{Path(volume.split(':')[0]).name}"
+        for service in services().values()
+        for volume in service.get("volumes", [])
+        if str(volume).startswith("./")
+    ]
+    for changed in (
+        "deploy/compose/compose.prod.yaml",
+        "deploy/compose/compose.prod.local.yaml",
+        "deploy/compose/production.env.example",
+        "tools/src/wftools/production.py",
+        *mounted,
+    ):
+        assert "production" in {family.name for family in declaration.touched([changed])}, changed
 
 
 def test_the_address_carries_the_port_of_https_unless_it_is_443() -> None:
