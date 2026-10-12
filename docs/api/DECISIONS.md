@@ -3798,6 +3798,13 @@ plus que son objet rend un objet vide.
 d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
 qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
+donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
+et des rôles que les autres exemples répondent : un rôle créé sans permission, enregistré sans
+changement, renommé en recevant et en perdant des permissions ; un compte créé avec son premier
+rôle, que la requête de la création inscrit après lui sous sa corrélation ; un nom corrigé ; un
+rattachement à l'annuaire ; une attribution qui ne fait que retirer. Une attribution qui ne change
+rien n'y est pas : le service ne l'inscrit pas.
 
 ## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
 

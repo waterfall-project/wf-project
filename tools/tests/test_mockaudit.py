@@ -614,3 +614,97 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     assert all(
         event["object"]["revision"] is None for event in rest if event["action"] == "import_apply"
     )
+
+
+def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_role_did(
+    journal: dict[str, Node],
+) -> None:
+    # Each write of today the examples of the accounts and the roles answer, inscribed as the
+    # service inscribes it: in codes, identifiers and labels of the moment (#706, #961).
+    administration = _events(journal["audit_events_administration"])
+    created, renamed = fixture("access_role_created"), fixture("access_role_renamed")
+    account, cleared = fixture("user_created"), fixture("user_access_roles_cleared")
+    camille, platform = created["audit"]["created_by"], mockaudit.PLATFORM
+    chiffreur = {"access_role_id": universe(705), "label": "Chiffreur"}
+    pilotage = {"access_role_id": universe(706), "label": "Pilotage de projet"}
+    role, user = created["access_role_id"], account["user_id"]
+    expected: list[tuple[Node, str, str, str, Node]] = [
+        (camille, "access_role_create", role, "Contrôle de gestion", {"permissions": []}),
+        (
+            camille,
+            "access_role_update",
+            role,
+            "Contrôle de gestion",
+            {"permissions_granted": [], "permissions_withdrawn": []},
+        ),
+        (
+            camille,
+            "access_role_update",
+            renamed["access_role_id"],
+            "Responsable d'équipe",
+            {
+                "previous_label": "Manager",
+                "permissions_granted": ["planning.write"],
+                "permissions_withdrawn": ["cost_settings.write", "resource_settings.write"],
+            },
+        ),
+        (camille, "user_create", user, "Léa Garnier", {"origin": "local"}),
+        (
+            camille,
+            "user_access_roles_set",
+            user,
+            "Léa Garnier",
+            {"access_roles_granted": [chiffreur], "access_roles_withdrawn": []},
+        ),
+        (camille, "user_update", universe(305), "Lucas Petit-Laurent", {"fields": ["last_name"]}),
+        (
+            platform,
+            "user_update",
+            universe(307),
+            "Noé Vidal-Roux",
+            {"fields": ["last_name"], "attached": True},
+        ),
+        (
+            camille,
+            "user_access_roles_set",
+            cleared["user_id"],
+            "Inès Roux",
+            {"access_roles_granted": [], "access_roles_withdrawn": [pilotage]},
+        ),
+    ]
+    assert [
+        (
+            event["actor"],
+            event["action"],
+            event["object"]["object_id"],
+            event["object"]["label"],
+            event["params"],
+        )
+        for event in administration[::-1]
+    ] == expected
+    # Today, on no project, in no revision; the roles withdrawn are those « Manager » held.
+    assert {event["occurred_at"] for event in administration} == {mockhistory.stamp(TODAY)}
+    assert all(event["project"] is None for event in administration)
+    assert all(event["object"]["revision"] is None for event in administration)
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    assert set(mockaudit.WITHDRAWN) <= set(roles[renamed["access_role_id"]]["permissions"])
+
+
+def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
+    journal: dict[str, Node],
+) -> None:
+    # One request a write, save the first role of an account created, inscribed by the request that
+    # creates it; and no identifier nor correlation another example of the contract gives.
+    administration = _events(journal["audit_events_administration"])[::-1]
+    requests = [event["correlation_id"] for event in administration]
+    assert requests[3] == requests[4]
+    assert len(set(requests)) == len(requests) - 1
+    written = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in mockwitness.FIXTURES.glob("*.json")
+        if path.name != "audit_events_administration.json"
+    }
+    for event in administration:
+        for name, text in written.items():
+            assert event["audit_event_id"] not in text, name
+            assert event["correlation_id"] not in text, name
