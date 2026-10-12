@@ -1018,7 +1018,18 @@ de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`R
 d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+(`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
+désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
+retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un compte
+nommé tel qu'il se lit à la consultation, sous le libellé neutre s'il est anonymisé depuis
+(`useAccountNaming`, `AnonymizedName`) ; une personne du fournisseur par son nom et son identifiant
+chez lui (#918) ; celle dont un compte porte l'adresse (`ALREADY_EXISTS`) par son identifiant et ce
+compte, tel qu'il se lit, ou par son seul identifiant quand aucun ne la portait plus (#920). À une
+session qui porte `users.write`, « Lire les comptes » (`startIdentitySync`) rend la main dès la
+tâche en file et la confie au suivi, qui l'annonce achevée et offre de relire l'écran, sans jamais
+le relire de lui-même. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -1107,8 +1118,8 @@ avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tou
 `ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
-l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
-a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
+l'arborescence au niveau demandé —, et le suivi n'offre de télécharger que le résultat d'un export
+réussi (`givesFile` de `tracking.ts`), celui des autres tâches se lisant sur leur écran : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
 entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
 le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
 et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
