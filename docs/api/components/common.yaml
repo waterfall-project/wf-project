@@ -282,6 +282,9 @@ ErrorCode:
     # WF-REF-0040).
     - UNKNOWN_COST_TYPE
     - UNKNOWN_RESOURCE_ROLE
+    # Une personne du fournisseur d'identité, ou un compte qu'il tient, sans adresse : la lecture
+    # des comptes la laisse telle quelle et le dit (`IdentitySyncReport.skipped`, #918).
+    - EMAIL_MISSING
     # Motifs par champ des écritures d'un compte (`createUser`, `updateUser`,
     # `setUserAccessRoles`) : un rôle d'habilitation ou un nœud d'organisation que le serveur n'a
     # pas, et une valeur différente de celle du compte pour un champ d'identité d'un compte qui

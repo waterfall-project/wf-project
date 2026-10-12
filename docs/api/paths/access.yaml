@@ -487,7 +487,10 @@
       Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire
       fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des
       comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes
-      créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070).
+      créés dans Waterfall ne sont pas modifiés, et aucun rôle n'est attribué (WF-ADM-0070) :
+      c'est dans le fournisseur que la lecture rétablit le nom, le prénom et l'adresse que
+      Waterfall tient d'un compte local, s'ils y diffèrent, puisqu'il en fait foi (WF-ADM-0050,
+      #919).
       Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur
       une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au
       worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire
@@ -515,11 +518,13 @@
     summary: Compte rendu de la dernière lecture des comptes
     description: >-
       Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du
-      fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels
-      quels avec leur motif, et les comptes locaux qu'elle retire du fournisseur — retirés, ou
-      à retirer : le retrait suit la validation de la lecture, un retrait qui échoue est
-      journalisé et la lecture suivante nomme de nouveau l'adresse (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant
-      qu'aucune lecture n'a abouti.
+      fournisseur d'identité qui a abouti, demandée ou planifiée, comptes locaux dont elle
+      rétablit l'identité dans le fournisseur, ce qu'elle a laissé tel quel avec son motif, et
+      les comptes locaux qu'elle retire du fournisseur — rétablis ou retirés, ou à l'être : le
+      rétablissement et le retrait suivent la validation de la lecture ; un échec est journalisé
+      et la lecture suivante le reprend (WF-ADM-0070, #811, #919). Un compte de Waterfall laissé
+      tel quel est nommé tel qu'il se lit à la consultation, anonymisé compris (#920). Sous la
+      permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
     responses:
       '200':
         description: Compte rendu de la dernière lecture (WF-ADM-0070, WF-ADM-0130).

@@ -55,8 +55,13 @@ DATA = {
     # The field of a request a refusal points at, and the address of a result to download.
     "FieldProblem.pointer": "a JSON pointer",
     "BackgroundTaskRef.result_url": "an address",
-    # The mail addresses of the accounts a reading of the provider left as they were, or removed.
-    "IdentitySyncReport.skipped.email": "an address",
+    # An account a reading of the provider left as it was, named as it is shown; a person of the
+    # provider it gave no account, as the provider holds her; the addresses of the accounts removed.
+    "IdentitySyncSkippedAccount.display_name": "a name",
+    "IdentitySyncSkippedPerson.subject": "an identifier of the provider",
+    "IdentitySyncSkippedPerson.last_name": "a name",
+    "IdentitySyncSkippedPerson.first_name": "a name",
+    "IdentitySyncSkippedPerson.email": "an address",
     "IdentitySyncReport.removed": "addresses",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a

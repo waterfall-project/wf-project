@@ -408,7 +408,7 @@ export interface paths {
         put?: never;
         /**
          * Lire les comptes du fournisseur d'identité
-         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué (WF-ADM-0070). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`). Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
+         * @description Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes créés dans Waterfall ne sont pas modifiés, et aucun rôle n'est attribué (WF-ADM-0070) : c'est dans le fournisseur que la lecture rétablit le nom, le prénom et l'adresse que Waterfall tient d'un compte local, s'ils y diffèrent, puisqu'il en fait foi (WF-ADM-0050, #919). Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`). Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
          */
         post: operations["startIdentitySync"];
         delete?: never;
@@ -426,7 +426,7 @@ export interface paths {
         };
         /**
          * Compte rendu de la dernière lecture des comptes
-         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels quels avec leur motif, et les comptes locaux qu'elle retire du fournisseur — retirés, ou à retirer : le retrait suit la validation de la lecture, un retrait qui échoue est journalisé et la lecture suivante nomme de nouveau l'adresse (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
+         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, comptes locaux dont elle rétablit l'identité dans le fournisseur, ce qu'elle a laissé tel quel avec son motif, et les comptes locaux qu'elle retire du fournisseur — rétablis ou retirés, ou à l'être : le rétablissement et le retrait suivent la validation de la lecture ; un échec est journalisé et la lecture suivante le reprend (WF-ADM-0070, #811, #919). Un compte de Waterfall laissé tel quel est nommé tel qu'il se lit à la consultation, anonymisé compris (#920). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
          */
         get: operations["getLatestIdentitySync"];
         put?: never;
@@ -2653,7 +2653,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_RESOURCE_ROLE" | "EMAIL_MISSING" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2954,7 +2954,32 @@ export interface components {
             /** @description Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140). */
             expires_at: components["schemas"]["Timestamp"];
         };
-        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). */
+        /** @description Un compte de Waterfall que la lecture a laissé tel quel, désigné par son seul identifiant : le compte rendu n'en garde rien d'autre (#920). */
+        IdentitySyncSkippedAccount: {
+            /** @constant */
+            kind: "account";
+            user_id: components["schemas"]["Uuid"];
+            /** @description Nom d'affichage du compte, lu à la consultation ; nul pour un compte anonymisé depuis, que le front présente sous le libellé neutre de son catalogue (WF-ADM-0060, WF-ARC-0110). */
+            display_name: string | null;
+            /** @description `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS` pour un compte dont la nouvelle adresse est portée par un autre ; `VALIDATION_FAILED` pour un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING` pour un compte dont le fournisseur ne tient plus d'adresse. */
+            code: components["schemas"]["ErrorCode"];
+        };
+        /** @description Une personne du fournisseur d'identité à qui la lecture n'a pas donné de compte, telle que le fournisseur la tient (#918). */
+        IdentitySyncSkippedPerson: {
+            /** @constant */
+            kind: "person";
+            /** @description Son identifiant chez le fournisseur d'identité. */
+            subject: string;
+            /** @description Son nom chez le fournisseur ; vide s'il n'en tient pas. */
+            last_name: string;
+            /** @description Son prénom chez le fournisseur ; vide s'il n'en tient pas. */
+            first_name: string;
+            /** @description Son adresse chez le fournisseur ; nulle s'il n'en tient pas (`EMAIL_MISSING`). */
+            email: string | null;
+            /** @description `EMAIL_MISSING` pour une personne sans adresse, que Waterfall ne peut pas reconnaître ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
+            code: components["schemas"]["ErrorCode"];
+        };
+        /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas modifiés : c'est dans le fournisseur que la lecture rétablit leur identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). Un compte de Waterfall n'y est désigné que par son identifiant, son nom étant lu à la consultation : le compte rendu ne garde aucune donnée personnelle d'un compte (WF-ADM-0060, #920). */
         IdentitySyncReport: {
             /** @description La tâche de la lecture (`BackgroundTaskRef.task_id`). */
             task_id: components["schemas"]["Uuid"];
@@ -2966,11 +2991,10 @@ export interface components {
             updated: number;
             /** @description Comptes désactivés parce que le fournisseur ne les connaît plus. */
             deactivated: number;
-            /** @description Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
-            skipped: {
-                email: string;
-                code: components["schemas"]["ErrorCode"];
-            }[];
+            /** @description Comptes créés dans Waterfall dont le fournisseur tenait un autre nom, un autre prénom ou une autre adresse, et dont la lecture rétablit dans le fournisseur l'identité que Waterfall tient, puisqu'il en fait foi (WF-ADM-0050, #919). Le rétablissement suit la validation de la lecture : un compte compté ici est rétabli, ou à rétablir ; un rétablissement qui échoue est journalisé, et la lecture suivante le compte de nouveau. Un compte anonymisé n'est jamais rétabli. */
+            restored: number;
+            /** @description Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un compte de Waterfall (`IdentitySyncSkippedAccount`), ou une personne du fournisseur qui n'en a pas (`IdentitySyncSkippedPerson`). */
+            skipped: (components["schemas"]["IdentitySyncSkippedAccount"] | components["schemas"]["IdentitySyncSkippedPerson"])[];
             /** @description Les adresses des comptes locaux que la lecture retire du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse. */
             removed: string[];
         };
