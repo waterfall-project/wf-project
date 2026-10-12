@@ -16,7 +16,17 @@ from uuid import UUID
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError
-from sqlalchemy import CheckConstraint, SmallInteger, Text, event, func, insert, select
+from sqlalchemy import (
+    CheckConstraint,
+    Connection,
+    SmallInteger,
+    Text,
+    event,
+    func,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -43,6 +53,8 @@ KINDS: tuple[str, ...] = get_args(TaskKind.__value__)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 FINISHED = ("succeeded", "failed")
+# Why a task that a restoration finds pending in the restored database fails (#892).
+INTERRUPTED = {"code": "TASK_INTERRUPTED_BY_RESTORE", "status": 409}
 
 logger = get_logger(__name__)
 
@@ -186,3 +198,24 @@ def list_tasks(
     latest = (BackgroundTask.submitted_at.desc(), BackgroundTask.id.desc())
     page = select(BackgroundTask).where(*kept).order_by(*latest).limit(limit).offset(offset)
     return list(session.scalars(page)), total or 0
+
+
+def fail_interrupted(connection: Connection, spared: UUID, at: datetime) -> None:
+    """Fail every task a restored database holds queued or running, but the restoration's (#892).
+
+    A backup that ran while its own database was dumped would otherwise run again, and write
+    over its archive. Each fails under its own correlation.
+    """
+    problem = func.jsonb_build_object(
+        "code",
+        INTERRUPTED["code"],
+        "status",
+        INTERRUPTED["status"],
+        "correlation_id",
+        BackgroundTask.correlation_id,
+    )
+    connection.execute(
+        update(BackgroundTask)
+        .where(BackgroundTask.status.in_(PENDING), BackgroundTask.id != spared)
+        .values(status="failed", problem=problem, finished_at=at)
+    )

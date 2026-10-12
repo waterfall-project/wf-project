@@ -4,14 +4,15 @@
 
 The list of the backups, the latest first, and one backup read; a backup taken by the worker,
 recorded with the outcome of its verification and inscribed in the journal of audit at its date,
-the instant of the state it copies (WF-SEC-0030).
+the instant of the state it copies (WF-SEC-0030). A restoration keeps the list of the backups, and
+writes back those the restored database lacks, whose archives stay in the bucket (#893).
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import Connection, func, insert, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.tables import Backup
@@ -19,6 +20,7 @@ from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import Act, AuditObject, Inscription, record
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.restoration import keep, write_back
 
 NOT_FOUND = "NOT_FOUND"
 
@@ -105,3 +107,14 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("backup", actor, audited, act.at))
     return backup_id
+
+
+def keep_backups(connection: Connection) -> list[UUID]:
+    """Keep the list of the backups before a restoration, and give the tasks that took them."""
+    keep(connection, Backup)
+    return list(connection.scalars(select(Backup.task_id)))
+
+
+def write_back_backups(connection: Connection) -> None:
+    """Write back the backups kept that the restored database lacks, their tasks written back."""
+    write_back(connection, Backup)

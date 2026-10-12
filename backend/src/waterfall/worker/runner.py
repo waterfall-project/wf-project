@@ -7,12 +7,16 @@ task; the attempt that starts is committed before, apart. A worker stopped durin
 database as it was, but for that attempt: a worker that claims its entry finds the lock free, and
 runs the task again from the start; while the task runs, the entry is left (WF-ARC-0090). A task
 whose attempts are spent, or that no handler runs, fails without running.
+
+While a restoration holds the platform in maintenance, a worker runs that restoration alone, and
+counts its attempts in the maintenance: the database it replaces may no longer hold its row
+(WF-ADM-0160). The other entries are left to the end of the maintenance.
 """
 
 import socket
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +28,7 @@ from sqlalchemy.orm import Session
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
+from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
 
@@ -126,6 +131,7 @@ class Worker:
         self.handlers = handlers
         self.consumer = consumer or socket.gethostname()
         self.timing = timing or Timing()
+        self.maintenance = Maintenance.of(queue)
         # Where the next look for the entries left pending starts: each look goes on from the last.
         self.sweep = SWEEP_START
 
@@ -163,8 +169,18 @@ class Worker:
             self.handle(entry)
         return bool(entries)
 
+    def restoring(self) -> Restoring | None:
+        """Give the restoration that holds the platform in maintenance, if one does."""
+        return self.maintenance.current()
+
     def handle(self, entry: Entry) -> None:
-        """Run the task of an entry, and acknowledge it unless the task runs elsewhere."""
+        """Run the task of an entry, and acknowledge it unless the task runs elsewhere.
+
+        In maintenance, the entry of another task than the restoration is left, unacknowledged.
+        """
+        restoring = self.restoring()
+        if restoring is not None and entry.task_id != restoring.task_id:
+            return
         if entry.task_id is None:
             logger.warning("queue.entry_unreadable", entry_id=entry.entry_id)
         elif not self.run_task(entry.task_id):
@@ -186,6 +202,9 @@ class Worker:
 
     def start(self, task_id: UUID) -> Task | None:
         """Start one more attempt of a task, committed, or end it if it may not run."""
+        restoring = self.restoring()
+        if restoring is not None and restoring.task_id == task_id:
+            return self.resume(restoring)
         with self.database.transaction() as session:
             row = session.get(BackgroundTask, task_id, with_for_update=True)
             if row is None or row.status in FINISHED:
@@ -202,6 +221,28 @@ class Worker:
                 return None
             row.status, row.attempts, row.started_at = "running", attempt, utc_now()
             return task
+
+    def resume(self, restoring: Restoring) -> Task | None:
+        """Take up the restoration of a maintenance, its attempt counted there; ``None`` if spent.
+
+        A restoration whose attempts are spent leaves the platform in maintenance: the database it
+        was replacing is in no state to serve, which an operator must look at.
+        """
+        attempt = restoring.attempts + 1
+        task = Task(
+            restoring.task_id,
+            "restore",
+            restoring.payload,
+            restoring.requested_by,
+            restoring.correlation_id,
+            attempt,
+        )
+        if restoring.attempts >= MAX_ATTEMPTS:
+            with logging_context(**context_of(task)):
+                logger.error("task.failed", reason="attempts_spent", attempts=restoring.attempts)
+            return None
+        self.maintenance.hold(replace(restoring, attempts=attempt))
+        return task
 
     def execute(self, session: Session, task: Task) -> None:
         """Run the handler of a task and end the task; a failed handler's work is undone.
@@ -225,7 +266,12 @@ class Worker:
             logger.info("task.succeeded")
 
     def redeposit(self) -> None:
-        """Deposit again the pending tasks the stream no longer names, but those that run."""
+        """Deposit again the pending tasks the stream no longer names, but those that run.
+
+        Not in maintenance: the database is being replaced.
+        """
+        if self.restoring() is not None:
+            return
         with self.database.transaction() as session:
             pending = session.execute(
                 select(BackgroundTask.id, BackgroundTask.status).where(
