@@ -626,35 +626,50 @@ def test_a_local_account_renamed_signs_in_by_its_new_address_and_is_mailed_there
 class Overtaken(Watching):
     """An administration client after whose change of an identity another write passes."""
 
-    def __init__(self, keycloak: Keycloak, database: Database, user_id: UUID) -> None:
-        """Watch ``database``, where the version of ``user_id`` advances after its change."""
+    def __init__(
+        self,
+        keycloak: Keycloak,
+        database: Database,
+        user_id: UUID,
+        meanwhile: Callable[[], None] | None = None,
+        **values: str,
+    ) -> None:
+        """Watch ``database``, where ``user_id`` takes ``values`` and its next version meanwhile."""
         super().__init__(keycloak, served_settings(), database)
         self.database = database
         self.user_id = user_id
+        self.meanwhile = meanwhile
+        self.values = values
 
     def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
-        """Change the identity, then advance the version of the account, as another write would."""
+        """Change the identity, then write the account, as another write would; then the rest."""
         done = super().change_identity(subject, identity)
         if done and self.held == [("change_identity", 0)]:
             with self.database.transaction() as session:
                 session.execute(
                     update(UserAccount)
                     .where(UserAccount.id == self.user_id)
-                    .values(lock_version=UserAccount.lock_version + 1)
+                    .values(lock_version=UserAccount.lock_version + 1, **self.values)
                 )
+            if self.meanwhile is not None:
+                self.meanwhile()
         return done
 
 
 @pytest.fixture
 def overtaking(
     contract: OpenAPI, database: Database, keycloak: Keycloak
-) -> Callable[[UUID], ContractClient]:
-    """Give a maker of clients of the API whose change of an account another write overtakes."""
+) -> Callable[..., ContractClient]:
+    """Give a maker of clients of the API whose change of an account another write overtakes.
 
-    def client(user_id: UUID) -> ContractClient:
-        app = create_app(
-            Services(database, keycloak, Overtaken(keycloak, database, user_id), *nowhere())
-        )
+    The other write gives the account the values asked for, then what runs ``meanwhile`` runs.
+    """
+
+    def client(
+        user_id: UUID, meanwhile: Callable[[], None] | None = None, **values: str
+    ) -> ContractClient:
+        overtaken = Overtaken(keycloak, database, user_id, meanwhile, **values)
+        app = create_app(Services(database, keycloak, overtaken, *nowhere()))
         return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
     return client
@@ -670,7 +685,7 @@ def overtaking(
     ids=["a name the realm refuses", "an address it holds", "a write passed meanwhile"],
 )
 def test_a_change_of_a_local_account_refused_leaves_the_realm_as_it_was(
-    overtaking: Callable[[UUID], ContractClient],
+    overtaking: Callable[..., ContractClient],
     database: Database,
     administrator: Administrator,
     made: Callable[[str, str], Account],
@@ -695,6 +710,66 @@ def test_a_change_of_a_local_account_refused_leaves_the_realm_as_it_was(
     with service_admin(served_settings()) as admin:
         held = admin.get(f"/users/{paul.id}").json()
     assert (held["lastName"], held["email"]) == ("Durand", paul.email)
+
+
+def test_a_change_refused_after_another_gives_the_realm_the_identity_waterfall_holds_then(
+    overtaking: Callable[..., ContractClient],
+    database: Database,
+    administrator: Administrator,
+    made: Callable[[str, str], Account],
+) -> None:
+    # Another administrator renamed Paul while the realm took the change: the realm is given back
+    # the identity Waterfall holds at the refusal, read again, not the one read before (#810).
+    paul = made("Paul", "Durand")
+    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
+    client = overtaking(user_id, last_name="Durand-Martin")
+    body = {"last_name": "Dumas", "lock_version": 0}
+    refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
+    assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    with service_admin(served_settings()) as admin:
+        held = admin.get(f"/users/{paul.id}").json()
+    assert (held["lastName"], held["firstName"], held["email"]) == (
+        "Durand-Martin",
+        "Paul",
+        paul.email,
+    )
+
+
+def test_an_identity_the_realm_cannot_take_back_is_logged(
+    overtaking: Callable[..., ContractClient],
+    database: Database,
+    administrator: Administrator,
+    made: Callable[[str, str], Account],
+    logs: Logs,
+) -> None:
+    # An account of the realm took Paul's former address meanwhile: the realm cannot be given it
+    # back, which the log says; the refusal is what the caller is told (#810).
+    paul = made("Paul", "Durand")
+    user_id = UUID(str(known(database, paul, last_name="Durand", first_name="Paul")["id"]))
+    taken: list[str] = []
+
+    def take_the_former_address() -> None:
+        with service_admin(served_settings()) as admin:
+            user = {"username": paul.email, "email": paul.email, "enabled": True}
+            names = {"firstName": "Jeanne", "lastName": "Orpheline"}
+            created = admin.post("/users", json={**user, **names})
+        assert created.status_code == 201, created.text
+        taken.append(created.headers["Location"].rsplit("/", 1)[-1])
+
+    address = f"paul.{uuid4().hex[:8]}@mairie.test"
+    client = overtaking(user_id, take_the_former_address)
+    body = {"email": address, "lock_version": 0}
+    try:
+        refused = client.patch(f"{USERS}/{user_id}", headers=administrator.headers, json=body)
+        assert (refused.status_code, refused.json()["code"]) == (412, "STALE_LOCK_VERSION")
+        (record,) = logs.named("account.identity_not_restored")
+        assert (record["user_id"], record["reason"]) == (str(user_id), "address_taken")
+        with service_admin(served_settings()) as admin:
+            assert admin.get(f"/users/{paul.id}").json()["email"] == address
+    finally:
+        with service_admin(served_settings()) as admin:
+            for subject in taken:
+                admin.delete(f"/users/{subject}")
 
 
 # --- WF-ARC-0090: the reading of the accounts asked for -----------------------------------------

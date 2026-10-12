@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref, audit_actor
-from waterfall.api.authentication import Caller, ServicesOf, Transaction
+from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
@@ -395,7 +395,7 @@ def patch_user(
     For a local account Waterfall is the authority (WF-ADM-0050): its new identity is carried to
     the provider, which signs it in and mails it by its address (#810), out of any transaction
     (#669) — checked first, carried, then written; a write refused after all gives the provider
-    back the identity it had.
+    back the identity Waterfall holds then.
     """
     sent = identity_change(body)
     lock_version = body.lock_version.root
@@ -411,7 +411,7 @@ def patch_user(
             return users(session, actor, [done])[0]
     except Exception:
         if carried:
-            restore_identity(services.keycloak_admin, held)
+            restore_identity(services, user_id)
         raise
 
 
@@ -430,15 +430,25 @@ def carry_identity(admin: KeycloakAdmin, held: Account, changed: Mapping[str, st
         raise address_taken(None)
 
 
-def restore_identity(admin: KeycloakAdmin, held: Account) -> None:
+def restore_identity(services: Services, user_id: UUID) -> None:
     """Give the provider back the identity of a local account whose change Waterfall refused.
 
-    The refusal is what the caller is told; a provider that cannot be given it back is logged.
+    The one Waterfall holds at the refusal, read again in a short transaction: the one read before
+    the change may be stale — another administrator, a request sent twice (#810). The refusal is
+    what the caller is told; a provider that cannot be given it back, or that holds its address for
+    another account, is logged.
     """
+    with services.database.transaction() as session:
+        held = read_account(session, user_id)
     try:
-        admin.change_identity(held.subject, local_identity(held, {}))
+        restored = services.keycloak_admin.change_identity(held.subject, local_identity(held, {}))
     except (UnavailableError, IdentityProviderError, UnprocessableError):
-        logger.exception("account.identity_not_restored", user_id=str(held.user_id))
+        logger.exception("account.identity_not_restored", user_id=str(user_id))
+        return
+    if not restored:
+        logger.warning(
+            "account.identity_not_restored", user_id=str(user_id), reason="address_taken"
+        )
 
 
 def close_sessions(admin: KeycloakAdmin, account: Account) -> None:

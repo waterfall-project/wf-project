@@ -472,8 +472,10 @@ garde le compte actif et le signale.
   prénom et l'adresse changés d'un compte local, dont Waterfall fait foi (motif de WF-ADM-0050) :
   le royaume connecte et écrit au compte par l'adresse qu'il tient (#810). Le changement est
   vérifié dans une transaction courte, reporté, puis écrit dans une seconde, qui revérifie le
-  `lock_version` ; refusé alors, il est défait dans Keycloak, et un échec de ce retour est
-  journalisé. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  `lock_version` ; refusé alors, il est défait dans Keycloak, qui reprend l'identité que
+  Waterfall tient au moment du refus, relue dans une transaction courte — celle lue avant le
+  report peut avoir changé depuis —, et un échec de ce retour, dont un compte du royaume qui
+  tient entre-temps l'adresse, est journalisé (`account.identity_not_restored`). Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
