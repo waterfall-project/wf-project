@@ -405,7 +405,7 @@ rien d'autre que leurs deux clés.
 | Table | Contenu | Contraintes |
 |---|---|---|
 | `installation` | une seule ligne : langue par défaut, borne de l'avatar, borne d'une sauvegarde déposée, date d'installation | une seule ligne (clé constante vérifiée) ; langue dans `fr`, `en` ; borne de l'avatar ≤ 8 Mio |
-| `user_account` | identité (`last_name`, `first_name`, `email`, nuls pour un compte anonymisé seulement), `anonymized_at`, `idp_subject`, `origin`, `state`, `sessions_closed_at` (nul tant que le compte ne s'est ni déconnecté ni n'a été désactivé), `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
+| `user_account` | identité (`last_name`, `first_name`, `email`, nuls pour un compte anonymisé seulement), `anonymized_at`, `idp_subject`, `origin`, `state`, `sessions_closed_at` (nul tant que le compte ne s'est ni déconnecté, ni n'a été désactivé, ni n'a perdu tous ses rôles), `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
 | `permission` | `code`, `kind`, `fbs_code` | `code` unique ; `kind` dans les quatre natures ; écrite par migration seulement |
 | `access_role` | `label`, `is_predefined`, `deleted_at`, audit, `lock_version` | — |
 | `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
@@ -875,7 +875,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une extension Keycloak maison pour le lien de fixation et la règle du nom (cadrage, 2026-10-07) | une extension tierce : licence et maintenance à vérifier, ni l'invalidation du lien précédent ni la règle du nom ; le courriel seul : impossible sans messagerie (WF-CMP-0030) |
 | Waterfall fait foi pour l'état du compte : la désactivation ne désactive pas le compte dans Keycloak, elle ferme ses sessions et l'API le refuse | désactiver aussi dans Keycloak : couperait les applications voisines qui partagent le fournisseur (motif de WF-ARC-0030), et un annuaire en lecture seule le refuse |
 | La déconnexion ferme toutes les sessions du compte, sur tous ses postes (lecture de WF-SEC-0020, « sur tous ses postes ») | fermer la seule session du navigateur : ne tient pas la phrase pour la déconnexion |
-| Un jeton dont la connexion précède la dernière déconnexion ou désactivation du compte est refusé, par l'heure que `closeMySessions` et `setUserActivation` notent dans le compte, comparée à `auth_time` — à défaut `iat` (auteur, 2026-10-10, #668 ; 2026-10-11, #835) | amender le 401 « session fermée » du contrat : les applications voisines garderaient cinq minutes un jeton valide ; vérifier la session (`sid`) à chaque appel : un aller-retour vers Keycloak, ou l'API dépendrait du Redis du front |
+| Un jeton dont la connexion précède la dernière déconnexion, désactivation ou le dernier retrait de tous les rôles du compte est refusé, par l'heure que `closeMySessions`, `setUserActivation` et `setUserAccessRoles` notent dans le compte, comparée à `auth_time` — à défaut `iat` (auteur, 2026-10-10, #668 ; 2026-10-11, #835, #855) | amender le 401 « session fermée » du contrat : les applications voisines garderaient cinq minutes un jeton valide ; vérifier la session (`sid`) à chaque appel : un aller-retour vers Keycloak, ou l'API dépendrait du Redis du front |
 | La plateforme de développement sert Keycloak en HTTPS par un frontal Caddy à autorité locale (auteur, 2026-10-10, #680) | permettre le HTTP à `openid-client` (`allowInsecureRequests`) sur le poste : option dépréciée, une exemption au jeu de règles, et une plateforme qui s'écarte des flux en HTTPS du §4.3.2 que la démonstration suit |
 | Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` | 403 : chaque opération devrait le déclarer, quand le 401 l'est déjà partout (`rule/session-operation-declares-401`) ; le front distingue le code et ne renvoie pas à la connexion, qui bouclerait |
 | La suppression d'un rôle est logique (cadrage, 2026-10-07) | la suppression physique : contraire à WF-DAT-0080 |
@@ -1025,7 +1025,7 @@ sert.
 
 ## US-0350 — Se connecter par le fournisseur d'identité
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0030-A`, `WF-ADM-0140-A`, `WF-ADM-0180-A`, `WF-SEC-0020-A`
 - **opérations** : `getMe`, `closeMySessions`, `createPasswordSetupLink`
 - **issue** : #427
@@ -1086,10 +1086,10 @@ appliqué de façon idempotente par keycloak-config-cli ; la base de Keycloak di
 même serveur PostgreSQL. La plateforme de développement porte un annuaire et un fournisseur
 externe de test, pour que la Définition de fini se constate. Cette US ferme #152 et #155,
 sans objet : la page de connexion n'a plus de liste de fournisseurs à présenter, et les
-règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Ses lots L1 à L5b
-faits, deux phrases de `WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis
-la réactivation après une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du
-fournisseur (US-0370/L2) : l'US reste `en cours` tant que #844 n'a pas tranché où elles s'éprouvent.
+règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Deux phrases de
+`WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis la réactivation après
+une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du fournisseur : #844 les
+a fait éprouver par US-0370/L2. Ses lots L1 à L5c fusionnés, l'US est finie.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 
