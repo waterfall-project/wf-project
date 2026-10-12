@@ -61,6 +61,9 @@
     "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
+    "signIn": "Connexion",
+    "signInHelp": "Vos identifiants de connexion se fixent et se changent sur la page de votre compte du fournisseur d’identité.",
+    "realmPage": "Ouvrir mon compte du fournisseur d’identité",
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
@@ -835,7 +838,8 @@
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
     "signIn": "Se connecter",
-    "dismiss": "Fermer l’avis"
+    "dismiss": "Fermer l’avis",
+    "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
@@ -1383,6 +1387,17 @@
       "history": "Histoire de « {object} »",
       "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "details": {
+        "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
+        "attached": "Origine désormais : {origin}",
+        "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",
+        "renamed": "Auparavant « {label} »",
+        "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
+        "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "then": "{first} ; {second}"
+      },
       "filters": {
         "label": "Filtres du journal",
         "period": "Période",

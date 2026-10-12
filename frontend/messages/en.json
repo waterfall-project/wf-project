@@ -61,6 +61,9 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
+    "signIn": "Sign-in",
+    "signInHelp": "Your sign-in credentials are set and changed on the page of your account at the identity provider.",
+    "realmPage": "Open my account at the identity provider",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -835,7 +838,8 @@
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "leftRefused": "{count, plural, one {A change no longer shown was refused: it is not saved.} other {# changes no longer shown were refused: they are not saved.}}"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -1383,6 +1387,17 @@
       "history": "History of “{object}”",
       "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "details": {
+        "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
+        "attached": "Origin from now on: {origin}",
+        "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",
+        "renamed": "Formerly “{label}”",
+        "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
+        "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "then": "{first}; {second}"
+      },
       "filters": {
         "label": "Filters of the log",
         "period": "Period",

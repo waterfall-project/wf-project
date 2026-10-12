@@ -306,8 +306,14 @@ describe("the journal of audit", () => {
     expect(links.filter((link) => link.startsWith("couts-reels"))).toEqual([]);
   });
 
-  it("names the project and its objects without a link where the session may not open the project", async () => {
-    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
+  it.each([
+    ["the session may not open the project", "projects_empty"],
+    [
+      "the API finds no list of projects, a service that serves none yet",
+      { problem: { code: "NOT_FOUND", status: 404 } },
+    ],
+  ] as const)("names the project and its objects without a link where %s", async (_, projects) => {
+    server.answers = { ...server.answers, "GET /projects": projects };
     const page = await journal();
     // Only the links of the journal itself remain: the correlations.
     expect(
@@ -326,14 +332,33 @@ describe("the journal of audit", () => {
     expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
 
-  it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A]", async () => {
-    const page = text(await journal());
-    for (const command of ["Modifier", "Supprimer", "Créer", "Effacer"]) {
-      expect(page).not.toContain(command);
+  it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A] [WF-ADM-0190-A]", async () => {
+    const page = await journal();
+    // No cell of the grid takes an entry, nor holds a control: its links lead elsewhere.
+    const body = /<tbody[^>]*>(.*?)<\/tbody>/.exec(gridOf(page))?.[1];
+    expect(body).toBeDefined();
+    expect(body?.match(/<tr\b/g)?.length).toBeGreaterThan(1);
+    expect(body).not.toMatch(/<(button|input|select|textarea|form)\b|contenteditable/);
+    // The controls of the page are those of its filters, its columns, its sorts and its pages: each
+    // by its whole name — its text, and its `aria-label` or `title`, an icon alone having no text.
+    const controls = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)].map(
+      ([button, attributes]) =>
+        [
+          text(button),
+          ...[...(attributes ?? "").matchAll(/\b(?:aria-label|title)="([^"]*)"/g)].map(
+            ([, name]) => name,
+          ),
+        ].join(" "),
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    expect(controls.some((control) => /Colonnes|Trier/i.test(control))).toBe(true);
+    for (const control of controls) {
+      expect(control).not.toMatch(/Modifier|Supprimer|Effacer|Créer|Retirer|Annuler/);
     }
+    expect(page).not.toMatch(/<form[^>]*method="post"/i);
   });
 
-  it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A]", async () => {
+  it("is not found by a session that may not consult the journal, as an address that leads nowhere [WF-ADM-0110-A] [WF-ADM-0190-A]", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     await expect(journal()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     // The session alone is read: nothing of the journal, its facets or the projects.
@@ -396,6 +421,21 @@ describe("the journal of audit", () => {
       NEWEST,
       { from: "2028-02-29T23:59:59.5+02:00", to: "2026-05-01T08:00:00Z", ...NEWEST },
     ]);
+  });
+
+  it("presents nothing of a month without any action, which it asks the server for [WF-ADM-0190-A]", async () => {
+    server.answers = { ...server.answers, [EVENTS]: "audit_events_empty" };
+    const month = { from: "2026-07-01T00:00:00Z", to: "2026-08-01T00:00:00Z" };
+    const page = await journal(month);
+    expect(queriesOf(EVENTS)).toEqual([{ ...month, ...NEWEST }]);
+    // The grid holds no inscription — it says no row answers —, and the filters are kept.
+    expect(rows(page)).toEqual([
+      "Date Auteur Action Nature de l’objet Objet Projet Corrélation",
+      "Aucune ligne ne répond à la demande.",
+      "Aucune inscription",
+    ]);
+    expect(text(page)).not.toContain("Le journal ne tient aucune inscription.");
+    expect(page).toContain('aria-label="Filtres du journal"');
   });
 
   it("says the journal holds nothing only when nothing narrows it", async () => {

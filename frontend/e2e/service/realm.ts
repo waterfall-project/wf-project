@@ -90,11 +90,12 @@ export function under(prefix: string): RegExp {
 }
 
 /**
- * The button that signs in on the sign-in page of the realm: exactly named, the page that asks for
- * the password again holding « Redémarrer la connexion » beside it.
+ * The button that signs in on the sign-in page of the realm, in French or in English, as the
+ * browser asks: exactly named, the page that asks for the password again holding « Redémarrer la
+ * connexion » beside it.
  */
 function signInButton(page: Page) {
-  return page.getByRole("button", { name: "Connexion", exact: true });
+  return page.getByRole("button", { name: /^(Connexion|Sign In)$/ });
 }
 
 /** The sign-in page of the realm, where a person gives her identifiers. */
@@ -107,8 +108,14 @@ export async function expectSignInPage(page: Page): Promise<void> {
 export async function giveIdentifiers(page: Page, person: Person): Promise<void> {
   await expectSignInPage(page);
   if (person.provider === undefined) {
-    await page.getByLabel("Courriel").fill(person.login);
-    await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
+    // The label of the identifier carries the mark of a field required (« Courriel * »), that of
+    // the password none: the one is found as part of its label, the other whole, apart from the
+    // button that shows it (« Afficher le mot de passe »).
+    await page.getByLabel("Courriel").or(page.getByLabel("Email")).fill(person.login);
+    await page
+      .getByLabel("Mot de passe", { exact: true })
+      .or(page.getByLabel("Password", { exact: true }))
+      .fill(person.password);
     await oneAtATime(person.login, async () => {
       const checked = page.waitForResponse(
         (answer) =>
@@ -406,6 +413,17 @@ export function waterfallAccount(email: string): { origin: string; roles: number
   return origin === undefined || origin === "" ? undefined : { origin, roles: Number(roles) };
 }
 
+/** The settings an account keeps for a grid (`display_preferences.grids`), none if it keeps none. */
+export function gridPreferences(email: string, grid: string): unknown {
+  const kept = sql(
+    `select coalesce(display_preferences -> 'grids' -> :'grid', 'null') from user_account
+  where email = :'email';
+`,
+    { email, grid },
+  );
+  return JSON.parse(kept === "" ? "null" : kept) as unknown;
+}
+
 /**
  * Give the person of the directory, or the one of the external provider, a role of the permissions
  * given — the same role each time, made once —, as the administrator of the installation would by
@@ -581,11 +599,13 @@ const TOKEN_RENEWED_AFTER = 4 * 60_000;
  * The administrator of the installation at the API (#730): it creates the local accounts of the
  * paths, each its own, gives their links (`createUser`, `createPasswordSetupLink`) and their roles
  * (`createAccessRole`, `setUserAccessRoles`), by the token the front would obtain for it — asked
- * again once it nears its end.
+ * again once it nears its end. Its identifier in Waterfall, by which the journal of audit names
+ * its author (`self`).
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
   let token = await frontToken(browser, ADMINISTRATOR);
   let obtained = Date.now();
+  const { user_id: self } = await read<Schemas["UserSelf"]>(request, token, "/me");
   const current = async (): Promise<string> => {
     if (Date.now() - obtained > TOKEN_RENEWED_AFTER) {
       token = await frontToken(browser, ADMINISTRATOR);
@@ -594,6 +614,7 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     return token;
   };
   return {
+    self,
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
       const email = `jeanne.${randomBytes(6).toString("hex")}@waterfall.test`;
@@ -679,7 +700,7 @@ export interface LocalPerson extends Person {
 
 /**
  * A local account created by the administrator, whose holder has set her password by her link:
- * the person who signs in with it.
+ * the person who signs in with it, and its identifier in Waterfall.
  */
 export async function localAccount(
   browser: Browser,

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import { createIdentityProvider } from "@/session/provider";
 import { FRONT_CLIENT } from "@/session/settings";
-import { openSession, readSession, takeSignOut } from "@/session/store";
+import { closeStore, openSession, readSession, takeSignOut } from "@/session/store";
 import { requestBearer, SESSION_COOKIE, SessionLost } from "@/session/tokens";
 import {
   example,
@@ -120,6 +120,22 @@ describe("the server action of the session", () => {
     expect(await signOut()).toEqual({ kind: "unreachable" });
     expect(await readSession(id)).toBeDefined();
     expect(server.jar.held.has(SESSION_COOKIE)).toBe(true);
+  });
+
+  it("says the service out of reach when Redis cannot be reached once the API has closed the sessions, never an unexpected error (#861)", async () => {
+    const id = await workstation(randomUUID());
+    server.jar = cookieJar({ [SESSION_COOKIE]: id });
+    const client = serve({ "DELETE /me/sessions": { status: 204 } });
+    // A Redis nobody serves: the connection is refused once the API has answered.
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      expect(await signOut()).toEqual({ kind: "unreachable" });
+      expect(client.calls.map((call) => call.route)).toEqual(["DELETE /me/sessions"]);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each([
