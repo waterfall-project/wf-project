@@ -29,6 +29,7 @@ from waterfall.worker.backup import (
     connect,
     connection,
     digest,
+    listed,
     reached,
 )
 
@@ -62,8 +63,9 @@ def extracted(path: Path, folder: Path) -> dict[str, Path]:
     """Read an archive: its manifest, a version no newer than the installed one, each dump checked.
 
     A newer version is refused (422, ``BACKUP_FROM_NEWER_VERSION``); an archive that does not read
-    back whole, as unreadable (422). Nothing of the archive is extracted but under a name chosen
-    here.
+    back whole — a database of the platform lacking, a dump missing, unlike its digest, or that
+    ``pg_restore`` does not list — as unreadable (422), before any database is touched. Nothing of
+    the archive is extracted but under a name chosen here.
     """
     try:
         with tarfile.open(path) as tar:
@@ -72,18 +74,19 @@ def extracted(path: Path, folder: Path) -> dict[str, Path]:
             if release(version) > release(__version__):
                 params = {"backup_version": version, "installed_version": __version__}
                 raise UnprocessableError(BACKUP_FROM_NEWER_VERSION, params)
+            databases = manifest["databases"]
+            if sorted(str(database["name"]) for database in databases) != sorted(DATABASES):
+                raise UnprocessableError(FILE_FORMAT_UNREADABLE)
             dumps: dict[str, Path] = {}
-            for database in manifest["databases"]:
+            for database in databases:
                 copy = folder / f"restored-{len(dumps)}.dump"
                 with copy.open("wb") as written:
                     shutil.copyfileobj(_member(tar, database["file"]), written, CHUNK)
-                if digest(copy) != database["sha256"]:
+                if digest(copy) != database["sha256"] or not listed(copy):
                     raise UnprocessableError(FILE_FORMAT_UNREADABLE)
                 dumps[str(database["name"])] = copy
     except (tarfile.TarError, OSError, KeyError, TypeError, ValueError) as error:
         raise UnprocessableError(FILE_FORMAT_UNREADABLE) from error
-    if sorted(dumps) != sorted(DATABASES):
-        raise UnprocessableError(FILE_FORMAT_UNREADABLE)
     return dumps
 
 
@@ -97,9 +100,12 @@ def _member(tar: tarfile.TarFile, name: str) -> Any:
 def replace(name: str, dump: Path, address: str, folder: Path) -> None:
     """Make a database again from its dump, as its owner: its schema dropped, the dump restored.
 
-    The dump is restored in one transaction, without the owners and the rights of the source: the
-    role of the service of another installation has another name. A database that stops answering
-    is unavailable (503), one that answers and refuses the dump an internal error (#907).
+    The schema is dropped and made again in a transaction of its own; the dump is then restored in
+    one transaction of ``pg_restore``, without the owners and the rights of the source: the role of
+    the service of another installation has another name. Interrupted between the two, the
+    database is left with an empty schema, and the restoration taken up starts again from the
+    beginning (WF-ARC-0090). A database that stops answering is unavailable (503), one that answers
+    and refuses the dump an internal error (#907).
     """
     with connect(address, UNREACHED) as session:
         session.execute("DROP SCHEMA public CASCADE")

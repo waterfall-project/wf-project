@@ -12,6 +12,7 @@ tests standing for it; the API and the worker reach them as the role of the serv
 """
 
 import hashlib
+import io
 import json
 import tarfile
 from collections.abc import Callable, Iterator
@@ -409,6 +410,51 @@ def test_an_archive_of_a_newer_version_than_the_installation_is_refused_before_a
         "BACKUP_FROM_NEWER_VERSION",
         {"backup_version": "999.0.0", "installed_version": __version__},
     )
+
+
+def archive_of(folder: Path, databases: list[dict[str, str]], members: dict[str, bytes]) -> Path:
+    """Write an archive of this version: a manifest that names ``databases``, and ``members``."""
+    manifest = folder / MANIFEST
+    manifest.write_text(json.dumps({"application_version": __version__, "databases": databases}))
+    archive = folder / "archive.tar"
+    with tarfile.open(archive, "w") as tar:
+        tar.add(manifest, arcname=MANIFEST)
+        for name, content in members.items():
+            member = tarfile.TarInfo(name)
+            member.size = len(content)
+            tar.addfile(member, io.BytesIO(content))
+    return archive
+
+
+NOT_A_DUMP = b"not a dump"
+
+
+def entry(name: str, content: bytes = NOT_A_DUMP, sha256: str | None = None) -> dict[str, str]:
+    """Name a dump in the manifest: its database, its file, its digest, that of ``content``."""
+    given = hashlib.sha256(content).hexdigest() if sha256 is None else sha256
+    return {"name": name, "file": f"{name}.dump", "sha256": given}
+
+
+@pytest.mark.parametrize(
+    ("databases", "members"),
+    [
+        ([entry("waterfall", sha256="0" * 64), entry("identity_provider")], ["waterfall"]),
+        ([entry("waterfall"), entry("identity_provider")], ["identity_provider"]),
+        ([entry("waterfall")], ["waterfall"]),
+        ([entry("waterfall"), entry("identity_provider")], ["waterfall", "identity_provider"]),
+    ],
+    ids=["digest", "member", "databases", "unlisted"],
+)
+def test_an_archive_that_does_not_read_back_whole_is_refused_before_anything_changes(
+    databases: list[dict[str, str]], members: list[str], tmp_path: Path
+) -> None:
+    # Proper to US-0440: a dump unlike its digest, one the archive lacks, a database of the
+    # platform the manifest does not name, a dump pg_restore does not list: the archive is
+    # unreadable, refused as it is read, before a database is touched.
+    archive = archive_of(tmp_path, databases, {f"{name}.dump": NOT_A_DUMP for name in members})
+    with pytest.raises(UnprocessableError) as raised:
+        extracted(archive, tmp_path)
+    assert (raised.value.code, dict(raised.value.params)) == ("FILE_FORMAT_UNREADABLE", {})
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")
