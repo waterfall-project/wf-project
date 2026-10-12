@@ -42,7 +42,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
+| GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-DAT-0070, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
 | POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180 |
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060, WF-ADM-0070 |
@@ -54,7 +54,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | POST | `/identity-syncs` | Lire les comptes du fournisseur d'identité | WF-ADM-0070, WF-ADM-0180, WF-ARC-0090 |
 | GET | `/identity-syncs/latest` | Compte rendu de la dernière lecture des comptes | WF-ADM-0070 |
 | GET | `/permissions` | Catalogue des permissions | WF-ADM-0100 |
-| GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0090, WF-IHM-0060, WF-IHM-0130 |
+| GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0060, WF-ADM-0090, WF-DAT-0070, WF-IHM-0060, WF-IHM-0130 |
 | POST | `/access-roles` | Composer un rôle d'habilitation | WF-ADM-0020 |
 | GET | `/access-roles/{access_role_id}` | Un rôle d'habilitation | WF-ADM-0090, WF-ADM-0100 |
 | PATCH | `/access-roles/{access_role_id}` | Modifier un rôle | WF-ADM-0090 |

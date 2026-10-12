@@ -580,6 +580,11 @@ class UserSelf(UserAccount):
     ]
 
 
+class AuditActorKind(StrEnum):
+    user = "user"
+    platform = "platform"
+
+
 class UserCommand(StrEnum):
     deactivate = "deactivate"
     reactivate = "reactivate"
@@ -981,11 +986,6 @@ class RestoreRequest(RootModel[RestoreRequest1 | RestoreRequest2]):
             description="Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130)."
         ),
     ]
-
-
-class AuditActorKind(StrEnum):
-    user = "user"
-    platform = "platform"
 
 
 class AuditAction(StrEnum):

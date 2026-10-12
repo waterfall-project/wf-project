@@ -9,7 +9,7 @@ export interface Examples {
     200: "node_deleted";
   };
   "GET /access-roles": {
-    200: "access_roles" | "access_roles_composed" | "access_roles_unheld";
+    200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";
   };
   "GET /audit-events": {
     200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
@@ -201,7 +201,7 @@ export interface Examples {
     200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_anonymized" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
   };
   "PATCH /access-roles/{access_role_id}": {
     200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
