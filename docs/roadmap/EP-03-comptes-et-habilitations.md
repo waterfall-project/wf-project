@@ -584,11 +584,15 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
     Keycloak, la lecture relit l'ancienne, que Waterfall tient encore, et la rétablit, puis la
     modification valide la nouvelle ; Keycloak tient alors l'ancienne et Waterfall la nouvelle,
     jusqu'à la lecture suivante, qui rétablit dans Keycloak celle que Waterfall tient.
-    L'adresse se compare sans égard à la casse, que Keycloak ne garde pas ;
+    Un compte local que Keycloak tiendrait d'un annuaire n'est jamais rétabli, et la lecture le
+    journalise. L'adresse se compare sans égard à la casse, que Keycloak ne garde pas ;
   - **aucune donnée personnelle d'un compte connu dans le compte rendu** : une entrée de
     `skipped` qui désigne un compte de Waterfall — le dernier administrateur gardé, par
     exemple — n'en garde que l'identifiant ; son nom est relu à la consultation, et un compte
-    anonymisé depuis s'y lit par le libellé neutre (WF-ADM-0060 ; #920).
+    anonymisé depuis s'y lit par le libellé neutre (WF-ADM-0060 ; #920). Une personne laissée
+    sans compte parce qu'un compte porte son adresse (`ALREADY_EXISTS`) n'est gardée que par
+    son identifiant chez le fournisseur et celui de ce compte, dont le nom et l'adresse sont
+    relus de même : l'adresse est celle du compte (décision de livraison, application de #920).
 
 ### Journal d'audit
 
