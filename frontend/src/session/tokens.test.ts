@@ -230,6 +230,28 @@ describe("the token of a request", () => {
     }
   });
 
+  it("fails as a defect, never as the service out of reach, when Redis refuses the password of its address", async () => {
+    await signedIn();
+    const client = fakeClient({ "GET /projects": "projects" }, {}, requestBearer);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // A user the Redis of the tests does not know: it answers WRONGPASS at each attempt.
+    const address = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
+    Object.assign(address, { username: "nobody", password: "wrong" });
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", address.href);
+    try {
+      const failure = await failureOfRead(client);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure).not.toMatchObject({ digest: UNREACHABLE_DIGEST });
+      expect((failure as Error).message).toMatch(/WRONGPASS/);
+      expect(client.calls).toEqual([]);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+      error.mockRestore();
+    }
+  });
+
   it.each([
     ["a proxy answering 502 for it", () => Promise.resolve(new Response("", { status: 502 }))],
     ["its connection cut", () => Promise.reject(new TypeError("fetch failed"))],

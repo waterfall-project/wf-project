@@ -29,6 +29,7 @@ import {
   ClientOfflineError,
   ConnectionTimeoutError,
   createClient,
+  ErrorReply,
   ReconnectStrategyError,
   SocketClosedUnexpectedlyError,
   SocketTimeoutError,
@@ -142,7 +143,6 @@ const CONNECTION_FAILURES = [
   ClientOfflineError,
   SocketClosedUnexpectedlyError,
   SocketTimeoutError,
-  ReconnectStrategyError,
 ];
 
 /**
@@ -157,12 +157,17 @@ const CAUSES = 8;
 /**
  * Whether an error says Redis out of reach: a failure of the connection of the client, or an error
  * of the network — the error itself, one of its causes, or one of the errors it gathers (Node tries
- * each address of a host, and gathers their refusals). Anything else — a variable missing, an
- * address badly written, a defect — is not, and is thrown as it is.
+ * each address of a host, and gathers their refusals). A connection given up after its retries is
+ * judged by the failure of its last attempt. Anything else — a variable missing, an address badly
+ * written, a refusal of Redis such as a password or a database it does not know, a certificate not
+ * trusted, a defect — is not, and is thrown as it is.
  */
 export function unreached(error: unknown, depth = 0): boolean {
-  if (!(error instanceof Error) || depth > CAUSES) {
+  if (!(error instanceof Error) || error instanceof ErrorReply || depth > CAUSES) {
     return false;
+  }
+  if (error instanceof ReconnectStrategyError) {
+    return unreached(error.socketError, depth + 1);
   }
   if (CONNECTION_FAILURES.some((failure) => error instanceof failure)) {
     return true;
@@ -177,7 +182,8 @@ export function unreached(error: unknown, depth = 0): boolean {
 /**
  * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
  * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
- * Redis itself, an answer, is not this, but a defect; nor is an address missing or badly written.
+ * Redis itself, an answer — a password or a database refused at the connection included —, is not
+ * this, but a defect; nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from "node:crypto";
 
-import { createClient } from "@redis/client";
+import { createClient, ErrorReply, ReconnectStrategyError } from "@redis/client";
 import { describe, expect, it, vi } from "vitest";
 
 import { withTestRedis } from "@/test/session";
@@ -164,6 +164,30 @@ describe("the store of the sessions of the front", () => {
       error.mockRestore();
     }
   });
+
+  it.each([
+    [
+      "a user it does not know",
+      (address: URL) => Object.assign(address, { username: "nobody", password: "wrong" }),
+    ],
+    ["a database it does not have", (address: URL) => Object.assign(address, { pathname: "/99" })],
+  ])(
+    "fails as a defect, never as Redis out of reach, when Redis refuses the connection: %s",
+    async (_, change) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await closeStore();
+      vi.stubEnv("WATERFALL_REDIS_URL", testAddress(change));
+      try {
+        const failure: unknown = await readSession(randomUUID()).catch((thrown: unknown) => thrown);
+        expect(failure).toBeInstanceOf(ReconnectStrategyError);
+        expect(failure).not.toBeInstanceOf(StoreUnreachable);
+      } finally {
+        await closeStore();
+        vi.unstubAllEnvs();
+        error.mockRestore();
+      }
+    },
+  );
 });
 
 describe("a failure to reach Redis", () => {
@@ -181,6 +205,14 @@ describe("a failure to reach Redis", () => {
       expect(unreached(new AggregateError([new Error("another"), failure]))).toBe(true);
     },
   );
+
+  it("is told by the last attempt of a connection given up, never by the giving up alone", () => {
+    const refused = systemError("ECONNREFUSED");
+    expect(unreached(new ReconnectStrategyError(refused, refused))).toBe(true);
+    const wrong = new ErrorReply("WRONGPASS invalid username-password pair");
+    expect(unreached(new ReconnectStrategyError(wrong, wrong))).toBe(false);
+    expect(unreached(wrong)).toBe(false);
+  });
 
   it("is not told by an error of another kind: a defect is thrown as it is", () => {
     expect(
