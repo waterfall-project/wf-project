@@ -2070,12 +2070,12 @@ qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_tem
 échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
 répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
 jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
-autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse qui
-dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou les
-filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous. `realm` ensuite, sur un seul worker, une fois
-les autres finis : les parcours marqués `@realm-wide`, qui raccourcissent une durée du royaume, que
-lit chaque compte. `contract` enfin, le démontage de `installation` : la garde du contrat de toute
-la course.
+autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
+qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
+les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
+`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
+qui raccourcissent une durée du royaume, que lit chaque compte. `contract` enfin, le démontage de
+`installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -2103,8 +2103,8 @@ parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge 
 machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
 — le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
 contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
-contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut que
-l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut
+que l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
 tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
