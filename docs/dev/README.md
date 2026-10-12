@@ -1445,7 +1445,7 @@ commande.
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
 | `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
 | `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
-| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, le renvoi de HTTP vers HTTPS, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme, puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme, puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1456,7 +1456,7 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
 | `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur ; il s'écrit aussi dans une URL |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
 | `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
 | `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
@@ -1543,7 +1543,8 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
   `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
   `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, et ce que son serveur
-  vérifie au démarrage, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts` —, et non sur le
+  vérifie au démarrage, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
+  `src/api/server.ts` —, et non sur le
   code du front, que la famille `front` construit déjà ; elle coûte une construction d'environ
   une minute et demie. Ce qui est prérendu, c'est le code des pages qui le décide — un
   `layout.tsx` qui cesserait de lire les cookies, une page qui ne lirait aucune valeur de la
@@ -1610,7 +1611,8 @@ La famille `production` (`production.yml`) fait le même essai avant la fusion, 
 seulement, dans la file : `make check-production` construit les trois images comme `images.yml`,
 sans les pousser, puis démarre la plateforme sur elles. Elle se réveille sur les fichiers de la
 plateforme de production — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
-`production.env.example` — et sur ceux qu'elle monte de `deploy/compose/` ; un changement de ce
+`production.env.example` —, sur ceux qu'elle monte de `deploy/compose/`, et sur l'essai lui-même,
+`tools/src/wftools/production.py` ; un changement de ce
 dont les images sont faites n'est éprouvé ainsi qu'après la fusion, par `images.yml`. Elle coûte la
 construction des trois images, celle de Keycloak et de son extension surtout, puis le démarrage de
 Keycloak et l'application de son royaume.
