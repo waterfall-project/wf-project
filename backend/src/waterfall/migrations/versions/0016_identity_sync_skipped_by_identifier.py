@@ -12,7 +12,11 @@ address an account bears, kept by the code of this version before it named that 
 subject and that account, her names and her address dropped; any other, which named a person or an
 account by her address alone — no subject, no name to name her by —, is dropped, as is an entry
 whose address no account bears any more, anonymised since. The address an index compares, whatever
-its case (``uq_user_account_email_lower``).
+its case (``uq_user_account_email_lower``). The ascent thus loses entries too (``sql.md``, rule 5).
+
+No version published bears this table: EP-03, which creates it, is on no installation yet. The code
+of this version reads the entries in the form this migration writes alone, with no tolerance of
+another: no older code reads them, and no installation keeps an entry of the former form.
 """
 
 from collections.abc import Sequence

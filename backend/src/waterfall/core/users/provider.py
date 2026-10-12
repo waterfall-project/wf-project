@@ -397,6 +397,7 @@ def _kept(skipped: Skipped) -> dict[str, str | None]:
 
 
 def _read(kept: dict[str, str | None]) -> Skipped:
+    """Read an entry kept in the form ``_kept`` writes, the only one a report holds (``0016``)."""
     code = str(kept["code"])
     if kept["kind"] == "account":
         return SkippedAccount(UUID(str(kept["user_id"])), code)
