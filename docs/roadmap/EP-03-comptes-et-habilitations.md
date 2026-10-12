@@ -1391,7 +1391,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API
