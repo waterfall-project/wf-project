@@ -499,20 +499,23 @@ def test_the_local_accounts_waterfall_does_not_know_and_without_password_are_rem
     database: Database, reading: IdentitySync, admin: httpx2.Client
 ) -> None:
     # Left by a creation Waterfall did not complete (#811): removed and named, once older than a
-    # creation under way can be; one with a password, or young, stays.
+    # creation under way can be; one with a password, young, or Waterfall knows, stays.
     orphan = f"orphan-{uuid4().hex[:8]}@example.org"
+    known_address = f"known-{uuid4().hex[:8]}@example.org"
     subjects = {
         "orphan": imported(orphan, hours_ago=2),
         "young": imported(f"young-{uuid4().hex[:8]}@example.org", hours_ago=0),
         "set": imported(f"set-{uuid4().hex[:8]}@example.org", hours_ago=2),
+        "known": imported(known_address, hours_ago=2),
     }
     set_password(admin, subjects["set"], PASSWORD)
+    known(database, Account(subjects["known"], known_address))
     try:
         assert counts(read_accounts(database, reading))[3:] == ([], [orphan])
         held = {
             name: admin.get(f"/users/{subject}").status_code for name, subject in subjects.items()
         }
-        assert held == {"orphan": 404, "young": 200, "set": 200}
+        assert held == {"orphan": 404, "young": 200, "set": 200, "known": 200}
     finally:
         for subject in subjects.values():
             admin.delete(f"/users/{subject}")
