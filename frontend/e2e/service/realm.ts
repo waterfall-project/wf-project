@@ -65,11 +65,12 @@ export function under(prefix: string): RegExp {
 }
 
 /**
- * The button that signs in on the sign-in page of the realm: exactly named, the page that asks for
- * the password again holding « Redémarrer la connexion » beside it.
+ * The button that signs in on the sign-in page of the realm, in French or in English, as the
+ * browser asks: exactly named, the page that asks for the password again holding « Redémarrer la
+ * connexion » beside it.
  */
 function signInButton(page: Page) {
-  return page.getByRole("button", { name: "Connexion", exact: true });
+  return page.getByRole("button", { name: /^(Connexion|Sign In)$/ });
 }
 
 /** The sign-in page of the realm, where a person gives her identifiers. */
@@ -82,8 +83,8 @@ export async function expectSignInPage(page: Page): Promise<void> {
 export async function giveIdentifiers(page: Page, person: Person): Promise<void> {
   await expectSignInPage(page);
   if (person.provider === undefined) {
-    await page.getByLabel("Courriel").fill(person.login);
-    await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
+    await page.getByLabel(/^(Courriel|Email)$/).fill(person.login);
+    await page.getByLabel(/^(Mot de passe|Password)$/).fill(person.password);
     await signInButton(page).click();
     return;
   }
@@ -324,6 +325,17 @@ export function waterfallAccount(email: string): { origin: string; roles: number
   );
   const [origin, roles] = row.split("|");
   return origin === undefined || origin === "" ? undefined : { origin, roles: Number(roles) };
+}
+
+/** The settings an account keeps for a grid (`display_preferences.grids`), none if it keeps none. */
+export function gridPreferences(email: string, grid: string): unknown {
+  const kept = sql(
+    `select coalesce(display_preferences -> 'grids' -> :'grid', 'null') from user_account
+  where email = :'email';
+`,
+    { email, grid },
+  );
+  return JSON.parse(kept === "" ? "null" : kept) as unknown;
 }
 
 /**

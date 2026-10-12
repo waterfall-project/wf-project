@@ -346,7 +346,9 @@ connexion, le changement de mot de passe) disparaissent ; l'écran de mon compte
 un compte local, à la page du compte de Keycloak. Une navigation attend qu'une écriture en
 cours ait abouti : refusée, l'écriture est dite sur place et la navigation n'a pas lieu, et la
 personne décide ; c'est vrai de tout refus, et de la session perdue, qui mène ensuite à la
-connexion (#688, « ne perd rien en silence »).
+connexion (#688, « ne perd rien en silence »). Une écriture dont l'écran est quitté autrement — par
+« Précédent », ou par le routeur — et refusée ensuite est dite par un avis de la barre de la
+coquille, qui survit aux écrans (auteur, 2026-10-11, #863).
 
 **Déconnexion et révocation.** WF-SEC-0020 veut que la déconnexion, la désactivation et le
 retrait de tous les rôles prennent effet « à la requête suivante, sur tous ses postes ». Les
@@ -1299,7 +1301,7 @@ appellent : la qualité de contributeur, second terme, s'y ajoute en EP-04.
 
 ## US-0400 — Mon compte : préférences, langue, avatar
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0040-A`, `WF-ADM-0080-A`, `WF-INTF-0160-A`, `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar`,
   `getUserAvatar`, `getInstallation`
