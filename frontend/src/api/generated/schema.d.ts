@@ -426,7 +426,7 @@ export interface paths {
         };
         /**
          * Compte rendu de la dernière lecture des comptes
-         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels quels avec leur motif, et les comptes locaux qu'elle a retirés du fournisseur (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
+         * @description Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du fournisseur d'identité qui a abouti, demandée ou planifiée, ceux qu'elle a laissés tels quels avec leur motif, et les comptes locaux qu'elle retire du fournisseur — retirés, ou à retirer : le retrait suit la validation de la lecture, un retrait qui échoue est journalisé et la lecture suivante nomme de nouveau l'adresse (WF-ADM-0070). Sous la permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
          */
         get: operations["getLatestIdentitySync"];
         put?: never;

@@ -119,7 +119,9 @@ class IdentitySyncReport(Base):
     """What a reading of the accounts of the provider did, by the task that read (WF-ADM-0070).
 
     The accounts it created, changed and deactivated, those it left as they were with the code of
-    why, and the addresses of the local accounts it removed from the provider (#811).
+    why, and the addresses of the local accounts it removes from the provider (#811): removed, or
+    to be removed — the removal follows the commit of the reading; one that fails is logged, and
+    the next reading names the address again.
     """
 
     __tablename__ = "identity_sync_report"

@@ -252,7 +252,9 @@ class SyncReport:
     deactivated: int
     # The address of each account left as it was, and the code of why.
     skipped: list[tuple[str, str]]
-    # The addresses of the local accounts removed from the provider (#811).
+    # The addresses of the local accounts the reading removes from the provider (#811): removed,
+    # or to be removed — the removal follows the commit; one that fails is logged, and the next
+    # reading names the address again.
     removed: list[str]
 
 
