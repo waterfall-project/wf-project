@@ -356,8 +356,8 @@ export function SetupLinkDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{t("linkTitle", { name })}</DialogTitle>
-          <DialogDescription>{t("linkHint")}</DialogDescription>
+          <DialogTitle>{t("password_link.title", { name })}</DialogTitle>
+          <DialogDescription>{t("password_link.hint")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-1">
           <Label htmlFor={field}>{t("link")}</Label>

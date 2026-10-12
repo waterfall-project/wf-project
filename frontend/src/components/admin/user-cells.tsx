@@ -271,7 +271,7 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
   if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
     return null;
   }
-  const command = t("linkOf", { name });
+  const command = t("password_link.command", { name });
   const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
   const pending = writes.linking.has(user.user_id);
   return (
