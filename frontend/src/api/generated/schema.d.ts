@@ -6272,7 +6272,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Sauvegarde ou dépôt inconnus, ou permission de restaurer refusée, sans distinction (WF-ADM-0110). */
+            /** @description Sauvegarde ou dépôt inconnus, ou lecture des sauvegardes refusée, sans distinction (WF-ADM-0110). */
             404: {
                 headers: {
                     [name: string]: unknown;
