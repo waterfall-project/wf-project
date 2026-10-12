@@ -24,7 +24,7 @@ import { useId } from "react";
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
-import { loginHref } from "@/navigation/login";
+import { asksIdentifiers, loginHref } from "@/navigation/login";
 
 /**
  * The names of the objects a screen shows, by identifier: what names the object of a conflict,
@@ -52,22 +52,29 @@ const ALERT = "space-y-1 text-sm text-destructive";
 const SENTENCE = "flex items-start gap-1.5";
 const ICON = "mt-0.5 size-4 shrink-0";
 
-/** The address of the sign-in page, which comes back to the screen shown: its path and its query. */
-export function useSignInHref(): string {
+/**
+ * The address of the sign-in page, which comes back to the screen shown: its path and its query;
+ * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`).
+ */
+export function useSignInHref(reauthenticate = false): string {
   const query = useSearchParams().toString();
-  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`);
+  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`, reauthenticate);
 }
 
 /**
  * The link to the sign-in page, which comes back to the screen shown, as the browser shows it. The
  * screen of failure offers it too, when a read wanted a session. A plain link, never one of the
  * router: `/login` sends the browser to another site, which the router would fetch, and prefetch
- * — each time starting a sign-in for nothing.
+ * — each time starting a sign-in for nothing. For a session closed (`SESSION_REVOKED`), the sign-in
+ * asks for the identifiers again (#855).
  */
-export function SignIn() {
+export function SignIn({ reauthenticate = false }: { readonly reauthenticate?: boolean }) {
   const t = useTranslations("outcome");
   return (
-    <a href={useSignInHref()} className="inline-flex items-center gap-1.5 font-medium underline">
+    <a
+      href={useSignInHref(reauthenticate)}
+      className="inline-flex items-center gap-1.5 font-medium underline"
+    >
       <LogIn aria-hidden="true" className="size-4" />
       {t("signIn")}
     </a>
@@ -149,7 +156,7 @@ export function OutcomeNotice({
       </p>
       {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
-      {kind === "signed_out" ? <SignIn /> : null}
+      {kind === "signed_out" ? <SignIn reauthenticate={asksIdentifiers(problem.code)} /> : null}
       {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
       {kind === "stale" ? <Reload onClear={dismissed} /> : null}
       {dismiss}

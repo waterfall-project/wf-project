@@ -28,6 +28,24 @@ export const NEXT_PARAMETER = "next";
  */
 export const SIGN_OUT_PARAMETER = "sign_out";
 
+/**
+ * The parameter of the sign-in route that has the realm ask for the identifiers again
+ * (`prompt=login`), even though its session in the browser lives: the API refused a token of a
+ * sign-in that precedes the closing of the sessions of the account (401 `SESSION_REVOKED`, #855),
+ * which a sign-in of the same session would only bring again. Anyone may write it: it does no more
+ * than ask for the identifiers.
+ */
+export const REAUTHENTICATE_PARAMETER = "reauthenticate";
+
+/**
+ * Whether the sign-in a refusal of the API leads to asks for the identifiers again: on
+ * `SESSION_REVOKED` only. An expired token (`SESSION_EXPIRED`), or none, does not: the session of
+ * the realm signs the user in again without them.
+ */
+export function asksIdentifiers(code: unknown): boolean {
+  return code === "SESSION_REVOKED";
+}
+
 /** Where the sign-out of a session the front lost leads the browser: the ticket it armed. */
 export function signOutHref(ticket: string): string {
   return `${LOGIN_ROUTE}?${new URLSearchParams({ [SIGN_OUT_PARAMETER]: ticket }).toString()}`;
@@ -77,8 +95,14 @@ export function signInUnavailableHref(screen: string): string {
   return `${SIGN_IN_UNAVAILABLE_ROUTE}?${query.toString()}`;
 }
 
-/** The address of the sign-in route, which comes back to a screen: its path and its query. */
-export function loginHref(screen: string): string {
+/**
+ * The address of the sign-in route, which comes back to a screen: its path and its query; with
+ * `reauthenticate`, a sign-in that asks for the identifiers again — on `SESSION_REVOKED` only.
+ */
+export function loginHref(screen: string, reauthenticate = false): string {
   const query = new URLSearchParams({ [NEXT_PARAMETER]: returnTarget(screen) });
+  if (reauthenticate) {
+    query.set(REAUTHENTICATE_PARAMETER, "1");
+  }
   return `${LOGIN_ROUTE}?${query.toString()}`;
 }

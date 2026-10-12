@@ -92,7 +92,7 @@ describe("the sign-in route on the identity provider", () => {
     // The cookie of the session the browser held is forgotten here, where the sign-out leads (#724).
     expect(response.headers.getSetCookie()).toEqual([
       `wf_sign_in_${query.get("state") ?? ""}=1; Path=/auth/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=900`,
-      "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+      "__Host-wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
     ]);
   });
 
@@ -101,14 +101,14 @@ describe("the sign-in route on the identity provider", () => {
     const ticket = await armSignOut(mine);
     // Another browser, or one without the cookie — a victim led to the ticket a third party armed
     // for a cookie of its own —, signs in like any other, and leaves the ticket in place.
-    for (const headers of [{ Cookie: `wf_session=${theirs}` }, {}]) {
+    for (const headers of [{ Cookie: `__Host-wf_session=${theirs}` }, {}]) {
       const query = new URL(
         (await login(`?sign_out=${ticket}`, headers)).headers.get("Location") ?? "",
       ).searchParams;
       expect(query.has("prompt")).toBe(false);
       expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
     }
-    const response = await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` });
+    const response = await login(`?sign_out=${ticket}`, { Cookie: `__Host-wf_session=${mine}` });
     const query = new URL(response.headers.get("Location") ?? "").searchParams;
     expect(query.get("prompt")).toBe("none");
     expect((await kept(query.get("state") ?? "")).value).toMatchObject({
@@ -117,17 +117,29 @@ describe("the sign-in route on the identity provider", () => {
     });
     // Spent: the same address again is a sign-in like any other.
     const again = new URL(
-      (await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` })).headers.get(
+      (await login(`?sign_out=${ticket}`, { Cookie: `__Host-wf_session=${mine}` })).headers.get(
         "Location",
       ) ?? "",
     );
     expect(again.searchParams.has("prompt")).toBe(false);
   });
 
+  it("asks the realm for the identifiers again where a session closed leads, the screen aimed at kept: its session may live, and would bring a token of the same sign-in again (#855)", async () => {
+    const response = await login(`?next=${encodeURIComponent("/account?tab=1")}&reauthenticate=1`, {
+      Cookie: "__Host-wf_session=held",
+    });
+    const query = new URL(response.headers.get("Location") ?? "").searchParams;
+    expect(query.get("prompt")).toBe("login");
+    expect((await kept(query.get("state") ?? "")).value).toMatchObject({
+      target: "/account?tab=1",
+      signOut: false,
+    });
+  });
+
   it.each(["1", "unknown-ticket", ""])(
     "takes a sign-out no server action armed — a link of another site — for an ordinary sign-in: no silent sign-in, nothing closed at its return: %j",
     async (ticket) => {
-      const response = await login(`?sign_out=${ticket}`, { Cookie: "wf_session=held" });
+      const response = await login(`?sign_out=${ticket}`, { Cookie: "__Host-wf_session=held" });
       const query = new URL(response.headers.get("Location") ?? "").searchParams;
       expect(query.has("prompt")).toBe(false);
       expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
@@ -140,14 +152,14 @@ describe("the sign-in route on the identity provider", () => {
     vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
     try {
       const response = await login(`?next=${encodeURIComponent("/account?tab=1")}`, {
-        Cookie: "wf_session=held",
+        Cookie: "__Host-wf_session=held",
       });
       expect(response.status).toBe(307);
       expect(response.headers.get("Location")).toBe(
         `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
       );
       expect(response.headers.getSetCookie()).toEqual([
-        "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+        "__Host-wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
       ]);
     } finally {
       await closeStore();

@@ -6,7 +6,13 @@ import { GET as login } from "@/app/login/route";
 import { createIdentityProvider, type IdentityProvider } from "@/session/provider";
 import { armSignOut, openSession, readSession } from "@/session/store";
 import { requestBearer, SESSION_COOKIE } from "@/session/tokens";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
@@ -274,6 +280,24 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
     const response = await back(query, cookie);
     expect(response.headers.get("Location")).toBe("/login");
     expect(state.clients).toEqual([]);
+  });
+
+  it("leads to a sign-in that asks for the identifiers again when the API refuses the token of its silent sign-in as of a session closed already, which the realm outlived: the browser reaches the sign-in page, nothing loops (#855) [WF-SEC-0020-A]", async () => {
+    state.api = {
+      "DELETE /me/sessions": { problem: example("session_revoked") as Problem & { status: 401 } },
+    };
+    const subject = crypto.randomUUID();
+    const other = await elsewhere(subject);
+    const { address, cookie } = await lostSignOut();
+    const response = await back(realm.signIn(address, subject), cookie);
+    expect(response.status).toBe(303);
+    const location = response.headers.get("Location") ?? "";
+    expect(location).toBe("/login?next=%2F&reauthenticate=1");
+    expect(sessionCookieOf(response)).toBeUndefined();
+    expect(await readSession(other)).toBeUndefined();
+    // Followed, it is no silent sign-in again, but the page of the realm that asks for them.
+    const { address: page } = await start("", location.slice("/login".length));
+    expect(new URL(page).searchParams.get("prompt")).toBe("login");
   });
 
   it("ends at least the session of the browser at the realm when the API does not close them", async () => {

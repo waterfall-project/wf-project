@@ -217,7 +217,10 @@ déclencheur.
 
 **La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
 (WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
-`wf_session` porte seul (`HttpOnly`, `Secure`, `SameSite=Lax`, sans échéance). `/login?next=…`
+`__Host-wf_session` porte seul (`HttpOnly`, `Secure`, `Path=/`, sans `Domain`, `SameSite=Lax`,
+sans échéance) : son préfixe empêche un sous-domaine voisin d'en poser un à lui, que `/login` lirait
+le premier (#887) ; le navigateur le prend aussi de `http://localhost` ou `http://127.0.0.1`, où
+tournent les parcours et le poste, comme tout témoin `Secure`. `/login?next=…`
 tire un `state`, un nonce et un vérificateur PKCE (S256), les garde dans Redis avec l'écran visé
 — déjà passé par `returnTarget` — quinze minutes au plus, donne au navigateur un témoin lié à ce
 `state` (`wf_sign_in_<state>`, limité à `/auth/callback`, quinze minutes), et l'envoie à la page
@@ -230,9 +233,9 @@ donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son ad
 royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
 session, jamais à `/login`, que la session de Keycloak bouclerait. Keycloak ou Redis injoignable,
 ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable` en
-oubliant le témoin `wf_session` — la page relirait sinon Redis pour lui —, qui
+oubliant le témoin `__Host-wf_session` — la page relirait sinon Redis pour lui —, qui
 dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur 500 nue
-(#687). `/login` efface aussi le témoin `wf_session` : la déconnexion y mène sans y toucher (#724).
+(#687). `/login` efface aussi le témoin `__Host-wf_session` : la déconnexion y mène sans y toucher (#724).
 `serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
 chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
 de trente secondes, sous un verrou Redis par session qui vit deux fois le délai d'une requête au
@@ -247,7 +250,12 @@ requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussit�
 de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
 d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
 (`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
-une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme
+une connexion refusée revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED`
+seulement — un jeton d'une connexion antérieure à la fermeture des sessions du compte —, ce lien,
+l'écran de panne (`failure.revoked`) comme l'avis d'une action, mène à
+`/login?next=…&reauthenticate=1`, que `/login` envoie au royaume avec `prompt=login` : Keycloak,
+dont la session a pu survivre à une fermeture manquée, redemande les identifiants et renouvelle
+`auth_time` ; un `SESSION_EXPIRED` ne les redemande pas (#855). La déconnexion (`signOut`) ferme
 les sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte,
 sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
 `/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
@@ -259,7 +267,7 @@ qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité
 confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
 la requête ne part pas, et le navigateur passe par une connexion silencieuse
 (`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
-hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `wf_session` de la
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `__Host-wf_session` de la
 requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une
 seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
 inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
@@ -268,7 +276,10 @@ font une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifi
 public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
 déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
 qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
-Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un jeton que l'API refuse alors par
+`SESSION_REVOKED` — la session de Keycloak a survécu à une fermeture manquée — mène, comme le refus
+de `closeMySessions` par ce code dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les
+identifiants : jamais une nouvelle connexion silencieuse, qui ramènerait le même refus (#855). Un clic sur un lien du front attend les
 écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
 appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
 référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un

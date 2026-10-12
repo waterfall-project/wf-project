@@ -333,7 +333,7 @@ construit l'image à chaque modification de `deploy/keycloak/`.
 gestionnaire de route qui démarre le flux : `state`, `nonce` et le vérificateur PKCE sont
 écrits dans Redis avec l'adresse visée, quinze minutes au plus ; `/auth/callback` échange le
 code, vérifie l'état, et ouvre la session du front : un identifiant opaque dans le témoin
-`wf_session` (`httpOnly`, `Secure`, `SameSite=Lax`), les jetons dans Redis sous cet
+`__Host-wf_session` (`httpOnly`, `Secure`, `SameSite=Lax`, #887), les jetons dans Redis sous cet
 identifiant, avec une durée calée sur la session de Keycloak. L'adresse visée ne passe que si
 `returnTarget` l'accepte (`frontend/src/navigation/login.ts`) : un chemin du front, sinon
 l'accueil. `serverClient()` reste le seul endroit qui porte le jeton à l'API (EP-02) ; il

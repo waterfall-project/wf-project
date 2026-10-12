@@ -39,9 +39,11 @@ import {
   correlationDigest,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
 } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
+import { asksIdentifiers } from "@/navigation/login";
 
 import { Unreachable } from "./client";
 import { isAccountRefusal, kindOf, type ProblemKind } from "./problem-kind";
@@ -156,15 +158,20 @@ export class UnexpectedAnswer extends Error {
 /**
  * The API refused a read of a screen for want of a session (401): the screen of failure
  * leads to the sign-in page, which comes back to the screen once signed in again — its
- * digest, the one thing of it Next forwards, says so.
+ * digest, the one thing of it Next forwards, says so, and whether the sign-in is to ask for the
+ * identifiers again, the session closed (`SESSION_REVOKED`, #855).
  */
 export class SignedOut extends Error {
-  readonly digest = SESSION_REQUIRED_DIGEST;
+  readonly digest: string;
 
-  /** The refusal of an operation, by its `operationId`. */
-  constructor(readonly operation: string) {
+  /** The refusal of an operation, by its `operationId`, and the code of its envelope, if any. */
+  constructor(
+    readonly operation: string,
+    code?: string,
+  ) {
     super(`${operation} answered 401`);
     this.name = "SignedOut";
+    this.digest = asksIdentifiers(code) ? SESSION_REVOKED_DIGEST : SESSION_REQUIRED_DIGEST;
   }
 }
 
@@ -201,7 +208,9 @@ export function refusalOf(operation: string, status: number, body: unknown): Err
       code === "ACCOUNT_DEACTIVATED" ? "ACCOUNT_DEACTIVATED" : "ACCOUNT_NOT_ADMITTED",
     );
   }
-  return status === 401 ? new SignedOut(operation) : new UnexpectedAnswer(operation, status, body);
+  return status === 401
+    ? new SignedOut(operation, code)
+    : new UnexpectedAnswer(operation, status, body);
 }
 
 /**

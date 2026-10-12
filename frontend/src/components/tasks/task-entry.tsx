@@ -41,6 +41,7 @@ import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
+import { asksIdentifiers } from "@/navigation/login";
 
 import { resultHref, withoutRefusal } from "./result-refusal";
 import {
@@ -229,7 +230,9 @@ function Interruption({ refusal }: { readonly refusal: Refusal }) {
   return (
     <>
       <Motive problem={refusal.problem} />
-      {refusal.kind === "signed_out" ? <SignIn /> : null}
+      {refusal.kind === "signed_out" ? (
+        <SignIn reauthenticate={asksIdentifiers(refusal.problem.code)} />
+      ) : null}
     </>
   );
 }

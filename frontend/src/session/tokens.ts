@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The token a request of the front carries to the API (US-0350, WF-ARC-0030): the browser holds
- * no token, only the opaque identifier of its session in the cookie `wf_session`; the server of
- * Next finds the tokens under it in Redis, and refreshes the access token when it expires within
- * thirty seconds — under the lock of the session, so that two requests never present the same
- * refresh token.
+ * no token, only the opaque identifier of its session in the cookie `__Host-wf_session`; the
+ * server of Next finds the tokens under it in Redis, and refreshes the access token when it expires
+ * within thirty seconds — under the lock of the session, so that two requests never present the
+ * same refresh token.
  *
  * When the session its cookie names lives no more — closed by the back channel, its refresh
  * refused by the realm, or over —, the request does not leave: it fails with `SessionLost`. A read
@@ -43,15 +43,22 @@ import {
   SIGN_IN_LIFETIME,
 } from "./store";
 
-/** The cookie that holds the identifier of the session of the front: nothing else. */
-export const SESSION_COOKIE = "wf_session";
+/**
+ * The cookie that holds the identifier of the session of the front: nothing else. Its prefix has
+ * the browser take it only sent over HTTPS, for the whole front and from this host alone (#887):
+ * a neighbouring subdomain cannot set one of its own, under a longer path, that `/login` would read
+ * first — and arm a sign-out for. A browser takes it from `http://localhost` too, as any `Secure`
+ * cookie, which the paths and the workstation are served on.
+ */
+export const SESSION_COOKIE = "__Host-wf_session";
 
 const SESSION_ATTRIBUTES = "Path=/; HttpOnly; Secure; SameSite=Lax";
 
 /**
  * The cookie that opens a session: its identifier, out of reach of the scripts of the page, sent
- * over HTTPS only, and on a navigation from another site but never with its requests. No
- * expiry: Redis says how long the session lives.
+ * over HTTPS only, for the whole front, from this host alone — no `Domain`, which its prefix
+ * forbids —, and on a navigation from another site but never with its requests. No expiry: Redis
+ * says how long the session lives.
  */
 export function sessionCookie(id: string): string {
   return `${SESSION_COOKIE}=${id}; ${SESSION_ATTRIBUTES}`;

@@ -353,6 +353,25 @@ commit;
   );
 }
 
+/**
+ * Close the sessions of an account in Waterfall, as a sign-out or a deactivation notes it, while the
+ * realm misses it — its sessions left alive, as when Keycloak fails to close them (#855): the moment
+ * noted, in milliseconds since the epoch. The account must exist: Waterfall creates it at its first
+ * request.
+ */
+export function closeSessionsMissedByTheRealm(email: string): number {
+  const moment = sql(
+    `update user_account set sessions_closed_at = now() where email = :'email'
+  returning (extract(epoch from sessions_closed_at) * 1000)::bigint;
+`,
+    { email },
+  );
+  if (moment === "") {
+    throw new Error(`${email} has no account in Waterfall: has it made its first request?`);
+  }
+  return Number(moment);
+}
+
 /** Withdraw the roles of an account, as an administrator would. */
 export function withdrawRoles(email: string): void {
   sql(

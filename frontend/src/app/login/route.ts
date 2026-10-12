@@ -19,8 +19,11 @@
  * the sign-out of a session the front lost (#689): silent (`prompt=none`), its return closes the
  * sessions of the account rather than open one. A ticket unknown, spent or too old — a link of
  * another site —, or armed for another cookie, or the browser holding none — a ticket a third
- * party armed for itself —, is a sign-in like any other. Redis out of reach, the browser is told
- * the sign-in could not be made, never a bare error (#687).
+ * party armed for itself —, is a sign-in like any other. With `reauthenticate`, where a refusal
+ * `SESSION_REVOKED` leads, the realm asks for the identifiers again (`prompt=login`), though its
+ * session in the browser lives: a sign-in of that session would bring a token of the same sign-in,
+ * which the API refuses again (#855). Redis out of reach, the browser is told the sign-in could not
+ * be made, never a bare error (#687).
  *
  * On the fake back (`WATERFALL_AUTH=mock`), which grants the session the whole mock-up starts
  * from, there is nothing to sign in to: the route leads straight to the screen `next` names.
@@ -28,11 +31,12 @@
 import { isMockAuthentication } from "@/api/server";
 import {
   NEXT_PARAMETER,
+  REAUTHENTICATE_PARAMETER,
   returnTarget,
   SIGN_OUT_PARAMETER,
   signInUnavailableHref,
 } from "@/navigation/login";
-import { identityProvider, signInChecks } from "@/session/provider";
+import { identityProvider, type SignInPrompt, signInChecks } from "@/session/provider";
 import { rememberSignIn, StoreUnreachable, takeSignOut } from "@/session/store";
 import { forgottenSessionCookie, sessionIdOf, signInCookie } from "@/session/tokens";
 
@@ -68,6 +72,12 @@ export async function GET(request: Request): Promise<Response> {
     // The cookie forgotten here too: the layout would read Redis for it, out of reach.
     return redirect(signInUnavailableHref(target), forgottenSessionCookie());
   }
-  const address = identityProvider().signInAddress(state, nonce, challenge, signOut);
+  let prompt: SignInPrompt | undefined;
+  if (signOut) {
+    prompt = "none";
+  } else if (searchParams.has(REAUTHENTICATE_PARAMETER)) {
+    prompt = "login";
+  }
+  const address = identityProvider().signInAddress(state, nonce, challenge, prompt);
   return redirect(address.toString(), signInCookie(state), forgottenSessionCookie());
 }
