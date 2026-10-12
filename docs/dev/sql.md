@@ -141,16 +141,22 @@ migration qui crée une table lui accorde ce dont le service a besoin, au plus `
 `INSERT`, `UPDATE` et `DELETE`, jamais `TRUNCATE` ; le journal d'audit, `INSERT` et `SELECT`
 seulement, et `UPDATE` sur les deux libellés qu'une anonymisation efface. Un rôle vaut pour tout le serveur, ses droits base par base : il porte le nom de sa
 base, `<base>_service` — `waterfall_service` sur la plateforme —, pour que deux installations
-d'un même serveur n'en partagent ni le mot de passe ni les droits. La migration `0002` le crée,
+d'un même serveur n'en partagent ni le mot de passe ni les droits. Le nom d'une base tient donc en
+55 octets au plus : avec son suffixe, celui du rôle dépasserait les 63 octets d'un identifiant de
+PostgreSQL, que la migration `0002` refuse plutôt que de le tronquer. Une migration nomme le rôle
+par la base où elle s'applique, jamais en dur :
+`EXECUTE format('GRANT SELECT, INSERT ON <table> TO %I', current_database() || '_service')`, dans
+un bloc `DO`. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
 (`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 
-*Contrôle* : le test de `tests/test_audit_journal.py` qui lit les droits du rôle sur chaque
-table que la `Base` déclare et les compare à ceux qu'il attend, table par table, chacun avec sa
-raison : une table nouvelle sans entrée le fait échouer. Un test qui supprime ce que le service
-ne supprime pas passe par le propriétaire (fixture `owner`).
+*Contrôle* : le test de `tests/test_migrations.py` qui lit les droits du rôle sur chaque table
+que la `Base` déclare et les compare à ceux que `SERVICE_RIGHTS` attend, table par table, chacun
+avec sa raison : une table nouvelle sans entrée le fait échouer. Ceux du journal d'audit, un test
+de `tests/test_audit_journal.py` les éprouve à part (WF-SEC-0030). Un test qui supprime ce que le
+service ne supprime pas passe par le propriétaire (fixture `owner`).
 
 ### Migrations : deux temps, et chacune compatible avec le code voisin
 
@@ -214,6 +220,24 @@ séparerait plus.
   tient »).
 - Une règle qui porte sur un ensemble de lignes — le dernier administrateur — prend un verrou
   consultatif de transaction (`pg_advisory_xact_lock`), toujours le même pour la même règle.
+- Le nom de l'auteur qu'une inscription du journal garde se lit dans la transaction qui
+  l'inscrit, juste avant l'inscription, sous `FOR SHARE` de sa ligne (`inscribed_actor` du
+  module des comptes, #867) : l'anonymisation, qui la tient `FOR UPDATE`, attend l'inscription
+  puis l'oublie, ou se fait attendre et le nom lu est nul. Un écrivain du journal ne reçoit de
+  son appelant que l'identifiant de l'auteur (`Act`). Ce `FOR SHARE` vient après **tous** les
+  autres verrous que la transaction attend — de ligne comme consultatifs — : une écriture qui
+  attendrait un verrou après lui interbloquerait avec celle qui prend ce verrou puis verrouille
+  la ligne de l'auteur (désactivation, attribution de ses rôles). Une transaction qui inscrit
+  deux fois prend donc les verrous de sa seconde écriture avant sa première inscription : la
+  création d'un compte avec des rôles prend le verrou du dernier administrateur avant d'écrire
+  le compte. En écrivant ensuite ses rôles, elle ne prend plus que des verrous qu'elle
+  n'attend pas — la garde, qu'elle tient déjà, et le `FOR KEY SHARE` implicite des clés
+  étrangères de `user_access_role` vers `access_role`, des lignes que cette garde protège, leur
+  suppression la prenant d'abord. Seule exception, le verrou de l'oubli, que l'anonymisation
+  prend **après** avoir verrouillé le compte qu'elle anonymise : elle nomme son auteur avant de
+  le prendre, sans quoi l'anonymisation de cet auteur, qui tient sa ligne et attend ce verrou,
+  l'attendrait en retour ; et après avoir vidé les noms du compte, sans quoi un compte qui
+  s'anonymise lui-même garderait son nom dans l'inscription de son anonymisation.
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.

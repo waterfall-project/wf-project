@@ -31,7 +31,7 @@ The answer of ``listAuditFacets`` is read from the same journal: its authors and
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
@@ -67,6 +67,7 @@ class Inscription:
     ``joined`` says that the inscription was produced by the same request as the one before it,
     under its correlation: the marking and the designation a merge of an amendment produces.
     ``revision`` is the revision the object lives in, by its identifier and its version name.
+    ``params`` is what the action did to its object, in codes, identifiers and labels (#706).
     """
 
     at: datetime
@@ -78,6 +79,7 @@ class Inscription:
     on_witness: bool = False
     joined: bool = False
     revision: tuple[str, str | None] | None = None
+    params: JsonObject = field(default_factory=lambda: cast("JsonObject", {}))
 
 
 def display_name(user: JsonObject) -> str:
@@ -245,6 +247,7 @@ def _accounts() -> list[Inscription]:
             "access_role",
             role["access_role_id"],
             role["label"],
+            params={"permissions": role["permissions"]},
         )
         for role in fixture("access_roles")
     ]
@@ -259,6 +262,7 @@ def _accounts() -> list[Inscription]:
                 "user",
                 user["user_id"],
                 name,
+                params={"origin": user["origin"]},
             )
         )
         if not user["is_active"]:
@@ -280,7 +284,8 @@ def _given() -> list[Inscription]:
 
     An account created before one of its roles was given its roles once the last of them came
     to be — at the earliest, which is when the examples let it be — by the one who created that
-    role: the first administrator composing the roles of the installation and taking one.
+    role: the first administrator composing the roles of the installation and taking one. The
+    attribution names the roles it gives, in the order the account holds them, and withdraws none.
     """
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     found: list[Inscription] = []
@@ -296,6 +301,13 @@ def _given() -> list[Inscription]:
                     "user",
                     user["user_id"],
                     display_name(user),
+                    params={
+                        "access_roles_granted": [
+                            {"access_role_id": held, "label": roles[held]["label"]}
+                            for held in user["access_role_ids"]
+                        ],
+                        "access_roles_withdrawn": [],
+                    },
                 )
             )
     return found
@@ -391,6 +403,7 @@ def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
             if inscription.on_witness
             else None
         ),
+        "params": inscription.params,
         "correlation_id": identifier(CORRELATIONS, request),
     }
 

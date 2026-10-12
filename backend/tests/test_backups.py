@@ -169,8 +169,10 @@ def test_a_backup_asked_for_is_listed_with_its_date_its_size_and_a_verification_
     # « Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification
     # réussie. » : asked for, it is deposited for the worker and the request answers at once; the
     # worker takes it, and the list gives it, verified; the journal inscribes it at its date, by
-    # whom asked for it, under the correlation of the request (WF-SEC-0030).
-    user_id, headers = person(READ, WRITE)
+    # whom asked for it, under the correlation of the request (WF-SEC-0030), and listAuditEvents
+    # reads it back as the contract says: its parameters an empty object until the EPIC that
+    # realises them.
+    user_id, headers = person(READ, WRITE, "audit_log.read")
     asked = backups_api.post(BACKUPS, headers={**headers, "X-Correlation-ID": REQUEST})
     assert asked.status_code == 202
     ref = asked.json()
@@ -195,7 +197,15 @@ def test_a_backup_asked_for_is_listed_with_its_date_its_size_and_a_verification_
     assert (inscribed.object_kind, str(inscribed.object_id)) == ("backup", item["backup_id"])
     assert (inscribed.actor_user_id, inscribed.correlation_id) == (user_id, REQUEST)
     assert inscribed.occurred_at.isoformat() == item["taken_at"].replace("Z", "+00:00")
-    assert inscribed.params == {"verification": "passed", "origin": "manual"}
+    assert inscribed.params == {}
+    journal = backups_api.get("/api/v1/audit-events?actions=backup", headers=headers)
+    assert journal.status_code == 200, journal.text
+    (event,) = journal.json()["items"]
+    assert (event["object"]["object_id"], event["actor"]["user_id"], event["params"]) == (
+        item["backup_id"],
+        str(user_id),
+        {},
+    )
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")

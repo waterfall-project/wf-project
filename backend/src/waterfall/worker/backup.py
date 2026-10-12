@@ -31,8 +31,7 @@ from sqlalchemy.orm import Session
 
 from waterfall import __version__
 from waterfall.core.backups.interface import TakenBackup, add_backup
-from waterfall.core.users.interface import read_author
-from waterfall.platform.audit import Act, AuditActor
+from waterfall.platform.audit import Act
 from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
@@ -241,9 +240,7 @@ class BackupTask:
         taken = TakenBackup(
             task.task_id, taken_at, size_bytes, key, __version__, revision, is_verified=is_verified
         )
-        author = read_author(session, task.requested_by)
-        actor = None if author is None else AuditActor(author.user_id, author.display_name)
-        backup_id = add_backup(session, taken, Act(actor, taken_at))
+        backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
         logger.info(
             "backup.taken", backup_id=str(backup_id), size_bytes=size_bytes, verified=is_verified
         )

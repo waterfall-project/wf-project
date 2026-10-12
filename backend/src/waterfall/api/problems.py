@@ -124,7 +124,8 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
         params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))
     elif kind in _NUMBER_FAULTS:
         code = ErrorCode.NUMBER_INVALID
-    elif kind.startswith("date"):
+    elif kind.startswith("date") or kind == "timezone_aware":
+        # An instant without its offset is as malformed as one that does not parse.
         code = ErrorCode.DATE_INVALID
     else:
         # Including an exclusive bound: the contract has no parameter to say one.

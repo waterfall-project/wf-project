@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response
 
-from waterfall.api.actors import actor_ref, audit_actor
+from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, Transaction, caller
 from waterfall.api.contract.models import (
     AccessRole,
@@ -173,7 +173,7 @@ def _write(body: AccessRoleWrite) -> RoleWrite:
 )
 def post_access_role(body: AccessRoleWrite, account: Caller, session: Transaction) -> AccessRole:
     """Compose a role of any set of permissions (WF-ADM-0020)."""
-    return access_role(create_role(session, _write(body), Act(audit_actor(account), utc_now())))
+    return access_role(create_role(session, _write(body), Act(account.user_id, utc_now())))
 
 
 @router.patch(
@@ -186,7 +186,7 @@ def patch_access_role(
     access_role_id: UUID, body: AccessRoleUpdate, account: Caller, session: Transaction
 ) -> AccessRole:
     """Rename a role and set its permissions, for all its holders at once (WF-ADM-0090)."""
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     changed = update_role(session, access_role_id, _write(body), body.lock_version.root, act)
     return access_role(changed)
 
@@ -199,5 +199,5 @@ def patch_access_role(
 )
 def remove_access_role(access_role_id: UUID, account: Caller, session: Transaction) -> Response:
     """Mark a role deleted, unless an account holds it (WF-ADM-0090)."""
-    delete_role(session, access_role_id, Act(audit_actor(account), utc_now()))
+    delete_role(session, access_role_id, Act(account.user_id, utc_now()))
     return Response(status_code=204)

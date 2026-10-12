@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
@@ -33,7 +34,14 @@ from waterfall.core.users.accounts import (
 )
 from waterfall.core.users.commands import anonymized
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
+from waterfall.platform.audit import (
+    Act,
+    AuditActor,
+    AuditObject,
+    AuditValue,
+    Inscription,
+    record,
+)
 from waterfall.platform.errors import FieldError, UnprocessableError
 
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -113,6 +121,32 @@ def refuse(faults: tuple[FieldError, ...]) -> None:
         raise UnprocessableError(VALIDATION_FAILED, fields=faults)
 
 
+def inscribed_actor(session: Session, author: UUID | None) -> AuditActor | None:
+    """Name the author of an action as the journal inscribes it; ``None`` for the platform.
+
+    Read in the transaction that inscribes the action, under a share lock on the row of the
+    account (#867): an anonymisation, which locks it for update, either waits for the inscription
+    to be committed, then forgets the name in it, or is waited for, and the name read is the null
+    of an anonymised account. A request in flight never inscribes the name of an account the
+    anonymisation has forgotten (WF-SEC-0030). Taken after every other lock the transaction may
+    wait for, just before the inscription: a write on the account of its own author already holds
+    its row. A transaction that inscribes twice takes the locks of its second write before its
+    first inscription — the creation of an account with roles takes the lock of the last
+    administrator before it is written; writing its roles, it then takes only that lock, held
+    already, and the key share of their foreign keys on the roles, rows the guard protects. The
+    lock of the forgetting alone comes after: an anonymisation takes it once it holds the account
+    it anonymises, and names its author before.
+    """
+    if author is None:
+        return None
+    first_name, last_name = session.execute(
+        select(UserAccount.first_name, UserAccount.last_name)
+        .where(UserAccount.id == author)
+        .with_for_update(read=True)
+    ).one()
+    return AuditActor(author, display_name(first_name, last_name))
+
+
 def inscribe(
     session: Session,
     action: Literal[
@@ -120,7 +154,6 @@ def inscribe(
         "user_update",
         "user_deactivate",
         "user_reactivate",
-        "user_anonymize",
         "password_link_create",
     ],
     account: UserAccount,
@@ -130,7 +163,8 @@ def inscribe(
     """Inscribe an action on an account, named by its identifier and its label at that moment."""
     label = display_name(account.first_name, account.last_name)
     audited = AuditObject("user", account.id, label)
-    record(session, Inscription(action, act.actor, audited, act.at, params=params))
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription(action, actor, audited, act.at, params=params))
 
 
 def create_local(session: Session, identity: Identity, subject: str, act: Act) -> UserAccount:

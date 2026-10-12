@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from waterfall.api.actors import actor_ref, audit_actor
+from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
@@ -52,6 +52,7 @@ from waterfall.core.access_roles.interface import (
     guard_deactivation,
     holding_one_of,
     labels_held,
+    lock_administrators,
     roles_held_by,
     set_access_roles,
     sole_administrator,
@@ -285,9 +286,13 @@ def write_new_account(
     """Write the local account the provider holds under its subject, with its first roles.
 
     ``created`` is its identity and that subject. The roles are read again under the guard of the
-    last administrator, and the address by the unique index: refused, nothing is written.
+    last administrator, and the address by the unique index: refused, nothing is written. With
+    roles, the lock of the guard is taken first: the creation, inscribed, holds its author's row
+    for share, which a deactivation or an attribution of that author locks after the guard.
     """
     identity, subject = created
+    if role_ids:
+        lock_administrators(session)
     account = create_local_account(session, identity, subject, act)
     label = display_name(account.first_name, account.last_name)
     give_first_roles(session, (account.user_id, label), role_ids, act)
@@ -335,7 +340,7 @@ def post_user(
         # was checked, is named.
         with services.database.transaction() as session:
             raise address_taken(address_holder(session, body.email))
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     try:
         with services.database.transaction() as session:
             created = write_new_account(session, (identity, subject), role_ids, actor, act)
@@ -408,7 +413,7 @@ def patch_user(
     carried = held.origin == "local" and bool(changed)
     if carried:
         carry_identity(services.keycloak_admin, held, changed)
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     try:
         with services.database.transaction() as session:
             done = change_account(session, user_id, sent, lock_version, act)
@@ -497,7 +502,7 @@ def put_user_activation(
     nothing. One of the directory or of an external provider anonymised is still the provider's,
     and has its sessions closed again, as any other.
     """
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     with services.database.transaction() as session:
         with guard_deactivation(session):
             changed = set_account_activation(
@@ -549,7 +554,7 @@ def post_user_anonymization(
     if checked.origin == LOCAL:
         services.keycloak_admin.remove_account(checked.subject)
         logger.info("account.removed_from_provider", user_id=str(user_id))
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     with services.database.transaction() as session:
         anonymized = anonymize_account(session, user_id, body.lock_version.root, act)
         return users(session, actor, [anonymized])[0]
@@ -574,7 +579,7 @@ def put_user_access_roles(
     with the attribution, as a deactivation does: a failure of the provider does not outlive a
     role given back, and the token of a sign-in before it stays refused (#855).
     """
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     role_ids = [role_id.root for role_id in body.access_role_ids]
     with services.database.transaction() as session:
         attribution = set_access_roles(session, user_id, role_ids, body.lock_version.root, act)
@@ -608,7 +613,7 @@ def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> 
     link = services.keycloak_admin.make_password_link(holder.subject)
     if link is None:
         raise password_link_not_local()
-    act = Act(audit_actor(account), utc_now())
+    act = Act(account.user_id, utc_now())
     given = PasswordSetupLink.model_validate({"url": link.url, "expires_at": link.expires_at})
     with services.database.transaction() as session:
         inscribe_password_link(session, user_id, act)
