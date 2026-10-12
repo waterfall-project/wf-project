@@ -14,6 +14,7 @@ from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import SettingsError, load_service_settings
 from waterfall.platform.storage import Bucket
@@ -49,7 +50,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     keycloak = Keycloak(settings)
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
     administration = KeycloakAdmin(keycloak, settings)
-    services = Services(database, keycloak, administration, queue, Bucket.of_backups(settings))
+    backups = Bucket.of_backups(settings)
+    services = Services(database, keycloak, administration, queue, backups, Maintenance.of(queue))
     try:
         uvicorn.run(
             create_app(services),

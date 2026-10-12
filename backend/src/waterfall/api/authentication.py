@@ -44,6 +44,7 @@ from waterfall.platform.errors import UnauthenticatedError
 from waterfall.platform.keycloak import SESSION_REQUIRED, Bearer, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.storage import Bucket
 
@@ -59,7 +60,8 @@ logger = get_logger(__name__)
 class Services:
     """What the routes of a process reach: its database, Keycloak and its administration API.
 
-    And the queue its tasks are deposited in, and the bucket of the backups.
+    And the queue its tasks are deposited in, the bucket of the backups, and the maintenance of a
+    restoration — none for a process that is never held in maintenance.
     """
 
     database: Database
@@ -67,6 +69,7 @@ class Services:
     keycloak_admin: KeycloakAdmin
     queue: TaskQueue
     backups: Bucket
+    maintenance: Maintenance | None = None
 
 
 def services_of(request: Request) -> Services:
