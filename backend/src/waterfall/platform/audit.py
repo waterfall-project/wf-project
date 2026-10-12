@@ -222,15 +222,14 @@ class Inscription:
 
 @dataclass(frozen=True, slots=True)
 class Act:
-    """Who acts — an account, or ``None`` for the platform — and when."""
+    """Who acts — an account, or ``None`` for the platform — and when.
 
-    actor: AuditActor | None
+    The account by its identifier alone: the journal names it as it is when the action is
+    inscribed, read in the transaction that inscribes it (``inscribed_actor`` of the accounts).
+    """
+
+    author: UUID | None
     at: datetime
-
-    @property
-    def author(self) -> UUID | None:
-        """The account that writes the row, ``None`` for the platform."""
-        return None if self.actor is None else self.actor.user_id
 
 
 class AuditError(Exception):

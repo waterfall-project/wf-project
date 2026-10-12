@@ -15,6 +15,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.tables import Backup
+from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import Act, AuditObject, Inscription, record
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
@@ -83,7 +84,7 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     """
     backup_id = new_id()
     verification = "passed" if taken.is_verified else "failed"
-    origin = "scheduled" if act.actor is None else "manual"
+    origin = "scheduled" if act.author is None else "manual"
     session.execute(
         insert(Backup).values(
             id=backup_id,
@@ -100,5 +101,6 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     )
     params = {"verification": verification, "origin": origin}
     audited = AuditObject("backup", backup_id, None)
-    record(session, Inscription("backup", act.actor, audited, act.at, params=params))
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription("backup", actor, audited, act.at, params=params))
     return backup_id

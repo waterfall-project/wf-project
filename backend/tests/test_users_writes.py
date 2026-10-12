@@ -32,7 +32,7 @@ from waterfall.core.access_roles.interface import Actor
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.interface import Identity, is_address
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act, AuditActor, AuditEntry
+from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import ConflictError, UnprocessableError
@@ -242,7 +242,7 @@ def test_an_account_the_provider_fails_to_withdraw_is_said_in_the_log(
 def act() -> Iterator[Act]:
     """Act as Camille Martin, under the correlation of a request."""
     with logging_context(correlation_id=CORRELATION):
-        yield Act(AuditActor(CALLER, "Camille Martin"), utc_now())
+        yield Act(CALLER, utc_now())
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")

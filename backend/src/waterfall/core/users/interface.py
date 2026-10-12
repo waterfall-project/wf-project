@@ -54,6 +54,7 @@ from waterfall.core.users.identity import (
     display_name,
     identity_faults,
     inscribe,
+    inscribed_actor,
     is_address,
     refuse,
 )
@@ -111,6 +112,7 @@ __all__ = [
     "identity_faults",
     "image_type",
     "inscribe_password_link",
+    "inscribed_actor",
     "is_address",
     "list_accounts",
     "lock_account_for_change",
