@@ -87,3 +87,15 @@ components:
         pagination: ["false"]
         trustEmail: ["true"]
         cachePolicy: ["DEFAULT"]
+      subComponents:
+        org.keycloak.storage.ldap.mappers.LDAPStorageMapper:
+          # The first name is the directory's givenName, not its cn — the whole name —, which
+          # Keycloak maps by default for a directory of the vendor "other" (#667).
+          - name: first name
+            providerId: user-attribute-ldap-mapper
+            config:
+              ldap.attribute: ["givenName"]
+              user.model.attribute: ["firstName"]
+              read.only: ["true"]
+              always.read.value.from.ldap: ["true"]
+              is.mandatory.in.ldap: ["true"]

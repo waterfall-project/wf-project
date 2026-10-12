@@ -410,4 +410,7 @@ BackgroundTaskRef:
       anyOf:
         - type: string
         - type: 'null'
-      description: Où lire le résultat, lorsque la tâche en produit un.
+      description: >-
+        Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
+        (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
+        tâche : une lecture achevée depuis l'a remplacé.

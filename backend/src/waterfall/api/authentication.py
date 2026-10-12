@@ -9,7 +9,8 @@ account is refused at its next request even if the closing of its sessions was l
 (#668) or deactivated (#835) — is refused, whichever client it was lent to, refreshed or not.
 A subject Waterfall does not know yet is a person of the directory before the first reading of
 the accounts, or a person relayed by an external provider: her account is created without any
-role, after her origin is read from the administration API of Keycloak (WF-ADM-0180). Any other
+role, after her origin is read from the administration API of Keycloak (WF-ADM-0180) — or, for a
+person of the directory whose address an account holds, that account is hers (#707). Any other
 one is refused as an account Waterfall does not admit (#664) — not as a deactivated account,
 which it never was, nor as a missing session, to which the front would answer with a sign-in that
 brings back the same token, in a loop.
@@ -125,10 +126,11 @@ def signed_in_before_sessions_closed(bearer: Bearer, sessions_closed_at: datetim
 
 
 def admit(session: Session, subject: str, provider: ProviderAccount | None) -> Account:
-    """Create the account of a person Waterfall does not know yet, or refuse her (401).
+    """Create or attach the account of a person Waterfall does not know yet, or refuse her (401).
 
     ``provider`` is the account the realm holds for ``subject``, ``None`` if it holds none. The
-    creation is inscribed in the journal of audit by the platform (#703). A refusal says
+    creation or the attachment is inscribed in the journal of audit by the platform (#703, #707).
+    A refusal says
     ``ACCOUNT_NOT_ADMITTED``; its cause is written in the log only.
     """
     admitted = (

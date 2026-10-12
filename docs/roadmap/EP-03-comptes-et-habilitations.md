@@ -259,7 +259,9 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  rôles `manage-users`, `view-users`, `query-users`, `view-realm` — pour trouver les annuaires
+  que le royaume fédère, dont la lecture des comptes demande la synchronisation, leurs secrets
+  masqués — et le rôle de l'extension) ; `admin-cli`,
   que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
   (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
   client de test pour les jetons dont ses tests ont besoin ;
@@ -469,7 +471,17 @@ garde le compte actif et le signale.
   aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
   L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
   Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
-  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  transaction. `updateUser` reporte dans Keycloak, par son API d'administration, le nom, le
+  prénom et l'adresse changés d'un compte local, dont Waterfall fait foi (motif de WF-ADM-0050) :
+  le royaume connecte et écrit au compte par l'adresse qu'il tient (#810). Le changement est
+  vérifié dans une transaction courte, reporté, puis écrit dans une seconde, qui revérifie le
+  `lock_version` ; refusé alors, il est défait dans Keycloak, qui reprend l'identité que
+  Waterfall tient au moment du refus, relue dans une transaction courte — celle lue avant le
+  report peut avoir changé depuis. Il reprend l'identité lue avant le report si le compte ne
+  peut être relu, ce qui est journalisé (`account.identity_not_reread`), ou s'il n'est plus le
+  compte local que le royaume connaît par ce sujet — rattaché entre-temps à une personne de
+  l'annuaire (#707). Un échec de ce retour, dont un compte du royaume qui tient entre-temps
+  l'adresse, est journalisé (`account.identity_not_restored`). Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
@@ -512,7 +524,33 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
   sans rôle, met à jour nom, prénom et adresse des comptes fédérés, désactive ceux que
   Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne touche
   aucun compte local (WF-ADM-0070). Ses écritures portent la plateforme comme auteur
-  (WF-DAT-0070).
+  (WF-DAT-0070). Précisions de sa réalisation (US-0370/L2) :
+  - une personne de l'annuaire dont l'adresse est portée par un compte y est rattachée, comme à
+    sa première requête (#707) : le compte prend son identifiant chez Keycloak, son nom, son
+    prénom et son adresse, vient désormais de l'annuaire, et garde ses rôles et son état ; une
+    nouvelle fédération, qui donne aux personnes d'autres identifiants, retrouve ainsi leurs
+    comptes. Une personne relayée par un fournisseur externe à l'adresse déjà portée est laissée
+    et signalée (`ALREADY_EXISTS`) ;
+  - un compte anonymisé n'est ni modifié ni recréé : la lecture le rapproche par l'identifiant
+    que l'anonymisation conserve (WF-ADM-0070, WF-ADM-0060) ;
+  - un compte que la liste ne nomme plus n'est désactivé qu'après que Keycloak a dit, à sa
+    lecture, ne plus le connaître : une page déplacée par une écriture concurrente ne désactive
+    personne ;
+  - les comptes locaux du royaume que Waterfall ne connaît pas et qui n'ont jamais eu de mot de
+    passe — laissés par une création que Waterfall n'a pas menée à son terme, Keycloak ayant
+    créé le compte puis répondu trop tard — sont retirés du royaume (#811), une fois âgés d'une
+    heure : une création en cours est chez Keycloak avant d'être dans Waterfall. Ils sont nommés
+    dans le compte rendu, inscrit dans la transaction de la lecture ; leur retrait de Keycloak
+    n'a lieu qu'après la validation de cette transaction. Une lecture arrêtée avant ne retire donc
+    rien ; un retrait qui échoue est journalisé, et la lecture suivante, qui retrouve l'orphelin,
+    le nomme de nouveau et tente son retrait ;
+  - tout ce qui se demande à Keycloak — synchronisation, lecture — précède les écritures, les
+    retraits des orphelins mis à part, qui les suivent. Le verrou de la règle du dernier
+    administrateur est pris avant elles, avant toute ligne d'un compte, dans l'ordre des routes
+    qui modifient un compte : verrou consultatif, puis lignes ; chaque désactivation s'écrit sous
+    la garde, et un compte ne se verrouille que pour être écrit, relu sous le verrou. Le compte
+    rendu est gardé dans `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche
+    réussie y renvoie.
 
 ### Journal d'audit
 
