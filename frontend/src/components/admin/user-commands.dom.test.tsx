@@ -351,6 +351,11 @@ describe("the anonymisation of an account", () => {
       } satisfies Problem & { status: 503 },
       "Fournisseur d’identité",
     ],
+    [
+      "the account changed since it was read",
+      { code: "STALE_LOCK_VERSION", status: 412 } satisfies Problem & { status: 412 },
+      "rechargez-la pour voir sa dernière version.",
+    ],
   ])(
     "tells by the catalogue the anonymisation the server refuses — %s [WF-ADM-0060-A]",
     async (_, problem, said) => {
@@ -731,6 +736,34 @@ describe("the creation of a local account", () => {
     },
   );
 
+  it("tells above the table a creation the server refuses once its dialog is closed", async () => {
+    const held = holdRoute("POST /users");
+    const client = serve(
+      {
+        "POST /users": {
+          problem: {
+            code: "COMPONENT_UNAVAILABLE",
+            status: 503,
+            params: { component: "identity_provider" },
+          },
+        },
+      },
+      held.timing,
+    );
+    render(accounts());
+    await createGarnier(await openCreation());
+    await waitFor(() => {
+      expect(writes(client)).toHaveLength(1);
+    });
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    held.release();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Fournisseur d’identité");
+    expect(told().textContent).toBe("");
+  });
+
   it("refuses at their fields a name left blank and an address left empty, and asks nothing [WF-ADM-0050-A]", async () => {
     const client = serve({});
     render(accounts());
@@ -799,6 +832,8 @@ describe("the link to set the password", () => {
     await waitFor(() => {
       expect(command.closest("td")).toHaveFocus();
     });
+    // Given once, the link is shown no more.
+    expect(screen.queryByDisplayValue(link)).toBeNull();
   });
 
   it("presents the link of a deactivated local account unavailable, naming the condition it lacks, and asks nothing", async () => {
@@ -869,6 +904,40 @@ describe("the link to set the password", () => {
       `/users/${account("Martin").user_id}/password-link`,
     ]);
   });
+
+  it.each([
+    [
+      "the account deactivated since it was read",
+      example("password_link_deactivated") as Problem & { status: 409 },
+      "Condition non remplie : compte actif.",
+    ],
+    [
+      "the identity provider silent",
+      {
+        code: "COMPONENT_UNAVAILABLE",
+        status: 503,
+        params: { component: "identity_provider" },
+      } satisfies Problem & { status: 503 },
+      "Fournisseur d’identité",
+    ],
+  ])(
+    "tells above the table the link the server refuses — %s —, the focus back on its command once dismissed",
+    async (_, problem, said) => {
+      serve({ "POST /users/{user_id}/password-link": { problem } });
+      render(accounts());
+      const command = within(grid()).getByRole("button", {
+        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+      });
+      await userEvent.click(command);
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(said);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(command).not.toHaveAttribute("aria-disabled");
+      await userEvent.click(within(alert).getByRole("button", { name: /Fermer l’avis/ }));
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(command).toHaveFocus();
+    },
+  );
 });
 
 describe("the filters of the table", () => {
