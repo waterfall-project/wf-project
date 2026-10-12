@@ -35,6 +35,13 @@ from waterfall.worker.backup import (
 
 BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
+# What pg_restore says of its own error starts a line of its own. The lines that follow it —
+# ``DETAIL``, ``CONTEXT``, ``Command was:`` — quote the rows of the dump, the secrets of the clients
+# of the identity provider and the digests of its passwords among them, which no mask of the
+# journal knows (WF-OBS-0020): they are left out, and so is a value the error quotes.
+ERROR_LINE = "pg_restore: error:"
+SERVER_ERROR = "ERROR:"
+QUOTED = re.compile(r'"[^"]*"')
 
 logger = get_logger(__name__)
 
@@ -111,5 +118,20 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
         )
     if done.returncode != 0:
         reached(address)
-        logger.error("restore.replace_failed", database=name, said=done.stderr.decode().strip())
+        logger.error("restore.replace_failed", database=name, said=errors_of(done.stderr))
         raise DumpError(name)
+
+
+def errors_of(said: bytes) -> list[str]:
+    """Give the errors pg_restore said, without the rows they quote nor a value quoted in them.
+
+    A line of pg_restore's own error is kept: what it did, and the message of the server, each
+    value the server quotes masked — the name of a constraint, of a column, or a value refused.
+    """
+    lines = said.decode(errors="replace").splitlines()
+    return [_masked(line) for line in lines if line.startswith(ERROR_LINE)]
+
+
+def _masked(line: str) -> str:
+    done, server, message = line.partition(SERVER_ERROR)
+    return done + server + QUOTED.sub('"..."', message)

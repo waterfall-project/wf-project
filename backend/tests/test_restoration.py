@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import ColumnElement, func, insert, select, text, update
-from support import ContractClient, as_backup, bearer
+from support import ContractClient, as_backup, bearer, captured_logs
 from task_handlers import REQUEST, deposit
 
 from waterfall import __version__
@@ -50,7 +50,7 @@ from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
-from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask
+from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, DumpError, dump
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import Timing, Worker
 
@@ -125,6 +125,16 @@ def installation(
             connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
         connection.execute(text(f'DROP ROLE "{signing}"'))
         connection.execute(text(f'DROP ROLE "{service}"'))
+    server.dispose()
+
+
+def dropped(server_address: str, *addresses: str) -> None:
+    """Drop databases of the server, the connections left to them closed."""
+    server = create_database_engine(server_address).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        for address in addresses:
+            name = engine_url(address).database
+            connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
     server.dispose()
 
 
@@ -397,3 +407,43 @@ def test_an_archive_of_a_newer_version_than_the_installation_is_refused_before_a
         "BACKUP_FROM_NEWER_VERSION",
         {"backup_version": "999.0.0", "installed_version": __version__},
     )
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
+    database_url: str, tmp_path: Path
+) -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » The
+    # dump of the provider holds the secrets of its clients and the digests of its passwords; the
+    # database refuses a row of it — by a check that only the source admits —, and pg_restore
+    # quotes that row after its error. The journal gets the error, without the row.
+    marker = f"marker-{uuid4().hex}"
+    source = created(database_url, f"waterfall_test_refused_{uuid4().hex}")
+    target = created(database_url, f"waterfall_test_refusing_{uuid4().hex}")
+    admitted = "coalesce(current_setting('waterfall.admitted', true), '') = 'yes'"
+    owner = create_database_engine(source)
+    with owner.begin() as connection:
+        name = engine_url(source).database
+        connection.execute(text(f"ALTER DATABASE \"{name}\" SET waterfall.admitted = 'yes'"))
+    owner.dispose()
+    owner = create_database_engine(source)
+    with owner.begin() as connection:
+        connection.execute(
+            text(f"CREATE TABLE realm (id text PRIMARY KEY, secret text CHECK ({admitted}))")
+        )
+        connection.execute(
+            text("INSERT INTO realm VALUES ('waterfall', :marker)"), {"marker": marker}
+        )
+    owner.dispose()
+    try:
+        dumped = dump("identity_provider", source, tmp_path)
+        with captured_logs() as logs, pytest.raises(DumpError):
+            replace("identity_provider", dumped.path, target, tmp_path)
+    finally:
+        dropped(database_url, source, target)
+    (failed,) = logs.named("restore.replace_failed")
+    refused = 'new row for relation "..." violates check constraint "..."'
+    assert failed["said"] == [
+        f'pg_restore: error: COPY failed for table "realm": ERROR:  {refused}'
+    ]
+    assert marker not in logs.text
