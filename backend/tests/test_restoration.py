@@ -326,7 +326,7 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     # #894: the backup is dated before its dumps; an inscription made between the two is in the
     # dump and after the date. Written back by its identifier, it is there once; the inscription
     # of the backup, made after the dump, and one made after the backup, are there too; the
-    # restoration, inscribed once done, is the last.
+    # inscription of the restoration, written after what was written back, comes after them.
     during: list[UUID] = []
     reach = backup.reached
 
@@ -350,7 +350,10 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     assert dated > taken.taken_at
     inscribed = (AuditEntry.action == "backup", AuditEntry.object_id == taken.id)
     assert count(installation.database, *inscribed) == 1
-    # « … et la dernière inscription est la restauration elle-même. »
+    # The test inscribes the restoration itself, as what runs it will: it holds that the
+    # inscription comes after those written back, not that what runs the restoration makes it.
+    # It does not prove « … et la dernière inscription est la restauration elle-même. » of
+    # WF-ADM-0160-A, which US-0440/L2b proves with the service that runs the restoration (#985).
     with logging_context(correlation_id=REQUEST), installation.database.transaction() as session:
         inscribe_restoration(session, taken.id, None, utc_now())
     with installation.database.transaction() as session:
