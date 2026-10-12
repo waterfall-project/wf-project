@@ -534,6 +534,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/identity_sync_report.json }
               flagged: { $ref: ../../../fixtures/api/identity_sync_report_flagged.json }
+              anonymized: { $ref: ../../../fixtures/api/identity_sync_report_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

@@ -27,7 +27,7 @@ export interface Examples {
     200: "external_backup_locations" | "external_backup_locations_none";
   };
   "GET /identity-syncs/latest": {
-    200: "identity_sync_report" | "identity_sync_report_flagged";
+    200: "identity_sync_report" | "identity_sync_report_anonymized" | "identity_sync_report_flagged";
   };
   "GET /installation": {
     200: "installation" | "installation_english";
