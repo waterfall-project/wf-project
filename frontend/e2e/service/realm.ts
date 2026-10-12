@@ -21,6 +21,10 @@ import { join } from "node:path";
 
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
+import type { components } from "../../src/api/generated/schema";
+
+type Schemas = components["schemas"];
+
 /** Where the browser reaches Keycloak, as `make e2e-service` says it. */
 export const KEYCLOAK = process.env.WATERFALL_KEYCLOAK_ADDRESS ?? "https://localhost:8443/auth";
 /** The realm of Waterfall, under it. */
@@ -110,6 +114,7 @@ export async function giveIdentifiers(page: Page, person: Person): Promise<void>
         (answer) =>
           answer.request().method() === "POST" &&
           answer.url().startsWith(`${REALM}/login-actions/authenticate`),
+        { timeout: CHECKING },
       );
       await signInButton(page).click();
       await checked;
@@ -135,6 +140,13 @@ export async function reauthenticate(page: Page, person: Person): Promise<void> 
   await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
   await signInButton(page).click();
 }
+
+/**
+ * How long a sign-in waits for the realm to answer the identifiers: well within the wait of the
+ * lock (`oneAtATime`), which the other workers of the account spend behind it — a click lost would
+ * otherwise hold the lock for the time of the path.
+ */
+const CHECKING = 15_000;
 
 /**
  * Run a sign-in of an account while no other worker signs it in: the realm refuses the identifiers
@@ -196,8 +208,13 @@ async function administrator(request: APIRequestContext): Promise<Record<string,
     },
   });
   expect(answer.ok()).toBe(true);
-  const { access_token: token } = (await answer.json()) as { access_token: string };
+  const { access_token: token } = (await answer.json()) as TokenAnswer;
   return { Authorization: `Bearer ${token}` };
+}
+
+/** What the token endpoint of the realm answers, of which the paths read the access token alone. */
+interface TokenAnswer {
+  readonly access_token: string;
 }
 
 /** The administration API of a realm — that of Waterfall by default —, as its administrator. */
@@ -397,7 +414,9 @@ export function waterfallAccount(email: string): { origin: string; roles: number
  * signed in. The account must exist — Waterfall creates it at the first request of the person,
  * which the path has seen answered (`GET /me`, the screen of her account shown) —: a role given to
  * none fails the path, rather than leave it without the role. A local account of the paths is
- * given its role by the administrator (`Administrator.give`).
+ * given its role by the administrator (`Administrator.give`); the administrator itself is given
+ * back « Administrateur » so, should the server accept the withdrawal it must refuse
+ * (`roles.spec.ts`).
  */
 export function grantRole(email: string, label: string, permissions: readonly string[]): void {
   const held = sql(
@@ -515,7 +534,7 @@ export async function frontToken(browser: Browser, person: Person): Promise<stri
       },
     });
     expect(answer.ok()).toBe(true);
-    return ((await answer.json()) as { access_token: string }).access_token;
+    return ((await answer.json()) as TokenAnswer).access_token;
   } finally {
     await context.close();
   }
@@ -546,51 +565,90 @@ async function read<T>(request: APIRequestContext, token: string, path: string):
 }
 
 /**
+ * The two permissions of the administration (WF-ADM-0120): a path that gave both to an account
+ * other than the administrator of the installation would lift the refusal `LAST_ADMINISTRATOR` the
+ * screen of the roles proves beside it (`roles.spec.ts`).
+ */
+const ADMINISTRATION: readonly Schemas["PermissionCode"][] = ["users.write", "access_roles.write"];
+
+/**
+ * How old a token of the administrator may grow before it is asked again: the realm gives it five
+ * minutes, and a file of paths lasts longer.
+ */
+const TOKEN_RENEWED_AFTER = 4 * 60_000;
+
+/**
  * The administrator of the installation at the API (#730): it creates the local accounts of the
  * paths, each its own, gives their links (`createUser`, `createPasswordSetupLink`) and their roles
- * (`createAccessRole`, `setUserAccessRoles`), by the token the front would obtain for it.
+ * (`createAccessRole`, `setUserAccessRoles`), by the token the front would obtain for it — asked
+ * again once it nears its end.
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
-  const token = await frontToken(browser, ADMINISTRATOR);
+  let token = await frontToken(browser, ADMINISTRATOR);
+  let obtained = Date.now();
+  const current = async (): Promise<string> => {
+    if (Date.now() - obtained > TOKEN_RENEWED_AFTER) {
+      token = await frontToken(browser, ADMINISTRATOR);
+      obtained = Date.now();
+    }
+    return token;
+  };
   return {
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
       const email = `jeanne.${randomBytes(6).toString("hex")}@waterfall.test`;
-      const body = { last_name: "Montgolfier", first_name: "Jeanne", email };
-      const { user_id: id } = await posted<{ user_id: string }>(request, token, "/users", body);
+      const body: Schemas["UserCreate"] = { last_name: "Montgolfier", first_name: "Jeanne", email };
+      const { user_id: id } = await posted<Schemas["UserCreated"]>(
+        request,
+        await current(),
+        "/users",
+        body,
+      );
       return { id, email };
     },
     /** The link that sets the password of a local account, each new one replacing the one before. */
     link: async (id: string): Promise<string> =>
-      (await posted<{ url: string }>(request, token, `/users/${id}/password-link`)).url,
+      (
+        await posted<Schemas["PasswordSetupLink"]>(
+          request,
+          await current(),
+          `/users/${id}/password-link`,
+        )
+      ).url,
     /**
      * Give a local account the role of a label — made of the permissions given unless the
      * installation holds it already, so that the runs on a platform kept make it once —, in place
-     * of those it holds.
+     * of those it holds. Never both permissions of the administration.
      */
-    give: async (id: string, label: string, permissions: readonly string[]): Promise<void> => {
+    give: async (
+      id: string,
+      label: string,
+      permissions: readonly Schemas["PermissionCode"][],
+    ): Promise<void> => {
+      expect(
+        ADMINISTRATION.every((permission) => permissions.includes(permission)),
+        `the role ${label} gives both permissions of the administration`,
+      ).toBe(false);
       const search = new URLSearchParams({ search: label }).toString();
-      const held = await read<{ access_role_id: string; label: string }[]>(
+      const held = await read<Schemas["AccessRole"][]>(
         request,
-        token,
+        await current(),
         `/access-roles?${search}`,
       );
+      const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
       const role =
         held.find((one) => one.label === label)?.access_role_id ??
-        (
-          await posted<{ access_role_id: string }>(request, token, "/access-roles", {
-            label,
-            permissions,
-          })
-        ).access_role_id;
-      const { lock_version: version } = await read<{ lock_version: number }>(
+        (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
+          .access_role_id;
+      const { lock_version: version } = await read<Schemas["User"]>(
         request,
-        token,
+        await current(),
         `/users/${id}`,
       );
+      const roles: Schemas["UserRolesWrite"] = { access_role_ids: [role], lock_version: version };
       const given = await request.put(`${API}/users/${id}/access-roles`, {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { access_role_ids: [role], lock_version: version },
+        headers: { Authorization: `Bearer ${await current()}` },
+        data: roles,
       });
       expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
     },

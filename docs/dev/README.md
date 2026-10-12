@@ -2060,8 +2060,19 @@ l'API ; la personne de l'annuaire de test, `dominique.annuaire@waterfall.test`, 
 fournisseur externe, `camille.externe` (`deploy/keycloak/development/`), que l'API admet sans rôle
 à leur première requête (WF-ADM-0180) et que seul `sign-in.spec.ts` emploie, reçoivent le leur par
 une écriture dans la base de la plateforme (`grantRole`), une fois admises. Aucun parcours ne donne
-à un autre compte que l'administrateur les deux permissions d'administration : le refus
-`LAST_ADMINISTRATOR` de l'écran des rôles en dépend. `realm` ensuite, sur un seul worker, une fois
+à un autre compte que l'administrateur les deux permissions d'administration — `give` le refuse —,
+et aucun ne renomme ni ne change un rôle prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des
+rôles et de celui des comptes en dépendent (`roles.spec.ts`). Le jeton de l'administrateur, qui vit
+cinq minutes, se redemande quand il en a plus de quatre.
+
+Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
+qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
+échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
+répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
+jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
+autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse qui
+dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou les
+filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous. `realm` ensuite, sur un seul worker, une fois
 les autres finis : les parcours marqués `@realm-wide`, qui raccourcissent une durée du royaume, que
 lit chaque compte. `contract` enfin, le démontage de `installation` : la garde du contrat de toute
 la course.
@@ -2086,8 +2097,13 @@ son début (`E2E_SERVICE_STARTED`, que pose `playwright.config.ts`), une fois le
 rien d'autre que le contrôle de santé pendant deux secondes, la dernière ligne d'une réponse, qui
 ne nomme pas sa requête, n'en étant que si elle suit celle de la réponse d'un contrôle (#735) — :
 les erreurs d'après le dernier parcours d'un worker le font échouer, et celles qu'un parcours a
-déjà dites, de nouveau. Un parcours le montre (`contract.spec.ts`) : une adresse hors du contrat
-(`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut que
+déjà dites, de nouveau. Ce début est la dernière ligne que le mandataire a écrite avant la course
+(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), et chaque moment que les
+parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge du poste, qu'une
+machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
+— le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
+contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
+contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut que
 l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les

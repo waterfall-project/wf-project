@@ -35,9 +35,12 @@
  * container (#681). They play in four projects: the installation first, whose administrator the
  * bootstrap made, and whose link serves once (US-0420); the paths, on several workers; those that
  * change a setting of the realm, which every account reads, one at a time once the others are done;
- * and last the guard of the run, which reads the log of the proxy of the contract whole.
+ * and last the guard of the run, which reads the log of the proxy of the contract from the start of
+ * the run.
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
+
+import { lastLogged } from "./e2e/service/proxy-log";
 
 type Project = NonNullable<PlaywrightTestConfig["projects"]>[number];
 type WebServer = Extract<
@@ -101,9 +104,11 @@ const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 // account of the realm reads: tagged, played alone.
 const REALM_WIDE = /@realm-wide/;
 // The moment the run started, which the workers inherit: the guard of the run reads the log of the
-// proxy from it (`e2e/service/contract.ts`). Kept by a worker, which loads this file again.
+// proxy from it (`e2e/service/contract.ts`). The last line the proxy wrote before the run, on the
+// clock of Docker that stamps its log, never the workstation's (`e2e/service/proxy-log.ts`). Kept
+// by a worker, which loads this file again.
 if (PLAYS_SERVICE) {
-  process.env.E2E_SERVICE_STARTED ??= new Date().toISOString();
+  process.env.E2E_SERVICE_STARTED ??= lastLogged();
 }
 const onWorkstation = process.env.CI === undefined;
 

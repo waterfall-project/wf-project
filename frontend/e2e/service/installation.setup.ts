@@ -4,7 +4,7 @@
  * The bootstrap of a new installation, as its first administrator meets it (US-0420, WF-EXP-0020):
  * the link `make e2e-service` gives (`E2E_INSTALLATION_LINK`) sets its password — once: empty when
  * an earlier run on the platform set it, the administrator then signing in with the password the
- * paths gave it —; signed in, it holds the role « Administrateur », and finds the three predefined
+ * paths gave it, which the result of the path says; never in the chain, whose platform is new —; signed in, it holds the role « Administrateur », and finds the three predefined
  * roles and the catalogue of the permissions. The project `installation`, on which every other
  * path depends: they act through this administrator.
  */
@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
+import type { components } from "../../src/api/generated/schema";
 import { ADMINISTRATOR, frontToken, LOCAL_PASSWORD, openLink, setPassword, signIn } from "./realm";
 
 heldToTheContract();
@@ -33,7 +34,15 @@ test("the administrator of a new installation sets its password by the link of t
 }) => {
   expect(ADMINISTRATOR.email, "E2E_ADMIN_EMAIL, as make e2e-service gives it").not.toBe("");
   const link = process.env.E2E_INSTALLATION_LINK ?? "";
-  if (link !== "") {
+  if (link === "") {
+    // The chain starts from a new platform: a link already used there is a bootstrap gone wrong.
+    expect(process.env.CI, "E2E_INSTALLATION_LINK, empty on a new platform").toBeUndefined();
+    test.info().annotations.push({
+      type: "installation",
+      description:
+        "the link of the bootstrap was used by an earlier run: the administrator signs in with the password of the paths",
+    });
+  } else {
     await openLink(page, link);
     await setPassword(page, LOCAL_PASSWORD);
     await expect(
@@ -72,7 +81,7 @@ test("the administrator of a new installation sets its password by the link of t
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(answer.status()).toBe(200);
-  const catalogue = (await answer.json()) as unknown[];
+  const catalogue = (await answer.json()) as components["schemas"]["Permission"][];
   await calls.dispose();
   expect(catalogue.length).toBeGreaterThan(0);
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });

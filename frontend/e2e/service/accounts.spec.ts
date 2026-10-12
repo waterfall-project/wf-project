@@ -74,6 +74,11 @@ test("an administrator creates a local account, gives it a role and its link; de
   await signIn(page, ADMINISTRATOR, ACCOUNT);
   await page.goto(`${USERS}?search=`);
   const told = page.getByRole("status", { name: "Commandes des comptes" });
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  // The table shown, its count under its rows, before none of them is found to offer a deletion.
+  await expect(accounts.getByRole("row").last()).toHaveText(/^[\d\s]+ comptes?$/, {
+    timeout: WORKING,
+  });
   await expect(page.getByRole("main").getByRole("button", { name: /Supprimer/ })).toHaveCount(0);
 
   // Created from its names and its address.
@@ -87,7 +92,6 @@ test("an administrator creates a local account, gives it a role and its link; de
 
   // Found by its name, the one account of the search.
   await page.goto(`${USERS}?search=${suffix}`);
-  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   await expect(accounts.getByRole("row").last()).toHaveText("1 compte", { timeout: WORKING });
 
   // A role in its cell.

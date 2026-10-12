@@ -840,8 +840,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
   (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
   Keycloak, son frontal TLS et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
   (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
-  parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
-  `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
+  parcours —, et joue les parcours de `frontend/e2e/service/` avec `WATERFALL_API_ADDRESS`, en
+  quatre projets Playwright : `installation`, l'amorçage, dont le lien ne sert qu'une fois ;
+  `service`, les parcours, sur plusieurs workers ; `realm`, ceux qui changent un réglage du
+  royaume, sur un seul worker, une fois les autres finis ; `contract` enfin, le démontage de
+  `installation`, qui garde toute la course : il relit le journal du mandataire depuis son début,
+  pris dans ce journal même, une fois le mandataire tu, et prouve sa fenêtre — une ligne lue au
+  moins, et le refus de l'adresse hors du contrat quand son parcours a joué. La chaîne le joue au
+  palier complet.
 - **Le relevé des exigences** : `tools/paths.toml` déclare la famille `end-to-end-service`
   (`frontend/e2e/service/**`), que `wftools.coverage` ne range pas parmi les familles du front
   (`FRONT_FAMILIES`) : une exigence qu'elle cite est prouvée par le back.

@@ -8,7 +8,14 @@
  */
 import { expect, test } from "@playwright/test";
 
-import { healthChecksAlone, heldToTheContract, OUTSIDE, takeOutside } from "./contract";
+import {
+  healthChecksAlone,
+  heldToTheContract,
+  markOutsideAsked,
+  OUTSIDE,
+  takeOutside,
+} from "./contract";
+import { logged } from "./proxy-log";
 
 heldToTheContract();
 
@@ -32,6 +39,8 @@ test("an address outside the contract is read as refused by the proxy, the one r
   expect(refused).toHaveLength(1);
   expect(refused[0]).toContain(`get ${OUTSIDE}`);
   expect(refused[0]).toContain("NO_PATH_MATCHED_ERROR");
+  // The guard of the run, in another worker, finds it again in its window.
+  markOutsideAsked();
 });
 
 // Lines as Prism wrote them on 2026-10-11: a health check, then the answer of another
@@ -53,4 +62,15 @@ test("counts the last line of an answer as the health check's only after the ans
   expect(healthChecksAlone(ANOTHER.slice(1), HEALTH_CHECK[2])).toBe(true);
   expect(healthChecksAlone(ANOTHER.slice(1), ANOTHER[0])).toBe(false);
   expect(healthChecksAlone(ANOTHER.slice(1))).toBe(false);
+});
+
+test("takes the moment of a line as Docker stamps it, its nanoseconds made whole, so that two moments compare as texts", () => {
+  const line = "[1:13:54 PM] › [HTTP SERVER] get /api/v1/health ℹ  info      Request received";
+  expect(logged(`2026-10-11T13:13:54.1234Z ${line}`)).toEqual({
+    at: "2026-10-11T13:13:54.123400000",
+    line,
+  });
+  expect(logged("2026-10-11T13:13:54.9Z x").at > logged("2026-10-11T13:13:54.10Z x").at).toBe(true);
+  // The start of a run, a moment already made whole, is read as it is.
+  expect(logged("2026-10-11T13:13:54.123400000 ").at).toBe("2026-10-11T13:13:54.123400000");
 });

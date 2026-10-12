@@ -22,12 +22,19 @@
  * 404; the tests of the service hold its statuses to the contract (`ContractClient`,
  * `backend/tests/test_api_service.py`), the paths the bodies (#726).
  *
- * The log is read by Docker, from the container `make e2e-service` names (`E2E_CONTRACT_PROXY`),
- * from the moment last read on (`--since`), never whole: it grows as long as the platform stays up.
+ * The log is read by Docker (`proxy-log.ts`), from the moment last read on (`--since`), never
+ * whole, and every moment is one Docker stamped: the run starts at the last line the proxy wrote
+ * before it (`E2E_SERVICE_STARTED`, `playwright.config.ts`), and the guard of the run proves its
+ * window — a line read at least, and the refusal of `OUTSIDE` when its path played.
  */
-import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
+
+import { logged, proxyLog } from "./proxy-log";
 
 // What Prism writes of each request it refused to pass on as it is, whatever the error: one of its
 // own, under the address of its type (`https://stoplight.io/prism/errors#…`), or one of the proxy —
@@ -44,54 +51,12 @@ const QUIET = 2_000;
 // How long the proxy is given to fall quiet, within the bound of a hook.
 const FALLING_QUIET = 20_000;
 
-/** The container of the proxy of the contract, which `make e2e-service` names. */
-function proxy(): string {
-  const container = process.env.E2E_CONTRACT_PROXY;
-  if (container === undefined || container === "") {
-    throw new Error(
-      "E2E_CONTRACT_PROXY must name the container of the proxy of the contract: run make e2e-service",
-    );
-  }
-  return container;
-}
-
-/** A line of the log, and the moment Docker received it. */
-interface Logged {
-  /** The moment, `YYYY-MM-DDTHH:MM:SS.nnnnnnnnn`, its nanoseconds whole: in order as a text. */
-  readonly at: string;
-  readonly line: string;
-}
-
-/**
- * A line as Docker gives it with its moment (`--timestamps`): RFC 3339, its nanoseconds stripped
- * of their trailing zeros, which are put back so that two moments compare as texts.
- */
-export function logged(text: string): Logged {
-  const [stamp = "", ...rest] = text.split(" ");
-  const [seconds = "", fraction = ""] = stamp.replace(/Z$/, "").split(".");
-  return { at: `${seconds}.${fraction.padEnd(9, "0")}`, line: rest.join(" ") };
-}
-
-/** The lines the proxy wrote from a moment on — all of them, without one — in order. */
-function proxyLog(since?: string): Logged[] {
-  const window = since === undefined ? ["--tail", "1"] : ["--since", `${since}Z`];
-  // Prism writes to the standard output; the error output is npm's, which starts Prism.
-  return execFileSync("docker", ["logs", "--timestamps", ...window, proxy()], {
-    encoding: "utf8",
-    maxBuffer: 1 << 28,
-    stdio: ["ignore", "pipe", "ignore"],
-  })
-    .split("\n")
-    .filter((text) => text !== "")
-    .map(logged);
-}
-
 /** The address outside the contract the guard's own path asks for, which only it reads. */
 export const OUTSIDE = "/api/v1/outside-the-contract";
 
 /**
- * The moment the run started, which `playwright.config.ts` gives every worker: the guard of the
- * run reads the log from it.
+ * The moment the run started, the last line of the proxy before it, which `playwright.config.ts`
+ * gives every worker: the guard of the run reads the log from it.
  */
 function startOfTheRun(): string {
   const started = process.env.E2E_SERVICE_STARTED;
@@ -103,6 +68,8 @@ function startOfTheRun(): string {
 
 /** The moment the reading of the worker has reached, from the start of its first file. */
 let cursor: string | undefined;
+/** How many lines the reading of the worker has read. */
+let linesRead = 0;
 
 /**
  * The lines the proxy wrote since the reading last stopped, read: `--since` gives back the lines
@@ -117,6 +84,7 @@ function unread(): string[] {
   }
   const lines = proxyLog(from).filter(({ at }) => at > from);
   cursor = lines.at(-1)?.at ?? from;
+  linesRead += lines.length;
   return lines.map(({ line }) => line);
 }
 
@@ -184,8 +152,8 @@ export function takeOutside(): string[] {
  */
 export function heldToTheContract(): void {
   test.beforeAll(() => {
-    // From the last line written, or from now when there is none yet.
-    cursor ??= proxyLog().at(-1)?.at ?? logged(`${new Date().toISOString()} `).at;
+    // From the last line written, or from the start of the run when there is none yet.
+    cursor ??= proxyLog().at(-1)?.at ?? startOfTheRun();
   });
   test.afterEach(() => {
     expect(
@@ -196,12 +164,39 @@ export function heldToTheContract(): void {
 }
 
 /**
+ * The mark the path of `OUTSIDE` leaves once its refusal is read, for the guard of the run, in
+ * another worker, to know it played: a file of the system's temporary directory, named after the
+ * run.
+ */
+function outsideAsked(): string {
+  const name = createHash("sha256").update(`${startOfTheRun()} ${OUTSIDE}`).digest("hex");
+  return join(tmpdir(), `waterfall-e2e-${name.slice(0, 32)}`);
+}
+
+/** Mark that the path of `OUTSIDE` played, its refusal read. */
+export function markOutsideAsked(): void {
+  writeFileSync(outsideAsked(), "");
+}
+
+/**
  * Hold the run to the contract once every path is done: the errors Prism wrote since it started,
  * the proxy fallen quiet — those written after the last path of a worker among them, and those the
- * paths failed on already, which fail it again.
+ * paths failed on already, which fail it again. The window is proved: at least a line read — the
+ * health checks write one every two seconds —, and the refusal of `OUTSIDE` among them when its
+ * path played, which a window started after it would miss.
  */
 export async function heldTheRunToTheContract(): Promise<void> {
   cursor = startOfTheRun();
+  linesRead = 0;
   expect.soft(await proxyFallenQuiet(), "the proxy of the contract fell quiet").toBe(true);
   expect(takeErrors(), "what the proxy of the contract refused during the run").toEqual([]);
+  expect(linesRead, "the lines of the proxy read since the start of the run").toBeGreaterThan(0);
+  const mark = outsideAsked();
+  if (existsSync(mark)) {
+    rmSync(mark, { force: true });
+    expect(
+      outside.splice(0).length,
+      `the refusals of ${OUTSIDE}, which its path read during the run`,
+    ).toBeGreaterThan(0);
+  }
 }
