@@ -9,6 +9,7 @@ and signed in by ``make production-trial`` in the chain (production.yml, images.
 hold what the trial concludes from what Compose and the platform answer.
 """
 
+import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -463,6 +464,19 @@ def action_token(asked: Asked) -> Answer:
     return answer(200, CHOOSING_FORM if "go=1" in asked.query else CONFIRMATION)
 
 
+def realm_authorization(asked: Asked) -> Answer:
+    """Open the form of the realm; give the front its code at once on a session already open."""
+    query = parse_qs(asked.query)
+    if "AUTH_SESSION_ID" in asked.cookie and "state" in query:
+        location = f"{ADDRESS}/auth/callback?code=c&state={query['state'][0]}"
+        return answer(302, Location=location)
+    return answer(
+        200,
+        '<form id="kc-form-login" action="/auth/realms/waterfall/authenticate?x=1&amp;y=2">',
+        Set_Cookie=["KC_RESTART=r; Path=/auth/realms/waterfall/", "AUTH_SESSION_ID=a; Path=/"],
+    )
+
+
 def realm_routes(*, signed_in: bool = True, named: bool = True) -> dict[str, Route]:
     """Play the link of the bootstrap, the sign-in through the realm, the account of the front."""
     callback = f"{ADDRESS}/auth/callback?code=c&state=s"
@@ -475,11 +489,8 @@ def realm_routes(*, signed_in: bool = True, named: bool = True) -> dict[str, Rou
         "/auth/realms/waterfall/password": lambda asked: answer(
             200 if asked.form["password-new"] == asked.form["password-confirm"] else 400
         ),
-        "/auth/realms/waterfall/protocol/openid-connect/auth": fixed(
-            200,
-            '<form id="kc-form-login" action="/auth/realms/waterfall/authenticate?x=1&amp;y=2">',
-            Set_Cookie=["KC_RESTART=r; Path=/auth/realms/waterfall/", "AUTH_SESSION_ID=a; Path=/"],
-        ),
+        "/auth/realms/waterfall/protocol/openid-connect/auth": realm_authorization,
+        "/auth/realms/waterfall/protocol/openid-connect/token": fixed(200, '{"access_token": "t"}'),
         "/auth/realms/waterfall/authenticate": lambda asked: answer(
             302 if signed_in and asked.form["username"] == EMAIL else 200, Location=callback
         ),
@@ -708,6 +719,51 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
     assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
+    assert "the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)" in said
+
+
+class Container:
+    """The container of the API, asked by the trial: a backup, then its restoration, succeed."""
+
+    def __init__(self) -> None:
+        self.asked: list[tuple[str, str]] = []
+
+    def ask(self, command: list[str], given: str) -> tuple[int, str]:
+        assert command[-3:-1] == ["python", "-c"]
+        asked = json.loads(given)
+        self.asked.append((asked["method"], asked["path"]))
+        backup = {"backup_id": "b1", "taken_at": "2026-06-02T01:00:00Z", "verification": "passed"}
+        bodies: dict[str, tuple[int, object]] = {
+            "/backups": (202, {"task_id": "b"}),
+            "/backups?limit=1": (200, {"items": [backup]}),
+            "/restores": (202, {"task_id": "r"}),
+        }
+        status, body = bodies.get(asked["path"], (200, {"status": "succeeded"}))
+        return 0, json.dumps({"status": status, "body": json.dumps(body)})
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+def test_the_trial_backs_up_and_restores_by_the_api_when_asked_to(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # #948, point 2: asked for by its variable until the chain starts the service of the
+    # restoration, the trial backs the platform up by its API and restores it.
+    docker = Docker()
+    container = Container()
+    fake = FakePlatform(realm_routes())
+    given = {**GIVEN, "WATERFALL_TRIAL_RESTORATION": "1"}
+    sender = platform_sender(fake)
+    assert production.main(given, docker.run, docker.read, sender, container.ask) == 0
+    assert container.asked == [
+        ("POST", "/backups"),
+        ("GET", "/tasks/b"),
+        ("GET", "/backups?limit=1"),
+        ("POST", "/restores"),
+        ("GET", "/tasks/r"),
+    ]
+    said = capsys.readouterr().out
+    assert "its restoration asked of the API has ended: the probe says ok" in said
+    assert docker.verbs()[-2:] == ["exec", "down"]
 
 
 def test_the_owner_of_the_tables_must_be_no_superuser(capsys: pytest.CaptureFixture[str]) -> None:

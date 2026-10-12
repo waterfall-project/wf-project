@@ -235,7 +235,7 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the
 # environment, as production.env.example names them; the project of Compose is
 # WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, then remove it (needs its secrets)
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets)
 	@$(WFTOOLS).production
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
