@@ -3,7 +3,7 @@
 /**
  * What the server of the front checks once, as it starts (#825, WF-SEC-0010): a front started
  * without one of its secrets would answer its probe, healthy to all appearances, and fail at the
- * first sign-in only. It stops instead, naming every variable that is missing.
+ * first sign-in only. It stops instead, with the code 1, naming every variable that is missing.
  *
  * Out of the mode of the fake back (`WATERFALL_AUTH=mock`), which is refused here in production as
  * it is at a request (`src/api/server.ts`): the variables of the session (`SESSION_VARIABLES`),
@@ -28,10 +28,19 @@ export function startVariables(): readonly string[] {
   return production ? [...SESSION_VARIABLES, ACTIONS_KEY] : SESSION_VARIABLES;
 }
 
-/** Refuse to start without a variable the front needs, naming each one that is missing. */
+/**
+ * Refuse to start without a variable the front needs: write the error, naming each variable that is
+ * missing, then stop the process. The standalone server of Next writes an error `register` throws
+ * and goes on serving (#825): the front stops itself instead.
+ */
 export function checkStart(): void {
-  const missing = startVariables().filter((name) => !isSet(name));
-  if (missing.length > 0) {
-    throw new Error(`${missing.join(", ")} must be set: the front does not start without them`);
+  try {
+    const missing = startVariables().filter((name) => !isSet(name));
+    if (missing.length > 0) {
+      throw new Error(`${missing.join(", ")} must be set: the front does not start without them`);
+    }
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
   }
 }

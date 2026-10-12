@@ -31,11 +31,13 @@ class Docker:
         status: int | None = 200,
         stops: bool = True,
         says: bool = True,
+        code: int = 1,
     ) -> None:
         self.manifest = manifest
         self.status = status
         self.stops = stops
         self.says = says
+        self.code = code
         self.started: list[list[str]] = []
         self.removed: list[str] = []
         self.ran: list[list[str]] = []
@@ -70,7 +72,7 @@ class Docker:
         if command[:2] == ["docker", "port"]:
             return 0, f"{ADDRESS}\n"
         if command[:2] == ["docker", "inspect"]:
-            return 0, "false 1\n" if self.stops else "true 0\n"
+            return 0, f"false {self.code}\n" if self.stops else "true 0\n"
         if command[:2] == ["docker", "logs"]:
             return 0, self.said(command[-1])
         if command[:3] == ["docker", "rm", "--force"]:
@@ -120,6 +122,10 @@ def test_an_image_that_starts_with_its_settings_alone_and_refuses_the_fake_back_
                 "WATERFALL_KEYCLOAK_ADDRESS"
             ),
         ),
+        (
+            Docker(code=0),
+            "without WATERFALL_KEYCLOAK_ADDRESS: the front stopped with the code 0, as if nothing",
+        ),
     ],
 )
 def test_an_image_that_does_not_do_what_it_must_fails_naming_it(
@@ -130,7 +136,6 @@ def test_an_image_that_does_not_do_what_it_must_fails_naming_it(
     assert len(docker.removed) == len(docker.started)
 
 
-@pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.requirement("WF-SEC-0010-A")
 def test_a_front_that_starts_without_a_secret_fails_the_check_and_its_container_is_removed(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

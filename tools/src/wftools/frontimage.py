@@ -155,7 +155,10 @@ def _refused(read: Read, environment: Mapping[str, str], said: str, case: str) -
     except FrontImageError as error:
         message = f"{case}: {error}"
         raise FrontImageError(message) from error
-    if code == 0 or said not in logged:
+    if code == 0:
+        message = f"{case}: the front stopped with the code 0, as if nothing failed"
+        raise FrontImageError(message)
+    if said not in logged:
         message = f"{case}: the front stopped ({code}) without saying {said}"
         raise FrontImageError(message)
 

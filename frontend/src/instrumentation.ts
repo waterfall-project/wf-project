@@ -3,8 +3,9 @@
 /**
  * The hook Next runs once, as its server starts, before it answers a request (#825).
  *
- * The server stops if `register` fails: Next writes the error to its logs and exits, and the front
- * never answers its probe. The settings are checked on the runtime of Node alone, which serves the
+ * The standalone server of Next writes an error `register` throws and goes on serving: the check
+ * stops the process itself, after writing what is missing to the logs, and the front never answers
+ * its probe (`src/startup.ts`). The settings are checked on the runtime of Node alone, which serves the
  * pages, and never while `next build` builds and prerenders them: the image is built without a
  * variable of the platform (WF-SEC-0010).
  */
