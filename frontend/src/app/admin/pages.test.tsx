@@ -135,7 +135,7 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
-  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one [WF-ADM-0070-A]", async () => {
+  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one", async () => {
     const page = rendered(await UsersPage(searched()));
     const said = text(page);
     expect(said).toContain(

@@ -46,7 +46,7 @@ async function handOver(command: Locator, entries: Locator): Promise<void> {
   }).toPass({ timeout: WORKING });
 }
 
-test("the reading of the accounts asked from the screen gives the hand back at once, and the administrator sees it end, then its report [WF-ARC-0090-A] [WF-ADM-0070-A]", async ({
+test("the reading of the accounts asked from the screen gives the hand back at once, and the administrator sees it end, then its report [WF-ARC-0090-A]", async ({
   browser,
   page,
   playwright,
