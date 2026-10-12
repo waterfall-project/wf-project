@@ -34,12 +34,14 @@ from task_handlers import REQUEST, deposit
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.backups.interface import (
     inscribe_restoration,
     keep_for_restoration,
     write_back_after_restoration,
 )
 from waterfall.core.backups.tables import Backup
+from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
@@ -283,6 +285,35 @@ def test_two_backups_stay_listed_and_downloadable_once_the_first_is_restored(
         assert hashlib.sha256(copied.content).hexdigest() == sha256(
             installation.bucket, f"backup-{task_id}.tar"
         )
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_both_databases_are_replaced_and_hold_what_they_held_at_the_backup_and_nothing_after(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # « … la plateforme présente exactement les projets, révisions et comptes qu'elle contenait à
+    # la date de la sauvegarde, et rien de postérieur … » : an account and a role made before the
+    # backup are there after the restoration, one of each made after are not; and so for a row of
+    # the database of the identity provider, which is restored too.
+    held = role(installation.database, "Avant la sauvegarde")
+    kept = account(installation.database, "Martin", "Claire", roles=(held,))
+    backup_task = take()
+    later = role(installation.database, "Après la sauvegarde")
+    gone = account(installation.database, "Durand", "Paul", roles=(later,))
+    provider = create_database_engine(installation.owner["identity_provider"])
+    with provider.begin() as connection:
+        connection.execute(text("INSERT INTO realm VALUES ('after-the-backup')"))
+    restore(installation, backup_task, tmp_path)
+    with provider.connect() as connection:
+        realms = connection.scalars(text("SELECT id FROM realm ORDER BY id")).all()
+    provider.dispose()
+    assert realms == ["waterfall"]
+    with installation.database.transaction() as session:
+        roles = set(session.scalars(select(AccessRole.id).where(AccessRole.id.in_((held, later)))))
+        accounts = set(
+            session.scalars(select(UserAccount.id).where(UserAccount.id.in_((kept, gone))))
+        )
+    assert (roles, accounts) == ({held}, {kept})
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")
