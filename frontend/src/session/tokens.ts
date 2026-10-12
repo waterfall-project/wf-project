@@ -41,6 +41,7 @@ import {
   releaseRefresh,
   renewSession,
   SIGN_IN_LIFETIME,
+  StoreUnreachable,
 } from "./store";
 
 /**
@@ -229,14 +230,21 @@ export async function armRequestSignOut(): Promise<string | undefined> {
 
 /**
  * The access token of the session of the request; none without its cookie, and `SessionLost` when
- * the session it names lives no more.
+ * the session it names lives no more. Redis out of reach is a component of the platform out of
+ * reach, as Keycloak is (WF-EXP-0040): the request is `Unreachable`, which every screen says as
+ * the service out of reach, never as an unexpected error (#861).
  */
 export async function requestBearer(): Promise<string | undefined> {
   const id = await requestSessionId();
   if (id === undefined) {
     return undefined;
   }
-  const token = await bearerOf(id);
+  let token: string | undefined;
+  try {
+    token = await bearerOf(id);
+  } catch (error) {
+    throw error instanceof StoreUnreachable ? new Unreachable(error) : error;
+  }
   if (token === undefined) {
     throw new SessionLost();
   }

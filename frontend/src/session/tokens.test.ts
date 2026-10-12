@@ -18,7 +18,7 @@ import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provid
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
 import { createIdentityProvider, type IdentityProvider, type Send } from "./provider";
-import { type FrontSession, openSession, readSession } from "./store";
+import { closeStore, type FrontSession, openSession, readSession } from "./store";
 import {
   bearerOf,
   closeRequestSessions,
@@ -187,6 +187,28 @@ describe("the token of a request", () => {
     const expired = await signedIn(randomUUID(), -1000);
     await expect(requestBearer()).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
     expect(await readSession(expired)).toBeDefined();
+  });
+
+  it("fails as the service out of reach when Redis cannot be reached, a read and a write alike, never as an unexpected error (#861)", async () => {
+    await signedIn();
+    const client = fakeClient(
+      { "GET /projects": "projects", [LINE]: SESSION_REQUIRED },
+      {},
+      requestBearer,
+    );
+    state.client = client;
+    // A Redis nobody serves: the connection is refused.
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      expect(await failureOfRead(client)).toMatchObject({ digest: UNREACHABLE_DIGEST });
+      const outcome = await updateEstimateLine(STRUCTURE, NODE, { hours: "15", lock_version: 3 });
+      expect(outcome).toMatchObject({ kind: "unreachable" });
+      expect(client.calls).toEqual([]);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each([

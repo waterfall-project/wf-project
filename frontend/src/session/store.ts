@@ -213,7 +213,7 @@ export async function openSession(id: string, session: FrontSession, lifetime: n
 
 /** The session of an identifier, if it lives. */
 export async function readSession(id: string): Promise<FrontSession | undefined> {
-  const text = await (await redis()).get(`${SESSION}${id}`);
+  const text = await reaching((client) => client.get(`${SESSION}${id}`));
   return text === null ? undefined : (JSON.parse(text) as FrontSession);
 }
 
@@ -222,17 +222,18 @@ export async function readSession(id: string): Promise<FrontSession | undefined>
  * still lives: one the back channel closed during the refresh stays closed.
  */
 export async function renewSession(id: string, session: FrontSession, lifetime: number) {
-  const client = await redis();
-  await client.set(`${SESSION}${id}`, JSON.stringify(session), {
-    expiration: { type: "EX", value: lifetime },
-    condition: "XX",
+  await reaching(async (client) => {
+    await client.set(`${SESSION}${id}`, JSON.stringify(session), {
+      expiration: { type: "EX", value: lifetime },
+      condition: "XX",
+    });
+    await client.expire(`${ACCOUNT}${session.subject}`, lifetime, "GT");
   });
-  await client.expire(`${ACCOUNT}${session.subject}`, lifetime, "GT");
 }
 
 /** Close a session. */
 export async function forgetSession(id: string): Promise<void> {
-  await (await redis()).del(`${SESSION}${id}`);
+  await reaching((client) => client.del(`${SESSION}${id}`));
 }
 
 /** Close every session of an account: on all its workstations (WF-SEC-0020). */
@@ -244,16 +245,18 @@ export async function forgetAccount(subject: string): Promise<void> {
 
 /** Take the lock of the refresh of a session for a while, in milliseconds, unless another holds it. */
 export async function holdRefresh(id: string, holder: string, lifetime: number): Promise<boolean> {
-  const taken = await (
-    await redis()
-  ).set(`${REFRESH}${id}`, holder, {
-    expiration: { type: "PX", value: lifetime },
-    condition: "NX",
-  });
+  const taken = await reaching((client) =>
+    client.set(`${REFRESH}${id}`, holder, {
+      expiration: { type: "PX", value: lifetime },
+      condition: "NX",
+    }),
+  );
   return taken !== null;
 }
 
 /** Give the lock of the refresh of a session back, if its holder still holds it. */
 export async function releaseRefresh(id: string, holder: string): Promise<void> {
-  await (await redis()).eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] });
+  await reaching((client) =>
+    client.eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] }),
+  );
 }
