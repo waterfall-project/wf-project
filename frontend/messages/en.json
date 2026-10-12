@@ -1386,7 +1386,7 @@
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
       "details": {
         "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
-        "attached": "Attached to the person of the directory who holds its address",
+        "attached": "Origin from now on: {origin}",
         "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
         "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
         "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",

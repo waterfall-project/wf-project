@@ -100,7 +100,8 @@ export function useAuditDetails(): (
         count: fields.length,
         fields: listed(fields.map((field) => t(`enums.AuditUserField.${field}`))),
       }),
-    attached === true && said("attached"),
+    // Attached to the person of the directory who holds its address: it comes from it from now on.
+    attached === true && said("attached", { origin: t("enums.UserOrigin.directory") }),
   ];
   // A role: the label it bore before, its permissions, those granted and withdrawn.
   const role = (params: AuditParams): (string | false)[] => [

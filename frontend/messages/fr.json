@@ -1386,7 +1386,7 @@
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
       "details": {
         "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
-        "attached": "Rattaché à la personne de l’annuaire qui porte son adresse",
+        "attached": "Origine désormais : {origin}",
         "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
         "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
         "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",

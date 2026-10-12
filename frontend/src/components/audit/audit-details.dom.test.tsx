@@ -78,10 +78,10 @@ describe("what an action did, in the language of its reader", () => {
   it("names the fields of the identity a modification changed, never their values, and its attachment to the directory", () => {
     const updated = acting("user_update", { fields: ["last_name", "email"], attached: true });
     expect(read(updated, "fr")[1]).toBe(
-      "Champs modifiés : Nom et Adresse électronique ; Rattaché à la personne de l’annuaire qui porte son adresse",
+      "Champs modifiés : Nom et Adresse électronique ; Origine désormais : Importé de l’annuaire",
     );
     expect(read(updated, "en")[1]).toBe(
-      "Fields changed: Last name and Email address; Attached to the person of the directory who holds its address",
+      "Fields changed: Last name and Email address; Origin from now on: Imported from the directory",
     );
   });
 
