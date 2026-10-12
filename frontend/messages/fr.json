@@ -1700,6 +1700,12 @@
         "platform": "Traitement automatique"
       }
     },
+    "IdentitySyncSkipped": {
+      "kind": {
+        "account": "Compte Waterfall",
+        "person": "Personne du fournisseur d’identité"
+      }
+    },
     "SortOrder": {
       "asc": "Croissant",
       "desc": "Décroissant"

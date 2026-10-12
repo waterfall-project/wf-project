@@ -1700,6 +1700,12 @@
         "platform": "Automatic process"
       }
     },
+    "IdentitySyncSkipped": {
+      "kind": {
+        "account": "Waterfall account",
+        "person": "Identity provider person"
+      }
+    },
     "SortOrder": {
       "asc": "Ascending",
       "desc": "Descending"
