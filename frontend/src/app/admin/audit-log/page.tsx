@@ -70,7 +70,10 @@ import { screenMetadata } from "../../title";
 /** The refusal of filters the server cannot apply — a period inverted (`listAuditEvents`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
-/** The list of the projects the API does not find: a service that serves none yet. */
+/**
+ * The list of the projects the API does not find: a service that serves none yet.
+ * TODO(#962): withdraw once the service serves the projects (EP-04).
+ */
 const PROJECTS_UNSERVED = [{ status: 404 }] as const;
 
 /** Title the tab with the function. */
@@ -117,6 +120,7 @@ async function readFacets(): Promise<{
  * The projects the session may open, in every state, by their identifiers: every page of them. None
  * where the API finds no list of projects — a service that serves none yet, the projects coming
  * with EP-04 —: the journal names its projects then, and leads to none.
+ * TODO(#962): read every page again, without the refusal tolerated, once EP-04 serves them.
  */
 async function readOpenable(): Promise<string[]> {
   const projects = await readEveryPageUnlessRefused("listProjects", PROJECTS_UNSERVED, (page) =>
