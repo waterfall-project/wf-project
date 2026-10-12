@@ -15,8 +15,11 @@
  * the same. A write answered before the gesture began holds nothing: its refusal was told, and the
  * person, who saw it, decides.
  *
- * A write is released when the screen that made it goes (`release`): what it answers is told
- * nowhere, and holds no click of the next screen.
+ * A write is released when the screen that made it goes (`release`): it holds no click of the next
+ * screen. One still under way then, and refused after — the screen left by « Précédent », by the
+ * router, or by a link while the write had not left yet —, is told by the bar of the shell
+ * (`leftRefusals`), since the screen that would have told it is gone (#863): nothing is lost
+ * unsaid. One refused before its screen went was told there, and is not told again.
  *
  * A store of the browser, outside React: the writes of a screen are held by the screen, the
  * navigation by the shell, and neither renders on the other's account.
@@ -35,9 +38,43 @@ let ofGesture = new Set<Held>();
 /** The writes the clicks held meanwhile wait for, each set given those that leave meanwhile. */
 const waits = new Set<Set<Held>>();
 
+/** How many writes were refused once their screen was gone, told by the bar of the shell. */
+let leftRefused = 0;
+/** Those the count of the writes refused once their screen was gone is told to. */
+const listeners = new Set<() => void>();
+
+/** Tell the count of the writes refused once their screen was gone anew. */
+function tellLeftRefusals(): void {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+/** How many writes were refused once the screen that made them was gone, not yet dismissed. */
+export function leftRefusals(): number {
+  return leftRefused;
+}
+
+/** Listen to the count of the writes refused once their screen was gone; gives back the end of it. */
+export function onLeftRefusals(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Forget the writes refused once their screen was gone: their notice has been read. */
+export function dismissLeftRefusals(): void {
+  if (leftRefused !== 0) {
+    leftRefused = 0;
+    tellLeftRefusals();
+  }
+}
+
 /**
  * Hold the navigations of the page until a write has answered: whether it was applied. Gives back
- * its release, for the screen that made it to call when it goes.
+ * its release, for the screen that made it to call when it goes; refused after it, the write is
+ * counted among those the bar of the shell tells.
  */
 export function holdNavigation(write: Promise<boolean>): () => void {
   let release: () => void = () => undefined;
@@ -58,6 +95,17 @@ export function holdNavigation(write: Promise<boolean>): () => void {
     underWay.delete(held);
   });
   return () => {
+    if (underWay.has(held)) {
+      // Under way as its screen goes: refused after, it is told by the bar of the shell alone.
+      void write
+        .catch(() => false)
+        .then((applied) => {
+          if (!applied) {
+            leftRefused += 1;
+            tellLeftRefusals();
+          }
+        });
+    }
     release();
     underWay.delete(held);
     ofGesture.delete(held);

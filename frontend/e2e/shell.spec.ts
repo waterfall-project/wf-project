@@ -98,3 +98,53 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   await expect(page.getByLabel("Image PNG ou JPEG")).toBeVisible();
   await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
 });
+
+test("the bar tells the refusal of a write whose screen was left by « Précédent » before it answered (#863)", async ({
+  page,
+}) => {
+  await compile(page.request, "/account");
+  // The screen of the account reached by the router, in the same document: « Précédent » leaves it
+  // without loading another.
+  await page.goto("/");
+  await openMenu(
+    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("menu"),
+  );
+  await page.getByRole("menuitem", { name: "Mon compte" }).click();
+  await expect(page).toHaveURL("/account");
+  // The record of the preferences held on its way to the server of Next, then cut: the server
+  // action fails, and the screen that made it is gone by then.
+  let cut: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    cut = resolve;
+  });
+  await page.route("**/account", async (route) => {
+    if (route.request().headers()["next-action"] === undefined) {
+      await route.continue();
+      return;
+    }
+    await held;
+    await route.abort();
+  });
+  // A choice made before React hydrated the page is lost: it is made again until it holds.
+  const dark = page.getByRole("radio", { name: "Sombre" });
+  await expect(async () => {
+    await dark.click();
+    await expect(dark).toBeChecked({ timeout: 500 });
+  }).toPass();
+  const sent = page.waitForRequest((request) => request.headers()["next-action"] !== undefined);
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await sent;
+
+  await page.goBack();
+  await expect(page).toHaveURL("/");
+  const bar = page.getByRole("banner");
+  await expect(bar.getByRole("alert")).toHaveCount(0);
+  cut();
+  const alert = bar.getByRole("alert");
+  await expect(alert).toHaveText(
+    /^Une modification faite sur un écran que vous avez quitté a été refusée\s: elle n’est pas enregistrée\./,
+  );
+  await alert.getByRole("button", { name: "Fermer l’avis" }).click();
+  await expect(alert).toHaveCount(0);
+});

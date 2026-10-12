@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { type ReactElement, useEffect, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { useHeldWrites } from "@/components/commands/held";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
+import { dismissLeftRefusals } from "@/navigation/held-writes";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -460,5 +463,62 @@ describe("the shell", () => {
     shell();
     const aside = screen.getByRole("complementary", { name: "Barre latérale" });
     expect(within(aside).getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
+  });
+});
+
+/** A screen that makes a write, answered when the test says: whether it was applied. */
+function writing(): { Screen: () => ReactElement; answer: (applied: boolean) => void } {
+  let answer: (applied: boolean) => void = () => undefined;
+  const write = new Promise<boolean>((resolve) => {
+    answer = resolve;
+  });
+  /** The screen, its write made once mounted. */
+  function Screen() {
+    const hold = useHeldWrites();
+    const made = useRef(false);
+    useEffect(() => {
+      if (!made.current) {
+        made.current = true;
+        hold(write);
+      }
+    }, [hold]);
+    return <main />;
+  }
+  return { Screen, answer };
+}
+
+describe("the writes refused once their screen is gone (#863)", () => {
+  beforeEach(dismissLeftRefusals);
+
+  it("are told in the bar of the shell, which outlives the screen, until dismissed", async () => {
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    // The screen left — « Précédent », the router — while its write is under way.
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+    expect(bar().queryByRole("alert")).toBeNull();
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const alert = bar().getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Une modification faite sur un écran que vous avez quitté a été refusée : elle n’est pas enregistrée.",
+    );
+    await expectAccessible(view.container);
+    await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
+    expect(bar().queryByRole("alert")).toBeNull();
+  });
+
+  it("say nothing of a write applied once its screen was gone", async () => {
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    view.rerender(inShell({}, <main />));
+    await act(async () => {
+      answer(true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().queryByRole("alert")).toBeNull();
   });
 });
