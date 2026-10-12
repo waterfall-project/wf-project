@@ -15,8 +15,9 @@ Unauthorized:
     session du fournisseur d'identité pouvant vivre encore si sa fermeture a échoué, alors
     qu'une simple expiration ne les redemande pas (#855) ; un jeton à la fois expiré et
     antérieur à la fermeture reçoit d'abord `SESSION_EXPIRED`, l'expiration primant, et le
-    rafraîchissement qui suit mène à `SESSION_REVOKED` ; compte désactivé
-    (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas
+    jeton rafraîchi, si le fournisseur d'identité a manqué la fermeture, reçoit
+    `SESSION_REVOKED` ; s'il a fermé la session, le rafraîchissement lui-même est refusé ;
+    compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas
     (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans
     nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les
     deux derniers pour ne pas renvoyer à une connexion qui bouclerait.
