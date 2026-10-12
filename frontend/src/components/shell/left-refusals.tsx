@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The notice of the bar of the shell that tells the writes refused once the screen that made them
- * was gone (#863): left by « Précédent », by the router, or by a link followed before the write
- * left, the screen cannot tell the refusal any more, and the bar, which outlives every screen,
- * does — nothing lost unsaid. It says how many, until the person dismisses it.
+ * The notice of the bar of the shell that tells the writes refused once what would tell their refusal
+ * was no longer shown (#863): their screen left by « Précédent », by the router, or by a link
+ * followed before the write left, or the list they were asked from read otherwise, nothing on the
+ * screen tells the refusal any more, and the bar, which outlives every screen, does — nothing lost
+ * unsaid. It says how many, until the person dismisses it.
  *
  * The count is read from the store of the writes (`held-writes.ts`), outside React: it changes
  * above the pages, and only this notice listens to it (défaut n° 18).
@@ -26,7 +27,7 @@ function noneOnTheServer(): number {
   return 0;
 }
 
-/** Tell the writes refused once their screen was gone, if any. */
+/** Tell the writes refused once no longer shown, if any. */
 export function LeftRefusals() {
   const t = useTranslations("outcome");
   const count = useSyncExternalStore(onLeftRefusals, leftRefusals, noneOnTheServer);

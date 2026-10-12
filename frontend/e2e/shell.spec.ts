@@ -143,7 +143,7 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   cut();
   const alert = bar.getByRole("alert");
   await expect(alert).toHaveText(
-    /^Une modification faite sur un écran que vous avez quitté a été refusée\s: elle n’est pas enregistrée\./,
+    /^Une modification qui n’est plus affichée a été refusée\s: elle n’est pas enregistrée\./,
   );
   await alert.getByRole("button", { name: "Fermer l’avis" }).click();
   await expect(alert).toHaveCount(0);

@@ -504,7 +504,7 @@ describe("the writes refused once their screen is gone (#863)", () => {
     });
     const alert = bar().getByRole("alert");
     expect(alert).toHaveTextContent(
-      "Une modification faite sur un écran que vous avez quitté a été refusée : elle n’est pas enregistrée.",
+      "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
     );
     await expectAccessible(view.container);
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));

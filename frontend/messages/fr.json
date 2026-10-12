@@ -838,7 +838,7 @@
     "reload": "Recharger",
     "signIn": "Se connecter",
     "dismiss": "Fermer l’avis",
-    "leftRefused": "{count, plural, one {Une modification faite sur un écran que vous avez quitté a été refusée : elle n’est pas enregistrée.} other {# modifications faites sur des écrans que vous avez quittés ont été refusées : elles ne sont pas enregistrées.}}"
+    "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."

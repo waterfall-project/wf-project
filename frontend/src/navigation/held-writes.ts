@@ -15,11 +15,14 @@
  * the same. A write answered before the gesture began holds nothing: its refusal was told, and the
  * person, who saw it, decides.
  *
- * A write is released when the screen that made it goes (`release`): it holds no click of the next
- * screen. One still under way then, and refused after — the screen left by « Précédent », by the
- * router, or by a link while the write had not left yet —, is told by the bar of the shell
- * (`leftRefusals`), since the screen that would have told it is gone (#863): nothing is lost
- * unsaid. One refused before its screen went was told there, and is not told again.
+ * A write is released when what would tell its refusal is no longer shown (`release`): its screen
+ * gone — left by « Précédent », by the router, or by a link while the write had not left yet —, or
+ * the list it was asked from read otherwise, which tells a refusal on the reading it was asked from
+ * alone. It holds no click then. One still under way, and refused after, is told by the bar of the
+ * shell (`leftRefusals`), which outlives every screen (#863): nothing is lost unsaid — save when
+ * what asked it tells it still (`told`), a dialog left open telling the refusal at its fields, which
+ * the bar does not say twice. One refused before its release was told where it was made, and is not
+ * told again.
  *
  * A store of the browser, outside React: the writes of a screen are held by the screen, the
  * navigation by the shell, and neither renders on the other's account.
@@ -38,24 +41,24 @@ let ofGesture = new Set<Held>();
 /** The writes the clicks held meanwhile wait for, each set given those that leave meanwhile. */
 const waits = new Set<Set<Held>>();
 
-/** How many writes were refused once their screen was gone, told by the bar of the shell. */
+/** How many writes were refused once released, told nowhere else: the bar of the shell tells them. */
 let leftRefused = 0;
-/** Those the count of the writes refused once their screen was gone is told to. */
+/** Those the count of the writes refused once released is told to. */
 const listeners = new Set<() => void>();
 
-/** Tell the count of the writes refused once their screen was gone anew. */
+/** Tell the count of the writes refused once released anew. */
 function tellLeftRefusals(): void {
   for (const listener of listeners) {
     listener();
   }
 }
 
-/** How many writes were refused once the screen that made them was gone, not yet dismissed. */
+/** How many writes were refused once released, told nowhere else, not yet dismissed. */
 export function leftRefusals(): number {
   return leftRefused;
 }
 
-/** Listen to the count of the writes refused once their screen was gone; gives back the end of it. */
+/** Listen to the count of the writes refused once released; gives back the end of it. */
 export function onLeftRefusals(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -63,7 +66,7 @@ export function onLeftRefusals(listener: () => void): () => void {
   };
 }
 
-/** Forget the writes refused once their screen was gone: their notice has been read. */
+/** Forget the writes refused once released: their notice has been read. */
 export function dismissLeftRefusals(): void {
   if (leftRefused !== 0) {
     leftRefused = 0;
@@ -73,10 +76,11 @@ export function dismissLeftRefusals(): void {
 
 /**
  * Hold the navigations of the page until a write has answered: whether it was applied. Gives back
- * its release, for the screen that made it to call when it goes; refused after it, the write is
- * counted among those the bar of the shell tells.
+ * its release, for the screen that made it to call when what tells its refusal is no longer shown;
+ * refused after it, the write is counted among those the bar of the shell tells — unless `told`
+ * says, as the refusal arrives, that what asked the write tells it itself.
  */
-export function holdNavigation(write: Promise<boolean>): () => void {
+export function holdNavigation(write: Promise<boolean>, told?: () => boolean): () => void {
   let release: () => void = () => undefined;
   const released = new Promise<boolean>((resolve) => {
     release = () => {
@@ -96,11 +100,12 @@ export function holdNavigation(write: Promise<boolean>): () => void {
   });
   return () => {
     if (underWay.has(held)) {
-      // Under way as its screen goes: refused after, it is told by the bar of the shell alone.
+      // Under way as it is released: refused after, it is told by the bar of the shell, unless what
+      // asked it tells it still.
       void write
         .catch(() => false)
         .then((applied) => {
-          if (!applied) {
+          if (!applied && told?.() !== true) {
             leftRefused += 1;
             tellLeftRefusals();
           }
