@@ -29,7 +29,7 @@ import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
@@ -472,6 +472,38 @@ def test_a_person_relayed_at_the_address_an_account_holds_is_not_admitted_and_it
             0,
         )
     assert journal(database, UUID(str(row["id"]))) == []
+
+
+@pytest.mark.usefixtures("realm_known")
+def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
+    database: Database, reading: IdentitySync, admin: httpx2.Client
+) -> None:
+    # Relayed by the external provider at the address an account of Waterfall holds, a person is
+    # not attached (#707): ``ALREADY_EXISTS``. With a name longer than a column holds:
+    # ``VALIDATION_FAILED``. Both are left, and the report names them.
+    tokens_of(EXTERNAL_USERNAME, EXTERNAL_CREDENTIAL, provider=EXTERNAL_PROVIDER)
+    with database.transaction() as session:
+        session.execute(delete(UserAccount).where(UserAccount.email == EXTERNAL_EMAIL))
+        session.execute(insert(UserAccount).values(**raw_account(email=EXTERNAL_EMAIL)))
+    long_address = f"long-{uuid4().hex[:8]}@example.org"
+    user = {"username": long_address, "email": long_address, "enabled": True}
+    created = admin.post("/users", json={**user, "firstName": "Jeanne", "lastName": "L" * 101})
+    assert created.status_code == 201, created.text
+    subject = created.headers["Location"].rsplit("/", 1)[-1]
+    try:
+        link = {"identityProvider": EXTERNAL_PROVIDER, "userId": str(uuid4()), "userName": "long"}
+        linked = admin.post(f"/users/{subject}/federated-identity/{EXTERNAL_PROVIDER}", json=link)
+        assert linked.status_code == 204, linked.text
+        report = read_accounts(database, reading)
+        assert sorted(report.skipped) == [
+            (EXTERNAL_EMAIL, "ALREADY_EXISTS"),
+            (long_address, "VALIDATION_FAILED"),
+        ]
+        with database.transaction() as session:
+            named = select(UserAccount.id).where(UserAccount.email == long_address)
+            assert session.scalars(named).all() == []
+    finally:
+        admin.delete(f"/users/{subject}")
 
 
 # --- #811: the local accounts of the realm Waterfall does not know -------------------------------
