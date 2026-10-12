@@ -12,6 +12,7 @@ called here fails the test: a writer to come is tried as these are.
 import ast
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from access_rows import account
@@ -47,6 +48,8 @@ from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
 
 CORRELATION = "req-params"
+# The moment the backups are taken, which their inscriptions bear.
+TAKEN_AT = datetime(2026, 10, 1, 1, 0, tzinfo=UTC)
 # The modules of the core that inscribe in the journal, each one called below.
 WRITERS = {
     "waterfall.core.access_roles.attributions",
@@ -74,8 +77,12 @@ def inscribing_modules() -> set[str]:
     return found
 
 
-def write_every_action(database: Database, queue: TaskQueue) -> None:
-    """Do each action the core inscribes, by the functions the routes and the worker call."""
+def write_every_action(database: Database, queue: TaskQueue) -> UUID:
+    """Do each action the core inscribes, by the functions the routes and the worker call.
+
+    Camille Martin is the author of each, but the accounts of the provider — added by the
+    platform — and one of the two backups, which the platform takes; give her identifier.
+    """
     author = account(database, "Martin", "Camille")
     act = Act(author, utc_now())
     platform = Act(None, utc_now())
@@ -114,14 +121,14 @@ def write_every_action(database: Database, queue: TaskQueue) -> None:
                 add_account_of_provider(session, provider, platform.at)
         with database.transaction() as session:
             delete_role(session, pilot.access_role_id, act)
-    taken_at = datetime(2026, 10, 1, 1, 0, tzinfo=UTC)
     for requested_by in (author, None):
         task_id = deposit(database, queue, "backup", requested_by)
         taken = TakenBackup(
-            task_id, taken_at, 2048, f"{task_id}.tar", __version__, "0013", is_verified=True
+            task_id, TAKEN_AT, 2048, f"{task_id}.tar", __version__, "0013", is_verified=True
         )
         with logging_context(correlation_id=CORRELATION), database.transaction() as session:
-            add_backup(session, taken, Act(requested_by, taken_at))
+            add_backup(session, taken, Act(requested_by, TAKEN_AT))
+    return author
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
@@ -129,11 +136,34 @@ def test_each_writer_of_the_journal_inscribes_parameters_the_contract_reads(
     database: Database, queue: TaskQueue
 ) -> None:
     # « Chacune des actions énumérées produit une inscription datée et attribuée » — that the
-    # consultation reads: every parameter written passes the closed model of the contract.
+    # consultation reads: each is dated by the moment of its action and attributed to its author,
+    # named — Camille Martin, whose name the anonymisation of Jeanne keeps —, or to the platform,
+    # unnamed; and every parameter written passes the closed model of the contract.
     assert inscribing_modules() == WRITERS
-    write_every_action(database, queue)
+    before = utc_now()
+    author = write_every_action(database, queue)
+    after = utc_now()
     with database.transaction() as session:
-        written = [(entry.action, entry.params) for entry in session.scalars(select(AuditEntry))]
+        entries = list(session.scalars(select(AuditEntry)))
+    attributed = [
+        (entry.action, entry.actor_user_id, entry.actor_display_name) for entry in entries
+    ]
+    assert sorted(each for each in attributed if each[1] is None) == [
+        ("backup", None, None),
+        ("user_create", None, None),
+        ("user_create", None, None),
+    ]
+    by_camille = [each for each in attributed if each[1] is not None]
+    assert {(actor, name) for _, actor, name in by_camille} == {(author, "Camille Martin")}
+    assert ("user_anonymize", author, "Camille Martin") in by_camille
+    for entry in entries:
+        dated = (
+            entry.occurred_at == TAKEN_AT
+            if entry.action == "backup"
+            else (before <= entry.occurred_at <= after)
+        )
+        assert dated, entry.action
+    written = [(entry.action, entry.params) for entry in entries]
     assert {action for action, _ in written} == {
         "access_role_create",
         "access_role_update",
