@@ -369,6 +369,11 @@ Si la session du front est perdue alors que celle de Keycloak vit encore, « Se 
 obtient d'abord un jeton par une connexion silencieuse (`prompt=none`), puis appelle
 `closeMySessions` : la déconnexion ferme ainsi tous les postes, comme le veut WF-SEC-0020
 (#689). Sans session de Keycloak non plus, il n'y a plus de poste à fermer.
+Un poste dont la session est révoquée n'a plus de droits : « Se déconnecter » y mène à la
+connexion, qui redemande les identifiants, mais ne ferme pas les postes du même compte
+reconnectés depuis la fermeture, dont la connexion suit `sessions_closed_at`. Ce cas suppose
+une fermeture que Keycloak a manquée ; l'écart est accepté (#931, écart de WF-SEC-0020 à
+US-0350).
 
 **L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
 cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
@@ -953,6 +958,11 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
 - `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. »
+- écart : `WF-SEC-0020-A` — la déconnexion « sur tous ses postes » : un poste dont la session
+  est révoquée n'a plus de droits ; « Se déconnecter » y mène à la connexion, qui redemande
+  les identifiants, mais ne ferme pas les postes du même compte reconnectés depuis la
+  fermeture, dont la connexion suit `sessions_closed_at`. Ce cas suppose une fermeture que
+  Keycloak a manquée ; l'auteur accepte l'écart (#931).
 - propre à l'US — **retour à l'écran visé** : la session expirée ramène à la page de
   connexion du fournisseur d'identité, puis, reconnecté, à l'écran visé avec son adresse
   entière, paramètres compris, et cela pour un compte local, un compte de l'annuaire comme

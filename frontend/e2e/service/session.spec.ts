@@ -203,7 +203,7 @@ test("a user whose sessions were closed while the realm missed it signs in again
   await expect(page.getByRole("main")).toContainText(DIRECTORY.email);
 });
 
-test("a user whose session the front lost, and whose sessions were closed while the realm missed it, signs out all the same: to the sign-in page, which asks for her identifiers, nothing looping (#689, #855) [WF-SEC-0020-A]", async ({
+test("a user whose session the front lost, and whose sessions were closed while the realm missed it, signs out all the same: to the sign-in page, which asks only for her password, her username shown read-only, nothing looping (#689, #855) [WF-SEC-0020-A]", async ({
   page,
 }) => {
   await signIn(page, DIRECTORY, ACCOUNT);
