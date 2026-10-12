@@ -12,7 +12,10 @@
  *   the account is attached to (WF-ADM-0030): each role checked or unchecked writes the roles of the
  *   account (`setUserAccessRoles`), none, one or more (WF-ADM-0050) — the server judges the roles
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
- *   administrator (WF-ADM-0120).
+ *   administrator (WF-ADM-0120);
+ * - the anonymisation, offered to a deactivated account only and unavailable once it is anonymised,
+ *   its reactivation unavailable too (WF-ADM-0060): it writes nothing yet, and says so when pressed
+ *   (`AnonymizeCommand`).
  *
  * While a write of its row is under way, whatever its cell, each is marked busy, and the switch and the
  * roles unavailable: a press asks nothing (`UserWrites.busy`).
@@ -22,11 +25,12 @@
  */
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, UserRoundX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
 import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
+import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
 import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
@@ -38,15 +42,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/components/ui/utils";
 
 import type { RoleChoice, User } from "./admin-grids";
 import { useUserWrites } from "./user-commands";
-
-/** The name of an account, as the table shows it. */
-function useNamed(): (user: User) => string {
-  const t = useTranslations("admin.users");
-  return (user) => t("named", { firstName: user.first_name, lastName: user.last_name });
-}
 
 /** The roles of an account, as the server names them, or that it holds none. */
 export function HeldRoles({ labels }: { readonly labels: readonly string[] }) {
@@ -73,7 +72,8 @@ export function StateSwitch({ user }: { readonly user: User }) {
   const writes = useUserWrites();
   const list = useListReport();
   const unmet = useUnmet();
-  const name = useNamed()(user);
+  const naming = useAccountNaming();
+  const name = naming.person(user);
   const control = useRef<HTMLButtonElement>(null);
   const described = `${useId()}-unmet`;
   const command = user.is_active ? "deactivate" : "reactivate";
@@ -118,7 +118,7 @@ export function StateSwitch({ user }: { readonly user: User }) {
               }),
             said: (answered) =>
               t(answered.is_active ? "reactivated" : "deactivated", {
-                name: t("named", { firstName: answered.first_name, lastName: answered.last_name }),
+                name: naming.person(answered),
               }),
             back: control.current,
           });
@@ -149,7 +149,8 @@ export function RolesCell({
 }) {
   const t = useTranslations("admin.users");
   const writes = useUserWrites();
-  const name = useNamed()(user);
+  const naming = useAccountNaming();
+  const name = naming.person(user);
   const trigger = useRef<HTMLButtonElement>(null);
   const group = useId();
   const offer = findOffer(user.available_commands, "set_access_roles");
@@ -183,7 +184,7 @@ export function RolesCell({
         }),
       said: (answered) =>
         t("rolesAttributed", {
-          name: t("named", { firstName: answered.first_name, lastName: answered.last_name }),
+          name: naming.person(answered),
         }),
       back: trigger.current,
     });
@@ -242,5 +243,58 @@ export function RolesCell({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * The anonymisation of an account, as the account lists it: offered to a deactivated account only,
+ * unavailable once it is anonymised — marked `aria-disabled`, described by the condition it lacks
+ * (WF-ADM-0060) —, and nothing when the account does not list it. It writes nothing yet: pressed, it
+ * says in the region of the table that it is available with EP-03, or the condition it lacks.
+ */
+export function AnonymizeCommand({ user }: { readonly user: User }) {
+  const t = useTranslations("admin.users");
+  const told = useTranslations("admin.commands");
+  const writes = useUserWrites();
+  const unmet = useUnmet();
+  const naming = useAccountNaming();
+  const described = `${useId()}-unmet`;
+  const offer = findOffer(user.available_commands, "anonymize");
+  if (offer === undefined || writes === undefined) {
+    return null;
+  }
+  const named = t("anonymizeUser", { name: naming.person(user) });
+  const lacking = offer.is_available ? undefined : unmet(offer);
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        tabIndex={-1}
+        {...{ [CELL_COMMAND]: "" }}
+        aria-label={named}
+        aria-disabled={lacking === undefined ? undefined : true}
+        aria-describedby={lacking === undefined ? undefined : described}
+        title={lacking}
+        className={cn("h-5 px-1.5 text-xs", UNAVAILABLE)}
+        onClick={() => {
+          // An unavailable command never runs: the press says the condition it lacks.
+          writes.say(
+            lacking === undefined
+              ? told("later", { command: named })
+              : told("unmet", { command: named, condition: lacking }),
+          );
+        }}
+      >
+        <UserRoundX aria-hidden="true" />
+        {t("anonymize")}
+      </Button>
+      {lacking === undefined ? null : (
+        <span id={described} className="sr-only">
+          {lacking}
+        </span>
+      )}
+    </>
   );
 }

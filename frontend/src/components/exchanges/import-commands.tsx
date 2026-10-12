@@ -23,7 +23,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
@@ -112,6 +112,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const [to, setTo] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  const held = useHeldCommand();
   useEffect(() => {
     input.current?.focus();
   }, []);
@@ -137,7 +138,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
         : { kind };
     startTransition(async () => {
-      const result = await openFileImport(projectId, asked, form).catch(rejected);
+      const result = await held(openFileImport(projectId, asked, form));
       if (result.kind !== "done") {
         setOutcome(result);
         return;

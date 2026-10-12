@@ -79,7 +79,7 @@ def _give(session: Session, user_id: UUID, role_ids: Sequence[UUID]) -> None:
 
 def _inscribe(
     session: Session,
-    account: tuple[UUID, str],
+    account: tuple[UUID, str | None],
     change: tuple[Sequence[HeldRole], Sequence[HeldRole]],
     act: Act,
 ) -> None:
@@ -98,7 +98,7 @@ def _inscribe(
 
 
 def give_first_roles(
-    session: Session, account: tuple[UUID, str], role_ids: Sequence[UUID], act: Act
+    session: Session, account: tuple[UUID, str | None], role_ids: Sequence[UUID], act: Act
 ) -> None:
     """Give an account just created its first roles, and inscribe them; or refuse them (422).
 

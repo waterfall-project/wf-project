@@ -13,11 +13,10 @@
  * once the menu has closed: a refusal, the way to sign in again, the API out of reach.
  *
  * Signing out closes the session, then forgets what the browser kept of it — the last project
- * context, the background tasks the tab followed — and loads the sign-in page anew: nothing of
- * the session stays in the page for the next user of the workstation. When the front had lost its
- * session, it loads the sign-out of the realm instead, which ends the session Keycloak holds for
- * the browser before leading to the sign-in. A refusal, or the API out of reach, is told under
- * the bar, and the session stands.
+ * context, the background tasks the tab followed — and loads anew the document the sign-out names:
+ * the sign-in page, or, when the front had lost its session, the silent sign-in that closes it on
+ * every workstation (#689): nothing of the session stays in the page for the next user of the
+ * workstation. A refusal, or the API out of reach, is told under the bar, and the session stands.
  */
 "use client";
 
@@ -30,6 +29,7 @@ import { updateLanguage, updateTheme } from "@/api/actions/preferences";
 import { signOut } from "@/api/actions/session";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useAccountNaming } from "@/components/account/account-name";
 import { initials } from "@/components/account/initials";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useForgetTasks } from "@/components/tasks/task-tracker";
@@ -53,7 +53,6 @@ import { type LanguagePreference, PREFERENCES } from "@/i18n/locale";
 import { ACCOUNT_PAGES } from "@/navigation/account";
 import { forgottenContextCookie } from "@/navigation/context";
 import { loadDocument } from "@/navigation/document";
-import { LOGIN_ROUTE } from "@/navigation/login";
 import { THEME_PREFERENCES, type ThemePreference } from "@/theme/theme";
 
 import { ACCOUNT_ICONS } from "./function-display";
@@ -184,7 +183,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const forgetTasks = useForgetTasks();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const name = t("accountMenu.name", { first: account.first_name, last: account.last_name });
+  const name = useAccountNaming().person(account);
   const mark = initials(account, locale);
   const write = (apply: () => Promise<Written>) => {
     startTransition(async () => {
@@ -194,13 +193,13 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const leave = () => {
     startTransition(async () => {
       const closed = await signOut();
-      if (closed.kind !== "done" && closed.kind !== "provider") {
+      if (closed.kind !== "left") {
         setOutcome(closed);
         return;
       }
       forgetTasks();
       document.cookie = forgottenContextCookie();
-      loadDocument(closed.kind === "provider" ? closed.address : LOGIN_ROUTE);
+      loadDocument(closed.address);
     });
   };
   return (

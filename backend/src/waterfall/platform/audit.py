@@ -13,7 +13,13 @@ without joining the tables of the other modules and stays readable when what it 
 exists: none of these identifiers is a foreign key (WF-SEC-0030, WF-DAT-0090). The database
 refuses to update or delete an inscription: the role of the service has only ``INSERT`` and
 ``SELECT`` on the table, and a trigger refuses any update, deletion or truncation whoever asks
-(migration ``0003``).
+(migration ``0003``) — but one. The anonymisation of an account makes null the label that names
+it in every inscription, as its author or as its object, and nothing else: their number, their
+dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0060). The role of
+the service may update those two columns alone, and the trigger of the journal admits that update
+alone, one label at least made null; that the account is anonymised, the module of the accounts
+checks, by a trigger of its own on this table, for the platform reads no table of a module
+(migration ``0010``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them
@@ -28,7 +34,7 @@ from datetime import datetime
 from typing import Any, Literal, get_args
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Index, Text, insert, text
+from sqlalchemy import CheckConstraint, Index, Text, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from structlog.contextvars import get_contextvars
@@ -52,6 +58,7 @@ type AuditAction = Literal[
     "user_update",
     "user_deactivate",
     "user_reactivate",
+    "user_anonymize",
     "password_link_create",
     "access_role_create",
     "access_role_update",
@@ -103,8 +110,9 @@ class AuditEntry(Base):
     __table_args__ = (
         CheckConstraint(_in("action", ACTIONS), name="action_known"),
         CheckConstraint(_in("object_kind", OBJECT_KINDS), name="object_kind_known"),
+        # The platform has no name; an account lost its own if it was anonymised.
         CheckConstraint(
-            "(actor_user_id IS NULL) = (actor_display_name IS NULL)", name="actor_named"
+            "actor_user_id IS NOT NULL OR actor_display_name IS NULL", name="actor_named"
         ),
         CheckConstraint(
             "(project_id IS NULL) = (project_code IS NULL) "
@@ -112,7 +120,7 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
-            "object_label IS NOT NULL OR object_kind = 'backup'", name="object_labeled"
+            "object_label IS NOT NULL OR object_kind IN ('backup', 'user')", name="object_labeled"
         ),
         CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
@@ -127,7 +135,7 @@ class AuditEntry(Base):
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
     # action, nature and object, project, correlation — and its sorts: on the date, on the texts,
     # which share their collation — the name of the author, the label, the code of the project,
-    # the correlation —, and on the ranks of the action and of the nature (migration ``0011``).
+    # the correlation —, and on the ranks of the action and of the nature (migration ``0012``).
     # The search on the label, which compares the texts transliterated and lowered by ``strpos``,
     # no index serves: a B-tree does not find a text inside another, and a trigram index serves
     # ``LIKE``, not ``strpos``. At one instant, the order of inscription is that of the
@@ -155,10 +163,13 @@ class AuditEntry(Base):
 
 @dataclass(frozen=True, slots=True)
 class AuditActor:
-    """The account that acts, by its identifier and the name it is shown by at that moment."""
+    """The account that acts, by its identifier and the name it is shown by at that moment.
+
+    The name is null for an anonymised account, which has none.
+    """
 
     user_id: UUID
-    display_name: str
+    display_name: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,3 +293,33 @@ def _secret_field(value: AuditValue) -> str | None:
             if found is not None:
                 return found
     return None
+
+
+# The key of the advisory lock that orders the anonymisations, distinct from the other ones.
+FORGETTING_LOCK = 1_200_060
+
+
+def forget_account(session: Session, user_id: UUID) -> None:
+    """Make null, in the transaction of ``session``, the label of an account the journal names.
+
+    In every inscription that names it, as its author or as its object, and nothing else
+    (WF-SEC-0030): its caller anonymises the account first, in the same transaction, and the
+    database refuses to forget the name of an account that is not anonymised. Two anonymisations
+    wait for each other: an inscription may name both accounts, and each would hold the row the
+    other waits for.
+    """
+    session.execute(select(func.pg_advisory_xact_lock(FORGETTING_LOCK)))
+    session.execute(
+        update(AuditEntry)
+        .where(AuditEntry.actor_user_id == user_id, AuditEntry.actor_display_name.is_not(None))
+        .values(actor_display_name=None)
+    )
+    session.execute(
+        update(AuditEntry)
+        .where(
+            AuditEntry.object_kind == "user",
+            AuditEntry.object_id == user_id,
+            AuditEntry.object_label.is_not(None),
+        )
+        .values(object_label=None)
+    )

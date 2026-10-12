@@ -21,7 +21,9 @@
  *
  * The button that sends says the write under way. The dialog may be closed meanwhile: the answer of
  * the server is handed back all the same (`onDone`), and a refusal is told above the list, on the
- * reading the form was sent from (`useListReport`) — what the server did is never left unsaid.
+ * reading the form was sent from (`useListReport`) — what the server did is never left unsaid. The
+ * list, which tells it, holds the navigations of the page while the write answers: a link pressed
+ * once the dialog is closed waits for it, and is not followed when it is refused (#688).
  */
 "use client";
 
@@ -32,7 +34,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -250,6 +252,10 @@ export function ReferenceForm({
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // The list holds the navigations while the write answers, when it is the one that may tell the
+  // refusal: the dialog closed meanwhile, its click is held all the same (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
@@ -280,13 +286,13 @@ export function ReferenceForm({
       return;
     }
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const answer = answering(await ask(values).catch(rejected));
+      const answer = answering(await held(ask(values)));
       if (answer.kind === "done") {
         onDone(answer.data);
       } else if (!open.current) {
-        list?.report({ outcome: answer, reading, names, target });
+        list?.report({ outcome: answer, generation, names, target });
       } else {
         const told = placed(fields, answer);
         refuse(told.refused);

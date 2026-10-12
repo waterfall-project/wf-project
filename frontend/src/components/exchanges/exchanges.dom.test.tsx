@@ -15,6 +15,7 @@ import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
@@ -536,6 +537,35 @@ describe("the request of an export", () => {
     expect(within(form).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.PERMISSION_MISSING,
     );
+  });
+
+  it("holds a link clicked while the export is asked, and does not follow it when the server refuses it (#688)", async () => {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.client = fakeClient(
+      { [EXPORT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
+      { hold: () => released },
+    );
+    open(exportForm("revision_estimator"));
+    const link = heldLink();
+    try {
+      const form = screen.getByRole("form", { name: "Demander un export" });
+      await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
+      link.click();
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await settled(form);
+      expect(within(form).getByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.PERMISSION_MISSING,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 
   it("keeps an export the revision lists unavailable, its request told what it lacks and asking nothing", async () => {

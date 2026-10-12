@@ -28,8 +28,9 @@ COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compos
 # Caddy at each start: what the front (NODE_EXTRA_CA_CERTS, added to the authorities it trusts)
 # and the tests of the platform (SSL_CERT_FILE, the only one they trust) trust. Ignored by git.
 KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
-# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it.
-KEYCLOAK_ADDRESS = $${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it: its
+# port alone moves, its front end serving localhost and 127.0.0.1 only (#735).
+KEYCLOAK_ADDRESS = https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth
 # The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
 KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
@@ -374,7 +375,9 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # it trusts the authority of Keycloak's front end and keeps its sessions in the Redis of the
 # platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
 # are the harness's, whatever the environment exports; the variables of the front go through the
-# environment, never the command line, which would show the password of Redis to anyone.
+# environment, never the command line, which would show the password of Redis to anyone. The paths
+# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give an
+# account a role until the bootstrap can (US-0420).
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
 e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
@@ -387,11 +390,12 @@ e2e-service: install-front ## End-to-end paths of the project `service` against 
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
 	@E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
-		export E2E_CONTRACT_PROXY WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		export E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM) exec playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails

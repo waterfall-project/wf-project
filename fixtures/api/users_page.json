@@ -1,5 +1,5 @@
 {
-  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation d'Alix Moreau disponible (WF-ADM-0120, WF-IHM-0090).",
+  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation et l'anonymisation d'Alix Moreau disponibles (WF-ADM-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -7,6 +7,7 @@
         "last_name": "Martin",
         "first_name": "Camille",
         "email": "camille.martin@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "local",
         "org_node_id": null,
@@ -51,6 +52,7 @@
         "last_name": "Moreau",
         "first_name": "Alix",
         "email": "alix.moreau@example.com",
+        "anonymized_at": null,
         "is_active": false,
         "origin": "local",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
@@ -65,6 +67,11 @@
         "available_commands": [
           {
             "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "anonymize",
             "is_available": true,
             "missing_conditions": []
           },

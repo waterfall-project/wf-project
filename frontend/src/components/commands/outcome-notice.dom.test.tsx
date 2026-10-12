@@ -6,7 +6,11 @@ import type { NextRouter } from "next/router";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-import { ACCOUNT_DEACTIVATED_DIGEST, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
+import {
+  ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
+  SESSION_REQUIRED_DIGEST,
+} from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import { OutcomeNotice } from "./outcome-notice";
@@ -85,7 +89,7 @@ describe("the notice of an outcome", () => {
     expect(router.prefetch).not.toHaveBeenCalled();
   });
 
-  it("says a deactivated account without leading to the sign-in page, which would loop", () => {
+  it("says an account deactivated or not admitted without leading to the sign-in page, which would loop", () => {
     const lost = Object.assign(new Error("Server Components render"), {
       digest: SESSION_REQUIRED_DIGEST,
     });
@@ -102,6 +106,12 @@ describe("the notice of an outcome", () => {
     expect(screen.getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
     rerender(notice(deactivated));
     expect(screen.getByRole("alert")).toHaveTextContent("Ce compte est désactivé");
+    expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
+    const notAdmitted = Object.assign(new Error("Server Components render"), {
+      digest: ACCOUNT_NOT_ADMITTED_DIGEST,
+    });
+    rerender(notice(notAdmitted));
+    expect(screen.getByRole("alert")).toHaveTextContent("Ce compte n’est pas admis dans Waterfall");
     expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
   });
 });

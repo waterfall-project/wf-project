@@ -1,0 +1,34 @@
+{
+  "summary": "Variante contrefactuelle : le journal filtré sur l'autrice Alix Moreau (user), après l'anonymisation de son compte aujourd'hui, dans une installation où, cheffe de projet, elle aurait appliqué l'import des coûts réels de janvier : l'inscription lui reste attribuée, par son identifiant, mais ne porte plus son nom ; le nom de l'auteur est nul, et le front présente le libellé neutre de son catalogue (WF-SEC-0030, WF-ADM-0060).",
+  "value": {
+    "items": [
+      {
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000041",
+        "occurred_at": "2026-02-03T08:30:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000303",
+          "display_name": null
+        },
+        "action": "import_apply",
+        "object": {
+          "kind": "import",
+          "object_id": "01926f3a-7c00-7000-8000-000000000a05",
+          "label": "couts-reels-2026-01.xlsx",
+          "revision": null
+        },
+        "project": {
+          "project_id": "01926f3a-7c00-7000-8000-000000000001",
+          "code": "PRJ-001",
+          "label": "Modernisation du poste de commande"
+        },
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000041"
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 1
+    }
+  }
+}

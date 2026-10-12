@@ -1,0 +1,66 @@
+{
+  "summary": "L'histoire du compte d'Alix Moreau dans le journal (object_kind=user et object_id), après son anonymisation par Camille Martin aujourd'hui : trois inscriptions, aussi nombreuses, datées et de mêmes actions qu'avant elle, dont aucune ne porte plus son nom ; le libellé qui la désignait comme objet est nul, et le front présente le libellé neutre de son catalogue (WF-SEC-0030, WF-ADM-0060).",
+  "value": {
+    "items": [
+      {
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000040",
+        "occurred_at": "2026-06-03T14:05:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "action": "user_anonymize",
+        "object": {
+          "kind": "user",
+          "object_id": "01926f3a-7c00-7000-8000-000000000303",
+          "label": null,
+          "revision": null
+        },
+        "project": null,
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000040"
+      },
+      {
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000022",
+        "occurred_at": "2026-03-02T16:20:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "action": "user_deactivate",
+        "object": {
+          "kind": "user",
+          "object_id": "01926f3a-7c00-7000-8000-000000000303",
+          "label": null,
+          "revision": null
+        },
+        "project": null,
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000020"
+      },
+      {
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000014",
+        "occurred_at": "2026-01-12T10:00:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "action": "user_create",
+        "object": {
+          "kind": "user",
+          "object_id": "01926f3a-7c00-7000-8000-000000000303",
+          "label": null,
+          "revision": null
+        },
+        "project": null,
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000014"
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    }
+  }
+}

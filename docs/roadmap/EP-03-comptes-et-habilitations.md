@@ -399,7 +399,7 @@ rien d'autre que leurs deux clés.
 | `user_access_role` | compte, rôle | clé primaire sur les deux ; clés étrangères en refus |
 | `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
 | `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
-| `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `actor_display_name`, `action`, `object_kind`, `object_id`, `object_label`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune suppression, et une seule mise à jour (WF-SEC-0030 révisée) : le rôle de base du service a `INSERT`, `SELECT` et, depuis la migration `0010_account_anonymization`, `UPDATE (actor_display_name, object_label)` ; le déclencheur du journal refuse toute suppression et toute mise à jour, sauf le passage à NULL de ces deux colonnes, le reste de la ligne inchangé, et un déclencheur du module des comptes ne l'admet que pour un compte anonymisé, comme auteur ou comme objet |
+| `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `actor_display_name`, `action`, `object_kind`, `object_id`, `object_label`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune suppression, et une seule mise à jour (WF-SEC-0030 révisée) : le rôle de base du service a `INSERT`, `SELECT` et, depuis la migration `0011_account_anonymization`, `UPDATE (actor_display_name, object_label)` ; le déclencheur du journal refuse toute suppression et toute mise à jour, sauf le passage à NULL de ces deux colonnes, le reste de la ligne inchangé, et un déclencheur du module des comptes ne l'admet que pour un compte anonymisé, comme auteur ou comme objet |
 | `backup` | `taken_at`, `size_bytes`, `verification` (`pending`, `passed`, `failed`), `origin` (`manual`, `scheduled`), `is_retained`, `object_key`, la version de l'application et la révision du schéma qui l'ont produite, la tâche | `verification` et `origin` dans leurs énumérations ; aucune ligne supprimée en EP-03 (la rotation est d'EP-13) |
 | `file_upload` | `purpose`, `object_key`, `size_bytes`, `requested_by`, `expires_at`, l'état du dépôt par morceaux | `purpose` dans `FileUploadPurpose` ; un dépôt non employé expire |
 
@@ -970,7 +970,10 @@ appliqué de façon idempotente par keycloak-config-cli ; la base de Keycloak di
 même serveur PostgreSQL. La plateforme de développement porte un annuaire et un fournisseur
 externe de test, pour que la Définition de fini se constate. Cette US ferme #152 et #155,
 sans objet : la page de connexion n'a plus de liste de fournisseurs à présenter, et les
-règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
+règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Ses lots L1 à L5b
+faits, deux phrases de `WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis
+la réactivation après une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du
+fournisseur (US-0370/L2) : l'US reste `en cours` tant que #844 n'a pas tranché où elles s'éprouvent.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 

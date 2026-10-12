@@ -18,6 +18,7 @@
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
+import { useAccountNaming } from "@/components/account/account-name";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -58,6 +59,7 @@ export function UserGrid({
   readonly editable: boolean;
 }) {
   const t = useTranslations("admin.users");
+  const naming = useAccountNaming();
   const writes = useUserWrites();
   const queue = writes?.queue;
   const answered = writes?.answered;
@@ -74,18 +76,12 @@ export function UserGrid({
                   : (shown, send) =>
                       queue(shown, {
                         send,
-                        said: (renamed) =>
-                          t("renamed", {
-                            name: t("named", {
-                              firstName: renamed.first_name,
-                              lastName: renamed.last_name,
-                            }),
-                          }),
+                        said: (renamed) => t("renamed", { name: naming.person(renamed) }),
                       }),
             }
           : undefined,
       ),
-    [editable, roles, queue, t],
+    [editable, roles, queue, t, naming],
   );
   const shown = useMemo(
     () =>

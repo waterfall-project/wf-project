@@ -5,6 +5,7 @@
     "last_name": "Vidal-Roux",
     "first_name": "Noé",
     "email": "noe.vidal@example.com",
+    "anonymized_at": null,
     "is_active": false,
     "origin": "local",
     "org_node_id": null,
@@ -19,6 +20,11 @@
     "available_commands": [
       {
         "command": "reactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "anonymize",
         "is_available": true,
         "missing_conditions": []
       },

@@ -56,8 +56,8 @@ def folded(text: SQLColumnExpression[str | None]) -> ColumnElement[str]:
 def contains(text: SQLColumnExpression[str | None], searched: str) -> ColumnElement[bool]:
     """Tell whether a text holds the one searched, whatever their case and accents.
 
-    By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another. A text
-    that is null holds nothing.
+    By ``strpos`` and not ``LIKE``: a ``%`` or a ``_`` searched is a letter like another. A null
+    text — the name of an anonymised account — holds nothing.
     """
     return func.strpos(folded(text), folded(literal(searched, Text))) > 0
 

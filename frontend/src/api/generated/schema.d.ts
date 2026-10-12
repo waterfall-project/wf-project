@@ -307,10 +307,30 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un compte
-         * @description Un compte se désactive, jamais ne se supprime : ses actes doivent rester attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions d'administration (WF-ADM-0120).
+         * @description Un compte se désactive, jamais ne se supprime : ses actes doivent rester attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée : l'anonymisation est irréversible (WF-ADM-0060).
          */
         put: operations["setUserActivation"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user_id}/anonymization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Anonymiser un compte désactivé
+         * @description À la demande de la personne, un compte désactivé est anonymisé, de façon irréversible (WF-ADM-0060) : son nom, son prénom et son adresse deviennent nuls (`anonymized_at` dit quand), son avatar est retiré, et le libellé qui le désigne dans le journal d'audit, comme auteur ou comme objet, est effacé de toutes les inscriptions, leur nombre, leurs dates et leurs actions inchangés (WF-SEC-0030) ; le front le présente partout sous le libellé neutre de son catalogue. Ses actes lui restent attribués, par son identifiant ; il garde ses rôles, son rattachement, et l'identifiant que le fournisseur d'identité lui donne, par lequel la lecture des comptes le reconnaît sans le modifier ni le recréer (WF-ADM-0070). Un compte local est en outre retiré du fournisseur d'identité, avant que l'anonymisation ne soit écrite : si le fournisseur ne répond pas, 503 (`identity_provider`), rien n'est écrit, et l'anonymisation se redemande. Un compte de l'annuaire ou d'un fournisseur externe n'est pas touché dans le fournisseur. Aucune confirmation n'est demandée ici : l'écran la demande. L'anonymisation s'inscrit au journal d'audit (`user_anonymize`, l'objet le compte, sans libellé ni paramètre). Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ; un compte anonymisé ne se réactive plus, ni ne s'anonymise de nouveau.
+         */
+        post: operations["anonymizeUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -327,7 +347,7 @@ export interface paths {
         get?: never;
         /**
          * Attribuer les rôles d'habilitation d'un compte
-         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés.
+         * @description Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs permissions ; la modification s'applique immédiatement, sans reconnexion (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en donner davantage reste possible, et la commande `set_access_roles` de ce compte reste disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier les comptes (`users.write`), celle de modifier les rôles d'habilitation (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que `users.write` ne se donne pas le rôle administrateur.
          */
         put: operations["setUserAccessRoles"];
         post?: never;
@@ -2784,8 +2804,8 @@ export interface components {
             /** @enum {string} */
             kind: "user" | "platform";
             user_id?: components["schemas"]["Uuid"];
-            /** @description Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060). */
-            display_name?: string;
+            /** @description Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne rendant aucune phrase (WF-ADM-0060, WF-ARC-0110). Absent pour la plateforme. */
+            display_name?: string | null;
         };
         /** @description Colonnes d'audit de WF-DAT-0070. `platform` désigne un traitement automatique. */
         Audit: {
@@ -2799,13 +2819,14 @@ export interface components {
         /** @description Un compte, sans ses commandes : celui que `getMe` rend (`UserSelf`), et que la table des comptes complète des siennes (`User`). */
         UserAccount: {
             user_id: components["schemas"]["Uuid"];
-            last_name: string;
-            first_name: string;
-            /**
-             * Format: email
-             * @description Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
-             */
-            email: string;
+            /** @description Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060). */
+            last_name: string | null;
+            /** @description Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060). */
+            first_name: string | null;
+            /** @description Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060). */
+            email: string | null;
+            /** @description L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs sont nuls, et le front le présente partout sous le libellé neutre de son catalogue, l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas. */
+            anonymized_at: components["schemas"]["Timestamp"] | null;
             /** @description L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour « désactivé » (`deactivated`). Un compte désactivé est refusé à chaque requête, par 401 `ACCOUNT_DEACTIVATED`, et ses sessions sont fermées (WF-SEC-0020). */
             is_active: boolean;
             origin: components["schemas"]["UserOrigin"];
@@ -2869,15 +2890,15 @@ export interface components {
             permissions: components["schemas"]["PermissionCode"][];
         };
         /**
-         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible.
+         * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2, WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
          * @enum {string}
          */
-        UserCommand: "deactivate" | "reactivate" | "set_access_roles";
+        UserCommand: "deactivate" | "reactivate" | "anonymize" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409. Une tient à l'emploi d'une nature de coût, et la nature la nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée (WF-REF-0030) ; `updateCostType` la nomme dans son 409. Deux tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577) ; `updateCostCategory` les nomme dans son 409. Deux gardent une nature provision active qui porte une catégorie active, dont les lignes de provision des risques prennent la catégorie (WF-REF-0030, #578) : `cost_type_not_last_provision` manque à la désactivation et à la modification du type de la dernière nature provision active à porter une catégorie active, et `cost_category_not_last_provision` à la désactivation et au rattachement à une nature d'un autre type de la seule catégorie active des natures provision actives ; les opérations d'activation et de modification les nomment dans leur 409. Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ; `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser` nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "is_local_account" | "is_active_account";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "cost_type_unused" | "cost_category_unused" | "cost_category_unrated" | "cost_type_not_last_provision" | "cost_category_not_last_provision" | "last_administrator" | "is_local_account" | "is_active_account" | "is_deactivated_account" | "is_not_anonymized";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -2886,7 +2907,7 @@ export interface components {
         };
         /** @description Un compte tel que la table des comptes le lit : le compte, et ses commandes (`available_commands`, WF-IHM-0090). */
         User: components["schemas"]["UserAccount"] & {
-            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+            /** @description Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100), et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles d'habilitation (`access_roles.write`, WF-ADM-0090). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur. */
             available_commands: components["schemas"]["UserCommandAvailability"][];
         };
         UserCreate: {
@@ -2896,6 +2917,11 @@ export interface components {
             email: string;
             org_node_id?: components["schemas"]["Uuid"] | null;
             access_role_ids?: components["schemas"]["Uuid"][];
+        };
+        /** @description Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est partie (WF-ADM-0140). */
+        UserCreated: components["schemas"]["User"] & {
+            /** @description Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal (`createPasswordSetupLink`). */
+            invitation_sent: boolean;
         };
         /** @description Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050). */
         UserUpdate: {
@@ -2908,6 +2934,10 @@ export interface components {
         };
         UserActivationWrite: {
             is_active: boolean;
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description L'anonymisation d'un compte désactivé, à la version lue (`anonymizeUser`). */
+        UserAnonymizationWrite: {
             lock_version: components["schemas"]["LockVersion"];
         };
         UserRolesWrite: {
@@ -3052,10 +3082,10 @@ export interface components {
          */
         AuditActorKind: "user" | "platform";
         /**
-         * @description Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur désactivation et leur réactivation, et le lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
+         * @description Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur désactivation et leur réactivation, leur anonymisation (`user_anonymize`, WF-ADM-0060), et le lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
          * @enum {string}
          */
-        AuditAction: "revision_mark" | "reference_designate" | "amendment_merge" | "risk_occurrence" | "project_exit" | "cost_line_exclude" | "cost_line_reinstate" | "import_apply" | "user_create" | "user_update" | "user_deactivate" | "user_reactivate" | "password_link_create" | "access_role_create" | "access_role_update" | "access_role_delete" | "user_access_roles_set" | "backup" | "restore";
+        AuditAction: "revision_mark" | "reference_designate" | "amendment_merge" | "risk_occurrence" | "project_exit" | "cost_line_exclude" | "cost_line_reinstate" | "import_apply" | "user_create" | "user_update" | "user_deactivate" | "user_reactivate" | "user_anonymize" | "password_link_create" | "access_role_create" | "access_role_update" | "access_role_delete" | "user_access_roles_set" | "backup" | "restore";
         /**
          * @description La nature de l'objet qu'une inscription concerne : le projet d'une sortie du cycle de vie, la révision marquée ou désignée, le différentiel d'un avenant, le risque survenu, la ligne de coût exclue ou réintégrée, l'import appliqué, le compte, le rôle, la sauvegarde prise ou restaurée, et le dépôt d'une sauvegarde copiée hors de la plateforme qu'une restauration remet en place (`external_backup_upload`, l'identifiant du dépôt, `RestoreRequest.external_backup_upload_id` ; WF-SEC-0030, WF-ADM-0160).
          * @enum {string}
@@ -3071,7 +3101,7 @@ export interface components {
         AuditObject: {
             kind: components["schemas"]["AuditObjectKind"];
             object_id: components["schemas"]["Uuid"];
-            /** @description Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription. */
+            /** @description Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue. */
             label: string | null;
             /** @description La révision où l'objet vit, au moment de l'action : celle dont le registre porte le risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, celle du différentiel d'un avenant (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090), un compte, un rôle, une sauvegarde, un dépôt. */
             revision: components["schemas"]["AuditRevision"] | null;
@@ -3116,7 +3146,7 @@ export interface components {
             audit_event_id: components["schemas"]["Uuid"];
             /** @description L'instant où l'action a pris effet : pour une action confiée au worker — marquage, fusion, survenance, application d'un import, restauration —, celui où la tâche a abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle copie. */
             occurred_at: components["schemas"]["Timestamp"];
-            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée. */
+            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) — nul après son anonymisation, qui l'efface de toutes les inscriptions dont il est l'auteur, leur nombre, leurs dates et leurs actions inchangés (WF-SEC-0030) — ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée. */
             actor: components["schemas"]["ActorRef"];
             action: components["schemas"]["AuditAction"];
             object: components["schemas"]["AuditObject"];
@@ -3129,8 +3159,8 @@ export interface components {
         /** @description Un compte auteur d'au moins une inscription du journal. */
         AuditActorFacet: {
             user_id: components["schemas"]["Uuid"];
-            /** @description Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060). */
-            display_name: string;
+            /** @description Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le libellé neutre de son catalogue. */
+            display_name: string | null;
         };
         /** @description Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les lire, sans celle de lire les comptes ni les projets (WF-ADM-0100). */
         AuditFacets: {
@@ -5381,13 +5411,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Compte créé. */
+            /** @description Compte créé, et si l'invitation est partie (`invitation_sent`) : faux, le porteur n'attend aucun courriel, et son lien de fixation se remet à la main (`createPasswordSetupLink`). */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["UserCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -5467,7 +5497,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Rien n'est écrit. */
+            /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`, `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le compte qui la porte. Un nom, un prénom ou une adresse envoyés pour un compte anonymisé, l'anonymisation étant irréversible (WF-ADM-0060) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5517,7 +5547,49 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la commande `deactivate` du compte dit d'avance (`available_commands`). */
+            /** @description La désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la commande `deactivate` du compte dit d'avance (`available_commands`). La réactivation d'un compte anonymisé, refusée, rien n'étant écrit (WF-ADM-0060) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`, ce que la commande `reactivate` du compte dit d'avance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    anonymizeUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserAnonymizationWrite"];
+            };
+        };
+        responses: {
+            /** @description Compte anonymisé. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Un compte actif, refusé : seul un compte désactivé s'anonymise (WF-ADM-0060), et la commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_deactivated_account`. Un compte déjà anonymisé, refusé, ce que sa commande `anonymize` dit d'avance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit, et le fournisseur d'identité n'est pas sollicité. */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -173,7 +173,7 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("enters the table of the accounts — a state on its switch, the roles of an account — and offers to delete none [WF-ADM-0060-A]", async ({
+test("enters the table of the accounts — a state on its switch, the roles of an account —, offers the anonymisation of a deactivated one, and offers to delete none [WF-ADM-0060-A]", async ({
   page,
 }) => {
   // The fake back answers each write by its example, and keeps nothing: the accounts written are
@@ -191,6 +191,14 @@ test("enters the table of the accounts — a state on its switch, the roles of a
     await expect(told).toHaveText("«\u00a0Noé Vidal\u00a0» désactivé.", { timeout: 1_000 });
   }).toPass({ timeout: WORKING });
   await expect(vidal).not.toBeChecked();
+
+  // A deactivated account lists its anonymisation — Alix Moreau, and Noé Vidal once deactivated —;
+  // the active ones do not (WF-ADM-0060). It writes nothing yet: it says so.
+  await expect(accounts.getByRole("button", { name: /^Anonymiser «/ })).toHaveCount(2);
+  await accounts.getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }).click();
+  await expect(told).toHaveText(
+    "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
+  );
 
   // The last administrator, as the account lists its commands: her deactivation unavailable,
   // naming the condition she lacks (WF-ADM-0120).

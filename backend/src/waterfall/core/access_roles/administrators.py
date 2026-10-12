@@ -23,8 +23,7 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.users.interface import LAST_ADMINISTRATOR as LAST_ADMINISTRATOR_LACKING
-from waterfall.core.users.interface import active_accounts
+from waterfall.core.users.interface import LAST_ADMINISTRATOR_CONDITION, active_accounts
 from waterfall.platform.errors import ConflictError
 
 LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
@@ -91,5 +90,5 @@ def guard_deactivation(session: Session) -> AbstractContextManager[None]:
     which the accounts name. A reactivation takes the administration from nobody.
     """
     return guard_last_administrator(
-        session, STATE_FORBIDS_OPERATION, {"missing_condition": LAST_ADMINISTRATOR_LACKING}
+        session, STATE_FORBIDS_OPERATION, {"missing_condition": LAST_ADMINISTRATOR_CONDITION}
     )

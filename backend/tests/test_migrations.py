@@ -274,7 +274,8 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "installation": {"SELECT", "INSERT", "UPDATE"},
     # Created, read, changed, deactivated; never deleted (WF-DAT-0080).
     "user_account": {"SELECT", "INSERT", "UPDATE"},
-    # Inscribed and read; neither changed nor deleted (WF-SEC-0030).
+    # Inscribed and read; never deleted, and changed only in the two labels that name an account,
+    # a grant on those columns alone that test_audit_journal.py checks (WF-SEC-0030).
     "audit_entry": {"SELECT", "INSERT"},
     # The catalogue, written by the migrations alone and read by the service (WF-ADM-0100).
     "permission": {"SELECT"},

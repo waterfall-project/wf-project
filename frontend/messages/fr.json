@@ -43,11 +43,14 @@
   },
   "accountMenu": {
     "label": "Compte de {name}",
-    "name": "{first} {last}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
+  },
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Compte anonymisé"
   },
   "account": {
     "details": "Informations du compte",
@@ -168,6 +171,7 @@
       "holders": "Comptes porteurs",
       "modify": "Modifier",
       "delete": "Supprimer",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -1011,12 +1015,18 @@
       "title": "Compte désactivé",
       "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
     },
+    "notAdmitted": {
+      "title": "Compte non admis",
+      "explanation": "Waterfall n’admet pas ce compte : l’écran n’est pas accessible. Contactez un administrateur."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
     },
+    "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "signOut": "Se déconnecter"
   },
   "loading": {
     "label": "Chargement de l’écran"
@@ -1213,6 +1223,7 @@
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
     "commands": {
+      "later": "{command} : disponible avec EP-03.",
       "unmet": "{command} : {condition}"
     },
     "users": {
@@ -1223,7 +1234,8 @@
       "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
-      "named": "{firstName} {lastName}",
+      "anonymize": "Anonymiser",
+      "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
       "stateFilter": "État du compte",
@@ -1719,6 +1731,7 @@
       "user_update": "Modification d’un compte",
       "user_deactivate": "Désactivation d’un compte",
       "user_reactivate": "Réactivation d’un compte",
+      "user_anonymize": "Anonymisation d’un compte",
       "password_link_create": "Lien de mot de passe engendré",
       "access_role_create": "Création d’un rôle",
       "access_role_update": "Modification d’un rôle",
@@ -1818,7 +1831,9 @@
       "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "is_local_account": "compte créé dans Waterfall",
-      "is_active_account": "compte actif"
+      "is_active_account": "compte actif",
+      "is_deactivated_account": "compte désactivé",
+      "is_not_anonymized": "compte non anonymisé"
     },
     "ProjectExit": {
       "to_state": {
@@ -2128,6 +2143,7 @@
     "UserCommand": {
       "deactivate": "Désactiver le compte",
       "reactivate": "Réactiver le compte",
+      "anonymize": "Anonymiser le compte",
       "set_access_roles": "Attribuer les rôles du compte"
     },
     "RiskComputedField": {

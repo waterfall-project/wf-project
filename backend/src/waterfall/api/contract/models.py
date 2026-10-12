@@ -342,7 +342,7 @@ class ActorRef(ContractModel):
     display_name: Annotated[
         str | None,
         Field(
-            description="Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060)."
+            description="Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne rendant aucune phrase (WF-ADM-0060, WF-ARC-0110). Absent pour la plateforme."
         ),
     ] = None
 
@@ -364,14 +364,50 @@ class LockVersion(RootModel[int]):
     ]
 
 
-class UserAccount(ContractModel):
-    user_id: Uuid
-    last_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    first_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    email: Annotated[
+class LastName(RootModel[str]):
+    root: Annotated[
         str,
         Field(
-            description="Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050)."
+            description="Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).",
+            max_length=100,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
+
+
+class FirstName(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).",
+            max_length=100,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
+
+
+class UserAccount(ContractModel):
+    user_id: Uuid
+    last_name: Annotated[
+        LastName | None,
+        Field(description="Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060)."),
+    ]
+    first_name: Annotated[
+        FirstName | None,
+        Field(description="Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060)."),
+    ]
+    email: Annotated[
+        str | None,
+        Field(
+            description="Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060)."
+        ),
+    ]
+    anonymized_at: Annotated[
+        Timestamp | None,
+        Field(
+            description="L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs sont nuls, et le front le présente partout sous le libellé neutre de son catalogue, l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas."
         ),
     ]
     is_active: Annotated[
@@ -543,6 +579,7 @@ class UserSelf(UserAccount):
 class UserCommand(StrEnum):
     deactivate = "deactivate"
     reactivate = "reactivate"
+    anonymize = "anonymize"
     set_access_roles = "set_access_roles"
 
 
@@ -579,6 +616,8 @@ class CommandCondition(StrEnum):
     last_administrator = "last_administrator"
     is_local_account = "is_local_account"
     is_active_account = "is_active_account"
+    is_deactivated_account = "is_deactivated_account"
+    is_not_anonymized = "is_not_anonymized"
 
 
 class UserCommandAvailability(ContractModel):
@@ -593,8 +632,8 @@ class User(UserAccount):
     available_commands: Annotated[
         list[UserCommandAvailability],
         Field(
-            description="Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
-            max_length=2,
+            description="Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100), et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles d'habilitation (`access_roles.write`, WF-ADM-0090). Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            max_length=3,
         ),
     ]
 
@@ -607,6 +646,15 @@ class UserCreate(ContractModel):
     access_role_ids: list[Uuid] | None = None
 
 
+class UserCreated(User):
+    invitation_sent: Annotated[
+        bool,
+        Field(
+            description="Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal (`createPasswordSetupLink`)."
+        ),
+    ]
+
+
 class UserUpdate(ContractModel):
     last_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
     first_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
@@ -617,6 +665,10 @@ class UserUpdate(ContractModel):
 
 class UserActivationWrite(ContractModel):
     is_active: bool
+    lock_version: LockVersion
+
+
+class UserAnonymizationWrite(ContractModel):
     lock_version: LockVersion
 
 
@@ -920,6 +972,7 @@ class AuditAction(StrEnum):
     user_update = "user_update"
     user_deactivate = "user_deactivate"
     user_reactivate = "user_reactivate"
+    user_anonymize = "user_anonymize"
     password_link_create = "password_link_create"
     access_role_create = "access_role_create"
     access_role_update = "access_role_update"
@@ -958,7 +1011,7 @@ class AuditObject(ContractModel):
     label: Annotated[
         str | None,
         Field(
-            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription."
+            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue."
         ),
     ]
     revision: Annotated[
@@ -1051,7 +1104,7 @@ class AuditEvent(ContractModel):
     actor: Annotated[
         ActorRef,
         Field(
-            description="L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée."
+            description="L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) — nul après son anonymisation, qui l'efface de toutes les inscriptions dont il est l'auteur, leur nombre, leurs dates et leurs actions inchangés (WF-SEC-0030) — ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée."
         ),
     ]
     action: AuditAction
@@ -1075,9 +1128,9 @@ class AuditEvent(ContractModel):
 class AuditActorFacet(ContractModel):
     user_id: Uuid
     display_name: Annotated[
-        str,
+        str | None,
         Field(
-            description="Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060)."
+            description="Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime jamais (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le libellé neutre de son catalogue."
         ),
     ]
 
