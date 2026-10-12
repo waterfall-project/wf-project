@@ -71,10 +71,11 @@ INSTALL_LOCK = 4_200_420
 # avatar of two mebibytes, a backup deposited for a restoration of twenty gibibytes.
 AVATAR_MAX_BYTES = 2 * 1024**2
 EXTERNAL_BACKUP_MAX_BYTES = 20 * 1024**3
-# Why the platform refuses a bootstrap: an installation without its administrator, an address that
-# is none, an address an account of a directory or of a provider holds, an administrator the realm
-# no longer holds, or no longer as a local account.
+# Why the platform refuses a bootstrap: an installation without its administrator, or whose
+# administrator was anonymised, an address that is none, an address an account of a directory or of
+# a provider holds, an administrator the realm no longer holds, or no longer as a local account.
 NO_ADMINISTRATOR = "no_administrator"
+ADMINISTRATOR_ANONYMIZED = "administrator_anonymized"
 NOT_AN_ADDRESS = "admin_email_not_an_address"
 ADDRESS_NOT_LOCAL = "admin_email_held_in_identity_provider"
 ADMINISTRATOR_NOT_IN_PROVIDER = "administrator_not_in_provider"
@@ -187,7 +188,9 @@ def _bootstrap(
     """Install what nobody may enter without, unless it is installed.
 
     Give its administrator and its language: those of the installation already made, whatever the
-    settings say now — an address that is not the administrator's is said ignored, without it.
+    settings say now — an address that is not the administrator's is said ignored, without it. An
+    administrator anonymised since is refused as soon as it is read, before Keycloak is asked: it
+    holds no address, and the realm no longer holds its account (WF-ADM-0060).
     """
     with database.transaction() as session:
         installation = session.get(Installation, THE_ROW)
@@ -196,8 +199,9 @@ def _bootstrap(
     if language is not None:
         if administrator is None:
             raise InstallationRefusedError(NO_ADMINISTRATOR)
+        if administrator.anonymized_at is not None:
+            raise InstallationRefusedError(ADMINISTRATOR_ANONYMIZED)
         logger.info("installation.already_installed")
-        # An anonymised administrator holds no address: whichever the settings give is not its own.
         if (
             administrator.email is None
             or administrator.email.lower() != settings.admin_email.lower()
@@ -256,7 +260,8 @@ def _link(database: Database, installer: KeycloakAdmin, administrator: Account) 
     alone tells whether the account has a password, however it was set: then there is no link
     (#884). One the realm holds as no local one, or no longer holds — removed in its console —,
     is refused; so is one deactivated in Waterfall, when the link is inscribed (409), and the link
-    is not given.
+    is not given. An anonymised one never comes here: ``_bootstrap`` refused it when it read it,
+    with its own reason, ``administrator_anonymized``, rather than as one removed from the realm.
     """
     made = installer.make_installation_link(administrator.subject)
     if made is NoInstallationLink.CREDENTIAL_HELD:
