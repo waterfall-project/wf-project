@@ -61,6 +61,7 @@ from waterfall.core.access_roles.interface import roles_held_by
 from waterfall.core.users.interface import SyncReport, latest_report, record_report
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
+from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
@@ -670,6 +671,10 @@ def test_a_local_account_renamed_signs_in_by_its_new_address_and_is_mailed_there
     assert journal(database, UUID(str(row["id"]))) == [
         ("user_update", administrator.user_id, {"fields": ["last_name", "email"]})
     ]
+    # Inscribed under the correlation of the request.
+    with database.transaction() as session:
+        inscribed = select(AuditEntry.correlation_id).where(AuditEntry.object_id == row["id"])
+        assert session.scalars(inscribed).all() == [changed.headers[HEADER]]
 
 
 class Choosing(Watching):
