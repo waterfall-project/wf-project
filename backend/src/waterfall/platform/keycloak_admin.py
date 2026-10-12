@@ -438,6 +438,18 @@ class KeycloakAdmin:
         ``None`` withdraws it: the realm then speaks its own language by default. An account the
         realm no longer holds has no language left to set. The account is read, then written back
         whole with its attribute ``locale`` changed: the realm keeps only the attributes it is sent.
+
+        Why the identity read just before goes back with it: a PUT that carries ``attributes``
+        replaces every attribute, and the identity it does not name is erased — Keycloak 26.5.7
+        answers ``{"attributes": {"locale": ...}}`` alone with 400
+        ``error-user-attribute-required``, and sets first and last name to ``null`` when only the
+        email goes with it. Writing ``locale`` alone is therefore not possible here.
+
+        The window this leaves is accepted (#923): an identity an administrator writes between the
+        GET and the PUT is overwritten by the one read before it. It lasts a few milliseconds and
+        opens only if the person changes their language at that very moment. The reverse window is
+        closed: ``change_identity`` sends no ``attributes``, so it keeps ``locale``. Closing this
+        one would take an entry point of the Java extension that writes ``locale`` alone.
         """
         user = f"{self._admin}/users/{quote(subject, safe='')}"
         response = self._as_service("GET", user)
