@@ -233,7 +233,9 @@ def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
     # before Keycloak is asked: the realm of test, which serves no administration API, fails then,
     # as a Keycloak that leaves the sessions open, and the tokens of a sign-in before it are
     # refused all the same — one lent to an application next to Waterfall's, without waiting for
-    # its expiry (#668), and one refreshed since, issued after the sign-out (#835).
+    # its expiry (#668), and one refreshed since, issued after the sign-out (#835) —, as revoked:
+    # the front asks for the identifiers again on that code alone, Keycloak's session living still
+    # (#855).
     account(database)
     signed_in = int(time.time()) - 60
     mine = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in})
@@ -244,7 +246,7 @@ def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
     after = int(time.time()) + 1
     refreshed = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in, "iat": after})
     for token in (mine, neighbour, refreshed):
-        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_EXPIRED")
+        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REVOKED")
     # Signed in again, the next second.
     again = realm.token(SUBJECT, KEY, claims={"auth_time": after, "iat": after})
     assert api.get(ME, headers=bearer(again)).status_code == 200
@@ -261,7 +263,7 @@ def test_a_token_without_a_moment_of_sign_in_is_told_by_its_moment_of_issue(
     before = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) - 1})
     assert refusal(api.delete(SESSIONS, headers=bearer(before))) == (503, "COMPONENT_UNAVAILABLE")
     after = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) + 1})
-    assert refusal(api.get(ME, headers=bearer(before))) == (401, "SESSION_EXPIRED")
+    assert refusal(api.get(ME, headers=bearer(before))) == (401, "SESSION_REVOKED")
     assert api.get(ME, headers=bearer(after)).status_code == 200
 
 

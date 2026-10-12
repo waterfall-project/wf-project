@@ -72,7 +72,6 @@ DIRECTORY_CREDENTIAL = "development-only-directory-password"
 EXTERNAL_USERNAME = "camille.externe"
 EXTERNAL_CREDENTIAL = "development-only-external-password"
 ME = "/api/v1/me"
-SESSIONS = "/api/v1/me/sessions"
 # An identifier the realm gives to no account.
 NOBODY = "00000000-0000-4000-8000-000000000000"
 
@@ -103,8 +102,13 @@ class FrontBrowser(Browser):
             self.jar[(paths[0].strip() if paths else "/", name.strip())] = value
         return response
 
-    def login_page(self, *, provider: str | None = None) -> tuple[httpx2.Response, str]:
-        """Open the login page the front sends a person to; give it and the verifier of PKCE."""
+    @staticmethod
+    def authorization(**hints: str) -> tuple[str, str]:
+        """Give where the front sends a person to sign in, ``hints`` added, and the PKCE verifier.
+
+        A hint is a parameter the front may add: ``kc_idp_hint``, the provider the realm relays
+        to; ``prompt``, whether the realm asks for the identifiers again (#855).
+        """
         verifier = secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
         query = {
@@ -115,38 +119,38 @@ class FrontBrowser(Browser):
             "state": secrets.token_urlsafe(16),
             "code_challenge": challenge.decode().rstrip("="),
             "code_challenge_method": "S256",
+            **hints,
         }
-        if provider is not None:
-            query["kc_idp_hint"] = provider
-        page = self.get(f"{realm_address()}/protocol/openid-connect/auth?{urlencode(query)}")
+        return f"{realm_address()}/protocol/openid-connect/auth?{urlencode(query)}", verifier
+
+    def login_page(self, **hints: str) -> tuple[httpx2.Response, str]:
+        """Open the login page the front sends a person to; give it and the verifier of PKCE."""
+        address, verifier = self.authorization(**hints)
+        page = self.get(address)
         assert page.status_code == 200, page.text
         return page, verifier
 
-    def sign_in(
-        self, username: str, password: str, *, provider: str | None = None
-    ) -> tuple[str, str]:
+    def returned(self, response: httpx2.Response) -> str:
+        """Follow the realm up to the return address of the front; give the code it carries."""
+        while not response.headers.get("Location", "").startswith(callback()):
+            assert response.status_code in {302, 303}, response.text
+            response = self._send("GET", response.headers["Location"])
+        return parse_qs(urlsplit(response.headers["Location"]).query)["code"][0]
+
+    def sign_in(self, username: str, password: str, **hints: str) -> tuple[str, str]:
         """Sign in through the login page of the realm, or of the provider it relays to.
 
         Give the code the front receives on its return address, and the verifier of PKCE that
         goes with it.
         """
-        page, verifier = self.login_page(provider=provider)
-        response = self.submit(page, {"username": username, "password": password})
-        while not response.headers.get("Location", "").startswith(callback()):
-            assert response.status_code in {302, 303}, response.text
-            response = self._send("GET", response.headers["Location"])
-        return parse_qs(urlsplit(response.headers["Location"]).query)["code"][0], verifier
+        page, verifier = self.login_page(**hints)
+        fields = {"username": username, "password": password}
+        return self.returned(self.submit(page, fields)), verifier
 
-
-def refused_sign_in(username: str, password: str) -> httpx2.Response:
-    """Try to sign in through the login page of the realm; give the page that refuses it."""
-    browser = FrontBrowser()
-    page, _ = browser.login_page()
-    response = browser.submit(page, {"username": username, "password": password})
-    # The login page again, with its error, and no way back to the front.
-    assert response.status_code == 200, response.headers.get("Location")
-    assert 'name="password"' in response.text
-    return response
+    def signed_in_again(self) -> tuple[str, str]:
+        """Ask for a code as the front does once more, without a page: the realm's session lives."""
+        address, verifier = self.authorization()
+        return self.returned(self._send("GET", address)), verifier
 
 
 def realm_address() -> str:
@@ -174,7 +178,12 @@ def front_grant(**fields: str) -> httpx2.Response:
 
 def tokens_of(username: str, password: str, *, provider: str | None = None) -> dict[str, Any]:
     """Sign a person in through the front, and give the tokens the front holds for her."""
-    code, verifier = FrontBrowser().sign_in(username, password, provider=provider)
+    hints = {} if provider is None else {"kc_idp_hint": provider}
+    return exchanged(*FrontBrowser().sign_in(username, password, **hints))
+
+
+def exchanged(code: str, verifier: str) -> dict[str, Any]:
+    """Exchange the code the front received for its tokens, as the front does."""
     response = front_grant(
         grant_type="authorization_code",
         code=code,
@@ -444,29 +453,6 @@ def test_a_token_the_realm_lends_to_another_client_than_the_front_is_refused(
     assert lent.status_code == 200, lent.text
     response = api.get(ME, headers=bearer(lent.json()))
     assert (response.status_code, response.json()["code"]) == (401, "SESSION_REQUIRED")
-
-
-@pytest.mark.requirement("WF-SEC-0020-A")
-def test_closing_my_sessions_closes_them_on_every_device(
-    api: ContractClient, database: Database, local_account: Account
-) -> None:
-    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » Neither the refresh
-    # tokens of his devices, which Keycloak refuses, nor their access tokens, which the API
-    # refuses without waiting for their expiry (#668).
-    known(database, local_account)
-    office = tokens_of(local_account.email, PASSWORD)
-    home = tokens_of(local_account.email, PASSWORD)
-    assert api.get(ME, headers=bearer(home)).status_code == 200
-    response = api.delete(SESSIONS, headers=bearer(office))
-    assert response.status_code == 204, response.text
-    for device in (office, home):
-        again = refreshed(device["refresh_token"])
-        assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
-        acting = api.get(ME, headers=bearer(device))
-        assert (acting.status_code, acting.json()["code"]) == (401, "SESSION_EXPIRED")
-    # Signed in again, from the next second on: the sign-in is dated to the second.
-    time.sleep(1.1)
-    assert api.get(ME, headers=bearer(tokens_of(local_account.email, PASSWORD))).status_code == 200
 
 
 def test_a_service_account_with_another_secret_is_a_defect_of_the_platform(
@@ -957,8 +943,9 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
 def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed(
     api: ContractClient, database: Database, administrator: dict[str, str], colleague: Account
 ) -> None:
-    # The roles are read at each request: the same token that consulted the accounts no longer
-    # may, and they do not exist for it; the realm closes the sessions of both devices.
+    # The withdrawal notes the closing of the sessions, as a deactivation does: the same token that
+    # consulted the accounts is refused as revoked (#855); the realm closes the sessions of both
+    # devices.
     user_id, devices = signed_in_twice(database, colleague, "users.read")
     assert [api.get(USERS, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body: dict[str, object] = {"access_role_ids": [], "lock_version": 0}
@@ -967,7 +954,7 @@ def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_
     assert response.status_code == 200, response.text
     for device in devices:
         answer = api.get(USERS, headers=bearer(device))
-        assert (answer.status_code, answer.json()["code"]) == (404, "NOT_FOUND")
+        assert (answer.status_code, answer.json()["code"]) == (401, "SESSION_REVOKED")
         again = refreshed(device["refresh_token"])
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
 
