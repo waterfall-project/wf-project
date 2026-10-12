@@ -58,6 +58,7 @@ export async function GET(request: Request): Promise<Response> {
     return new Response(null, { status: 307, headers: { Location: target } });
   }
   const ticket = searchParams.get(SIGN_OUT_PARAMETER);
+  const reauthenticate = searchParams.has(REAUTHENTICATE_PARAMETER);
   const session = sessionIdOf(request);
   const { state, nonce, verifier, challenge } = await signInChecks();
   let signOut = false;
@@ -70,12 +71,13 @@ export async function GET(request: Request): Promise<Response> {
     }
     console.error("A sign-in could not be started", error);
     // The cookie forgotten here too: the layout would read Redis for it, out of reach.
-    return redirect(signInUnavailableHref(target), forgottenSessionCookie());
+    // The sign-in offered again asks for the identifiers as this one would have.
+    return redirect(signInUnavailableHref(target, reauthenticate), forgottenSessionCookie());
   }
   let prompt: SignInPrompt | undefined;
   if (signOut) {
     prompt = "none";
-  } else if (searchParams.has(REAUTHENTICATE_PARAMETER)) {
+  } else if (reauthenticate) {
     prompt = "login";
   }
   const address = identityProvider().signInAddress(state, nonce, challenge, prompt);

@@ -89,9 +89,16 @@ function staysOnFront(path: string): boolean {
   return URL.canParse(path, FRONT) && new URL(path, FRONT).origin === FRONT;
 }
 
-/** The page that says a sign-in could not be made, which offers it again for a screen. */
-export function signInUnavailableHref(screen: string): string {
+/**
+ * The page that says a sign-in could not be made, which offers it again for a screen; with
+ * `reauthenticate`, a sign-in that asks for the identifiers again, as the one that failed did:
+ * the session of the realm would still bring a token of the same sign-in (#855).
+ */
+export function signInUnavailableHref(screen: string, reauthenticate = false): string {
   const query = new URLSearchParams({ [NEXT_PARAMETER]: returnTarget(screen) });
+  if (reauthenticate) {
+    query.set(REAUTHENTICATE_PARAMETER, "1");
+  }
   return `${SIGN_IN_UNAVAILABLE_ROUTE}?${query.toString()}`;
 }
 

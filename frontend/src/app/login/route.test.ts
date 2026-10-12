@@ -166,6 +166,21 @@ describe("the sign-in route on the identity provider", () => {
     }
   });
 
+  it("offers again, when Redis is out of reach, a sign-in that asks for the identifiers, as the one asked did (#855)", async () => {
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      const response = await login(
+        `?next=${encodeURIComponent("/account?tab=1")}&reauthenticate=1`,
+      );
+      expect(response.headers.get("Location")).toBe(
+        `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}&reauthenticate=1`,
+      );
+    } finally {
+      await closeStore();
+    }
+  });
+
   it("keeps the home page in place of another site", async () => {
     const response = await login(`?next=${encodeURIComponent("https://elsewhere.example/a?b=c")}`);
     const state = new URL(response.headers.get("Location") ?? "").searchParams.get("state");

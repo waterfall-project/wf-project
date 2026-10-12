@@ -21,7 +21,7 @@ import {
   closeSessionsMissedByTheRealm,
   DIRECTORY,
   expectSignInPage,
-  giveIdentifiers,
+  reauthenticate,
   signIn,
 } from "./realm";
 
@@ -29,9 +29,9 @@ heldToTheContract();
 
 // The routes a sign-in, a sign-out and a closing in the realm reach by a redirect or by Keycloak,
 // compiled before the paths wait for them: the return of a sign-in, the screen of the account under
-// the shell, the back channel.
+// the shell, the home page a sign-out signs in again to, the back channel.
 test.beforeEach(async ({ request }) => {
-  await compileAnswered(request, "/auth/callback", ACCOUNT, "/auth/backchannel-logout");
+  await compileAnswered(request, "/auth/callback", ACCOUNT, "/", "/auth/backchannel-logout");
 });
 
 const ACCOUNT = "/account";
@@ -197,8 +197,8 @@ test("a user whose sessions were closed while the realm missed it signs in again
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Session fermée");
   await pastTheSecondOf(closed);
   await page.getByRole("link", { name: "Se connecter" }).click();
-  // The session of the realm lives, and yet the realm asks for the identifiers.
-  await giveIdentifiers(page, DIRECTORY);
+  // The session of the realm lives, and yet the realm asks for the password.
+  await reauthenticate(page, DIRECTORY);
   await expect(page).toHaveURL(ACCOUNT);
   await expect(page.getByRole("main")).toContainText(DIRECTORY.email);
 });
@@ -224,6 +224,6 @@ test("a user whose session the front lost, and whose sessions were closed while 
   await signOut(page);
   await expectSignInPage(page);
   await pastTheSecondOf(closed);
-  await giveIdentifiers(page, DIRECTORY);
+  await reauthenticate(page, DIRECTORY);
   await expect(accountButton(page, DIRECTORY)).toBeVisible();
 });
