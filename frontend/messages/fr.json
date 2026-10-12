@@ -194,7 +194,6 @@
       "occurredAt": "Date",
       "author": "Auteur",
       "auditAction": "Action",
-      "auditDetails": "Détail",
       "objectKind": "Nature de l’objet",
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",

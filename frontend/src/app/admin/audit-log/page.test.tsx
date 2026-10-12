@@ -127,7 +127,7 @@ describe("the journal of audit", () => {
   it("presents each inscription with its author, its action, its object and its project as it keeps them, and how many the server retained", async () => {
     const page = await journal();
     const shown = rows(page);
-    expect(shown[0]).toBe("Date Auteur Action Détail Nature de l’objet Objet Projet Corrélation");
+    expect(shown[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet Corrélation");
     expect(shown[1]).toBe(
       "Camille Martin Application d’un import Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000034",
     );
@@ -200,7 +200,7 @@ describe("the journal of audit", () => {
     const page = await journal();
     expect(sorted(page)[0]).toBe("Date ascending");
     expect(queriesOf(EVENTS)).toEqual([{ sort_by: "occurred_at", sort_order: "asc" }]);
-    expect(rows(page)[0]).toBe("Date Auteur Action Détail Nature de l’objet Objet Projet");
+    expect(rows(page)[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet");
     // The address is the truth: a sort it asks wins over the one kept.
     server.clients = [];
     await journal({ sort_by: "occurred_at", sort_order: "desc" });
@@ -420,7 +420,7 @@ describe("the journal of audit", () => {
     expect(queriesOf(EVENTS)).toEqual([{ ...month, ...NEWEST }]);
     // The grid holds no inscription — it says no row answers —, and the filters are kept.
     expect(rows(page)).toEqual([
-      "Date Auteur Action Détail Nature de l’objet Objet Projet Corrélation",
+      "Date Auteur Action Nature de l’objet Objet Projet Corrélation",
       "Aucune ligne ne répond à la demande.",
       "Aucune inscription",
     ]);

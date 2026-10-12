@@ -1034,10 +1034,11 @@ toute fonction par sa permission de consulter, et `WritableFunction` celles qui 
 permission de modifier, seules que `platformOffer` accepte. L'écran est gardé par `audit_log.read`,
 introuvable sans elle comme une adresse qui ne mène nulle part (WF-ADM-0110). Il présente une page
 des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`audit-columns.tsx`,
-préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action, son détail —
-ce qu'elle a fait à son objet, composé par le front dans la langue du lecteur à partir des codes et
+préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
+ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
 des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une colonne qui ne se trie pas —, la nature et
+aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
+de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
 le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :

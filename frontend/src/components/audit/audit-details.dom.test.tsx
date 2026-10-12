@@ -9,7 +9,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { example } from "@/test/fixtures";
 
-import { ActionCell, DetailsCell } from "./audit-cells";
+import { ActionCell } from "./audit-cells";
 import type { AuditEvent } from "./audit-columns";
 
 type Params = components["schemas"]["AuditParams"];
@@ -33,19 +33,17 @@ function acting(action: AuditEvent["action"], params: Params): AuditEvent {
   return { ...ATTRIBUTION, action, params };
 }
 
-/** What a reader of a language reads of an inscription: its action, then what it did. */
+/** What a reader of a language reads in the cell of an action: the action, then what it did. */
 function read(event: AuditEvent, locale: Locale): string[] {
   const { container } = render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <p>
-        <ActionCell action={event.action} />
-      </p>
-      <p>
-        <DetailsCell event={event} />
+        <ActionCell event={event} />
       </p>
     </NextIntlClientProvider>,
   );
-  return [...container.querySelectorAll("p")].map((part) => part.textContent);
+  const lines = [...container.querySelectorAll("p > span > span")];
+  return lines.length === 0 ? [container.textContent, ""] : lines.map((line) => line.textContent);
 }
 
 describe("what an action did, in the language of its reader", () => {

@@ -7,9 +7,9 @@
  * the platform; the action and the nature of the object, in words; the object and the project, by
  * the names the inscription keeps — an account anonymised by the neutral label —, each a link to it
  * when the session may consult it (WF-ADM-0110), its name alone otherwise; the link to the
- * history of the object, the journal filtered on it; what the action did to its object, composed in
- * the language of the reader from the codes and the identifiers the inscription keeps, never a
- * sentence of the API (WF-ARC-0110); and the correlation, a link to the inscriptions
+ * history of the object, the journal filtered on it; under the action, what it did to its object,
+ * composed in the language of the reader from the codes and the identifiers the inscription keeps,
+ * never a sentence of the API (WF-ARC-0110); and the correlation, a link to the inscriptions
  * of its request alone (WF-OBS-0020). A link is out of the order of tabulation,
  * the grid being one stop, which follows it on Enter (`grid-keyboard.ts`).
  */
@@ -61,12 +61,6 @@ export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
   );
 }
 
-/** Render the action of an inscription, in words. */
-export function ActionCell({ action }: { readonly action: AuditAction }) {
-  const t = useTranslations("enums.AuditAction");
-  return t(action);
-}
-
 /** The parameters of an inscription, as the contract gives them: codes, identifiers, labels kept. */
 type AuditParams = AuditEvent["params"];
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -81,10 +75,7 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-export function useAuditDetails(): (
-  action: AuditAction,
-  params: AuditParams,
-) => string | undefined {
+function useAuditDetails(): (action: AuditAction, params: AuditParams) => string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
@@ -146,15 +137,22 @@ export function useAuditDetails(): (
 }
 
 /**
- * Render what the action of an inscription did to its object, in the language of the reader; its
- * whole sentence on hover, the cell cutting it short. Nothing for an action whose object says it
- * all.
+ * Render the action of an inscription, in words, and under it what it did to its object, in the
+ * language of the reader — its whole sentence on hover, the cell cutting it short; the action alone
+ * when its object says it all. The column sorts by the action: what it did is a part of it, never a
+ * column of its own, which the server could not sort (WF-IHM-0060).
  */
-export function DetailsCell({ event }: { readonly event: AuditEvent }) {
+export function ActionCell({ event }: { readonly event: AuditEvent }) {
+  const t = useTranslations("enums.AuditAction");
   const details = useAuditDetails()(event.action, event.params);
-  return details === undefined ? null : (
-    <span title={details} className="block truncate">
-      {details}
+  return details === undefined ? (
+    t(event.action)
+  ) : (
+    <span className="flex flex-col text-xs leading-3">
+      <span className="truncate">{t(event.action)}</span>
+      <span title={details} className="truncate text-muted-foreground">
+        {details}
+      </span>
     </span>
   );
 }
