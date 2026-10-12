@@ -5,8 +5,8 @@
  * (#514, #515), in the order the server gave them: each account with its origin, its access roles
  * and the node it is attached to — named as the server resolves them — and whether it is active, a
  * deactivated one staying listed unless a state is chosen (WF-ADM-0050, WF-ADM-0060), filtered
- * by origin, by node, by access role and by state, a page of the list the server pages, and the
- * commands of the accounts for a session that may modify them, which EP-03 wires; each access role,
+ * by origin, by node, by access role and by state, a page of the list the server pages, and, for a
+ * session that may modify them, the table its own entry (`user-commands.tsx`); each access role,
  * predefined or composed, with how many accounts hold it (WF-ADM-0010, WF-ADM-0090), filtered by
  * kind and between bounds of their holders, and the commands of the roles for a session that may
  * modify them (`role-commands.tsx`); and the matrix of the permissions, a row for each permission of
@@ -44,8 +44,7 @@ import {
 import { functionAt } from "@/navigation/functions";
 
 import { AccessRoleGrid, UserGrid } from "./admin-grid";
-import type { AccessRoleSort, User, UserPage, UserSort } from "./admin-grids";
-import { LaterNotice } from "./later-commands";
+import type { AccessRoleSort, RoleChoice, User, UserPage, UserSort } from "./admin-grids";
 import { PermissionCell } from "./permission-matrix";
 import { HOLDER_COUNT, PREDEFINED } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
@@ -59,15 +58,10 @@ import {
   type UserOrigin,
   USERS_LIST,
 } from "./user-address";
+import { UserCommands } from "./user-commands";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
-
-/** An access role the accounts may be restricted to, by its identifier and its label. */
-export interface RoleChoice {
-  readonly id: string;
-  readonly label: string;
-}
 
 /**
  * The accounts of a page of the list, filtered by origin, by node, by access role — one at least of
@@ -75,9 +69,8 @@ export interface RoleChoice {
  * and by state — the active or the deactivated ones alone; none, every account —, or that the
  * installation has none — only when the list holds none at all and nothing narrows it: a page asked
  * beyond its end is no empty list; its pages say where it stands (`ListPages`). For a session that
- * may modify the accounts, the region that says what their commands do, which the screen shares
- * with the command of its header (`LaterCommands`) — before the list, so that it speaks when the
- * list is empty too.
+ * may modify the accounts, the commands of the table (`UserCommands`): the region that says what a
+ * write did, the refusals told above it, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -126,61 +119,64 @@ export function UserList({
     value: origin,
     text: named(origin),
   }));
-  return (
-    <>
-      {/* Outside the section, which an empty list empties: the command of the header is told. */}
-      {editable ? <LaterNotice /> : null}
-      <ReferenceSection
-        title={t("title")}
-        icon={Users}
-        empty={page.total === 0 && !narrowed ? t("none") : undefined}
-        fill
-      >
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <ValuesFilter
-            name={ORIGINS}
-            label={t("originFilter")}
-            every={t("everyOrigin")}
-            values={choices}
-            chosen={origins}
-            page={OFFSET}
-          />
-          <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
-          {/* No role the session reads, none offered. */}
-          {roles.length === 0 ? null : (
-            <ValuesFilter
-              name={ACCESS_ROLES}
-              label={t("roleFilter")}
-              every={t("everyRole")}
-              values={roles.map((role) => ({ value: role.id, text: role.label }))}
-              chosen={accessRoles}
-              page={OFFSET}
-              exhaustive={false}
-            />
-          )}
-          <ChoiceFilter
-            name={IS_ACTIVE}
-            label={t("stateFilter")}
-            every={t("everyState")}
-            choices={[
-              { value: "true", text: t("activeAccounts") },
-              { value: "false", text: t("inactiveAccounts") },
-            ]}
-            chosen={active === undefined ? undefined : String(active)}
-            page={OFFSET}
-            lifts={[INCLUDE_INACTIVE]}
-          />
-        </div>
-        <UserGrid
-          users={users}
-          page={page}
-          query={query}
-          preferences={preferences}
-          editable={editable}
+  const filters = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <ValuesFilter
+        name={ORIGINS}
+        label={t("originFilter")}
+        every={t("everyOrigin")}
+        values={choices}
+        chosen={origins}
+        page={OFFSET}
+      />
+      <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
+      {/* No role the session reads, none offered. */}
+      {roles.length === 0 ? null : (
+        <ValuesFilter
+          name={ACCESS_ROLES}
+          label={t("roleFilter")}
+          every={t("everyRole")}
+          values={roles.map((role) => ({ value: role.id, text: role.label }))}
+          chosen={accessRoles}
+          page={OFFSET}
+          exhaustive={false}
         />
-        <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
-      </ReferenceSection>
+      )}
+      <ChoiceFilter
+        name={IS_ACTIVE}
+        label={t("stateFilter")}
+        every={t("everyState")}
+        choices={[
+          { value: "true", text: t("activeAccounts") },
+          { value: "false", text: t("inactiveAccounts") },
+        ]}
+        chosen={active === undefined ? undefined : String(active)}
+        page={OFFSET}
+        lifts={[INCLUDE_INACTIVE]}
+      />
+    </div>
+  );
+  const empty = page.total === 0 && !narrowed;
+  const list = empty ? (
+    <p className="text-sm text-muted-foreground">{t("none")}</p>
+  ) : (
+    <>
+      {filters}
+      <UserGrid
+        users={users}
+        page={page}
+        query={query}
+        preferences={preferences}
+        roles={roles}
+        editable={editable}
+      />
+      <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
     </>
+  );
+  return (
+    <ReferenceSection title={t("title")} icon={Users} fill>
+      {editable ? <UserCommands>{list}</UserCommands> : list}
+    </ReferenceSection>
   );
 }
 

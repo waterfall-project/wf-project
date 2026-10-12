@@ -478,7 +478,7 @@ def test_the_values_searched_are_the_secrets_of_the_chain_and_the_mark_of_the_de
     values = images.development_values()
     job = yaml.safe_load(images.WORKSTATION_SECRETS.read_text(encoding="utf-8"))["jobs"]["check"]
     secrets = {value for name, value in job["env"].items() if SECRET_NAME.search(name)}
-    assert len(secrets) == 8
+    assert len(secrets) == 10
     assert set(values.values()) == secrets | {images.DEVELOPMENT_MARK}
 
 

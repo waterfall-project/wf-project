@@ -12,31 +12,62 @@
  * of the request, and only a path of this front is kept — another site leads home
  * (`returnTarget`); the return, `/auth/callback`, leads there.
  *
+ * It forgets the cookie of the session the browser held, if any: the sign-out leads here once the
+ * sessions are closed, without touching the cookie itself (#724), and a session lost or refused
+ * has nothing more to give. With `sign_out` and the ticket the server action of the sign-out armed
+ * (`signOutHref`), taken once and only by the browser whose cookie it is bound to, the sign-in is
+ * the sign-out of a session the front lost (#689): silent (`prompt=none`), its return closes the
+ * sessions of the account rather than open one. A ticket unknown, spent or too old — a link of
+ * another site —, or armed for another cookie, or the browser holding none — a ticket a third
+ * party armed for itself —, is a sign-in like any other. Redis out of reach, the browser is told
+ * the sign-in could not be made, never a bare error (#687).
+ *
  * On the fake back (`WATERFALL_AUTH=mock`), which grants the session the whole mock-up starts
  * from, there is nothing to sign in to: the route leads straight to the screen `next` names.
  */
 import { isMockAuthentication } from "@/api/server";
-import { NEXT_PARAMETER, returnTarget } from "@/navigation/login";
+import {
+  NEXT_PARAMETER,
+  returnTarget,
+  SIGN_OUT_PARAMETER,
+  signInUnavailableHref,
+} from "@/navigation/login";
 import { identityProvider, signInChecks } from "@/session/provider";
-import { rememberSignIn } from "@/session/store";
-import { signInCookie } from "@/session/tokens";
+import { rememberSignIn, StoreUnreachable, takeSignOut } from "@/session/store";
+import { forgottenSessionCookie, sessionIdOf, signInCookie } from "@/session/tokens";
 
-/** Start the sign-in, which comes back to the screen aimed at. */
+/** A redirect of the sign-in, never kept by a cache. */
+function redirect(location: string, ...cookies: string[]): Response {
+  const headers = new Headers({ Location: location, "Cache-Control": "no-store" });
+  for (const cookie of cookies) {
+    headers.append("Set-Cookie", cookie);
+  }
+  return new Response(null, { status: 307, headers });
+}
+
+/** Start the sign-in, which comes back to the screen aimed at — or the sign-out of a lost session. */
 export async function GET(request: Request): Promise<Response> {
-  const target = returnTarget(new URL(request.url).searchParams.get(NEXT_PARAMETER));
+  const { searchParams } = new URL(request.url);
+  const target = returnTarget(searchParams.get(NEXT_PARAMETER));
   if (isMockAuthentication()) {
     // A relative address: behind a proxy, the address the request carries is not the browser's.
     return new Response(null, { status: 307, headers: { Location: target } });
   }
+  const ticket = searchParams.get(SIGN_OUT_PARAMETER);
+  const session = sessionIdOf(request);
   const { state, nonce, verifier, challenge } = await signInChecks();
-  await rememberSignIn(state, { verifier, nonce, target });
-  const address = identityProvider().signInAddress(state, nonce, challenge);
-  return new Response(null, {
-    status: 307,
-    headers: {
-      Location: address.toString(),
-      "Set-Cookie": signInCookie(state),
-      "Cache-Control": "no-store",
-    },
-  });
+  let signOut = false;
+  try {
+    signOut = ticket !== null && session !== undefined && (await takeSignOut(ticket, session));
+    await rememberSignIn(state, { verifier, nonce, target, signOut });
+  } catch (error) {
+    if (!(error instanceof StoreUnreachable)) {
+      throw error;
+    }
+    console.error("A sign-in could not be started", error);
+    // The cookie forgotten here too: the layout would read Redis for it, out of reach.
+    return redirect(signInUnavailableHref(target), forgottenSessionCookie());
+  }
+  const address = identityProvider().signInAddress(state, nonce, challenge, signOut);
+  return redirect(address.toString(), signInCookie(state), forgottenSessionCookie());
 }

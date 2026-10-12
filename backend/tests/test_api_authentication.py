@@ -22,7 +22,7 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm, new_key
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, bearer, raw_account
+from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services, admit, signed_in_before_sessions_closed
@@ -558,7 +558,7 @@ def test_no_connection_is_held_while_keycloak_is_asked_for_a_caller_or_her_sessi
 ) -> None:
     # The realm of test serves no administration API: Keycloak fails, after it is asked (#669).
     watching = Watching(keycloak, realm_settings, database)
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     unknown = client.get(ME, headers=bearer(realm.token("a-person-of-the-directory", KEY)))
     assert refusal(unknown) == (503, "COMPONENT_UNAVAILABLE")

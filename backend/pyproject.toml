@@ -8,6 +8,7 @@ description = "Waterfall: the business core, the API service and the worker, in 
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18",
+    "boto3>=1.40",
     "email-validator>=2.3.0",
     "fastapi>=0.143.0",
     "httpx2>=2.13.1",
@@ -34,6 +35,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "boto3-stubs-lite[s3]>=1.40",
     "datamodel-code-generator>=0.83.0",
     "grimp>=3.17",
     "import-linter>=2.15",

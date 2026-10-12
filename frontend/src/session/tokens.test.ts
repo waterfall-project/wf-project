@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updateEstimateLine } from "@/api/actions/nodes";
 import type { ApiClient } from "@/api/client";
 import { readOrFail } from "@/api/problem";
-import { SESSION_LOST_DIGEST, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
+import {
+  SESSION_LOST_DIGEST,
+  SESSION_REQUIRED_DIGEST,
+  UNREACHABLE_DIGEST,
+} from "@/components/system/failure";
 import { fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
@@ -21,6 +25,7 @@ import {
   REFRESH_MARGIN,
   requestBearer,
   SESSION_COOKIE,
+  sessionIdOf,
 } from "./tokens";
 
 const state = vi.hoisted(() => ({
@@ -74,10 +79,24 @@ function late(send: Send, released: Promise<unknown>): Send {
   };
 }
 
-/** The realm out of reach for its tokens: the request to its token endpoint rejected. */
+/** The realm out of reach for its tokens: the request to its token endpoint never leaves. */
 function down(send: Send): Send {
+  const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
   return (url, init) =>
-    url.endsWith("/token") ? Promise.reject(new TypeError("fetch failed")) : send(url, init);
+    url.endsWith("/token")
+      ? Promise.reject(new TypeError("fetch failed", { cause: refused }))
+      : send(url, init);
+}
+
+/**
+ * The realm behind a proxy that fails once it has passed a request on: the realm took the refresh
+ * token and turned it, and the front receives `fail` instead of the answer.
+ */
+function failingAfter(send: Send, fail: () => Promise<Response>): Send {
+  return async (url, init) => {
+    const answer = await send(url, init);
+    return url.endsWith("/token") ? fail() : answer;
+  };
 }
 
 /** What a read of a page throws, or nothing when it reads. */
@@ -159,14 +178,29 @@ describe("the token of a request", () => {
     expect(await readSession(id)).toBeUndefined();
   });
 
-  it("serves the access token while it lives when the realm cannot be reached, and fails once it has expired", async () => {
+  it("serves the access token while it lives when the realm cannot be reached, and fails as the service out of reach once it has expired", async () => {
     state.provider = createIdentityProvider(TEST_SETTINGS, down(realm.send));
     const id = await signedIn(randomUUID(), 20_000);
     expect(await requestBearer()).toBe((await living(id)).accessToken);
     const expired = await signedIn(randomUUID(), -1000);
-    await expect(requestBearer()).rejects.toThrow("fetch failed");
+    await expect(requestBearer()).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
     expect(await readSession(expired)).toBeDefined();
   });
+
+  it.each([
+    ["a proxy answering 502 for it", () => Promise.resolve(new Response("", { status: 502 }))],
+    ["its connection cut", () => Promise.reject(new TypeError("fetch failed"))],
+  ])(
+    "closes the session when a refresh fails once sent, %s: the token the realm turned is never presented again (#687)",
+    async (_, fail) => {
+      state.provider = createIdentityProvider(TEST_SETTINGS, failingAfter(realm.send, fail));
+      const id = await signedIn(randomUUID(), 0);
+      await expect(requestBearer()).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
+      await expect(requestBearer()).rejects.toMatchObject({ digest: SESSION_LOST_DIGEST });
+      expect(realm.refreshes).toHaveLength(1);
+      expect(await readSession(id)).toBeUndefined();
+    },
+  );
 
   it("interrupts a write when the session has expired: it does not leave, is not applied, and the screen is told to lead to the sign-in [WF-SEC-0020-A]", async () => {
     const subject = randomUUID();
@@ -202,8 +236,28 @@ describe("the token of a request", () => {
   });
 });
 
+describe("the session a request to a route holds", () => {
+  it.each([
+    ["wf_session=abc", "abc"],
+    ["wf_sign_in_s=1; wf_session=abc; wf_last_project=p", "abc"],
+    ["not_wf_session=abc", undefined],
+    ["wf_session=", undefined],
+    ["", undefined],
+    // As `cookies()` of Next reads it, which arms the ticket: the cookie given twice, at its last.
+    ["wf_session=first; wf_session=last", "last"],
+    // Its value decoded, as `cookies()` gives it.
+    ["wf_session=a%2Fb%3D", "a/b="],
+  ])(
+    "is read from its cookies as Next reads them, none without the cookie of the session: %j",
+    (cookie, id) => {
+      const headers: HeadersInit = cookie === "" ? {} : { Cookie: cookie };
+      expect(sessionIdOf(new Request("https://front.test/login", { headers }))).toBe(id);
+    },
+  );
+});
+
 describe("closing the sessions of the request", () => {
-  it("closes every session of its account, on all its workstations, and forgets its cookie, another account's untouched", async () => {
+  it("closes every session of its account, on all its workstations, another account's untouched, its cookie left to the sign-in (#724)", async () => {
     const subject = randomUUID();
     const elsewhere = await signedIn(subject);
     const other = await signedIn();
@@ -212,7 +266,7 @@ describe("closing the sessions of the request", () => {
     expect(await readSession(here)).toBeUndefined();
     expect(await readSession(elsewhere)).toBeUndefined();
     expect(await readSession(other)).toBeDefined();
-    expect(state.jar?.held.has(SESSION_COOKIE)).toBe(false);
+    expect(state.jar?.held.get(SESSION_COOKIE)).toBe(here);
     // Without a session, there is nothing to close.
     await expect(closeRequestSessions()).resolves.toBeUndefined();
   });

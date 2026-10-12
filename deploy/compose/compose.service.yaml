@@ -29,8 +29,9 @@ x-back: &back
   environment: *back-environment
 
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
-# every token, whoever asks for it; by default, the port the front end is published on.
-x-keycloak-address: &keycloak-address ${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+# every token, whoever asks for it; the port the front end is published on, which alone moves —
+# the front end serves localhost and 127.0.0.1 only (#735).
+x-keycloak-address: &keycloak-address https://localhost:${WATERFALL_KEYCLOAK_PORT:-8443}/auth
 
 # How the API and the worker reach Keycloak: the issuer of the tokens is the address the browser
 # reaches it at; they reach it on the back channel, for its keys and its administration API, as its
@@ -39,6 +40,18 @@ x-keycloak-client-environment: &keycloak-client-environment
   WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
   WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
   WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?export WATERFALL_SERVICE_CLIENT_SECRET}
+
+# The key of the platform on its object storage: its identifier, which is no secret, and its secret.
+x-storage-key: &storage-key ${WATERFALL_STORAGE_ACCESS_KEY:-GK000000000000000000000001}
+x-storage-secret: &storage-secret ${WATERFALL_STORAGE_SECRET:?export WATERFALL_STORAGE_SECRET}
+
+# How the API and the worker reach the object storage (PBS-3.3), by S3, inside the network of the
+# platform, and the bucket of the backups.
+x-storage-environment: &storage-environment
+  WATERFALL_STORAGE_ADDRESS: http://storage:3900
+  WATERFALL_STORAGE_ACCESS_KEY: *storage-key
+  WATERFALL_STORAGE_SECRET: *storage-secret
+  WATERFALL_BACKUPS_BUCKET: backups
 
 # One image, two commands: Keycloak, and the application of the realm (deploy/keycloak/Dockerfile).
 x-keycloak: &keycloak
@@ -120,12 +133,14 @@ services:
   api:
     <<: *back
     environment:
-      <<: [*back-environment, *keycloak-client-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
     depends_on:
       service-database-role:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      storage-buckets:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${WATERFALL_API_PORT:-8000}:8000"
     healthcheck:
@@ -135,11 +150,14 @@ services:
       retries: 30
 
   # Runs the background tasks of the queue (WF-ARC-0090), with the settings of the API, and starts
-  # again if it stops: a task it was running is taken up again.
+  # again if it stops: a task it was running is taken up again. A backup dumps the two databases as
+  # their owners, waterfall and keycloak (#701), into the bucket of the backups.
   worker:
     <<: *back
     environment:
-      <<: [*back-environment, *keycloak-client-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_OWNER_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?export WATERFALL_KEYCLOAK_DATABASE_PASSWORD}@postgres:5432/keycloak
     command: ["waterfall-worker"]
     restart: unless-stopped
     depends_on:
@@ -147,6 +165,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      storage-buckets:
+        condition: service_completed_successfully
 
   # Deposits the reading of the accounts at the end of each interval of the installation, in
   # seconds, a day by default (PBS-5.3); a CronJob does it in EP-13. An interval that sleep refuses
@@ -187,6 +207,44 @@ services:
     restart: "no"
     depends_on:
       postgres:
+        condition: service_healthy
+
+  # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of
+  # the platform taken from the environment (garage.toml). It keeps its data in a volume, as the
+  # databases do; its memory is bounded, for the machine of a demonstration (WF-CMP-0020).
+  storage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    command: ["/garage", "server", "--single-node", "--default-access-key"]
+    environment:
+      GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?export WATERFALL_STORAGE_RPC_SECRET}
+      GARAGE_DEFAULT_ACCESS_KEY: *storage-key
+      GARAGE_DEFAULT_SECRET_KEY: *storage-secret
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - storage-data:/var/lib/garage
+    mem_limit: 256m
+    healthcheck:
+      # The image holds Garage alone: its own command asks the node how it stands.
+      test: ["CMD", "/garage", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Creates the buckets of the platform when missing, by the CreateBucket of S3 signed with its key,
+  # then stops: the backups, and the imports to come (EP-06).
+  storage-buckets:
+    image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+    entrypoint: ["/bin/sh", "/storage-buckets.sh"]
+    environment:
+      STORAGE_ADDRESS: http://storage:3900
+      STORAGE_ACCESS_KEY: *storage-key
+      STORAGE_SECRET: *storage-secret
+      STORAGE_BUCKETS: backups imports
+    volumes:
+      - ./storage-buckets.sh:/storage-buckets.sh:ro
+    restart: "no"
+    depends_on:
+      storage:
         condition: service_healthy
 
   # The database of Keycloak, on the same server, created with its role when missing (#215).
@@ -363,6 +421,7 @@ services:
 
 volumes:
   postgres-data:
+  storage-data:
   openldap-data:
   openldap-config:
   keycloak-front-end-data:

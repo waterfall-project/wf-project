@@ -114,9 +114,10 @@ Backup:
     Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du
     fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs
     deux vidages et d'un manifeste — la date, la version de l'application, la révision du
-    schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une
-    restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et
-    n'y figurent pas (WF-DAT-0120).
+    schéma, les empreintes. Le journal d'audit en fait partie : il est sauvegardé avec la base
+    de Waterfall (WF-SEC-0030), et une restauration réinscrit celles de ses inscriptions qui
+    suivent la date de la sauvegarde (WF-ADM-0160). Les fichiers importés ne vivent que le temps
+    de leur import et n'y figurent pas (WF-DAT-0120).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     taken_at: { $ref: ../common.yaml#/Timestamp }
@@ -132,7 +133,7 @@ Backup:
       enum: [database]
       description: >-
         Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du
-        fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
+        fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris.
     origin:
       type: string
       enum: [manual, scheduled]

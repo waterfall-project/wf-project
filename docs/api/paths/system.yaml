@@ -26,7 +26,9 @@
     description: >-
       La langue par défaut de l'installation, sur laquelle le front se replie quand le
       compte suit le navigateur et que celui-ci ne demande aucune langue offerte
-      (WF-INTF-0160) — y compris avant toute connexion.
+      (WF-INTF-0160) — y compris avant toute connexion. Avant l'amorçage de l'installation
+      (WF-EXP-0020), qui en crée la ligne, l'opération répond 503 `COMPONENT_UNAVAILABLE`,
+      `component` à `database`.
     responses:
       '200':
         description: Paramètres publics de l'installation.

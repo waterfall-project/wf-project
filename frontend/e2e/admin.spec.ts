@@ -56,9 +56,10 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   // The header, the seven accounts, the totals: how many the server retained.
   await expect(accounts.getByRole("row")).toHaveCount(9);
+  // The node before the roles (#379), which the session may attribute: the cell names its list.
   await expect(
     accounts.getByRole("row", {
-      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé/,
+      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall Bureau d'études électricité Rôles de/,
     }),
   ).toHaveCount(1);
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
@@ -172,39 +173,49 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("offers the commands of the accounts, each available with EP-03 or unavailable as the account lists it, and the deletion of none [WF-ADM-0120-A]", async ({
+test("enters the table of the accounts — a state on its switch, the roles of an account —, offers the anonymisation of a deactivated one, and offers to delete none [WF-ADM-0060-A]", async ({
   page,
 }) => {
+  // The fake back answers each write by its example, and keeps nothing: the accounts written are
+  // those the examples write — Noé Vidal deactivated, a role given to Sacha Lefèvre —, shown as
+  // answered over the page read anew.
   await page.goto("/admin/users");
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
-  const told = page.getByRole("main").getByRole("status").filter({ hasText: /EP-03/ });
-  // No project is opened here, nothing witnesses the hydration: the command is pressed again
-  // until React answers.
-  await expect(async () => {
-    await accounts.getByRole("button", { name: "Réactiver «\u00a0Alix Moreau\u00a0»" }).click();
-    await expect(told).toHaveText(
-      "Réactiver «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
-      {
-        timeout: 1_000,
-      },
-    );
-  }).toPass({ timeout: WORKING });
-  await page.getByRole("button", { name: "Créer un compte local" }).click();
-  await expect(told).toHaveText("Créer un compte local\u00a0: disponible avec EP-03.");
+  const told = page.getByRole("status", { name: "Commandes des comptes" });
   await expect(page.getByRole("main").getByRole("button", { name: /Supprimer/ })).toHaveCount(0);
+  // No project is opened here, nothing witnesses the hydration: the switch is pressed again until
+  // React answers.
+  const vidal = accounts.getByRole("switch", { name: "Compte de «\u00a0Noé Vidal\u00a0» actif" });
+  await expect(async () => {
+    await vidal.click();
+    await expect(told).toHaveText("«\u00a0Noé Vidal\u00a0» désactivé.", { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(vidal).not.toBeChecked();
+
+  // A deactivated account lists its anonymisation — Alix Moreau, and Noé Vidal once deactivated —;
+  // the active ones do not (WF-ADM-0060). It writes nothing yet: it says so.
+  await expect(accounts.getByRole("button", { name: /^Anonymiser «/ })).toHaveCount(2);
+  await accounts.getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }).click();
+  await expect(told).toHaveText(
+    "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
+  );
 
   // The last administrator, as the account lists its commands: her deactivation unavailable,
-  // naming the condition she lacks (WF-ADM-0120); what a press says, the component tests prove.
-  const deactivation = accounts.getByRole("button", {
-    name: "Désactiver «\u00a0Camille Martin\u00a0»",
+  // naming the condition she lacks (WF-ADM-0120).
+  const camille = accounts.getByRole("switch", {
+    name: "Compte de «\u00a0Camille Martin\u00a0» actif",
   });
-  const unmet =
-    "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.";
-  await expect(deactivation).toHaveAttribute("aria-disabled", "true");
-  await expect(deactivation).toHaveAccessibleDescription(unmet);
-  await expect(
-    accounts.getByRole("button", { name: "Attribuer les rôles de «\u00a0Camille Martin\u00a0»" }),
-  ).not.toHaveAttribute("aria-disabled");
+  await expect(camille).toHaveAttribute("aria-disabled", "true");
+  await expect(camille).toHaveAccessibleDescription(
+    "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.",
+  );
+
+  // A role of the installation given to an account that held none, in its cell.
+  await accounts.getByRole("button", { name: "Rôles de «\u00a0Sacha Lefèvre\u00a0»" }).click();
+  const roles = page.getByRole("group", { name: "Rôles de «\u00a0Sacha Lefèvre\u00a0»" });
+  await roles.getByRole("checkbox", { name: "Chiffreur" }).click();
+  await expect(told).toHaveText("Rôles de «\u00a0Sacha Lefèvre\u00a0» attribués.");
+  await expect(roles.getByRole("checkbox", { name: "Chiffreur" })).toBeChecked();
 });
 
 test("deletes an access role from its row once confirmed, its deletion unavailable while an account holds it, and sorts the roles by the server", async ({

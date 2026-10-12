@@ -402,7 +402,9 @@ def test_an_account_created_by_an_administrator_signs_in_once_its_password_is_se
     # it ceasing to be valid, its request inscribed in the journal without the token.
     user_id = created_by_administrator(api, administrator)
     with database.transaction() as session:
-        email = session.get_one(UserAccount, user_id).email.lower()
+        email = session.get_one(UserAccount, user_id).email
+    assert email is not None
+    email = email.lower()
     refused_sign_in(email, PASSWORD)
     before = time.time()
     first, second = (api.post(link_path(user_id), headers=administrator) for _ in range(2))
@@ -593,6 +595,7 @@ def test_an_account_the_realm_relays_since_waterfall_created_it_has_no_link(
     user_id = created_by_administrator(api, administrator)
     with database.transaction() as session:
         held = session.get_one(UserAccount, user_id)
+        assert held.email is not None
         relay(admin, Account(held.idp_subject, held.email.lower()))
     refused = api.post(link_path(user_id), headers=administrator)
     assert (refused.status_code, refused.json()["params"]) == (

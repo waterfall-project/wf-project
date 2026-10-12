@@ -28,8 +28,9 @@ COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compos
 # Caddy at each start: what the front (NODE_EXTRA_CA_CERTS, added to the authorities it trusts)
 # and the tests of the platform (SSL_CERT_FILE, the only one they trust) trust. Ignored by git.
 KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
-# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it.
-KEYCLOAK_ADDRESS = $${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it: its
+# port alone moves, its front end serving localhost and 127.0.0.1 only (#735).
+KEYCLOAK_ADDRESS = https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth
 # The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
 KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
@@ -198,6 +199,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
+		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		$(COMPOSE_SERVICE) --profile e2e --profile install config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
@@ -383,10 +385,12 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # it trusts the authority of Keycloak's front end and keeps its sessions in the Redis of the
 # platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
 # are the harness's, whatever the environment exports; the variables of the front go through the
-# environment, never the command line, which would show the password of Redis to anyone. The
-# platform is bootstrapped (US-0420, #730): the paths read the address of its first administrator
-# in E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password — empty once
-# a path has set it, the administrator then signing in with the password the paths gave it. The
+# environment, never the command line, which would show the password of Redis to anyone. The paths
+# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give an
+# account other than the first administrator a role, as an administrator would. The platform is
+# bootstrapped (US-0420, #730): the paths read the address of its first administrator in
+# E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password — empty once a
+# path has set it, the administrator then signing in with the password the paths gave it. The
 # address must be the one the platform was first bootstrapped with: a bootstrap run again ignores
 # another one (the guide, « Un parcours de bout en bout »).
 E2E_FRONT_PORT ?= 3100
@@ -406,11 +410,12 @@ e2e-service: install-front ## End-to-end paths of the project `service` against 
 	@$(COMPOSE_SERVICE) build --quiet install
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
-		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM) exec playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails

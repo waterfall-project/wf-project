@@ -9,6 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { useAccountNaming } from "./account-name";
 import { initials, type NamedAccount } from "./initials";
 
 /** The account, and the image of its avatar as an address of the page, if it has one. */
@@ -21,7 +22,7 @@ export interface AvatarPictureProps {
 export function AvatarPicture({ account, source }: AvatarPictureProps) {
   const t = useTranslations();
   const locale = useLocale();
-  const name = t("accountMenu.name", { first: account.first_name, last: account.last_name });
+  const name = useAccountNaming().person(account);
   return (
     <div className="flex items-center gap-4">
       <Avatar className="size-24 border">

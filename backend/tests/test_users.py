@@ -451,13 +451,15 @@ def available(command: str, *missing: str) -> dict[str, Any]:
 def test_an_account_carries_the_commands_its_reader_may_exercise(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
-    # WF-IHM-0090: the one that changes the state, then the attribution of the roles.
+    # WF-IHM-0090: the one that changes the state, the anonymisation of a deactivated account,
+    # then the attribution of the roles.
     assert commands(api, headers, table["Roux Inès"]) == [
         available("deactivate"),
         available("set_access_roles"),
     ]
     assert commands(api, headers, table["Moreau Alix"]) == [
         available("reactivate"),
+        available("anonymize"),
         available("set_access_roles"),
     ]
     # The caller is the only active account that holds the administration: its deactivation is
@@ -466,6 +468,19 @@ def test_an_account_carries_the_commands_its_reader_may_exercise(
     assert commands(api, headers, CALLER) == alone
     listed = read(api, headers, "?search=camille")["items"]
     assert [each["available_commands"] for each in listed] == [alone]
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, "users.write")])
+def test_the_attribution_of_the_roles_is_offered_only_to_who_may_change_the_roles(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # Giving a role is managing the roles (FBS-1.2, WF-ADM-0090, #834): who changes the accounts
+    # alone is offered the change of their state, not the attribution of their roles.
+    assert commands(api, headers, table["Roux Inès"]) == [available("deactivate")]
+    assert commands(api, headers, table["Moreau Alix"]) == [
+        available("reactivate"),
+        available("anonymize"),
+    ]
 
 
 @pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])

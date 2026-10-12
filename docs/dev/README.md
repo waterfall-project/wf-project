@@ -60,7 +60,7 @@ transaction, sous la corrélation de la requête : le dépôt dans le flux suit 
 tâche dont le dépôt s'est perdu reste `queued`, que le worker redépose au démarrage puis
 périodiquement. Le worker (`waterfall.worker.runner`) exécute la tâche dans une seule transaction,
 sous un verrou consultatif qui lui est propre, par le traitement de son genre — une fonction
-`(session, tâche)` que `HANDLERS` (`waterfall.worker.main`) enregistre, et qui refuse par une
+`(session, tâche)` que `handlers(réglages)` (`waterfall.worker.main`) enregistre, et qui refuse par une
 exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
 ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
 tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Les
@@ -169,6 +169,17 @@ servie par l'API seule, est lue par le serveur de Next en rendant la page et éc
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
 
+Un nom de compte ne s'affiche que par `useAccountNaming`
+(`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
+nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
+journal, l'auteur d'une transition, les colonnes d'audit d'un objet. L'API rend nuls les noms
+d'un compte anonymisé, sans phrase à leur place (WF-ADM-0060, WF-ARC-0110) : un nom nul se dit
+par le libellé neutre du catalogue (`accountName.anonymized`, « Compte anonymisé »), jamais par
+un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul rendu,
+`AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
+grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
+`kept(null)`.
+
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
 groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la liste des projets et
@@ -184,25 +195,25 @@ projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'afficha
 mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
 clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
 (`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
-le compte désactivé compris) oublie ce que le navigateur gardait de la session — le témoin
-`wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge `/login`
-en document entier. `/login?next=…` est un gestionnaire de route (`src/app/login/route.ts`), non
-une page : Waterfall n'a ni formulaire de connexion, ni liste de fournisseurs, ni mot de passe
-oublié, le fournisseur d'identité tenant ses écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui
-accorde la session, il mène droit à l'écran visé (`returnTarget(next)`,
-`frontend/src/navigation/login.ts`) — sans lui, ou hors du front, l'accueil — : le layout relit la
-session, et le suivi reprend les tâches qu'une session perdue avait interrompues. Hors de ce mode,
-il démarre le flux du code d'autorisation du royaume `waterfall` (US-0350) — voir « La session du
-front » ci-dessous. La session est
-`getMe` (`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses
-permissions. Un 401 `ACCOUNT_DEACTIVATED` n'est pas une session absente : l'écran le dit (la
-panne `failure.deactivated`, le refus d'une action), et ne renvoie pas à la connexion, qui
-bouclerait.
-Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
-illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
-menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
-une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que si elle est
-rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au déclencheur.
+le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
+témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge en
+document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
+gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
+connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
+écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui accorde la session, il mène droit à l'écran
+visé (`returnTarget(next)`, `frontend/src/navigation/login.ts`) — sans lui, ou hors du front,
+l'accueil — : le layout relit la session, et le suivi reprend les tâches qu'une session perdue avait
+interrompues. Hors de ce mode, il démarre le flux du code d'autorisation du royaume `waterfall`
+(US-0350) — voir « La session du front » ci-dessous. La session est `getMe`
+(`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses permissions. Un
+401 `ACCOUNT_DEACTIVATED` ou `ACCOUNT_NOT_ADMITTED` n'est pas une session absente : l'écran le dit
+(la panne `failure.deactivated` ou `failure.notAdmitted`, le refus d'une action), et ne renvoie pas
+à la connexion, qui bouclerait (#664). Sans compte (401), il n'y a ni menu du compte ni barre
+latérale ; quand la session est illisible, la barre latérale est rendue avec l'écran d'état seul,
+son bloc ouvert, et sans menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur
+écran étroit, c'est une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que
+si elle est rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au
+déclencheur.
 
 **La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
 (WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
@@ -217,32 +228,77 @@ nonce du jeton d'identité, ouvre la session — ses jetons dans Redis pour la d
 donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un
 `state` inconnu, déjà employé ou trop vieux recommence la connexion ; une connexion que le
 royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
-session, jamais à `/login`, que la session de Keycloak bouclerait.
+session, jamais à `/login`, que la session de Keycloak bouclerait. Keycloak ou Redis injoignable,
+ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable` en
+oubliant le témoin `wf_session` — la page relirait sinon Redis pour lui —, qui
+dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur 500 nue
+(#687). `/login` efface aussi le témoin `wf_session` : la déconnexion y mène sans y toucher (#724).
 `serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
 chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
 de trente secondes, sous un verrou Redis par session qui vit deux fois le délai d'une requête au
 royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne présentent jamais le même
-jeton de rafraîchissement. Un rafraîchissement refusé, ou sans réponse dans ce délai, ferme la
-session : son jeton n'est jamais présenté deux fois ; Keycloak injoignable ne la ferme pas, et le
-jeton d'accès sert tant qu'il vit. Quand la session que nomme le témoin ne vit plus, la requête
-ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran de
-panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
+jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti — refusé, sans réponse
+dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond à sa place — ferme
+la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois (#687). Seule une
+requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte
+inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
+(`Unreachable`), que l'écran dit comme tel. Quand la session que nomme le témoin ne vit plus, la
+requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran
+de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
 d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
 (`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
-une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme les sessions
-du compte par `closeMySessions`, puis efface celles que le front garde de ce compte et le témoin,
+une connexion refusée revient sans témoin, et y mener bouclerait. La déconnexion (`signOut`) ferme
+les sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte,
 sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
-`/login` redemande les identifiants. Quand la session que nomme le témoin ne vit plus, la requête ne
-part pas : le témoin s'efface, et le navigateur va au point de déconnexion du royaume (client
-`waterfall-front`, retour à `/login`), qui ferme la session de Keycloak de ce navigateur après une
-confirmation ; les autres postes du compte, eux, ne sont pas fermés faute de jeton (#689, à
-trancher). Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion,
-désactivation, retrait des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du
-front et non une opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume
-et efface les sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts`
-(`openid-client`, `jose`) et `src/session/store.ts` (`@redis/client`) atteignent Keycloak et
-Redis, chacun les siennes seulement : ESLint refuse ces bibliothèques ailleurs, et chacun des deux
-modules celles de l'autre (`src/api/network-guard.test.ts`).
+`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
+témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
+`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
+navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
+compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`,
+qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de
+confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
+la requête ne part pas, et le navigateur passe par une connexion silencieuse
+(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `wf_session` de la
+requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une
+seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
+inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
+envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin,
+font une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
+public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
+déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
+qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un clic sur un lien du front attend les
+écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
+appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
+référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
+export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
+`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
+navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
+appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
+la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
+l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
+lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
+écritures, dont le refus n'est plus dit nulle part, ni au retour sur cette lecture, dont les clics
+ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
+(`useHeldCommand(generation)`). Tout refus retient le clic, même dit ailleurs que sur l'écran
+quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit dans le
+panneau des tâches de la coquille, qui survit à l'écran — une règle sans exception plutôt qu'une
+écriture à juger une à une. Le clic se
+juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
+les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
+cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
+retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
+ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
+(`router.push`), « Précédent » et « Suivant » du navigateur (#863), un lien qui ouvre ailleurs —
+autre onglet, touche de modification, téléchargement, autre site.
+Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
+des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
+opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume et efface les
+sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts` (`openid-client`, `jose`) et
+`src/session/store.ts` (`@redis/client`) atteignent Keycloak et Redis, chacun les siennes seulement
+: ESLint refuse ces bibliothèques ailleurs, et chacun des deux modules celles de l'autre
+(`src/api/network-guard.test.ts`).
 
 Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
 navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;
@@ -917,21 +973,30 @@ matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier admi
 (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
 à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
 de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
-Pour les comptes, décidé par l'auteur le 2026-10-08 (#379, #515) : des boutons
-seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
-`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
-en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
-« Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
-absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; la désactivation du dernier compte actif qui porte les permissions de
-modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
-pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
-le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
-ces permissions — un refus dit comme tout autre. Un
-clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
-section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
-condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
-aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+Pour les comptes (US-0360, #379), la table est sa propre saisie, à une session qui porte
+`users.write` (`platformOffer`) : le nom et le prénom d'un compte local dans leurs cellules
+(`updateUser`), ceux d'un compte de l'annuaire ou d'un fournisseur restant en lecture (WF-ADM-0050) ;
+l'état sur un interrupteur, son mot à côté (`setUserActivation`) ; les rôles dans une liste à choix
+multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
+`user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
+commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
+sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
+comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
+ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
+retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
+Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
+(`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
+part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi pendant
+qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle a
+répondue, et l'interrupteur et les rôles de la ligne se marquent occupés et indisponibles
+(`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route. Ce que fait une écriture — un
+renommage compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur ou des
+rôles, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa
+cellule. La recherche et les
+filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
+table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
+se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -1358,7 +1423,7 @@ commande.
 | `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service` |
 | `make changes BASE=…` | les familles qu'une modification touche |
 | `make service-install` | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son annuaire et l'autorité de son frontal |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
 | `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
 | `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
 | `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
@@ -1377,7 +1442,9 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 | `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
 | `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur, par lequel le worker la sauvegarde ; il s'écrit aussi dans une URL |
+| `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
+| `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
 | `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
 | `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
@@ -1389,7 +1456,8 @@ sous `/auth/admin`, par un frontal Caddy (`deploy/compose/Caddyfile.service`) qu
 et le serveur de Next joignent tous deux, et qui le sert aussi sur `https://127.0.0.1:8443/auth`,
 une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
 `WATERFALL_KEYCLOAK_ADDRESS`, est `https://localhost:<port>/auth` : le frontal ne sert que les
-hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT`.
+hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT` :
+le Makefile et Compose la déduisent de lui, et ne lisent aucune adresse exportée (#735).
 Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
 dans le volume du frontal, est copiée à chaque démarrage dans
 `deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, qui l'ajoute
@@ -1747,6 +1815,7 @@ les migrations et les verrous.
 - **Un parcours de bout en bout** — voir ci-dessous.
 - **Un test contre PostgreSQL** — voir ci-dessous.
 - **Un test contre Redis** — voir ci-dessous.
+- **Un test contre le stockage objet** — voir ci-dessous.
 
 Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
 retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
@@ -1814,6 +1883,21 @@ test défait.
 - Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
   sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
   processus à la fois.
+
+### Un test contre le stockage objet
+
+Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la plateforme de service
+(PBS-3.3) : la variable `WATERFALL_TEST_STORAGE_URL` le désigne avec une clé qui peut créer un
+compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
+(`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
+supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
+Debian et d'Ubuntu, d'une version au moins égale à celle du serveur.
+
+- **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
+  reçoit pas les arguments qu'il demande — et pose la variable.
+- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
+  `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
+- **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
 
 ### Un test contre Redis
 
@@ -1899,7 +1983,8 @@ du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Pris
 jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
 Playwright avec, dans son environnement — jamais en ligne de commande, où le mot de passe de
 Redis se lirait —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
-`E2E_CONTRACT_PROXY` (son conteneur), `WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
+`E2E_CONTRACT_PROXY` (son conteneur), `E2E_SERVICE_DATABASE` (celui de PostgreSQL),
+`WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
 `WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
 l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur
 de Keycloak, viennent de l'environnement. La plateforme reste démarrée : `make service-down`
@@ -1913,9 +1998,12 @@ Une relance n'installe rien de nouveau et ignore une autre adresse (`installatio
 dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
 `WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
 donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
-(`make service-down WATERFALL_RESET_DATA=yes`). La personne de l'annuaire
-de test, `dominique.annuaire@waterfall.test` (`deploy/keycloak/development/`), reste admise sans
-rôle à sa première requête (WF-ADM-0180).
+(`make service-down WATERFALL_RESET_DATA=yes`). Les autres comptes qui se connectent sont la
+personne de l'annuaire de test, `dominique.annuaire@waterfall.test`, celle du fournisseur externe,
+`camille.externe` (`deploy/keycloak/development/`), que l'API admet sans rôle à leur première
+requête (WF-ADM-0180), et les comptes locaux qu'un parcours crée par l'API ; un parcours leur donne
+un rôle en écrivant dans la base de la plateforme (`grantRole`, `frontend/e2e/service/realm.ts`),
+comme le ferait l'administrateur.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -1928,19 +2016,27 @@ l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheCon
 toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
 mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
 réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : le fichier
-lit chaque ligne une fois, à partir de son début ; un parcours échoue sur les erreurs écrites
-jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, et celles d'après le dernier
-parcours font échouer le fichier, une fois ses pages fermées et le mandataire tu — rien d'autre
-que le contrôle de santé pendant deux secondes. Un parcours le montre, qui échoue
-(`contract.spec.ts`, `test.fail()`) : une adresse hors du contrat. Un statut que
+lit chaque ligne une fois — par `docker logs --since`, à partir du moment où il s'était arrêté, et
+du début du premier fichier du worker, sur un seul worker, ce que la garde affirme — ; un parcours
+échoue sur les erreurs écrites jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, de
+son fichier ou du suivant, et celles d'après le dernier parcours font échouer le fichier, une fois
+ses pages fermées et le mandataire tu — rien d'autre que le contrôle de santé pendant deux
+secondes, la dernière ligne d'une réponse, qui ne nomme pas sa requête, n'en étant que si elle suit
+celle de la réponse d'un contrôle (#735). Un parcours le montre (`contract.spec.ts`) : une adresse
+hors du contrat, que la garde lit, seule, refusée. Un statut que
 l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
 tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
-(#726). Le parcours de la connexion s'y joue (`session.spec.ts`) : se connecter, se déconnecter,
-aucun jeton dans le navigateur, et la fermeture des sessions par le royaume, que le canal de retour
-porte au front sur chacun des postes ; ce dernier ferme les sessions par l'API d'administration de
-Keycloak, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`).
+(#726). Les parcours de la connexion s'y jouent (US-0350) : se connecter, se déconnecter sur tous
+ses postes, la session du front perdue comprise, aucun jeton dans le navigateur, la fermeture des
+sessions par le royaume (`session.spec.ts`) ; chaque sorte de compte qui agit selon ses rôles, la
+session inactive qui ramène à la connexion puis à l'écran visé, le compte non admis
+(`sign-in.spec.ts`) ; le compte local créé, son lien de fixation, les règles du mot de passe et le
+verrouillage (`password.spec.ts`). Ils règlent le royaume par son API d'administration, en
+administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une durée raccourcie le
+temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —, et demandent un
+jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux

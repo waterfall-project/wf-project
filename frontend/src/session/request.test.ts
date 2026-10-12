@@ -51,18 +51,21 @@ describe("the session of a request", () => {
     expect(await requestSessionState()).toMatchObject({ kind: "open" });
   });
 
-  it("tells a deactivated account from a session that is none: the screen says it, no sign-in leads back", async () => {
-    server.client = fakeClient({
-      "GET /me": { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } },
-    });
-    expect(await requestSessionState()).toEqual({ kind: "deactivated" });
-    expect(await requestSession()).toBeUndefined();
-    server.client = createApiClient({
-      address: "http://proxy.invalid",
-      fetch: () => Promise.resolve(new Response("<html>Unauthorized</html>", { status: 401 })),
-    });
-    expect(await requestSessionState()).toEqual({ kind: "signed_out" });
-  });
+  it.each(["ACCOUNT_DEACTIVATED", "ACCOUNT_NOT_ADMITTED"] as const)(
+    "tells an account refused (%s) from a session that is none: the screen says it, no sign-in leads back",
+    async (code) => {
+      server.client = fakeClient({
+        "GET /me": { problem: { code, status: 401 } },
+      });
+      expect(await requestSessionState()).toEqual({ kind: "refused" });
+      expect(await requestSession()).toBeUndefined();
+      server.client = createApiClient({
+        address: "http://proxy.invalid",
+        fetch: () => Promise.resolve(new Response("<html>Unauthorized</html>", { status: 401 })),
+      });
+      expect(await requestSessionState()).toEqual({ kind: "signed_out" });
+    },
+  );
 
   it("lets a defect through rather than take it for an API out of reach", async () => {
     server.client = fakeClient({});

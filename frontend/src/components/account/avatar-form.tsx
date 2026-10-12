@@ -17,6 +17,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 
 import { removeAvatar, replaceAvatar } from "@/api/actions/account";
 import type { Outcome, Settled } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,9 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [done, setDone] = useState<Done>();
   const [pending, startTransition] = useTransition();
+  // A link clicked while the image is sent or withdrawn waits for it, and is not followed when
+  // refused.
+  const held = useHeldCommand();
   const field = useRef<HTMLInputElement>(null);
   const wrongType = file !== undefined && !isAvatarType(file.type);
   const tooLarge = file !== undefined && !wrongType && file.size > maxBytes;
@@ -63,7 +67,7 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
       return;
     }
     startTransition(async () => {
-      const result = await action();
+      const result = await held(action());
       setOutcome(result);
       setDone(result.kind === "done" ? success : undefined);
       if (result.kind === "done") {

@@ -36,7 +36,7 @@ describe("the preferences a grid records", () => {
     hidden_columns: ["quantity"],
     column_widths: { label: 400 },
     sort: { column: "hours", order: "asc" as const },
-    filters: { progress: ["started"] },
+    filters: { progress: "started" },
   };
   const settings = { visibility: { quantity: true, hours: false }, sizing: { label: 412.6 } };
 

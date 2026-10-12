@@ -198,7 +198,7 @@ def find_first_local_account_of_platform(session: Session) -> UserAccount | None
 
 
 def change_columns(
-    session: Session, user_id: UUID, values: Mapping[str, str], lock_version: int, stamp: Stamp
+    session: Session, user_id: UUID, values: Mapping[str, object], lock_version: int, stamp: Stamp
 ) -> UserAccount:
     """Change columns of an account whose version is the one read, and advance its version.
 

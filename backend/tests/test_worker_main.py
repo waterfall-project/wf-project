@@ -39,7 +39,20 @@ def test_the_version_is_stated_without_starting_anything(
 @pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.parametrize(
     ("arguments", "secrets"),
-    [([], ("DATABASE_URL", "REDIS_URL", "SERVICE_CLIENT_SECRET")), (SCHEDULE, ("DATABASE_URL",))],
+    [
+        (
+            [],
+            (
+                "DATABASE_URL",
+                "REDIS_URL",
+                "SERVICE_CLIENT_SECRET",
+                "STORAGE_SECRET",
+                "OWNER_DATABASE_URL",
+                "KEYCLOAK_DATABASE_URL",
+            ),
+        ),
+        (SCHEDULE, ("DATABASE_URL",)),
+    ],
     ids=["worker", "schedule"],
 )
 def test_without_its_secrets_the_worker_returns_failure_and_names_them(
@@ -82,7 +95,7 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     monkeypatch.setattr(worker_main, "serve", serve)
     assert worker_main.main([]) == 0
     (worker,) = served
-    assert worker.handlers is worker_main.HANDLERS
+    assert set(worker.handlers) == {"backup"}
     assert worker.consumer
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]

@@ -431,3 +431,20 @@ describe("the journal of audit", () => {
     expect(page).not.toContain(`Objet : ${backup}`);
   });
 });
+
+describe("an anonymised author in the journal", () => {
+  const ALIX = "01926f3a-7c00-7000-8000-000000000303";
+
+  it("chooses the author the address asks among those the journal names, by the neutral label alone [WF-ADM-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [EVENTS]: "audit_events_anonymized_actor",
+      [FACETS]: "audit_facets_anonymized",
+    };
+    const page = await journal({ user_id: ALIX });
+    expect(queriesOf(EVENTS)).toEqual([{ ...NEWEST, user_id: ALIX }]);
+    expect(page).toContain(`<option value="${ALIX}" selected="">Compte anonymisé</option>`);
+    expect(rows(page)[1]).toMatch(/^Compte anonymisé Application d’un import/);
+    expect(page).not.toMatch(/Alix|Moreau/);
+  });
+});

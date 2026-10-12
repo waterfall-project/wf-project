@@ -34,7 +34,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
 JPEG = b"\xff\xd8\xff\xe0" + b"\x01" * 24
 # The settings of the table of the accounts, as its grid keeps them (WF-IHM-0060).
 USERS_GRID = {"hidden_columns": ["origin"], "column_widths": {"email": 240}, "sort": None}
-ROLES_GRID = {"column_widths": {"label": 180}, "filters": {"is_predefined": True}}
+ROLES_GRID = {"column_widths": {"label": 180}, "filters": {"is_predefined": "true"}}
 
 
 def person(database: Database, realm: TestRealm, *roles: UUID, **columns: object) -> Any:
@@ -194,6 +194,97 @@ def test_a_value_the_contract_refuses_is_refused_on_its_field_and_nothing_is_wri
     assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
     assert [field["pointer"] for field in refusal(response)[2]] == [pointer]
     assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+# The bounds of the preferences (#874), each passed by one: where the fault is pointed at.
+LONG = "x" * 65
+BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
+    ({"grids": {f"g{rank}": None for rank in range(101)}}, ("/grids", "VALUE_TOO_LONG")),
+    (
+        {"grids": {"users": {"hidden_columns": [f"c{rank}" for rank in range(65)]}}},
+        ("/grids/users/hidden_columns", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"hidden_columns": [LONG]}}},
+        ("/grids/users/hidden_columns/0", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"column_widths": {f"c{rank}": 40 for rank in range(65)}}}},
+        ("/grids/users/column_widths", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"sort": {"column": LONG, "order": "asc"}}}},
+        ("/grids/users/sort/column", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"filters": {f"f{rank}": "1" for rank in range(21)}}}},
+        ("/grids/users/filters", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"filters": {"search": "x" * 501}}}},
+        ("/grids/users/filters/search", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"filters": {"is_predefined": True}}}},
+        ("/grids/users/filters/is_predefined", "VALIDATION_FAILED"),
+    ),
+]
+
+
+@pytest.mark.parametrize(("sent", "fault"), BOUNDS_PASSED)
+def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
+    api: ContractClient,
+    database: Database,
+    realm: TestRealm,
+    sent: dict[str, Any],
+    fault: tuple[str, str],
+) -> None:
+    # The preferences are read with the account at each request: their size is bounded (#874).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [fault]
+    assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+@pytest.mark.parametrize(
+    ("sent", "pointer"),
+    [
+        ({"grids": {LONG: None}}, "/grids"),
+        ({"grids": {"users": {"column_widths": {LONG: 40}}}}, "/grids/users/column_widths"),
+        ({"grids": {"users": {"filters": {LONG: "1"}}}}, "/grids/users/filters"),
+    ],
+)
+def test_a_name_longer_than_its_bound_is_refused_at_its_object_and_nothing_is_written(
+    api: ContractClient, database: Database, realm: TestRealm, sent: dict[str, Any], pointer: str
+) -> None:
+    # A key is no field of its own: its fault is pointed at the object that holds it.
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [
+        (pointer, "VALUE_TOO_LONG")
+    ]
+    assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+def test_preferences_at_their_bounds_are_written(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    user_id, headers = person(database, realm)
+    name = "x" * 64
+    grid = {
+        "hidden_columns": [f"{rank:064d}" for rank in range(64)],
+        "column_widths": {f"{rank:064d}": 40 for rank in range(64)},
+        "sort": {"column": name, "order": "asc"},
+        "filters": {f"{rank:064d}": "y" * 500 for rank in range(20)},
+    }
+    sent: dict[str, Any] = {
+        "grids": {name: grid, **{f"g{rank}": {"hidden_columns": []} for rank in range(99)}}
+    }
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert response.status_code == 200, response.text
+    assert preferences_of(database, user_id) == sent
 
 
 # A key that holds ``/`` or ``~``, and where its fault is pointed at.
