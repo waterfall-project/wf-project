@@ -2954,29 +2954,21 @@ export interface components {
             /** @description Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140). */
             expires_at: components["schemas"]["Timestamp"];
         };
-        /** @description Un compte de Waterfall que la lecture a laissé tel quel, désigné par son seul identifiant : le compte rendu n'en garde rien d'autre (#920). */
-        IdentitySyncSkippedAccount: {
-            /** @constant */
-            kind: "account";
-            user_id: components["schemas"]["Uuid"];
-            /** @description Nom d'affichage du compte, lu à la consultation ; nul pour un compte anonymisé depuis, que le front présente sous le libellé neutre de son catalogue (WF-ADM-0060, WF-ARC-0110). */
-            display_name: string | null;
-            /** @description `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS` pour un compte dont la nouvelle adresse est portée par un autre ; `VALIDATION_FAILED` pour un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING` pour un compte dont le fournisseur ne tient plus d'adresse. */
-            code: components["schemas"]["ErrorCode"];
-        };
-        /** @description Une personne du fournisseur d'identité à qui la lecture n'a pas donné de compte, telle que le fournisseur la tient (#918). */
-        IdentitySyncSkippedPerson: {
-            /** @constant */
-            kind: "person";
-            /** @description Son identifiant chez le fournisseur d'identité. */
-            subject: string;
-            /** @description Son nom chez le fournisseur ; vide s'il n'en tient pas. */
-            last_name: string;
-            /** @description Son prénom chez le fournisseur ; vide s'il n'en tient pas. */
-            first_name: string;
-            /** @description Son adresse chez le fournisseur ; nulle s'il n'en tient pas (`EMAIL_MISSING`). */
+        /** @description Ce que la lecture des comptes a laissé tel quel. Un compte de Waterfall (`account`) n'est gardé dans le compte rendu que par son identifiant : son nom, son prénom et son adresse sont ceux qu'il porte à la consultation, nuls pour un compte anonymisé depuis, que le front présente sous le libellé neutre de son catalogue (WF-ADM-0060, #920). Une personne du fournisseur d'identité qui n'a pas de compte (`person`) est nommée telle que le fournisseur la tient (#918). */
+        IdentitySyncSkipped: {
+            /** @enum {string} */
+            kind: "account" | "person";
+            /** @description Le compte de Waterfall ; nul pour une personne. */
+            user_id: components["schemas"]["Uuid"] | null;
+            /** @description L'identifiant de la personne chez le fournisseur d'identité ; nul pour un compte. */
+            subject: string | null;
+            /** @description Le nom du compte à la consultation, nul s'il est anonymisé ; celui de la personne chez le fournisseur, vide s'il n'en tient pas. */
+            last_name: string | null;
+            /** @description Le prénom du compte à la consultation, nul s'il est anonymisé ; celui de la personne chez le fournisseur, vide s'il n'en tient pas. */
+            first_name: string | null;
+            /** @description L'adresse du compte à la consultation, nulle s'il est anonymisé ; celle de la personne chez le fournisseur, nulle s'il n'en tient pas (`EMAIL_MISSING`). */
             email: string | null;
-            /** @description `EMAIL_MISSING` pour une personne sans adresse, que Waterfall ne peut pas reconnaître ; `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est déjà portée par un compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
+            /** @description Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ; `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED`, un nom ou un prénom vide, ou plus long que ce que Waterfall garde. */
             code: components["schemas"]["ErrorCode"];
         };
         /** @description Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas modifiés : c'est dans le fournisseur que la lecture rétablit leur identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). Un compte de Waterfall n'y est désigné que par son identifiant, son nom étant lu à la consultation : le compte rendu ne garde aucune donnée personnelle d'un compte (WF-ADM-0060, #920). */
@@ -2993,8 +2985,8 @@ export interface components {
             deactivated: number;
             /** @description Comptes créés dans Waterfall dont le fournisseur tenait un autre nom, un autre prénom ou une autre adresse, et dont la lecture rétablit dans le fournisseur l'identité que Waterfall tient, puisqu'il en fait foi (WF-ADM-0050, #919). Le rétablissement suit la validation de la lecture : un compte compté ici est rétabli, ou à rétablir ; un rétablissement qui échoue est journalisé, et la lecture suivante le compte de nouveau. Un compte anonymisé n'est jamais rétabli. */
             restored: number;
-            /** @description Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un compte de Waterfall (`IdentitySyncSkippedAccount`), ou une personne du fournisseur qui n'en a pas (`IdentitySyncSkippedPerson`). */
-            skipped: (components["schemas"]["IdentitySyncSkippedAccount"] | components["schemas"]["IdentitySyncSkippedPerson"])[];
+            /** @description Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un compte de Waterfall, ou une personne du fournisseur qui n'en a pas. */
+            skipped: components["schemas"]["IdentitySyncSkipped"][];
             /** @description Les adresses des comptes locaux que la lecture retire du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse. */
             removed: string[];
         };

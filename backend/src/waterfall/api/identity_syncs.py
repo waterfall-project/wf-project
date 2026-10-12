@@ -4,16 +4,26 @@
 
 The reading is the worker's (WF-ARC-0090): the request deposits the task and answers at once, and
 the report of the latest reading that ended — asked for, or the one the platform schedules — is read
-apart. Asking for one is a write of the accounts; reading its report, a consultation of them.
+apart. Asking for one is a write of the accounts; reading its report, a consultation of them. An
+account of Waterfall the report names is read as it is when the report is: an account anonymised
+since has no name nor address (#920).
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, IdentitySyncReport
 from waterfall.api.evaluation import Requires
 from waterfall.api.tasks import task_ref
-from waterfall.core.users.interface import latest_report
+from waterfall.core.users.interface import (
+    Skipped,
+    SkippedAccount,
+    latest_report,
+    read_account_label,
+)
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.tasks import BackgroundTask, submit
 
@@ -54,7 +64,32 @@ def get_latest_identity_sync(session: Transaction) -> IdentitySyncReport:
             "created": report.created,
             "updated": report.updated,
             "deactivated": report.deactivated,
-            "skipped": [{"email": email, "code": code} for email, code in report.skipped],
+            "restored": report.restored,
+            "skipped": [skipped(session, each) for each in report.skipped],
             "removed": report.removed,
         }
     )
+
+
+def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
+    """Describe what a reading left as it was: an account as it is now, or a person."""
+    if isinstance(entry, SkippedAccount):
+        label = read_account_label(session, entry.user_id)
+        return {
+            "kind": "account",
+            "user_id": entry.user_id,
+            "subject": None,
+            "last_name": None if label is None else label.last_name,
+            "first_name": None if label is None else label.first_name,
+            "email": None if label is None else label.email,
+            "code": entry.code,
+        }
+    return {
+        "kind": "person",
+        "user_id": None,
+        "subject": entry.subject,
+        "last_name": entry.last_name,
+        "first_name": entry.first_name,
+        "email": entry.email,
+        "code": entry.code,
+    }

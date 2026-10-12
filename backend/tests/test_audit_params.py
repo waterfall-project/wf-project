@@ -144,7 +144,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             attached = add_account_of_provider(session, lea, platform.at)
         assert not isinstance(attached, NotAdmitted)
         with database.transaction() as session:
-            held = HeldAccount(attached.user_id, "kc-lea-2", "kc-lea@example.org")
+            held = HeldAccount(attached.user_id, "kc-lea-2")
             assert deactivate_unheld(session, held, platform.at)
         with database.transaction() as session:
             delete_role(session, pilot.access_role_id, act)

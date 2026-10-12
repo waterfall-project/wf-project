@@ -374,12 +374,8 @@ IdentitySyncReport:
       type: array
       description: >-
         Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un
-        compte de Waterfall (`IdentitySyncSkippedAccount`), ou une personne du fournisseur qui
-        n'en a pas (`IdentitySyncSkippedPerson`).
-      items:
-        oneOf:
-          - $ref: '#/IdentitySyncSkippedAccount'
-          - $ref: '#/IdentitySyncSkippedPerson'
+        compte de Waterfall, ou une personne du fournisseur qui n'en a pas.
+      items: { $ref: '#/IdentitySyncSkipped' }
     removed:
       type: array
       description: >-
@@ -390,60 +386,50 @@ IdentitySyncReport:
         échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse.
       items: { type: string }
 
-IdentitySyncSkippedAccount:
+IdentitySyncSkipped:
   type: object
   additionalProperties: false
-  required: [kind, user_id, display_name, code]
+  required: [kind, user_id, subject, last_name, first_name, email, code]
   description: >-
-    Un compte de Waterfall que la lecture a laissé tel quel, désigné par son seul identifiant :
-    le compte rendu n'en garde rien d'autre (#920).
+    Ce que la lecture des comptes a laissé tel quel. Un compte de Waterfall (`account`) n'est
+    gardé dans le compte rendu que par son identifiant : son nom, son prénom et son adresse sont
+    ceux qu'il porte à la consultation, nuls pour un compte anonymisé depuis, que le front
+    présente sous le libellé neutre de son catalogue (WF-ADM-0060, #920). Une personne du
+    fournisseur d'identité qui n'a pas de compte (`person`) est nommée telle que le fournisseur
+    la tient (#918).
   properties:
     kind:
       type: string
-      const: account
-    user_id: { $ref: ../common.yaml#/Uuid }
-    display_name:
+      enum: [account, person]
+    user_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Le compte de Waterfall ; nul pour une personne.
+    subject:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: L'identifiant de la personne chez le fournisseur d'identité ; nul pour un compte.
+    last_name:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Nom d'affichage du compte, lu à la consultation ; nul pour un compte anonymisé depuis,
-        que le front présente sous le libellé neutre de son catalogue (WF-ADM-0060,
-        WF-ARC-0110).
-    code:
-      allOf: [{ $ref: ../common.yaml#/ErrorCode }]
-      description: >-
-        `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne connaît plus,
-        gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS` pour un compte dont la nouvelle adresse est
-        portée par un autre ; `VALIDATION_FAILED` pour un nouveau nom ou prénom vide, ou plus
-        long que ce que Waterfall garde ; `EMAIL_MISSING` pour un compte dont le fournisseur ne
-        tient plus d'adresse.
-
-IdentitySyncSkippedPerson:
-  type: object
-  additionalProperties: false
-  required: [kind, subject, last_name, first_name, email, code]
-  description: >-
-    Une personne du fournisseur d'identité à qui la lecture n'a pas donné de compte, telle que
-    le fournisseur la tient (#918).
-  properties:
-    kind:
-      type: string
-      const: person
-    subject:
-      type: string
-      description: Son identifiant chez le fournisseur d'identité.
-    last_name:
-      type: string
-      description: Son nom chez le fournisseur ; vide s'il n'en tient pas.
+        Le nom du compte à la consultation, nul s'il est anonymisé ; celui de la personne chez
+        le fournisseur, vide s'il n'en tient pas.
     first_name:
-      type: string
-      description: Son prénom chez le fournisseur ; vide s'il n'en tient pas.
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le prénom du compte à la consultation, nul s'il est anonymisé ; celui de la personne
+        chez le fournisseur, vide s'il n'en tient pas.
     email:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Son adresse chez le fournisseur ; nulle s'il n'en tient pas (`EMAIL_MISSING`).
+      description: >-
+        L'adresse du compte à la consultation, nulle s'il est anonymisé ; celle de la personne
+        chez le fournisseur, nulle s'il n'en tient pas (`EMAIL_MISSING`).
     code:
       allOf: [{ $ref: ../common.yaml#/ErrorCode }]
       description: >-
-        `EMAIL_MISSING` pour une personne sans adresse, que Waterfall ne peut pas reconnaître ;
-        `ALREADY_EXISTS` pour une personne relayée par un fournisseur externe dont l'adresse est
-        déjà portée par un compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED` pour un
-        nom ou un prénom vide, ou plus long que ce que Waterfall garde.
+        Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne
+        connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée
+        par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce
+        que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour
+        une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ;
+        `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un
+        compte, qu'elle ne rattache pas (#707) ; `VALIDATION_FAILED`, un nom ou un prénom vide,
+        ou plus long que ce que Waterfall garde.

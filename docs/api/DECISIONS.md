@@ -3854,26 +3854,28 @@ compteur de rattachements à part, que l'écran ne présente pas autrement qu'un
 
 ## Le compte rendu de la lecture des comptes, sans donnée d'un compte (EP-03/US-0370/L2b, #918, #919, #920)
 
-Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped` prend l'une de deux
-formes, chacune fermée (`additionalProperties: false`, toutes ses propriétés exigées) et dite par
-`kind` :
+Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped`
+(`IdentitySyncSkipped`) dit par `kind` ce qu'elle désigne :
 
-- **un compte de Waterfall** (`IdentitySyncSkippedAccount`) — le dernier administrateur gardé, un
-  compte dont la nouvelle adresse est portée par un autre, dont le nouveau nom ne se garde pas ou
-  dont le fournisseur ne tient plus d'adresse — n'est désigné que par son identifiant : le
-  compte rendu n'en copie ni le nom ni l'adresse, que l'anonymisation devrait sinon poursuivre
-  dans chaque compte rendu (#920). Son nom, `display_name`, est lu à la consultation, nul pour un
-  compte anonymisé depuis, comme `ActorRef.display_name` ;
-- **une personne du fournisseur** sans compte (`IdentitySyncSkippedPerson`) est nommée par son
-  identifiant chez lui, `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas :
-  `EMAIL_MISSING` entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall
-  ne sait pas reconnaître, n'est plus ignorée en silence.
+- **un compte de Waterfall** (`account`) — le dernier administrateur gardé, un compte dont la
+  nouvelle adresse est portée par un autre, dont le nouveau nom ne se garde pas ou dont le
+  fournisseur ne tient plus d'adresse — n'est gardé dans le compte rendu que par son
+  identifiant : le compte rendu n'en copie ni le nom ni l'adresse, que l'anonymisation devrait
+  sinon poursuivre dans chaque compte rendu (#920). Son nom, son prénom et son adresse sont lus à
+  la consultation, nuls pour un compte anonymisé depuis, que le front présente sous le libellé
+  neutre ;
+- **une personne du fournisseur** sans compte (`person`) est nommée par son identifiant chez lui,
+  `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas : `EMAIL_MISSING`
+  entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall ne sait pas
+  reconnaître, n'est plus ignorée en silence.
 
-Écartées : l'adresse rendue facultative dans la forme unique `{email, code}` — une entrée sans
-adresse ne désignerait plus personne, et l'adresse d'un compte de Waterfall y resterait copiée ;
-une liste à part pour les personnes sans adresse — une seconde forme pour un même signalement.
-Deux formes fermées plutôt qu'une forme aux propriétés toutes nullables : le front lit l'une ou
-l'autre par `kind`, sans combinaison qu'aucune lecture ne produit.
+Une seule forme, fermée — `additionalProperties: false`, chaque propriété exigée, nulle quand elle
+ne vaut pas pour la nature de l'entrée —, comme `ActorRef` dit par `kind` un compte ou la
+plateforme. Écartées : l'adresse rendue facultative dans la forme `{email, code}` — une entrée
+sans adresse ne désignerait plus personne, et l'adresse d'un compte de Waterfall resterait
+copiée ; deux formes réunies par `oneOf` — le contrat n'en compose aucune de deux objets, que le
+client du service et ses tests ne lisent pas (`AmbiguousCompositionError`) ; une liste à part pour
+les personnes sans adresse — une seconde forme pour un même signalement.
 
 `restored` compte les comptes locaux dont la lecture rétablit l'identité dans le fournisseur : le
 nom, le prénom ou l'adresse que Keycloak en tient diffèrent de ceux de Waterfall, qui en fait foi

@@ -104,9 +104,8 @@ def test_a_part_of_the_wrong_size_is_refused_with_the_size_the_deposit_expects()
 
 def test_the_skipped_accounts_of_a_read_are_told_by_a_code_of_the_catalogue() -> None:
     text = (_SCHEMAS / "schemas/platform.yaml").read_text(encoding="utf-8")
-    for form in ("IdentitySyncSkippedAccount", "IdentitySyncSkippedPerson"):
-        skipped = text.split(f"\n{form}:\n", 1)[1].split("\n\n", 1)[0]
-        assert "allOf: [{ $ref: ../common.yaml#/ErrorCode }]" in skipped
+    skipped = text.split("\nIdentitySyncSkipped:\n", 1)[1].split("\n\n", 1)[0]
+    assert "allOf: [{ $ref: ../common.yaml#/ErrorCode }]" in skipped
     codes = _enumeration("common.yaml", "ErrorCode")
     assert {"LAST_ADMINISTRATOR", "EMAIL_MISSING"} <= set(codes)
 

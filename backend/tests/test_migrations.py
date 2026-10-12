@@ -6,16 +6,18 @@ import subprocess
 import sys
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
-from uuid import uuid4
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, insert, select, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
-from support import service_role
+from support import raw_account, service_role
 
 from waterfall.core.access_roles.tables import (
     AccessRole,
@@ -358,3 +360,73 @@ def test_a_database_whose_role_of_the_service_would_be_cut_short_is_refused(
         pytest.raises(DBAPIError, match="longer than an identifier"),
     ):
         upgrade(long_named)
+
+
+def kept_report(connection: Connection, skipped: list[dict[str, Any]]) -> UUID:
+    """Keep the report of a reading around the service, with what it skipped; give its task."""
+    task_id = uuid4()
+    at = datetime(2026, 10, 12, 2, tzinfo=UTC)
+    task: dict[str, object] = {"kind": "identity_sync", "status": "succeeded", "progress": 100}
+    connection.execute(
+        insert(BackgroundTask).values(
+            id=task_id,
+            payload={},
+            correlation_id="c",
+            attempts=1,
+            submitted_at=at,
+            finished_at=at,
+            **task,
+        )
+    )
+    counts = dict.fromkeys(("created", "updated", "deactivated"), 0)
+    connection.execute(
+        insert(IdentitySyncReport).values(
+            task_id=task_id, finished_at=at, skipped=skipped, removed=[], **counts
+        )
+    )
+    return task_id
+
+
+def skipped_of(engine: Engine, task_id: UUID) -> list[dict[str, Any]]:
+    """Read what the report of a reading skipped."""
+    with engine.connect() as connection:
+        found = select(IdentitySyncReport.skipped).where(IdentitySyncReport.task_id == task_id)
+        return connection.scalars(found).one()
+
+
+def test_the_reports_kept_name_an_account_of_waterfall_by_its_identifier_alone(
+    empty_engine: Engine,
+) -> None:
+    # The last administrator kept by the account that bears its address, whatever its case; an
+    # entry that named a person by her address alone, or an account none bears any more, dropped
+    # (#920). The descent names again by an address each entry that has one.
+    upgrade(empty_engine, "0015")
+    kept = raw_account(email="Dominique.Bernard@example.org", origin="directory")
+    with empty_engine.begin() as connection:
+        connection.execute(insert(UserAccount).values(**kept))
+        former = kept_report(
+            connection,
+            [
+                {"email": "camille@external.test", "code": "ALREADY_EXISTS"},
+                {"email": "dominique.bernard@EXAMPLE.org", "code": "LAST_ADMINISTRATOR"},
+                {"email": "gone@example.org", "code": "LAST_ADMINISTRATOR"},
+            ],
+        )
+    upgrade(empty_engine)
+    by_identifier = {"kind": "account", "user_id": str(kept["id"]), "code": "LAST_ADMINISTRATOR"}
+    assert skipped_of(empty_engine, former) == [by_identifier]
+    hugo = {"kind": "person", "subject": "kc-hugo", "last_name": "Garnier", "first_name": "Hugo"}
+    with empty_engine.begin() as connection:
+        latest = kept_report(
+            connection,
+            [
+                {**hugo, "email": None, "code": "EMAIL_MISSING"},
+                by_identifier,
+                {**hugo, "email": "hugo@example.org", "code": "ALREADY_EXISTS"},
+            ],
+        )
+    downgrade(empty_engine, "0015")
+    named = {"email": "Dominique.Bernard@example.org", "code": "LAST_ADMINISTRATOR"}
+    assert skipped_of(empty_engine, former) == [named]
+    again = [named, {"email": "hugo@example.org", "code": "ALREADY_EXISTS"}]
+    assert skipped_of(empty_engine, latest) == again

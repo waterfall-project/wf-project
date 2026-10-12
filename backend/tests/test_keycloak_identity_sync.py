@@ -8,13 +8,15 @@ directory no longer retains — by a filter of its federation, or the federation
 deactivated, the last administrator kept and reported (WF-ADM-0070, WF-ADM-0180). A person of the
 directory is attached by her address to the account that holds it (#707); the local accounts of the
 realm Waterfall does not know and that never had a password are removed (#811); a change of the
-identity of a local account reaches the realm (#810). Run by ``make test-keycloak``, with the
+identity of a local account reaches the realm (#810), and the reading gives the realm back the
+identity of one it holds otherwise (#919). Run by ``make test-keycloak``, with the
 variables of ``test_keycloak_authentication.py``, whose helpers it takes. A test that changes the
 federation of the realm gives it back, whatever happens.
 
 The realm keeps the accounts of other tests and of its own installation, that the database of the
-test does not know: each test of a reading makes Waterfall know them first (``realm_known``), so
-that the reading neither creates them nor removes them.
+test does not know: each test of a reading makes Waterfall know them first (``realm_known``), as
+the realm holds them, so that the reading neither creates them, nor removes them, nor gives them
+another identity.
 """
 
 import time
@@ -60,11 +62,19 @@ from test_keycloak_platform import (
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.interface import roles_held_by
-from waterfall.core.users.interface import SyncReport, latest_report, record_report
+from waterfall.core.users.interface import (
+    NAME_MAX_LENGTH,
+    Skipped,
+    SkippedAccount,
+    SkippedPerson,
+    SyncReport,
+    latest_report,
+    record_report,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
+from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import logging_context
@@ -172,16 +182,28 @@ def user_of(database: Database, subject: str) -> UUID:
 
 @pytest.fixture
 def realm_known(database: Database, reading: IdentitySync) -> None:
-    """Make Waterfall know, as local ones, the accounts the realm holds but the directory's."""
+    """Make Waterfall know, as local ones, the accounts the realm holds but the directory's.
+
+    Each as the realm holds it: the reading gives the realm back the identity Waterfall holds of a
+    local account (#919). One whose names or address Waterfall cannot hold, as an account
+    anonymised, which the reading leaves alone.
+    """
     with database.transaction() as session:
         held = set(session.scalars(select(UserAccount.idp_subject)))
         for account in reading.admin.list_accounts():
             if account.is_federated or account.subject in held:
                 continue
-            email = account.email or f"{account.subject}@realm.test"
-            session.execute(
-                insert(UserAccount).values(**raw_account(email=email, idp_subject=account.subject))
-            )
+            identity = {
+                "last_name": account.last_name,
+                "first_name": account.first_name,
+                "email": account.email,
+            }
+            if all(1 <= len(value) <= NAME_MAX_LENGTH for value in identity.values()):
+                row = raw_account(idp_subject=account.subject, **identity)
+            else:
+                gone = {"state": "deactivated", "anonymized_at": utc_now()}
+                row = raw_account(idp_subject=account.subject, **dict.fromkeys(identity), **gone)
+            session.execute(insert(UserAccount).values(**row))
 
 
 def read_accounts(
@@ -203,7 +225,7 @@ def read_accounts(
     return report
 
 
-def counts(report: SyncReport) -> tuple[int, int, int, list[tuple[str, str]], list[str]]:
+def counts(report: SyncReport) -> tuple[int, int, int, list[Skipped], list[str]]:
     """Give what a report counts, then what it names."""
     return report.created, report.updated, report.deactivated, report.skipped, report.removed
 
@@ -359,7 +381,8 @@ def test_the_last_administrator_withdrawn_from_the_directory_stays_active_and_is
     role(database, "Administration", permissions=ADMINISTRATION, holders=(account.id,))
     with directory_retaining(WITHOUT_DOMINIQUE):
         report = read_accounts(database, reading)
-    assert counts(report) == (0, 0, 0, [(DIRECTORY_EMAIL, "LAST_ADMINISTRATOR")], [])
+    # Named by its identifier alone (#920).
+    assert counts(report) == (0, 0, 0, [SkippedAccount(account.id, "LAST_ADMINISTRATOR")], [])
     kept = of_the_directory(database)
     assert (kept.state, kept.lock_version) == ("active", account.lock_version)
 
@@ -527,10 +550,15 @@ def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
         linked = admin.post(f"/users/{subject}/federated-identity/{EXTERNAL_PROVIDER}", json=link)
         assert linked.status_code == 204, linked.text
         report = read_accounts(database, reading)
-        assert sorted(report.skipped) == [
+        # Each a person of the provider, named as it holds her (#918).
+        persons = [each for each in report.skipped if isinstance(each, SkippedPerson)]
+        assert len(persons) == len(report.skipped)
+        assert sorted((each.email, each.code) for each in persons) == [
             (EXTERNAL_EMAIL, "ALREADY_EXISTS"),
             (long_address, "VALIDATION_FAILED"),
         ]
+        (long,) = (each for each in persons if each.email == long_address)
+        assert (long.subject, long.last_name, long.first_name) == (subject, "L" * 101, "Jeanne")
         with database.transaction() as session:
             named = select(UserAccount.id).where(UserAccount.email == long_address)
             assert session.scalars(named).all() == []
@@ -692,6 +720,30 @@ def test_a_local_account_renamed_signs_in_by_its_new_address_and_is_mailed_there
     with database.transaction() as session:
         inscribed = select(AuditEntry.correlation_id).where(AuditEntry.object_id == row["id"])
         assert session.scalars(inscribed).all() == [changed.headers[HEADER]]
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+@pytest.mark.usefixtures("realm_known")
+def test_a_local_account_the_realm_holds_otherwise_is_given_back_its_identity_by_the_reading(
+    database: Database, reading: IdentitySync, made: Callable[[str, str], Account]
+) -> None:
+    # « Un compte local créé depuis Waterfall existe dans le fournisseur d'identité. » : as
+    # Waterfall holds it, which is its authority (WF-ADM-0050). A report of updateUser applied by
+    # the realm but left unanswered gave it another identity: the reading gives Waterfall's back,
+    # once committed, and changes nothing of the account in Waterfall (#919).
+    paul = made("Paul", "Durand")
+    row = known(database, paul, last_name="Durand", first_name="Paul")
+    elsewhere = LocalIdentity("Dumas", "Paul", f"paul.{uuid4().hex[:8]}@mairie.test")
+    assert reading.admin.change_identity(paul.id, elsewhere)
+    report = read_accounts(database, reading)
+    assert (report.updated, report.restored, report.skipped) == (0, 1, [])
+    held = reading.admin.read_account(paul.id)
+    assert held is not None
+    assert (held.last_name, held.first_name, held.email) == ("Durand", "Paul", paul.email)
+    with database.transaction() as session:
+        stored = session.get_one(UserAccount, row["id"])
+        assert (stored.last_name, stored.email, stored.lock_version) == ("Durand", paul.email, 0)
+    assert read_accounts(database, reading).restored == 0
 
 
 class Choosing(Watching):

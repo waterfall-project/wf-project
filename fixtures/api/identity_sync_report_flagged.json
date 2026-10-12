@@ -1,5 +1,5 @@
 {
-  "summary": "Variante contrefactuelle de la lecture de cette nuit : Dominique Bernard, retirée de l'annuaire, porterait seule l'administration ; son compte reste actif et la lecture le signale (WF-ADM-0120), désigné par son seul identifiant et nommé à la consultation (#920). Hugo Garnier, que l'annuaire tient sans adresse, n'a pas de compte, et la lecture le nomme (#918). La lecture a créé deux comptes, sans rôle, mis à jour un nom, rétabli dans le fournisseur l'identité que Waterfall tient de Lucas Petit, qu'un report resté sans réponse y avait laissée autre (WF-ADM-0050, #919), et retiré du fournisseur le compte local de Jeanne Montgolfier, laissé sans mot de passe par une création interrompue (WF-ADM-0070, #811).",
+  "summary": "Variante contrefactuelle de la lecture de cette nuit : Dominique Bernard, retirée de l'annuaire, porterait seule l'administration ; son compte reste actif et la lecture le signale (WF-ADM-0120), gardé par son seul identifiant et nommé tel qu'il se lit à la consultation (#920). Hugo Garnier, que l'annuaire tient sans adresse, n'a pas de compte, et la lecture le nomme (#918). La lecture a créé deux comptes, sans rôle, mis à jour un nom, rétabli dans le fournisseur l'identité que Waterfall tient de Lucas Petit, qu'un report resté sans réponse y avait laissée autre (WF-ADM-0050, #919), et retiré du fournisseur le compte local de Jeanne Montgolfier, laissé sans mot de passe par une création interrompue (WF-ADM-0070, #811).",
   "value": {
     "task_id": "01926f3a-7c00-7000-8000-000000000942",
     "finished_at": "2026-06-03T02:00:00Z",
@@ -11,11 +11,15 @@
       {
         "kind": "account",
         "user_id": "01926f3a-7c00-7000-8000-000000000302",
-        "display_name": "Dominique Bernard",
+        "subject": null,
+        "last_name": "Bernard",
+        "first_name": "Dominique",
+        "email": "dominique.bernard@example.com",
         "code": "LAST_ADMINISTRATOR"
       },
       {
         "kind": "person",
+        "user_id": null,
         "subject": "5b0c8e2a-3f6d-4a1e-9c47-2d8f1e6a7b90",
         "last_name": "Garnier",
         "first_name": "Hugo",
