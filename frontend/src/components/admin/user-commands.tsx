@@ -94,10 +94,13 @@ export interface UserWrites {
   readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
   /** Open the creation of a local account, from the command pressed. */
   readonly create: (trigger: HTMLElement) => void;
-  /** Ask the link of an account, from the command pressed, and show it once given. */
+  /**
+   * Ask the link of an account, from the command pressed, and show it once given; nothing while
+   * another link is asked or shown.
+   */
   readonly giveLink: (user: User, name: string, trigger: HTMLElement) => void;
-  /** The accounts whose link is asked. */
-  readonly linking: ReadonlySet<string>;
+  /** Whether a link is asked or shown: every command of the link waits until it is closed. */
+  readonly linking: boolean;
   /** Ask the confirmation of the anonymisation of an account, from the command pressed. */
   readonly anonymize: (user: User, back: HTMLElement | null) => void;
   /** Say in the region of the table what a command did, or the condition it lacks. */
@@ -178,7 +181,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const asking = useRef(new Map<string, Promise<unknown>>());
   const [creating, setCreating] = useState<Opening>();
   const [given, setGiven] = useState<Given>();
-  const [linking, setLinking] = useState<ReadonlySet<string>>(() => new Set());
+  const [linking, setLinking] = useState(false);
+  // The same, as the last press left it: two presses may come before a render.
+  const linkHeld = useRef(false);
   // The account whose anonymisation is asked — kept while the confirmation closes —, and whether
   // the confirmation is open.
   const [anonymizing, setAnonymizing] = useState<Anonymizing>();
@@ -261,28 +266,33 @@ function Writes({ children }: { readonly children: ReactNode }) {
     },
     [list, reserve],
   );
+  const releaseLink = useCallback(() => {
+    linkHeld.current = false;
+    setLinking(false);
+  }, []);
   const giveLink = useCallback(
     (user: User, name: string, trigger: HTMLElement) => {
+      if (linkHeld.current) {
+        // One link at a time: the one asked or shown is closed first.
+        return;
+      }
+      linkHeld.current = true;
+      setLinking(true);
       const id = user.user_id;
       // The reading the link is asked from: its refusal is told on it alone.
       const generation = list?.generation ?? 0;
-      setLinking((before) => new Set(before).add(id));
       void createPasswordSetupLink(id)
         .catch(rejected)
         .then((outcome) => {
-          setLinking((before) => {
-            const after = new Set(before);
-            after.delete(id);
-            return after;
-          });
           if (outcome.kind === "done") {
             setGiven({ link: outcome.data, name, trigger });
           } else {
+            releaseLink();
             list?.report({ outcome, generation, names: {}, target: `link ${id}`, back: trigger });
           }
         });
     },
-    [list],
+    [list, releaseLink],
   );
   const create = useCallback((trigger: HTMLElement) => {
     setCreating({ trigger });
@@ -340,6 +350,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
           name={given.name}
           onClose={() => {
             setGiven(undefined);
+            releaseLink();
           }}
           onClosed={() => {
             focusBack(given.trigger, list?.refocus);

@@ -840,6 +840,35 @@ describe("the link to set the password", () => {
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
   });
+
+  it("asks one link at a time, the other commands of the link busy and unavailable the while", async () => {
+    const held = holdRoute("POST /users/{user_id}/password-link");
+    const client = serve(
+      { "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" } },
+      held.timing,
+    );
+    render(accounts());
+    const martin = within(grid()).getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    });
+    const petit = within(grid()).getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
+    });
+    await userEvent.click(martin);
+    await userEvent.click(petit);
+    expect(petit).toHaveAttribute("aria-busy", "true");
+    expect(petit).toHaveAttribute("aria-disabled", "true");
+    held.release();
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/password-link`,
+    ]);
+  });
 });
 
 describe("the filters of the table", () => {

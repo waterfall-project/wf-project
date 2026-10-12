@@ -260,9 +260,9 @@ const DEACTIVATED: CommandOffer = {
  * The command that asks the link of a local account, named after it — unavailable while the account
  * is deactivated, as the server would refuse it —; none for another account, which sets no password
  * in Waterfall, nor for an anonymised one, withdrawn from the identity provider (WF-ADM-0060). Marked
- * busy while a write of its row is under way, or its link, and unavailable the while, or while a
- * deactivation asked is unanswered: no link is given for an account being deactivated
- * (WF-ADM-0140), and a press asks nothing.
+ * busy while a write of its row is under way, or a link asked or shown — one at a time —, and
+ * unavailable the while, or while a deactivation asked is unanswered: no link is given for an account
+ * being deactivated (WF-ADM-0140), and a press asks nothing.
  */
 export function SetupLinkCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
@@ -276,7 +276,7 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
   }
   const command = t("password_link.command", { name });
   const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
-  const busy = writes.busy.has(user.user_id) || writes.linking.has(user.user_id);
+  const busy = writes.busy.has(user.user_id) || writes.linking;
   const held = busy || writes.asked.get(user.user_id)?.is_active === false;
   return (
     <>
