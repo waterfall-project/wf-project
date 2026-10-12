@@ -141,6 +141,13 @@ Reportés d'EP-03 le 2026-10-11 :
   qu'une montée de version de Next peut casser sans avertissement. EP-14 fournit le routeur au
   test par une voie publique, une simulation de `next/navigation` comme les tests voisins.
   Reporté d'EP-03 le 2026-10-11.
+- #905 [EP-03] des tests du front écrivent des espaces insécables littéraux, qu'ESLint ne relève
+  pas — relevé pendant la correction du tour 5 d'US-0350/L5b : `page.test.tsx` des coûts,
+  `reference-filters.dom.test.tsx`, `exchanges.dom.test.tsx`, `command.dom.test.tsx` et
+  `resource-commands.dom.test.tsx` en écrivent encore, invisibles à la lecture, et
+  `no-irregular-whitespace` ignore les chaînes par défaut. EP-14 les écrit par leur
+  échappement, comme les tests voisins, et active la règle avec `skipStrings: false` sur les
+  fichiers de tests. Reporté d'EP-03 le 2026-10-11.
 
 Reportés d'EP-03 le 2026-10-12 :
 
@@ -152,6 +159,45 @@ Reportés d'EP-03 le 2026-10-12 :
   dans ce cas ; seul le message manque. EP-14, au retour sur la lecture d'origine, y rattache
   les écritures encore en cours et dit leur refus (décision de l'auteur). Reporté d'EP-03 le
   2026-10-12.
+- #941 [EP-03] une confirmation d'anonymisation n'écrit rien sans le dire quand la ligne est
+  occupée — relevé par le développement d'US-0360/L3b : un renommage de la même ligne commencé
+  pendant que la confirmation est ouverte, celle-ci n'écrit rien, et rien ne le dit
+  (`UserWrites.run` refuse en silence une écriture sur une ligne occupée, comme pour
+  l'interrupteur d'état). EP-14 dit le refus, ou tient la confirmation indisponible tant que la
+  ligne est occupée. Reporté d'EP-03 le 2026-10-12.
+- #942 [EP-03] la confirmation d'anonymisation n'énumère pas tout ce que l'anonymisation fait —
+  relevé par la revue d'US-0360/L3b, tour 1 : `admin.users.anonymizationFinal` dit
+  l'irréversibilité (#856), mais ni le retrait de l'avatar ni celui du fournisseur d'identité
+  d'un compte local (corps de WF-ADM-0060). EP-14 complète la phrase, en français et en
+  anglais. Reporté d'EP-03 le 2026-10-12.
+- #949 [EP-03] la désactivation reste offerte pendant que le lien de la même ligne est en
+  route — relevé par la revue d'US-0360/L3b, tour 2 : `StateSwitch` (`user-cells.tsx`) ne lit
+  pas `writes.linking`, si bien qu'un lien demandé avant une désactivation peut s'afficher pour
+  un compte désactivé ; la connexion d'un tel compte reste refusée (WF-ADM-0060). EP-14 tient
+  l'interrupteur tant que le lien de sa ligne est en route, avec un test. Reporté d'EP-03 le
+  2026-10-12.
+- #951 [EP-03] aucun test ne dit où tombe le focus quand le dialogue d'un lien se ferme
+  par-dessus la création — relevé par la revue d'US-0360/L3b, tour 3 : `focusBack` vise la
+  cellule du compte, derrière le dialogue modal de création ; le piège de focus de Radix le
+  ramène probablement dans la création, sans test qui le constate. EP-14 ajoute l'assertion du
+  focus après la fermeture du lien. Reporté d'EP-03 le 2026-10-12.
+- #959 [EP-03] le focus tombe sur la page quand on ferme l'avis des écritures refusées de la
+  barre — relevé par le développement d'US-0400/L2 : le bouton de l'avis
+  (`left-refusals.tsx`, #863) disparaît à sa fermeture, et le focus tombe sur `<body>`. EP-14
+  le rend à un élément stable de la barre. Reporté d'EP-03 le 2026-10-12.
+- #963 [EP-03] deux finitions de l'écran et du parcours du journal d'audit — relevé par la
+  revue d'US-0410/L2b, tour 1 : le parcours du journal crée un rôle « Audit … » à chaque passage
+  sans le supprimer (`frontend/e2e/service/realm.ts`) ; une attribution sans effet dit « Aucun
+  rôle donné ni retiré », mais un `access_role_update` sans libellé ni permission changés
+  n'affiche rien (`audit-cells.tsx`). EP-14 supprime le rôle dans le `finally` du parcours, et
+  décide si la seconde appelle une phrase. Reporté d'EP-03 le 2026-10-12.
+- #967 [EP-03] deux finitions du parcours et de la cellule de l'action du journal — relevé par
+  la revue d'US-0410/L2b, tour 2 : `audit.spec.ts` recopie en dur les langues de format et prend
+  « aujourd'hui » à l'heure de l'assertion, non à celle de l'inscription, ce qui peut échouer à
+  minuit ; le `title` de la seconde ligne de la cellule de l'action (`audit-cells.tsx`) répète
+  son texte, lu deux fois par certaines aides techniques. EP-14 lit les langues de
+  `FORMAT_LOCALE` et date l'attente de l'inscription, et ne pose le `title` que sur un texte
+  tronqué. Reporté d'EP-03 le 2026-10-12.
 
 ## Conception
 

@@ -8,7 +8,7 @@ librement dans le document.
 
 Les trente-six entrées de la passe du 2026-10-03 sont tranchées et intégrées ; leurs
 décisions se lisent dans l'historique Git de ce fichier (dernière version complète au
-commit d314a11). Quatre attendent leur tour.
+commit d314a11). Cinq attendent leur tour.
 
 ## 1. Les formats Excel de l'annexe B
 
@@ -94,3 +94,22 @@ commit d314a11). Quatre attendent leur tour.
   restauration elle-même s'inscrit au journal une fois faite. » ; et pour le Vérif : « … et
   rien de postérieur, hors le journal d'audit et la liste des sauvegardes, qui gardent leurs
   inscriptions et leurs sauvegardes ; le journal nomme la restauration. »
+
+## 5. Les tests de la chaîne contre le Compose : les parcours sur la plateforme de développement (#948)
+
+- **Où** : WF-ARC-0050, son Vérif ; §4.4, la chaîne CI/CD (« exécute les tests contre une
+  plateforme Compose »).
+- **Quoi** : le Vérif demande que « les tests de la chaîne CI/CD s'exécutent contre » la
+  plateforme que le fichier Compose démarre à partir des mêmes images que le chart, soit, en
+  EP-03, le Compose de démonstration (`compose.prod.yaml`). Les parcours contre le service
+  (US-0340) se jouent sur le Compose de développement (`compose.service.yaml`), construit des
+  mêmes Dockerfiles : le Compose de démonstration demande un nom public, des certificats et un
+  amorçage. Il est prouvé par un essai de la chaîne (`make production-trial`) : amorçage, sonde
+  de vie, TLS et redirection vers HTTPS, en-têtes, console de Keycloak masquée, fixation du
+  mot de passe du premier administrateur, connexion. Relevé par la réalisation d'US-0430/L2 ;
+  décidé par l'auteur le 2026-10-12 : l'écart est noté sous US-0430, et le Vérif est à mettre
+  d'accord à la prochaine passe.
+- **Texte proposé**, pour la dernière phrase du Vérif : « Le fichier Compose démarre une
+  plateforme complète sur une machine seule, à partir des mêmes images que le chart, et la
+  chaîne CI/CD y joue un essai de démarrage, d'amorçage et de connexion ; ses parcours de bout
+  en bout s'exécutent contre une plateforme Compose construite des mêmes sources. »
