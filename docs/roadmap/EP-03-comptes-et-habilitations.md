@@ -125,7 +125,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0330 |
 | `WF-DAT-0140-A` | Migrations du schéma | début — close en EP-13 | US-0330 |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | US-0420 |
-| `WF-SEC-0010-A` | Transport et secrets | début — close en EP-13 | US-0330 |
+| `WF-SEC-0010-A` | Transport et secrets | début — close en EP-13 | US-0330, US-0430 |
 | `WF-SEC-0020-A` | Session et révocation | entière | US-0350 |
 | `WF-SEC-0030-A` | Journal d'audit des actions irréversibles ou structurantes | début — close en EP-13 | US-0410 |
 | `WF-ADM-0190-A` | Consultation du journal d’audit | début — close en EP-13 | US-0410 |
@@ -693,15 +693,18 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   vide les bases par un rôle membre de `pg_read_all_data`, qui ne peut ni écrire ni couper un
   déclencheur, et ne tient plus pour la sauvegarde l'adresse du superutilisateur ; un test
   fait un vidage par ce rôle ;
-- **l'amorçage** : `docker compose run --rm api waterfall-api install`, qui écrit le lien du
-  premier administrateur ;
+- **l'amorçage** : `docker compose -f compose.prod.yaml run --rm install`, un service de
+  l'image `waterfall` sous la commande `waterfall-api install`, qui tient seul l'adresse du
+  propriétaire et le secret du client de l'amorçage (#701, #652), et écrit le lien du premier
+  administrateur ;
 - **la notice** : `deploy/compose/README.md` — installer, amorcer, mettre à jour (tirer une
   étiquette, relancer : un service de migration, sous le rôle propriétaire, s'applique avant
   le démarrage de l'API, qui ne tient que le rôle de service, #701), sauvegarder,
   arrêter ;
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
-  publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
-  administrateur et une sauvegarde.
+  publier, sur un nom local, amorce, et vérifie la sonde de vie et la connexion du premier
+  administrateur ; une sauvegarde et sa restauration par l'API s'y ajoutent avec US-0440/L2
+  (#569).
 
 ### Stockage objet
 
@@ -978,8 +981,9 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - `WF-DAT-0140-A` — « Une migration déjà appliquée ne se rejoue pas. »
 - écart : `WF-DAT-0140-A` — « Après une suite de migrations, les montants et les indicateurs conservés d’une révision marquée antérieure sont inchangés. » : la révision marquée arrive en EP-04 ; EP-13 le
   constate.
-- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de métriques, qui n'est pas joignable hors du cluster. » et « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : le chiffrement des
-  échanges et la publication des images relèvent d'EP-13.
+- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de métriques, qui n'est pas joignable hors du cluster. » : le chiffrement des échanges relève d'EP-13.
+- écart : `WF-SEC-0010-A` — « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : pour le dépôt et les journaux, EP-13 ;
+  les images publiées, qu'EP-03 publie, passent à US-0430 (auteur, 2026-10-11, #824).
 - `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. »
 - écart : `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : l'import arrive en EP-06 ; ici,
   une tâche de lecture des comptes échouée se suit de la requête qui l'a lancée à son échec
@@ -1413,8 +1417,8 @@ traîne dans une procédure, et que la relancer soit sans danger.
 
 ## US-0430 — Déployer une plateforme de démonstration
 
-- **statut** : en cours
-- **exigences** : `WF-ARC-0050-A`
+- **statut** : fini
+- **exigences** : `WF-ARC-0050-A`, `WF-SEC-0010-A`
 - **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
 - **issue** : #564
 
@@ -1434,6 +1438,15 @@ d'images que la chaîne publie, derrière un frontal HTTPS, **afin de** montrer 
   une même image, deux commandes — et celle de Keycloak avec son extension, sur ghcr.io,
   étiquetées par version et par commit de `main`, et par commit d'une branche d'EPIC pour les
   démonstrations ; aucune image ne contient de secret (WF-SEC-0010).
+- `WF-SEC-0010-A` — « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les trouve pas. » : pour les images publiées, dans le système
+  de fichiers de chaque image, avant sa publication, des valeurs de développement connues — la
+  marque `development-only` et les secrets de poste de la chaîne (auteur, 2026-10-11, #824) ; le
+  dépôt et les journaux restent un écart d'US-0330.
+- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de métriques, qui n'est pas joignable hors du cluster. » : le chiffrement entre les services
+  relève d'EP-13 ; ici, le navigateur ne parle qu'en HTTPS, et y revient seul (HSTS).
+- écart : `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. » : constaté par US-0330 ; le Compose de
+  production refuse de même de démarrer un service dont un secret manque à son fichier de
+  réglages, en le nommant.
 - propre à l'US : le Compose de production démarre sur une machine neuve, à partir d'un
   fichier de réglages et de secrets que l'exploitant remplit, la plateforme complète —
   frontal TLS, front, API, worker, planificateur, PostgreSQL, Redis, stockage objet, Keycloak

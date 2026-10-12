@@ -128,7 +128,12 @@ désigne, comme auteur ou comme objet, le reste de la ligne inchangé ; le servi
 sur ces deux colonnes, et le déclencheur n'admet que cela, un libellé au moins passé à NULL. Que le
 compte désigné soit anonymisé, c'est le module des comptes qui le vérifie, par un déclencheur à lui
 sur le journal, qui lit `user_account` : la fonction du journal ne lit la table d'aucun module
-(`0011_account_anonymization`, #702, #865). Ses références — auteur, objet, projet — ne sont pas des clés étrangères :
+(`0011_account_anonymization`, #702, #865). PostgreSQL déclenche les déclencheurs d'un même
+événement dans l'ordre de leur nom : celui du journal, `audit_entry_refuse_row_change`, refuse
+d'abord tout autre changement, puis celui des comptes, `user_account_forget_anonymized`, vérifie
+que le libellé effacé désigne un compte anonymisé. Renommer ou ajouter un déclencheur
+`BEFORE UPDATE` sur `audit_entry` change cet ordre, qu'un test de `test_audit_journal.py` épingle
+(#876). Les références du journal — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
 
 *Contrôle* : les tests de WF-DAT-0080 et de WF-SEC-0030 ; la revue.
@@ -148,7 +153,8 @@ par la base où elle s'applique, jamais en dur :
 `EXECUTE format('GRANT SELECT, INSERT ON <table> TO %I', current_database() || '_service')`, dans
 un bloc `DO`. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
-(`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
+(`deploy/compose/service-database-role.sql`). En production, c'est
+`deploy/compose/waterfall-database.sql` qui crée `waterfall_service`, avant les migrations. Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 

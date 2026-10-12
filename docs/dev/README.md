@@ -1006,16 +1006,27 @@ sans la lancer. La désactivation du dernier compte actif qui porte les permissi
 comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
 ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
 disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
-retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
-Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
-(`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
-part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi pendant
-qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle a
-répondue, et l'interrupteur et les rôles de la ligne se marquent occupés et indisponibles
-(`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route. Ce que fait une écriture — un
-renommage compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur ou des
-rôles, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa
-cellule. La recherche et les
+retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
+(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
+cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
+d'un compte qui n'est pas local ou qui est anonymisé. « Créer un compte local », en tête de la table, ouvre le dialogue du
+nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
+appel, l'adresse déjà portée dite à son champ ; quand aucune invitation n'est partie
+(`invitation_sent` faux), le compte créé le dit et offre aussitôt son lien de fixation (#816). La
+colonne « Anonymisation » porte la commande `anonymize` d'un compte désactivé (`anonymizeUser`),
+après une confirmation qui nomme le compte et dit l'action irréversible (`AlertDialog`, comme la
+suppression d'un rôle) ; un compte anonymisé est nommé par le libellé neutre du catalogue, et ses nom
+et prénom ne se saisissent pas, son origine fût-elle locale (WF-ADM-0060). Aucune suppression
+(WF-ADM-0060). Comme pour les rôles, une seule source du compte répondu le plus récent par sa
+`lock_version` (`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit
+sa cellule, part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi
+pendant qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle
+a répondue, et l'interrupteur, les rôles et l'anonymisation de la ligne se marquent occupés et
+indisponibles (`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route — l'anonymisation
+aussi tant qu'une réactivation demandée n'a pas répondu. Ce que fait une écriture — un renommage
+compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur, des rôles ou
+de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui
+d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
 se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
@@ -1442,7 +1453,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production` |
 | `make changes BASE=…` | les familles qu'une modification touche |
 | `make service-install` | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite |
 | `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, Keycloak derrière son frontal HTTPS et son royaume, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
@@ -1455,7 +1466,9 @@ commande.
 | `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
 | `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
-| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond sans variable de la plateforme, que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
+| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
+| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme, puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -1463,8 +1476,9 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 |---|---|
 | `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
 | `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur, par lequel le worker la sauvegarde ; il s'écrit aussi dans une URL |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
 | `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
 | `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
@@ -1550,7 +1564,9 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   `front-image.yml` construit et démarre l'image de production du front, que `images.yml` ne
   publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
   `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
-  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` —, et non sur le
+  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, et ce que son serveur
+  vérifie au démarrage, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
+  `src/api/server.ts` —, et non sur le
   code du front, que la famille `front` construit déjà ; elle coûte une construction d'environ
   une minute et demie. Ce qui est prérendu, c'est le code des pages qui le décide — un
   `layout.tsx` qui cesserait de lire les cookies, une page qui ne lirait aucune valeur de la
@@ -1558,8 +1574,11 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   propre construction (`make prerendered-front`), après `make build-front` au palier rapide et
   après la construction de la mesure au palier complet ; cette construction prérend comme celle
   de l'image, dont la sortie autonome (`WATERFALL_STANDALONE=1`) ne change que l'empaquetage.
-  La famille `front-image` affirme que `/` répond sans variable de la plateforme, que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans
-  `WATERFALL_E2E` — `/` répond `500`, le serveur dit pourquoi —, et que `next build` n'a prérendu
+  La famille `front-image` affirme que `/` répond avec les réglages du service `front` de
+  `compose.prod.yaml`, des valeurs de remplacement pour ses secrets ; que le front, démarré sans
+  l'une des variables dont il ne se passe pas, s'arrête en la nommant dans ses journaux (#825) ;
+  que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans `WATERFALL_E2E` — le
+  serveur s'arrête au démarrage, et dit pourquoi —, et que `next build` n'a prérendu
   (`.next/prerender-manifest.json`) que `/_global-error` et `/icon.svg` : aucune page qui lirait
   l'environnement n'est figée à la construction.
 
@@ -1604,6 +1623,21 @@ registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010
   branche, sans l'annuler ; mais GitHub ne garde qu'une exécution en attente par groupe, et une
   troisième fusion annule celle qui attend : l'étiquette de la branche finit sur la dernière, et
   un commit intermédiaire peut ne pas avoir d'image.
+- **La plateforme de production sur les images publiées.** Le travail `trial` d'`images.yml`, après
+  la publication, tire du registre les images du commit, par son empreinte, et y joue
+  `make production-trial` (`packages: read` pour les tirer) : la plateforme de production démarre,
+  s'amorce, et laisse entrer son premier administrateur (WF-ARC-0050). Un échec y dit qu'une image
+  publiée ne fait pas une plateforme ; il ne défait pas la publication.
+
+La famille `production` (`production.yml`) fait le même essai avant la fusion, au palier complet
+seulement, dans la file : `make check-production` construit les trois images comme `images.yml`,
+sans les pousser, puis démarre la plateforme sur elles. Elle se réveille sur les fichiers de la
+plateforme de production — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
+`production.env.example` —, sur ceux qu'elle monte de `deploy/compose/`, et sur l'essai lui-même,
+`tools/src/wftools/production.py` ; un changement de ce
+dont les images sont faites n'est éprouvé ainsi qu'après la fusion, par `images.yml`. Elle coûte la
+construction des trois images, celle de Keycloak et de son extension surtout, puis le démarrage de
+Keycloak et l'application de son royaume.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -1913,7 +1947,9 @@ Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la pla
 compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
 (`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
 supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
-Debian et d'Ubuntu, d'une version au moins égale à celle du serveur.
+Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
+le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
+(`backend/tests/test_backups.py`) crée pour la session, membre de `pg_read_all_data` (#895).
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.

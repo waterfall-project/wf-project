@@ -173,12 +173,12 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("enters the table of the accounts — a state on its switch, the roles of an account —, offers the anonymisation of a deactivated one, and offers to delete none [WF-ADM-0060-A]", async ({
+test("enters the table of the accounts — a state on its switch, the roles of an account, a local account created, a link given, a deactivated one anonymised once confirmed — and offers to delete none [WF-ADM-0060-A]", async ({
   page,
 }) => {
   // The fake back answers each write by its example, and keeps nothing: the accounts written are
-  // those the examples write — Noé Vidal deactivated, a role given to Sacha Lefèvre —, shown as
-  // answered over the page read anew.
+  // those the examples write — Noé Vidal deactivated, Alix Moreau anonymised, a role given to Sacha
+  // Lefèvre, Léa Garnier created —, shown as answered over the page read anew.
   await page.goto("/admin/users");
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   const told = page.getByRole("status", { name: "Commandes des comptes" });
@@ -193,12 +193,15 @@ test("enters the table of the accounts — a state on its switch, the roles of a
   await expect(vidal).not.toBeChecked();
 
   // A deactivated account lists its anonymisation — Alix Moreau, and Noé Vidal once deactivated —;
-  // the active ones do not (WF-ADM-0060). It writes nothing yet: it says so.
+  // the active ones do not. Irreversible, it is confirmed first (WF-ADM-0060).
   await expect(accounts.getByRole("button", { name: /^Anonymiser «/ })).toHaveCount(2);
   await accounts.getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }).click();
-  await expect(told).toHaveText(
-    "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
-  );
+  const confirmation = page.getByRole("alertdialog", {
+    name: "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0?",
+  });
+  await expect(confirmation).toContainText("est irréversible");
+  await confirmation.getByRole("button", { name: "Anonymiser" }).click();
+  await expect(told).toHaveText("Compte anonymisé.");
 
   // The last administrator, as the account lists its commands: her deactivation unavailable,
   // naming the condition she lacks (WF-ADM-0120).
@@ -216,6 +219,39 @@ test("enters the table of the accounts — a state on its switch, the roles of a
   await roles.getByRole("checkbox", { name: "Chiffreur" }).click();
   await expect(told).toHaveText("Rôles de «\u00a0Sacha Lefèvre\u00a0» attribués.");
   await expect(roles.getByRole("checkbox", { name: "Chiffreur" })).toBeChecked();
+  await page.keyboard.press("Escape");
+
+  // A local account created from its names and its address.
+  await page.getByRole("button", { name: "Créer un compte local" }).click();
+  const creation = page.getByRole("form", { name: "Créer un compte local" });
+  await creation.getByLabel("Nom", { exact: true }).fill("Garnier");
+  await creation.getByLabel("Prénom", { exact: true }).fill("Léa");
+  await creation.getByLabel("Adresse électronique").fill("lea.garnier@example.com");
+  await creation.getByRole("button", { name: "Créer", exact: true }).click();
+  // No invitation went, as the fake back answers: the link is offered at once (#816).
+  await expect(told).toHaveText(/^Compte «\u00a0Léa Garnier\u00a0» créé\u00a0; aucune invitation/);
+  await page.getByRole("button", { name: "Remettre le lien" }).click();
+  const given = page.getByRole("dialog", {
+    name: "Lien de fixation du mot de passe de «\u00a0Léa Garnier\u00a0»",
+  });
+  await expect(given.getByRole("textbox", { name: "Lien" })).toHaveValue(/^https:\/\//);
+  await given.getByRole("button", { name: "Fermer" }).click();
+  await expect(given).toHaveCount(0);
+
+  // The link of a local account, given once, to hand over by another channel (WF-ADM-0140).
+  await accounts
+    .getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    })
+    .click();
+  const link = page.getByRole("dialog", {
+    name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+  });
+  await expect(link.getByRole("textbox", { name: "Lien" })).toHaveValue(
+    /^https:\/\/auth\.waterfall\.example\.net\/realms\/waterfall\//,
+  );
+  await link.getByRole("button", { name: "Fermer" }).click();
+  await expect(link).toHaveCount(0);
 });
 
 test("deletes an access role from its row once confirmed, its deletion unavailable while an account holds it, and sorts the roles by the server", async ({

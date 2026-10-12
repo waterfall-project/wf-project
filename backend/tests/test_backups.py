@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
+from sqlalchemy.exc import ProgrammingError
 from support import ContractClient, bearer
 from task_handlers import REQUEST, deposit, task
 
@@ -70,10 +71,43 @@ def provider_url(database_url: str) -> Iterator[str]:
     server.dispose()
 
 
+@pytest.fixture(scope="session")
+def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
+    """Create, for this run, a role of the backup as the platform does (#895): its name, password.
+
+    A member of ``pg_read_all_data``, which reads every table of every database of the server and
+    can neither write nor turn a trigger off; it owns nothing.
+    """
+    name, password = f"waterfall_test_backup_{uuid4().hex}", uuid4().hex
+    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(
+            text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{password}' IN ROLE pg_read_all_data")
+        )
+    yield name, password
+    with server.connect() as connection:
+        connection.execute(
+            text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = :name"),
+            {"name": name},
+        )
+        connection.execute(text(f'DROP ROLE "{name}"'))
+    server.dispose()
+
+
+def as_backup(address: str, role: tuple[str, str]) -> str:
+    """Give the address of a database as the role of the backup reaches it."""
+    name, password = role
+    url = engine_url(address).set(username=name, password=password)
+    return url.render_as_string(hide_password=False)
+
+
 @pytest.fixture
-def databases(database_url: str, provider_url: str) -> dict[str, str]:
-    """Give the two databases of the test as their owner reaches them, by their name in a backup."""
-    return {"waterfall": database_url, "identity_provider": provider_url}
+def databases(database_url: str, provider_url: str, backup_role: tuple[str, str]) -> dict[str, str]:
+    """Give the two databases of the test as the role of the backup reaches them, by backup name."""
+    return {
+        "waterfall": as_backup(database_url, backup_role),
+        "identity_provider": as_backup(provider_url, backup_role),
+    }
 
 
 @pytest.fixture
@@ -360,17 +394,17 @@ def test_a_backup_the_object_storage_does_not_take_fails_as_its_storage_unavaila
     assert failed.problem["params"] == {"component": "object_storage"}
 
 
-def test_the_role_of_the_service_cannot_dump_the_database_which_a_backup_dumps_as_its_owner(
+def test_the_role_of_the_service_cannot_dump_the_database_which_the_role_of_the_backup_dumps(
     database: Database, run: Run, taking: BackupTask, service_database_url: str, tmp_path: Path
 ) -> None:
     # #701: the API and the worker connect as the role of the service, which holds only what the
-    # tables grant it; a dump reads every table, and that role cannot. The owner of the tables can.
+    # tables grant it; a dump reads every table, and that role cannot. The role of the backup can.
     # The database answers: what fails is not a component out of reach but an internal error.
     with pytest.raises(DumpError):
         dump("waterfall", service_database_url, tmp_path)
-    owned = taking.databases["waterfall"]
-    assert dump("waterfall", owned, tmp_path).size_bytes > 0
-    serving = {"waterfall": owned, "identity_provider": service_database_url}
+    readable = taking.databases["waterfall"]
+    assert dump("waterfall", readable, tmp_path).size_bytes > 0
+    serving = {"waterfall": readable, "identity_provider": service_database_url}
     failed = task(database, run(BackupTask(serving, taking.bucket)))
     assert (failed.status, failed.problem) == (
         "failed",
@@ -378,6 +412,46 @@ def test_the_role_of_the_service_cannot_dump_the_database_which_a_backup_dumps_a
     )
     with database.transaction() as session:
         assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_entry SET action = action",
+        "DELETE FROM audit_entry",
+        "INSERT INTO backup DEFAULT VALUES",
+        "ALTER TABLE audit_entry DISABLE TRIGGER ALL",
+        "SET session_replication_role = replica",
+    ],
+    ids=["update", "delete", "insert", "trigger", "replica"],
+)
+def test_the_role_of_the_backup_dumps_both_databases_and_can_neither_write_nor_turn_a_trigger_off(
+    databases: dict[str, str], owner: Engine, statement: str, tmp_path: Path
+) -> None:
+    # #895: the worker dumps the databases as a member of pg_read_all_data, never as the owner of
+    # the tables nor as a superuser. « Une mise à jour ou une suppression exécutée directement en
+    # base sur une inscription du journal est rejetée par la base. » : by this role too, which can
+    # no more write a table, nor turn off the trigger that guards the journal, nor every trigger.
+    with owner.connect() as connection:
+        found = connection.execute(text("SELECT count(*) FROM audit_entry")).scalar_one()
+    dumped = dump("waterfall", databases["waterfall"], tmp_path)
+    assert "TABLE DATA public audit_entry" in listed_contents(dumped.path.read_bytes(), tmp_path)
+    assert dump("identity_provider", databases["identity_provider"], tmp_path).size_bytes > 0
+    backup = create_database_engine(databases["waterfall"])
+    try:
+        with backup.connect() as connection:
+            with pytest.raises(ProgrammingError, match=r"permission denied|must be owner"):
+                connection.execute(text(statement))
+            connection.rollback()
+            role = connection.execute(
+                text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            ).one()
+            assert tuple(role) == (False, False)
+    finally:
+        backup.dispose()
+    with owner.connect() as connection:
+        assert connection.execute(text("SELECT count(*) FROM audit_entry")).scalar_one() == found
 
 
 def test_a_dump_reaches_its_database_by_its_whole_address_and_its_password_apart(
@@ -415,14 +489,14 @@ def test_a_dump_reaches_its_database_by_its_whole_address_and_its_password_apart
     assert "PGPASSWORD" not in environment
 
 
-def test_the_worker_backs_up_as_the_owners_of_the_databases_and_connects_as_the_service(
+def test_the_worker_backs_up_as_the_role_of_the_backup_and_connects_as_the_service(
     platform_environment: dict[str, str],
 ) -> None:
-    # #701: the backup the worker runs dumps each database as its owner, which the settings name
-    # apart from the address the worker connects by.
+    # #701, #895: the backup the worker runs dumps each database as the role of the backup, which
+    # the settings name apart from the address the worker connects by.
     taking = BackupTask.of(load_worker_settings())
     assert taking.databases == {
-        "waterfall": platform_environment["WATERFALL_OWNER_DATABASE_URL"],
+        "waterfall": platform_environment["WATERFALL_BACKUP_DATABASE_URL"],
         "identity_provider": platform_environment["WATERFALL_KEYCLOAK_DATABASE_URL"],
     }
     assert platform_environment["WATERFALL_DATABASE_URL"] not in taking.databases.values()

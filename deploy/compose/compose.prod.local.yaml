@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the production platform adds under a local name — localhost, *.localhost, *.internal —, for
+# which Let's Encrypt gives no certificate: Caddy makes it from its own authority, and the front,
+# which reaches Keycloak through Caddy in HTTPS, trusts its root (NODE_EXTRA_CA_CERTS adds it to the
+# authorities it knows). The chain tries the platform so (make production-trial); a workstation
+# can too. Given after compose.prod.yaml: `docker compose -f compose.prod.yaml -f
+# compose.prod.local.yaml …`. A machine with a public name has no use for it.
+services:
+  # Ready once its authority has made the root, which it does with the certificate of the domain.
+  caddy:
+    healthcheck:
+      test: ["CMD", "test", "-s", "/data/caddy/pki/authorities/local/root.crt"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Copies the root, which Caddy keeps for itself alone, where the front reads it, then stops.
+  authority:
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    command: ["install", "-m", "0644", "/data/caddy/pki/authorities/local/root.crt", "/authority/root.crt"]
+    volumes:
+      - caddy-data:/data:ro
+      - authority:/authority
+    restart: "no"
+    depends_on:
+      caddy:
+        condition: service_healthy
+
+  front:
+    environment:
+      NODE_EXTRA_CA_CERTS: /authority/root.crt
+    volumes:
+      - authority:/authority:ro
+    depends_on:
+      authority:
+        condition: service_completed_successfully
+
+volumes:
+  authority:

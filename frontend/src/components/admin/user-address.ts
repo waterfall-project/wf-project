@@ -79,8 +79,9 @@ export function readAccountState(search: SearchParameters): boolean | undefined 
 /** The path of the screen of the accounts. */
 export const USERS_PATH = "/admin/users";
 
-/** The longest last name and first name the contract gives an account. */
+/** The longest last name and first name the contract gives an account, and the longest address. */
 export const NAME_LENGTH = 100;
+export const EMAIL_LENGTH = 254;
 
 /**
  * The parameters of the address the screen filters the accounts by, besides their search: those its

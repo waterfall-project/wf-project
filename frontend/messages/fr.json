@@ -201,7 +201,8 @@
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",
       "project": "Projet",
-      "correlation": "Corrélation"
+      "correlation": "Corrélation",
+      "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
     "entry": {
@@ -1231,7 +1232,6 @@
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
     "commands": {
-      "later": "{command} : disponible avec EP-03.",
       "unmet": "{command} : {condition}"
     },
     "users": {
@@ -1242,6 +1242,7 @@
       "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
       "anonymize": "Anonymiser",
       "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
@@ -1251,12 +1252,32 @@
       "activeAccounts": "Comptes actifs",
       "inactiveAccounts": "Comptes désactivés",
       "told": "Commandes des comptes",
+      "created": "Compte « {name} » créé.",
+      "creationHint": "Le compte naît sans moyen de se connecter : son porteur en reçoit un par le lien de fixation, que le fournisseur d’identité lui envoie par courriel, ou, faute d’invitation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
       "deactivated": "« {name} » désactivé.",
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
       "rolesAttributed": "Rôles de « {name} » attribués.",
-      "renamed": "« {name} » renommé."
+      "link": "Lien",
+      "password_link": {
+        "command": "Lien de fixation du mot de passe de « {name} »",
+        "title": "Lien de fixation du mot de passe de « {name} »",
+        "hint": "À remettre à son porteur par un autre canal : il y fixe son mot de passe, sur la page du fournisseur d’identité. Le lien ne sert qu’une fois et ne sera plus montré ; en demander un autre rend celui-ci caduc."
+      },
+      "linkExpiry": "Valable jusqu’à <expiry></expiry>.",
+      "copyLink": "Copier le lien",
+      "closeLink": "Fermer",
+      "linkCopied": "Lien copié.",
+      "linkSelected": "Lien sélectionné : copiez-le au clavier.",
+      "renamed": "« {name} » renommé.",
+      "createdUninvited": "Compte « {name} » créé ; aucune invitation n’est partie : remettez-lui son lien de fixation.",
+      "uninvited": "Le compte « {name} » est créé, mais aucune invitation ne lui est partie : remettez à son porteur son lien de fixation, par un autre canal.",
+      "giveLink": "Remettre le lien",
+      "anonymized": "Compte anonymisé.",
+      "anonymizationTitle": "Anonymiser « {name} » ?",
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
+      "keep": "Conserver"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
