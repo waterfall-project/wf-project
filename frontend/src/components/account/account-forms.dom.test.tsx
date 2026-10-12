@@ -105,6 +105,15 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
   });
 
+  it("sends the mode alone when the language is left as it was: the language goes to the identity provider (#877)", async () => {
+    const client = serve({ [PREFERENCES]: "preferences_dark" });
+    render(inFrench(<PreferencesForm language="fr" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Sombre" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
+  });
+
   it("sends nothing while the keyboard moves through the values", async () => {
     const client = serve({ [PREFERENCES]: "preferences" });
     render(inFrench(<PreferencesForm language="default" theme="default" />));
@@ -203,7 +212,7 @@ describe("the preferences on the screen of the account", () => {
 });
 
 describe("the avatar of the account", () => {
-  it("puts the PNG or JPEG image chosen, and says it is saved", async () => {
+  it("puts the PNG or JPEG image chosen, and says it is saved [WF-ADM-0080-A]", async () => {
     const client = serve({ "PUT /me/avatar": { status: 204 } });
     const { container } = render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     await expectAccessible(container);
@@ -308,7 +317,7 @@ describe("the avatar of the account", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("withdraws the avatar the account has, and says it is withdrawn", async () => {
+  it("withdraws the avatar the account has, and says it is withdrawn [WF-ADM-0080-A]", async () => {
     const client = serve({ "DELETE /me/avatar": { status: 204 } });
     render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
     await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
@@ -356,7 +365,7 @@ describe("the picture of the avatar", () => {
     decoded.mockRestore();
   });
 
-  it("shows the initials of an account without an image", () => {
+  it("shows the initials of an account without an image, its default image [WF-ADM-0080-A]", () => {
     render(
       inFrench(
         <AvatarPicture
