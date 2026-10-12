@@ -691,15 +691,18 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   vide les bases par un rôle membre de `pg_read_all_data`, qui ne peut ni écrire ni couper un
   déclencheur, et ne tient plus pour la sauvegarde l'adresse du superutilisateur ; un test
   fait un vidage par ce rôle ;
-- **l'amorçage** : `docker compose run --rm api waterfall-api install`, qui écrit le lien du
-  premier administrateur ;
+- **l'amorçage** : `docker compose -f compose.prod.yaml run --rm install`, un service de
+  l'image `waterfall` sous la commande `waterfall-api install`, qui tient seul l'adresse du
+  propriétaire et le secret du client de l'amorçage (#701, #652), et écrit le lien du premier
+  administrateur ;
 - **la notice** : `deploy/compose/README.md` — installer, amorcer, mettre à jour (tirer une
   étiquette, relancer : un service de migration, sous le rôle propriétaire, s'applique avant
   le démarrage de l'API, qui ne tient que le rôle de service, #701), sauvegarder,
   arrêter ;
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
-  publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
-  administrateur et une sauvegarde.
+  publier, sur un nom local, amorce, et vérifie la sonde de vie et la connexion du premier
+  administrateur ; une sauvegarde et sa restauration par l'API s'y ajoutent avec US-0440/L2
+  (#569).
 
 ### Stockage objet
 
