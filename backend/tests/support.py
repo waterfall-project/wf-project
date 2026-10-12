@@ -149,6 +149,11 @@ class Logs:
         """Return the records of one event."""
         return [record for record in self.records if record["event"] == event]
 
+    def clear(self) -> None:
+        """Forget what was written so far: what follows is read alone."""
+        self.stream.seek(0)
+        self.stream.truncate()
+
 
 # The answers whose body is read: JSON, of a success or of a refusal.
 JSON_TYPES = {"application/json", "application/problem+json"}

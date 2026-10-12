@@ -74,6 +74,7 @@ from test_keycloak_platform import (
     relay,
     required,
     set_by_link,
+    set_password,
 )
 
 from waterfall.core.users import interface
@@ -374,6 +375,7 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     form = browser.get(url)
     assert 'name="password-new"' in form.text, form.text
     password = secrets.token_urlsafe(24)
+    past_its_second(url)
     done = browser.submit(form, {"password-new": password, "password-confirm": password})
     assert done.status_code == 302, done.text
     assert done.headers["Location"].startswith(f"{callback()}?"), done.headers["Location"]
@@ -381,7 +383,7 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     used = Browser().get(url)
     assert used.status_code == 400, used.text
     said = html.unescape(used.text)
-    assert EXPIRED in said
+    assert SPENT in said
     assert 'name="password-new"' not in said
 
 
@@ -406,19 +408,17 @@ def restart_keycloak() -> None:
         time.sleep(2)
 
 
-class StillValidAfterRestartError(AssertionError):
-    """A link for a forgotten password, used once, opens again once Keycloak restarted (#852)."""
+def past_its_second(url: str) -> None:
+    """Wait until the second the link of a forgotten password was made is over.
+
+    The extension holds such a link spent once the password of its account was set in a later
+    second than the one it was made in (#852): a test that sets the password by the link waits
+    for that second to end, two seconds more for a clock that drifts a little (#853).
+    """
+    time.sleep(max(0.0, action_token(url)["iat"] + 2 - time.time()))
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
-@pytest.mark.xfail(
-    reason=(
-        "#852: Keycloak keeps the use of its own link in memory alone; a restart forgets it."
-        " Corrected by US-0420b (#879)"
-    ),
-    raises=StillValidAfterRestartError,
-    strict=True,
-)
 def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart(
     local_account: Account,
 ) -> None:
@@ -430,16 +430,33 @@ def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart
     form = browser.get(url)
     assert 'name="password-new"' in form.text, form.text
     password = secrets.token_urlsafe(24)
+    past_its_second(url)
     done = browser.submit(form, {"password-new": password, "password-confirm": password})
     assert done.status_code == 302, done.text
     restart_keycloak()
     used = Browser().get(url)
     said = html.unescape(used.text)
-    # The defect alone is expected — the form of the password, offered again: any other failure,
-    # before or here, fails the test.
-    if 'name="password-new"' in said:
-        raise StillValidAfterRestartError(said)
     assert used.status_code == 400, said
+    assert SPENT in said
+    assert 'name="password-new"' not in said
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_a_link_for_a_forgotten_password_is_refused_once_a_password_is_set_another_way(
+    admin: httpx2.Client, local_account: Account
+) -> None:
+    # « Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé » : the mark
+    # of its use is the date of the password, so a password set after the link was mailed — here
+    # by the console — spends it too (#852).
+    ask_forgotten(Browser(), local_account)
+    url = mailed_link(local_account.email, whole=True)
+    past_its_second(url)
+    set_password(admin, local_account.id, secrets.token_urlsafe(24))
+    refused = Browser().get(url)
+    said = html.unescape(refused.text)
+    assert refused.status_code == 400, said
+    assert SPENT in said
+    assert 'name="password-new"' not in said
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")

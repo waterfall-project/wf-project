@@ -2055,18 +2055,44 @@ l'arrête. Avant Playwright, il amorce la plateforme (`waterfall-api install`, s
 US-0420) : le premier administrateur, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), porte le
 rôle « Administrateur », et le lien qui fixe son mot de passe, valable jusqu'à son emploi, est
 dans `E2E_INSTALLATION_LINK` — vide dès qu'un parcours l'a employé, l'administrateur se
-connectant ensuite avec le mot de passe que les parcours lui ont donné. Une précondition :
+connectant ensuite avec le mot de passe constant des parcours (`LOCAL_PASSWORD`,
+`frontend/e2e/service/realm.ts`). Une précondition :
 `E2E_ADMIN_EMAIL` doit être l'adresse avec laquelle la plateforme a été amorcée la première fois.
 Une relance n'installe rien de nouveau et ignore une autre adresse (`installation.admin_email_ignored`
 dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
 `WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
 donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
-(`make service-down WATERFALL_RESET_DATA=yes`). Les autres comptes qui se connectent sont la
-personne de l'annuaire de test, `dominique.annuaire@waterfall.test`, celle du fournisseur externe,
-`camille.externe` (`deploy/keycloak/development/`), que l'API admet sans rôle à leur première
-requête (WF-ADM-0180), et les comptes locaux qu'un parcours crée par l'API ; un parcours leur donne
-un rôle en écrivant dans la base de la plateforme (`grantRole`, `frontend/e2e/service/realm.ts`),
-comme le ferait l'administrateur.
+(`make service-down WATERFALL_RESET_DATA=yes`).
+
+Les parcours se jouent en quatre projets Playwright. `installation` d'abord
+(`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
+passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
+catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
+compte local à lui, que l'administrateur crée par l'API (`createUser`, `createPasswordSetupLink`) et
+dont il fixe le mot de passe par le lien rendu, ou avec un compte dont aucun autre parcours ne ferme
+les sessions — l'administrateur lui-même, pour les écrans des comptes et des rôles et pour le
+journal d'audit (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). L'administrateur donne leurs
+rôles aux comptes locaux par l'API ; la personne de l'annuaire de test,
+`dominique.annuaire@waterfall.test`, et celle du fournisseur externe, `camille.externe`
+(`deploy/keycloak/development/`), que l'API admet sans rôle à leur première requête (WF-ADM-0180) et
+que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la base de la plateforme
+(`grantRole`), une fois admises. Aucun parcours ne donne à un autre compte que l'administrateur les
+deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
+prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
+(`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
+plus de quatre.
+
+Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
+qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
+échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
+répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
+jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
+autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
+qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
+les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
+`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
+qui raccourcissent une durée du royaume, que lit chaque compte. `contract` enfin, le démontage de
+`installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -2078,16 +2104,24 @@ l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheCon
 (`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
 toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
 mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
-réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : le fichier
+réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : chaque worker
 lit chaque ligne une fois — par `docker logs --since`, à partir du moment où il s'était arrêté, et
-du début du premier fichier du worker, sur un seul worker, ce que la garde affirme — ; un parcours
-échoue sur les erreurs écrites jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, de
-son fichier ou du suivant, et celles d'après le dernier parcours font échouer le fichier, une fois
-ses pages fermées et le mandataire tu — rien d'autre que le contrôle de santé pendant deux
-secondes, la dernière ligne d'une réponse, qui ne nomme pas sa requête, n'en étant que si elle suit
-celle de la réponse d'un contrôle (#735). Un parcours le montre (`contract.spec.ts`) : une adresse
-hors du contrat, que la garde lit, seule, refusée. Un statut que
-l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+du début de son premier fichier — ; un parcours échoue sur les erreurs écrites jusqu'à sa fin, une
+erreur plus tardive fait échouer le suivant du worker. Le journal ne dit pas quel worker a demandé
+quoi : une erreur fait échouer le parcours de chaque worker qui la lit, celui qui l'a causée parmi
+eux. Le projet `contract` (`contract.teardown.ts`) relit enfin tout le journal de la course, depuis
+son début (`E2E_SERVICE_STARTED`, que pose `playwright.config.ts`), une fois le mandataire tu —
+rien d'autre que le contrôle de santé pendant deux secondes, la dernière ligne d'une réponse, qui
+ne nomme pas sa requête, n'en étant que si elle suit celle de la réponse d'un contrôle (#735) — :
+les erreurs d'après le dernier parcours d'un worker le font échouer, et celles qu'un parcours a
+déjà dites, de nouveau. Ce début est la dernière ligne que le mandataire a écrite avant la course
+(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), et chaque moment que les
+parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge du poste, qu'une
+machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
+— le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
+contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
+contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut
+que l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
 tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
@@ -2102,10 +2136,11 @@ remplacé et retiré, les colonnes masquées, les largeurs et les filtres des ta
 réouverture, chaque compte voyant les siens (`account.spec.ts`, US-0400) — ces réglages lus dans la
 base (`gridPreferences`), où le front les écrit après une pause ; une attribution de rôle faite par
 le service, que le journal d'audit, filtré sur son auteur et son action, présente à chaque lecteur
-dans sa langue (`audit.spec.ts`). Ils règlent le royaume par son API d'administration, en
-administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une durée raccourcie le
-temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —, et demandent un
-jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écran des comptes
+(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API
+d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
+durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
+et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux

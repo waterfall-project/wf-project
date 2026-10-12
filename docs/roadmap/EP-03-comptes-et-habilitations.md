@@ -324,10 +324,14 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
   jeton dont l'`iat` précède la date de création, en base, du mot de passe du compte, avec le
   message « déjà servi » du thème. La marque d'emploi devient donc la date du mot de passe :
   un mot de passe fixé autrement après l'envoi du lien — un autre lien, la console, la page du
-  compte — invalide aussi ce lien. Reste à vérifier que Keycloak 26.5.7 laisse le fournisseur
-  déployé remplacer celui du même identifiant (`order()`) ; le test
+  compte — invalide aussi ce lien. Le jeton dit sa seconde, le mot de passe sa milliseconde :
+  un mot de passe fixé dans la seconde même où le lien a été fait laisse le lien valable, faute
+  d'en savoir l'ordre — personne ne reçoit un lien et ne s'en sert dans sa seconde, et le refuser
+  refuserait un lien demandé juste après un mot de passe fixé. Keycloak 26.5.7 préfère, à ordre
+  égal, un fournisseur déployé au sien du même identifiant ; la pièce déclare un ordre plus haut
+  (`order()`), sans dépendre de cette règle. Le test
   `test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart` le
-  constate, et perd son `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
+  constate, sans `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
   pièce n'en change que la vérification du jeton.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
@@ -916,8 +920,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
   (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
   Keycloak, son frontal TLS et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
   (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
-  parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
-  `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
+  parcours —, et joue les parcours de `frontend/e2e/service/` avec `WATERFALL_API_ADDRESS`, en
+  quatre projets Playwright : `installation`, l'amorçage, dont le lien ne sert qu'une fois ;
+  `service`, les parcours, sur plusieurs workers ; `realm`, ceux qui changent un réglage du
+  royaume, sur un seul worker, une fois les autres finis ; `contract` enfin, le démontage de
+  `installation`, qui garde toute la course : il relit le journal du mandataire depuis le début de
+  la course, pris dans ce journal même, une fois le mandataire tu, et prouve sa fenêtre — une ligne
+  lue au moins, et le refus de l'adresse hors du contrat quand son parcours a joué. La chaîne le
+  joue au palier complet.
 - **Le relevé des exigences** : `tools/paths.toml` déclare la famille `end-to-end-service`
   (`frontend/e2e/service/**`), que `wftools.coverage` ne range pas parmi les familles du front
   (`FRONT_FAMILIES`) : une exigence qu'elle cite est prouvée par le back.
@@ -998,11 +1008,15 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | La lecture des comptes rétablit dans Keycloak l'identité des comptes locaux, Waterfall faisant foi (WF-ADM-0050 ; auteur, 2026-10-12, #919) | consigner le désaccord sans le réconcilier : un report resté sans réponse laisserait Keycloak et Waterfall en désaccord sans fin |
 | Le compte rendu de la lecture ne garde d'un compte de Waterfall que son identifiant, le nom relu à la consultation (auteur, 2026-10-12, #920) | effacer l'adresse des comptes rendus à l'anonymisation : une donnée personnelle copiée qu'il faudrait poursuivre partout où elle a été écrite |
 | Les tables des comptes et des rôles reçoivent les colonnes d'audit, triables et filtrables, par US-0360/L4 (auteur, 2026-10-12, #936) | les laisser sans elles : l'écart de WF-ADM-0060-A, qui promet un compte désactivé nommé dans ces colonnes, ne se constaterait nulle part en EP-03 |
+
+| Le lien « mot de passe oublié » refusé une fois le mot de passe fixé après son émission, par une pièce de l'extension (auteur, 2026-10-11, #852) | accepter le risque, borné à l'heure du lien et à un redémarrage dans cette heure : un lien employé redevient valable pour quiconque lit le courriel |
+
 | Garder le garde de Keycloak contre les connexions concurrentes d'un même compte : une seconde connexion soumise pendant que la première est vérifiée est refusée une fois, sans échec compté (#972) | `allowConcurrentRequests` : une rafale obtient bien plus que dix essais, contre WF-ADM-0140 |
 | Un service de restauration à part, de l'image `waterfall`, sur le modèle de l'amorçage, seul à tenir les adresses des propriétaires des deux bases ; le worker ordinaire reste au rôle de sauvegarde (auteur, 2026-10-12, #953). Il reçoit la restauration par un flux Redis que seul il lit, démarré en permanence avec la plateforme (coordinateur, 2026-10-12) | rendre au worker l'adresse du propriétaire, pour la seule restauration : défait #895, le worker qui exécute toute tâche pourrait réécrire les bases ou couper le déclencheur du journal ; un service lancé à la main (`run --rm`) : une restauration se demande à l'écran (WF-ADM-0160) ; le flux du worker, filtré par genre : dans un groupe, une entrée va à un seul consommateur, qui devrait la laisser à l'autre, et deux groupes recevraient chacun toutes les entrées ; la table `background_task` relue par le service : la restauration remplace la base où elle vit, et PBS-3.2 met la file dans Redis |
 | Le service de restauration vide les caches de Keycloak (`realm`, `user`, `keys`) par le client de l'amorçage, qui porte `manage-realm` (auteur, 2026-10-12, #954) | `manage-realm` au compte du service : droit trop large, l'API et le worker pourraient modifier le royaume ; un point d'entrée de l'extension Java qui ne vide que les caches, sous un rôle dédié : une pièce Java de plus à écrire, tester et tenir, pour ce que l'API d'administration fait déjà |
 | La restauration force la réapplication du royaume de la cible : comptes et mots de passe de la sauvegarde, configuration du royaume de la cible (auteur, 2026-10-12, #955) | la notice seule, EP-13 l'outillant : la reproduction d'une installation, promise par US-0440, serait inopérante, la cible ne parlant plus à Keycloak avant un geste de l'exploitant ; ne restaurer que la base de Waterfall : contraire à WF-ADM-0160, qui recrée les deux bases, et les comptes du fournisseur ne seraient pas reproduits |
 | Les parcours contre le service se jouent sur le Compose de développement ; le Compose de production est prouvé par l'essai `production-trial` (auteur, 2026-10-12, #948) | jouer les parcours sur le Compose de production : un nom public, des certificats et un amorçage par parcours, pour des images construites des mêmes Dockerfiles que la plateforme de service |
+
 
 ### Issues à ouvrir avec la conception
 
@@ -1472,7 +1486,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API
