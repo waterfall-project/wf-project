@@ -104,9 +104,10 @@ def test_a_part_of_the_wrong_size_is_refused_with_the_size_the_deposit_expects()
 
 def test_the_skipped_accounts_of_a_read_are_told_by_a_code_of_the_catalogue() -> None:
     text = (_SCHEMAS / "schemas/platform.yaml").read_text(encoding="utf-8")
-    report = text.split("\nIdentitySyncReport:\n", 1)[1].split("\n\n", 1)[0]
-    assert "code: { $ref: ../common.yaml#/ErrorCode }" in report
-    assert "LAST_ADMINISTRATOR" in _enumeration("common.yaml", "ErrorCode")
+    skipped = text.split("\nIdentitySyncSkipped:\n", 1)[1].split("\n\n", 1)[0]
+    assert "allOf: [{ $ref: ../common.yaml#/ErrorCode }]" in skipped
+    codes = _enumeration("common.yaml", "ErrorCode")
+    assert {"LAST_ADMINISTRATOR", "EMAIL_MISSING"} <= set(codes)
 
 
 def test_the_restoration_refused_for_a_newer_backup_names_the_two_versions() -> None:
