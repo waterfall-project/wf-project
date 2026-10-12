@@ -1383,6 +1383,17 @@
       "history": "History of “{object}”",
       "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "details": {
+        "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
+        "attached": "Origin from now on: {origin}",
+        "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",
+        "renamed": "Formerly “{label}”",
+        "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
+        "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "then": "{first}; {second}"
+      },
       "filters": {
         "label": "Filters of the log",
         "period": "Period",

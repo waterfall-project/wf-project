@@ -3798,6 +3798,27 @@ plus que son objet rend un objet vide.
 d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
 qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
+donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
+et des rôles : un rôle créé sans permission, enregistré sans
+changement, renommé en recevant et en perdant des permissions ; un compte créé avec son premier
+rôle, que la requête de la création inscrit après lui sous sa corrélation ; un nom corrigé ; un
+rattachement à l'annuaire ; une attribution qui ne fait que retirer. Une attribution qui ne change
+rien n'y est pas : le service ne l'inscrit pas. Ce que les autres exemples ne répondent pas y est
+une liberté déclarée, dans le résumé comme ici :
+- une modification combinée, renommage et permissions, qu'aucun exemple d'`updateAccessRole` ne
+  répond — chacun renomme ou change les permissions, jamais les deux ; son état après est écrit
+  par `mockaudit` (les permissions de `access_role_updated` moins celles de la saisie des
+  paramètres de coûts et de ressources), et ce qu'elle accorde et retire s'en lit comme le
+  service le lit, dans l'ordre du catalogue ;
+- une création avec premier rôle qu'aucun exemple de `createUser` ne répond — chacun crée son
+  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée ;
+- un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
+  la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
+  adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
+
+Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
+`test_mockaudit.py` le tient.
 
 ## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
 

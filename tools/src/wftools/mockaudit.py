@@ -24,7 +24,8 @@ only examples written by hand are read from the disk. The answers of ``listAudit
 written from the one journal: the whole of it, the latest first; its second page of ten; the
 journal of the witness; that journal after its exit, and after the estimate imported this morning
 is applied; a filter that retains nothing; the journal
-sorted by author; the inscriptions of one correlation; and a search on the label of the object.
+sorted by author; the inscriptions of one correlation; a search on the label of the object; and,
+a variant of its own, the administration of the accounts and the roles of today (#961).
 The answer of ``listAuditFacets`` is read from the same journal: its authors and its projects
 (#550). Nothing here reads the clock.
 """
@@ -464,6 +465,172 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
     return events[::-1]
 
 
+ADMINISTERED = 101
+"""The number of the first inscription of the administration of today, and of its first request.
+
+Past the journal, its sequels and the variants of the journal written by hand
+(``audit_events_anonymized_*``): the administration is a variant of its own, whose identifiers and
+correlations no other example gives (#961)."""
+
+IDENTITY = ("last_name", "first_name", "email")
+"""The fields of the identity of an account, in the order of the account (`AuditUserField`)."""
+
+WITHDRAWN = ("cost_settings.write", "resource_settings.write")
+"""The permissions the modification of the administration withdraws from « Manager », in the order
+of the catalogue: those of the writing of the settings of costs and resources, which it holds."""
+
+
+DIRECTORY_LAST_NAME = "Vidal-Roux"
+"""The last name the directory gives the person whose address Noé Vidal holds, which the
+attachment of the administration gives his account: a liberty of that variant (#707, #961)."""
+
+
+def _updater(example: JsonObject) -> JsonObject:
+    """Return the one who last updated an example, the author of the write it answers."""
+    return cast("JsonObject", cast("JsonObject", example["audit"])["updated_by"])
+
+
+def _role_named(role: JsonObject) -> JsonObject:
+    """Return a role as an attribution names it (`AuditAccessRole`): its identifier, its label."""
+    return {"access_role_id": role["access_role_id"], "label": role["label"]}
+
+
+def _account(user: JsonObject, action: str, actor: JsonObject, params: JsonObject) -> Inscription:
+    """Return an action of today on an account, under the name it displays once it is done."""
+    identifier = cast("str", user["user_id"])
+    return Inscription(TODAY, actor, action, "user", identifier, display_name(user), params=params)
+
+
+def _administered_roles() -> list[Inscription]:
+    """Return the roles the administration of today creates and modifies.
+
+    « Contrôle de gestion » composed from its label alone, without any permission
+    (`access_role_created`), then saved as it is, which changes nothing of it; « Manager » renamed
+    « Responsable d'équipe » (`access_role_renamed`) and given the modification of the planning
+    (`access_role_updated`) by the same modification, which withdraws from it the writing of the
+    settings of costs and resources (``WITHDRAWN``). That combined modification is a variant no
+    example of updateAccessRole answers: each of them renames or changes the permissions, never
+    both. Its state after is written here, and what it grants and withdraws is read from it as
+    the service reads it, in the order of the catalogue. Each by the one who last updated the
+    example it is read from.
+    """
+    created = fixture("access_role_created")
+    renamed = fixture("access_role_renamed")
+    updated = fixture("access_role_updated")
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    before = cast("list[str]", roles[renamed["access_role_id"]]["permissions"])
+    after = [code for code in cast("list[str]", updated["permissions"]) if code not in WITHDRAWN]
+
+    def role(action: str, changed: JsonObject, params: JsonObject) -> Inscription:
+        return Inscription(
+            TODAY,
+            _updater(changed),
+            action,
+            "access_role",
+            cast("str", changed["access_role_id"]),
+            cast("str", changed["label"]),
+            params=params,
+        )
+
+    return [
+        role("access_role_create", created, {"permissions": created["permissions"]}),
+        role(
+            "access_role_update",
+            created,
+            {"permissions_granted": [], "permissions_withdrawn": []},
+        ),
+        role(
+            "access_role_update",
+            renamed,
+            {
+                "previous_label": roles[renamed["access_role_id"]]["label"],
+                "permissions_granted": [code for code in after if code not in before],
+                "permissions_withdrawn": [code for code in before if code not in after],
+            },
+        ),
+    ]
+
+
+def _administered_accounts() -> list[Inscription]:
+    """Return the accounts the administration of today creates, modifies and takes roles from.
+
+    Léa Garnier created a local account (`user_created`) with her first role, « Chiffreur », which
+    the request that creates her gives her and inscribes after her creation, under its correlation:
+    a creation with a first role no example of createUser answers — each creates its account without
+    any role —, a liberty of this variant;
+    the name of Lucas Petit corrected (`user_renamed`); Noé Vidal, as the list of the accounts has
+    him, attached by the platform to the person of the directory who holds his address, under the
+    name the directory gives him (``DIRECTORY_LAST_NAME``), from the directory from now on (#707):
+    an attachment no example answers, a liberty of this variant; Inès Roux deprived of her one role
+    (`user_access_roles_cleared`). Each write read from an example by the one who last updated it.
+    """
+    created = fixture("user_created")
+    renamed = fixture("user_renamed")
+    cleared = fixture("user_access_roles_cleared")
+    users = {user["user_id"]: user for user in fixture("users")["items"]}
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
+    [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
+    attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
+    actor = _updater(created)
+
+    def changed(after: JsonObject) -> list[JsonValue]:
+        before = users[after["user_id"]]
+        return [name for name in IDENTITY if after[name] != before[name]]
+
+    held = cast("list[str]", users[cleared["user_id"]]["access_role_ids"])
+    return [
+        _account(created, "user_create", actor, {"origin": created["origin"]}),
+        replace(
+            _account(
+                created,
+                "user_access_roles_set",
+                actor,
+                {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
+            ),
+            joined=True,
+        ),
+        _account(
+            renamed,
+            "user_update",
+            _updater(renamed),
+            {"fields": changed(renamed)},
+        ),
+        _account(
+            attached, "user_update", PLATFORM, {"fields": changed(attached), "attached": True}
+        ),
+        _account(
+            cleared,
+            "user_access_roles_set",
+            _updater(cleared),
+            {
+                "access_roles_granted": [],
+                "access_roles_withdrawn": [
+                    _role_named(roles[role])
+                    for role in held
+                    if role not in cleared["access_role_ids"]
+                ],
+            },
+        ),
+    ]
+
+
+def administration() -> list[JsonObject]:
+    """Return the administration of the accounts and the roles of today, the latest first.
+
+    A variant of the journal, each write of today on an account or a role a request of its own,
+    at the instant of today, save the first role of an account created, inscribed by the request
+    that creates it (``joined``). Numbered from ``ADMINISTERED``, its requests too.
+    """
+    events: list[JsonObject] = []
+    request = ADMINISTERED - 1
+    found = [*_administered_roles(), *_administered_accounts()]
+    for number, each in enumerate(found, start=ADMINISTERED):
+        request += 0 if each.joined else 1
+        events.append(_event(number, request, each))
+    return events[::-1]
+
+
 def _page(events: list[JsonObject], limit: int = PAGE, offset: int = 0) -> JsonObject:
     """Return a page of the answer of listAuditEvents."""
     return {
@@ -629,6 +796,25 @@ def examples() -> dict[str, JsonObject]:
             f"Les restaurations du journal d'audit le {day} (actions=restore) : la plateforme "
             f"n'a jamais été restaurée, et la liste est vide (WF-SEC-0030).",
             _page([event for event in events if event["action"] == "restore"]),
+        ),
+        "audit_events_administration.json": mocktext.example(
+            "Variante : le journal d'audit depuis aujourd'hui à 14 h 05 (from), après "
+            "l'administration des comptes et des rôles d'habilitation qui s'y fait, chaque "
+            "écriture par une requête à elle, les plus récentes d'abord. Par Camille Martin, "
+            "« Contrôle de gestion » créé sans permission, puis enregistré sans rien changer ; "
+            "« Manager » renommé « Responsable d'équipe », doté de la modification de la "
+            "planification et privé de celle des paramètres de coûts et de ressources par une "
+            "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
+            "compte local de Léa Garnier créé avec son premier rôle, « Chiffreur », que la "
+            "requête de la création inscrit après elle, sous sa corrélation : une création avec "
+            "premier rôle qu'aucun exemple de createUser ne répond ; le nom de Lucas "
+            "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
+            "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
+            f"donne, « {DIRECTORY_LAST_NAME} », et venu de l'annuaire désormais : un "
+            "rattachement qu'aucun exemple ne répond. Chaque inscription dit ce "
+            "que l'action a fait, en codes, en identifiants et en libellés du moment, que le "
+            "lecteur lit dans sa langue (WF-SEC-0030, WF-ARC-0110).",
+            _page(administration()),
         ),
         **_readings(events, day),
     }
