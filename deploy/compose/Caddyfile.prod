@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The front end of the production platform (US-0430): the only door to it. It obtains alone the
+# certificates of WATERFALL_DOMAIN from Let's Encrypt, and sends every request in HTTP to HTTPS: the
+# browser speaks HTTPS alone (WF-SEC-0010). The front is served at the root, Keycloak under /auth. A
+# local name — localhost, *.localhost, *.internal, an address — gets its certificate from Caddy's
+# own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
+{
+	# The account Let's Encrypt writes to before a certificate expires.
+	email {$WATERFALL_ACME_EMAIL}
+	# The root of a local name is handed to whoever must trust it; the store of the container has
+	# no use for it.
+	skip_install_trust
+	# Nothing changes the configuration once started.
+	admin off
+	# HTTP/3 would ask for a port in UDP the platform does not open.
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$WATERFALL_DOMAIN} {
+	encode zstd gzip
+
+	# The routes of the front under /auth: the return from the realm, and the end of its session.
+	# Its back channel, which Keycloak reaches inside the network of the platform, is not served
+	# here.
+	@front path /auth/callback /auth/sign-out
+	handle @front {
+		reverse_proxy front:3000
+	}
+
+	# Keycloak, built under /auth: its pages, its endpoints, its console.
+	handle /auth/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle {
+		reverse_proxy front:3000
+	}
+}
