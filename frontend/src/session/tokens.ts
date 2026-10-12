@@ -157,7 +157,7 @@ async function renew(id: string, holder: string): Promise<string | undefined> {
       if (session.expiresAt > Date.now()) {
         return session.accessToken;
       }
-      throw new Unreachable(error);
+      throw new Unreachable(error, "the session of the front cannot reach the realm");
     }
     if (tokens === undefined) {
       await forgetSession(id);
@@ -232,7 +232,9 @@ export async function armRequestSignOut(): Promise<string | undefined> {
  * The access token of the session of the request; none without its cookie, and `SessionLost` when
  * the session it names lives no more. Redis out of reach is a component of the platform out of
  * reach, as Keycloak is (WF-EXP-0040): the request is `Unreachable`, which every screen says as
- * the service out of reach, never as an unexpected error (#861).
+ * the service out of reach, never as an unexpected error (#861), and the log of the server as Redis
+ * out of reach. Only the network fails so: a variable missing, an address badly written, is a
+ * defect, thrown as it is, naming what is wrong.
  */
 export async function requestBearer(): Promise<string | undefined> {
   const id = await requestSessionId();
@@ -243,7 +245,7 @@ export async function requestBearer(): Promise<string | undefined> {
   try {
     token = await bearerOf(id);
   } catch (error) {
-    throw error instanceof StoreUnreachable ? new Unreachable(error) : error;
+    throw error instanceof StoreUnreachable ? new Unreachable(error, error.message) : error;
   }
   if (token === undefined) {
     throw new SessionLost();

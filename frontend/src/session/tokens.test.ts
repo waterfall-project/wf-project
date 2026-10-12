@@ -201,12 +201,31 @@ describe("the token of a request", () => {
     await closeStore();
     vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
     try {
-      expect(await failureOfRead(client)).toMatchObject({ digest: UNREACHABLE_DIGEST });
+      const failure = await failureOfRead(client);
+      expect(failure).toMatchObject({ digest: UNREACHABLE_DIGEST });
+      // The log of the server names Redis, not the API.
+      expect((failure as Error).message).toMatch(/Redis/);
       const outcome = await updateEstimateLine(STRUCTURE, NODE, { hours: "15", lock_version: 3 });
       expect(outcome).toMatchObject({ kind: "unreachable" });
       expect(client.calls).toEqual([]);
     } finally {
       await closeStore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails naming the variable, never as the service out of reach, when the address of Redis is missing, the session open (#861)", async () => {
+    await signedIn();
+    const client = fakeClient({ "GET /projects": "projects" }, {}, requestBearer);
+    // The session open, the connection to Redis too: the address goes missing all the same.
+    vi.stubEnv("WATERFALL_REDIS_URL", "");
+    try {
+      const failure = await failureOfRead(client);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure).not.toMatchObject({ digest: UNREACHABLE_DIGEST });
+      expect((failure as Error).message).toMatch(/WATERFALL_REDIS_URL/);
+      expect(client.calls).toEqual([]);
+    } finally {
       vi.unstubAllEnvs();
     }
   });

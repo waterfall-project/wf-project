@@ -24,7 +24,15 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { createClient, ErrorReply } from "@redis/client";
+import {
+  ClientClosedError,
+  ClientOfflineError,
+  ConnectionTimeoutError,
+  createClient,
+  ReconnectStrategyError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutError,
+} from "@redis/client";
 
 import { redisAddress } from "./settings";
 
@@ -80,10 +88,10 @@ return redis.call("del", KEYS[1])`;
 /** How many times a lost connection is tried again, a tenth of a second apart, before it fails. */
 const RECONNECTIONS = 5;
 
-/** Connect to the Redis of the platform. */
-function connect() {
+/** Connect to the Redis of the platform, at its address. */
+function connect(address: string) {
   const client = createClient({
-    url: redisAddress(),
+    url: address,
     // A command fails at once while Redis is out of reach, rather than wait in a queue; and a
     // connection that cannot be made fails, rather than keep the request waiting for ever.
     disableOfflineQueue: true,
@@ -102,8 +110,8 @@ type Redis = Awaited<ReturnType<typeof connect>>;
 let connection: Promise<Redis> | undefined;
 
 /** Connect anew, the connection forgotten if it fails: the next command tries again. */
-function reconnect(): Promise<Redis> {
-  const attempt: Promise<Redis> = connect().catch((error: unknown) => {
+function reconnect(address: string): Promise<Redis> {
+  const attempt: Promise<Redis> = connect(address).catch((error: unknown) => {
     if (connection === attempt) {
       connection = undefined;
     }
@@ -113,19 +121,67 @@ function reconnect(): Promise<Redis> {
   return attempt;
 }
 
-/** The client of the Redis of the platform, connected at its first use, and again once lost. */
-async function redis(): Promise<Redis> {
-  const current = connection ?? reconnect();
+/**
+ * The client of the Redis of the platform at its address, connected at its first use, and again
+ * once lost.
+ */
+async function redis(address: string): Promise<Redis> {
+  const current = connection ?? reconnect(address);
   const client = await current;
   if (client.isOpen) {
     return client;
   }
-  return connection === current ? reconnect() : (connection ?? reconnect());
+  return connection === current ? reconnect(address) : (connection ?? reconnect(address));
+}
+
+/** The failures of the client that say Redis out of reach, rather than a defect. */
+const CONNECTION_FAILURES = [
+  ConnectionTimeoutError,
+  ClientClosedError,
+  ClientOfflineError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutError,
+  ReconnectStrategyError,
+];
+
+/** The errors of the system that say the network failed: refused, cut, unknown or silent. */
+const NETWORK_FAILURES = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "EHOSTUNREACH",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+]);
+
+/** How deep the causes of an error are looked into: a chain that loops ends there. */
+const CAUSES = 8;
+
+/**
+ * Whether an error says Redis out of reach: a failure of the connection of the client, or an error
+ * of the network — the error itself, one of its causes, or one of the errors it gathers (Node tries
+ * each address of a host, and gathers their refusals). Anything else — a variable missing, an
+ * address badly written, a defect — is not, and is thrown as it is.
+ */
+function unreached(error: unknown, depth = 0): boolean {
+  if (!(error instanceof Error) || depth > CAUSES) {
+    return false;
+  }
+  if (CONNECTION_FAILURES.some((failure) => error instanceof failure)) {
+    return true;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && NETWORK_FAILURES.has(code)) {
+    return true;
+  }
+  const gathered = error instanceof AggregateError ? (error.errors as unknown[]) : [];
+  return [error.cause, ...gathered].some((inner) => unreached(inner, depth + 1));
 }
 
 /**
  * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read
- * nor written. A refusal of Redis itself, an answer, is not this, but a defect.
+ * nor written. A refusal of Redis itself, an answer, is not this, but a defect; nor is an address
+ * missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */
@@ -135,12 +191,16 @@ export class StoreUnreachable extends Error {
   }
 }
 
-/** Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`). */
+/**
+ * Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`), and only it:
+ * its address read first, a variable missing fails naming it.
+ */
 async function reaching<T>(commands: (client: Redis) => Promise<T>): Promise<T> {
+  const address = redisAddress();
   try {
-    return await commands(await redis());
+    return await commands(await redis(address));
   } catch (error) {
-    throw error instanceof ErrorReply ? error : new StoreUnreachable(error);
+    throw unreached(error) ? new StoreUnreachable(error) : error;
   }
 }
 
