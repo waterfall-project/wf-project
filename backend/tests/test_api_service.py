@@ -25,6 +25,7 @@ from support import (
     SESSION_COOKIE,
     ContractClient,
     Logs,
+    UndeclaredPropertyError,
     found_in,
     operations,
 )
@@ -147,6 +148,63 @@ def test_a_response_that_the_contract_does_not_describe_is_rejected(
 
     with pytest.raises(rejection):
         ContractClient(TestClient(app), contract).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(
+    ("status", "body", "pointer"),
+    [
+        (200, {"status": "ok", "hint": "Le compte est désactivé"}, "/hint"),
+        (
+            503,
+            {
+                "code": "COMPONENT_UNAVAILABLE",
+                "status": 503,
+                "params": {"component": "database"},
+                "correlation_id": "front-7f3a",
+                "fields": [{"pointer": "/x", "code": "VALUE_REQUIRED", "message": "Champ requis"}],
+            },
+            "/fields/0/message",
+        ),
+    ],
+    ids=["at the top of the body", "in an object of a list"],
+)
+def test_an_answer_that_holds_a_property_its_schema_does_not_declare_is_rejected(
+    contract: OpenAPI, status: int, body: dict[str, object], pointer: str
+) -> None:
+    # « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur » : a sentence
+    # the contract does not declare, which openapi-core lets pass, fails the client of the tests.
+    app = FastAPI()
+
+    media = "application/json" if status == 200 else "application/problem+json"
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body, status_code=status, media_type=media)
+
+    with pytest.raises(UndeclaredPropertyError) as rejected:
+        ContractClient(TestClient(app), contract).get("/api/v1/health")
+    assert rejected.value.pointers == [pointer]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_an_object_the_contract_leaves_open_may_hold_any_property(contract: OpenAPI) -> None:
+    # The parameters of a refusal name its condition by codes and values the contract leaves
+    # open (``Problem.params``): the client does not refuse them.
+    app = FastAPI()
+    body = {
+        "code": "COMPONENT_UNAVAILABLE",
+        "status": 503,
+        "params": {"component": "database", "retry": 3},
+        "correlation_id": "front-7f3a",
+    }
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body, status_code=503, media_type="application/problem+json")
+
+    response = ContractClient(TestClient(app), contract).get("/api/v1/health")
+    assert response.json() == body
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")

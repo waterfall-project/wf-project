@@ -7,8 +7,9 @@ followed, down to each text they hold. A text is a code when the contract says i
 enumeration, a form (``format``), a pattern from end to end —, or it is a datum a person entered,
 or that the front itself wrote, each named below with what it is. A text of any other kind would be
 a sentence the API words in one language for its reader: the test fails on it. Every answer the
-tests of the service read is checked against the contract (``ContractClient``): what the contract
-does not hold, no answer holds.
+tests of the service read is checked against the contract (``ContractClient``), which refuses a
+property its schema does not declare, where openapi-core validates an object without closing it:
+what the contract does not hold, no answer holds.
 """
 
 from pathlib import Path

@@ -5,16 +5,21 @@
 import io
 import json
 import time
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from httpx2 import Response
+from jsonschema_path import SchemaPath
 from openapi_core import OpenAPI
+from openapi_core.templating.media_types.finders import MediaTypeFinder
+from openapi_core.templating.paths.finders import APICallPathFinder
+from openapi_core.templating.responses.finders import ResponseFinder
 from openapi_core.testing import MockRequest, MockResponse
 from sqlalchemy import URL, QueuePool, text
 
@@ -139,6 +144,70 @@ class Logs:
         return [record for record in self.records if record["event"] == event]
 
 
+# The answers whose body is read: JSON, of a success or of a refusal.
+JSON_TYPES = {"application/json", "application/problem+json"}
+
+
+class UndeclaredPropertyError(AssertionError):
+    """An answer holds a property its schema does not declare.
+
+    openapi-core validates an object without closing it: a property the contract does not
+    declare, a sentence for the reader among them (WF-ARC-0110), passes its validation.
+    """
+
+    def __init__(self, method: str, path: str, pointers: list[str]) -> None:
+        super().__init__(f"{method} {path}: undeclared {', '.join(pointers)}")
+        self.pointers = pointers
+
+
+def branches(schemas: list[SchemaPath]) -> list[SchemaPath]:
+    """Give the schemas and each schema they compose, the composed ones' in turn."""
+    found: list[SchemaPath] = []
+    for schema in schemas:
+        found.append(schema)
+        for part in ("allOf", "anyOf", "oneOf"):
+            if part in schema:
+                found.extend(branches(list(schema / part)))
+    return found
+
+
+def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str]:
+    """Point at each property of the value that none of its schemas declares.
+
+    A value that more than one branch of a composition may describe is held to all of them
+    together: a property one of them declares is declared. An object whose schema says
+    ``additionalProperties`` — ``true``, or the schema of its values — is open to properties it
+    does not name, ``Problem.params`` and ``FieldProblem.params`` among them.
+    """
+    every = branches(schemas)
+    if isinstance(value, list):
+        items = [schema / "items" for schema in every if "items" in schema]
+        for index, each in enumerate(cast("list[object]", value)):
+            yield from walk(items, each, f"{pointer}/{index}")
+    if not isinstance(value, dict):
+        return
+    declared: dict[str, list[SchemaPath]] = {}
+    extra: list[SchemaPath] = []
+    open_ = False
+    for schema in every:
+        if "properties" in schema:
+            for name, below in (schema / "properties").str_items():
+                declared.setdefault(name, []).append(below)
+        if "additionalProperties" in schema:
+            more = schema / "additionalProperties"
+            if more.read_value() is True:
+                open_ = True
+            elif isinstance(more.read_value(), dict):
+                extra.append(more)
+    for name, below in cast("dict[str, object]", value).items():
+        if name in declared:
+            yield from walk(declared[name], below, f"{pointer}/{name}")
+        elif extra:
+            yield from walk(extra, below, f"{pointer}/{name}")
+        elif not open_:
+            yield f"{pointer}/{name}"
+
+
 class ContractClient:
     """A client of the application whose every answer is checked against the contract."""
 
@@ -164,7 +233,25 @@ class ContractClient:
             content_type=response.headers.get("content-type", "").split(";")[0],
         )
         self.contract.validate_response(request, conforming)
+        if conforming.content_type in JSON_TYPES:
+            schema = self.schema(method, target.path, response.status_code, conforming.content_type)
+            undeclared = list(walk(schema, response.json(), ""))
+            if undeclared:
+                raise UndeclaredPropertyError(method, path, undeclared)
         return response
+
+    def schema(self, method: str, path: str, status: int, content_type: str) -> list[SchemaPath]:
+        """Find the schema the contract declares for the answer, once validated against it."""
+        # The finders give untyped named tuples: path, operation, server and what they matched;
+        # then the type, its parameters and the media.
+        found = APICallPathFinder(self.contract.spec).find(
+            method.lower(), f"http://testserver{path}"
+        )
+        _, operation, *_ = cast("tuple[Any, SchemaPath, Any, Any, Any]", found)
+        answer = ResponseFinder(operation / "responses").find(str(status))
+        found_media = MediaTypeFinder(answer / "content").find(content_type)
+        _, _, media = cast("tuple[str, Any, SchemaPath]", found_media)
+        return [media / "schema"]
 
     def get(self, path: str, **kwargs: Any) -> Response:
         """Send a GET and check the answer."""
