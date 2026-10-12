@@ -32,7 +32,10 @@
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
  * (`make e2e-service`), with the real authentication — no fixed token —, and the development
  * server listening on every interface, so that Keycloak reaches its back channel from its
- * container (#681).
+ * container (#681). They play in four projects: the installation first, whose administrator the
+ * bootstrap made, and whose link serves once (US-0420); the paths, on several workers; those that
+ * change a setting of the realm, which every account reads, one at a time once the others are done;
+ * and last the guard of the run, which reads the log of the proxy of the contract whole.
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
@@ -94,6 +97,14 @@ const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
 // The paths against the real service, which need its platform: `make e2e-service` alone plays them.
 const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
+// The paths that change a setting of the realm for the time they run — a lifetime —, which every
+// account of the realm reads: tagged, played alone.
+const REALM_WIDE = /@realm-wide/;
+// The moment the run started, which the workers inherit: the guard of the run reads the log of the
+// proxy from it (`e2e/service/contract.ts`). Kept by a worker, which loads this file again.
+if (PLAYS_SERVICE) {
+  process.env.E2E_SERVICE_STARTED ??= new Date().toISOString();
+}
 const onWorkstation = process.env.CI === undefined;
 
 /** The fake back, started on the port of the harness — unless the environment names an API. */
@@ -132,13 +143,41 @@ function serviceProjects(): Project[] {
   if (!PLAYS_SERVICE) {
     return [];
   }
+  // Keycloak's front end answers with a certificate of its own local authority (#680), which the
+  // server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
+  const use = { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true };
   return [
     {
+      // The link of the bootstrap serves once: its path sets the password of the administrator,
+      // through whom the others act.
+      name: "installation",
+      testMatch: /e2e\/service\/installation\.setup\.ts$/,
+      teardown: "contract",
+      use,
+    },
+    {
+      // Each path signs in as an account of its own, or as one no other path closes the sessions
+      // of: they share no session, and play on several workers (#730).
       name: "service",
       testMatch: SERVICE_PATHS,
-      // Keycloak's front end answers with a certificate of its own local authority (#680), which
-      // the server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
-      use: { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true },
+      grepInvert: REALM_WIDE,
+      dependencies: ["installation"],
+      use,
+    },
+    {
+      // A setting of the realm changed would reach the paths beside: these play once the others are
+      // done, one at a time.
+      name: "realm",
+      testMatch: SERVICE_PATHS,
+      grep: REALM_WIDE,
+      dependencies: ["installation", "service"],
+      workers: 1,
+      use,
+    },
+    {
+      name: "contract",
+      testMatch: /e2e\/service\/contract\.teardown\.ts$/,
+      use,
     },
   ];
 }
@@ -205,10 +244,6 @@ function productionServer(): WebServer[] {
 
 export default defineConfig({
   testDir: "e2e",
-  // The paths against the service sign in as one account, the person of the test directory, until
-  // the bootstrap gives them others (US-0420): one closing its sessions closes them all. They run
-  // one after the other.
-  ...(PLAYS_SERVICE ? { workers: 1 } : {}),
   forbidOnly: !onWorkstation,
   retries: 0,
   reporter: [["list"]],

@@ -4,18 +4,20 @@
  * What the paths against the service ask of the platform around the front (US-0350): the sign-in
  * page of the realm, where a person gives her identifiers; the administration of the realm, to
  * shorten a lifetime the time of a path or to close the sessions of an account, as an
- * administrator would in its console; and a role of Waterfall written in its database, for the
- * accounts of the paths. The bootstrap of the installation (US-0420, `make e2e-service`) makes one
- * administrator only, that of the installation; the person of the directory, the one of the
- * external provider and the local accounts a path creates are admitted with no role (WF-ADM-0180).
- * The service gives roles (`setUserAccessRoles`), but by a token of that administrator, whom no
- * path signs in as: the path writes the role itself, as the administrator would give it.
+ * administrator would in its console; the administrator of the installation, whom the bootstrap
+ * makes (US-0420, `make e2e-service`), and who creates by the API the local accounts of the paths
+ * and gives them their roles (#730); and a role of Waterfall written in its database, for the
+ * person of the directory and the one of the external provider, whom the API admits with no role
+ * at their first request (WF-ADM-0180), and whom the paths share.
  *
  * The person of the test directory and the one of the test external provider are those of
  * `deploy/keycloak/development/`, with their development passwords.
  */
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
@@ -40,6 +42,25 @@ export interface Person {
   /** The provider she signs in by, if not the realm itself. */
   readonly provider?: string;
 }
+
+/**
+ * The password a local account of the paths sets by its link, the administrator of the installation
+ * included: twelve characters, neither its address nor its name.
+ */
+export const LOCAL_PASSWORD = "k7#Qw2ZpX9vR";
+
+/**
+ * The administrator the bootstrap made (US-0420), at the address `make e2e-service` gave it
+ * (`E2E_ADMIN_EMAIL`), named after its role: its password is the one the path of the installation
+ * set by the link of the bootstrap (`installation.setup.ts`). No path signs it out, nor closes its
+ * sessions: every path acts through it.
+ */
+export const ADMINISTRATOR: Person = {
+  login: process.env.E2E_ADMIN_EMAIL ?? "",
+  email: process.env.E2E_ADMIN_EMAIL ?? "",
+  password: LOCAL_PASSWORD,
+  name: "Waterfall Administrateur",
+};
 
 /** The person of the test directory, admitted at her first request (WF-ADM-0180). */
 export const DIRECTORY: Person = {
@@ -84,7 +105,15 @@ export async function giveIdentifiers(page: Page, person: Person): Promise<void>
   if (person.provider === undefined) {
     await page.getByLabel("Courriel").fill(person.login);
     await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
-    await signInButton(page).click();
+    await oneAtATime(person.login, async () => {
+      const checked = page.waitForResponse(
+        (answer) =>
+          answer.request().method() === "POST" &&
+          answer.url().startsWith(`${REALM}/login-actions/authenticate`),
+      );
+      await signInButton(page).click();
+      await checked;
+    });
     return;
   }
   await page.getByRole("link", { name: person.provider }).click();
@@ -105,6 +134,40 @@ export async function reauthenticate(page: Page, person: Person): Promise<void> 
   await expect(page.locator("#kc-attempted-username")).toHaveValue(person.username ?? person.login);
   await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
   await signInButton(page).click();
+}
+
+/**
+ * Run a sign-in of an account while no other worker signs it in: the realm refuses the identifiers
+ * of an account it is checking already, as if it were locked (`user_temporarily_disabled`, no
+ * failure counted) — the administrator of the installation, which every worker signs in. A
+ * directory of the system's temporary one, named after the run and the account, is the lock.
+ */
+async function oneAtATime<T>(login: string, run: () => Promise<T>): Promise<T> {
+  const name = createHash("sha256")
+    .update(`${process.env.E2E_SERVICE_STARTED ?? ""} ${login}`)
+    .digest("hex");
+  const lock = join(tmpdir(), `waterfall-e2e-${name.slice(0, 32)}`);
+  await expect
+    .poll(
+      () => {
+        try {
+          mkdirSync(lock);
+          return true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+            return false;
+          }
+          throw error;
+        }
+      },
+      { message: `the sign-in of ${login} in another worker`, intervals: [100], timeout: 30_000 },
+    )
+    .toBe(true);
+  try {
+    return await run();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
 }
 
 /** Sign a person in from `/login`, aiming at a screen, and land on it, whole. */
@@ -327,12 +390,14 @@ export function waterfallAccount(email: string): { origin: string; roles: number
 }
 
 /**
- * Give an account a role of the permissions given — the same role each time, made once —, as the
- * administrator of the installation would by the service (`createAccessRole`,
- * `setUserAccessRoles`): written in the database, since the bootstrap (US-0420) makes that
- * administrator alone and no path signs in as it, the accounts of the paths holding no role until
- * given one. The account must exist — Waterfall creates it at its first request —: a role given to
- * none fails the path, rather than leave it without the role.
+ * Give the person of the directory, or the one of the external provider, a role of the permissions
+ * given — the same role each time, made once —, as the administrator of the installation would by
+ * the service (`setUserAccessRoles`): written in the database, these people being shared by the
+ * paths of a run and by the runs on a platform kept, where Waterfall knows them only once they have
+ * signed in. The account must exist — Waterfall creates it at the first request of the person,
+ * which the path has seen answered (`GET /me`, the screen of her account shown) —: a role given to
+ * none fails the path, rather than leave it without the role. A local account of the paths is
+ * given its role by the administrator (`Administrator.give`).
  */
 export function grantRole(email: string, label: string, permissions: readonly string[]): void {
   const held = sql(
@@ -471,20 +536,22 @@ async function posted<T>(
   return (await answer.json()) as T;
 }
 
-/** The label of the role that makes the person of the directory administer the accounts. */
-const ADMINISTRATION = "Administration des comptes (parcours)";
+/** The answer of a read of the API, as the front calls it with a token. */
+async function read<T>(request: APIRequestContext, token: string, path: string): Promise<T> {
+  const answer = await request.get(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(answer.status(), `GET ${path}`).toBe(200);
+  return (await answer.json()) as T;
+}
 
 /**
- * An administrator of the accounts, who creates local accounts and gives their links (`createUser`,
- * `createPasswordSetupLink`): the person of the directory, given the role, as the screens of
- * US-0360 will call the API once wired (#449). Her account is Waterfall's once she has called it
- * (`getMe`): the role is given then, the first path of a platform new finding none.
+ * The administrator of the installation at the API (#730): it creates the local accounts of the
+ * paths, each its own, gives their links (`createUser`, `createPasswordSetupLink`) and their roles
+ * (`createAccessRole`, `setUserAccessRoles`), by the token the front would obtain for it.
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
-  const token = await frontToken(browser, DIRECTORY);
-  const me = await request.get(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } });
-  expect(me.status(), "GET /me").toBe(200);
-  grantRole(DIRECTORY.login, ADMINISTRATION, ["users.read", "users.write"]);
+  const token = await frontToken(browser, ADMINISTRATOR);
   return {
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
@@ -496,18 +563,42 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     /** The link that sets the password of a local account, each new one replacing the one before. */
     link: async (id: string): Promise<string> =>
       (await posted<{ url: string }>(request, token, `/users/${id}/password-link`)).url,
-    /** Withdraw the role the person of the directory was given. */
-    done: () => {
-      withdrawRoles(DIRECTORY.login);
+    /**
+     * Give a local account the role of a label — made of the permissions given unless the
+     * installation holds it already, so that the runs on a platform kept make it once —, in place
+     * of those it holds.
+     */
+    give: async (id: string, label: string, permissions: readonly string[]): Promise<void> => {
+      const search = new URLSearchParams({ search: label }).toString();
+      const held = await read<{ access_role_id: string; label: string }[]>(
+        request,
+        token,
+        `/access-roles?${search}`,
+      );
+      const role =
+        held.find((one) => one.label === label)?.access_role_id ??
+        (
+          await posted<{ access_role_id: string }>(request, token, "/access-roles", {
+            label,
+            permissions,
+          })
+        ).access_role_id;
+      const { lock_version: version } = await read<{ lock_version: number }>(
+        request,
+        token,
+        `/users/${id}`,
+      );
+      const given = await request.put(`${API}/users/${id}/access-roles`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { access_role_ids: [role], lock_version: version },
+      });
+      expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
     },
   };
 }
 
 /** An administrator of the accounts, for the time of a file. */
 export type Administrator = Awaited<ReturnType<typeof accountAdministrator>>;
-
-/** The password a local account sets by its link: twelve characters, neither its address nor its name. */
-export const LOCAL_PASSWORD = "k7#Qw2ZpX9vR";
 
 /** Set a password on the page of a link, opened: whether the realm took it is for the path to see. */
 export async function setPassword(page: Page, password: string): Promise<void> {
@@ -523,6 +614,11 @@ export async function openLink(page: Page, link: string): Promise<void> {
   await expect(page.getByRole("heading", { name: "Mise à jour du mot de passe" })).toBeVisible();
 }
 
+/** A local account of the paths, by its identifier in Waterfall too. */
+export interface LocalPerson extends Person {
+  readonly id: string;
+}
+
 /**
  * A local account created by the administrator, whose holder has set her password by her link:
  * the person who signs in with it.
@@ -530,12 +626,12 @@ export async function openLink(page: Page, link: string): Promise<void> {
 export async function localAccount(
   browser: Browser,
   administrator: Administrator,
-): Promise<Person> {
+): Promise<LocalPerson> {
   const { id, email } = await administrator.create();
   const page = await browser.newPage({ locale: "fr-FR", ignoreHTTPSErrors: true });
   await openLink(page, await administrator.link(id));
   await setPassword(page, LOCAL_PASSWORD);
   await expect(page.getByRole("heading", { name: "Votre compte a été mis à jour." })).toBeVisible();
   await page.close();
-  return { login: email, email, password: LOCAL_PASSWORD, name: "Jeanne Montgolfier" };
+  return { id, login: email, email, password: LOCAL_PASSWORD, name: "Jeanne Montgolfier" };
 }

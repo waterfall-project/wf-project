@@ -7,15 +7,14 @@
  * (`NO_PATH_MATCHED_ERROR`), a request outside it into a 422, and writes each in its log, under
  * the request it answered. The server of Next makes these requests, where the browser does not
  * see them, a screen may outlive one — a read it can do without —, and Prism writes its line once
- * it has answered: the paths read every line of the log once, from where the first file started,
- * and fail on any error Prism wrote there. Each path fails on those written before its end, an
- * error written later the next path — of its file or of the next one, the reading going on from
- * file to file —, and those written after the last path of a file the file, once its pages are
- * closed and the proxy fallen quiet.
- *
- * The reading is one for the worker, which is why the paths against the service run on one: a
- * second worker would read the errors of the first, the refusal `contract.spec.ts` asks for among
- * them (#735).
+ * it has answered: each worker reads every line of the log once, from where its first file
+ * started, and fails a path on any error Prism wrote before its end, an error written later the
+ * next path of the worker. The paths run on several workers (#730), and the log does not say which
+ * asked what: an error fails the path of each worker that reads it — the one that caused it among
+ * them. The project of the guard (`contract.teardown.ts`) reads the whole log of the run once every
+ * path is done, and the proxy fallen quiet: an error written after the last path of a worker fails
+ * it. The one refusal a path asks for, an address outside the contract (`OUTSIDE`), is left by
+ * every reader to the path that reads it (`contract.spec.ts`).
  *
  * A status the operation does not declare is not an error to Prism: it passes the answer on with a
  * warning (`sl-violations`, of severity `Warning`), which its log does not tie to its request.
@@ -87,6 +86,21 @@ function proxyLog(since?: string): Logged[] {
     .map(logged);
 }
 
+/** The address outside the contract the guard's own path asks for, which only it reads. */
+export const OUTSIDE = "/api/v1/outside-the-contract";
+
+/**
+ * The moment the run started, which `playwright.config.ts` gives every worker: the guard of the
+ * run reads the log from it.
+ */
+function startOfTheRun(): string {
+  const started = process.env.E2E_SERVICE_STARTED;
+  if (started === undefined || started === "") {
+    throw new Error("E2E_SERVICE_STARTED is the moment the run started: playwright.config.ts");
+  }
+  return logged(`${started} `).at;
+}
+
 /** The moment the reading of the worker has reached, from the start of its first file. */
 let cursor: string | undefined;
 
@@ -120,17 +134,28 @@ export function healthChecksAlone(lines: readonly string[], previous?: string): 
   });
 }
 
+/** The errors read and not yet laid at a path's door; those of `OUTSIDE`, apart. */
+const errors: string[] = [];
+const outside: string[] = [];
+
+/** Keep the errors among lines read, those of `OUTSIDE` apart. */
+function keepErrors(lines: readonly string[]): void {
+  for (const line of lines.filter((read) => read.includes(PRISM_ERROR))) {
+    (line.includes(` ${OUTSIDE} `) ? outside : errors).push(line);
+  }
+}
+
 /**
  * Wait until the proxy has written all it had to of the requests made so far: nothing but the
  * health checks for a while. Whether it fell quiet within its bound. The errors among what it
  * reads are kept for the guard.
  */
-export async function proxyFallenQuiet(): Promise<boolean> {
+async function proxyFallenQuiet(): Promise<boolean> {
   let previous: string | undefined;
   for (let waited = 0; waited < FALLING_QUIET; waited += QUIET) {
     await new Promise((resolve) => setTimeout(resolve, QUIET));
     const lines = unread();
-    errors.push(...lines.filter((line) => line.includes(PRISM_ERROR)));
+    keepErrors(lines);
     const quiet = healthChecksAlone(lines, previous);
     previous = lines.at(-1) ?? previous;
     if (quiet) {
@@ -140,25 +165,25 @@ export async function proxyFallenQuiet(): Promise<boolean> {
   return false;
 }
 
-/** The errors read while waiting for the proxy to fall quiet, not yet laid at a path's door. */
-const errors: string[] = [];
-
-/** The errors Prism wrote since the last were taken: laid at the door of one path alone. */
+/** The errors Prism wrote since the last were taken, but those of `OUTSIDE`. */
 export function takeErrors(): string[] {
-  return [...errors.splice(0), ...unread().filter((line) => line.includes(PRISM_ERROR))];
+  keepErrors(unread());
+  return errors.splice(0);
+}
+
+/** The errors Prism wrote of `OUTSIDE` since the last were taken. */
+export function takeOutside(): string[] {
+  keepErrors(unread());
+  return outside.splice(0);
 }
 
 /**
  * Hold each path of the file to the contract: it fails on an error Prism wrote since the previous
- * path ended — an answer outside its schema, an address or a request outside the contract —, and
- * the file on one Prism wrote after its last path.
+ * path of the worker ended — an answer outside its schema, an address or a request outside the
+ * contract.
  */
 export function heldToTheContract(): void {
   test.beforeAll(() => {
-    expect(
-      test.info().config.workers,
-      "the paths against the service read the log of the proxy on one worker",
-    ).toBe(1);
     // From the last line written, or from now when there is none yet.
     cursor ??= proxyLog().at(-1)?.at ?? logged(`${new Date().toISOString()} `).at;
   });
@@ -168,9 +193,15 @@ export function heldToTheContract(): void {
       "what the proxy of the contract refused up to the end of the path",
     ).toEqual([]);
   });
-  // After the pages of the file are closed: the server of Next may still have been reading for them.
-  test.afterAll(async () => {
-    expect.soft(await proxyFallenQuiet(), "the proxy of the contract fell quiet").toBe(true);
-    expect(takeErrors(), "what the proxy of the contract refused after the last path").toEqual([]);
-  });
+}
+
+/**
+ * Hold the run to the contract once every path is done: the errors Prism wrote since it started,
+ * the proxy fallen quiet — those written after the last path of a worker among them, and those the
+ * paths failed on already, which fail it again.
+ */
+export async function heldTheRunToTheContract(): Promise<void> {
+  cursor = startOfTheRun();
+  expect.soft(await proxyFallenQuiet(), "the proxy of the contract fell quiet").toBe(true);
+  expect(takeErrors(), "what the proxy of the contract refused during the run").toEqual([]);
 }

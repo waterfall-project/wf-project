@@ -3,26 +3,34 @@
 /*
  * The guard of the paths against the service (`contract.ts`, WF-ARC-0060): it reads what the proxy
  * of the contract refused during a path, though nothing in the path looked at the answer — the one
- * refusal it reads here, which it takes, and which would otherwise fail the path.
+ * refusal it reads here, apart, which every other reader leaves, and which would otherwise fail
+ * the paths of each worker.
  */
 import { expect, test } from "@playwright/test";
 
-import { healthChecksAlone, heldToTheContract, proxyFallenQuiet, takeErrors } from "./contract";
+import { healthChecksAlone, heldToTheContract, OUTSIDE, takeOutside } from "./contract";
 
 heldToTheContract();
 
 test("an address outside the contract is read as refused by the proxy, the one refusal of the path [WF-ARC-0060-A]", async ({
   request,
 }) => {
-  const outside = await request.get(
-    `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1/outside-the-contract`,
-  );
+  const outside = await request.get(`${process.env.WATERFALL_API_ADDRESS ?? ""}${OUTSIDE}`);
   expect(outside.status()).toBe(404);
-  // Prism writes its line once it has answered: read once it has fallen quiet.
-  expect(await proxyFallenQuiet()).toBe(true);
-  const refused = takeErrors();
+  // Prism writes its line once it has answered: read until it is there, the other workers asking
+  // on meanwhile.
+  const refused: string[] = [];
+  await expect
+    .poll(
+      () => {
+        refused.push(...takeOutside());
+        return refused.length;
+      },
+      { timeout: 20_000 },
+    )
+    .toBeGreaterThan(0);
   expect(refused).toHaveLength(1);
-  expect(refused[0]).toContain("get /api/v1/outside-the-contract");
+  expect(refused[0]).toContain(`get ${OUTSIDE}`);
   expect(refused[0]).toContain("NO_PATH_MATCHED_ERROR");
 });
 
