@@ -335,13 +335,23 @@ describe("the journal of audit", () => {
   it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A] [WF-ADM-0190-A]", async () => {
     const page = await journal();
     // No cell of the grid takes an entry, nor holds a control: its links lead elsewhere.
-    const body = /<tbody[^>]*>(.*?)<\/tbody>/.exec(gridOf(page))?.[1] ?? "";
+    const body = /<tbody[^>]*>(.*?)<\/tbody>/.exec(gridOf(page))?.[1];
+    expect(body).toBeDefined();
+    expect(body?.match(/<tr\b/g)?.length).toBeGreaterThan(1);
     expect(body).not.toMatch(/<(button|input|select|textarea|form)\b|contenteditable/);
-    // The controls of the page are those of its filters, its columns, its sorts and its pages.
-    const controls = [...page.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((button) =>
-      text(button[0]),
+    // The controls of the page are those of its filters, its columns, its sorts and its pages: each
+    // by its whole name — its text, and its `aria-label` or `title`, an icon alone having no text.
+    const controls = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)].map(
+      ([button, attributes]) =>
+        [
+          text(button),
+          ...[...(attributes ?? "").matchAll(/\b(?:aria-label|title)="([^"]*)"/g)].map(
+            ([, name]) => name,
+          ),
+        ].join(" "),
     );
     expect(controls.length).toBeGreaterThan(0);
+    expect(controls.some((control) => /Colonnes|Trier/i.test(control))).toBe(true);
     for (const control of controls) {
       expect(control).not.toMatch(/Modifier|Supprimer|Effacer|Créer|Retirer|Annuler/);
     }
