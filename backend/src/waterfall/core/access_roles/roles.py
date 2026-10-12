@@ -39,7 +39,12 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.users.interface import AccountExpression, Author, read_author
+from waterfall.core.users.interface import (
+    AccountExpression,
+    Author,
+    inscribed_actor,
+    read_author,
+)
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
@@ -302,7 +307,8 @@ def _inscribe(
 ) -> None:
     """Inscribe an action on a role, named by its identifier and its label at that moment."""
     audited = AuditObject("access_role", *role)
-    record(session, Inscription(action, act.actor, audited, act.at, params=params))
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription(action, actor, audited, act.at, params=params))
 
 
 def create_role(session: Session, new: RoleWrite, act: Act) -> RoleView:

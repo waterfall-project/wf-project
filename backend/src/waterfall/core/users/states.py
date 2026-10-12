@@ -23,9 +23,9 @@ from waterfall.core.users.commands import (
     STATE_FORBIDS_OPERATION,
     anonymized,
 )
-from waterfall.core.users.identity import inscribe
+from waterfall.core.users.identity import inscribe, inscribed_actor
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act, forget_account
+from waterfall.platform.audit import Act, AuditObject, Inscription, forget_account, record
 from waterfall.platform.errors import ConflictError
 
 ACTIVE = "active"
@@ -81,12 +81,17 @@ def anonymize(session: Session, user_id: UUID, lock_version: int, act: Act) -> U
     The account is locked, then read under the lock: refused if unknown (404), if its version is
     not the one read (412), or if it is anonymised already or active (409). Its names, its address
     and its avatar become null, and the journal forgets its name, in the same transaction; the
-    anonymisation is then inscribed, naming the account by no label.
+    anonymisation is then inscribed, naming the account by no label. Its author is named once
+    the names are emptied — an account anonymising itself is named by none — and before the lock
+    of the forgetting is taken: an anonymisation of that author holds its row, then waits for
+    that lock, which this one would hold while it waits for the row.
     """
     account = lock_account_at(session, user_id, lock_version)
     refuse_anonymization(account)
     values: dict[str, object] = {**dict.fromkeys(FORGOTTEN), "anonymized_at": act.at}
     account = change_columns(session, user_id, values, lock_version, Stamp(act.author, act.at))
+    actor = inscribed_actor(session, act.author)
     forget_account(session, user_id)
-    inscribe(session, "user_anonymize", account, act, {})
+    audited = AuditObject("user", account.id, None)
+    record(session, Inscription("user_anonymize", actor, audited, act.at, params={}))
     return account

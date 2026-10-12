@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from waterfall import __version__
 from waterfall.api import (
     access_roles,
+    audit,
     avatars,
     backups,
     identity_syncs,
@@ -52,5 +53,6 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(identity_syncs.router, prefix=PREFIX)
     app.include_router(access_roles.router, prefix=PREFIX)
     app.include_router(tasks.router, prefix=PREFIX)
+    app.include_router(audit.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
     return app

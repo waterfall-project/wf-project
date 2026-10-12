@@ -11,6 +11,7 @@ provider's, and is not asked for. A local account removed indeed is tried agains
 (``test_keycloak_authentication``).
 """
 
+import threading
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -20,11 +21,18 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
-from support import ContractClient, Logs, Watching, bearer, nowhere
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import Session
+from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.platform.audit import AuditActor, AuditObject, Inscription, record
+from waterfall.core.users.interface import (
+    anonymize_account,
+    inscribe_password_link,
+    lock_account_for_change,
+)
+from waterfall.platform.audit import Act, AuditActor, AuditObject, Inscription, record
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.logs import logging_context
@@ -167,6 +175,119 @@ def test_an_anonymized_account_is_named_on_no_screen_of_the_accounts_and_is_not_
     stored = row(database, paul)
     assert (stored["state"], stored["lock_version"], stored["avatar"]) == ("deactivated", 1, None)
     assert not names_paul(stored)
+
+
+def links_inscribed(database: Database) -> list[tuple[str, str | None]]:
+    """Give the author of each inscription of a password link, by identifier and name."""
+    return [
+        (entry["actor_user_id"], entry["actor_display_name"])
+        for entry in journal(database)
+        if entry["action"] == "password_link_create"
+    ]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.usefixtures("headers")
+def test_a_write_in_flight_while_its_author_is_anonymized_waits_and_inscribes_no_name(
+    database: Database, paul: UUID
+) -> None:
+    # « Après anonymisation d'un compte, aucune inscription ne porte plus son nom » — of a request
+    # of Paul's still in flight when he is anonymised (#867): his name is read in the transaction
+    # that inscribes, under a share lock that waits for the anonymisation, and is then null. The
+    # link of Jeanne's account takes no lock on Paul's row but that one.
+    jeanne = account(database, "Montgolfier", "Jeanne")
+
+    def inscribe_link() -> None:
+        with logging_context(correlation_id="req-paul"), database.transaction() as session:
+            inscribe_password_link(session, jeanne, Act(paul, utc_now()))
+
+    with logging_context(correlation_id="req-camille"), Session(database.engine) as anonymizing:
+        anonymize_account(anonymizing, paul, 0, Act(CALLER, utc_now()))
+        writing = threading.Thread(target=inscribe_link)
+        writing.start()
+        wait_for_a_lock(database)
+        anonymizing.commit()
+    writing.join()
+    assert links_inscribed(database) == [(str(paul), None)]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.usefixtures("headers")
+def test_an_anonymization_waits_for_a_write_in_flight_of_its_account_and_forgets_its_name(
+    database: Database, paul: UUID
+) -> None:
+    # The other order (#867): Paul's inscription holds his row for share until its commit; the
+    # anonymisation waits for it, then forgets his name in that inscription as in the others.
+    jeanne = account(database, "Montgolfier", "Jeanne")
+
+    def anonymize_paul() -> None:
+        with logging_context(correlation_id="req-camille"), database.transaction() as session:
+            anonymize_account(session, paul, 0, Act(CALLER, utc_now()))
+
+    with logging_context(correlation_id="req-paul"), Session(database.engine) as writing:
+        inscribe_password_link(writing, jeanne, Act(paul, utc_now()))
+        anonymizing = threading.Thread(target=anonymize_paul)
+        anonymizing.start()
+        wait_for_a_lock(database)
+        writing.commit()
+    anonymizing.join()
+    assert links_inscribed(database) == [(str(paul), None)]
+    assert row(database, paul)["anonymized_at"] is not None
+
+
+@pytest.mark.usefixtures("headers")
+def test_an_anonymization_by_an_account_being_anonymized_waits_and_neither_deadlocks(
+    database: Database, paul: UUID
+) -> None:
+    # Paul, deactivated with a request in flight, anonymises Jeanne while Camille anonymises him:
+    # Camille holds his row, then takes the lock of the forgetting. Paul's anonymisation names its
+    # author before taking that lock, and waits for his row holding nothing Camille waits for;
+    # it then inscribes no name. Named after, it would hold the lock and both would wait. Paul
+    # changed Jeanne last: her anonymisation, stamped with his identifier, checks no key of his.
+    jeanne = account(database, "Montgolfier", "Jeanne", state="deactivated", updated_by=paul)
+    failures: list[DBAPIError] = []
+
+    def anonymize_jeanne() -> None:
+        with logging_context(correlation_id="req-paul"):
+            try:
+                with database.transaction() as session:
+                    anonymize_account(session, jeanne, 0, Act(paul, utc_now()))
+            except DBAPIError as error:
+                failures.append(error)
+
+    with logging_context(correlation_id="req-camille"), Session(database.engine) as anonymizing:
+        lock_account_for_change(anonymizing, paul, 0)
+        writing = threading.Thread(target=anonymize_jeanne)
+        writing.start()
+        wait_for_a_lock(database)
+        anonymize_account(anonymizing, paul, 0, Act(CALLER, utc_now()))
+        anonymizing.commit()
+    writing.join(timeout=10)
+    assert not writing.is_alive()
+    assert failures == []
+    assert [
+        (entry["object_id"], entry["actor_user_id"], entry["actor_display_name"])
+        for entry in journal(database)
+        if entry["action"] == "user_anonymize"
+    ] == [(str(paul), str(CALLER), "Camille Martin"), (str(jeanne), str(paul), None)]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_account_anonymizing_itself_is_inscribed_by_no_name(
+    database: Database, paul: UUID
+) -> None:
+    # « Après anonymisation d'un compte, aucune inscription ne porte plus son nom » — of the
+    # anonymisation itself, when its author is the account anonymised: his name is read once
+    # the transaction has emptied it, and the inscription names him by none.
+    with logging_context(correlation_id="req-paul"), database.transaction() as session:
+        anonymize_account(session, paul, 0, Act(paul, utc_now()))
+    entries = journal(database)
+    assert [
+        (entry["action"], entry["actor_user_id"], entry["actor_display_name"])
+        for entry in entries
+        if entry["action"] == "user_anonymize"
+    ] == [("user_anonymize", str(paul), None)]
+    assert not [entry for entry in entries if names_paul(entry)]
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")

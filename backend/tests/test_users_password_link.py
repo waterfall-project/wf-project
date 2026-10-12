@@ -25,7 +25,7 @@ from support import ContractClient, Watching, bearer, nowhere
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.users.interface import inscribe_password_link
-from waterfall.platform.audit import Act, AuditActor, AuditEntry
+from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak import Keycloak
@@ -163,7 +163,7 @@ def test_a_link_keycloak_could_not_make_is_neither_given_nor_inscribed(
 def test_a_link_made_is_inscribed_by_its_author_without_anything_of_the_link(
     database: Database, session: Session
 ) -> None:
-    author = AuditActor(uuid4(), "Camille Martin")
+    author = account(database, "Martin", "Camille")
     user_id = account(database, "Montgolfier", "Jeanne")
     with logging_context(correlation_id="link"):
         inscribe_password_link(session, user_id, Act(author, NOON))
@@ -173,7 +173,12 @@ def test_a_link_made_is_inscribed_by_its_author_without_anything_of_the_link(
         user_id,
         "Jeanne Montgolfier",
     )
-    assert (entry.actor_user_id, entry.occurred_at, entry.params) == (author.user_id, NOON, {})
+    assert (entry.actor_user_id, entry.actor_display_name, entry.occurred_at, entry.params) == (
+        author,
+        "Camille Martin",
+        NOON,
+        {},
+    )
 
 
 def test_a_link_made_for_an_account_deactivated_meanwhile_is_neither_inscribed_nor_given(

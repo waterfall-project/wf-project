@@ -1782,6 +1782,11 @@
       "backup": "Sauvegarde",
       "external_backup_upload": "Sauvegarde déposée"
     },
+    "AuditUserField": {
+      "last_name": "Nom",
+      "first_name": "Prénom",
+      "email": "Adresse électronique"
+    },
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",

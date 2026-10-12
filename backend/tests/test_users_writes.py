@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
 
@@ -30,9 +31,9 @@ from waterfall.api.users import withdraw, write_new_account
 from waterfall.core.access_roles.administrators import lock_administrators
 from waterfall.core.access_roles.interface import Actor
 from waterfall.core.access_roles.tables import AccessRole
-from waterfall.core.users.interface import Identity, is_address
+from waterfall.core.users.interface import Identity, is_address, lock_account_for_change
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act, AuditActor, AuditEntry
+from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import ConflictError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak
@@ -241,7 +242,7 @@ def test_an_account_the_provider_fails_to_withdraw_is_said_in_the_log(
 def act() -> Iterator[Act]:
     """Act as Camille Martin, under the correlation of a request."""
     with logging_context(correlation_id=CORRELATION):
-        yield Act(AuditActor(CALLER, "Camille Martin"), utc_now())
+        yield Act(CALLER, utc_now())
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
@@ -349,6 +350,43 @@ def test_a_role_deleted_while_the_account_waits_for_the_guard_is_refused(
     ]
     assert accounts(database) == ["camille.martin@example.org"]
     assert journal(database) == []
+
+
+def test_a_creation_with_roles_and_a_write_on_its_author_under_the_guard_both_complete(
+    database: Database, headers: dict[str, str], act: Act
+) -> None:
+    # Camille creates Jeanne with a role while another write — her deactivation, the attribution
+    # of her roles — holds the guard, then locks her account. The creation takes the guard before
+    # it inscribes, and with it the share lock of its author: it waits, and holds nothing the
+    # other waits for. Taken after, the two would wait for each other (DeadlockDetected).
+    del headers
+    pilot = role(database, "Pilote")
+    identity = Identity("Montgolfier", "Jeanne", "jeanne@mairie.local")
+    failures: list[DBAPIError] = []
+
+    def create() -> None:
+        with logging_context(correlation_id=CORRELATION):
+            try:
+                with database.transaction() as session:
+                    write_new_account(
+                        session, (identity, "kc-jeanne"), [pilot], Actor(CALLER, CHANGE), act
+                    )
+            except DBAPIError as error:
+                failures.append(error)
+
+    with Session(database.engine) as guarding:
+        lock_administrators(guarding)
+        creating = threading.Thread(target=create)
+        creating.start()
+        wait_for_a_lock(database)
+        locked = lock_account_for_change(guarding, CALLER, 0)
+        guarding.commit()
+    creating.join(timeout=10)
+    assert not creating.is_alive()
+    assert failures == []
+    assert locked.user_id == CALLER
+    assert accounts(database) == ["camille.martin@example.org", "jeanne@mairie.local"]
+    assert [entry.action for entry in journal(database)] == ["user_create", "user_access_roles_set"]
 
 
 def change(client: ContractClient, headers: dict[str, str], user_id: UUID, **sent: object) -> Any:

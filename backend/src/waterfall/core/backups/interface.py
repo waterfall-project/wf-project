@@ -15,6 +15,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.tables import Backup
+from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import Act, AuditObject, Inscription, record
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
@@ -79,11 +80,13 @@ def read_backup(session: Session, backup_id: UUID) -> BackupView:
 def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     """Record a backup taken, and inscribe it at its date by whom asked for it, or the platform.
 
-    A backup the platform takes of itself is scheduled; one an account asks for, manual.
+    A backup the platform takes of itself is scheduled; one an account asks for, manual. The
+    inscription carries no parameter: the contract gives a backup an empty ``params`` until the
+    EPIC that realises its data, the row keeping its verification and its origin.
     """
     backup_id = new_id()
     verification = "passed" if taken.is_verified else "failed"
-    origin = "scheduled" if act.actor is None else "manual"
+    origin = "scheduled" if act.author is None else "manual"
     session.execute(
         insert(Backup).values(
             id=backup_id,
@@ -98,7 +101,7 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
             task_id=taken.task_id,
         )
     )
-    params = {"verification": verification, "origin": origin}
     audited = AuditObject("backup", backup_id, None)
-    record(session, Inscription("backup", act.actor, audited, act.at, params=params))
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription("backup", actor, audited, act.at))
     return backup_id

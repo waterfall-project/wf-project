@@ -22,6 +22,7 @@ from waterfall.core.access_roles.roles import HeldRole, roles_held
 from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
 from waterfall.core.users.interface import (
     display_name,
+    inscribed_actor,
     lock_account_for_change,
     note_account_change,
 )
@@ -94,7 +95,8 @@ def _inscribe(
         ],
     }
     audited = AuditObject("user", *account)
-    record(session, Inscription("user_access_roles_set", act.actor, audited, act.at, params=params))
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription("user_access_roles_set", actor, audited, act.at, params=params))
 
 
 def give_first_roles(
