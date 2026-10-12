@@ -3810,7 +3810,9 @@ une liberté déclarée, dans le résumé comme ici :
   répond — chacun renomme ou change les permissions, jamais les deux ; son état après est écrit
   par `mockaudit` (les permissions de `access_role_updated` moins celles de la saisie des
   paramètres de coûts et de ressources), et ce qu'elle accorde et retire s'en lit comme le
-  service le lit, dans l'ordre du catalogue.
+  service le lit, dans l'ordre du catalogue ;
+- une création avec premier rôle qu'aucun exemple de `createUser` ne répond — chacun crée son
+  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée.
 
 ## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
 

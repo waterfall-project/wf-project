@@ -743,3 +743,24 @@ def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
     assert not set(granted) & set(before)
     kept = [code for code in before if code not in withdrawn]
     assert sorted([*kept, *granted], key=updated.index) == after
+
+
+def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
+    journal: dict[str, Node],
+) -> None:
+    # Each example of createUser creates its account without any role, and none of
+    # setUserAccessRoles answers the account created: the first role the administration gives it,
+    # under the correlation of its creation, is a liberty of the variant, not read from them (#961).
+    created = _answered("createUser", "201")
+    assert all(answer["access_role_ids"] == [] for answer in created)
+    account = fixture("user_created")["user_id"]
+    set_roles = _answered("setUserAccessRoles", "200")
+    assert account not in {answer["user_id"] for answer in set_roles}
+    administration = _events(journal["audit_events_administration"])[::-1]
+    creation = next(i for i, event in enumerate(administration) if event["action"] == "user_create")
+    first = administration[creation + 1]
+    assert first["action"] == "user_access_roles_set"
+    assert first["object"]["object_id"] == account
+    assert first["correlation_id"] == administration[creation]["correlation_id"]
+    [granted] = first["params"]["access_roles_granted"]
+    assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)

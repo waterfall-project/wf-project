@@ -545,7 +545,9 @@ def _administered_accounts() -> list[Inscription]:
     """Return the accounts the administration of today creates, modifies and takes roles from.
 
     Léa Garnier created a local account (`user_created`) with her first role, « Chiffreur », which
-    the request that creates her gives her and inscribes after her creation, under its correlation;
+    the request that creates her gives her and inscribes after her creation, under its correlation:
+    a creation with a first role no example of createUser answers — each creates its account without
+    any role —, a liberty of this variant;
     the name of Lucas Petit corrected (`user_renamed`); Noé Vidal attached by the platform to the
     person of the directory who holds his address, under the name the directory gives him,
     « Vidal-Roux » (`user_renamed_deactivated`), from the directory from now on (#707); Inès Roux
@@ -558,7 +560,7 @@ def _administered_accounts() -> list[Inscription]:
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
-    actor = cast("JsonObject", created["audit"]["created_by"])
+    actor = cast("JsonObject", created["audit"]["updated_by"])
 
     def changed(after: JsonObject) -> list[JsonValue]:
         before = users[after["user_id"]]
@@ -787,7 +789,8 @@ def examples() -> dict[str, JsonObject]:
             "planification et privé de celle des paramètres de coûts et de ressources par une "
             "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
             "compte local de Léa Garnier créé avec son premier rôle, « Chiffreur », que la "
-            "requête de la création inscrit après elle, sous sa corrélation ; le nom de Lucas "
+            "requête de la création inscrit après elle, sous sa corrélation : une création avec "
+            "premier rôle qu'aucun exemple de createUser ne répond ; le nom de Lucas "
             "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
             "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
             "donne, « Vidal-Roux », et venu de l'annuaire désormais. Chaque inscription dit ce "
