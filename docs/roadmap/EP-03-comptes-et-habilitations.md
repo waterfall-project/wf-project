@@ -321,10 +321,14 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
   jeton dont l'`iat` précède la date de création, en base, du mot de passe du compte, avec le
   message « déjà servi » du thème. La marque d'emploi devient donc la date du mot de passe :
   un mot de passe fixé autrement après l'envoi du lien — un autre lien, la console, la page du
-  compte — invalide aussi ce lien. Reste à vérifier que Keycloak 26.5.7 laisse le fournisseur
-  déployé remplacer celui du même identifiant (`order()`) ; le test
+  compte — invalide aussi ce lien. Le jeton dit sa seconde, le mot de passe sa milliseconde :
+  un mot de passe fixé dans la seconde même où le lien a été fait laisse le lien valable, faute
+  d'en savoir l'ordre — personne ne reçoit un lien et ne s'en sert dans sa seconde, et le refuser
+  refuserait un lien demandé juste après un mot de passe fixé. Keycloak 26.5.7 préfère, à ordre
+  égal, un fournisseur déployé au sien du même identifiant ; la pièce déclare un ordre plus haut
+  (`order()`), sans dépendre de cette règle. Le test
   `test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart` le
-  constate, et perd son `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
+  constate, sans `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
   pièce n'en change que la vérification du jeton.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par

@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 <!--
 The Keycloak extension of Waterfall: the password setup link, the rule that a password is
-not the last name of its account, and the rule that only a local account has a password
-(docs/dev/java.md). Built inside deploy/keycloak/Dockerfile,
+not the last name of its account, the rule that only a local account has a password, and the
+link of a forgotten password refused once it served (docs/dev/java.md). Built inside deploy/keycloak/Dockerfile,
 against the Keycloak of the image: no JVM is asked of the workstation.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
