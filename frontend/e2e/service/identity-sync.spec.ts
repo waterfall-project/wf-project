@@ -5,8 +5,8 @@
  * against the service (US-0370): an administrator of the accounts — the person of the directory —
  * presses « Lire les comptes »; the service queues the task and gives the hand back at once, the
  * worker reads the realm, and the tracker of the shell follows the task to its end, which it
- * announces (WF-ARC-0090); the screen read anew shows the report of that reading, ended after it
- * was asked (WF-ADM-0070).
+ * announces (WF-ARC-0090); the screen read anew shows the report of that reading, ended after the
+ * one it showed before (WF-ADM-0070).
  *
  * The roles of the person of the directory are written in the database of the platform once her
  * account is Waterfall's (`accountAdministrator`), as an administrator would give them.
@@ -62,7 +62,13 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     });
     const tasks = page.getByRole("region", { name: "Tâches de fond" });
     const entries = tasks.getByRole("listitem");
-    const asked = Date.now();
+    // The end of the last reading shown before the press — none yet, or one the platform asked —,
+    // to which the report read anew is later: no clock but the service's.
+    const ended = reading.getByRole("time");
+    await expect(
+      ended.or(reading.getByText("Aucune lecture des comptes n’a encore abouti.")),
+    ).toBeVisible();
+    const before = (await ended.count()) === 0 ? null : await ended.getAttribute("datetime");
     await handOver(reading.getByRole("button", { name: "Lire les comptes" }), entries);
 
     // Followed by the tracker until the worker has read the accounts, then announced.
@@ -74,12 +80,14 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     // A report to read on the screen, not a file to download.
     await expect(entries.getByRole("link", { name: /Télécharger/ })).toHaveCount(0);
 
-    // The screen read anew shows the report of a reading that ended after it was asked.
+    // The screen read anew shows the report of a reading that ended after the one shown before.
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
-    const ended = reading.locator("time");
     await expect(async () => {
-      const at = Date.parse((await ended.getAttribute("datetime")) ?? "");
-      expect(at).toBeGreaterThanOrEqual(asked - 5_000);
+      const after = await ended.getAttribute("datetime", { timeout: 1_000 });
+      expect(after).not.toBeNull();
+      if (before !== null) {
+        expect(Date.parse(after ?? "")).toBeGreaterThan(Date.parse(before));
+      }
     }).toPass({ timeout: WORKING });
     await expect(reading).toContainText("Dernière lecture achevée le");
     await expect(
