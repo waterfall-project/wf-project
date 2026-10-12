@@ -411,7 +411,7 @@ rien d'autre que leurs deux clés.
 | `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
 | `user_access_role` | compte, rôle | clé primaire sur les deux ; clés étrangères en refus |
 | `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
-| `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
+| `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, rétablis dans le fournisseur, les signalements | clé étrangère vers la tâche |
 | `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `actor_display_name`, `action`, `object_kind`, `object_id`, `object_label`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune suppression, et une seule mise à jour (WF-SEC-0030 révisée) : le rôle de base du service a `INSERT`, `SELECT` et, depuis la migration `0011_account_anonymization`, `UPDATE (actor_display_name, object_label)` ; le déclencheur du journal refuse toute suppression et toute mise à jour, sauf le passage à NULL de ces deux colonnes, le reste de la ligne inchangé, et un déclencheur du module des comptes ne l'admet que pour un compte anonymisé, comme auteur ou comme objet |
 | `backup` | `taken_at`, `size_bytes`, `verification` (`pending`, `passed`, `failed`), `origin` (`manual`, `scheduled`), `is_retained`, `object_key`, la version de l'application et la révision du schéma qui l'ont produite, la tâche | `verification` et `origin` dans leurs énumérations ; aucune ligne supprimée en EP-03 (la rotation est d'EP-13) |
 | `file_upload` | `purpose`, `object_key`, `size_bytes`, `requested_by`, `expires_at`, l'état du dépôt par morceaux | `purpose` dans `FileUploadPurpose` ; un dépôt non employé expire |
@@ -574,7 +574,12 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
   - **l'identité des comptes locaux** : la lecture compare le nom, le prénom et l'adresse que
     Keycloak tient d'un compte local à ceux de Waterfall, et rétablit dans Keycloak ceux de
     Waterfall, hors transaction comme le report d'`updateUser` (#669) ; c'est ce qui réconcilie
-    un report resté sans réponse (#919) ;
+    un report resté sans réponse (#919). Le compte rendu les compte (`restored`) ; le
+    rétablissement suit la validation de la lecture, comme le retrait des orphelins, chaque
+    identité relue juste avant dans une transaction courte qui ne verrouille rien — une
+    modification validée entre-temps est celle que Keycloak reçoit, un compte anonymisé
+    entre-temps est laissé —, et un échec, journalisé, est repris par la lecture suivante.
+    L'adresse se compare sans égard à la casse, que Keycloak ne garde pas ;
   - **aucune donnée personnelle d'un compte connu dans le compte rendu** : une entrée de
     `skipped` qui désigne un compte de Waterfall — le dernier administrateur gardé, par
     exemple — n'en garde que l'identifiant ; son nom est relu à la consultation, et un compte
