@@ -194,9 +194,6 @@
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
       "updatedAt": "Last modified",
-      "createdAt": "Created",
-      "createdBy": "Created by",
-      "updatedBy": "Last modified by",
       "occurredAt": "Date",
       "author": "Author",
       "auditAction": "Action",
@@ -1305,13 +1302,6 @@
       "predefinedRoles": "Predefined roles",
       "composedRoles": "Composed roles",
       "bounds": "Bounds of the access roles"
-    },
-    "audit": {
-      "everyAuthor": "Every author",
-      "anyAccount": "An account",
-      "find": "Find an account for “{column}”",
-      "findButton": "Find",
-      "found": "{count, plural, =0 {No account found for “{column}”.} one {# account found, to choose in “{column}”.} other {# accounts found, to choose in “{column}”.}}"
     },
     "permissions": {
       "title": "Permissions by function",

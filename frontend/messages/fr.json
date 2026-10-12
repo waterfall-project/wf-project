@@ -194,9 +194,6 @@
       "physicalProgress": "Avancement physique",
       "gantt": "Gantt",
       "updatedAt": "Modifié le",
-      "createdAt": "Créé le",
-      "createdBy": "Créé par",
-      "updatedBy": "Modifié par",
       "occurredAt": "Date",
       "author": "Auteur",
       "auditAction": "Action",
@@ -1305,13 +1302,6 @@
       "predefinedRoles": "Rôles prédéfinis",
       "composedRoles": "Rôles composés",
       "bounds": "Bornes des rôles d’habilitation"
-    },
-    "audit": {
-      "everyAuthor": "Tous les auteurs",
-      "anyAccount": "Un compte",
-      "find": "Chercher un compte pour « {column} »",
-      "findButton": "Chercher",
-      "found": "{count, plural, =0 {Aucun compte trouvé pour « {column} ».} one {# compte trouvé, à choisir dans « {column} ».} other {# comptes trouvés, à choisir dans « {column} ».}}"
     },
     "permissions": {
       "title": "Permissions par fonction",

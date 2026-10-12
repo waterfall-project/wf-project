@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { readAuditFilters } from "./audit-address";
 import { rolesQuery } from "./role-address";
-
-/** No filter of the audit columns. */
-const NO_AUDIT = readAuditFilters(new URLSearchParams());
 
 describe("what the list of the access roles asks the server", () => {
   it("asks the search, the sort, the kind and the bounds of the holders under the names of the contract", () => {
@@ -15,7 +11,6 @@ describe("what the list of the access roles asks the server", () => {
         query: { sort: { column: "holder_count", order: "desc" }, search: "chef" },
         predefined: false,
         holders: { min: "1", max: "3" },
-        audit: NO_AUDIT,
       }),
     ).toEqual({
       search: "chef",
@@ -33,7 +28,6 @@ describe("what the list of the access roles asks the server", () => {
         query: { sort: undefined, search: undefined },
         predefined: undefined,
         holders: { min: undefined, max: "0" },
-        audit: NO_AUDIT,
       }),
     ).toEqual({ holder_count_max: 0 });
   });

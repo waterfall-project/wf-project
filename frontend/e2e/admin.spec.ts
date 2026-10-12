@@ -317,24 +317,3 @@ test("filters the access roles by their kind and between bounds of their holders
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(roles.getByRole("row").last()).toHaveText("7 rôles");
 });
-
-test("sorts the access roles by the author of their last modification, names each author — the platform by its own label — and filters them on the author of their creation, under the names of the contract [WF-IHM-0060-A]", async ({
-  page,
-}) => {
-  await page.goto("/admin/access-roles");
-  const roles = page.getByRole("grid", { name: "Rôles d’habilitation" });
-  await sortUntilAddress(
-    roles.getByRole("columnheader", { name: "Modifié par" }),
-    roles,
-    "/admin/access-roles?sort_by=updated_by&sort_order=asc",
-  );
-  // A role delivered with the installation, by the platform; one composed since, by its account.
-  await expect(roles.getByRole("row", { name: /^Administrateur/ })).toContainText("La plateforme");
-  await expect(roles.getByRole("row", { name: /^Auditeur/ })).toContainText("Camille Martin");
-  const author = page.getByRole("combobox", { name: "Créé par" });
-  await author.selectOption({ label: "La plateforme" });
-  await expect(page).toHaveURL(
-    "/admin/access-roles?sort_by=updated_by&sort_order=asc&created_by_kind=platform",
-    { timeout: WORKING },
-  );
-});

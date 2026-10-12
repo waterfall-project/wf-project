@@ -12,7 +12,6 @@
  */
 "use client";
 
-import { useTranslations } from "next-intl";
 import { createContext, type ReactNode, useContext, useRef, useState } from "react";
 
 import { updateAccessRole } from "@/api/actions/access-roles";
@@ -127,30 +126,16 @@ function Writing({ order, roles, children }: WritesProps) {
   return <WritesContext value={{ holding, write }}>{children}</WritesContext>;
 }
 
-/**
- * The label of a role at the head of its column, as the screen holds the role: the one read, or the
- * one a renaming answered since, until the page read anew holds it (#976).
- */
-export function RoleLabel({ role }: { readonly role: AccessRole }) {
-  const answers = useRoleAnswers();
-  return newer(role, answers?.answered.get(role.access_role_id)).label;
-}
-
-/**
- * The cell of a permission for a role: a checkbox that writes the role, named after both — the role
- * by its label as the screen holds it, a renaming answered included (#976).
- */
+/** The cell of a permission for a role: a checkbox that writes the role, named after both. */
 export function PermissionCell({
   role,
   code,
-  permission,
+  name,
 }: {
   readonly role: string;
   readonly code: PermissionCode;
-  /** The name of the permission, in the language of the screen. */
-  readonly permission: string;
+  readonly name: string;
 }) {
-  const t = useTranslations("admin.permissions");
   const writes = useContext(WritesContext);
   const checkbox = useRef<HTMLButtonElement>(null);
   const holding = writes?.holding(role);
@@ -161,7 +146,7 @@ export function PermissionCell({
     <Checkbox
       ref={checkbox}
       checked={holding.codes.has(code)}
-      aria-label={t("cell", { permission, role: holding.role.label })}
+      aria-label={name}
       aria-busy={holding.writing}
       aria-disabled={holding.writing ? true : undefined}
       className="align-middle aria-disabled:opacity-50"

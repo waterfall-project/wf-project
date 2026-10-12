@@ -29,12 +29,6 @@ import { usePendingAddress } from "./pending-address";
 export interface Choice {
   readonly value: string;
   readonly text: string;
-  /**
-   * The parameter of the address the choice writes, when it is not the filter's: the platform among
-   * the accounts that may have written a row (`created_by_kind` beside `created_by_user_id`). A
-   * choice lifts the parameters of the other choices.
-   */
-  readonly name?: string | undefined;
 }
 
 /** Render the filter of a list on one object of a column, the one the address names chosen. */
@@ -80,8 +74,6 @@ export function ChoiceFilter({
   const [shown, show] = useOptimistic(chosen ?? "");
   const [, startTransition] = useTransition();
   const offered = chosen === undefined || choices.some((choice) => choice.value === chosen);
-  // Every parameter the choices write: the one a choice writes, the others lifted.
-  const names = [...new Set([name, ...choices.map((choice) => choice.name ?? name)])];
   return (
     <div className="flex items-center gap-2 text-sm">
       <Label htmlFor={select} className="whitespace-nowrap">
@@ -93,14 +85,12 @@ export function ChoiceFilter({
           value={shown}
           onChange={(event) => {
             const value = event.target.value;
-            const written = choices.find((choice) => choice.value === value)?.name ?? name;
             startTransition(() => {
               show(value);
               request((query) =>
-                filterHref(pathname, query, written, value, [
+                filterHref(pathname, query, name, value, [
                   ...(page === undefined ? [] : [page]),
                   ...lifts,
-                  ...names.filter((each) => each !== written),
                 ]),
               );
             });

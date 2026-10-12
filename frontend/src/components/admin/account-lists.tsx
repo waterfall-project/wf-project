@@ -4,17 +4,16 @@
  * The accounts and the access roles (FBS-1.1, FBS-1.2, US-0250), each a dense grid under its title
  * (#514, #515), in the order the server gave them: each account with its origin, its access roles
  * and the node it is attached to — named as the server resolves them — and whether it is active, a
- * deactivated one staying listed unless a state is chosen (WF-ADM-0050, WF-ADM-0060), filtered by
- * origin, by node, by access role, by state and on its audit columns, a page of the list the server
- * pages, and, for a session that may modify them, the table its own entry (`user-commands.tsx`);
- * each access role, predefined or composed, with how many accounts hold it (WF-ADM-0010,
- * WF-ADM-0090), filtered by kind, between bounds of their holders and on their audit columns, and
- * the commands of the roles for a session that may modify them (`role-commands.tsx`); and the
- * matrix of the permissions, a row for each permission of the catalogue as `listPermissions` gives
- * it, gathered under the name of the function of the second level it covers — or the kind of the
- * action it guards —, a column for each role the table retains, named as the screen holds the role
- * (`RoleLabel`), which holds it or not (WF-ADM-0100), where a role is modified
- * (`permission-matrix.tsx`). No screen creates a permission.
+ * deactivated one staying listed unless a state is chosen (WF-ADM-0050, WF-ADM-0060), filtered
+ * by origin, by node, by access role and by state, a page of the list the server pages, and, for a
+ * session that may modify them, the table its own entry (`user-commands.tsx`); each access role,
+ * predefined or composed, with how many accounts hold it (WF-ADM-0010, WF-ADM-0090), filtered by
+ * kind and between bounds of their holders, and the commands of the roles for a session that may
+ * modify them (`role-commands.tsx`); and the matrix of the permissions, a row for each permission of
+ * the catalogue as `listPermissions` gives it, gathered under the name of the function of the
+ * second level it covers — or the kind of the action it guards —, a column for each role the table
+ * retains, which holds it or not (WF-ADM-0100), where a role is modified (`permission-matrix.tsx`).
+ * No screen creates a permission.
  *
  * A list says it is empty only when nothing narrows it: a search or a filter that retains nothing
  * keeps its grid, the search shown to be changed.
@@ -46,9 +45,7 @@ import { functionAt } from "@/navigation/functions";
 
 import { AccessRoleGrid, UserGrid } from "./admin-grid";
 import type { AccessRoleSort, RoleChoice, User, UserPage, UserSort } from "./admin-grids";
-import { type AuditFilters, auditNarrowed, type AuthorChoice } from "./audit-address";
-import { AuditFilterBar } from "./audit-filters";
-import { PermissionCell, RoleLabel } from "./permission-matrix";
+import { PermissionCell } from "./permission-matrix";
 import { HOLDER_COUNT, PREDEFINED } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
@@ -68,15 +65,13 @@ type Permission = components["schemas"]["Permission"];
 
 /**
  * The accounts of a page of the list, filtered by origin, by node, by access role — one at least of
- * those chosen, an account without a role retained by none: choosing every role still filters —, by
- * state — the active or the deactivated ones alone; none, every account — and by the period and the
- * author of their creation and of their last modification (`AuditFilterBar`), a period the API
- * refused said at its field, the list unread; or that the installation has none — only when the
- * list holds none at all and nothing narrows it: a page asked beyond its end is no empty list; its
- * pages say where it stands (`ListPages`). For a session that may modify the accounts, the commands
- * of the table (`UserCommands`): « Créer un compte local » at its head — offered on an empty list
- * too —, the region that says what a write did, the refusals told above it, and the grid its own
- * entry.
+ * those chosen, an account without a role retained by none: choosing every role still filters —
+ * and by state — the active or the deactivated ones alone; none, every account —, or that the
+ * installation has none — only when the list holds none at all and nothing narrows it: a page asked
+ * beyond its end is no empty list; its pages say where it stands (`ListPages`). For a session that
+ * may modify the accounts, the commands of the table (`UserCommands`): « Créer un compte local » at
+ * its head — offered on an empty list too —, the region that says what a write did, the refusals
+ * told above it, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -89,8 +84,6 @@ export function UserList({
   roles,
   accessRoles,
   active,
-  audit,
-  authors,
   editable,
 }: {
   readonly users: readonly User[];
@@ -112,10 +105,6 @@ export function UserList({
    * alone; none, every account — what the grid shows, the choice says.
    */
   readonly active: boolean | undefined;
-  /** The periods and the authors of the audit columns, and the sides of a period the API refused. */
-  readonly audit: AuditFilters;
-  /** The accounts offered as authors: those of the page shown. */
-  readonly authors: readonly AuthorChoice[];
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
 }) {
@@ -126,8 +115,7 @@ export function UserList({
     origins.length > 0 ||
     orgNode !== undefined ||
     accessRoles.length > 0 ||
-    active !== undefined ||
-    auditNarrowed(audit);
+    active !== undefined;
   const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
     value: origin,
     text: named(origin),
@@ -167,36 +155,25 @@ export function UserList({
         page={OFFSET}
         lifts={[INCLUDE_INACTIVE]}
       />
-      <AuditFilterBar filters={audit} authors={authors} searchable page={OFFSET} />
     </div>
   );
   const empty = page.total === 0 && !narrowed;
-  let list: ReactNode;
-  if (audit.refused !== undefined) {
-    list = (
-      <>
-        {filters}
-        <BoundsRefused />
-      </>
-    );
-  } else if (empty) {
-    list = <p className="text-sm text-muted-foreground">{t("none")}</p>;
-  } else {
-    list = (
-      <>
-        {filters}
-        <UserGrid
-          users={users}
-          page={page}
-          query={query}
-          preferences={preferences}
-          roles={roles}
-          editable={editable}
-        />
-        <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
-      </>
-    );
-  }
+  const list = empty ? (
+    <p className="text-sm text-muted-foreground">{t("none")}</p>
+  ) : (
+    <>
+      {filters}
+      <UserGrid
+        users={users}
+        page={page}
+        query={query}
+        preferences={preferences}
+        roles={roles}
+        editable={editable}
+      />
+      <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
+    </>
+  );
   return (
     <ReferenceSection title={t("title")} icon={Users} fill>
       {editable ? (
@@ -219,16 +196,9 @@ export interface RoleFilters {
   readonly holders: Bounds;
   /** The bounds the API refused (422), the list then unread; none when it was read. */
   readonly refused?: RefusedBounds | undefined;
-  /** The periods and the authors of the audit columns, and the sides of a period the API refused. */
-  readonly audit: AuditFilters;
-  /** The accounts offered as authors: those of the roles unfiltered. */
-  readonly authors: readonly AuthorChoice[];
 }
 
-/**
- * The filters of the access roles: their kind, a choice, the bounds of their holders, and their audit
- * columns.
- */
+/** The filters of the access roles: their kind, a choice, and the bounds of their holders. */
 function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
   const t = useTranslations();
   return (
@@ -255,16 +225,15 @@ function RoleFilterBar({ filters }: { readonly filters: RoleFilters }) {
           },
         ]}
       />
-      <AuditFilterBar filters={filters.audit} authors={filters.authors} searchable={false} />
     </div>
   );
 }
 
 /**
- * The access roles, each predefined or composed, with how many accounts hold it, filtered by kind,
- * between bounds of their holders and on their audit columns; for a session that may modify them, its creation in line, its
- * label entered in its cell and its deletion. Bounds or a period the API refuses (422) leave the
- * list unread, the side said at its field, a sentence standing for the grid.
+ * The access roles, each predefined or composed, with how many accounts hold it, filtered by kind
+ * and between bounds of their holders; for a session that may modify them, its creation in line, its
+ * label entered in its cell and its deletion. Bounds the API refuses (422) leave the list
+ * unread, the bound said at its field, a sentence standing for the grid.
  */
 export function AccessRoleList({
   roles,
@@ -282,12 +251,9 @@ export function AccessRoleList({
 }) {
   const t = useTranslations("admin.accessRoles");
   const narrowed =
-    query.search !== undefined ||
-    filters.predefined !== undefined ||
-    bounded(filters.holders) ||
-    auditNarrowed(filters.audit);
+    query.search !== undefined || filters.predefined !== undefined || bounded(filters.holders);
   let list: ReactNode;
-  if (filters.refused !== undefined || filters.audit.refused !== undefined) {
+  if (filters.refused !== undefined) {
     list = <BoundsRefused />;
   } else if (roles.length === 0 && !narrowed) {
     // Empty only when nothing narrows it; the command that creates a role is offered all the same.
@@ -395,7 +361,7 @@ export function PermissionMatrix({
             <TableHead className={CELL}>{t("admin.permissions.permission")}</TableHead>
             {roles.map((role) => (
               <TableHead key={role.access_role_id} className={`${CELL} text-center`}>
-                <RoleLabel role={role} />
+                {role.label}
               </TableHead>
             ))}
           </TableRow>
@@ -418,7 +384,10 @@ export function PermissionMatrix({
                       <PermissionCell
                         role={role.access_role_id}
                         code={permission.code}
-                        permission={t(`permissions.${permission.code}`)}
+                        name={t("admin.permissions.cell", {
+                          permission: t(`permissions.${permission.code}`),
+                          role: role.label,
+                        })}
                       />
                     ) : (
                       <Held held={codes.has(permission.code)} />

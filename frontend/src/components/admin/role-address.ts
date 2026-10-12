@@ -5,10 +5,9 @@
  * grid (`query.ts`): the filters of the list (WF-IHM-0130, EP-02/L42f), under the names of the
  * contract — the kind of the roles, `is_predefined`, `true` for the predefined ones and `false` for
  * those composed since, and the bounds of the number of their holders, `holder_count_min` and
- * `holder_count_max`, both included, whole numbers from nought (`filters.ts`) —, and the periods and
- * the authors of the audit columns (`audit-address.ts`). A filter chosen only changes the address,
- * and the page reads anew: the server filters, never the front. The list is not paged: no page needs
- * to tell whether two addresses read the same list.
+ * `holder_count_max`, both included, whole numbers from nought (`filters.ts`). A filter chosen only
+ * changes the address, and the page reads anew: the server filters, never the front. The list is not
+ * paged: no page needs to tell whether two addresses read the same list.
  *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
@@ -17,8 +16,6 @@ import { type Bounds, boundNames } from "@/components/grid/filters";
 import { keptReading } from "@/components/grid/kept-address";
 import { asked, CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { listReads } from "@/components/reference/address";
-
-import { AUDIT_FILTERS, type AuditFilters, auditQuery } from "./audit-address";
 
 /** The parameter of the address the kind of the roles goes by, as the contract names it. */
 export const PREDEFINED = "is_predefined";
@@ -36,7 +33,6 @@ export const ACCESS_ROLES_PATH = "/admin/access-roles";
 export const ROLE_FILTERS: readonly string[] = [
   PREDEFINED,
   ...Object.values(boundNames(HOLDER_COUNT)),
-  ...AUDIT_FILTERS,
 ];
 
 /**
@@ -59,15 +55,12 @@ export function rolesQuery<Sort extends NonNullable<RolesQuery["sort_by"]>>(filt
   readonly query: GridQuery<Sort>;
   readonly predefined: boolean | undefined;
   readonly holders: Bounds;
-  /** The periods and the authors of their creation and of their last modification. */
-  readonly audit: AuditFilters;
 }): RolesQuery {
-  const { query, predefined, holders, audit } = filters;
+  const { query, predefined, holders } = filters;
   return {
     ...asked(query),
     ...(predefined === undefined ? {} : { is_predefined: predefined }),
     ...(holders.min === undefined ? {} : { holder_count_min: Number(holders.min) }),
     ...(holders.max === undefined ? {} : { holder_count_max: Number(holders.max) }),
-    ...auditQuery(audit),
   };
 }

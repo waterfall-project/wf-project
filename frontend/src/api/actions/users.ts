@@ -7,7 +7,7 @@
  * (`src/api/problem.ts`); and the link by which the holder of a local account sets its password,
  * handed to who asked it (WF-ADM-0140). Every write answered reads the page anew: the accounts as the server retains them, and the permissions of
  * the session, which an attribution of its own roles may have changed (WF-ADM-0110). The link reads
- * nothing anew: it changes nothing the page shows, nor does the search of an author (`findAccounts`).
+ * nothing anew: it changes nothing the page shows.
  */
 "use server";
 
@@ -110,33 +110,4 @@ export async function createPasswordSetupLink(
       params: { path: { user_id: userId } },
     }),
   );
-}
-
-/** The most accounts a search of an author offers to choose: a search narrows, it does not list. */
-const AUTHORS_FOUND = 20;
-
-/**
- * Find the accounts whose names or address hold a text, deactivated ones included — an anonymised
- * one has none left to find (WF-ADM-0060) —, in the order of the list, to choose the author a table
- * is filtered on (WF-IHM-0130, #936): a reading, which reads nothing anew. Each by its identifier
- * and its names, which the screen composes in its language.
- */
-export async function findAccounts(
-  search: string,
-): Promise<Outcome<Pick<User, "user_id" | "first_name" | "last_name">[]>> {
-  const outcome = await decode(() =>
-    serverClient().GET("/users", {
-      params: { query: { search, include_inactive: true, limit: AUTHORS_FOUND } },
-    }),
-  );
-  return outcome.kind === "done"
-    ? {
-        kind: "done",
-        data: outcome.data.items.map(({ user_id, first_name, last_name }) => ({
-          user_id,
-          first_name,
-          last_name,
-        })),
-      }
-    : outcome;
 }
