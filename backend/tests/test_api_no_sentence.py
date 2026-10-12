@@ -25,37 +25,44 @@ from waterfall.api.authentication import Services
 # The forms that make a text a code, an identifier, an instant or an address.
 FORMS = {"uuid", "date", "date-time", "uri", "email", "binary", "byte"}
 
-# The texts the answers hold that are data, not sentences, by the name of their property.
+# The texts the answers hold that are data, not sentences, by the schema and the property that
+# hold them: a property of the same name elsewhere is not one of them.
 DATA = {
     # The label a person gave an object, kept as it was: a role, a node, the object of an
-    # inscription of the journal, a role before it was renamed.
-    "label": "a label",
-    "previous_label": "a label",
-    "access_role_labels": "labels",
-    "org_node_label": "a label",
+    # inscription of the journal and its revision, a role before it was renamed.
+    "AccessRole.label": "a label",
+    "AuditAccessRole.label": "a label",
+    "AuditObject.label": "a label",
+    "AuditProject.label": "a label",
+    "AuditRevision.label": "a label",
+    "AuditParams.previous_label": "a label",
+    "UserAccount.access_role_labels": "labels",
+    "UserAccount.org_node_label": "a label",
     # The name of a person, as her account holds it, and as it is shown.
-    "last_name": "a name",
-    "first_name": "a name",
-    "display_name": "a name",
+    "UserAccount.last_name": "a name",
+    "UserAccount.first_name": "a name",
+    "ActorRef.display_name": "a name",
+    "AuditActorFacet.display_name": "a name",
     # The code a person gave a project, and the code of a function of the FBS.
-    "code": "a code",
-    "fbs_code": "a code",
+    "AuditProject.code": "a code",
+    "Permission.fbs_code": "a code",
     # What the front writes in the preferences of a grid: the names of its columns and the values
     # of its filters, as its address writes them.
-    "column": "a name of the front",
-    "hidden_columns": "names of the front",
-    "filters[*]": "values of the front",
+    "GridPreferences.sort.column": "a name of the front",
+    "GridPreferences.hidden_columns": "names of the front",
+    "GridPreferences.filters[*]": "values of the front",
     # The field of a request a refusal points at, and the address of a result to download.
-    "pointer": "a JSON pointer",
-    "result_url": "an address",
+    "FieldProblem.pointer": "a JSON pointer",
+    "BackgroundTaskRef.result_url": "an address",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
-# refusal, which name its condition by codes and values (``Problem.params``).
-OPEN = {"params"}
+# refusal, and of each field it refuses, which name its condition by codes and values. Any other
+# — ``AuditParams`` reopened — fails the test.
+OPEN = {"Problem.params", "FieldProblem.params"}
 
 
 class Texts:
-    """The texts an answer of the contract may hold, by the name of the property that holds them."""
+    """The texts an answer of the contract may hold, by the schema and property that hold them."""
 
     def __init__(self, contract: Contract) -> None:
         self.contract = contract
@@ -63,7 +70,16 @@ class Texts:
         self.open: set[str] = set()
 
     def walk(self, node: Any, base: Path, name: str, seen: frozenset[tuple[Path, int]]) -> None:
-        """Note each text of a schema that is no code, and each object left open."""
+        """Note each text of a schema that is no code, and each object left open.
+
+        ``name`` qualifies a property by the schema that holds it — the last reference followed,
+        ``AuditObject.label`` — or by the property that holds an inline schema in turn.
+        """
+        if isinstance(node, dict) and "$ref" in node:
+            reference = cast("str", cast("dict[str, Any]", node)["$ref"])
+            owner = reference.rpartition("/")[2]
+        else:
+            owner = name
         found, base = self.contract.follow(node, base)
         if not isinstance(found, dict):
             return
@@ -73,14 +89,14 @@ class Texts:
         seen |= {(base, id(schema))}
         for part in ("allOf", "anyOf", "oneOf"):
             for each in cast("list[Any]", schema.get(part) or []):
-                self.walk(each, base, name, seen)
+                self.walk(each, base, owner, seen)
         for named, below in cast("dict[str, Any]", schema.get("properties") or {}).items():
-            self.walk(below, base, named, seen)
+            self.walk(below, base, f"{owner}.{named}", seen)
         extra = schema.get("additionalProperties")
         if isinstance(extra, dict):
-            self.walk(extra, base, f"{name}[*]", seen)
+            self.walk(extra, base, f"{owner}[*]", seen)
         elif extra is True:
-            self.open.add(name)
+            self.open.add(owner)
         if "items" in schema:
             self.walk(schema["items"], base, name, seen)
         types = schema.get("type")
