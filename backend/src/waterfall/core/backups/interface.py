@@ -166,6 +166,10 @@ def write_back_after_restoration(connection: Connection, restoration: UUID, at: 
     database lacks, by their identifier — an inscription made while the database was dumped is in
     the dump already, and is not written twice —; the tasks restored pending fail (#892), and the
     role of the service gets its rights back. ``at`` ends the tasks that fail.
+
+    The restored database must be migrated first, to the revision of the installation: the rows and
+    the rights kept are those of its tables, which a backup of an earlier revision lacks — the
+    columns of a table, or the table itself — until its migrations have run.
     """
     write_back_tasks(connection, restoration, at)
     write_back(connection, Backup)

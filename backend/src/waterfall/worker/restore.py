@@ -5,10 +5,12 @@
 The archive's manifest is read and each dump checked against its digest; one of a newer version
 than the installation is refused before anything changes. Each database is made again from its
 dump, as its owner (#701), without the owners and the rights of the source. What runs the
-restoration — the service ``restore`` that US-0440/L2b brings (#985) — calls these functions
-around what the module of the backups keeps and writes back (``keep_for_restoration``,
-``write_back_after_restoration``), then applies the migrations that follow the backup; taken up
-after an interruption, it starts again from the beginning (WF-ARC-0090).
+restoration — the service ``restore`` that US-0440/L2b brings (#985) — does so in this order: it
+keeps what the module of the backups writes back (``keep_for_restoration``), replaces the two
+databases by these functions, applies the migrations that follow the backup, and only then writes
+back (``write_back_after_restoration``): the rights kept are given back to the role of the service
+on the tables of the installation, which a backup of an earlier revision lacks until it is
+migrated. Taken up after an interruption, it starts again from the beginning (WF-ARC-0090).
 """
 
 import json

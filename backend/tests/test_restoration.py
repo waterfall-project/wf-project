@@ -23,6 +23,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
@@ -39,7 +40,7 @@ from waterfall.core.backups.interface import (
     write_back_after_restoration,
 )
 from waterfall.core.backups.tables import Backup
-from waterfall.migrations.runner import upgrade
+from waterfall.migrations.runner import alembic_config, downgrade, upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
 from waterfall.platform.errors import UnavailableError, UnprocessableError
@@ -59,6 +60,8 @@ from waterfall.worker.runner import Timing, Worker
 BACKUPS = "/api/v1/backups"
 # An account the inscriptions of these tests name, without a foreign key.
 NAMED = UUID("01926f3a-7c00-7000-8000-0000000004c1")
+# The revision of the schema of the installation, to which a restoration migrates.
+HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 # A database no server answers for.
 UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 
@@ -358,6 +361,42 @@ def test_no_task_restored_queued_or_running_runs_again_and_the_archive_restored_
         assert (tasks[task_id].status, tasks[task_id].problem) == ("failed", interrupted)
         assert tasks[task_id].finished_at is not None
     assert tasks[restoration].status == "succeeded"
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_backup_of_an_earlier_revision_is_migrated_before_the_role_of_the_service_gets_its_rights(
+    installation: Installation,
+    take: Take,
+    backups_api: ContractClient,
+    realm: TestRealm,
+    tmp_path: Path,
+) -> None:
+    # The backup is taken at 0012, which lacks the reports of the readings of the accounts (0013);
+    # the installation is then brought to the head. The restoration keeps, replaces, migrates, and
+    # only then writes back: the rights kept name that table, which the migrations make again.
+    subject = f"subject-{uuid4()}"
+    held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
+    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    owner = create_database_engine(installation.owner["waterfall"])
+    downgrade(owner, "0012")
+    take()
+    upgrade(owner)
+    with installation.database.transaction() as session:
+        backup_task, revision = session.execute(
+            select(Backup.task_id, Backup.schema_revision)
+        ).one()
+    assert revision == "0012"
+    restore(installation, backup_task, tmp_path)
+    service = f"{engine_url(installation.owner['waterfall']).database}_service"
+    granted = "SELECT has_table_privilege(:service, 'identity_sync_report', 'SELECT, INSERT')"
+    with owner.connect() as connection:
+        migrated = connection.scalar(text("SELECT version_num FROM alembic_version"))
+        assert connection.scalar(text(granted), {"service": service})
+    owner.dispose()
+    assert migrated == HEAD
+    listed = backups_api.get(BACKUPS, headers=bearer(realm.token(subject, KEY)))
+    assert listed.status_code == 200
+    assert listed.json()["meta"]["total"] == 1
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
