@@ -1392,7 +1392,6 @@
         "renamed": "Formerly “{label}”",
         "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
         "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
-        "noRoleChanged": "No role granted nor withdrawn",
         "then": "{first}; {second}"
       },
       "filters": {

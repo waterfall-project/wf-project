@@ -1392,7 +1392,6 @@
         "renamed": "Auparavant « {label} »",
         "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
         "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
-        "noRoleChanged": "Aucun rôle donné ni retiré",
         "then": "{first} ; {second}"
       },
       "filters": {

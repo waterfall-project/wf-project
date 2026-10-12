@@ -26,12 +26,7 @@ import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
 import { formatLocale } from "@/i18n/format";
 
-import {
-  type AuditAction,
-  type AuditObjectKind,
-  correlationHref,
-  historyHref,
-} from "./audit-address";
+import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
 
 type AuditEvent = components["schemas"]["AuditEvent"];
 
@@ -75,7 +70,7 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-function useAuditDetails(): (action: AuditAction, params: AuditParams) => string | undefined {
+function useAuditDetails(): (params: AuditParams) => string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
@@ -112,22 +107,18 @@ function useAuditDetails(): (action: AuditAction, params: AuditParams) => string
         codes.length > 0 && said(key, { count: codes.length, permissions: permissions(codes) }),
     ),
   ];
-  // An attribution: the roles granted and withdrawn, or that it changed none.
-  const attribution = (action: AuditAction, params: AuditParams): (string | false)[] => {
+  // An attribution: the roles granted and withdrawn — one that changes none is never inscribed.
+  const attribution = (params: AuditParams): (string | false)[] => {
     const granted = params.access_roles_granted ?? [];
     const withdrawn = params.access_roles_withdrawn ?? [];
     return [
       granted.length > 0 && said("rolesGranted", { count: granted.length, roles: roles(granted) }),
       withdrawn.length > 0 &&
         said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }),
-      action === "user_access_roles_set" &&
-        granted.length === 0 &&
-        withdrawn.length === 0 &&
-        said("noRoleChanged"),
     ];
   };
-  return (action, params) => {
-    const parts = [...account(params), ...role(params), ...attribution(action, params)].filter(
+  return (params) => {
+    const parts = [...account(params), ...role(params), ...attribution(params)].filter(
       (part) => part !== false,
     );
     return parts.length === 0
@@ -144,7 +135,7 @@ function useAuditDetails(): (action: AuditAction, params: AuditParams) => string
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
-  const details = useAuditDetails()(event.action, event.params);
+  const details = useAuditDetails()(event.params);
   return details === undefined ? (
     t(event.action)
   ) : (

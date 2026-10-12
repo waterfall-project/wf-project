@@ -4,7 +4,6 @@ import { render } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import type { components } from "@/api/generated/schema";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { example } from "@/test/fixtures";
@@ -12,28 +11,27 @@ import { example } from "@/test/fixtures";
 import { ActionCell } from "./audit-cells";
 import type { AuditEvent } from "./audit-columns";
 
-type Params = components["schemas"]["AuditParams"];
+/**
+ * The inscriptions of the witness journals: that of the installation, and that of the administration
+ * of the accounts and of the roles, each written as the service inscribes it.
+ */
+const events = ["audit_events", "audit_events_administration"].flatMap(
+  (name) => (example(name) as { items: AuditEvent[] }).items,
+);
 
-const events = (example("audit_events") as { items: AuditEvent[] }).items;
-
-/** The inscription of the witness journal of an action, about an object of that label. */
+/** The inscription of a witness journal of an action, about an object of that label. */
 function inscription(action: AuditEvent["action"], label: string): AuditEvent {
-  const found = events.find((event) => event.action === action && event.object.label === label);
-  if (found === undefined) {
-    throw new Error(`the witness journal keeps no ${action} of ${label}`);
+  const found = events.filter((event) => event.action === action && event.object.label === label);
+  if (found.length !== 1 || found[0] === undefined) {
+    throw new Error(`the witness journals keep no single ${action} of ${label}`);
   }
-  return found;
+  return found[0];
 }
 
-/** The attribution of her role to Camille Martin, which the witness journal keeps. */
-const ATTRIBUTION = inscription("user_access_roles_set", "Camille Martin");
-
-/** An inscription of the witness journal, its action and its parameters those of another one. */
-function acting(action: AuditEvent["action"], params: Params): AuditEvent {
-  return { ...ATTRIBUTION, action, params };
-}
-
-/** What a reader of a language reads in the cell of an action: the action, then what it did. */
+/**
+ * What a reader of a language reads in the cell of the action of an inscription: the action, then
+ * under it what it did — whose whole sentence its title gives —, or the action alone.
+ */
 function read(event: AuditEvent, locale: Locale): string[] {
   const { container } = render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -43,82 +41,84 @@ function read(event: AuditEvent, locale: Locale): string[] {
     </NextIntlClientProvider>,
   );
   const lines = [...container.querySelectorAll("p > span > span")];
-  return lines.length === 0 ? [container.textContent, ""] : lines.map((line) => line.textContent);
+  const titled = lines.at(1);
+  if (titled !== undefined) {
+    expect(titled.getAttribute("title")).toBe(titled.textContent);
+  }
+  return lines.length === 0 ? [container.textContent] : lines.map((line) => line.textContent);
 }
 
-describe("what an action did, in the language of its reader", () => {
+describe("what an action did, under the action, in the language of its reader", () => {
   it("reads the same attribution of a role in French and in English, the label of the role as it was entered [WF-ARC-0110-A]", () => {
-    expect(read(ATTRIBUTION, "fr")).toEqual([
+    const attribution = inscription("user_access_roles_set", "Camille Martin");
+    expect(read(attribution, "fr")).toEqual([
       "Attribution des rôles d’un compte",
       "Rôle donné : Direction de projet",
     ]);
-    expect(read(ATTRIBUTION, "en")).toEqual([
+    expect(read(attribution, "en")).toEqual([
       "Roles of an account assigned",
       "Role granted: Direction de projet",
     ]);
   });
 
-  it("names the permissions of a role created by their labels in the catalogue of the reader [WF-ARC-0110-A]", () => {
+  it("names the permissions of a role created by their labels in the catalogue of the reader, or that it has none [WF-ARC-0110-A]", () => {
     const created = inscription("access_role_create", "Auditeur");
     expect(read(created, "fr")[1]).toBe("Permission : Consulter le journal d’audit");
     expect(read(created, "en")[1]).toBe("Permission: View the audit log");
-    expect(read(acting("access_role_create", { permissions: [] }), "fr")[1]).toBe(
-      "Aucune permission",
-    );
+    const bare = inscription("access_role_create", "Contrôle de gestion");
+    expect(read(bare, "fr")).toEqual(["Création d’un rôle", "Aucune permission"]);
+    expect(read(bare, "en")[1]).toBe("No permission");
   });
 
-  it("names the origin of an account created", () => {
-    const created = inscription("user_create", "Dominique Bernard");
-    expect(read(created, "fr")[1]).toBe("Importé de l’annuaire");
-    expect(read(created, "en")[1]).toBe("Imported from the directory");
+  it("names the origin of an account created, and the first roles its request gave it", () => {
+    expect(read(inscription("user_create", "Dominique Bernard"), "fr")[1]).toBe(
+      "Importé de l’annuaire",
+    );
+    const created = inscription("user_create", "Léa Garnier");
+    expect(read(created, "fr")[1]).toBe("Créé dans Waterfall");
+    expect(read(created, "en")[1]).toBe("Created in Waterfall");
+    const given = inscription("user_access_roles_set", "Léa Garnier");
+    expect(given.correlation_id).toBe(created.correlation_id);
+    expect(read(given, "fr")[1]).toBe("Rôle donné : Chiffreur");
   });
 
   it("names the fields of the identity a modification changed, never their values, and its attachment to the directory", () => {
-    const updated = acting("user_update", { fields: ["last_name", "email"], attached: true });
-    expect(read(updated, "fr")[1]).toBe(
-      "Champs modifiés : Nom et Adresse électronique ; Origine désormais : Importé de l’annuaire",
+    const renamed = inscription("user_update", "Lucas Petit-Laurent");
+    expect(read(renamed, "fr")).toEqual(["Modification d’un compte", "Champ modifié : Nom"]);
+    const attached = inscription("user_update", "Noé Vidal-Roux");
+    expect(read(attached, "fr")[1]).toBe(
+      "Champ modifié : Nom ; Origine désormais : Importé de l’annuaire",
     );
-    expect(read(updated, "en")[1]).toBe(
-      "Fields changed: Last name and Email address; Origin from now on: Imported from the directory",
+    expect(read(attached, "en")[1]).toBe(
+      "Field changed: Last name; Origin from now on: Imported from the directory",
     );
   });
 
   it("names the label a role bore before a modification, and the permissions it granted and withdrew", () => {
-    const updated = acting("access_role_update", {
-      previous_label: "Contrôle",
-      permissions_granted: ["audit_log.read", "users.read"],
-      permissions_withdrawn: ["backups.read"],
-    });
+    const updated = inscription("access_role_update", "Responsable d'équipe");
     expect(read(updated, "fr")[1]).toBe(
-      "Auparavant « Contrôle » ; Permissions données : Consulter le journal d’audit et Consulter les utilisateurs ; Permission retirée : Consulter les sauvegardes",
+      "Auparavant « Manager » ; Permission donnée : Modifier la planification ; Permissions retirées : Modifier les paramètres de coûts et Modifier les paramètres de ressources",
     );
-    const unchanged = acting("access_role_update", {
-      permissions_granted: [],
-      permissions_withdrawn: [],
-    });
-    expect(read(unchanged, "fr")[1]).toBe("");
+    expect(read(updated, "en")[1]).toBe(
+      "Formerly “Manager”; Permission granted: Edit planning; Permissions withdrawn: Edit cost settings and Edit resource settings",
+    );
   });
 
-  it("names the roles an attribution withdrew, and says when it granted and withdrew none", () => {
-    const [role] = ATTRIBUTION.params.access_roles_granted ?? [];
-    expect(role).toBeDefined();
-    const withdrawn = acting("user_access_roles_set", {
-      access_roles_granted: [],
-      access_roles_withdrawn: role === undefined ? [] : [role],
-    });
-    expect(read(withdrawn, "fr")[1]).toBe("Rôle retiré : Direction de projet");
-    expect(read(withdrawn, "en")[1]).toBe("Role withdrawn: Direction de projet");
-    const same = acting("user_access_roles_set", {
-      access_roles_granted: [],
-      access_roles_withdrawn: [],
-    });
-    expect(read(same, "en")[1]).toBe("No role granted nor withdrawn");
+  it("names the roles an attribution withdrew, by the labels they bore then", () => {
+    const withdrawn = inscription("user_access_roles_set", "Inès Roux");
+    expect(read(withdrawn, "fr")[1]).toBe("Rôle retiré : Pilotage de projet");
+    expect(read(withdrawn, "en")[1]).toBe("Role withdrawn: Pilotage de projet");
   });
 
-  it("says nothing more of an action whose object says it all", () => {
-    expect(read(inscription("user_deactivate", "Alix Moreau"), "fr")).toEqual([
-      "Désactivation d’un compte",
-      "",
-    ]);
+  it.each([
+    ["a deactivation", "user_deactivate", "Alix Moreau", "Désactivation d’un compte"],
+    [
+      "a modification of a role that changed nothing",
+      "access_role_update",
+      "Contrôle de gestion",
+      "Modification d’un rôle",
+    ],
+  ] as const)("says nothing more of %s than its action", (_, action, label, said) => {
+    expect(read(inscription(action, label), "fr")).toEqual([said]);
   });
 });
