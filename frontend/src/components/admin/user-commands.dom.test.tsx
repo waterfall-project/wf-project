@@ -702,13 +702,7 @@ describe("the creation of a local account", () => {
 
   it("says at its field the address another account holds, the dialog open to correct it [WF-ADM-0050-A]", async () => {
     serve({
-      "POST /users": {
-        problem: {
-          code: "ALREADY_EXISTS",
-          status: 409,
-          fields: [{ pointer: "/email", code: "ALREADY_EXISTS" }],
-        },
-      },
+      "POST /users": { problem: example("user_email_taken") as Problem & { status: 409 } },
     });
     render(accounts());
     await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));

@@ -57,11 +57,7 @@ describe("the server actions of the accounts", () => {
   });
 
   it("tell the address another account holds, and read nothing anew [WF-ADM-0050-A]", async () => {
-    const taken: Problem & { status: 409 } = {
-      code: "ALREADY_EXISTS",
-      status: 409,
-      fields: [{ pointer: "/email", code: "ALREADY_EXISTS" }],
-    };
+    const taken = example("user_email_taken") as Problem & { status: 409 };
     serve({ "POST /users": { problem: taken } });
     expect(
       await createUser({

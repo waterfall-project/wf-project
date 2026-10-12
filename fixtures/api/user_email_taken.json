@@ -1,0 +1,17 @@
+{
+  "summary": "Un compte local créé à l'adresse de Lucas Petit : refusé, une adresse n'étant portée que par un compte, et le compte qui la porte nommé ; rien n'est écrit (WF-ADM-0050).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/email",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000305"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001051"
+  }
+}
