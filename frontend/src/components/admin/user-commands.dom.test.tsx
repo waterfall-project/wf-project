@@ -704,6 +704,54 @@ describe("the creation of a local account", () => {
     ]);
   });
 
+  it("keeps the link of an account created waiting, busy and unavailable, while another link is asked, its dialog open; asks it once the other is closed", async () => {
+    const held = holdRoute("POST /users/{user_id}/password-link");
+    const client = serve(
+      {
+        "POST /users": { status: 201, example: "user_created" },
+        "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" },
+      },
+      held.timing,
+    );
+    render(accounts());
+    await userEvent.click(
+      within(grid()).getByRole("button", {
+        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+      }),
+    );
+    await createGarnier(await openCreation());
+    const offer = await screen.findByRole("button", { name: "Remettre le lien" });
+    expect(offer).toHaveAttribute("aria-busy", "true");
+    expect(offer).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(offer);
+    expect(screen.getByRole("dialog")).toContainElement(offer);
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/password-link`,
+      "/users",
+    ]);
+    held.release();
+    const martin = await screen.findByRole("dialog", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    });
+    await userEvent.click(within(martin).getByRole("button", { name: "Fermer" }));
+    await waitFor(() => {
+      expect(offer).toHaveAttribute("aria-busy", "false");
+    });
+    expect(offer).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(offer);
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Lien de fixation du mot de passe de «\u00a0Léa Garnier\u00a0»",
+      }),
+    ).toBeInTheDocument();
+    const lea = example("user_created") as User;
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/password-link`,
+      "/users",
+      `/users/${lea.user_id}/password-link`,
+    ]);
+  });
+
   it.each([
     ["user_created_invited", "Compte «\u00a0Léa Garnier\u00a0» créé."],
     [

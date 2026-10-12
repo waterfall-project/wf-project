@@ -35,6 +35,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { useAccountNaming } from "@/components/account/account-name";
 import { LocalTime } from "@/components/local-time";
 import { useListReport } from "@/components/reference/reactivation";
@@ -112,11 +113,17 @@ function placed(outcome: Outcome<unknown>): {
 
 /** Render the dialog that creates a local account. */
 export function UserCreation({
+  linking,
   onCreated,
   onLink,
   onClose,
   onClosed,
 }: {
+  /**
+   * Whether a link is asked or shown: one link at a time, the link of the account created waits,
+   * marked busy and unavailable, the dialog open.
+   */
+  readonly linking: boolean;
   /** Take the account created, the dialog open or closed. */
   readonly onCreated: (user: UserCreated) => void;
   /** Ask the link of the account created, which no invitation carried to its holder. */
@@ -248,7 +255,14 @@ export function UserCreation({
             <Button
               ref={linkCommand}
               type="button"
+              aria-busy={linking}
+              aria-disabled={linking ? true : undefined}
+              className={UNAVAILABLE}
               onClick={() => {
+                if (linking) {
+                  // One link at a time: the dialog stays, its link asked once the other is closed.
+                  return;
+                }
                 onClose();
                 onLink(uninvited);
               }}

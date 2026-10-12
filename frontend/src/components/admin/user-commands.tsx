@@ -329,6 +329,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
       {children}
       {creating === undefined ? null : (
         <UserCreation
+          linking={linking}
           onCreated={(user) => {
             const name = naming.person(user);
             say(t(user.invitation_sent ? "created" : "createdUninvited", { name }));
