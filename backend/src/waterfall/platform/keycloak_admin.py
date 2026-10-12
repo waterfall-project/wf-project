@@ -444,10 +444,11 @@ class KeycloakAdmin:
 
         Nothing else goes back. Keycloak 26.5.7 applies ``enabled``, ``emailVerified`` and
         ``requiredActions`` when a PUT names them, and leaves them as they are when it does not
-        (``UserResource.updateUserFromRep``): sent back as read, ``enabled: true`` would clear the
-        failed sign-ins of an account locked for a while, and would enable again an account
-        disabled meanwhile, as an ``emailVerified`` read before would undo the one the extension
-        sets when a password is chosen.
+        (``UserResource.updateUserFromRep``). Sent back as read, ``enabled: true`` would enable
+        again an account disabled meanwhile, as an ``emailVerified`` read before would undo the
+        one the extension sets when a password is chosen; it would also clear the failed sign-ins
+        of an account locked for a while (``UserResource.updateUser``, before it applies the
+        representation).
 
         Why the identity read just before goes back with it: a PUT that carries ``attributes``
         replaces every attribute the user profile lets it write, and the identity it does not name
