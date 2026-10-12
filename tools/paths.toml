@@ -87,6 +87,7 @@ paths = [
     "deploy/compose/Caddyfile.service",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
     "backend/tests/test_keycloak_*.py",
     "backend/tests/conftest.py",
     "backend/tests/support.py",
@@ -113,9 +114,31 @@ paths = [
     "deploy/compose/Caddyfile.service",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
     "deploy/keycloak/**",
 ]
 target = "check-service"
+
+[families.production]
+# The production platform (US-0430), in the full tier only: the three images built here, then
+# compose.prod.yaml started on them, bootstrapped and held — at each change of what it is made of:
+# its files, the front end, the files it mounts from the platform it shares them with, and the
+# trial itself (wftools.production). A change of what the images are made of alone is held after
+# the merge, on the images published (images.yml).
+paths = [
+    "deploy/compose/compose.prod.yaml",
+    "deploy/compose/compose.prod.local.yaml",
+    "deploy/compose/Caddyfile.prod",
+    "deploy/compose/production.env.example",
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
+    "deploy/compose/keycloak-database.sql",
+    "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
+    "deploy/compose/waterfall-database.sql",
+    "tools/src/wftools/production.py",
+]
+target = "check-production"
 
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
@@ -130,11 +153,17 @@ target = "check-front"
 # Dockerfile and what it leaves out of its context, the configuration of Next, the dependencies.
 # A change of the code of the front alone is built by the front family, not into the image, which
 # holds what that build prerendered (make prerendered-front): the code of the pages decides it, and
-# the build of the image is paid where the image itself changes.
+# the build of the image is paid where the image itself changes. What the server checks as it
+# starts — its hook, the settings it stops without (#825), and the refusal of the fake back
+# (src/api/server.ts) — is held on the image started.
 paths = [
     "frontend/Dockerfile",
     "frontend/.dockerignore",
     "frontend/next.config.ts",
+    "frontend/src/instrumentation.ts",
+    "frontend/src/startup.ts",
+    "frontend/src/session/settings.ts",
+    "frontend/src/api/server.ts",
     "frontend/package.json",
     "frontend/pnpm-lock.yaml",
     "frontend/pnpm-workspace.yaml",

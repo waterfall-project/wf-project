@@ -108,14 +108,17 @@ class ServiceSettings(Settings, KeycloakSettings):
 
 
 class WorkerSettings(ServiceSettings):
-    """What the worker reads besides: the owners of the two databases a backup dumps (#701).
+    """What the worker reads besides: the two databases a backup dumps, as the role of the backup.
 
-    ``owner_database_url`` is the database of Waterfall as the owner of its tables reaches it, the
-    journal of audit included; ``keycloak_database_url``, the database of the identity provider as
-    its own role reaches it. The worker never acts as either but to dump them.
+    ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
+    ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
+    reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
+    nor turn a trigger off (#895). Never the owner of the tables, who could give itself back the
+    rights or turn off the trigger of the journal, nor a superuser (#701). The worker connects by
+    either to dump alone.
     """
 
-    owner_database_url: SecretStr = Field(min_length=1)
+    backup_database_url: SecretStr = Field(min_length=1)
     keycloak_database_url: SecretStr = Field(min_length=1)
 
 

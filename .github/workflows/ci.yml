@@ -11,7 +11,8 @@
 # The front family runs in two workflows side by side: front.yml for all but the end-to-end
 # paths, e2e.yml for the paths, in the full tier only and spread over several runners (#492).
 # The paths against the real service, which traverse the front, the back and the platform, run
-# in the full tier only too (service.yml, US-0340).
+# in the full tier only too (service.yml, US-0340), as does the production platform started on the
+# images built here (production.yml, US-0430).
 name: chain
 
 on:
@@ -50,6 +51,7 @@ jobs:
       roadmap: ${{ steps.families.outputs.roadmap }}
       keycloak: ${{ steps.families.outputs.keycloak }}
       service: ${{ steps.families.outputs.service }}
+      production: ${{ steps.families.outputs.production }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,10 +125,18 @@ jobs:
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/service.yml
 
+  # The production platform on the three images built here (US-0430): in the full tier only, as
+  # when nothing it is made of is touched; images.yml holds it again on the images it publishes.
+  production:
+    needs: changes
+    if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
+    uses: ./.github/workflows/production.yml
+
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled.
-    needs: [changes, repo, spec, contract, back, front, e2e, front-image, roadmap, keycloak, service]
+    needs:
+      [changes, repo, spec, contract, back, front, e2e, front-image, roadmap, keycloak, service, production]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
