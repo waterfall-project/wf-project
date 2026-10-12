@@ -183,7 +183,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
       }
       setAsked((before) => new Map(before).set(id, write.asked));
       // The reading the row is written on: its refusal is told on it alone.
-      const reading = list?.reading ?? "";
+      const generation = list?.generation ?? 0;
       void reserve(shown, { send: (user) => write.send(user).catch(rejected), said: write.said })
         .catch(rejected)
         .then((outcome) => {
@@ -193,7 +193,13 @@ function Writes({ children }: { readonly children: ReactNode }) {
             return after;
           });
           if (outcome.kind !== "done") {
-            list?.report({ outcome, reading, names: {}, target: write.target, back: write.back });
+            list?.report({
+              outcome,
+              generation,
+              names: {},
+              target: write.target,
+              back: write.back,
+            });
           }
         });
     },

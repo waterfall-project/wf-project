@@ -22,6 +22,7 @@ import {
   correlationDigest,
   failureOf,
   ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
@@ -127,6 +128,18 @@ describe("the screen of failure", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Compte désactivé");
     expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
     await expectAccessible(container);
+  });
+
+  it("says a read refused because Waterfall does not admit the account, never as deactivated, without leading to the sign-in page (#664)", () => {
+    inLanguage(<SystemFailure error={forwarded(ACCOUNT_NOT_ADMITTED_DIGEST)} retry={vi.fn()} />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Compte non admis");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("désactivé");
+    expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
+    // The way out of the session of the realm, which would sign the account in again.
+    expect(screen.getByRole("link", { name: "Se déconnecter" })).toHaveAttribute(
+      "href",
+      "/auth/sign-out",
+    );
   });
 
   it("names no reference for an empty correlation identifier", () => {

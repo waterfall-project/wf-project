@@ -106,7 +106,7 @@ function Writing({ order, roles, children }: WritesProps) {
     }
     setAsked((before) => new Map(before).set(id, next));
     // The reading the cell is checked on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     const permissions = order.filter((each) => next.has(each));
     void updateAccessRole(id, { label: role.label, permissions, lock_version: role.lock_version })
       .catch(rejected)
@@ -119,7 +119,7 @@ function Writing({ order, roles, children }: WritesProps) {
         if (outcome.kind === "done") {
           answers?.record(outcome.data);
         } else {
-          list?.report({ outcome, reading, names: {}, target: `permissions ${id}`, back: cell });
+          list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
         }
       });
   };

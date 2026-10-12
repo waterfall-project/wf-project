@@ -1015,12 +1015,18 @@
       "title": "Compte désactivé",
       "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
     },
+    "notAdmitted": {
+      "title": "Compte non admis",
+      "explanation": "Waterfall n’admet pas ce compte : l’écran n’est pas accessible. Contactez un administrateur."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
     },
+    "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "signOut": "Se déconnecter"
   },
   "loading": {
     "label": "Chargement de l’écran"

@@ -7,6 +7,10 @@
  *
  * - a sign-in under way, by the `state` of its request: the PKCE verifier, the nonce and the
  *   screen aimed at, fifteen minutes at most, taken once;
+ * - the sign-out of a session the front lost, armed by the server action of the sign-out under a
+ *   ticket drawn at random and bound to the cookie of the browser that asked for it, which
+ *   `/login` takes once, for that cookie only, a minute at most (#689): a link of another site,
+ *   or a ticket another armed, cannot sign anyone out;
  * - a session, by its identifier: the tokens, living as long as the session of Keycloak does —
  *   the lifetime of the refresh token, which each refresh gives anew;
  * - the sessions of an account, by its subject, which the back channel of Keycloak closes
@@ -18,12 +22,17 @@
  */
 import "server-only";
 
-import { createClient } from "@redis/client";
+import { randomBytes } from "node:crypto";
+
+import { createClient, ErrorReply } from "@redis/client";
 
 import { redisAddress } from "./settings";
 
 /** How long a sign-in may take, from the request to the return: fifteen minutes, in seconds. */
 export const SIGN_IN_LIFETIME = 15 * 60;
+
+/** How long an armed sign-out waits for the browser to load the sign-in: a minute, in seconds. */
+export const SIGN_OUT_LIFETIME = 60;
 
 /** A sign-in under way: what the return checks, and where it leads. */
 export interface SignIn {
@@ -33,6 +42,11 @@ export interface SignIn {
   readonly nonce: string;
   /** The screen aimed at, a path of this front with its query (`returnTarget`). */
   readonly target: string;
+  /**
+   * Whether the sign-in is the sign-out of a session the front lost (#689): silent, it obtains a
+   * token only to close the sessions of the account, on all its workstations.
+   */
+  readonly signOut: boolean;
 }
 
 /** The tokens of a session, and whose they are. */
@@ -46,12 +60,14 @@ export interface FrontSession {
 }
 
 const SIGN_IN = "wf:sign-in:";
+const SIGN_OUT = "wf:sign-out:";
 const SESSION = "wf:session:";
 const ACCOUNT = "wf:account:";
 const REFRESH = "wf:refresh:";
 
-// Deletes the lock only if its holder still holds it: an expired lock taken by another is theirs.
-const RELEASE =
+// Deletes a key only if it still holds the value given: an expired lock taken by another is theirs,
+// and a ticket of the sign-out is taken by the browser it is bound to only.
+const DELETE_HELD =
   'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) end return 0';
 
 // Deletes the sessions of an account and its index at once: a session filed meanwhile is either
@@ -107,6 +123,27 @@ async function redis(): Promise<Redis> {
   return connection === current ? reconnect() : (connection ?? reconnect());
 }
 
+/**
+ * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read
+ * nor written. A refusal of Redis itself, an answer, is not this, but a defect.
+ */
+export class StoreUnreachable extends Error {
+  /** The failure of the client, kept as the cause. */
+  constructor(cause: unknown) {
+    super("the sessions of the front cannot reach Redis", { cause });
+    this.name = "StoreUnreachable";
+  }
+}
+
+/** Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`). */
+async function reaching<T>(commands: (client: Redis) => Promise<T>): Promise<T> {
+  try {
+    return await commands(await redis());
+  } catch (error) {
+    throw error instanceof ErrorReply ? error : new StoreUnreachable(error);
+  }
+}
+
 /** Close the connection, if any: the end of the process, or of a test. */
 export async function closeStore(): Promise<void> {
   const open = connection;
@@ -118,32 +155,60 @@ export async function closeStore(): Promise<void> {
 
 /** Keep a sign-in under way, until its return or for fifteen minutes. */
 export async function rememberSignIn(state: string, signIn: SignIn): Promise<void> {
-  const client = await redis();
-  await client.set(`${SIGN_IN}${state}`, JSON.stringify(signIn), {
-    expiration: { type: "EX", value: SIGN_IN_LIFETIME },
-  });
+  await reaching((client) =>
+    client.set(`${SIGN_IN}${state}`, JSON.stringify(signIn), {
+      expiration: { type: "EX", value: SIGN_IN_LIFETIME },
+    }),
+  );
 }
 
 /** Take a sign-in under way by its state: once, and never after fifteen minutes. */
 export async function takeSignIn(state: string): Promise<SignIn | undefined> {
-  const text = await (await redis()).getDel(`${SIGN_IN}${state}`);
+  const text = await reaching((client) => client.getDel(`${SIGN_IN}${state}`));
   return text === null ? undefined : (JSON.parse(text) as SignIn);
+}
+
+/**
+ * Arm the sign-out of a session the front lost: the ticket, drawn at random, that `/login` takes
+ * once to sign in silently and close the sessions of the account (#689), for a minute at most —
+ * bound to the identifier the cookie of the browser holds, so that only this browser may take it.
+ */
+export async function armSignOut(session: string): Promise<string> {
+  const ticket = randomBytes(32).toString("base64url");
+  await reaching((client) =>
+    client.set(`${SIGN_OUT}${ticket}`, session, {
+      expiration: { type: "EX", value: SIGN_OUT_LIFETIME },
+    }),
+  );
+  return ticket;
+}
+
+/**
+ * Take an armed sign-out by its ticket, for the identifier the cookie of the browser holds: once,
+ * never after its minute, and only by the browser it is bound to — another leaves it in place.
+ */
+export async function takeSignOut(ticket: string, session: string): Promise<boolean> {
+  const taken = await reaching((client) =>
+    client.eval(DELETE_HELD, { keys: [`${SIGN_OUT}${ticket}`], arguments: [session] }),
+  );
+  return taken === 1;
 }
 
 /** Open a session for as long as Keycloak keeps it, in seconds, filed under its account. */
 export async function openSession(id: string, session: FrontSession, lifetime: number) {
-  const client = await redis();
   const account = `${ACCOUNT}${session.subject}`;
-  await client
-    .multi()
-    .set(`${SESSION}${id}`, JSON.stringify(session), {
-      expiration: { type: "EX", value: lifetime },
-    })
-    .sAdd(account, id)
-    // The index lives as long as the longest of its sessions.
-    .expire(account, lifetime, "NX")
-    .expire(account, lifetime, "GT")
-    .exec();
+  await reaching((client) =>
+    client
+      .multi()
+      .set(`${SESSION}${id}`, JSON.stringify(session), {
+        expiration: { type: "EX", value: lifetime },
+      })
+      .sAdd(account, id)
+      // The index lives as long as the longest of its sessions.
+      .expire(account, lifetime, "NX")
+      .expire(account, lifetime, "GT")
+      .exec(),
+  );
 }
 
 /** The session of an identifier, if it lives. */
@@ -172,12 +237,9 @@ export async function forgetSession(id: string): Promise<void> {
 
 /** Close every session of an account: on all its workstations (WF-SEC-0020). */
 export async function forgetAccount(subject: string): Promise<void> {
-  await (
-    await redis()
-  ).eval(FORGET_ACCOUNT, {
-    keys: [`${ACCOUNT}${subject}`],
-    arguments: [SESSION],
-  });
+  await reaching((client) =>
+    client.eval(FORGET_ACCOUNT, { keys: [`${ACCOUNT}${subject}`], arguments: [SESSION] }),
+  );
 }
 
 /** Take the lock of the refresh of a session for a while, in milliseconds, unless another holds it. */
@@ -193,5 +255,5 @@ export async function holdRefresh(id: string, holder: string, lifetime: number):
 
 /** Give the lock of the refresh of a session back, if its holder still holds it. */
 export async function releaseRefresh(id: string, holder: string): Promise<void> {
-  await (await redis()).eval(RELEASE, { keys: [`${REFRESH}${id}`], arguments: [holder] });
+  await (await redis()).eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] });
 }

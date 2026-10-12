@@ -9,7 +9,8 @@
  * own `digest` keeps it: the API out of reach carries `UNREACHABLE_DIGEST`, a request the front
  * held no session for `SESSION_LOST_DIGEST`, a refusal of the API for want of a session
  * `SESSION_REQUIRED_DIGEST`, one for a deactivated account
- * `ACCOUNT_DEACTIVATED_DIGEST`, which the boundary tells apart; an unexpected
+ * `ACCOUNT_DEACTIVATED_DIGEST`, one for an account Waterfall does not admit
+ * `ACCOUNT_NOT_ADMITTED_DIGEST`, which the boundary tells apart; an unexpected
  * answer of the API carries the correlation identifier of the request (WF-OBS-0020), which
  * the API wrote in its logs, behind `CORRELATION_PREFIX`; any other error — an answer without
  * the envelope or without its identifier among them — the digest Next computes, which Next
@@ -42,6 +43,12 @@ export const SESSION_REQUIRED_DIGEST = "WATERFALL_SESSION_REQUIRED";
 /** The digest of an error that says the API refused the read, the account being deactivated. */
 export const ACCOUNT_DEACTIVATED_DIGEST = "WATERFALL_ACCOUNT_DEACTIVATED";
 
+/**
+ * The digest of an error that says the API refused the read, the account being one Waterfall does
+ * not admit (#664): not a deactivated account, which it never was, nor a session to open again.
+ */
+export const ACCOUNT_NOT_ADMITTED_DIGEST = "WATERFALL_ACCOUNT_NOT_ADMITTED";
+
 /** What comes before the correlation identifier of the API in a digest. */
 export const CORRELATION_PREFIX = "WATERFALL_CORRELATION;";
 
@@ -56,11 +63,13 @@ export type BoundaryError = Error & { readonly digest?: string | undefined };
 /**
  * What the screen of failure says: the API out of reach, no session — the front held none, and
  * the screen leads to the sign-in page at once, or the API refused the one it held, and the screen
- * offers the way to sign in —, the account deactivated, or a defect, with its reference when the
- * error carries one.
+ * offers the way to sign in —, the account deactivated or not admitted, or a defect, with its
+ * reference when the error carries one.
  */
 export type Failure =
-  | { readonly kind: "unreachable" | "session_lost" | "signed_out" | "deactivated" }
+  | {
+      readonly kind: "unreachable" | "session_lost" | "signed_out" | "deactivated" | "not_admitted";
+    }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
 /**
@@ -87,6 +96,9 @@ export function failureOf(error: BoundaryError): Failure {
   }
   if (error.digest === ACCOUNT_DEACTIVATED_DIGEST) {
     return { kind: "deactivated" };
+  }
+  if (error.digest === ACCOUNT_NOT_ADMITTED_DIGEST) {
+    return { kind: "not_admitted" };
   }
   return { kind: "unexpected", reference: referenceOf(error.digest) };
 }

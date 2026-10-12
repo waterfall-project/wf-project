@@ -1,16 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { updateDisplay } from "@/api/actions/preferences";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import type { components } from "@/api/generated/schema";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
@@ -23,6 +25,11 @@ const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
+// The server action of the preferences as it is, save where a test makes it reject.
+vi.mock("@/api/actions/preferences", async (original) => {
+  const actual = await original<typeof import("@/api/actions/preferences")>();
+  return { ...actual, updateDisplay: vi.fn(actual.updateDisplay) };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh: () => undefined }),
@@ -161,6 +168,38 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
     expect(refresh).not.toHaveBeenCalled();
   });
+  it("holds a link clicked while the choice is recorded, and does not follow it when the session is gone: the refusal is told under the form (#688)", async () => {
+    const release = holding({
+      [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
+    });
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    const link = heldLink();
+    try {
+      await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+      await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+      link.click();
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("says the service out of reach when the server action itself fails, rather than lose the choice", async () => {
+    // The browser cannot reach the server of Next: its fetch of the action rejects.
+    serve({});
+    vi.mocked(updateDisplay).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
+    expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
+  });
 });
 
 describe("the avatar of the account", () => {
@@ -278,6 +317,26 @@ describe("the avatar of the account", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est retiré.");
     // Its button goes with the avatar: the focus goes to the choice of an image.
     expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveFocus();
+  });
+  it("holds a link clicked while the avatar is withdrawn, and does not follow it when the server refuses (#688)", async () => {
+    const release = holding({
+      "DELETE /me/avatar": { problem: { code: "SESSION_EXPIRED", status: 401 } },
+    });
+    render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
+    const link = heldLink();
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
+      link.click();
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 });
 

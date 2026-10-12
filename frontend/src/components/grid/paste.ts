@@ -22,7 +22,8 @@
  * (`unshownRows`, L40, #527). Otherwise the server says what it
  * would write and refuse, with the reason of each refusal, and writes nothing (`GridPaste.preview`);
  * the grid shows that plan, and applies it once confirmed, in one operation (`GridPaste.apply`), what
- * the server wrote taking the place of what was read (`CellWrites.applied`). A paste abandoned asks
+ * the server wrote taking the place of what was read (`CellWrites.applied`), the navigations of the
+ * page held until it answers, and dropped when it is refused (`useHeldCommand`, #688). A paste abandoned asks
  * nothing more, and an answer that arrives after it is dropped; a plan that refuses a row cannot be
  * applied: the grid stays as it was. The grid judges nothing of what is pasted: the server reads the
  * cells, and says why.
@@ -36,6 +37,7 @@ import type { RowData } from "@tanstack/react-table";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
@@ -299,6 +301,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const [hidden, setHidden] = useState<Unshown>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
+  const held = useHeldCommand();
   // The cell the block was pasted on, which has the focus back once the report closes.
   const origin = useRef<HTMLElement>(undefined);
   const { paste } = config;
@@ -399,17 +402,14 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       return;
     }
     setPasting({ ...pasting, applying: true });
-    void paste
-      .apply(plan)
-      .catch(rejected)
-      .then((answer) => {
-        if (answer.kind === "done") {
-          writes.applied(answer.data);
-        }
-        current.current += 1;
-        setPasting(undefined);
-        setOutcome(answer);
-      });
+    void held(paste.apply(plan)).then((answer) => {
+      if (answer.kind === "done") {
+        writes.applied(answer.data);
+      }
+      current.current += 1;
+      setPasting(undefined);
+      setOutcome(answer);
+    });
   };
 
   return {
