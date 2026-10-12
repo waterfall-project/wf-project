@@ -127,8 +127,10 @@ Reportés d'EP-03 le 2026-10-11 :
   appellent leurs actions sans `list.held` ni `useHeldCommand` ; refusée pendant qu'on quitte
   l'écran, une telle écriture n'est dite nulle part, contre l'invariant que #688 pose pour les
   autres. EP-14 fait passer ces trois appels par la retenue, avec un test « refus pendant la
-  navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Reporté d'EP-03 le
-  2026-10-11.
+  navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Le constat couvre aussi
+  les écritures de la table des comptes (`user-commands.tsx`), relevées à la reprise d'epic
+  d'US-0350/L5b après US-0360/L2b : EP-14 les fait passer par la même retenue. Reporté d'EP-03
+  le 2026-10-11.
 - #901 [EP-03] la liste garde les refus des lectures passées — relevé par la revue
   d'US-0350/L5b, tour 5 : depuis que les refus sont datés par une génération de lecture,
   `reported` (`reactivation.tsx`) garde ceux des générations passées, qui ne s'affichent plus
@@ -139,6 +141,17 @@ Reportés d'EP-03 le 2026-10-11 :
   qu'une montée de version de Next peut casser sans avertissement. EP-14 fournit le routeur au
   test par une voie publique, une simulation de `next/navigation` comme les tests voisins.
   Reporté d'EP-03 le 2026-10-11.
+
+Reportés d'EP-03 le 2026-10-12 :
+
+- #937 [EP-03] le refus d'une écriture lancée avant un changement de lecture n'est dit nulle
+  part — relevé par la revue d'US-0350/L5b, tour 5 : une écriture lancée sur une liste du
+  référentiel, puis la lecture changée — recherche, filtre — avant sa réponse ; refusée, elle
+  n'est plus dite, même au retour sur la lecture d'origine (`useHeldCommand(generation)`,
+  #688), contre le « ne rien perdre en silence » d'US-0350. Rien n'est écrit par le service
+  dans ce cas ; seul le message manque. EP-14, au retour sur la lecture d'origine, y rattache
+  les écritures encore en cours et dit leur refus (décision de l'auteur). Reporté d'EP-03 le
+  2026-10-12.
 
 ## Conception
 
