@@ -1139,7 +1139,7 @@ class AuditFacets(ContractModel):
     actors: Annotated[
         list[AuditActorFacet],
         Field(
-            description="Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant ; la plateforme n'y est pas : `actor_kind` la retient."
+            description="Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis par identifiant — un compte anonymisé, qui n'a plus de nom, après les noms — ; la plateforme n'y est pas : `actor_kind` la retient."
         ),
     ]
     projects: Annotated[

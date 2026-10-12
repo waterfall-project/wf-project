@@ -177,10 +177,10 @@ AuditParams:
     Ce que l'action a fait à son objet, propre à chaque action, en codes, en identifiants et en
     libellés gardés au moment de l'action, jamais en phrase : le front le rend dans la langue du
     lecteur (WF-ARC-0110), et le journal dit ainsi qui a donné quel droit (WF-SEC-0030, #706). Un
-    objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation et la
-    réactivation d'un compte, le lien qui fixe un mot de passe, la suppression d'un rôle — et,
-    jusqu'à l'EPIC qui les réalise, pour les actions d'un projet, de la sauvegarde et de la
-    restauration. Un paramètre nouveau est une modification du contrat.
+    objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation, la
+    réactivation et l'anonymisation d'un compte, le lien qui fixe un mot de passe, la suppression
+    d'un rôle — et, jusqu'à l'EPIC qui les réalise, pour les actions d'un projet, de la sauvegarde
+    et de la restauration. Un paramètre nouveau est une modification du contrat.
   properties:
     origin:
       allOf: [{ $ref: access.yaml#/UserOrigin }]
@@ -272,7 +272,8 @@ AuditFacets:
       type: array
       description: >-
         Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis
-        par identifiant ; la plateforme n'y est pas : `actor_kind` la retient.
+        par identifiant — un compte anonymisé, qui n'a plus de nom, après les noms — ; la
+        plateforme n'y est pas : `actor_kind` la retient.
       items: { $ref: '#/AuditActorFacet' }
     projects:
       type: array
