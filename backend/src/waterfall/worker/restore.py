@@ -26,7 +26,6 @@ from waterfall.worker.backup import (
     CHUNK,
     DATABASES,
     MANIFEST,
-    DumpError,
     connect,
     connection,
     digest,
@@ -43,7 +42,14 @@ ERROR_LINE = "pg_restore: error:"
 SERVER_ERROR = "ERROR:"
 QUOTED = re.compile(r'"[^"]*"')
 
+# The event a database the restoration cannot reach writes to the journal of the service.
+UNREACHED = "restore.database_unreached"
+
 logger = get_logger(__name__)
+
+
+class RestoreError(RuntimeError):
+    """A database reached that pg_restore could not restore: an internal error, not an outage."""
 
 
 def release(version: str) -> tuple[int, ...]:
@@ -95,7 +101,7 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
     role of the service of another installation has another name. A database that stops answering
     is unavailable (503), one that answers and refuses the dump an internal error (#907).
     """
-    with connect(address) as session:
+    with connect(address, UNREACHED) as session:
         session.execute("DROP SCHEMA public CASCADE")
         session.execute("CREATE SCHEMA public")
     environment = connection(address, folder / f"{name}.service")
@@ -117,9 +123,9 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
             check=False,
         )
     if done.returncode != 0:
-        reached(address)
+        reached(address, UNREACHED)
         logger.error("restore.replace_failed", database=name, said=errors_of(done.stderr))
-        raise DumpError(name)
+        raise RestoreError(name)
 
 
 def errors_of(said: bytes) -> list[str]:

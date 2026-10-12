@@ -41,7 +41,7 @@ from waterfall.core.backups.tables import Backup
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -50,13 +50,15 @@ from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
-from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, DumpError, dump
-from waterfall.worker.restore import extracted, replace
+from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
+from waterfall.worker.restore import RestoreError, extracted, replace
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
 # An account the inscriptions of these tests name, without a foreign key.
 NAMED = UUID("01926f3a-7c00-7000-8000-0000000004c1")
+# A database no server answers for.
+UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 
 
 @dataclass(frozen=True, slots=True)
@@ -437,7 +439,7 @@ def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
     owner.dispose()
     try:
         dumped = dump("identity_provider", source, tmp_path)
-        with captured_logs() as logs, pytest.raises(DumpError):
+        with captured_logs() as logs, pytest.raises(RestoreError):
             replace("identity_provider", dumped.path, target, tmp_path)
     finally:
         dropped(database_url, source, target)
@@ -447,3 +449,20 @@ def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
         f'pg_restore: error: COPY failed for table "realm": ERROR:  {refused}'
     ]
     assert marker not in logs.text
+
+
+def test_a_database_the_restoration_cannot_reach_is_unavailable_and_journaled_as_the_restoration(
+    tmp_path: Path,
+) -> None:
+    # #907, for the restoration: a database that does not answer is a component out of reach
+    # (503), which the journal names as the restoration's, not as a backup's.
+    dumped = tmp_path / "unread.dump"
+    dumped.write_bytes(b"")
+    with captured_logs() as logs, pytest.raises(UnavailableError) as raised:
+        replace("waterfall", dumped, UNREACHABLE, tmp_path)
+    assert (raised.value.code, dict(raised.value.params)) == (
+        "COMPONENT_UNAVAILABLE",
+        {"component": "database"},
+    )
+    assert len(logs.named("restore.database_unreached")) == 1
+    assert logs.named("backup.database_unreached") == []
