@@ -302,10 +302,11 @@ export function waterfallAccount(email: string): { origin: string; roles: number
 /**
  * Give an account a role of the permissions given — the same role each time, made once —, as an
  * administrator would once the bootstrap has made one (US-0420): written in the database, the
- * service offering no other way before it.
+ * service offering no other way before it. The account must exist — Waterfall creates it at its
+ * first request —: a role given to none fails the path, rather than leave it without the role.
  */
 export function grantRole(email: string, label: string, permissions: readonly string[]): void {
-  sql(
+  const held = sql(
     `insert into access_role (id, label, is_predefined, created_at, updated_at)
   select gen_random_uuid(), :'label', false, now(), now()
   where not exists (select 1 from access_role where label = :'label' and deleted_at is null);
@@ -317,9 +318,16 @@ insert into user_access_role (user_account_id, access_role_id)
   select account.id, role.id from user_account account, access_role role
   where account.email = :'email' and role.label = :'label'
   on conflict do nothing;
+select count(*) from user_access_role held
+  join user_account account on account.id = held.user_account_id
+  join access_role role on role.id = held.access_role_id
+  where account.email = :'email' and role.label = :'label';
 `,
     { label, email, permissions: permissions.join(",") },
   );
+  if (held !== "1") {
+    throw new Error(`${email} holds no role ${label}: has Waterfall created its account?`);
+  }
 }
 
 /**
@@ -421,11 +429,14 @@ const ADMINISTRATION = "Administration des comptes (parcours)";
 /**
  * An administrator of the accounts, who creates local accounts and gives their links (`createUser`,
  * `createPasswordSetupLink`): the person of the directory, given the role, as the screens of
- * US-0360 will call the API once wired (#449).
+ * US-0360 will call the API once wired (#449). Her account is Waterfall's once she has called it
+ * (`getMe`): the role is given then, the first path of a platform new finding none.
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
-  grantRole(DIRECTORY.login, ADMINISTRATION, ["users.read", "users.write"]);
   const token = await frontToken(browser, DIRECTORY);
+  const me = await request.get(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } });
+  expect(me.status(), "GET /me").toBe(200);
+  grantRole(DIRECTORY.login, ADMINISTRATION, ["users.read", "users.write"]);
   return {
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
