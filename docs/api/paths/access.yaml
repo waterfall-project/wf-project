@@ -241,8 +241,9 @@
     description: >-
       Un compte se désactive, jamais ne se supprime : ses actes doivent rester
       attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
-      (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
-      d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
+      (WF-SEC-0020) — un jeton d'une connexion qui la précède est refusé par 401
+      `SESSION_REVOKED`, même après la réactivation (#835) — et est refusée s'il est le
+      dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
       l'anonymisation est irréversible (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
@@ -348,7 +349,9 @@
     description: >-
       Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs
       permissions ; la modification s'applique immédiatement, sans reconnexion
-      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le
+      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020) : un jeton
+      d'une connexion qui le précède est refusé par 401 `SESSION_REVOKED`, même après qu'un rôle
+      lui est rendu, et la personne se reconnecte (#855). Le
       retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
       compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
       donner davantage reste possible, et la commande `set_access_roles` de ce compte reste

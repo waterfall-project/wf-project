@@ -354,14 +354,17 @@ retour (`/auth/backchannel-logout`, une route du front, pas une opération de l'
 front efface les sessions Redis de ce compte. La déconnexion demandée par l'utilisateur est
 une opération du contrat (`closeMySessions`, ci-dessous) : le front ne parle pas à l'API
 d'administration de Keycloak. Indépendamment, l'API lit l'état du compte à chaque requête :
-un compte désactivé est refusé même si la notification se perd. La déconnexion et la
-désactivation notent aussi leur heure dans le compte (`sessions_closed_at`), avant d'appeler
-Keycloak : l'API refuse par 401 `SESSION_EXPIRED` un jeton dont la connexion la précède ou tombe
-dans sa seconde (`auth_time`, que le rafraîchissement ne change pas ; à défaut, `iat`), y
-compris celui d'une application voisine, sans attendre son expiration et sans appel de plus,
-puisqu'elle lit déjà le compte à chaque requête (#668). Une session que Keycloak n'a pas fermée
-ne reprend donc pas par un jeton rafraîchi, ni après la réactivation du compte, qui se
-reconnecte (#835).
+un compte désactivé est refusé même si la notification se perd. La déconnexion, la
+désactivation et le retrait de tous les rôles notent aussi leur heure dans le compte
+(`sessions_closed_at`), avant d'appeler Keycloak : l'API refuse par 401 `SESSION_REVOKED` un
+jeton dont la connexion la précède ou tombe dans sa seconde (`auth_time`, que le rafraîchissement
+ne change pas ; à défaut, `iat`), y compris celui d'une application voisine, sans attendre son
+expiration et sans appel de plus, puisqu'elle lit déjà le compte à chaque requête (#668). Une
+session que Keycloak n'a pas fermée ne reprend donc pas par un jeton rafraîchi, ni après la
+réactivation du compte ou un rôle rendu, qui se reconnecte (#835). Sur `SESSION_REVOKED`
+seulement, le front mène à une connexion qui force l'authentification (`prompt=login`) :
+Keycloak, dont la session peut vivre encore, redemande les identifiants et renouvelle
+`auth_time` ; une simple expiration, `SESSION_EXPIRED`, ne les redemande pas (#855).
 Si la session du front est perdue alors que celle de Keycloak vit encore, « Se déconnecter »
 obtient d'abord un jeton par une connexion silencieuse (`prompt=none`), puis appelle
 `closeMySessions` : la déconnexion ferme ainsi tous les postes, comme le veut WF-SEC-0020

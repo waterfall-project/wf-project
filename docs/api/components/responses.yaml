@@ -8,14 +8,22 @@ BadRequest:
 
 Unauthorized:
   description: >-
-    Jeton absent, expiré ou invalide, ou session fermée (`SESSION_REQUIRED`, `SESSION_EXPIRED`,
-    WF-SEC-0020) ; compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que
-    Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall
-    n'a pas créé, sans nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le
-    front distingue les deux derniers pour ne pas renvoyer à une connexion qui bouclerait.
+    Jeton absent ou invalide (`SESSION_REQUIRED`), ou expiré (`SESSION_EXPIRED`), WF-SEC-0020 ;
+    jeton d'une connexion qui précède la dernière fermeture des sessions du compte, ou tombe dans
+    sa seconde — déconnexion, désactivation, retrait de tous ses rôles —, rafraîchi ou non
+    (`SESSION_REVOKED`, WF-SEC-0020) : la connexion qui suit redemande les identifiants, la
+    session du fournisseur d'identité pouvant vivre encore si sa fermeture a échoué, alors
+    qu'une simple expiration ne les redemande pas (#855) ; compte désactivé
+    (`ACCOUNT_DEACTIVATED`, WF-ADM-0060) ; ou compte que Waterfall n'admet pas
+    (`ACCOUNT_NOT_ADMITTED`) — un compte local du fournisseur que Waterfall n'a pas créé, sans
+    nom, sans prénom ou sans adresse, ou dont l'adresse est déjà portée. Le front distingue les
+    deux derniers pour ne pas renvoyer à une connexion qui bouclerait.
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
+      examples:
+        session_expired: { $ref: ../../../fixtures/api/session_expired.json }
+        session_revoked: { $ref: ../../../fixtures/api/session_revoked.json }
 
 Forbidden:
   description: >-

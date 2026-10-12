@@ -1,0 +1,8 @@
+{
+  "summary": "Un jeton d'une connexion antérieure à la déconnexion, à la désactivation ou au retrait de tous les rôles du compte, rafraîchi ou non : refusé sans attendre son expiration, et la connexion qui suit redemande les identifiants, la session du fournisseur d'identité pouvant vivre encore (WF-SEC-0020, #855).",
+  "value": {
+    "code": "SESSION_REVOKED",
+    "status": 401,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001052"
+  }
+}
