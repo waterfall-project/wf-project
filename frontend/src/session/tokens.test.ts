@@ -18,7 +18,7 @@ import { TEST_SETTINGS, type TestRealm, testRealm } from "@/test/identity-provid
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
 
 import { createIdentityProvider, type IdentityProvider, type Send } from "./provider";
-import { type FrontSession, openSession, readSession } from "./store";
+import { closeStore, type FrontSession, openSession, readSession } from "./store";
 import {
   bearerOf,
   closeRequestSessions,
@@ -187,6 +187,69 @@ describe("the token of a request", () => {
     const expired = await signedIn(randomUUID(), -1000);
     await expect(requestBearer()).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
     expect(await readSession(expired)).toBeDefined();
+  });
+
+  it("fails as the service out of reach when Redis cannot be reached, a read and a write alike, never as an unexpected error (#861)", async () => {
+    await signedIn();
+    const client = fakeClient(
+      { "GET /projects": "projects", [LINE]: SESSION_REQUIRED },
+      {},
+      requestBearer,
+    );
+    state.client = client;
+    // A Redis nobody serves: the connection is refused.
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      const failure = await failureOfRead(client);
+      expect(failure).toMatchObject({ digest: UNREACHABLE_DIGEST });
+      // The log of the server names Redis, not the API.
+      expect((failure as Error).message).toMatch(/Redis/);
+      const outcome = await updateEstimateLine(STRUCTURE, NODE, { hours: "15", lock_version: 3 });
+      expect(outcome).toMatchObject({ kind: "unreachable" });
+      expect(client.calls).toEqual([]);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails naming the variable, never as the service out of reach, when the address of Redis is missing, the session open (#861)", async () => {
+    await signedIn();
+    const client = fakeClient({ "GET /projects": "projects" }, {}, requestBearer);
+    // The session open, the connection to Redis too: the address goes missing all the same.
+    vi.stubEnv("WATERFALL_REDIS_URL", "");
+    try {
+      const failure = await failureOfRead(client);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure).not.toMatchObject({ digest: UNREACHABLE_DIGEST });
+      expect((failure as Error).message).toMatch(/WATERFALL_REDIS_URL/);
+      expect(client.calls).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails as a defect, never as the service out of reach, when Redis refuses the password of its address", async () => {
+    await signedIn();
+    const client = fakeClient({ "GET /projects": "projects" }, {}, requestBearer);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // A user the Redis of the tests does not know: it answers WRONGPASS at each attempt.
+    const address = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
+    Object.assign(address, { username: "nobody", password: "wrong" });
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", address.href);
+    try {
+      const failure = await failureOfRead(client);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure).not.toMatchObject({ digest: UNREACHABLE_DIGEST });
+      expect((failure as Error).message).toMatch(/WRONGPASS/);
+      expect(client.calls).toEqual([]);
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+      error.mockRestore();
+    }
   });
 
   it.each([

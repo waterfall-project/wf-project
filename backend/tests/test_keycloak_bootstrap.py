@@ -534,9 +534,12 @@ def test_an_anonymised_administrator_is_refused_and_its_address_ignored(
     admin: httpx2.Client, owner: Engine, database_url: str, address: str, logs: Logs
 ) -> None:
     # Anonymised since the installation: its row keeps no address, and the realm no longer holds
-    # the local account (WF-ADM-0060). The address given again is not its own, and no link is made.
+    # the local account (WF-ADM-0060). Refused by its own reason as soon as it is read, before
+    # Keycloak is asked — one that does not answer changes nothing —, and the address given again,
+    # not its own, stays out of the logs; no link is made.
     settings = settings_of(database_url, address)
     link_of(settings)
+    logs.clear()
     with owner.begin() as connection:
         subject = connection.scalar(select(UserAccount.idp_subject))
         connection.execute(
@@ -549,9 +552,12 @@ def test_an_anonymised_administrator_is_refused_and_its_address_ignored(
             )
         )
     assert admin.delete(f"/users/{subject}").status_code == 204
-    assert refused(settings, logs) == "administrator_not_in_provider"
-    (ignored,) = logs.named("installation.admin_email_ignored")
-    assert ignored["level"] == "warning"
+    unreachable = settings.model_copy(update={"keycloak_backchannel": "http://127.0.0.1:9/auth"})
+    for run in (settings, unreachable):
+        assert refused(run, logs) == "administrator_anonymized"
+        assert address not in logs.text
+        assert address.lower() not in logs.text.lower()
+        logs.clear()
 
 
 def test_a_keycloak_that_does_not_answer_stops_the_installation(

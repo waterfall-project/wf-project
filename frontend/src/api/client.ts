@@ -53,9 +53,13 @@ export type Bearer = () => string | undefined | Promise<string | undefined>;
 export class Unreachable extends Error {
   readonly digest = UNREACHABLE_DIGEST;
 
-  /** The rejection of `fetch`, kept as the cause; none when a gateway answered. */
-  constructor(cause?: unknown) {
-    super("the API cannot be reached", { cause });
+  /**
+   * The rejection of `fetch`, kept as the cause; none when a gateway answered. A component the
+   * request needs before it leaves — Redis, the realm — names itself in `message`, so that the log
+   * of the server says which was out of reach.
+   */
+  constructor(cause?: unknown, message = "the API cannot be reached") {
+    super(message, { cause });
     this.name = "Unreachable";
   }
 }

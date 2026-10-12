@@ -1,18 +1,16 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
- * The journal of audit read against the service (US-0410, FBS-1.5): an administrator of the
- * accounts — the person of the directory — gives a local account a role by the service, which
- * inscribes the attribution as codes and identifiers, without a sentence (WF-ARC-0110); the
- * journal, filtered on its author and its action, presents it dated of the day, naming the account
- * and the role, to each reader in her language — the administrator in French, the holder of the
- * account in English, her preference —, and offers no command on it (WF-SEC-0030). The holder,
- * before she holds the consultation, does not reach the view, and the journal of a month without
- * any action presents nothing (WF-ADM-0190).
+ * The journal of audit read against the service (US-0410, FBS-1.5): the administrator of the
+ * installation gives a local account a role by the service, which inscribes the attribution as
+ * codes and identifiers, without a sentence (WF-ARC-0110); the journal, filtered on its author and
+ * its action, presents it dated of the day, naming the account and the role, to each reader in her
+ * language — the administrator in French, the holder of the account in English, her preference —,
+ * and offers no command on it (WF-SEC-0030). The holder, before she holds the consultation, does
+ * not reach the view, and the journal of a month without any action presents nothing (WF-ADM-0190).
  *
- * The roles of the person of the directory are written in the database of the platform, as an
- * administrator would give them (`grantRole`); the role of the holder is given by the service, for
- * the journal to inscribe it.
+ * The role of the holder is given by the service (`Administrator.give`), for the journal to
+ * inscribe it; the administrator holds « Administrateur », the reading of the journal included.
  */
 import { randomBytes } from "node:crypto";
 
@@ -24,8 +22,7 @@ import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
   accountButton,
-  DIRECTORY,
-  grantRole,
+  ADMINISTRATOR,
   localAccount,
   signIn,
   withdrawRoles,
@@ -35,8 +32,6 @@ heldToTheContract();
 
 const ACCOUNT = "/account";
 const JOURNAL = "/admin/audit-log";
-/** The role that lets the person of the directory give roles and consult the journal. */
-const AUDITING = "Attribution et journal (parcours)";
 
 test.beforeEach(async ({ request }) => {
   await compileAnswered(request, "/auth/callback", ACCOUNT, JOURNAL);
@@ -104,7 +99,6 @@ test("an attribution of a role, the journal filtered on its author and its actio
   const role = `Audit ${randomBytes(4).toString("hex")}`;
   let holder: string | undefined;
   try {
-    grantRole(DIRECTORY.login, AUDITING, ["access_roles.write", "audit_log.read"]);
     const auditor = await localAccount(browser, administrator);
     holder = auditor.email;
 
@@ -117,12 +111,12 @@ test("an attribution of a role, the journal filtered on its author and its actio
 
     // The administrator gives her the consultation, by the service, which inscribes it.
     const before = Date.now();
-    await administrator.attribute(auditor.id, role, ["audit_log.read"]);
+    await administrator.give(auditor.id, role, ["audit_log.read"]);
     const asked = filtered(administrator.self, "user_access_roles_set");
 
     // Its author reads it in French, the journal filtered on her and on the action.
     const author = await workstation(browser);
-    await signIn(author, DIRECTORY, asked);
+    await signIn(author, ADMINISTRATOR, asked);
     const french = inscription(author, "Journal d’audit", role);
     await expect(french).toHaveCount(1);
     await expect(french).toContainText("Attribution des rôles d’un compte");
@@ -164,7 +158,6 @@ test("an attribution of a role, the journal filtered on its author and its actio
     if (holder !== undefined) {
       withdrawRoles(holder);
     }
-    administrator.done();
     await calls.dispose();
   }
 });

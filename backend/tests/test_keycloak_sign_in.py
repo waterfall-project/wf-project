@@ -16,11 +16,13 @@ aimed at — is proved by the paths against the service (``frontend/e2e/service/
 import html
 import secrets
 import subprocess
+import threading
 import time
 from collections.abc import Generator, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx2
 import pytest
@@ -72,6 +74,7 @@ from test_keycloak_platform import (
     relay,
     required,
     set_by_link,
+    set_password,
 )
 
 from waterfall.core.users import interface
@@ -272,6 +275,65 @@ def test_a_locked_account_signs_in_again_once_its_lock_is_over(
     assert unlocked.status_code == 200, unlocked.text
 
 
+# Rounds of two sign-ins at once: one would let a race pass unseen (#972).
+SIMULTANEOUS_ROUNDS = 10
+
+
+class Attempt(NamedTuple):
+    """A sign-in through the login page: its browser, its verifier of PKCE, the realm's answer."""
+
+    browser: FrontBrowser
+    verifier: str
+    answer: httpx2.Response
+
+
+def simultaneous_sign_ins(fields: dict[str, str]) -> list[Attempt]:
+    """Open the login page in two browsers, then submit ``fields`` in both at once."""
+    browsers = [FrontBrowser(), FrontBrowser()]
+    pages = [browser.login_page() for browser in browsers]
+    start = threading.Barrier(len(browsers))
+
+    def submitted(index: int) -> Attempt:
+        page, verifier = pages[index]
+        start.wait(timeout=30)
+        return Attempt(browsers[index], verifier, browsers[index].submit(page, fields))
+
+    with ThreadPoolExecutor(len(browsers)) as pool:
+        return list(pool.map(submitted, range(len(browsers))))
+
+
+def test_two_simultaneous_sign_ins_are_both_admitted_or_one_refused_once_without_failure(
+    admin: httpx2.Client, local_account: Account
+) -> None:
+    # #972: Keycloak's guard against guesses sent at once refuses a sign-in of an account while
+    # another is being checked — a few tens of milliseconds. Two sign-ins with the password at
+    # the same instant are both admitted, or one is refused, ``user_temporarily_disabled`` its
+    # only cause in the realm's events; no failure is counted, the account is not locked, and
+    # the refused one, tried again, is admitted at once.
+    fields = {"username": local_account.email, "password": PASSWORD}
+    query = {"user": local_account.id, "type": "LOGIN_ERROR"}
+    detection = f"/attack-detection/brute-force/users/{local_account.id}"
+    with realm_set(eventsEnabled=True) as realm:
+        seen = 0
+        for _ in range(SIMULTANEOUS_ROUNDS):
+            attempts = simultaneous_sign_ins(fields)
+            errors = realm.get("/events", params=query).json()
+            # The newest events come first: those of this round, before those already seen.
+            causes = tuple(event.get("error") for event in errors[: len(errors) - seen])
+            seen = len(errors)
+            returned = tuple(sorted(attempt.answer.status_code for attempt in attempts))
+            assert (returned, causes) in {
+                ((302, 302), ()),
+                ((200, 302), ("user_temporarily_disabled",)),
+            }, (returned, causes)
+            state = admin.get(detection).json()
+            assert (state["disabled"], state["numFailures"]) == (False, 0), state
+            for browser, verifier, answer in attempts:
+                again = answer if answer.status_code == 302 else browser.submit(answer, fields)
+                assert again.status_code == 302, again.text
+                exchanged(browser.returned(again), verifier)
+
+
 @pytest.mark.requirement("WF-ADM-0140-A")
 def test_a_link_used_once_or_after_its_hour_is_refused(
     api: ContractClient, administrator: dict[str, str], in_realm: list[str]
@@ -313,6 +375,7 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     form = browser.get(url)
     assert 'name="password-new"' in form.text, form.text
     password = secrets.token_urlsafe(24)
+    past_its_second(url)
     done = browser.submit(form, {"password-new": password, "password-confirm": password})
     assert done.status_code == 302, done.text
     assert done.headers["Location"].startswith(f"{callback()}?"), done.headers["Location"]
@@ -320,7 +383,7 @@ def test_a_link_for_a_forgotten_password_used_once_is_refused(local_account: Acc
     used = Browser().get(url)
     assert used.status_code == 400, used.text
     said = html.unescape(used.text)
-    assert EXPIRED in said
+    assert SPENT in said
     assert 'name="password-new"' not in said
 
 
@@ -345,19 +408,17 @@ def restart_keycloak() -> None:
         time.sleep(2)
 
 
-class StillValidAfterRestartError(AssertionError):
-    """A link for a forgotten password, used once, opens again once Keycloak restarted (#852)."""
+def past_its_second(url: str) -> None:
+    """Wait until the second the link of a forgotten password was made is over.
+
+    The extension holds such a link spent once the password of its account was set in a later
+    second than the one it was made in (#852): a test that sets the password by the link waits
+    for that second to end, two seconds more for a clock that drifts a little (#853).
+    """
+    time.sleep(max(0.0, action_token(url)["iat"] + 2 - time.time()))
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
-@pytest.mark.xfail(
-    reason=(
-        "#852: Keycloak keeps the use of its own link in memory alone; a restart forgets it."
-        " Corrected by US-0420b (#879)"
-    ),
-    raises=StillValidAfterRestartError,
-    strict=True,
-)
 def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart(
     local_account: Account,
 ) -> None:
@@ -369,16 +430,33 @@ def test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart
     form = browser.get(url)
     assert 'name="password-new"' in form.text, form.text
     password = secrets.token_urlsafe(24)
+    past_its_second(url)
     done = browser.submit(form, {"password-new": password, "password-confirm": password})
     assert done.status_code == 302, done.text
     restart_keycloak()
     used = Browser().get(url)
     said = html.unescape(used.text)
-    # The defect alone is expected — the form of the password, offered again: any other failure,
-    # before or here, fails the test.
-    if 'name="password-new"' in said:
-        raise StillValidAfterRestartError(said)
     assert used.status_code == 400, said
+    assert SPENT in said
+    assert 'name="password-new"' not in said
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_a_link_for_a_forgotten_password_is_refused_once_a_password_is_set_another_way(
+    admin: httpx2.Client, local_account: Account
+) -> None:
+    # « Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé » : the mark
+    # of its use is the date of the password, so a password set after the link was mailed — here
+    # by the console — spends it too (#852).
+    ask_forgotten(Browser(), local_account)
+    url = mailed_link(local_account.email, whole=True)
+    past_its_second(url)
+    set_password(admin, local_account.id, secrets.token_urlsafe(24))
+    refused = Browser().get(url)
+    said = html.unescape(refused.text)
+    assert refused.status_code == 400, said
+    assert SPENT in said
+    assert 'name="password-new"' not in said
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")

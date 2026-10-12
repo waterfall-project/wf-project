@@ -104,7 +104,9 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
       return;
     }
     startTransition(async () => {
-      setOutcome(await held(updateDisplay(chosen)));
+      // The language only when it changed: the API reports it to the identity provider (#877).
+      const changed = chosen.language === read.language ? {} : { language: chosen.language };
+      setOutcome(await held(updateDisplay({ theme: chosen.theme, ...changed })));
     });
   };
   return (

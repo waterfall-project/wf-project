@@ -4,20 +4,26 @@
  * What the paths against the service ask of the platform around the front (US-0350): the sign-in
  * page of the realm, where a person gives her identifiers; the administration of the realm, to
  * shorten a lifetime the time of a path or to close the sessions of an account, as an
- * administrator would in its console; and a role of Waterfall written in its database, for the
- * accounts of the paths. The bootstrap of the installation (US-0420, `make e2e-service`) makes one
- * administrator only, that of the installation; the person of the directory, the one of the
- * external provider and the local accounts a path creates are admitted with no role (WF-ADM-0180).
- * The service gives roles (`setUserAccessRoles`), but by a token of that administrator, whom no
- * path signs in as: the path writes the role itself, as the administrator would give it.
+ * administrator would in its console; the administrator of the installation, whom the bootstrap
+ * makes (US-0420, `make e2e-service`), and who creates by the API the local accounts of the paths
+ * and gives them their roles (#730); and a role of Waterfall written in its database, for the
+ * person of the directory and the one of the external provider, whom the API admits with no role
+ * at their first request (WF-ADM-0180), and whom the paths share.
  *
  * The person of the test directory and the one of the test external provider are those of
  * `deploy/keycloak/development/`, with their development passwords.
  */
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
+
+import type { components } from "../../src/api/generated/schema";
+
+type Schemas = components["schemas"];
 
 /** Where the browser reaches Keycloak, as `make e2e-service` says it. */
 export const KEYCLOAK = process.env.WATERFALL_KEYCLOAK_ADDRESS ?? "https://localhost:8443/auth";
@@ -40,6 +46,25 @@ export interface Person {
   /** The provider she signs in by, if not the realm itself. */
   readonly provider?: string;
 }
+
+/**
+ * The password a local account of the paths sets by its link, the administrator of the installation
+ * included: twelve characters, neither its address nor its name.
+ */
+export const LOCAL_PASSWORD = "k7#Qw2ZpX9vR";
+
+/**
+ * The administrator the bootstrap made (US-0420), at the address `make e2e-service` gave it
+ * (`E2E_ADMIN_EMAIL`), named after its role: its password is the one the path of the installation
+ * set by the link of the bootstrap (`installation.setup.ts`). No path signs it out, nor closes its
+ * sessions: every path acts through it.
+ */
+export const ADMINISTRATOR: Person = {
+  login: process.env.E2E_ADMIN_EMAIL ?? "",
+  email: process.env.E2E_ADMIN_EMAIL ?? "",
+  password: LOCAL_PASSWORD,
+  name: "Waterfall Administrateur",
+};
 
 /** The person of the test directory, admitted at her first request (WF-ADM-0180). */
 export const DIRECTORY: Person = {
@@ -65,11 +90,12 @@ export function under(prefix: string): RegExp {
 }
 
 /**
- * The button that signs in on the sign-in page of the realm: exactly named, the page that asks for
- * the password again holding « Redémarrer la connexion » beside it.
+ * The button that signs in on the sign-in page of the realm, in French or in English, as the
+ * browser asks: exactly named, the page that asks for the password again holding « Redémarrer la
+ * connexion » beside it.
  */
 function signInButton(page: Page) {
-  return page.getByRole("button", { name: "Connexion", exact: true });
+  return page.getByRole("button", { name: /^(Connexion|Sign In)$/ });
 }
 
 /** The sign-in page of the realm, where a person gives her identifiers. */
@@ -82,9 +108,24 @@ export async function expectSignInPage(page: Page): Promise<void> {
 export async function giveIdentifiers(page: Page, person: Person): Promise<void> {
   await expectSignInPage(page);
   if (person.provider === undefined) {
-    await page.getByLabel("Courriel").fill(person.login);
-    await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
-    await signInButton(page).click();
+    // The label of the identifier carries the mark of a field required (« Courriel * »), that of
+    // the password none: the one is found as part of its label, the other whole, apart from the
+    // button that shows it (« Afficher le mot de passe »).
+    await page.getByLabel("Courriel").or(page.getByLabel("Email")).fill(person.login);
+    await page
+      .getByLabel("Mot de passe", { exact: true })
+      .or(page.getByLabel("Password", { exact: true }))
+      .fill(person.password);
+    await oneAtATime(person.login, async () => {
+      const checked = page.waitForResponse(
+        (answer) =>
+          answer.request().method() === "POST" &&
+          answer.url().startsWith(`${REALM}/login-actions/authenticate`),
+        { timeout: CHECKING },
+      );
+      await signInButton(page).click();
+      await checked;
+    });
     return;
   }
   await page.getByRole("link", { name: person.provider }).click();
@@ -105,6 +146,47 @@ export async function reauthenticate(page: Page, person: Person): Promise<void> 
   await expect(page.locator("#kc-attempted-username")).toHaveValue(person.username ?? person.login);
   await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
   await signInButton(page).click();
+}
+
+/**
+ * How long a sign-in waits for the realm to answer the identifiers: well within the wait of the
+ * lock (`oneAtATime`), which the other workers of the account spend behind it — a click lost would
+ * otherwise hold the lock for the time of the path.
+ */
+const CHECKING = 15_000;
+
+/**
+ * Run a sign-in of an account while no other worker signs it in: the realm refuses the identifiers
+ * of an account it is checking already, as if it were locked (`user_temporarily_disabled`, no
+ * failure counted) — the administrator of the installation, which every worker signs in. A
+ * directory of the system's temporary one, named after the run and the account, is the lock.
+ */
+async function oneAtATime<T>(login: string, run: () => Promise<T>): Promise<T> {
+  const name = createHash("sha256")
+    .update(`${process.env.E2E_SERVICE_STARTED ?? ""} ${login}`)
+    .digest("hex");
+  const lock = join(tmpdir(), `waterfall-e2e-${name.slice(0, 32)}`);
+  await expect
+    .poll(
+      () => {
+        try {
+          mkdirSync(lock);
+          return true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+            return false;
+          }
+          throw error;
+        }
+      },
+      { message: `the sign-in of ${login} in another worker`, intervals: [100], timeout: 30_000 },
+    )
+    .toBe(true);
+  try {
+    return await run();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
 }
 
 /** Sign a person in from `/login`, aiming at a screen, and land on it, whole. */
@@ -133,8 +215,13 @@ async function administrator(request: APIRequestContext): Promise<Record<string,
     },
   });
   expect(answer.ok()).toBe(true);
-  const { access_token: token } = (await answer.json()) as { access_token: string };
+  const { access_token: token } = (await answer.json()) as TokenAnswer;
   return { Authorization: `Bearer ${token}` };
+}
+
+/** What the token endpoint of the realm answers, of which the paths read the access token alone. */
+interface TokenAnswer {
+  readonly access_token: string;
 }
 
 /** The administration API of a realm — that of Waterfall by default —, as its administrator. */
@@ -326,13 +413,28 @@ export function waterfallAccount(email: string): { origin: string; roles: number
   return origin === undefined || origin === "" ? undefined : { origin, roles: Number(roles) };
 }
 
+/** The settings an account keeps for a grid (`display_preferences.grids`), none if it keeps none. */
+export function gridPreferences(email: string, grid: string): unknown {
+  const kept = sql(
+    `select coalesce(display_preferences -> 'grids' -> :'grid', 'null') from user_account
+  where email = :'email';
+`,
+    { email, grid },
+  );
+  return JSON.parse(kept === "" ? "null" : kept) as unknown;
+}
+
 /**
- * Give an account a role of the permissions given — the same role each time, made once —, as the
- * administrator of the installation would by the service (`createAccessRole`,
- * `setUserAccessRoles`): written in the database, since the bootstrap (US-0420) makes that
- * administrator alone and no path signs in as it, the accounts of the paths holding no role until
- * given one. The account must exist — Waterfall creates it at its first request —: a role given to
- * none fails the path, rather than leave it without the role.
+ * Give the person of the directory, or the one of the external provider, a role of the permissions
+ * given — the same role each time, made once —, as the administrator of the installation would by
+ * the service (`setUserAccessRoles`): written in the database, these people being shared by the
+ * paths of a run and by the runs on a platform kept, where Waterfall knows them only once they have
+ * signed in. The account must exist — Waterfall creates it at the first request of the person,
+ * which the path has seen answered (`GET /me`, the screen of her account shown) —: a role given to
+ * none fails the path, rather than leave it without the role. A local account of the paths is
+ * given its role by the administrator (`Administrator.give`); the administrator itself is given
+ * back « Administrateur » so, should the server accept the withdrawal it must refuse
+ * (`roles.spec.ts`).
  */
 export function grantRole(email: string, label: string, permissions: readonly string[]): void {
   const held = sql(
@@ -450,7 +552,7 @@ export async function frontToken(browser: Browser, person: Person): Promise<stri
       },
     });
     expect(answer.ok()).toBe(true);
-    return ((await answer.json()) as { access_token: string }).access_token;
+    return ((await answer.json()) as TokenAnswer).access_token;
   } finally {
     await context.close();
   }
@@ -471,67 +573,111 @@ async function posted<T>(
   return (await answer.json()) as T;
 }
 
-/** The label of the role that makes the person of the directory administer the accounts. */
-const ADMINISTRATION = "Administration des comptes (parcours)";
+/** The answer of a read of the API, as the front calls it with a token. */
+async function read<T>(request: APIRequestContext, token: string, path: string): Promise<T> {
+  const answer = await request.get(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(answer.status(), `GET ${path}`).toBe(200);
+  return (await answer.json()) as T;
+}
 
 /**
- * An administrator of the accounts, who creates local accounts and gives their links (`createUser`,
- * `createPasswordSetupLink`): the person of the directory, given the role, as the screens of
- * US-0360 will call the API once wired (#449). Her account is Waterfall's once she has called it
- * (`getMe`): the role is given then, the first path of a platform new finding none. Her identifier
- * in Waterfall, by which the journal of audit names its author (`self`).
+ * The two permissions of the administration (WF-ADM-0120): a path that gave both to an account
+ * other than the administrator of the installation would lift the refusal `LAST_ADMINISTRATOR` the
+ * screen of the roles proves beside it (`roles.spec.ts`).
+ */
+const ADMINISTRATION: readonly Schemas["PermissionCode"][] = ["users.write", "access_roles.write"];
+
+/**
+ * How old a token of the administrator may grow before it is asked again: the realm gives it five
+ * minutes, and a file of paths lasts longer.
+ */
+const TOKEN_RENEWED_AFTER = 4 * 60_000;
+
+/**
+ * The administrator of the installation at the API (#730): it creates the local accounts of the
+ * paths, each its own, gives their links (`createUser`, `createPasswordSetupLink`) and their roles
+ * (`createAccessRole`, `setUserAccessRoles`), by the token the front would obtain for it — asked
+ * again once it nears its end. Its identifier in Waterfall, by which the journal of audit names
+ * its author (`self`).
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
-  const token = await frontToken(browser, DIRECTORY);
-  const headers = { Authorization: `Bearer ${token}` };
-  const me = await request.get(`${API}/me`, { headers });
-  expect(me.status(), "GET /me").toBe(200);
-  const { user_id: self } = (await me.json()) as { user_id: string };
-  grantRole(DIRECTORY.login, ADMINISTRATION, ["users.read", "users.write"]);
+  let token = await frontToken(browser, ADMINISTRATOR);
+  let obtained = Date.now();
+  const { user_id: self } = await read<Schemas["UserSelf"]>(request, token, "/me");
+  const current = async (): Promise<string> => {
+    if (Date.now() - obtained > TOKEN_RENEWED_AFTER) {
+      token = await frontToken(browser, ADMINISTRATOR);
+      obtained = Date.now();
+    }
+    return token;
+  };
   return {
     self,
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
       const email = `jeanne.${randomBytes(6).toString("hex")}@waterfall.test`;
-      const body = { last_name: "Montgolfier", first_name: "Jeanne", email };
-      const { user_id: id } = await posted<{ user_id: string }>(request, token, "/users", body);
+      const body: Schemas["UserCreate"] = { last_name: "Montgolfier", first_name: "Jeanne", email };
+      const { user_id: id } = await posted<Schemas["UserCreated"]>(
+        request,
+        await current(),
+        "/users",
+        body,
+      );
       return { id, email };
     },
     /** The link that sets the password of a local account, each new one replacing the one before. */
     link: async (id: string): Promise<string> =>
-      (await posted<{ url: string }>(request, token, `/users/${id}/password-link`)).url,
+      (
+        await posted<Schemas["PasswordSetupLink"]>(
+          request,
+          await current(),
+          `/users/${id}/password-link`,
+        )
+      ).url,
     /**
-     * Compose a role of the permissions given and give it to an account, its only one, from the
-     * version read (`createAccessRole`, `getUser`, `setUserAccessRoles`), as the screens of the roles
-     * and of the accounts do: both ask the permission to modify the roles too, which the path gives
-     * the person of the directory beside this role.
+     * Give a local account the role of a label — made of the permissions given unless the
+     * installation holds it already, so that the runs on a platform kept make it once —, in place
+     * of those it holds. Never both permissions of the administration, those of the role held
+     * included: the guard fails before anything is written.
      */
-    attribute: async (id: string, label: string, permissions: readonly string[]): Promise<void> => {
-      const role = await posted<{ access_role_id: string }>(request, token, "/access-roles", {
-        label,
-        permissions,
-      });
-      const read = await request.get(`${API}/users/${id}`, { headers });
-      expect(read.status(), "GET /users/{user_id}").toBe(200);
-      const { lock_version: version } = (await read.json()) as { lock_version: number };
+    give: async (
+      id: string,
+      label: string,
+      permissions: readonly Schemas["PermissionCode"][],
+    ): Promise<void> => {
+      const search = new URLSearchParams({ search: label }).toString();
+      const found = (
+        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
+      ).find((one) => one.label === label);
+      const granted = found?.permissions ?? permissions;
+      expect(
+        ADMINISTRATION.every((permission) => granted.includes(permission)),
+        `the role ${label} gives both permissions of the administration`,
+      ).toBe(false);
+      const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
+      const role =
+        found?.access_role_id ??
+        (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
+          .access_role_id;
+      const { lock_version: version } = await read<Schemas["User"]>(
+        request,
+        await current(),
+        `/users/${id}`,
+      );
+      const roles: Schemas["UserRolesWrite"] = { access_role_ids: [role], lock_version: version };
       const given = await request.put(`${API}/users/${id}/access-roles`, {
-        headers,
-        data: { access_role_ids: [role.access_role_id], lock_version: version },
+        headers: { Authorization: `Bearer ${await current()}` },
+        data: roles,
       });
-      expect(given.status(), "PUT /users/{user_id}/access-roles").toBe(200);
-    },
-    /** Withdraw the role the person of the directory was given. */
-    done: () => {
-      withdrawRoles(DIRECTORY.login);
+      expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
     },
   };
 }
 
 /** An administrator of the accounts, for the time of a file. */
 export type Administrator = Awaited<ReturnType<typeof accountAdministrator>>;
-
-/** The password a local account sets by its link: twelve characters, neither its address nor its name. */
-export const LOCAL_PASSWORD = "k7#Qw2ZpX9vR";
 
 /** Set a password on the page of a link, opened: whether the realm took it is for the path to see. */
 export async function setPassword(page: Page, password: string): Promise<void> {
@@ -547,6 +693,11 @@ export async function openLink(page: Page, link: string): Promise<void> {
   await expect(page.getByRole("heading", { name: "Mise à jour du mot de passe" })).toBeVisible();
 }
 
+/** A local account of the paths, by its identifier in Waterfall too. */
+export interface LocalPerson extends Person {
+  readonly id: string;
+}
+
 /**
  * A local account created by the administrator, whose holder has set her password by her link:
  * the person who signs in with it, and its identifier in Waterfall.
@@ -554,7 +705,7 @@ export async function openLink(page: Page, link: string): Promise<void> {
 export async function localAccount(
   browser: Browser,
   administrator: Administrator,
-): Promise<Person & { readonly id: string }> {
+): Promise<LocalPerson> {
   const { id, email } = await administrator.create();
   const page = await browser.newPage({ locale: "fr-FR", ignoreHTTPSErrors: true });
   await openLink(page, await administrator.link(id));

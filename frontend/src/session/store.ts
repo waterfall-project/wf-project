@@ -24,8 +24,18 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { createClient, ErrorReply } from "@redis/client";
+import {
+  ClientClosedError,
+  ClientOfflineError,
+  ConnectionTimeoutError,
+  createClient,
+  ErrorReply,
+  ReconnectStrategyError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutError,
+} from "@redis/client";
 
+import { LOST_CONNECTION, UNMADE_CONNECTION } from "./network";
 import { redisAddress } from "./settings";
 
 /** How long a sign-in may take, from the request to the return: fifteen minutes, in seconds. */
@@ -80,17 +90,31 @@ return redis.call("del", KEYS[1])`;
 /** How many times a lost connection is tried again, a tenth of a second apart, before it fails. */
 const RECONNECTIONS = 5;
 
-/** Connect to the Redis of the platform. */
-function connect() {
-  const client = createClient({
-    url: redisAddress(),
-    // A command fails at once while Redis is out of reach, rather than wait in a queue; and a
-    // connection that cannot be made fails, rather than keep the request waiting for ever.
-    disableOfflineQueue: true,
-    socket: {
-      reconnectStrategy: (retries: number, cause: Error) => (retries < RECONNECTIONS ? 100 : cause),
-    },
-  });
+/**
+ * The client of the Redis of the platform at its address, not connected yet. An address the client
+ * cannot read fails naming the variable, and only it: the failure of the client quotes the address,
+ * password included, and the log of the server would keep it (WF-SEC-0010).
+ */
+function clientOf(address: string) {
+  try {
+    return createClient({
+      url: address,
+      // A command fails at once while Redis is out of reach, rather than wait in a queue; and a
+      // connection that cannot be made fails, rather than keep the request waiting for ever.
+      disableOfflineQueue: true,
+      socket: {
+        reconnectStrategy: (retries: number, cause: Error) =>
+          retries < RECONNECTIONS ? 100 : cause,
+      },
+    });
+  } catch {
+    throw new Error("WATERFALL_REDIS_URL is not a valid Redis address");
+  }
+}
+
+/** Connect to the Redis of the platform, at its address. */
+function connect(address: string) {
+  const client = clientOf(address);
   client.on("error", (error: unknown) => {
     console.error("The sessions of the front cannot reach Redis", error);
   });
@@ -102,8 +126,8 @@ type Redis = Awaited<ReturnType<typeof connect>>;
 let connection: Promise<Redis> | undefined;
 
 /** Connect anew, the connection forgotten if it fails: the next command tries again. */
-function reconnect(): Promise<Redis> {
-  const attempt: Promise<Redis> = connect().catch((error: unknown) => {
+function reconnect(address: string): Promise<Redis> {
+  const attempt: Promise<Redis> = connect(address).catch((error: unknown) => {
     if (connection === attempt) {
       connection = undefined;
     }
@@ -113,19 +137,67 @@ function reconnect(): Promise<Redis> {
   return attempt;
 }
 
-/** The client of the Redis of the platform, connected at its first use, and again once lost. */
-async function redis(): Promise<Redis> {
-  const current = connection ?? reconnect();
+/**
+ * The client of the Redis of the platform at its address, connected at its first use, and again
+ * once lost.
+ */
+async function redis(address: string): Promise<Redis> {
+  const current = connection ?? reconnect(address);
   const client = await current;
   if (client.isOpen) {
     return client;
   }
-  return connection === current ? reconnect() : (connection ?? reconnect());
+  return connection === current ? reconnect(address) : (connection ?? reconnect(address));
+}
+
+/** The failures of the client that say Redis out of reach, rather than a defect. */
+const CONNECTION_FAILURES = [
+  ConnectionTimeoutError,
+  ClientClosedError,
+  ClientOfflineError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutError,
+];
+
+/**
+ * The errors of the system that say the network failed: a connection not made, or lost once made —
+ * a command in flight fails with the error of its socket, as it is.
+ */
+const NETWORK_FAILURES: ReadonlySet<unknown> = new Set([...UNMADE_CONNECTION, ...LOST_CONNECTION]);
+
+/** How deep the causes of an error are looked into: a chain that loops ends there. */
+const CAUSES = 8;
+
+/**
+ * Whether an error says Redis out of reach: a failure of the connection of the client, or an error
+ * of the network — the error itself, one of its causes, or one of the errors it gathers (Node tries
+ * each address of a host, and gathers their refusals). A connection given up after its retries is
+ * judged by the failure of its last attempt. Anything else — a variable missing, an address badly
+ * written, a refusal of Redis such as a password or a database it does not know, a certificate not
+ * trusted, a defect — is not, and is thrown as it is.
+ */
+export function unreached(error: unknown, depth = 0): boolean {
+  if (!(error instanceof Error) || error instanceof ErrorReply || depth > CAUSES) {
+    return false;
+  }
+  if (error instanceof ReconnectStrategyError) {
+    return unreached(error.socketError, depth + 1);
+  }
+  if (CONNECTION_FAILURES.some((failure) => error instanceof failure)) {
+    return true;
+  }
+  if ("code" in error && NETWORK_FAILURES.has(error.code)) {
+    return true;
+  }
+  const gathered = error instanceof AggregateError ? (error.errors as unknown[]) : [];
+  return [error.cause, ...gathered].some((inner) => unreached(inner, depth + 1));
 }
 
 /**
- * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read
- * nor written. A refusal of Redis itself, an answer, is not this, but a defect.
+ * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
+ * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
+ * Redis itself, an answer — a password or a database refused at the connection included —, is not
+ * this, but a defect; nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */
@@ -135,12 +207,16 @@ export class StoreUnreachable extends Error {
   }
 }
 
-/** Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`). */
+/**
+ * Run commands on Redis, the failure to reach it marked as such (`StoreUnreachable`), and only it:
+ * its address read first, a variable missing fails naming it.
+ */
 async function reaching<T>(commands: (client: Redis) => Promise<T>): Promise<T> {
+  const address = redisAddress();
   try {
-    return await commands(await redis());
+    return await commands(await redis(address));
   } catch (error) {
-    throw error instanceof ErrorReply ? error : new StoreUnreachable(error);
+    throw unreached(error) ? new StoreUnreachable(error) : error;
   }
 }
 
@@ -213,7 +289,7 @@ export async function openSession(id: string, session: FrontSession, lifetime: n
 
 /** The session of an identifier, if it lives. */
 export async function readSession(id: string): Promise<FrontSession | undefined> {
-  const text = await (await redis()).get(`${SESSION}${id}`);
+  const text = await reaching((client) => client.get(`${SESSION}${id}`));
   return text === null ? undefined : (JSON.parse(text) as FrontSession);
 }
 
@@ -222,17 +298,18 @@ export async function readSession(id: string): Promise<FrontSession | undefined>
  * still lives: one the back channel closed during the refresh stays closed.
  */
 export async function renewSession(id: string, session: FrontSession, lifetime: number) {
-  const client = await redis();
-  await client.set(`${SESSION}${id}`, JSON.stringify(session), {
-    expiration: { type: "EX", value: lifetime },
-    condition: "XX",
+  await reaching(async (client) => {
+    await client.set(`${SESSION}${id}`, JSON.stringify(session), {
+      expiration: { type: "EX", value: lifetime },
+      condition: "XX",
+    });
+    await client.expire(`${ACCOUNT}${session.subject}`, lifetime, "GT");
   });
-  await client.expire(`${ACCOUNT}${session.subject}`, lifetime, "GT");
 }
 
 /** Close a session. */
 export async function forgetSession(id: string): Promise<void> {
-  await (await redis()).del(`${SESSION}${id}`);
+  await reaching((client) => client.del(`${SESSION}${id}`));
 }
 
 /** Close every session of an account: on all its workstations (WF-SEC-0020). */
@@ -244,16 +321,18 @@ export async function forgetAccount(subject: string): Promise<void> {
 
 /** Take the lock of the refresh of a session for a while, in milliseconds, unless another holds it. */
 export async function holdRefresh(id: string, holder: string, lifetime: number): Promise<boolean> {
-  const taken = await (
-    await redis()
-  ).set(`${REFRESH}${id}`, holder, {
-    expiration: { type: "PX", value: lifetime },
-    condition: "NX",
-  });
+  const taken = await reaching((client) =>
+    client.set(`${REFRESH}${id}`, holder, {
+      expiration: { type: "PX", value: lifetime },
+      condition: "NX",
+    }),
+  );
   return taken !== null;
 }
 
 /** Give the lock of the refresh of a session back, if its holder still holds it. */
 export async function releaseRefresh(id: string, holder: string): Promise<void> {
-  await (await redis()).eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] });
+  await reaching((client) =>
+    client.eval(DELETE_HELD, { keys: [`${REFRESH}${id}`], arguments: [holder] }),
+  );
 }

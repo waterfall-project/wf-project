@@ -536,7 +536,7 @@ describe("a write whose dialog is closed, and the focus", () => {
     }
   });
 
-  it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told nowhere (#688)", async () => {
+  it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told on the list no more — the bar of the shell tells it (#688, #863)", async () => {
     const answer = held();
     serve(
       { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
@@ -570,7 +570,7 @@ describe("a write whose dialog is closed, and the focus", () => {
     }
   });
 
-  it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal nowhere (#688)", async () => {
+  it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal on the list no more (#688)", async () => {
     const answer = held();
     serve(
       { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
