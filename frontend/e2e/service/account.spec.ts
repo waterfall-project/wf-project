@@ -156,19 +156,28 @@ test("a local account leads to its page at the realm, which holds its password",
   await page.context().close();
 });
 
+test("an account without an avatar shows its initials without one [WF-ADM-0080-A]", async ({
+  browser,
+}) => {
+  const page = await workstation(browser, "fr-FR");
+  await signInAt(page, second, AVATAR);
+  const main = page.getByRole("main");
+  // No avatar: the initials, the default image.
+  await expect(main.getByText("JM", { exact: true })).toBeVisible();
+  await expect(main.getByRole("img", { name: "Jeanne Montgolfier" })).toHaveCount(0);
+  await page.context().close();
+});
+
 // Fixme until the bench passes a binary body (#973): Prism, the proxy of the contract on the
 // service platform, reads any body that is not JSON as UTF-8 text and spoils the image. The test
 // leaves the fixme once the bench is corrected.
-test.fixme("a user puts, replaces and withdraws the avatar of the account herself, which shows its initials without one [WF-ADM-0080-A]", async ({
+test.fixme("a user puts, replaces and withdraws the avatar of the account herself [WF-ADM-0080-A]", async ({
   browser,
 }) => {
   const page = await workstation(browser, "fr-FR");
   await signInAt(page, second, AVATAR);
   const main = page.getByRole("main");
   const image = main.getByRole("img", { name: "Jeanne Montgolfier" });
-  // No avatar: the initials, the default image.
-  await expect(main.getByText("JM", { exact: true })).toBeVisible();
-  await expect(image).toHaveCount(0);
 
   const upload = page.getByRole("button", { name: "Déposer l’image" });
   for (const [colour, bytes] of [
