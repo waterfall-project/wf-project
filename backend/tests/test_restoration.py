@@ -56,7 +56,7 @@ from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
 from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
-from waterfall.worker.restore import RestoreError, extracted, replace
+from waterfall.worker.restore import RestoreError, errors_of, extracted, replace
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
@@ -592,11 +592,33 @@ def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
     finally:
         dropped(database_url, source, target)
     (failed,) = logs.named("restore.replace_failed")
-    refused = 'new row for relation "..." violates check constraint "..."'
+    refused = 'new row for relation "..."'
     assert failed["said"] == [
         f'pg_restore: error: COPY failed for table "realm": ERROR:  {refused}'
     ]
     assert marker not in logs.text
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_value_the_server_quotes_is_masked_whole_whatever_it_holds_and_its_language() -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » A
+    # value may hold a quotation mark, and a server whose messages are in French quotes with « »
+    # after « ERREUR: » : nothing of the value is kept, in either case.
+    marker = "s3cr3t"
+    realm = 'pg_restore: error: COPY failed for table "realm": ERROR:  malformed array literal: '
+    query = "pg_restore: error: could not execute query: "
+    account = 'pg_restore: error: COPY failed for table "account": ERROR:  invalid input syntax: '
+    said = "\n".join(
+        [
+            f'{realm}"{{"{marker} x"}}"',
+            f"{query}ERREUR:  valeur « {marker} » refusée",
+            f'{account}"ab"{marker}"',
+            f"DETAIL:  Failing row contains ({marker}).",
+        ]
+    ).encode()
+    kept = errors_of(said)
+    assert kept == [f'{realm}"..."', f"{query}...", f'{account}"..."']
+    assert marker not in "".join(kept)
 
 
 def test_a_database_the_restoration_cannot_reach_is_unavailable_and_journaled_as_the_restoration(
