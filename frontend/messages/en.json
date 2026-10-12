@@ -1012,6 +1012,10 @@
       "title": "Session required",
       "explanation": "The screen needs an open session: sign in, and you will come back to it."
     },
+    "revoked": {
+      "title": "Session closed",
+      "explanation": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles: sign in again with your credentials, and you will come back to the screen."
+    },
     "deactivated": {
       "title": "Account deactivated",
       "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
@@ -1447,6 +1451,7 @@
     "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
     "SESSION_REQUIRED": "You need to sign in.",
     "SESSION_EXPIRED": "Your session has expired; please sign in again.",
+    "SESSION_REVOKED": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",

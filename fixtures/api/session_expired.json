@@ -1,0 +1,8 @@
+{
+  "summary": "Un jeton d'accès présenté après ses cinq minutes de vie : la session n'est pas fermée, le front rafraîchit le jeton ou mène à une connexion qui ne redemande pas d'identifiants tant que la session du fournisseur d'identité vit (WF-SEC-0020).",
+  "value": {
+    "code": "SESSION_EXPIRED",
+    "status": 401,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001051"
+  }
+}

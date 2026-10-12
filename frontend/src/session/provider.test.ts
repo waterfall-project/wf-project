@@ -76,9 +76,10 @@ describe("the identity provider", () => {
     await expect(exchange).rejects.toBeInstanceOf(RealmUnreachable);
   });
 
-  it("asks the realm for a silent sign-in, which shows no page (#689)", () => {
+  it("asks the realm for a silent sign-in, which shows no page (#689), or for one that asks for the identifiers again (#855)", () => {
     const provider = createIdentityProvider(TEST_SETTINGS);
-    expect(provider.signInAddress("s", "n", "c", true).searchParams.get("prompt")).toBe("none");
+    expect(provider.signInAddress("s", "n", "c", "none").searchParams.get("prompt")).toBe("none");
+    expect(provider.signInAddress("s", "n", "c", "login").searchParams.get("prompt")).toBe("login");
     expect(provider.signInAddress("s", "n", "c").searchParams.has("prompt")).toBe(false);
   });
 

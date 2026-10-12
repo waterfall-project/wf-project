@@ -3813,6 +3813,27 @@ adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXIS
 `getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
 compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
 
+## La session révoquée (EP-03/US-0350/L5c, #855)
+
+Décision de l'auteur du 2026-10-11 (#855). Un jeton dont la connexion (`auth_time`, à défaut
+`iat`) précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde, est refusé
+par 401 `SESSION_REVOKED`, et non plus `SESSION_EXPIRED`, que garde la seule expiration du jeton.
+La fermeture que le fournisseur d'identité a manquée — une panne pendant la déconnexion ou la
+désactivation — laisse vivre sa session : une connexion ordinaire en rendrait un jeton de la même
+connexion, de nouveau refusé, jusqu'à la fin de cette session, deux heures plus tard au moins. Sur
+ce code seulement, le front mène à une connexion qui force l'authentification (`prompt=login`),
+et le fournisseur renouvelle `auth_time` ; une expiration ne redemande pas d'identifiants. Le
+retrait de tous les rôles d'un compte note aussi l'heure de la fermeture (`setUserAccessRoles`),
+comme la déconnexion et la désactivation : une fermeture manquée n'y survit pas à un rôle rendu.
+Un jeton à la fois expiré et antérieur à la fermeture reçoit `SESSION_EXPIRED` : l'expiration
+prime, constatée par la validation du jeton avant que le compte soit lu ; le front rafraîchit
+alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED` si le fournisseur a
+manqué la fermeture ; s'il a fermé la session, c'est le rafraîchissement lui-même qu'il refuse
+(#940).
+Écartés : redemander les identifiants à toute expiration, que rien ne justifie après cinq
+minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
+qui ne sort de l'impasse que la personne qui sait se déconnecter.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

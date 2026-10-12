@@ -33,14 +33,19 @@ export interface Tokens {
 /** The tokens of a sign-in, and the subject of the account it opened. */
 export type SignedIn = Tokens & { readonly subject: string };
 
+/** How the realm is to answer a sign-in, if not at once while its session lives. */
+export type SignInPrompt = "none" | "login";
+
 /** What the server of Next asks of the identity provider. */
 export interface IdentityProvider {
   /**
-   * The address of the sign-in, for a request of its state, its nonce and its PKCE challenge;
-   * `silent`, a sign-in the realm answers without showing a page (`prompt=none`) — with a code
-   * while its session in the browser lives, with `login_required` otherwise.
+   * The address of the sign-in, for a request of its state, its nonce and its PKCE challenge, and
+   * how the realm is to answer it: by default, at once while its session in the browser lives;
+   * `none`, a sign-in the realm answers without showing a page — with a code while its session in
+   * the browser lives, with `login_required` otherwise; `login`, one that asks for the identifiers
+   * again whatever its session, which renews the moment of the sign-in (`auth_time`, #855).
    */
-  signInAddress(state: string, nonce: string, challenge: string, silent?: boolean): URL;
+  signInAddress(state: string, nonce: string, challenge: string, prompt?: SignInPrompt): URL;
   /**
    * The address that ends the session of the realm in the browser, then sends it back to the
    * sign-in of the front: a sign-out the client asks for without an ID token, which the realm has
@@ -223,7 +228,7 @@ export function createIdentityProvider(
     config[oidc.customFetch] = send;
   }
   return {
-    signInAddress: (state, nonce, challenge, silent = false) =>
+    signInAddress: (state, nonce, challenge, prompt) =>
       oidc.buildAuthorizationUrl(config, {
         redirect_uri: callback,
         scope: "openid",
@@ -231,7 +236,7 @@ export function createIdentityProvider(
         nonce,
         code_challenge: challenge,
         code_challenge_method: "S256",
-        ...(silent ? { prompt: "none" } : {}),
+        ...(prompt === undefined ? {} : { prompt }),
       }),
 
     signOutAddress: () =>

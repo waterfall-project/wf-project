@@ -25,6 +25,7 @@ import {
   ACCOUNT_NOT_ADMITTED_DIGEST,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "./failure";
 import { ScreenSkeleton } from "./screen-skeleton";
@@ -118,6 +119,20 @@ describe("the screen of failure", () => {
     );
     expect(loadDocument).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
+    await expectAccessible(container);
+  });
+
+  it("offers a read refused as of a session closed a sign-in that asks for the identifiers again, and goes nowhere by itself (#855) [WF-SEC-0020-A]", async () => {
+    const { container } = inLanguage(
+      <SystemFailure error={forwarded(SESSION_REVOKED_DIGEST)} retry={vi.fn()} />,
+    );
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Session fermée");
+    expect(screen.getByRole("alert")).toHaveTextContent("saisissant à nouveau vos identifiants");
+    expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}&reauthenticate=1`,
+    );
+    expect(loadDocument).not.toHaveBeenCalled();
     await expectAccessible(container);
   });
 

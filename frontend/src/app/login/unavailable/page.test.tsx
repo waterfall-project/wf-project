@@ -29,6 +29,12 @@ describe("the sign-in that could not be made (#687)", () => {
     expect(html).toMatch(/<a [^>]*href="\/login\?next=%2Faccount%3Ftab%3D1"[^>]*>.*Se connecter/);
   });
 
+  it("offers again a sign-in that asks for the identifiers when the one that failed did, the session of the realm bringing otherwise a token of the same sign-in (#855)", async () => {
+    expect(await rendered({ next: "/account", reauthenticate: "1" })).toMatch(
+      /<a [^>]*href="\/login\?next=%2Faccount&amp;reauthenticate=1"[^>]*>.*Se connecter/,
+    );
+  });
+
   it("offers the sign-in for the home page when the screen aimed at is another site, or none", async () => {
     for (const next of ["https://elsewhere.example/", ["/a", "/b"]]) {
       expect(await rendered({ next })).toMatch(/href="\/login\?next=%2F"/);
