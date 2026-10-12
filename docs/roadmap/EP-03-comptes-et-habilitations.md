@@ -268,6 +268,9 @@ porte :
 - la politique de mot de passe de WF-ADM-0140 : douze caractères au moins, ni l'adresse
   (`notEmail`, `notUsername`, l'adresse servant d'identifiant), ni le nom (règle de
   l'extension) ; le verrouillage temporaire : dix échecs, quinze minutes, jamais permanent ;
+  une seconde connexion du même compte, soumise pendant que la première est vérifiée
+  (quelques dizaines de millisecondes), est refusée une fois, sans échec compté, par le garde
+  de Keycloak contre les essais en rafale, et un nouvel essai aboutit (#972) ;
   aucune expiration périodique ; liens d'action valables une heure ;
 - les durées de WF-SEC-0020 : jeton d'accès 5 min ; session inactive 2 h ; session 12 h ;
   rotation du jeton de rafraîchissement, réemploi refusé (`revokeRefreshToken`,
@@ -918,6 +921,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | La lecture des comptes rétablit dans Keycloak l'identité des comptes locaux, Waterfall faisant foi (WF-ADM-0050 ; auteur, 2026-10-12, #919) | consigner le désaccord sans le réconcilier : un report resté sans réponse laisserait Keycloak et Waterfall en désaccord sans fin |
 | Le compte rendu de la lecture ne garde d'un compte de Waterfall que son identifiant, le nom relu à la consultation (auteur, 2026-10-12, #920) | effacer l'adresse des comptes rendus à l'anonymisation : une donnée personnelle copiée qu'il faudrait poursuivre partout où elle a été écrite |
 | Les tables des comptes et des rôles reçoivent les colonnes d'audit, triables et filtrables, par US-0360/L4 (auteur, 2026-10-12, #936) | les laisser sans elles : l'écart de WF-ADM-0060-A, qui promet un compte désactivé nommé dans ces colonnes, ne se constaterait nulle part en EP-03 |
+| Garder le garde de Keycloak contre les connexions concurrentes d'un même compte : une seconde connexion soumise pendant que la première est vérifiée est refusée une fois, sans échec compté (#972) | `allowConcurrentRequests` : une rafale obtient bien plus que dix essais, contre WF-ADM-0140 |
 
 ### Issues à ouvrir avec la conception
 

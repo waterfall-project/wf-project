@@ -22,7 +22,7 @@ from collections.abc import Generator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx2
 import pytest
@@ -278,58 +278,59 @@ def test_a_locked_account_signs_in_again_once_its_lock_is_over(
 SIMULTANEOUS_ROUNDS = 10
 
 
-def simultaneous_sign_ins(account: Account) -> list[httpx2.Response]:
-    """Open the login page in two browsers, then give both the password of ``account`` at once.
+class Attempt(NamedTuple):
+    """A sign-in through the login page: its browser, its verifier of PKCE, the realm's answer."""
 
-    Give the answer of each to its form: the return to the front, or the login page again.
-    """
+    browser: FrontBrowser
+    verifier: str
+    answer: httpx2.Response
+
+
+def simultaneous_sign_ins(fields: dict[str, str]) -> list[Attempt]:
+    """Open the login page in two browsers, then submit ``fields`` in both at once."""
     browsers = [FrontBrowser(), FrontBrowser()]
     pages = [browser.login_page() for browser in browsers]
     start = threading.Barrier(len(browsers))
-    fields = {"username": account.email, "password": PASSWORD}
 
-    def submitted(index: int) -> httpx2.Response:
+    def submitted(index: int) -> Attempt:
+        page, verifier = pages[index]
         start.wait(timeout=30)
-        return browsers[index].submit(pages[index][0], fields)
+        return Attempt(browsers[index], verifier, browsers[index].submit(page, fields))
 
     with ThreadPoolExecutor(len(browsers)) as pool:
-        answers = list(pool.map(submitted, range(len(browsers))))
-    for browser, (_, verifier), answer in zip(browsers, pages, answers, strict=True):
-        if answer.status_code == 302:
-            exchanged(browser.returned(answer), verifier)
-    return answers
+        return list(pool.map(submitted, range(len(browsers))))
 
 
-class RefusedWhileAnotherSignsInError(AssertionError):
-    """A sign-in with the password is refused while another of the same account is under way."""
-
-
-@pytest.mark.xfail(
-    reason=(
-        "#972: Keycloak's brute force protection refuses a sign-in of an account while another"
-        " of it is being checked (allowConcurrentRequests, a server option, off); to be decided"
-    ),
-    raises=RefusedWhileAnotherSignsInError,
-    strict=True,
-)
-def test_two_simultaneous_sign_ins_of_one_account_with_its_password_both_succeed(
+def test_two_simultaneous_sign_ins_are_both_admitted_or_one_refused_once_without_failure(
     admin: httpx2.Client, local_account: Account
 ) -> None:
-    # #972: a person who signs in from two devices at the same instant is signed in on both. The
-    # realm's events say why one is refused: ``user_temporarily_disabled``, with no failure
-    # counted — the guard of Keycloak against guesses sent at once, not the count of failures.
+    # #972: Keycloak's guard against guesses sent at once refuses a sign-in of an account while
+    # another is being checked — a few tens of milliseconds. Two sign-ins with the password at
+    # the same instant are both admitted, or one is refused, ``user_temporarily_disabled`` its
+    # only cause in the realm's events; no failure is counted, the account is not locked, and
+    # the refused one, tried again, is admitted at once.
+    fields = {"username": local_account.email, "password": PASSWORD}
+    query = {"user": local_account.id, "type": "LOGIN_ERROR"}
+    detection = f"/attack-detection/brute-force/users/{local_account.id}"
     with realm_set(eventsEnabled=True) as realm:
+        seen = 0
         for _ in range(SIMULTANEOUS_ROUNDS):
-            answers = simultaneous_sign_ins(local_account)
-            query = {"user": local_account.id, "type": "LOGIN_ERROR"}
-            causes = {event.get("error") for event in realm.get("/events", params=query).json()}
-            returned = [answer.status_code for answer in answers]
-            state = admin.get(f"/attack-detection/brute-force/users/{local_account.id}").json()
+            attempts = simultaneous_sign_ins(fields)
+            errors = realm.get("/events", params=query).json()
+            # The newest events come first: those of this round, before those already seen.
+            causes = tuple(event.get("error") for event in errors[: len(errors) - seen])
+            seen = len(errors)
+            returned = tuple(sorted(attempt.answer.status_code for attempt in attempts))
+            assert (returned, causes) in {
+                ((302, 302), ()),
+                ((200, 302), ("user_temporarily_disabled",)),
+            }, (returned, causes)
+            state = admin.get(detection).json()
             assert (state["disabled"], state["numFailures"]) == (False, 0), state
-            # The defect alone is expected — the guard's refusal: any other cause fails the test.
-            if causes == {"user_temporarily_disabled"} and sorted(returned) == [200, 302]:
-                raise RefusedWhileAnotherSignsInError(returned)
-            assert (returned, causes) == ([302, 302], set()), (returned, causes)
+            for browser, verifier, answer in attempts:
+                again = answer if answer.status_code == 302 else browser.submit(answer, fields)
+                assert again.status_code == 302, again.text
+                exchanged(browser.returned(again), verifier)
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
