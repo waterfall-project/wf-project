@@ -940,12 +940,14 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
         assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
 
 
+@pytest.mark.requirement("WF-ARC-0030-A")
 def test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed(
     api: ContractClient, database: Database, administrator: dict[str, str], colleague: Account
 ) -> None:
-    # The withdrawal notes the closing of the sessions, as a deactivation does: the same token that
-    # consulted the accounts is refused as revoked (#855); the realm closes the sessions of both
-    # devices.
+    # « Le retrait d'un rôle prend effet à la requête suivante, sans attendre l'expiration du
+    # jeton. » The withdrawal notes the closing of the sessions, as a deactivation does: the same
+    # token that consulted the accounts is refused as revoked (#855); the realm closes the sessions
+    # of both devices.
     user_id, devices = signed_in_twice(database, colleague, "users.read")
     assert [api.get(USERS, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body: dict[str, object] = {"access_role_ids": [], "lock_version": 0}

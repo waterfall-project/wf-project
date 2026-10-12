@@ -253,6 +253,27 @@ def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
 
 
 @pytest.mark.requirement("WF-SEC-0020-A")
+def test_a_token_expired_and_before_the_sign_out_is_refused_as_expired_then_its_refresh_as_revoked(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » The expiry prevails:
+    # a token both expired and of a sign-in before the closing is refused as expired, on which the
+    # front refreshes; the token refreshed, of the same sign-in, is refused as revoked, on which
+    # alone the front asks for the identifiers again (#855).
+    account(database)
+    now = int(time.time())
+    signed_in = now - 600
+    mine = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in})
+    assert refusal(api.delete(SESSIONS, headers=bearer(mine))) == (503, "COMPONENT_UNAVAILABLE")
+    expired = realm.token(
+        SUBJECT, KEY, claims={"auth_time": signed_in, "iat": now - 400, "exp": now - 100}
+    )
+    assert refusal(api.get(ME, headers=bearer(expired))) == (401, "SESSION_EXPIRED")
+    refreshed = realm.token(SUBJECT, KEY, claims={"auth_time": signed_in, "iat": now + 1})
+    assert refusal(api.get(ME, headers=bearer(refreshed))) == (401, "SESSION_REVOKED")
+
+
+@pytest.mark.requirement("WF-SEC-0020-A")
 def test_a_token_without_a_moment_of_sign_in_is_told_by_its_moment_of_issue(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:

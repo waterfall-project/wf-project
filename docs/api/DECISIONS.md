@@ -3806,6 +3806,9 @@ ce code seulement, le front mène à une connexion qui force l'authentification 
 et le fournisseur renouvelle `auth_time` ; une expiration ne redemande pas d'identifiants. Le
 retrait de tous les rôles d'un compte note aussi l'heure de la fermeture (`setUserAccessRoles`),
 comme la déconnexion et la désactivation : une fermeture manquée n'y survit pas à un rôle rendu.
+Un jeton à la fois expiré et antérieur à la fermeture reçoit `SESSION_EXPIRED` : l'expiration
+prime, constatée par la validation du jeton avant que le compte soit lu ; le front rafraîchit
+alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED`.
 Écartés : redemander les identifiants à toute expiration, que rien ne justifie après cinq
 minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
 qui ne sort de l'impasse que la personne qui sait se déconnecter.
