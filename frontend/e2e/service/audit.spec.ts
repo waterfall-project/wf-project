@@ -78,11 +78,18 @@ async function datedOfTheDay(row: Locator, after: number, tag: string): Promise<
   await expect(time).toContainText(today);
 }
 
-/** Choose a language in the menu of the account, as its holder does: her preference. */
+/**
+ * Choose a language in the menu of the account, as its holder does: her preference. The submenu is
+ * opened and its choice made from the keyboard: under load, a pointer that leaves the item of the
+ * submenu for the choice meets the page while the submenu is still placed, and the click closes the
+ * menu instead (#974).
+ */
 async function chooseLanguage(page: Page, button: Locator, language: string): Promise<void> {
   await openMenu(button, page.getByRole("menu").first());
-  await page.getByRole("menuitem", { name: /^Langue/ }).click();
-  await page.getByRole("menuitemradio", { name: language }).click();
+  await page.getByRole("menuitem", { name: /^Langue/ }).press("ArrowRight");
+  const choice = page.getByRole("menuitemradio", { name: language });
+  await expect(choice).toBeVisible();
+  await choice.press("Enter");
 }
 
 test("an attribution of a role, the journal filtered on its author and its action, is dated of the day and names the account and the role, read in French by its author and in English by the account, which did not reach the view before; a month without any action presents nothing; no command modifies nor deletes an inscription [WF-ADM-0190-A] [WF-ARC-0110-A] [WF-SEC-0030-A]", async ({
