@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import type { components } from "@/api/generated/schema";
 import { UserList } from "@/components/admin/account-lists";
 import type { AccessRole, User } from "@/components/admin/admin-grids";
+import { readAuditFilters } from "@/components/admin/audit-address";
 import { USER_KEPT } from "@/components/admin/user-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -32,6 +33,9 @@ export const roles = (example("access_roles") as AccessRole[]).map((role) => ({
   id: role.access_role_id,
   label: role.label,
 }));
+
+/** No filter of the audit columns. */
+export const NO_AUDIT = readAuditFilters(new URLSearchParams());
 
 /** The calls the screen made, but the settings of its grid. */
 export function writes(client: FakeClient) {
@@ -60,6 +64,8 @@ export function accounts(
           roles={roles}
           accessRoles={[]}
           active={undefined}
+          audit={NO_AUDIT}
+          authors={[]}
           editable={editable}
         />
       </PendingAddress>

@@ -22,10 +22,15 @@
  *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
  *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
  *
+ * Both end on their audit columns (WF-DAT-0070, #936): when each row was created and last modified,
+ * and by whom — an account deactivated since still named, an anonymised one by the neutral label,
+ * the platform by its own (WF-ADM-0060).
+ *
  * The server filters each on its columns (WF-IHM-0130, EP-02/L42f): the accounts by their origin,
  * their node, their access roles — one at least of those chosen — and their state; the roles by
- * their kind and between bounds of their holders, deactivated accounts counted; the filters of both
- * kept with the settings of their grid (US-0360, US-0380).
+ * their kind and between bounds of their holders, deactivated accounts counted; both by the period
+ * and the author of their creation and of their last modification (`audit-address.ts`); the filters
+ * of both kept with the settings of their grid (US-0360, US-0380).
  *
  * Neither server nor client: the page reads the keys and the columns sorted; the grids, in the
  * browser, the rest — the functions that read a row never cross to the server.
@@ -47,6 +52,7 @@ import {
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
 
+import { auditColumns } from "./audit-columns";
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
 import {
@@ -197,10 +203,11 @@ export interface UserEntry {
  * The grid of the accounts — searched by the server on the last name, the first name, the address
  * and the first name followed by the last name, its search named after it, the accounts having no
  * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
- * state. For a session that may modify the accounts, it is its own entry (`entry`): the names of a
- * local account in their cells, the state on a switch, the roles in a list of several choices, and
- * the link of a local account and the anonymisation of a deactivated one on their commands — none
- * deletes an account (WF-ADM-0060).
+ * state; then its audit columns, the creation and the last modification, each its instant and its
+ * author (`auditColumns`, #936). For a session that may modify the accounts, it is its own entry
+ * (`entry`): the names of a local account in their cells, the state on a switch, the roles in a list
+ * of several choices, and the link of a local account and the anonymisation of a deactivated one on
+ * their commands — none deletes an account (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {
@@ -290,6 +297,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
             <StateSwitch user={user} />
           ),
       },
+      ...auditColumns<User, UserPage>(),
       ...(entry === undefined ? [] : [setupLinkColumn(), anonymizeColumn()]),
     ],
   };
@@ -347,9 +355,9 @@ function renaming(answers: RoleAnswered | undefined): CellEntry<AccessRole, null
 }
 
 /**
- * The grid of the access roles: the label, the kind, the number of accounts that hold it — each
- * sorted by the server —, and, for a session that may modify the roles, its commands, its renaming
- * writing from the roles the screen holds (`answers`).
+ * The grid of the access roles: the label, the kind, the number of accounts that hold it, its audit
+ * columns (`auditColumns`, #936) — each sorted by the server —, and, for a session that may modify
+ * the roles, its commands, its renaming writing from the roles the screen holds (`answers`).
  */
 export function accessRoleGrid(
   editable: boolean,
@@ -394,6 +402,7 @@ export function accessRoleGrid(
         contract: "holder_count",
         value: (role) => role.holder_count.toString(),
       },
+      ...auditColumns<AccessRole, null>(),
       ...(editable ? commandColumns() : []),
     ],
   };

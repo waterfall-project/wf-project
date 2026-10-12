@@ -5,8 +5,10 @@
  * predefined or composed, with how many accounts hold it, on a dense grid sorted, searched and
  * filtered by the server as the address asks under the names of the contract (#515, EP-02/L42f) —
  * `sort_by`, `sort_order`, `search`, the kind `is_predefined`, the bounds of the holders
- * `holder_count_min` and `holder_count_max`, which, refused (422), leave the grid unread and are
- * said at their field —; the volumes of §4.6.2
+ * `holder_count_min` and `holder_count_max`, the periods and the authors of the creation and of the
+ * last modification of the roles — `created_at_from`, `updated_by_user_id`… —, a bound or a period
+ * refused (422) leaving the grid unread, said at its field —, the authors offered those of the roles
+ * unfiltered; the volumes of §4.6.2
  * count no roles, three of them predefined: the list holds in one page, which the contract does not
  * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
  * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
@@ -30,6 +32,13 @@ import {
   ACCESS_ROLE_SORTS,
   type AccessRoleSort,
 } from "@/components/admin/admin-grids";
+import {
+  type AuditFilters,
+  auditNarrowed,
+  authorsOf,
+  readAuditFilters,
+  refusedAudit,
+} from "@/components/admin/audit-address";
 import { MatrixWrites } from "@/components/admin/permission-matrix";
 import { RoleAnswers } from "@/components/admin/role-answers";
 import {
@@ -40,7 +49,13 @@ import {
   rolesQuery,
 } from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
-import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
+import {
+  type Bounds,
+  bounded,
+  readBoolean,
+  readBounds,
+  refusedBounds,
+} from "@/components/grid/filters";
 import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
@@ -68,28 +83,48 @@ function AccessRolesHeader() {
   );
 }
 
-/** The refusal of bounds the server cannot apply (`listAccessRoles`, 422). */
+/** The refusal of bounds or of a period the server cannot apply (`listAccessRoles`, 422). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * Read the roles as the grid asks them — or the bounds the API refuses —, which the matrix shows
- * too, and the catalogue of the permissions.
+ * Read the roles as the grid asks them — or the bounds and the periods the API refuses —, which the
+ * matrix shows too, the catalogue of the permissions, and the authors of the roles: those of the list
+ * unfiltered, read again only when the grid narrows it — the contract has no list of the authors.
  */
 async function readRoles(filters: {
   readonly query: GridQuery<AccessRoleSort>;
   readonly predefined: boolean | undefined;
   readonly holders: Bounds;
+  readonly audit: AuditFilters;
 }) {
   const client = serverClient();
-  const [listed, permissions] = await Promise.all([
+  const narrowed =
+    filters.query.search !== undefined ||
+    filters.predefined !== undefined ||
+    bounded(filters.holders) ||
+    auditNarrowed(filters.audit);
+  const [listed, permissions, unfiltered] = await Promise.all([
     readOrRefused("listAccessRoles", BOUNDS_REFUSED, () =>
       client.GET("/access-roles", { params: { query: rolesQuery(filters) } }),
     ),
     readOrFail("listPermissions", () => client.GET("/permissions")),
+    narrowed ? readOrFail("listAccessRoles", () => client.GET("/access-roles")) : undefined,
   ]);
-  return listed.kind === "read"
-    ? { listed: listed.data, refused: undefined, permissions }
-    : { listed: [], refused: refusedBounds(listed.problem.fields ?? []), permissions };
+  if (listed.kind !== "read") {
+    const fields = listed.problem.fields ?? [];
+    return {
+      listed: [],
+      refused: { bounds: refusedBounds(fields), periods: refusedAudit(fields) },
+      authors: authorsOf(unfiltered ?? []),
+      permissions,
+    };
+  }
+  return {
+    listed: listed.data,
+    refused: undefined,
+    authors: authorsOf(unfiltered ?? listed.data),
+    permissions,
+  };
 }
 
 /** Render the access roles and the matrix of their permissions. */
@@ -111,7 +146,22 @@ export default async function AccessRolesPage({
   const query = readGridQuery(search, ACCESS_ROLE_SORTS, preferences?.sort);
   const predefined = readBoolean(search, PREDEFINED);
   const holders = readBounds(search, HOLDER_COUNT, "count");
-  const { listed, refused, permissions } = await readRoles({ query, predefined, holders });
+  const audit = readAuditFilters(search);
+  const { listed, refused, authors, permissions } = await readRoles({
+    query,
+    predefined,
+    holders,
+    audit,
+  });
+  // What the list shows of its filters, a side of a bound or of a period the API refused said at its
+  // field.
+  const filters = {
+    predefined,
+    holders,
+    refused: refused?.bounds,
+    audit: { ...audit, refused: refused?.periods },
+    authors,
+  };
   const editable = platformOffer(session?.permissions, "access_roles") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.access_roles}>
@@ -124,7 +174,7 @@ export default async function AccessRolesPage({
               roles={listed}
               query={query}
               preferences={preferences}
-              filters={{ predefined, holders, refused }}
+              filters={filters}
               editable
             />
             <MatrixWrites order={permissions.map(({ code }) => code)} roles={listed}>
@@ -137,7 +187,7 @@ export default async function AccessRolesPage({
               roles={listed}
               query={query}
               preferences={preferences}
-              filters={{ predefined, holders, refused }}
+              filters={filters}
               editable={false}
             />
             <PermissionMatrix permissions={permissions} roles={listed} editable={false} />
