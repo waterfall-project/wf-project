@@ -58,7 +58,7 @@ import {
   type UserOrigin,
   USERS_LIST,
 } from "./user-address";
-import { UserCommands } from "./user-commands";
+import { CreateUser, UserCommands } from "./user-commands";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
@@ -69,8 +69,9 @@ type Permission = components["schemas"]["Permission"];
  * and by state — the active or the deactivated ones alone; none, every account —, or that the
  * installation has none — only when the list holds none at all and nothing narrows it: a page asked
  * beyond its end is no empty list; its pages say where it stands (`ListPages`). For a session that
- * may modify the accounts, the commands of the table (`UserCommands`): the region that says what a
- * write did, the refusals told above it, and the grid its own entry.
+ * may modify the accounts, the commands of the table (`UserCommands`): « Créer un compte local » at
+ * its head — offered on an empty list too —, the region that says what a write did, the refusals
+ * told above it, and the grid its own entry.
  */
 export function UserList({
   users,
@@ -175,7 +176,14 @@ export function UserList({
   );
   return (
     <ReferenceSection title={t("title")} icon={Users} fill>
-      {editable ? <UserCommands>{list}</UserCommands> : list}
+      {editable ? (
+        <UserCommands>
+          <CreateUser />
+          {list}
+        </UserCommands>
+      ) : (
+        list
+      )}
     </ReferenceSection>
   );
 }

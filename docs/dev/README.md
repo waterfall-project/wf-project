@@ -995,16 +995,27 @@ sans la lancer. La désactivation du dernier compte actif qui porte les permissi
 comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
 ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
 disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
-retireraient ces permissions — un refus dit comme tout autre. Aucune suppression (WF-ADM-0060).
-Comme pour les rôles, une seule source du compte répondu le plus récent par sa `lock_version`
-(`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit sa cellule,
-part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi pendant
-qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle a
-répondue, et l'interrupteur et les rôles de la ligne se marquent occupés et indisponibles
-(`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route. Ce que fait une écriture — un
-renommage compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur ou des
-rôles, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui d'un nom, à sa
-cellule. La recherche et les
+retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
+(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
+cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
+d'un compte qui n'est pas local ou qui est anonymisé. « Créer un compte local », en tête de la table, ouvre le dialogue du
+nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
+appel, l'adresse déjà portée dite à son champ ; quand aucune invitation n'est partie
+(`invitation_sent` faux), le compte créé le dit et offre aussitôt son lien de fixation (#816). La
+colonne « Anonymisation » porte la commande `anonymize` d'un compte désactivé (`anonymizeUser`),
+après une confirmation qui nomme le compte et dit l'action irréversible (`AlertDialog`, comme la
+suppression d'un rôle) ; un compte anonymisé est nommé par le libellé neutre du catalogue, et ses nom
+et prénom ne se saisissent pas, son origine fût-elle locale (WF-ADM-0060). Aucune suppression
+(WF-ADM-0060). Comme pour les rôles, une seule source du compte répondu le plus récent par sa
+`lock_version` (`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit
+sa cellule, part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi
+pendant qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle
+a répondue, et l'interrupteur, les rôles et l'anonymisation de la ligne se marquent occupés et
+indisponibles (`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route — l'anonymisation
+aussi tant qu'une réactivation demandée n'a pas répondu. Ce que fait une écriture — un renommage
+compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur, des rôles ou
+de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui
+d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
 se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et

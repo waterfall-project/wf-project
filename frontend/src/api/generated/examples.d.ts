@@ -287,6 +287,9 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
+  "POST /users": {
+    201: "user_created" | "user_created_invited";
+  };
   "POST /users/{user_id}/anonymization": {
     200: "user_anonymized";
   };

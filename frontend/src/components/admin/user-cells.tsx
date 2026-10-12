@@ -13,27 +13,32 @@
  *   account (`setUserAccessRoles`), none, one or more (WF-ADM-0050) — the server judges the roles
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
  *   administrator (WF-ADM-0120);
+ * - the link by which the holder of a local account sets its password (`createPasswordSetupLink`),
+ *   offered to a local account alone — another sets none in Waterfall, an anonymised one is withdrawn
+ *   from the identity provider —, unavailable while it is deactivated, as the server would refuse it
+ *   (`is_active_account`);
  * - the anonymisation, offered to a deactivated account only and unavailable once it is anonymised,
- *   its reactivation unavailable too (WF-ADM-0060): it writes nothing yet, and says so when pressed
+ *   its reactivation unavailable too (WF-ADM-0060): confirmed first, being irreversible
  *   (`AnonymizeCommand`).
  *
- * While a write of its row is under way, whatever its cell, each is marked busy, and the switch and the
- * roles unavailable: a press asks nothing (`UserWrites.busy`).
+ * While a write of its row is under way, whatever its cell, each is marked busy, and the switch, the
+ * roles, the link and the anonymisation unavailable: a press asks nothing (`UserWrites.busy`).
  *
  * In a dense grid, each is out of the order of tabulation, the grid being one stop: Enter on its cell
  * presses it (`CELL_COMMAND`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
-import { ChevronDown, UserRoundX } from "lucide-react";
+import { ChevronDown, KeyRound, UserRoundX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
 import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
-import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
+import { CellCommand } from "@/components/reference/cell-command";
 import { useListReport } from "@/components/reference/reactivation";
 import { ActiveState } from "@/components/reference/section";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +47,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/components/ui/utils";
 
 import type { RoleChoice, User } from "./admin-grids";
 import { useUserWrites } from "./user-commands";
@@ -246,11 +250,73 @@ export function RolesCell({
   );
 }
 
+/** A link asked of a deactivated account: the server would refuse it (`is_active_account`). */
+const DEACTIVATED: CommandOffer = {
+  is_available: false,
+  missing_conditions: ["is_active_account"],
+};
+
+/**
+ * The command that asks the link of a local account, named after it — unavailable while the account
+ * is deactivated, as the server would refuse it —; none for another account, which sets no password
+ * in Waterfall, nor for an anonymised one, withdrawn from the identity provider (WF-ADM-0060). Marked
+ * busy while a write of its row is under way, or a link asked or shown — one at a time —, and
+ * unavailable the while, or while a deactivation asked is unanswered: no link is given for an account
+ * being deactivated (WF-ADM-0140), and a press asks nothing.
+ */
+export function SetupLinkCommand({ user }: { readonly user: User }) {
+  const t = useTranslations("admin.users");
+  const told = useTranslations("admin.commands");
+  const writes = useUserWrites();
+  const unmet = useUnmet();
+  const name = useAccountNaming().person(user);
+  const described = `${useId()}-unmet`;
+  if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
+    return null;
+  }
+  const command = t("password_link.command", { name });
+  const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
+  const busy = writes.busy.has(user.user_id) || writes.linking;
+  const held = busy || writes.asked.get(user.user_id)?.is_active === false;
+  return (
+    <>
+      <CellCommand
+        aria-label={command}
+        aria-busy={busy}
+        aria-disabled={lacking === undefined && !held ? undefined : true}
+        aria-describedby={lacking === undefined ? undefined : described}
+        title={lacking}
+        className={UNAVAILABLE}
+        onClick={(event) => {
+          if (lacking !== undefined) {
+            // An unavailable command never runs: the press says the condition it lacks.
+            writes.say(told("unmet", { command, condition: lacking }));
+            return;
+          }
+          if (!held) {
+            writes.giveLink(user, name, event.currentTarget);
+          }
+        }}
+      >
+        <KeyRound aria-hidden="true" />
+        {t("link")}
+      </CellCommand>
+      {lacking === undefined ? null : (
+        <span id={described} className="sr-only">
+          {lacking}
+        </span>
+      )}
+    </>
+  );
+}
+
 /**
  * The anonymisation of an account, as the account lists it: offered to a deactivated account only,
  * unavailable once it is anonymised — marked `aria-disabled`, described by the condition it lacks
- * (WF-ADM-0060) —, and nothing when the account does not list it. It writes nothing yet: pressed, it
- * says in the region of the table that it is available with EP-03, or the condition it lacks.
+ * (WF-ADM-0060) —, and nothing when the account does not list it. Pressed, it asks the confirmation
+ * of the table, which says the anonymisation irreversible (`UserWrites.anonymize`); unavailable, it
+ * says the condition it lacks. Like the switch, it is marked busy while a write of its row is under
+ * way, and unavailable the while, or while a reactivation asked is unanswered: a press asks nothing.
  */
 export function AnonymizeCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
@@ -258,38 +324,40 @@ export function AnonymizeCommand({ user }: { readonly user: User }) {
   const writes = useUserWrites();
   const unmet = useUnmet();
   const naming = useAccountNaming();
+  const control = useRef<HTMLButtonElement>(null);
   const described = `${useId()}-unmet`;
   const offer = findOffer(user.available_commands, "anonymize");
   if (offer === undefined || writes === undefined) {
     return null;
   }
+  const busy = writes.busy.has(user.user_id);
+  const held = busy || writes.asked.get(user.user_id)?.is_active === true;
   const named = t("anonymizeUser", { name: naming.person(user) });
   const lacking = offer.is_available ? undefined : unmet(offer);
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        tabIndex={-1}
-        {...{ [CELL_COMMAND]: "" }}
+      <CellCommand
+        ref={control}
         aria-label={named}
-        aria-disabled={lacking === undefined ? undefined : true}
+        aria-busy={busy}
+        aria-disabled={lacking === undefined && !held ? undefined : true}
         aria-describedby={lacking === undefined ? undefined : described}
         title={lacking}
-        className={cn("h-5 px-1.5 text-xs", UNAVAILABLE)}
+        className={UNAVAILABLE}
         onClick={() => {
-          // An unavailable command never runs: the press says the condition it lacks.
-          writes.say(
-            lacking === undefined
-              ? told("later", { command: named })
-              : told("unmet", { command: named, condition: lacking }),
-          );
+          if (lacking !== undefined) {
+            // An unavailable command never runs: the press says the condition it lacks.
+            writes.say(told("unmet", { command: named, condition: lacking }));
+            return;
+          }
+          if (!held) {
+            writes.anonymize(user, control.current);
+          }
         }}
       >
         <UserRoundX aria-hidden="true" />
         {t("anonymize")}
-      </Button>
+      </CellCommand>
       {lacking === undefined ? null : (
         <span id={described} className="sr-only">
           {lacking}

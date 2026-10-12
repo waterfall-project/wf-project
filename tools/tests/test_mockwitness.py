@@ -330,6 +330,7 @@ _KEYS = {
         "natures de coût",
         "catégories de coût",
         "sous-projets",
+        "comptes",
     ),
     "audit_event_id": ("inscriptions du journal d'audit",),
     "object_id": (
