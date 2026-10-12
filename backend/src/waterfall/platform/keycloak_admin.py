@@ -437,8 +437,10 @@ class KeycloakAdmin:
 
         ``None`` withdraws it: the realm then speaks its own language by default. An account the
         realm no longer holds has no language left to set. The account is read, then its identity
-        and its attributes are written back, ``locale`` changed: the realm keeps only the attributes
-        it is sent.
+        and its attributes are written back, ``locale`` changed: the realm removes every attribute
+        the user profile lets it write that the PUT does not carry. Those it may not write — read
+        only, or not managed by the profile, as the nonce of the password link
+        (``waterfall-password-link-nonce``) — stay as they are.
 
         Nothing else goes back. Keycloak 26.5.7 applies ``enabled``, ``emailVerified`` and
         ``requiredActions`` when a PUT names them, and leaves them as they are when it does not
@@ -448,8 +450,8 @@ class KeycloakAdmin:
         sets when a password is chosen.
 
         Why the identity read just before goes back with it: a PUT that carries ``attributes``
-        replaces every attribute, and the identity it does not name is erased — Keycloak 26.5.7
-        answers ``{"attributes": {"locale": ...}}`` alone with 400
+        replaces every attribute the user profile lets it write, and the identity it does not name
+        is erased — Keycloak 26.5.7 answers ``{"attributes": {"locale": ...}}`` alone with 400
         ``error-user-attribute-required``, and sets first and last name to ``null`` when only the
         email goes with it. Writing ``locale`` alone is therefore not possible here.
 
