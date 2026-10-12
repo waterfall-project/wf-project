@@ -304,13 +304,15 @@ def test_after_a_scheduled_reading_a_person_of_the_directory_has_an_account_befo
     assert counts(read_accounts(database, reading)) == (0, 0, 0, [], [])
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.usefixtures("realm_known")
 def test_the_reading_finds_the_directory_without_ever_holding_its_secret(
     database: Database, reading: IdentitySync, admin: httpx2.Client, logs: Logs
 ) -> None:
-    # The service account may view the realm, to find the directories it federates and have them
-    # synchronised; the realm masks their bind credential, which neither the logs nor the report
-    # carry.
+    # « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les
+    # trouve pas. » : for the logs of the reading of the accounts. The service account may view the
+    # realm, to find the directories it federates and have them synchronised; the realm masks their
+    # bind credential, which neither the logs nor the report carry.
     report = read_accounts(database, reading)
     assert BIND_CREDENTIAL not in logs.text
     assert BIND_CREDENTIAL not in repr(report)
