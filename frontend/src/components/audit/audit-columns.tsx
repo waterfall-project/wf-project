@@ -148,19 +148,6 @@ function objectHref(event: AuditEvent, reach: AuditReach): string | undefined {
     : inRevision(project.project_id, object.revision.revision_id, object, reach);
 }
 
-/**
- * What the author of an inscription sorts by, in the order the server gives (`sort_by=actor`):
- * the accounts by their name kept, then an anonymised account, which has none, then the platform,
- * after every account — a rank before the name, so that the text alone, compared character by
- * character, holds the order. Never shown: the cell renders the author.
- */
-export function actorSortKey(actor: AuditEvent["actor"]): string {
-  if (actor.kind === "platform") {
-    return "2";
-  }
-  return typeof actor.display_name === "string" ? `0${actor.display_name}` : "1";
-}
-
 /** The grid of the journal, its links leading to what the session may consult. */
 export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, AuditPage> {
   return {
@@ -187,7 +174,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
         format: "text",
         width: 180,
         contract: "actor",
-        value: (event) => actorSortKey(event.actor),
+        value: (event) => event.actor.display_name ?? event.actor.kind,
         render: (event) => <ActorCell actor={event.actor} />,
       },
       {
