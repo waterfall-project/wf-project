@@ -706,7 +706,7 @@ describe("an anonymised account in the journal", () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000040",
       "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000020",
-      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000014",
+      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000014",
     ]);
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
     expect(

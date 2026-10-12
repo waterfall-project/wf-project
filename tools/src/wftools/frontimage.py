@@ -10,9 +10,12 @@ Next, the dependencies — builds it here first, and holds that:
 
 - nothing read from the environment is fixed at the build: the routes ``next build`` prerenders are
   the error page of Next and the icon alone, which read nothing;
-- the image starts without a variable of the platform, and ``/`` answers;
-- the fake back of the mock-up (``WATERFALL_AUTH=mock``) is refused without ``WATERFALL_E2E``: ``/``
-  answers ``500``, and the server says why.
+- the image starts with the environment of the service ``front`` of ``compose.prod.yaml``, here with
+  stand-in values, and ``/`` answers;
+- it stops without one of the variables it cannot do without, naming it in its logs (#825,
+  WF-SEC-0010), rather than start healthy to all appearances and fail at the first sign-in;
+- the fake back of the mock-up (``WATERFALL_AUTH=mock``) is refused without ``WATERFALL_E2E``: the
+  server stops as it starts, and says why.
 
 What is prerendered is decided by the code of the pages — a layout that stops reading the cookies,
 a page that reads no dynamic value —, which the image is not rebuilt for: ``--manifest`` holds the
@@ -42,7 +45,28 @@ MANIFEST = "/app/.next/prerender-manifest.json"
 REFUSAL = "WATERFALL_AUTH=mock is refused in production"
 SERVER_ERROR = 500
 WAIT = 60.0
-"""How long the server of a container has to answer, in seconds."""
+"""How long the server of a container has to answer, or to stop, in seconds."""
+
+SETTINGS = {
+    "WATERFALL_API_ADDRESS": "http://api:8000",
+    "WATERFALL_FRONT_ADDRESS": "https://waterfall.invalid",
+    "WATERFALL_KEYCLOAK_ADDRESS": "https://waterfall.invalid/auth",
+    "WATERFALL_KEYCLOAK_BACKCHANNEL": "https://waterfall.invalid/auth",
+    "WATERFALL_FRONT_CLIENT_SECRET": "stand-in",
+    "WATERFALL_REDIS_URL": "redis://:stand-in@redis:6379/0",
+    "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "c3RhbmQtaW4ta2V5LW9mLXRoZS1hY3Rpb25zLTMyYnk=",
+}
+"""The environment of the service ``front`` of ``compose.prod.yaml``, its secrets stood in for."""
+
+REQUIRED = (
+    "WATERFALL_KEYCLOAK_ADDRESS",
+    "WATERFALL_FRONT_ADDRESS",
+    "WATERFALL_FRONT_CLIENT_SECRET",
+    "WATERFALL_REDIS_URL",
+    "WATERFALL_API_ADDRESS",
+    "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+)
+"""What the front does not start without (``frontend/src/startup.ts``)."""
 
 Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
@@ -106,20 +130,55 @@ def answer(
         read(["docker", "rm", "--force", container])
 
 
+def stop(read: Read, environment: Mapping[str, str], wait: float | None = None) -> tuple[int, str]:
+    """Start the image with this environment alone; return its exit code and logs once it stops."""
+    wait = WAIT if wait is None else wait
+    variables = [word for name, value in environment.items() for word in ("-e", f"{name}={value}")]
+    started = ["docker", "run", "--detach", *variables, IMAGE]
+    container = _output(read, started)
+    try:
+        deadline = time.monotonic() + wait
+        state = ["docker", "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}"]
+        while (seen := _output(read, [*state, container]).split())[0] == "true":
+            if time.monotonic() > deadline:
+                message = f"the front did not stop within {wait:.0f} s"
+                raise FrontImageError(message)
+            time.sleep(0.5)
+        return int(seen[1]), _output(read, ["docker", "logs", container])
+    finally:
+        read(["docker", "rm", "--force", container])
+
+
+def _refused(read: Read, environment: Mapping[str, str], said: str, case: str) -> None:
+    """Hold that the front stops as it starts in this environment, saying so in its logs."""
+    try:
+        code, logged = stop(read, environment)
+    except FrontImageError as error:
+        message = f"{case}: {error}"
+        raise FrontImageError(message) from error
+    if code == 0:
+        message = f"{case}: the front stopped with the code 0, as if nothing failed"
+        raise FrontImageError(message)
+    if said not in logged:
+        message = f"{case}: the front stopped ({code}) without saying {said}"
+        raise FrontImageError(message)
+
+
 def check(read: Read, fetch: Fetch) -> None:
     """Hold the image built to what it must do."""
     manifest = ["docker", "run", "--rm", "--entrypoint", "cat", IMAGE, MANIFEST]
     check_prerendered(_output(read, manifest))
     print(f"  prerendered: {', '.join(sorted(PRERENDERED))} alone")
-    status, _ = answer(read, fetch, {})
+    status, _ = answer(read, fetch, SETTINGS)
     if status >= SERVER_ERROR:
-        message = f"/ answered {status} without a variable of the platform"
+        message = f"/ answered {status} with the settings of the production Compose"
         raise FrontImageError(message)
-    print(f"  / answers {status} without a variable of the platform")
-    status, logged = answer(read, fetch, {"WATERFALL_AUTH": "mock"})
-    if status != SERVER_ERROR or REFUSAL not in logged:
-        message = f"WATERFALL_AUTH=mock without WATERFALL_E2E is not refused: / answered {status}"
-        raise FrontImageError(message)
+    print(f"  / answers {status} with the settings of the production Compose")
+    for name in REQUIRED:
+        missing = {key: value for key, value in SETTINGS.items() if key != name}
+        _refused(read, missing, name, f"without {name}")
+        print(f"  without {name}, the front stops naming it")
+    _refused(read, {**SETTINGS, "WATERFALL_AUTH": "mock"}, REFUSAL, "WATERFALL_AUTH=mock alone")
     print("  WATERFALL_AUTH=mock without WATERFALL_E2E is refused")
 
 

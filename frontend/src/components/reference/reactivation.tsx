@@ -99,7 +99,8 @@ interface ListReport {
    * Hold the navigations of the page while a command whose refusal the list may tell answers
    * (`useHeldCommand`), for as long as the list stays on the reading it was pressed on: the dialog
    * or the row that sent it may be gone when it is refused, and the list tells it all the same
-   * (#688); read otherwise, the list tells it no more, and holds nothing.
+   * (#688); read otherwise, the list tells it no more, and holds nothing: refused after, the bar of
+   * the shell tells it, unless `told` says that what asked it tells it still (#863).
    */
   readonly held: ReturnType<typeof useHeldCommand>;
 }
@@ -180,7 +181,8 @@ export function Reactivations({
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
   // The list tells a refusal on the reading it was asked from alone: read otherwise, it releases
-  // the clicks its commands hold, their refusal told nowhere now, nor once that reading is back.
+  // the clicks its commands hold, and one refused after is told by the bar of the shell — unless the
+  // dialog that asked it, still open, tells it at its fields (#863).
   const held = useHeldCommand(String(generation));
   const report = useCallback((refusal: Reported) => {
     counted.current += 1;

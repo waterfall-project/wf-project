@@ -1,0 +1,369 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The production platform on one machine (US-0430, WF-ARC-0050): the images the chain publishes on
+# ghcr.io/waterfall-project — front, waterfall, keycloak —, under the tag WATERFALL_IMAGE_TAG, and
+# nothing built here. Caddy is its only door, in HTTPS (Caddyfile.prod); the front, the API, the
+# worker and the schedule of its tasks; PostgreSQL with two databases, Waterfall's and Keycloak's;
+# Redis; Garage, the object storage, and the buckets it makes; Keycloak and the application of its
+# realm; the data in named volumes. How to install, bootstrap, update, back up and stop it:
+# README.md.
+#
+# The settings and the secrets come from the file .env beside this one, which the operator fills
+# from production.env.example: a service that lacks one stops, naming it (WF-SEC-0010). A password
+# written in a URL — PostgreSQL's, Redis's — holds letters and digits only. The environment of a
+# container stays readable by `docker inspect` on the machine, as for any service: what these files
+# avoid is a secret in a command line or in an image.
+name: waterfall
+
+# Where the browser reaches the platform: the domain, and the port of HTTPS when it is not 443.
+x-address: &address https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}
+x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/auth
+
+x-waterfall-image: &waterfall-image ghcr.io/waterfall-project/waterfall:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+x-keycloak-image: &keycloak-image ghcr.io/waterfall-project/keycloak:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+x-postgres-image: &postgres-image postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+
+# The API, the worker and the schedule connect as the role of the service, which holds only what the
+# tables grant it, waterfall_service (#701); the migrations and the bootstrap, as waterfall, the
+# owner of the tables, no superuser. The administrator of the server, postgres, is the services' of
+# initialisation alone, which create the roles and the databases (x-administrator).
+x-back-environment: &back-environment
+  WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall
+  WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
+x-administrator: &administrator
+  PGHOST: postgres
+  PGUSER: postgres
+  PGPASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
+x-owner-database-url: &owner-database-url postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}@postgres:5432/waterfall
+
+# The issuer of every token is the address the browser reaches Keycloak at; the API and the worker
+# reach it inside the network of the platform, for its keys and its administration API, as its
+# service account. The encryption between the services is EP-13's (WF-SEC-0010).
+x-keycloak-client-environment: &keycloak-client-environment
+  WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
+  WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
+  WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
+
+x-storage-key: &storage-key ${WATERFALL_STORAGE_ACCESS_KEY:-GK000000000000000000000001}
+x-storage-secret: &storage-secret ${WATERFALL_STORAGE_SECRET:?set WATERFALL_STORAGE_SECRET in .env}
+x-storage-environment: &storage-environment
+  WATERFALL_STORAGE_ADDRESS: http://storage:3900
+  WATERFALL_STORAGE_ACCESS_KEY: *storage-key
+  WATERFALL_STORAGE_SECRET: *storage-secret
+  WATERFALL_BACKUPS_BUCKET: backups
+
+x-healthy: &healthy
+  condition: service_healthy
+x-done: &done
+  condition: service_completed_successfully
+
+services:
+  # The only door: 80, which Let's Encrypt asks and which sends to HTTPS, and 443. It answers for
+  # the domain under its own name too, inside the network: the front reaches Keycloak there, in
+  # HTTPS, at the address the browser knows.
+  caddy:
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
+    environment:
+      WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
+      # Where HTTP sends to: the published address, its port of HTTPS included.
+      WATERFALL_ADDRESS: *address
+      WATERFALL_ACME_EMAIL: ${WATERFALL_ACME_EMAIL:?set WATERFALL_ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile.prod:ro
+      # The certificates and the account of Let's Encrypt: kept, or every start would ask again.
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "${WATERFALL_HTTP_PORT:-80}:80"
+      - "${WATERFALL_HTTPS_PORT:-443}:443"
+    networks:
+      default:
+        aliases:
+          - ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
+    restart: unless-stopped
+
+  front:
+    image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+    environment:
+      WATERFALL_API_ADDRESS: http://api:8000
+      WATERFALL_FRONT_ADDRESS: *address
+      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
+      # The server of Next reaches Keycloak through Caddy, on its name in the network, in HTTPS: its
+      # client of the realm admits no address in HTTP.
+      WATERFALL_KEYCLOAK_BACKCHANNEL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}/auth
+      WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
+      WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
+      # The key of the server actions, the same for every start and every instance (#825).
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
+    depends_on:
+      api: *healthy
+      redis: *healthy
+      keycloak-realm: *done
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # The administrator of the server, postgres, made at the first start alone, as is its password:
+  # to change it afterwards, ALTER ROLE postgres PASSWORD '...' in the container, then in .env.
+  postgres:
+    image: *postgres-image
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username postgres --dbname postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
+  redis:
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    user: redis
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
+    environment:
+      REDISCLI_AUTH: ${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # The database of Waterfall and its owner, no superuser, created when missing, with the role of
+  # the service, which the owner may not create (waterfall-database.sql).
+  waterfall-database:
+    image: *postgres-image
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/waterfall-database.sql"]
+    environment:
+      <<: *administrator
+      PGDATABASE: postgres
+      OWNER_DATABASE_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./waterfall-database.sql:/waterfall-database.sql:ro
+    restart: "no"
+    depends_on:
+      postgres: *healthy
+
+  # Applies the migrations as the owner of the tables, then stops: at each start, so that a new tag
+  # migrates the schema before the API starts on it (#701, WF-DAT-0140).
+  migrate:
+    image: *waterfall-image
+    environment:
+      <<: *back-environment
+      WATERFALL_DATABASE_URL: *owner-database-url
+    command: ["waterfall-migrate"]
+    restart: "no"
+    depends_on:
+      waterfall-database: *done
+
+  # Lets the role of the service, which the migrations create, sign in with its password.
+  service-database-role:
+    image: *postgres-image
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
+    environment:
+      <<: *administrator
+      PGDATABASE: waterfall
+      SERVICE_DATABASE_PASSWORD: ${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}
+    volumes:
+      - ./service-database-role.sql:/service-database-role.sql:ro
+    restart: "no"
+    depends_on:
+      migrate: *done
+
+  # The role of the backup, a member of pg_read_all_data, by which the worker dumps both databases
+  # and which can neither write nor turn a trigger off (#895).
+  backup-database-role:
+    image: *postgres-image
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
+    environment:
+      <<: *administrator
+      PGDATABASE: waterfall
+      BACKUP_DATABASE_PASSWORD: ${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}
+    volumes:
+      - ./backup-database-role.sql:/backup-database-role.sql:ro
+    restart: "no"
+    depends_on:
+      waterfall-database: *done
+
+  # The database of Keycloak on the same server, with its role, created when missing.
+  keycloak-database:
+    image: *postgres-image
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/keycloak-database.sql"]
+    environment:
+      <<: *administrator
+      PGDATABASE: postgres
+      KEYCLOAK_DATABASE_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
+    volumes:
+      - ./keycloak-database.sql:/keycloak-database.sql:ro
+    restart: "no"
+    depends_on:
+      postgres: *healthy
+
+  api:
+    image: *waterfall-image
+    environment:
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+    depends_on:
+      service-database-role: *done
+      redis: *healthy
+      storage-buckets: *done
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Runs the background tasks of the queue (WF-ARC-0090), and starts again if it stops. A backup
+  # dumps both databases as the role of the backup (#895) into the bucket of the backups.
+  worker:
+    image: *waterfall-image
+    environment:
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/waterfall
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/keycloak
+    command: ["waterfall-worker"]
+    restart: unless-stopped
+    depends_on:
+      service-database-role: *done
+      backup-database-role: *done
+      keycloak-database: *done
+      redis: *healthy
+      storage-buckets: *done
+
+  # Deposits the reading of the accounts at the end of each interval, in seconds, a day by default
+  # (PBS-5.3). An interval that sleep refuses stops the service, with 2.
+  scheduler:
+    image: *waterfall-image
+    environment:
+      <<: *back-environment
+      WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
+    init: true
+    command:
+      - sh
+      - -c
+      - while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done; exit 2
+    restart: unless-stopped
+    depends_on:
+      service-database-role: *done
+      redis: *healthy
+
+  # The bootstrap (US-0420): `docker compose -f compose.prod.yaml run --rm install` once the platform
+  # is up. The migrations, then what nobody may enter without, and the link of the first
+  # administrator, alone on its standard output. As the owner of the tables (#701), and the only
+  # service that holds the secret of the client of the bootstrap (#652). Never started by `up`; run
+  # alone, it waits for the schema migrated and for the realm applied, whose client it uses.
+  install:
+    image: *waterfall-image
+    profiles: [install]
+    environment:
+      <<: *keycloak-client-environment
+      WATERFALL_DATABASE_URL: *owner-database-url
+      WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
+      WATERFALL_ADMIN_EMAIL: ${WATERFALL_ADMIN_EMAIL:?set WATERFALL_ADMIN_EMAIL in .env}
+      WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
+    command: ["waterfall-api", "install"]
+    restart: "no"
+    depends_on:
+      postgres: *healthy
+      migrate: *done
+      keycloak: *healthy
+      keycloak-realm: *done
+
+  # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
+  # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
+  storage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    command: ["/garage", "server", "--single-node", "--default-access-key"]
+    environment:
+      GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?set WATERFALL_STORAGE_RPC_SECRET in .env}
+      GARAGE_DEFAULT_ACCESS_KEY: *storage-key
+      GARAGE_DEFAULT_SECRET_KEY: *storage-secret
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - storage-data:/var/lib/garage
+    mem_limit: 256m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Creates the buckets of the platform when missing, then stops: the backups, and the imports.
+  storage-buckets:
+    image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+    entrypoint: ["/bin/sh", "/storage-buckets.sh"]
+    environment:
+      STORAGE_ADDRESS: http://storage:3900
+      STORAGE_ACCESS_KEY: *storage-key
+      STORAGE_SECRET: *storage-secret
+      STORAGE_BUCKETS: backups imports
+    volumes:
+      - ./storage-buckets.sh:/storage-buckets.sh:ro
+    restart: "no"
+    depends_on:
+      storage: *healthy
+
+  # Keycloak behind Caddy, under /auth: the issuer of every token is the address of the browser; the
+  # services reach it at keycloak:8080, on the back channel. No mail server: the links that set a
+  # password are handed over by createPasswordSetupLink (WF-CMP-0030).
+  keycloak:
+    image: *keycloak-image
+    environment:
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
+      # The administrator of the master realm, read at the first start alone.
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_HOSTNAME: *keycloak-address
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+    restart: unless-stopped
+    depends_on:
+      keycloak-database: *done
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+  # Applies the realm of the image, at each start, then stops: a setting changed by hand in the
+  # console comes back to what the realm says. Keycloak tells the front of a closed session on its
+  # back channel, inside the network of the platform (#731).
+  keycloak-realm:
+    image: *keycloak-image
+    entrypoint: ["/opt/keycloak/bin/apply-realm"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
+      WATERFALL_FRONT_ADDRESS: *address
+      WATERFALL_FRONT_BACKCHANNEL: http://front:3000
+      WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
+      WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
+      WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
+    restart: "no"
+    depends_on:
+      keycloak: *healthy
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  storage-data:

@@ -61,6 +61,9 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
+    "signIn": "Sign-in",
+    "signInHelp": "Your sign-in credentials are set and changed on the page of your account at the identity provider.",
+    "realmPage": "Open my account at the identity provider",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -198,7 +201,8 @@
       "auditObject": "Object",
       "objectHistory": "History of the object",
       "project": "Project",
-      "correlation": "Correlation"
+      "correlation": "Correlation",
+      "passwordLink": "Setup link"
     },
     "computed": "Computed",
     "entry": {
@@ -834,7 +838,8 @@
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "leftRefused": "{count, plural, one {A change no longer shown was refused: it is not saved.} other {# changes no longer shown were refused: they are not saved.}}"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -1227,7 +1232,6 @@
       "beyond": "This page is beyond the end of the list."
     },
     "commands": {
-      "later": "{command}: available with EP-03.",
       "unmet": "{command}: {condition}"
     },
     "users": {
@@ -1238,6 +1242,7 @@
       "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}",
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
+      "create": "Create a local account",
       "anonymize": "Anonymise",
       "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
@@ -1247,12 +1252,32 @@
       "activeAccounts": "Active accounts",
       "inactiveAccounts": "Deactivated accounts",
       "told": "Commands of the accounts",
+      "created": "Account “{name}” created.",
+      "creationHint": "The account is born with no way to sign in: its holder gets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",
       "deactivated": "“{name}” deactivated.",
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
       "rolesOf": "Roles of “{name}”",
       "rolesAttributed": "Roles of “{name}” attributed.",
-      "renamed": "“{name}” renamed."
+      "link": "Link",
+      "password_link": {
+        "command": "Link to set the password of “{name}”",
+        "title": "Link to set the password of “{name}”",
+        "hint": "To hand over to its holder by another channel: they set their password on the page of the identity provider. The link serves once and will not be shown again; asking another makes this one void."
+      },
+      "linkExpiry": "Valid until <expiry></expiry>.",
+      "copyLink": "Copy the link",
+      "closeLink": "Close",
+      "linkCopied": "Link copied.",
+      "linkSelected": "Link selected: copy it with the keyboard.",
+      "renamed": "“{name}” renamed.",
+      "createdUninvited": "Account “{name}” created; no invitation went: hand over its setup link.",
+      "uninvited": "The account “{name}” is created, but no invitation went to it: hand over its setup link to its holder, by another channel.",
+      "giveLink": "Hand over the link",
+      "anonymized": "Account anonymised.",
+      "anonymizationTitle": "Anonymise “{name}”?",
+      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
+      "keep": "Keep"
     },
     "accessRoles": {
       "title": "Access roles",
@@ -1362,6 +1387,17 @@
       "history": "History of “{object}”",
       "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "details": {
+        "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
+        "attached": "Origin from now on: {origin}",
+        "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",
+        "renamed": "Formerly “{label}”",
+        "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
+        "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "then": "{first}; {second}"
+      },
       "filters": {
         "label": "Filters of the log",
         "period": "Period",

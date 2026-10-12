@@ -6,8 +6,8 @@
  * of its client, and the Redis that keeps the sessions.
  *
  * Read from the environment when a session is first needed, never at the import: the mode of the
- * fake back (`WATERFALL_AUTH=mock`) and `next build` need none of them. A variable that is missing
- * fails the first sign-in, naming it.
+ * fake back (`WATERFALL_AUTH=mock`) and `next build` need none of them. The server of Next checks
+ * them once as it starts (`src/startup.ts`), and stops naming the one that is missing (#825).
  */
 import "server-only";
 
@@ -34,6 +34,20 @@ export interface SessionSettings {
   readonly signedOut: string;
   /** The secret of the client of the front. */
   readonly clientSecret: string;
+}
+
+/** The variables the session cannot do without; the back channel to Keycloak is optional. */
+export const SESSION_VARIABLES = [
+  "WATERFALL_KEYCLOAK_ADDRESS",
+  "WATERFALL_FRONT_ADDRESS",
+  "WATERFALL_FRONT_CLIENT_SECRET",
+  "WATERFALL_REDIS_URL",
+] as const;
+
+/** Whether a variable is set to something: an empty value is as missing as an absent one. */
+export function isSet(name: string): boolean {
+  const value = process.env[name];
+  return value !== undefined && value !== "";
 }
 
 /** The value of a variable the session cannot do without. */
@@ -64,6 +78,16 @@ export function sessionSettings(): SessionSettings {
     signedOut: `${front}${LOGIN_ROUTE}`,
     clientSecret: required("WATERFALL_FRONT_CLIENT_SECRET"),
   };
+}
+
+/**
+ * The page of the account at the realm, where a local account sets and changes its password: the
+ * identity provider holds it, and no screen of Waterfall asks for one (WF-ADM-0140). None without
+ * the address of Keycloak — the mode of the fake back, which has no realm.
+ */
+export function realmAccountPage(): string | undefined {
+  const address = process.env.WATERFALL_KEYCLOAK_ADDRESS;
+  return address === undefined || address === "" ? undefined : `${realmUnder(address)}/account`;
 }
 
 /** The address of the Redis of the platform, where the sessions are kept. */

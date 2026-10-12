@@ -11,13 +11,13 @@
  *   as the server resolves them — and whether it is active, a deactivated one staying listed
  *   (WF-ADM-0050, WF-ADM-0060). The server pages them. For a session that may modify the accounts,
  *   the table is its own entry (US-0360, #379): the names of a local account in their cells, its
- *   state on a switch, its roles in a list of several choices, its anonymisation on a command
- *   (`user-cells.tsx`) — none deletes an account —, the state, the roles and the anonymisation as
- *   the account lists their commands (`available_commands`): the deactivation of the last
- *   administrator unavailable (WF-ADM-0120); the anonymisation offered to a deactivated account
- *   only, and the reactivation and the anonymisation of an anonymised one unavailable
- *   (WF-ADM-0060). An anonymised account has neither name nor address: it shows the neutral label
- *   in place of its last name, nothing for the rest, and its names are not entered.
+ *   state on a switch, its roles in a list of several choices, the link of a local account and its
+ *   anonymisation on commands (`user-cells.tsx`) — none deletes an account —, the state, the roles
+ *   and the anonymisation as the account lists their commands (`available_commands`): the
+ *   deactivation of the last administrator unavailable (WF-ADM-0120); the anonymisation offered to a
+ *   deactivated account only, and the reactivation and the anonymisation of an anonymised one
+ *   unavailable (WF-ADM-0060). An anonymised account has neither name nor address: it shows the
+ *   neutral label in place of its last name, nothing for the rest, and its names are not entered.
  * - The access roles: each predefined or composed, with how many accounts hold it (WF-ADM-0010,
  *   WF-ADM-0090); for a session that may modify the roles, its label entered in its cell and the
  *   command to delete it (`DeleteRole`) — unavailable while an account holds it (US-0380, #380).
@@ -49,7 +49,13 @@ import { ActiveState } from "@/components/reference/section";
 
 import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
-import { AnonymizeCommand, HeldRoles, RolesCell, StateSwitch } from "./user-cells";
+import {
+  AnonymizeCommand,
+  HeldRoles,
+  RolesCell,
+  SetupLinkCommand,
+  StateSwitch,
+} from "./user-cells";
 import { NAME_LENGTH, USER_FILTERS } from "./user-address";
 
 /** An account, as the contract gives it. */
@@ -155,6 +161,18 @@ function naming(
   };
 }
 
+/** The column of the link of a local account, for a session that may modify the accounts. */
+function setupLinkColumn(): GridColumn<User, UserSort, UserPage> {
+  return {
+    key: "password_link",
+    label: "passwordLink",
+    format: "text",
+    width: COMMAND_WIDTH,
+    value: () => null,
+    render: (user) => <SetupLinkCommand user={user} />,
+  };
+}
+
 /** The column of the anonymisation of an account, for a session that may modify the accounts. */
 function anonymizeColumn(): GridColumn<User, UserSort, UserPage> {
   return {
@@ -181,7 +199,8 @@ export interface UserEntry {
  * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
  * state. For a session that may modify the accounts, it is its own entry (`entry`): the names of a
  * local account in their cells, the state on a switch, the roles in a list of several choices, and
- * the anonymisation of a deactivated account on its command — none deletes an account (WF-ADM-0060).
+ * the link of a local account and the anonymisation of a deactivated one on their commands — none
+ * deletes an account (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {
@@ -271,7 +290,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
             <StateSwitch user={user} />
           ),
       },
-      ...(entry === undefined ? [] : [anonymizeColumn()]),
+      ...(entry === undefined ? [] : [setupLinkColumn(), anonymizeColumn()]),
     ],
   };
 }

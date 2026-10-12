@@ -10,12 +10,12 @@ import pytest
 import structlog
 from pydantic import SecretStr
 from support import (
+    BACKUP_CREDENTIAL,
     BEARER_JWT,
     DB_CREDENTIAL,
     DECODED_CREDENTIAL,
     ENCODED_CREDENTIAL,
     KEYCLOAK_DATABASE_CREDENTIAL,
-    OWNER_CREDENTIAL,
     PLATFORM_SECRETS,
     REDIS_CREDENTIAL,
     SESSION_COOKIE,
@@ -127,11 +127,12 @@ def test_a_secret_that_contains_another_is_hidden_whole() -> None:
 def test_the_settings_give_each_secret_they_hold_and_the_password_of_a_url(
     platform_settings: Settings,
 ) -> None:
-    # The worker holds besides the addresses of the owners of the two databases it backs up.
-    owners = {"WATERFALL_OWNER_DATABASE_URL", "WATERFALL_KEYCLOAK_DATABASE_URL"}
-    service = {value for name, value in PLATFORM_SECRETS.items() if name not in owners}
+    # The worker holds besides the addresses of the two databases it backs up, as the role of the
+    # backup.
+    backups = {"WATERFALL_BACKUP_DATABASE_URL", "WATERFALL_KEYCLOAK_DATABASE_URL"}
+    service = {value for name, value in PLATFORM_SECRETS.items() if name not in backups}
     assert set(platform_settings.secret_values()) == {DB_CREDENTIAL, REDIS_CREDENTIAL} | service
-    passwords = {DB_CREDENTIAL, REDIS_CREDENTIAL, OWNER_CREDENTIAL, KEYCLOAK_DATABASE_CREDENTIAL}
+    passwords = {DB_CREDENTIAL, REDIS_CREDENTIAL, BACKUP_CREDENTIAL, KEYCLOAK_DATABASE_CREDENTIAL}
     assert set(load_worker_settings().secret_values()) == passwords | set(PLATFORM_SECRETS.values())
 
 

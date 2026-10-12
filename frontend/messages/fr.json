@@ -61,6 +61,9 @@
     "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
+    "signIn": "Connexion",
+    "signInHelp": "Vos identifiants de connexion se fixent et se changent sur la page de votre compte du fournisseur d’identité.",
+    "realmPage": "Ouvrir mon compte du fournisseur d’identité",
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
@@ -198,7 +201,8 @@
       "auditObject": "Objet",
       "objectHistory": "Histoire de l’objet",
       "project": "Projet",
-      "correlation": "Corrélation"
+      "correlation": "Corrélation",
+      "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
     "entry": {
@@ -834,7 +838,8 @@
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
     "signIn": "Se connecter",
-    "dismiss": "Fermer l’avis"
+    "dismiss": "Fermer l’avis",
+    "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
@@ -1227,7 +1232,6 @@
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
     "commands": {
-      "later": "{command} : disponible avec EP-03.",
       "unmet": "{command} : {condition}"
     },
     "users": {
@@ -1238,6 +1242,7 @@
       "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
       "anonymize": "Anonymiser",
       "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
@@ -1247,12 +1252,32 @@
       "activeAccounts": "Comptes actifs",
       "inactiveAccounts": "Comptes désactivés",
       "told": "Commandes des comptes",
+      "created": "Compte « {name} » créé.",
+      "creationHint": "Le compte naît sans moyen de se connecter : son porteur en reçoit un par le lien de fixation, que le fournisseur d’identité lui envoie par courriel, ou, faute d’invitation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
       "deactivated": "« {name} » désactivé.",
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
       "rolesAttributed": "Rôles de « {name} » attribués.",
-      "renamed": "« {name} » renommé."
+      "link": "Lien",
+      "password_link": {
+        "command": "Lien de fixation du mot de passe de « {name} »",
+        "title": "Lien de fixation du mot de passe de « {name} »",
+        "hint": "À remettre à son porteur par un autre canal : il y fixe son mot de passe, sur la page du fournisseur d’identité. Le lien ne sert qu’une fois et ne sera plus montré ; en demander un autre rend celui-ci caduc."
+      },
+      "linkExpiry": "Valable jusqu’à <expiry></expiry>.",
+      "copyLink": "Copier le lien",
+      "closeLink": "Fermer",
+      "linkCopied": "Lien copié.",
+      "linkSelected": "Lien sélectionné : copiez-le au clavier.",
+      "renamed": "« {name} » renommé.",
+      "createdUninvited": "Compte « {name} » créé ; aucune invitation n’est partie : remettez-lui son lien de fixation.",
+      "uninvited": "Le compte « {name} » est créé, mais aucune invitation ne lui est partie : remettez à son porteur son lien de fixation, par un autre canal.",
+      "giveLink": "Remettre le lien",
+      "anonymized": "Compte anonymisé.",
+      "anonymizationTitle": "Anonymiser « {name} » ?",
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
+      "keep": "Conserver"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
@@ -1362,6 +1387,17 @@
       "history": "Histoire de « {object} »",
       "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "details": {
+        "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
+        "attached": "Origine désormais : {origin}",
+        "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",
+        "renamed": "Auparavant « {label} »",
+        "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
+        "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "then": "{first} ; {second}"
+      },
       "filters": {
         "label": "Filtres du journal",
         "period": "Période",

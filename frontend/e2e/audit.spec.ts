@@ -36,6 +36,11 @@ test("reaches the journal of audit from the navigation of the administration, an
       name: /Camille Martin Survenance d’un risque Risque Retard de livraison des armoires/,
     }),
   ).toContainText("PRJ-001 · Modernisation du poste de commande");
+  // An account created says its action and, under it, where it was created: two lines of small
+  // type that keep the height of a row, which the windowing of the rows counts on (ROW_REM).
+  const created = grid.getByRole("row", { name: /Créé par le fournisseur d’identité/ });
+  await expect(created).toContainText("Création d’un compte");
+  expect((await created.boundingBox())?.height).toBe(28);
   // Each date in the local time of the workstation, once the browser has written it.
   await expect(grid.getByRole("row").nth(1).locator("time")).not.toBeEmpty();
   // The totals, how many the server retained, in view: their cells stick to the foot of the grid.

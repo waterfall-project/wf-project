@@ -130,6 +130,25 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # The role of the backup, created when missing, and its password, at each start of the platform,
+  # then stops (#895): the worker dumps the databases as it.
+  backup-database-role:
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
+    environment:
+      PGHOST: postgres
+      PGUSER: waterfall
+      PGDATABASE: waterfall
+      PGPASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
+      BACKUP_DATABASE_PASSWORD: ${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}
+    volumes:
+      - ./backup-database-role.sql:/backup-database-role.sql:ro
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     <<: *back
     environment:
@@ -150,18 +169,23 @@ services:
       retries: 30
 
   # Runs the background tasks of the queue (WF-ARC-0090), with the settings of the API, and starts
-  # again if it stops: a task it was running is taken up again. A backup dumps the two databases as
-  # their owners, waterfall and keycloak (#701), into the bucket of the backups.
+  # again if it stops: a task it was running is taken up again. A backup dumps the two databases,
+  # waterfall and keycloak, as the role of the backup, which can neither write nor turn a trigger
+  # off (#895), into the bucket of the backups.
   worker:
     <<: *back
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
-      WATERFALL_OWNER_DATABASE_URL: postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}@postgres:5432/waterfall
-      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?export WATERFALL_KEYCLOAK_DATABASE_PASSWORD}@postgres:5432/keycloak
+      WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/waterfall
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/keycloak
     command: ["waterfall-worker"]
     restart: unless-stopped
     depends_on:
       service-database-role:
+        condition: service_completed_successfully
+      backup-database-role:
+        condition: service_completed_successfully
+      keycloak-database:
         condition: service_completed_successfully
       redis:
         condition: service_healthy

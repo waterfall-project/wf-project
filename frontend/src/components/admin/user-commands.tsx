@@ -3,24 +3,28 @@
 /**
  * The commands of the table of the accounts (US-0360, #379), for a session that may modify them
  * (`users.write`): the table is its own entry — the names of a local account in their cells
- * (`admin-grids.tsx`), its state on a switch, its access roles in a list of several choices
- * (`user-cells.tsx`). No command deletes an account (WF-ADM-0060).
+ * (`admin-grids.tsx`), its state on a switch, its access roles in a list of several choices, the link
+ * by which its holder sets a password and the anonymisation of a deactivated one (`user-cells.tsx`) —,
+ * and « Créer un compte local » heads it (`user-dialogs.tsx`). No command deletes an account
+ * (WF-ADM-0060).
  *
  * The accounts the server answered a write with are kept here until the page read anew holds them,
  * one source for every cell of a row: the account answered prevails over the same account read while
  * it is newer, by its counter (`lock_version`), and the next write of the row, whatever its cell,
  * goes from its version (défaut n° 22 de `typescript.md`). The writes of a row go one after the
  * other: a name entered while another write of its row is under way waits for its answer, and goes
- * from the version it answered; the switch and the roles of the row are marked busy and unavailable
- * the while. What a write asked shows until the server answers. What a write did is said in the
- * region of the table, named after it, as what the anonymisation of a deactivated account pressed
- * does — it writes nothing yet: available with EP-03, or the condition it lacks
- * (`AnonymizeCommand`); a refusal of the switch or of the roles, above it by the
- * catalogue of the codes of error, on the reading it was asked from alone (`Reactivations`, défaut
- * n° 1), that of a name, at its cell. Every prop is data, never a function (défaut n° 12).
+ * from the version it answered; the switch, the roles and the anonymisation of the row are marked busy
+ * and unavailable the while. What a write asked shows until the server answers. The anonymisation,
+ * irreversible, is confirmed first, in a dialog outside the grid that names the account and says so
+ * (`AnonymizationDialog`), as the deletion of a role is. What a write did is said in the region of
+ * the table, named after it, as the condition an unavailable command lacks; a refusal of the switch,
+ * of the roles, of the anonymisation or of the link, above it by the catalogue of the codes of error,
+ * on the reading it was asked from alone (`Reactivations`, défaut n° 1), that of a name, at its cell.
+ * Every prop is data, never a function (défaut n° 12).
  */
 "use client";
 
+import { UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -32,12 +36,20 @@ import {
   useState,
 } from "react";
 
+import { anonymizeUser, createPasswordSetupLink } from "@/api/actions/users";
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useAccountNaming } from "@/components/account/account-name";
 import { rejected } from "@/components/commands/rejection";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
+import { Button } from "@/components/ui/button";
 
 import type { User } from "./admin-grids";
+import { AnonymizationDialog, SetupLinkDialog, UserCreation } from "./user-dialogs";
 import { USER_READS } from "./user-address";
+
+/** A link to set a password, as the contract gives it. */
+type SetupLink = components["schemas"]["PasswordSetupLink"];
 
 /** What a write of an account asked, shown until the server answers: its state, or its roles. */
 export interface Asked {
@@ -80,10 +92,18 @@ export interface UserWrites {
    * answer kept and said; its outcome given back, for the cell to tell a refusal.
    */
   readonly queue: (shown: User, write: QueuedWrite) => Promise<Outcome<User>>;
+  /** Open the creation of a local account, from the command pressed. */
+  readonly create: (trigger: HTMLElement) => void;
   /**
-   * Say in the region of the table what a command pressed does without writing — the anonymisation,
-   * available with EP-03, or the condition it lacks.
+   * Ask the link of an account, from the command pressed, and show it once given; nothing while
+   * another link is asked or shown.
    */
+  readonly giveLink: (user: User, name: string, trigger: HTMLElement) => void;
+  /** Whether a link is asked or shown: every command of the link waits until it is closed. */
+  readonly linking: boolean;
+  /** Ask the confirmation of the anonymisation of an account, from the command pressed. */
+  readonly anonymize: (user: User, back: HTMLElement | null) => void;
+  /** Say in the region of the table what a command did, or the condition it lacks. */
   readonly say: (text: string) => void;
 }
 
@@ -109,12 +129,45 @@ export function UserCommands({ children }: { readonly children: ReactNode }) {
 }
 
 /**
- * The accounts answered and asked, and the region that says what the last write did — rendered
- * from the start, so that a reader of the screen hears what is put in it.
+ * An opening of the creation, from the command pressed: each its own, so that a dialog closes its
+ * opening alone, never one opened since.
+ */
+interface Opening {
+  readonly trigger: HTMLElement;
+}
+
+/** A link given, the account it is for, and the command that asked it. */
+interface Given {
+  readonly link: SetupLink;
+  readonly name: string;
+  readonly trigger: HTMLElement;
+}
+
+/** An account whose anonymisation is asked, the command that asked it, and whether it is open. */
+interface Anonymizing {
+  readonly user: User;
+  readonly back: HTMLElement | null;
+  readonly open: boolean;
+}
+
+/** Give the focus back to a command, or to its cell in the grid; to the list when it is gone. */
+function focusBack(trigger: HTMLElement, list: (() => void) | undefined) {
+  if (!trigger.isConnected) {
+    list?.();
+    return;
+  }
+  (trigger.closest<HTMLElement>("td") ?? trigger).focus();
+}
+
+/**
+ * The accounts answered and asked, the region that says what the last write did — rendered from the
+ * start, so that a reader of the screen hears what is put in it —, the creation of an account and the
+ * link given.
  */
 function Writes({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.users");
   const list = useListReport();
+  const naming = useAccountNaming();
   const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
   const say = useCallback((text: string) => {
     setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
@@ -126,6 +179,14 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
   // The last write of each row under way, settled whatever its outcome: the next one waits for it.
   const asking = useRef(new Map<string, Promise<unknown>>());
+  const [creating, setCreating] = useState<Opening>();
+  const [given, setGiven] = useState<Given>();
+  const [linking, setLinking] = useState(false);
+  // The same, as the last press left it: two presses may come before a render.
+  const linkHeld = useRef(false);
+  // The account whose anonymisation is asked — kept while the confirmation closes —, and whether
+  // the confirmation is open.
+  const [anonymizing, setAnonymizing] = useState<Anonymizing>();
 
   const record = useCallback((user: User) => {
     const kept = latestAnswers.current.get(user.user_id);
@@ -205,9 +266,55 @@ function Writes({ children }: { readonly children: ReactNode }) {
     },
     [list, reserve],
   );
+  const releaseLink = useCallback(() => {
+    linkHeld.current = false;
+    setLinking(false);
+  }, []);
+  const giveLink = useCallback(
+    (user: User, name: string, trigger: HTMLElement) => {
+      if (linkHeld.current) {
+        // One link at a time: the one asked or shown is closed first.
+        return;
+      }
+      linkHeld.current = true;
+      setLinking(true);
+      const id = user.user_id;
+      // The reading the link is asked from: its refusal is told on it alone.
+      const generation = list?.generation ?? 0;
+      void createPasswordSetupLink(id)
+        .catch(rejected)
+        .then((outcome) => {
+          if (outcome.kind === "done") {
+            setGiven({ link: outcome.data, name, trigger });
+          } else {
+            releaseLink();
+            list?.report({ outcome, generation, names: {}, target: `link ${id}`, back: trigger });
+          }
+        });
+    },
+    [list, releaseLink],
+  );
+  const create = useCallback((trigger: HTMLElement) => {
+    setCreating({ trigger });
+  }, []);
+  const anonymize = useCallback((user: User, back: HTMLElement | null) => {
+    setAnonymizing({ user, back, open: true });
+  }, []);
   const writes = useMemo<UserWrites>(
-    () => ({ answered, asked, busy, latest, run, queue: reserve, say }),
-    [answered, asked, busy, latest, run, reserve, say],
+    () => ({
+      answered,
+      asked,
+      busy,
+      latest,
+      run,
+      queue: reserve,
+      create,
+      giveLink,
+      linking,
+      anonymize,
+      say,
+    }),
+    [answered, asked, busy, latest, run, reserve, create, giveLink, linking, anonymize, say],
   );
   return (
     <WritesContext value={writes}>
@@ -220,6 +327,80 @@ function Writes({ children }: { readonly children: ReactNode }) {
         {said === undefined ? null : <span key={said.count}>{said.text}</span>}
       </p>
       {children}
+      {creating === undefined ? null : (
+        <UserCreation
+          linking={linking}
+          onCreated={(user) => {
+            const name = naming.person(user);
+            say(t(user.invitation_sent ? "created" : "createdUninvited", { name }));
+          }}
+          onLink={(user) => {
+            giveLink(user, naming.person(user), creating.trigger);
+          }}
+          onClose={() => {
+            setCreating((current) => (current === creating ? undefined : current));
+          }}
+          onClosed={() => {
+            focusBack(creating.trigger, list?.refocus);
+          }}
+        />
+      )}
+      {given === undefined ? null : (
+        <SetupLinkDialog
+          link={given.link}
+          name={given.name}
+          onClose={() => {
+            setGiven(undefined);
+            releaseLink();
+          }}
+          onClosed={() => {
+            focusBack(given.trigger, list?.refocus);
+          }}
+        />
+      )}
+      <AnonymizationDialog
+        name={anonymizing === undefined ? "" : naming.person(anonymizing.user)}
+        open={anonymizing?.open ?? false}
+        onConfirm={() => {
+          if (anonymizing === undefined) {
+            return;
+          }
+          const { user, back } = anonymizing;
+          run(user, {
+            target: `anonymize ${user.user_id}`,
+            asked: {},
+            send: (shown) => anonymizeUser(shown.user_id, { lock_version: shown.lock_version }),
+            said: () => t("anonymized"),
+            back,
+          });
+        }}
+        onClose={() => {
+          setAnonymizing((before) => (before === undefined ? before : { ...before, open: false }));
+        }}
+        onClosed={() => {
+          list?.refocus();
+        }}
+      />
     </WritesContext>
+  );
+}
+
+/** The command that opens the creation of a local account, at the head of the table. */
+export function CreateUser() {
+  const t = useTranslations("admin.users");
+  const writes = useUserWrites();
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="self-start"
+      onClick={(event) => {
+        writes?.create(event.currentTarget);
+      }}
+    >
+      <UserPlus aria-hidden="true" />
+      {t("create")}
+    </Button>
   );
 }

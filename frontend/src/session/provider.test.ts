@@ -54,6 +54,8 @@ describe("the identity provider", () => {
 
   it.each([
     "ECONNREFUSED",
+    "ENETDOWN",
+    "EHOSTDOWN",
     "UND_ERR_CONNECT_TIMEOUT",
     "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
     "CERT_HAS_EXPIRED",

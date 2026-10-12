@@ -24,20 +24,34 @@ export interface SignedOff {
   readonly address: string;
 }
 
-/**
- * The silent sign-in that closes every workstation, armed for the cookie of this browser; the
- * service out of reach without Redis.
- */
-async function armedSignOut(): Promise<Settled | SignedOff> {
+/** What the sessions of the front give the sign-out, the service out of reach without Redis. */
+async function inStore(work: () => Promise<SignedOff>): Promise<Settled | SignedOff> {
   try {
-    const ticket = await armRequestSignOut();
-    return { kind: "left", address: ticket === undefined ? LOGIN_ROUTE : signOutHref(ticket) };
+    return await work();
   } catch (error) {
     if (!(error instanceof StoreUnreachable)) {
       throw error;
     }
     return { kind: "unreachable" };
   }
+}
+
+/** The silent sign-in that closes every workstation, armed for the cookie of this browser. */
+async function armedSignOut(): Promise<SignedOff> {
+  const ticket = await armRequestSignOut();
+  return { kind: "left", address: ticket === undefined ? LOGIN_ROUTE : signOutHref(ticket) };
+}
+
+/**
+ * Forget the sessions the front keeps of the account, then sign out where the answer of the API
+ * leads.
+ */
+async function forgottenSignOut(notAdmitted: boolean, revoked: boolean): Promise<SignedOff> {
+  await closeRequestSessions();
+  if (notAdmitted) {
+    return { kind: "left", address: identityProvider().signOutAddress().href };
+  }
+  return { kind: "left", address: revoked ? loginHref(HOME, true) : LOGIN_ROUTE };
 }
 
 /**
@@ -50,7 +64,9 @@ async function armedSignOut(): Promise<Settled | SignedOff> {
  * the session of the realm, whose closing was missed, would sign the user in again without them,
  * to the same refusal (#855). An account Waterfall does not admit (401
  * `ACCOUNT_NOT_ADMITTED`) holds a session of the realm the API does not close: the browser ends it
- * at the realm. The API out of reach, nothing is closed, and the screen says so.
+ * at the realm. The API out of reach, nothing is closed, and the screen says so; Redis out of
+ * reach once the API has closed them, the screen says the service out of reach, and the sessions of
+ * the account at the realm are closed all the same.
  *
  * When the session of the front the cookie names lives no more, the request does not leave, and
  * Keycloak may still hold the session of this browser, which would sign the user in again
@@ -65,7 +81,7 @@ async function armedSignOut(): Promise<Settled | SignedOff> {
 export async function signOut(): Promise<Settled | SignedOff> {
   const outcome = await decodeOrLost(() => serverClient().DELETE("/me/sessions"));
   if (outcome.kind === "lost") {
-    return armedSignOut();
+    return inStore(armedSignOut);
   }
   const refused = outcome.kind === "refused" ? outcome.problem.code : undefined;
   const closed =
@@ -79,10 +95,6 @@ export async function signOut(): Promise<Settled | SignedOff> {
   if (isMockAuthentication()) {
     return { kind: "left", address: LOGIN_ROUTE };
   }
-  await closeRequestSessions();
-  if (refused === "ACCOUNT_NOT_ADMITTED") {
-    return { kind: "left", address: identityProvider().signOutAddress().href };
-  }
   const revoked = outcome.kind === "signed_out" && asksIdentifiers(outcome.problem.code);
-  return { kind: "left", address: revoked ? loginHref(HOME, true) : LOGIN_ROUTE };
+  return inStore(() => forgottenSignOut(refused === "ACCOUNT_NOT_ADMITTED", revoked));
 }

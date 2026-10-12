@@ -21,7 +21,8 @@
  *
  * The button that sends says the write under way. The dialog may be closed meanwhile: the answer of
  * the server is handed back all the same (`onDone`), and a refusal is told above the list, on the
- * reading the form was sent from (`useListReport`) — what the server did is never left unsaid. The
+ * reading the form was sent from (`useListReport`), or by the bar of the shell once the list is read
+ * otherwise (#863) — what the server did is never left unsaid. The
  * list, which tells it, holds the navigations of the page while the write answers: a link pressed
  * once the dialog is closed waits for it, and is not followed when it is refused (#688).
  */
@@ -288,7 +289,9 @@ export function ReferenceForm({
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
     const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const answer = answering(await held(ask(values)));
+      // Open as the refusal arrives, the dialog tells it at its fields: the bar of the shell says
+      // nothing of it.
+      const answer = answering(await held(ask(values), () => open.current));
       if (answer.kind === "done") {
         onDone(answer.data);
       } else if (!open.current) {

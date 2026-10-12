@@ -3,7 +3,8 @@
 """The task ``backup``: the two databases dumped, archived, stored and verified (WF-ADM-0150).
 
 Each database is dumped by ``pg_dump``, in its custom format and in one consistent snapshot of its
-own, as its owner (#701): Waterfall's, the journal of audit included (WF-SEC-0030, #705), and the
+own, as the role of the backup, a member of ``pg_read_all_data`` that can neither write nor turn a
+trigger off (#701, #895): Waterfall's, the journal of audit included (WF-SEC-0030, #705), and the
 identity provider's. The archive — the two dumps, and a manifest that gives the date, the version of
 the application, the revision of the schema and the digest of each dump — is written to the bucket
 of the backups under a key the task names, so that a task taken up again writes over what an
@@ -135,7 +136,7 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
 
 
 def connect(address: str) -> psycopg.Connection[TupleRow]:
-    """Connect to a database as its owner; unavailable if the connection fails (503)."""
+    """Connect to a database to back it up; unavailable if the connection fails (503)."""
     conninfo = engine_url(address).set(drivername="postgresql")
     try:
         return psycopg.connect(conninfo.render_as_string(hide_password=False))
@@ -151,7 +152,7 @@ def reached(address: str) -> None:
 
 
 def schema_revision(address: str) -> str:
-    """Read the revision of the schema the migrations have brought the database to, as its owner.
+    """Read the revision of the schema the migrations have brought the database to.
 
     Reading it reaches the database: unavailable if it does not answer (503), and an internal
     error if it answers and the revision cannot be read.
@@ -216,9 +217,9 @@ class BackupTask:
 
     @classmethod
     def of(cls, settings: WorkerSettings) -> "BackupTask":
-        """Dump the databases the settings name, as their owners, into the bucket of the backups."""
-        owners = (settings.owner_database_url, settings.keycloak_database_url)
-        addresses = (owner.get_secret_value() for owner in owners)
+        """Dump the databases the settings name, as the role of the backup, into its bucket."""
+        reached_as = (settings.backup_database_url, settings.keycloak_database_url)
+        addresses = (address.get_secret_value() for address in reached_as)
         return cls(dict(zip(DATABASES, addresses, strict=True)), Bucket.of_backups(settings))
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:

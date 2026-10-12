@@ -65,11 +65,12 @@ export function under(prefix: string): RegExp {
 }
 
 /**
- * The button that signs in on the sign-in page of the realm: exactly named, the page that asks for
- * the password again holding « Redémarrer la connexion » beside it.
+ * The button that signs in on the sign-in page of the realm, in French or in English, as the
+ * browser asks: exactly named, the page that asks for the password again holding « Redémarrer la
+ * connexion » beside it.
  */
 function signInButton(page: Page) {
-  return page.getByRole("button", { name: "Connexion", exact: true });
+  return page.getByRole("button", { name: /^(Connexion|Sign In)$/ });
 }
 
 /** The sign-in page of the realm, where a person gives her identifiers. */
@@ -82,8 +83,14 @@ export async function expectSignInPage(page: Page): Promise<void> {
 export async function giveIdentifiers(page: Page, person: Person): Promise<void> {
   await expectSignInPage(page);
   if (person.provider === undefined) {
-    await page.getByLabel("Courriel").fill(person.login);
-    await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
+    // The label of the identifier carries the mark of a field required (« Courriel * »), that of
+    // the password none: the one is found as part of its label, the other whole, apart from the
+    // button that shows it (« Afficher le mot de passe »).
+    await page.getByLabel("Courriel").or(page.getByLabel("Email")).fill(person.login);
+    await page
+      .getByLabel("Mot de passe", { exact: true })
+      .or(page.getByLabel("Password", { exact: true }))
+      .fill(person.password);
     await signInButton(page).click();
     return;
   }
@@ -326,6 +333,17 @@ export function waterfallAccount(email: string): { origin: string; roles: number
   return origin === undefined || origin === "" ? undefined : { origin, roles: Number(roles) };
 }
 
+/** The settings an account keeps for a grid (`display_preferences.grids`), none if it keeps none. */
+export function gridPreferences(email: string, grid: string): unknown {
+  const kept = sql(
+    `select coalesce(display_preferences -> 'grids' -> :'grid', 'null') from user_account
+  where email = :'email';
+`,
+    { email, grid },
+  );
+  return JSON.parse(kept === "" ? "null" : kept) as unknown;
+}
+
 /**
  * Give an account a role of the permissions given — the same role each time, made once —, as the
  * administrator of the installation would by the service (`createAccessRole`,
@@ -478,14 +496,18 @@ const ADMINISTRATION = "Administration des comptes (parcours)";
  * An administrator of the accounts, who creates local accounts and gives their links (`createUser`,
  * `createPasswordSetupLink`): the person of the directory, given the role, as the screens of
  * US-0360 will call the API once wired (#449). Her account is Waterfall's once she has called it
- * (`getMe`): the role is given then, the first path of a platform new finding none.
+ * (`getMe`): the role is given then, the first path of a platform new finding none. Her identifier
+ * in Waterfall, by which the journal of audit names its author (`self`).
  */
 export async function accountAdministrator(browser: Browser, request: APIRequestContext) {
   const token = await frontToken(browser, DIRECTORY);
-  const me = await request.get(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } });
+  const headers = { Authorization: `Bearer ${token}` };
+  const me = await request.get(`${API}/me`, { headers });
   expect(me.status(), "GET /me").toBe(200);
+  const { user_id: self } = (await me.json()) as { user_id: string };
   grantRole(DIRECTORY.login, ADMINISTRATION, ["users.read", "users.write"]);
   return {
+    self,
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
       const email = `jeanne.${randomBytes(6).toString("hex")}@waterfall.test`;
@@ -496,6 +518,26 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     /** The link that sets the password of a local account, each new one replacing the one before. */
     link: async (id: string): Promise<string> =>
       (await posted<{ url: string }>(request, token, `/users/${id}/password-link`)).url,
+    /**
+     * Compose a role of the permissions given and give it to an account, its only one, from the
+     * version read (`createAccessRole`, `getUser`, `setUserAccessRoles`), as the screens of the roles
+     * and of the accounts do: both ask the permission to modify the roles too, which the path gives
+     * the person of the directory beside this role.
+     */
+    attribute: async (id: string, label: string, permissions: readonly string[]): Promise<void> => {
+      const role = await posted<{ access_role_id: string }>(request, token, "/access-roles", {
+        label,
+        permissions,
+      });
+      const read = await request.get(`${API}/users/${id}`, { headers });
+      expect(read.status(), "GET /users/{user_id}").toBe(200);
+      const { lock_version: version } = (await read.json()) as { lock_version: number };
+      const given = await request.put(`${API}/users/${id}/access-roles`, {
+        headers,
+        data: { access_role_ids: [role.access_role_id], lock_version: version },
+      });
+      expect(given.status(), "PUT /users/{user_id}/access-roles").toBe(200);
+    },
     /** Withdraw the role the person of the directory was given. */
     done: () => {
       withdrawRoles(DIRECTORY.login);
@@ -525,17 +567,17 @@ export async function openLink(page: Page, link: string): Promise<void> {
 
 /**
  * A local account created by the administrator, whose holder has set her password by her link:
- * the person who signs in with it.
+ * the person who signs in with it, and its identifier in Waterfall.
  */
 export async function localAccount(
   browser: Browser,
   administrator: Administrator,
-): Promise<Person> {
+): Promise<Person & { readonly id: string }> {
   const { id, email } = await administrator.create();
   const page = await browser.newPage({ locale: "fr-FR", ignoreHTTPSErrors: true });
   await openLink(page, await administrator.link(id));
   await setPassword(page, LOCAL_PASSWORD);
   await expect(page.getByRole("heading", { name: "Votre compte a été mis à jour." })).toBeVisible();
   await page.close();
-  return { login: email, email, password: LOCAL_PASSWORD, name: "Jeanne Montgolfier" };
+  return { id, login: email, email, password: LOCAL_PASSWORD, name: "Jeanne Montgolfier" };
 }
