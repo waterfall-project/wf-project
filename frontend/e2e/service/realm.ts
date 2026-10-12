@@ -4,9 +4,12 @@
  * What the paths against the service ask of the platform around the front (US-0350): the sign-in
  * page of the realm, where a person gives her identifiers; the administration of the realm, to
  * shorten a lifetime the time of a path or to close the sessions of an account, as an
- * administrator would in its console; and, until the bootstrap of an installation (US-0420), the
- * one way to make an administrator of Waterfall — a role written in its database, the service
- * offering none.
+ * administrator would in its console; and a role of Waterfall written in its database, for the
+ * accounts of the paths. The bootstrap of the installation (US-0420, `make e2e-service`) makes one
+ * administrator only, that of the installation; the person of the directory, the one of the
+ * external provider and the local accounts a path creates are admitted with no role (WF-ADM-0180).
+ * The service gives roles (`setUserAccessRoles`), but by a token of that administrator, whom no
+ * path signs in as: the path writes the role itself, as the administrator would give it.
  *
  * The person of the test directory and the one of the test external provider are those of
  * `deploy/keycloak/development/`, with their development passwords.
@@ -300,10 +303,12 @@ export function waterfallAccount(email: string): { origin: string; roles: number
 }
 
 /**
- * Give an account a role of the permissions given — the same role each time, made once —, as an
- * administrator would once the bootstrap has made one (US-0420): written in the database, the
- * service offering no other way before it. The account must exist — Waterfall creates it at its
- * first request —: a role given to none fails the path, rather than leave it without the role.
+ * Give an account a role of the permissions given — the same role each time, made once —, as the
+ * administrator of the installation would by the service (`createAccessRole`,
+ * `setUserAccessRoles`): written in the database, since the bootstrap (US-0420) makes that
+ * administrator alone and no path signs in as it, the accounts of the paths holding no role until
+ * given one. The account must exist — Waterfall creates it at its first request —: a role given to
+ * none fails the path, rather than leave it without the role.
  */
 export function grantRole(email: string, label: string, permissions: readonly string[]): void {
   const held = sql(
