@@ -119,6 +119,24 @@ paths = [
 ]
 target = "check-service"
 
+[families.production]
+# The production platform (US-0430), in the full tier only: the three images built here, then
+# compose.prod.yaml started on them, bootstrapped and held — at each change of what it is made of:
+# its files, the front end, and the files it mounts from the platform it shares them with. A change
+# of what the images are made of alone is held after the merge, on the images published (images.yml).
+paths = [
+    "deploy/compose/compose.prod.yaml",
+    "deploy/compose/compose.prod.local.yaml",
+    "deploy/compose/Caddyfile.prod",
+    "deploy/compose/production.env.example",
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
+    "deploy/compose/keycloak-database.sql",
+    "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
+]
+target = "check-production"
+
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
 # examples of the contract are what the fake back serves to the end-to-end paths, and what

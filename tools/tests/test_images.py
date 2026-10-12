@@ -82,7 +82,9 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     document = workflow()
     assert document["permissions"] == {"contents": "read"}
     jobs = document["jobs"]
-    assert list(jobs) == ["publish"]
+    # The trial of the production platform on the images published reads them alone (US-0430/L2).
+    assert list(jobs) == ["publish", "trial"]
+    assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]
     assert job["permissions"] == {"contents": "read", "packages": "write"}
     publish = job["steps"][-1]
@@ -94,7 +96,8 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
 
 
 def test_every_action_of_the_workflow_is_pinned_by_the_digest_of_its_commit() -> None:
-    for step in workflow()["jobs"]["publish"]["steps"]:
+    jobs = workflow()["jobs"]
+    for step in [*jobs["publish"]["steps"], *jobs["trial"]["steps"]]:
         if "uses" in step:
             assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", step["uses"])
 

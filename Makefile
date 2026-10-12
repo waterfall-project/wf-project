@@ -24,6 +24,8 @@ JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too.
 COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+# The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
+COMPOSE_PRODUCTION := docker compose -f deploy/compose/compose.prod.yaml -f deploy/compose/compose.prod.local.yaml
 # The root of the authority of Keycloak's front end on the service platform (#680), copied out of
 # Caddy at each start: what the front (NODE_EXTRA_CA_CERTS, added to the authorities it trusts)
 # and the tests of the platform (SSL_CERT_FILE, the only one they trust) trust. Ignored by git.
@@ -52,6 +54,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
 	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
+	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
 	lint-shell check \
@@ -202,6 +205,15 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		$(COMPOSE_SERVICE) --profile e2e --profile install config --quiet
+	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
+		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
+		WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
+		WATERFALL_BACKUP_DATABASE_PASSWORD=stand-in \
+		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
+		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
+		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
+		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
+		$(COMPOSE_PRODUCTION) --profile install config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
@@ -215,6 +227,16 @@ build-keycloak: ## Build the image of Keycloak: the extension compiled and teste
 # are built and none holds a value of the development (.github/workflows/images.yml).
 images: ## Build the images front, waterfall and keycloak, tagged by commit, by branch, and by version on main once; PUSH=yes publishes them
 	@$(WFTOOLS).images $(if $(filter yes,$(PUSH)),--push)
+
+# The production platform (compose.prod.yaml, US-0430) on the images tagged WATERFALL_IMAGE_TAG — the
+# commit of the checkout by default —, built here or published, under a local name
+# (WATERFALL_DOMAIN, waterfall.localhost by default) on ports 80 and 443 (WATERFALL_HTTP_PORT,
+# WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
+# administrator held, then removed with its volumes (wftools.production). Its secrets come from the
+# environment, as production.env.example names them; the project of Compose is
+# WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial).
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, then remove it (needs its secrets)
+	@$(WFTOOLS).production
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
 # service platform, its realm applied, through its front end in HTTPS, whose authority alone they
@@ -248,7 +270,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
@@ -361,6 +383,10 @@ check-front-image: ## The production image of the front builds, starts and answe
 	@$(WFTOOLS).frontimage
 
 check-service: $(call full-only,e2e-service) ## The paths against the real service, in the full tier only (US-0340)
+
+# The three images built as the chain publishes them, never pushed, then the production platform on
+# them (production-trial): in the full tier only, as images.yml does again on the images it published.
+check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
