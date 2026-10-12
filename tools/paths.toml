@@ -87,6 +87,7 @@ paths = [
     "deploy/compose/Caddyfile.service",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
     "backend/tests/test_keycloak_*.py",
     "backend/tests/conftest.py",
     "backend/tests/support.py",
@@ -113,6 +114,7 @@ paths = [
     "deploy/compose/Caddyfile.service",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
     "deploy/keycloak/**",
 ]
 target = "check-service"

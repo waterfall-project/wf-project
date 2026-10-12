@@ -1452,8 +1452,9 @@ La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier 
 |---|---|
 | `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
 | `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
 | `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur, par lequel le worker la sauvegarde ; il s'écrit aussi dans une URL |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur ; il s'écrit aussi dans une URL |
 | `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
 | `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
 | `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
@@ -1902,7 +1903,9 @@ Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la pla
 compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
 (`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
 supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
-Debian et d'Ubuntu, d'une version au moins égale à celle du serveur.
+Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
+le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
+(`backend/tests/test_backups.py`) crée pour la session, membre de `pg_read_all_data` (#895).
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.

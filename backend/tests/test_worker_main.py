@@ -47,7 +47,7 @@ def test_the_version_is_stated_without_starting_anything(
                 "REDIS_URL",
                 "SERVICE_CLIENT_SECRET",
                 "STORAGE_SECRET",
-                "OWNER_DATABASE_URL",
+                "BACKUP_DATABASE_URL",
                 "KEYCLOAK_DATABASE_URL",
             ),
         ),
