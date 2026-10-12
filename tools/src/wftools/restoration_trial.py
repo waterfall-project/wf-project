@@ -17,8 +17,8 @@ trial takes one from the realm as the front does — the code of the flow of the
 (PKCE) and the secret of its client —, on the session of Keycloak the sign-in opened. The token
 goes to the container on its standard input, never on a command line.
 
-The restoration needs the service that runs it, which US-0440/L2 brings (#953); until the chain
-starts it, the step is asked for by ``WATERFALL_TRIAL_RESTORATION=1``, and left out otherwise.
+The restoration needs the service that runs it, which US-0440/L2b brings (#953, #985); until the
+chain starts it, the step is asked for by ``WATERFALL_TRIAL_RESTORATION=1``, and left out otherwise.
 """
 
 import base64

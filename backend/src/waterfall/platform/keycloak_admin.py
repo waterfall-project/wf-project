@@ -432,24 +432,6 @@ class KeycloakAdmin:
         if response.status_code != HTTPStatus.NOT_FOUND:
             expect(response, HTTPStatus.NO_CONTENT)
 
-    def close_every_session(self) -> None:
-        """Close every session of the realm, whoever holds it: a restoration begins (WF-ADM-0160).
-
-        The realm refuses, from then on, the tokens issued before; the service account asks for a
-        new one at its next request.
-        """
-        expect(self._as_service("POST", f"{self._admin}/logout-all"), HTTPStatus.OK)
-
-    def clear_caches(self) -> None:
-        """Forget what Keycloak keeps in memory of its database: realm, accounts and keys.
-
-        A restoration that has replaced the database of Keycloak asks for it (WF-ADM-0160): the
-        token of the service account is read against the realm still in memory.
-        """
-        for cache in ("realm", "user", "keys"):
-            response = self._as_service("POST", f"{self._admin}/clear-{cache}-cache")
-            expect(response, HTTPStatus.NO_CONTENT)
-
     def set_locale(self, subject: str, locale: str | None) -> None:
         """Give an account of the realm the language it mails and shows its pages in.
 

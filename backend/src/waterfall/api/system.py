@@ -4,22 +4,17 @@
 
 from fastapi import APIRouter
 
-from waterfall.api.authentication import ServicesOf, Transaction
+from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import Installation
-from waterfall.api.maintenance import in_maintenance
 from waterfall.platform.installation import read_settings
 
 router = APIRouter(tags=["system"])
 
 
 @router.get("/health", operation_id="getLiveness")
-def get_liveness(services: ServicesOf) -> dict[str, str]:
-    """Answer as soon as the process is up, touching no component of data; say a maintenance.
-
-    A restoration that holds the platform in maintenance is said, and its end, which the front
-    waits for (#604): the process is alive all the same.
-    """
-    return {"status": "maintenance" if in_maintenance(services.maintenance) else "ok"}
+def get_liveness() -> dict[str, str]:
+    """Answer as soon as the process is up, touching no component of data."""
+    return {"status": "ok"}
 
 
 @router.get("/installation", operation_id="getInstallation")

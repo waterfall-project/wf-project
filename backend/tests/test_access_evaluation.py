@@ -403,7 +403,6 @@ ASKED: dict[str, tuple[str, ...]] = {
     "listAuditFacets": ("audit_log.read",),
     "listBackups": ("backups.read",),
     "startBackup": ("backups.write",),
-    "startRestore": ("platform_restore",),
     "getBackup": ("backups.read",),
     "downloadBackup": ("backups.read", "backups.write"),
 }

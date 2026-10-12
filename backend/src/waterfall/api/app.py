@@ -17,13 +17,11 @@ from waterfall.api import (
     backups,
     identity_syncs,
     me,
-    restores,
     system,
     tasks,
     users,
 )
 from waterfall.api.authentication import Services
-from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
 
@@ -45,8 +43,6 @@ def create_app(services: Services) -> FastAPI:
         openapi_url=None,
         redirect_slashes=False,
     )
-    # Added first, run second: a refusal in maintenance carries the correlation of its request.
-    app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)
     app.add_middleware(CorrelationMiddleware)
     install_problem_handlers(app)
     app.state.services = services
@@ -59,5 +55,4 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(tasks.router, prefix=PREFIX)
     app.include_router(audit.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
-    app.include_router(restores.router, prefix=PREFIX)
     return app
