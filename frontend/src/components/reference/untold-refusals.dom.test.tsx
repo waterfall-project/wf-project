@@ -138,6 +138,24 @@ describe("a write refused once the list it was sent from is read otherwise (#863
     expect(screen.getAllByRole("alert")).toEqual([alert]);
   });
 
+  it("is told by the bar of the shell, once, when the dialog closes after the list is read otherwise and before the refusal arrives", async () => {
+    const release = refusedOnRelease();
+    const { rerender } = render(screenWithBar());
+    const form = await sent();
+    // The list reads otherwise while the dialog is open: whether the refusal is told is decided at
+    // its arrival, the dialog closed by then, never at the moment the list changes.
+    address.query = "category_is_active=true";
+    rerender(screenWithBar());
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    expect(within(bar()).queryByRole("alert")).toBeNull();
+    await answered(release);
+
+    const alert = await within(bar()).findByRole("alert");
+    expect(alert).toHaveTextContent(UNTOLD);
+    expect(screen.getAllByRole("alert")).toEqual([alert]);
+    expect(screen.getAllByText(UNTOLD)).toHaveLength(1);
+  });
+
   it("is told by the dialog still open alone, never a second time by the bar of the shell", async () => {
     const release = refusedOnRelease();
     const { rerender } = render(screenWithBar());
