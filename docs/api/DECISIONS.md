@@ -3812,7 +3812,13 @@ une liberté déclarée, dans le résumé comme ici :
   paramètres de coûts et de ressources), et ce qu'elle accorde et retire s'en lit comme le
   service le lit, dans l'ordre du catalogue ;
 - une création avec premier rôle qu'aucun exemple de `createUser` ne répond — chacun crée son
-  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée.
+  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée ;
+- un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
+  la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
+  adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
+
+Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
+`test_mockaudit.py` le tient.
 
 ## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
 

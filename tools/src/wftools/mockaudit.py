@@ -480,6 +480,11 @@ WITHDRAWN = ("cost_settings.write", "resource_settings.write")
 of the catalogue: those of the writing of the settings of costs and resources, which it holds."""
 
 
+DIRECTORY_LAST_NAME = "Vidal-Roux"
+"""The last name the directory gives the person whose address Noé Vidal holds, which the
+attachment of the administration gives his account: a liberty of that variant (#707, #961)."""
+
+
 def _role_named(role: JsonObject) -> JsonObject:
     """Return a role as an attribution names it (`AuditAccessRole`): its identifier, its label."""
     return {"access_role_id": role["access_role_id"], "label": role["label"]}
@@ -548,18 +553,20 @@ def _administered_accounts() -> list[Inscription]:
     the request that creates her gives her and inscribes after her creation, under its correlation:
     a creation with a first role no example of createUser answers — each creates its account without
     any role —, a liberty of this variant;
-    the name of Lucas Petit corrected (`user_renamed`); Noé Vidal attached by the platform to the
-    person of the directory who holds his address, under the name the directory gives him,
-    « Vidal-Roux » (`user_renamed_deactivated`), from the directory from now on (#707); Inès Roux
-    deprived of her one role (`user_access_roles_cleared`).
+    the name of Lucas Petit corrected (`user_renamed`); Noé Vidal, as the list of the accounts has
+    him, attached by the platform to the person of the directory who holds his address, under the
+    name the directory gives him (``DIRECTORY_LAST_NAME``), from the directory from now on (#707):
+    an attachment no example answers, a liberty of this variant; Inès Roux deprived of her one role
+    (`user_access_roles_cleared`). Each write read from an example by the one who last updated it.
     """
     created = fixture("user_created")
     renamed = fixture("user_renamed")
-    attached = fixture("user_renamed_deactivated")
     cleared = fixture("user_access_roles_cleared")
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
+    [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
+    attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
     actor = cast("JsonObject", created["audit"]["updated_by"])
 
     def changed(after: JsonObject) -> list[JsonValue]:
@@ -578,14 +585,19 @@ def _administered_accounts() -> list[Inscription]:
             ),
             joined=True,
         ),
-        _account(renamed, "user_update", actor, {"fields": changed(renamed)}),
+        _account(
+            renamed,
+            "user_update",
+            cast("JsonObject", renamed["audit"]["updated_by"]),
+            {"fields": changed(renamed)},
+        ),
         _account(
             attached, "user_update", PLATFORM, {"fields": changed(attached), "attached": True}
         ),
         _account(
             cleared,
             "user_access_roles_set",
-            actor,
+            cast("JsonObject", cleared["audit"]["updated_by"]),
             {
                 "access_roles_granted": [],
                 "access_roles_withdrawn": [
@@ -793,7 +805,8 @@ def examples() -> dict[str, JsonObject]:
             "premier rôle qu'aucun exemple de createUser ne répond ; le nom de Lucas "
             "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
             "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
-            "donne, « Vidal-Roux », et venu de l'annuaire désormais. Chaque inscription dit ce "
+            f"donne, « {DIRECTORY_LAST_NAME} », et venu de l'annuaire désormais : un "
+            "rattachement qu'aucun exemple ne répond. Chaque inscription dit ce "
             "que l'action a fait, en codes, en identifiants et en libellés du moment, que le "
             "lecteur lit dans sa langue (WF-SEC-0030, WF-ARC-0110).",
             _page(administration()),

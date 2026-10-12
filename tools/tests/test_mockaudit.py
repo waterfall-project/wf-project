@@ -764,3 +764,34 @@ def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     assert first["correlation_id"] == administration[creation]["correlation_id"]
     [granted] = first["params"]["access_roles_granted"]
     assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)
+
+
+def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it(
+    journal: dict[str, Node],
+) -> None:
+    # An inscription derived from an example is of its object and by the author of its last
+    # update; the others — the unchanged save, the first role, the attachment — are declared
+    # liberties of the variant, and the attachment, by the platform, is read from no example of an
+    # account, none of which the platform last updated (#961).
+    administration = _events(journal["audit_events_administration"])[::-1]
+    derived = {
+        0: ("access_role_created", "access_role_id"),
+        2: ("access_role_renamed", "access_role_id"),
+        3: ("user_created", "user_id"),
+        5: ("user_renamed", "user_id"),
+        7: ("user_access_roles_cleared", "user_id"),
+    }
+    for index, (name, key) in derived.items():
+        example, event = fixture(name), administration[index]
+        assert event["object"]["object_id"] == example[key], name
+        assert event["actor"] == example["audit"]["updated_by"], name
+    attached = administration[6]
+    assert attached["params"]["attached"] is True
+    assert attached["actor"] == mockaudit.PLATFORM
+    written = [
+        cast("Node", json.loads(path.read_text(encoding="utf-8"))["value"])
+        for path in mockwitness.FIXTURES.glob("user*.json")
+    ]
+    accounts = [each for each in written if each.get("user_id") == attached["object"]["object_id"]]
+    assert accounts
+    assert all(each["audit"]["updated_by"] != mockaudit.PLATFORM for each in accounts)
