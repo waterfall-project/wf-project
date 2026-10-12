@@ -43,11 +43,14 @@
   },
   "accountMenu": {
     "label": "Account of {name}",
-    "name": "{first} {last}",
     "preferences": "Preferences",
     "account": "My account",
     "avatar": "Change avatar",
     "signOut": "Sign out"
+  },
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Anonymised account"
   },
   "account": {
     "details": "Account details",
@@ -168,6 +171,7 @@
       "holders": "Holding accounts",
       "modify": "Modify",
       "delete": "Delete",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -1012,12 +1016,18 @@
       "title": "Account deactivated",
       "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
     },
+    "notAdmitted": {
+      "title": "Account not admitted",
+      "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
+    "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "signOut": "Sign out"
   },
   "loading": {
     "label": "Loading the screen"
@@ -1225,7 +1235,8 @@
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
       "create": "Create a local account",
-      "named": "{firstName} {lastName}",
+      "anonymize": "Anonymise",
+      "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
       "stateFilter": "Account state",
@@ -1234,7 +1245,7 @@
       "inactiveAccounts": "Deactivated accounts",
       "told": "Commands of the accounts",
       "created": "Account “{name}” created.",
-      "creationHint": "The account is born without a password: its holder sets one through the link the table hands over. Its roles are then attributed in the table.",
+      "creationHint": "The account is born without a password: its holder sets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",
       "deactivated": "“{name}” deactivated.",
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
@@ -1248,7 +1259,15 @@
       "copyLink": "Copy the link",
       "closeLink": "Close",
       "linkCopied": "Link copied.",
-      "linkSelected": "Link selected: copy it with the keyboard."
+      "linkSelected": "Link selected: copy it with the keyboard.",
+      "renamed": "“{name}” renamed.",
+      "createdUninvited": "Account “{name}” created; no invitation went: hand over its link to set the password.",
+      "uninvited": "The account “{name}” is created, but no invitation went to it: hand over to its holder the link to set the password, by another channel.",
+      "giveLink": "Hand over the link",
+      "anonymized": "Account anonymised.",
+      "anonymizationTitle": "Anonymise “{name}”?",
+      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
+      "keep": "Keep"
     },
     "accessRoles": {
       "title": "Access roles",
@@ -1731,6 +1750,7 @@
       "user_update": "Account edited",
       "user_deactivate": "Account deactivated",
       "user_reactivate": "Account reactivated",
+      "user_anonymize": "Account anonymised",
       "password_link_create": "Password link generated",
       "access_role_create": "Role created",
       "access_role_update": "Role edited",
@@ -1825,7 +1845,9 @@
       "cost_category_not_last_provision": "another active category under an active provision nature",
       "last_administrator": "another active account holding the administration permissions",
       "is_local_account": "account created in Waterfall",
-      "is_active_account": "active account"
+      "is_active_account": "active account",
+      "is_deactivated_account": "deactivated account",
+      "is_not_anonymized": "account not anonymised"
     },
     "ProjectExit": {
       "to_state": {
@@ -2135,6 +2157,7 @@
     "UserCommand": {
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
+      "anonymize": "Anonymise the account",
       "set_access_roles": "Assign the roles of the account"
     },
     "RiskComputedField": {

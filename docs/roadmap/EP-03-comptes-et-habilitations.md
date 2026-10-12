@@ -259,7 +259,9 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  rôles `manage-users`, `view-users`, `query-users`, `view-realm` — pour trouver les annuaires
+  que le royaume fédère, dont la lecture des comptes demande la synchronisation, leurs secrets
+  masqués — et le rôle de l'extension) ; `admin-cli`,
   que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
   (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
   client de test pour les jetons dont ses tests ont besoin ;
@@ -301,13 +303,29 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
 - le lien d'installation (#652) : un second rôle, `waterfall-installation-link`, que seul
   l'amorçage porte, fait rendre au même point d'entrée un lien qui vaut jusqu'à son emploi
   (WF-ADM-0140), à usage unique et soumis au même nonce ; le compte de service ordinaire ne
-  produit que des liens d'une heure ;
+  produit que des liens d'une heure. Ce lien ne vaut que pour un compte sans mot de passe
+  (#884) : le point d'entrée refuse de le fabriquer pour un compte qui en a un (409
+  `has_password`), et refuse de l'ouvrir, comme un lien déjà servi, dès que le compte en a un,
+  quelle que soit la voie qui l'a posé — « mot de passe oublié », console ;
 - `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte » ;
 - `local-account-only` (#650) : la règle de politique qui refuse tout mot de passe à un compte
   qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
   « mot de passe oublié », console, lien —, avec sa phrase dans le thème, en français et en
   anglais. Sans elle, une personne venue d'un fournisseur externe se donnerait un mot de passe
-  local et garderait l'accès après son départ du fournisseur.
+  local et garderait l'accès après son départ du fournisseur ;
+- `reset-credentials` (#852, livrée par US-0420b, #879) : le lien « mot de passe oublié » de
+  Keycloak est à usage unique par une marque que Keycloak 26 ne garde qu'en mémoire
+  (`singleUseObjects`, Infinispan) : après un redémarrage, un lien déjà employé rouvre le
+  formulaire. Cette pièce, sous l'identifiant de fournisseur `reset-credentials`, étend le
+  `ResetCredentialsActionTokenHandler` de Keycloak d'un vérificateur de plus, qui refuse un
+  jeton dont l'`iat` précède la date de création, en base, du mot de passe du compte, avec le
+  message « déjà servi » du thème. La marque d'emploi devient donc la date du mot de passe :
+  un mot de passe fixé autrement après l'envoi du lien — un autre lien, la console, la page du
+  compte — invalide aussi ce lien. Reste à vérifier que Keycloak 26.5.7 laisse le fournisseur
+  déployé remplacer celui du même identifiant (`order()`) ; le test
+  `test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart` le
+  constate, et perd son `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
+  pièce n'en change que la vérification du jeton.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
 les tests d'intégration du service contre le Keycloak de la plateforme, et la chaîne
@@ -386,7 +404,7 @@ rien d'autre que leurs deux clés.
 | `user_access_role` | compte, rôle | clé primaire sur les deux ; clés étrangères en refus |
 | `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
 | `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
-| `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `action`, `object_kind`, `object_id`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune mise à jour ni suppression : le rôle de base du service n'a que `INSERT` et `SELECT`, et un déclencheur refuse l'une et l'autre |
+| `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `actor_display_name`, `action`, `object_kind`, `object_id`, `object_label`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune suppression, et une seule mise à jour (WF-SEC-0030 révisée) : le rôle de base du service a `INSERT`, `SELECT` et, depuis la migration `0011_account_anonymization`, `UPDATE (actor_display_name, object_label)` ; le déclencheur du journal refuse toute suppression et toute mise à jour, sauf le passage à NULL de ces deux colonnes, le reste de la ligne inchangé, et un déclencheur du module des comptes ne l'admet que pour un compte anonymisé, comme auteur ou comme objet |
 | `backup` | `taken_at`, `size_bytes`, `verification` (`pending`, `passed`, `failed`), `origin` (`manual`, `scheduled`), `is_retained`, `object_key`, la version de l'application et la révision du schéma qui l'ont produite, la tâche | `verification` et `origin` dans leurs énumérations ; aucune ligne supprimée en EP-03 (la rotation est d'EP-13) |
 | `file_upload` | `purpose`, `object_key`, `size_bytes`, `requested_by`, `expires_at`, l'état du dépôt par morceaux | `purpose` dans `FileUploadPurpose` ; un dépôt non employé expire |
 
@@ -453,7 +471,17 @@ garde le compte actif et le signale.
   aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
   L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
   Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
-  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  transaction. `updateUser` reporte dans Keycloak, par son API d'administration, le nom, le
+  prénom et l'adresse changés d'un compte local, dont Waterfall fait foi (motif de WF-ADM-0050) :
+  le royaume connecte et écrit au compte par l'adresse qu'il tient (#810). Le changement est
+  vérifié dans une transaction courte, reporté, puis écrit dans une seconde, qui revérifie le
+  `lock_version` ; refusé alors, il est défait dans Keycloak, qui reprend l'identité que
+  Waterfall tient au moment du refus, relue dans une transaction courte — celle lue avant le
+  report peut avoir changé depuis. Il reprend l'identité lue avant le report si le compte ne
+  peut être relu, ce qui est journalisé (`account.identity_not_reread`), ou s'il n'est plus le
+  compte local que le royaume connaît par ce sujet — rattaché entre-temps à une personne de
+  l'annuaire (#707). Un échec de ce retour, dont un compte du royaume qui tient entre-temps
+  l'adresse, est journalisé (`account.identity_not_restored`). Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
@@ -496,7 +524,33 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
   sans rôle, met à jour nom, prénom et adresse des comptes fédérés, désactive ceux que
   Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne touche
   aucun compte local (WF-ADM-0070). Ses écritures portent la plateforme comme auteur
-  (WF-DAT-0070).
+  (WF-DAT-0070). Précisions de sa réalisation (US-0370/L2) :
+  - une personne de l'annuaire dont l'adresse est portée par un compte y est rattachée, comme à
+    sa première requête (#707) : le compte prend son identifiant chez Keycloak, son nom, son
+    prénom et son adresse, vient désormais de l'annuaire, et garde ses rôles et son état ; une
+    nouvelle fédération, qui donne aux personnes d'autres identifiants, retrouve ainsi leurs
+    comptes. Une personne relayée par un fournisseur externe à l'adresse déjà portée est laissée
+    et signalée (`ALREADY_EXISTS`) ;
+  - un compte anonymisé n'est ni modifié ni recréé : la lecture le rapproche par l'identifiant
+    que l'anonymisation conserve (WF-ADM-0070, WF-ADM-0060) ;
+  - un compte que la liste ne nomme plus n'est désactivé qu'après que Keycloak a dit, à sa
+    lecture, ne plus le connaître : une page déplacée par une écriture concurrente ne désactive
+    personne ;
+  - les comptes locaux du royaume que Waterfall ne connaît pas et qui n'ont jamais eu de mot de
+    passe — laissés par une création que Waterfall n'a pas menée à son terme, Keycloak ayant
+    créé le compte puis répondu trop tard — sont retirés du royaume (#811), une fois âgés d'une
+    heure : une création en cours est chez Keycloak avant d'être dans Waterfall. Ils sont nommés
+    dans le compte rendu, inscrit dans la transaction de la lecture ; leur retrait de Keycloak
+    n'a lieu qu'après la validation de cette transaction. Une lecture arrêtée avant ne retire donc
+    rien ; un retrait qui échoue est journalisé, et la lecture suivante, qui retrouve l'orphelin,
+    le nomme de nouveau et tente son retrait ;
+  - tout ce qui se demande à Keycloak — synchronisation, lecture — précède les écritures, les
+    retraits des orphelins mis à part, qui les suivent. Le verrou de la règle du dernier
+    administrateur est pris avant elles, avant toute ligne d'un compte, dans l'ordre des routes
+    qui modifient un compte : verrou consultatif, puis lignes ; chaque désactivation s'écrit sous
+    la garde, et un compte ne se verrouille que pour être écrit, relu sous le verrou. Le compte
+    rendu est gardé dans `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche
+    réussie y renvoie.
 
 ### Journal d'audit
 
@@ -567,7 +621,9 @@ Complété le 2026-10-11 (#856) :
 1. applique les migrations (`alembic upgrade head`) — le catalogue avec elles —, sous le
    rôle propriétaire, qui crée aussi le rôle de service (#701) ; la commande pose sa propre
    corrélation, que ses inscriptions au journal portent ;
-2. si la ligne `installation` existe, s'arrête sans rien faire d'autre (WF-EXP-0020) ;
+2. si la ligne `installation` existe, ne crée rien : ni ligne, ni rôle, ni compte, et la
+   langue et l'administrateur restent ceux de l'installation déjà faite — une autre adresse dans
+   `WATERFALL_ADMIN_EMAIL` est dite ignorée ; la commande passe à l'étape 4 (WF-EXP-0020) ;
 3. crée la ligne `installation` avec la langue par défaut (`WATERFALL_DEFAULT_LANGUAGE`) et
    les bornes ; les trois rôles prédéfinis, avec les permissions de l'exemple `access_roles`
    du contrat et leurs libellés dans cette langue ; le compte administrateur local dans
@@ -575,7 +631,13 @@ Complété le 2026-10-11 (#856) :
    `WATERFALL_ADMIN_EMAIL` ;
 4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension sous le rôle
    `waterfall-installation-link` : il vaut jusqu'à son emploi (WF-ADM-0140, WF-EXP-0020) ;
-   une nouvelle commande en produit un autre, qui remplace le précédent.
+   une nouvelle commande en produit un autre, qui remplace le précédent, **tant que
+   l'administrateur n'a pas de mot de passe**, et aucun ensuite : la commande s'achève alors
+   sans lien, avec succès. Le lien d'installation ne vaut que pour un compte sans mot de passe
+   (auteur, 2026-10-11, #884), règle tenue dans l'extension : elle refuse d'en fabriquer un pour
+   un compte qui a un mot de passe (409 `has_password`, que l'amorçage lit comme « pas de
+   lien »), et refuse à l'ouverture un lien d'installation dont le compte a, entre-temps, reçu
+   un mot de passe par une autre voie, avec le message « déjà servi » du thème.
 
 Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
 calendrier et la nature de provision.
@@ -691,6 +753,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    manque pour suivre la restauration jusqu'à la levée de la maintenance.
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
    une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
+11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque
+   requête de son titulaire et dans la liste des comptes, elles ont une taille bornée au
+   contrat, que les modèles engendrés appliquent au service, refus par 422 :
+   `DisplayPreferences.grids`, cent grilles au plus (`maxProperties: 100`) ; un nom de grille,
+   de colonne ou de filtre, 64 caractères au plus (`propertyNames`, `maxLength: 64`, de même
+   pour `hidden_columns` et `sort.column`) ; par grille, 64 colonnes masquées
+   (`maxItems: 64`), 64 largeurs et 20 filtres (`maxProperties`) ; un filtre est un texte, la
+   valeur du paramètre de l'adresse que le front garde, de 500 caractères au plus.
 
 ### Conformité au contrat et parcours contre le service
 
@@ -774,6 +844,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | `AuditEvent` rend les paramètres de l'action, codes et identifiants (auteur, 2026-10-10, #706) | ne pas les rendre : le journal ne dirait pas quel droit a été donné, l'« afin de » d'US-0410 |
 | Une déconnexion sans session du front passe par une connexion silencieuse avant `closeMySessions` (auteur, 2026-10-10, #689) | ne fermer que le poste : contraire à WF-SEC-0020, « sur tous ses postes » |
 | Une navigation attend l'écriture en cours, et un refus est dit sur place avant de partir (auteur, 2026-10-10, #688) | un avis qui survit à la navigation et à la connexion : plus fragile, et la personne ne choisit plus |
+| Une table qui déclare ses filtres les garde en préférence d'affichage, retrouvés à l'ouverture d'une adresse qui ne dit rien d'elle, une adresse qui les dit passant avant (auteur, 2026-10-11, #836). Un lien sans filtre ouvert dans un nouvel onglet ramène donc aux filtres que le compte garde : accepté, la conservation en préférence l'emporte (auteur, 2026-10-11, #836, #883) | exclure les filtres des préférences, comme le guide le disait le 2026-10-09 : contraire à WF-IHM-0060 et aux critères d'US-0360 et d'US-0380 |
 
 ### Issues à ouvrir avec la conception
 
@@ -940,7 +1011,10 @@ appliqué de façon idempotente par keycloak-config-cli ; la base de Keycloak di
 même serveur PostgreSQL. La plateforme de développement porte un annuaire et un fournisseur
 externe de test, pour que la Définition de fini se constate. Cette US ferme #152 et #155,
 sans objet : la page de connexion n'a plus de liste de fournisseurs à présenter, et les
-règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
+règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Ses lots L1 à L5b
+faits, deux phrases de `WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis
+la réactivation après une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du
+fournisseur (US-0370/L2) : l'US reste `en cours` tant que #844 n'a pas tranché où elles s'éprouvent.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 
@@ -1149,7 +1223,7 @@ appellent : la qualité de contributeur, second terme, s'y ajoute en EP-04.
 
 ## US-0400 — Mon compte : préférences, langue, avatar
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0040-A`, `WF-ADM-0080-A`, `WF-INTF-0160-A`, `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar`,
   `getUserAvatar`, `getInstallation`
@@ -1233,7 +1307,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API
@@ -1300,7 +1374,7 @@ services, la mise à jour sans interruption — EP-13.
 
 ## US-0440 — Sauvegarder et restaurer la plateforme
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0150-A`, `WF-ADM-0160-A`, `WF-DAT-0120-A`
 - **opérations** : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore`,
   `uploadFile`
@@ -1327,9 +1401,11 @@ réglages — sur une autre machine.
 - écart : `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai d’expiration. » : EP-06.
 - écart : `WF-DAT-0120-A` — « Un export téléchargé jusqu’au bout n’est plus sur le stockage objet ; un téléchargement interrompu le laisse disponible ; un export jamais téléchargé en disparaît au terme de vingt-quatre heures. » : les exports arrivent en EP-06.
 - propre à l'US : une sauvegarde couvre les deux bases, Waterfall et le fournisseur
-  d'identité, chacune dans un état cohérent, sauf le journal d'audit, qui reste hors de ce
-  qu'une restauration remplace et y inscrit la restauration une fois faite (WF-ADM-0160) ; elle
-  vit dans le compartiment des sauvegardes du stockage objet (WF-DAT-0120).
+  d'identité, chacune dans un état cohérent, le journal d'audit compris, sauvegardé avec la
+  base de Waterfall (WF-SEC-0030, #705), et vit dans le compartiment des sauvegardes du
+  stockage objet (WF-DAT-0120) ; une restauration relit les inscriptions du journal
+  postérieures à la sauvegarde avant de remplacer les bases, les réinscrit ensuite, et y
+  inscrit la restauration une fois faite (WF-ADM-0160).
 - propre à l'US : une sauvegarde prise sur une installation, téléchargée, puis déposée sur une
   autre installation de même version ou plus récente et restaurée, y rend les comptes, les
   rôles et les réglages de la première, et l'administrateur de la première s'y connecte ; une

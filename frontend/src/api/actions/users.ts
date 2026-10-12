@@ -3,9 +3,9 @@
 /**
  * The server actions of the accounts (FBS-1.1, US-0360): a local account created, an account
  * modified — the names of a local one —, deactivated or reactivated — never deleted (WF-ADM-0060) —,
- * its access roles attributed, each decoded into an outcome (`src/api/problem.ts`); and the link by
- * which the holder of a local account sets its password, handed to who asked it (WF-ADM-0140). Every
- * write answered reads the page anew: the accounts as the server retains them, and the permissions of
+ * anonymised once deactivated, its access roles attributed, each decoded into an outcome
+ * (`src/api/problem.ts`); and the link by which the holder of a local account sets its password,
+ * handed to who asked it (WF-ADM-0140). Every write answered reads the page anew: the accounts as the server retains them, and the permissions of
  * the session, which an attribution of its own roles may have changed (WF-ADM-0110). The link reads
  * nothing anew: it changes nothing the page shows.
  */
@@ -28,8 +28,13 @@ function readAnew<T>(outcome: Outcome<T>): Outcome<T> {
   return outcome;
 }
 
-/** Create a local account from its names and its address (WF-ADM-0050). */
-export async function createUser(user: Schemas["UserCreate"]): Promise<Outcome<User>> {
+/**
+ * Create a local account from its names and its address (WF-ADM-0050), and say whether the invitation
+ * that carries its link went.
+ */
+export async function createUser(
+  user: Schemas["UserCreate"],
+): Promise<Outcome<Schemas["UserCreated"]>> {
   return readAnew(await decode(() => serverClient().POST("/users", { body: user })));
 }
 
@@ -58,6 +63,24 @@ export async function setUserActivation(
       serverClient().PUT("/users/{user_id}/activation", {
         params: { path: { user_id: userId } },
         body: activation,
+      }),
+    ),
+  );
+}
+
+/**
+ * Anonymise a deactivated account from the version read, irreversibly (WF-ADM-0060): the screen asks
+ * the confirmation first, the server none.
+ */
+export async function anonymizeUser(
+  userId: string,
+  anonymization: Schemas["UserAnonymizationWrite"],
+): Promise<Outcome<User>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST("/users/{user_id}/anonymization", {
+        params: { path: { user_id: userId } },
+        body: anonymization,
       }),
     ),
   );

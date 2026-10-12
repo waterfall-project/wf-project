@@ -2,12 +2,18 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The administration API of Keycloak, reached as the service account of the realm (PBS-2.5).
 
-Through it the service reads where an account comes from, creates a local account and removes one
-whose creation Waterfall could not complete, and closes the sessions of an account (WF-ADM-0070,
-WF-SEC-0020). The link that sets the password of a local account is made by the extension of
-Waterfall, which also mails it as the invitation of the account: never by
-``execute-actions-email``, whose links would escape its nonce (#651, WF-ADM-0140). The token of the
-service account is kept until shortly before it expires.
+Through it the service reads where an account comes from, creates a local account, changes its
+identity and removes one whose creation Waterfall could not complete, closes the sessions of an
+account (WF-ADM-0070, WF-SEC-0020), and gives it the language its holder chose, that of its mails
+(WF-INTF-0160). The worker has the directories the realm federates synchronised, then reads the
+accounts of the realm by pages (WF-ADM-0070). The
+link that sets the password of a local account is made by the extension of Waterfall, which also
+mails it as the invitation of the account: never by ``execute-actions-email``, whose links would
+escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address and, as the
+client of the bootstrap, gives the realm the language of the installation (#873) and asks the
+extension for the link of the installation, valid until it is used and only for an account without
+a password (WF-EXP-0020, #652, #884). The token of the client is kept until shortly before it
+expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -18,22 +24,33 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+from enum import Enum
 from http import HTTPStatus
 from typing import Any, Literal, cast
 from urllib.parse import quote
 
 import httpx2
+from pydantic import SecretStr
 
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.settings import KeycloakSettings
 
 SERVICE_CLIENT = "waterfall-service"
+# The client of the bootstrap: the only one whose links are valid until they are used (#652).
+INSTALLATION_CLIENT = "waterfall-installation"
 # The token of the service account is renewed this long before it expires.
 TOKEN_MARGIN_SECONDS = 30.0
 VALIDATION_FAILED = "VALIDATION_FAILED"
+# The attribute of an account of the realm that holds its language (WF-INTF-0160).
+LOCALE = "locale"
+# The accounts of the realm are read by pages of that many.
+PAGE_SIZE = 100
+# The kind of the components of the realm that federate a directory, and the one that does.
+USER_STORAGE = "org.keycloak.storage.UserStorageProvider"
+DIRECTORY = "ldap"
 # The field of a local identity each attribute of the realm holds, the username being its address.
 IDENTITY_POINTERS = {
     "username": "/email",
@@ -47,6 +64,20 @@ IDENTITY_POINTERS = {
 type InvitationFailure = Literal["no_mail_server", "not_sent", "provider_unavailable"]
 
 logger = get_logger(__name__)
+
+
+class NoInstallationLink(Enum):
+    """Why the extension made no link of the installation: the status and the code it refused by."""
+
+    # The account has a password, however it was set: the link is for one without (#884).
+    CREDENTIAL_HELD = (HTTPStatus.CONFLICT, "has_password")
+    # The realm holds the account as no local one: read from a directory, or relayed.
+    NOT_LOCAL = (HTTPStatus.CONFLICT, "not_local")
+    # The realm no longer holds the account: removed in its console.
+    UNKNOWN_USER = (HTTPStatus.NOT_FOUND, "unknown_user")
+
+
+REFUSALS_OF_THE_INSTALLATION_LINK = frozenset(why.value for why in NoInstallationLink)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +95,21 @@ class ProviderAccount:
     is_federated: bool
     # Linked to an external provider the realm relays to: the account has a federated identity.
     is_relayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RealmAccount:
+    """An account of the realm as its list describes it: who, and whether a directory holds it.
+
+    Whether an external provider relays it is not listed: ``read_account`` tells.
+    """
+
+    subject: str
+    last_name: str
+    first_name: str
+    email: str
+    is_federated: bool
+    created_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +170,14 @@ def refused_identity(response: httpx2.Response) -> UnprocessableError | Identity
     return UnprocessableError(VALIDATION_FAILED, fields=faults)
 
 
+def _not_local(response: httpx2.Response) -> bool:
+    """Tell whether the extension refused a link to an account the realm holds as no local one."""
+    return (
+        response.status_code == HTTPStatus.CONFLICT
+        and _document(response).get("error") == "not_local"
+    )
+
+
 def _pointer(error: object) -> str | None:
     named = _text(cast("Mapping[str, Any]", error), "field") if isinstance(error, Mapping) else ""
     return IDENTITY_POINTERS.get(named)
@@ -135,16 +189,22 @@ class KeycloakAdmin:
     def __init__(
         self,
         keycloak: Keycloak,
-        settings: ServiceSettings,
+        settings: KeycloakSettings,
         clock: Callable[[], float] = time.monotonic,
+        *,
+        client: tuple[str, SecretStr] | None = None,
     ) -> None:
-        """Prepare the client; no token is asked for before a request needs one."""
+        """Prepare the client; no token is asked for before a request needs one.
+
+        It acts as the service account of Waterfall, unless ``client`` names another client of the
+        realm and its secret: that of the bootstrap, for the link of the installation.
+        """
         self._keycloak = keycloak
         realm = quote(settings.keycloak_realm, safe="")
         self._admin = f"/admin/realms/{realm}"
         # The entry point of the extension, under the realm (deploy/keycloak/extension/).
         self._extension = f"/realms/{realm}/password-setup-link"
-        self._secret = settings.service_client_secret
+        self._client, self._secret = client or (SERVICE_CLIENT, settings.service_client_secret)
         self._clock = clock
         self._token: tuple[str, float] | None = None
         self._token_lock = threading.Lock()
@@ -196,6 +256,82 @@ class KeycloakAdmin:
         location = expect(response, HTTPStatus.CREATED).headers["Location"]
         return location.rstrip("/").rsplit("/", 1)[-1]
 
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Give a local account of the realm another name, first name or address (#810).
+
+        ``False`` if another account of the realm holds the address. Refused if the user profile
+        of the realm refuses a field (422). Only these are sent: the realm keeps what a write does
+        not name, the attributes included — a language chosen meanwhile is not written over.
+        """
+        written = self._as_service(
+            "PUT",
+            f"{self._admin}/users/{quote(subject, safe='')}",
+            json={
+                "username": identity.email,
+                "email": identity.email,
+                "firstName": identity.first_name,
+                "lastName": identity.last_name,
+            },
+        )
+        if written.status_code == HTTPStatus.CONFLICT:
+            return False
+        if written.status_code == HTTPStatus.BAD_REQUEST:
+            raise refused_identity(written)
+        expect(written, HTTPStatus.NO_CONTENT)
+        return True
+
+    def synchronize_directories(self) -> None:
+        """Have the realm read again, whole, each directory it federates and has enabled.
+
+        A person the directory no longer holds is then no longer an account of the realm.
+        """
+        listed = self._as_service("GET", f"{self._admin}/components", params={"type": USER_STORAGE})
+        for component in cast("list[Mapping[str, Any]]", expect(listed, HTTPStatus.OK).json()):
+            config = cast("Mapping[str, list[str]]", component.get("config") or {})
+            if component.get("providerId") != DIRECTORY or config.get("enabled") == ["false"]:
+                continue
+            path = f"{self._admin}/user-storage/{quote(str(component['id']), safe='')}/sync"
+            done = self._as_service("POST", path, params={"action": "triggerFullSync"})
+            outcome = _document(expect(done, HTTPStatus.OK))
+            logger.info(
+                "identity_provider.directory_synchronised",
+                added=outcome.get("added"),
+                updated=outcome.get("updated"),
+                failed=outcome.get("failed"),
+            )
+
+    def list_accounts(self) -> list[RealmAccount]:
+        """Read every account of the realm, by pages; the service accounts of its clients aside."""
+        accounts: list[RealmAccount] = []
+        first = 0
+        while True:
+            asked = {"first": first, "max": PAGE_SIZE}
+            listed = self._as_service("GET", f"{self._admin}/users", params=asked)
+            page = cast("list[Mapping[str, Any]]", expect(listed, HTTPStatus.OK).json())
+            accounts.extend(
+                RealmAccount(
+                    subject=_text(user, "id"),
+                    last_name=_text(user, "lastName"),
+                    first_name=_text(user, "firstName"),
+                    email=_text(user, "email"),
+                    is_federated=bool(user.get("federationLink")),
+                    created_at=datetime.fromtimestamp(user["createdTimestamp"] / 1000, UTC),
+                )
+                for user in page
+                if not user.get("serviceAccountClientLink")
+            )
+            if len(page) < PAGE_SIZE:
+                return accounts
+            first += PAGE_SIZE
+
+    def has_password(self, subject: str) -> bool:
+        """Tell whether an account of the realm has ever been given a password."""
+        path = f"{self._admin}/users/{quote(subject, safe='')}/credentials"
+        credentials = cast(
+            "list[Mapping[str, Any]]", expect(self._as_service("GET", path), HTTPStatus.OK).json()
+        )
+        return any(credential.get("type") == "password" for credential in credentials)
+
     def remove_account(self, subject: str) -> None:
         """Remove an account of the realm; one it no longer holds is removed already."""
         response = self._as_service("DELETE", f"{self._admin}/users/{quote(subject, safe='')}")
@@ -237,10 +373,7 @@ class KeycloakAdmin:
         """
         path = f"{self._extension}/users/{quote(subject, safe='')}"
         response = self._as_service("POST", path)
-        if (
-            response.status_code == HTTPStatus.CONFLICT
-            and _document(response).get("error") == "not_local"
-        ):
+        if _not_local(response):
             return None
         made = _document(expect(response, HTTPStatus.OK))
         url, expires_at = _text(made, "url"), _text(made, "expires_at")
@@ -253,6 +386,43 @@ class KeycloakAdmin:
             raise IdentityProviderError(message)
         return PasswordLink(url, moment)
 
+    def find_account(self, email: str) -> str | None:
+        """Give the subject of the account of the realm that holds ``email``, or ``None``."""
+        response = self._as_service(
+            "GET", f"{self._admin}/users", params={"email": email, "exact": "true"}
+        )
+        found = cast("list[Mapping[str, Any]]", expect(response, HTTPStatus.OK).json())
+        for user in found:
+            if _text(user, "email").lower() == email.lower():
+                return _text(user, "id") or None
+        return None
+
+    def make_installation_link(self, subject: str) -> str | NoInstallationLink:
+        """Have the extension make the link of the installation, valid until it is used.
+
+        Asked as the client of the bootstrap, which alone may (WF-EXP-0020, #652); the link replaces
+        the one made before it, as any link does. The extension makes none for an account that has
+        a password, holds as no local one, or no longer holds: it says which (#884).
+        """
+        path = f"{self._extension}/users/{quote(subject, safe='')}"
+        response = self._as_service("POST", path)
+        refused = (response.status_code, _text(_document(response), "error"))
+        if refused in REFUSALS_OF_THE_INSTALLATION_LINK:
+            return NoInstallationLink(refused)
+        url = _text(_document(expect(response, HTTPStatus.OK)), "url")
+        if not url:
+            message = f"POST {response.request.url.path} answered no link"
+            raise IdentityProviderError(message)
+        return url
+
+    def set_default_language(self, language: str) -> None:
+        """Give the realm ``language`` as its own, that of an account that chose none (#873).
+
+        Asked as the client of the bootstrap, which alone may change the realm (WF-INTF-0160).
+        """
+        response = self._as_service("PUT", self._admin, json={"defaultLocale": language})
+        expect(response, HTTPStatus.NO_CONTENT)
+
     def close_sessions(self, subject: str) -> None:
         """Close every session of an account, on every device (WF-SEC-0020).
 
@@ -261,6 +431,27 @@ class KeycloakAdmin:
         response = self._as_service("POST", f"{self._admin}/users/{quote(subject, safe='')}/logout")
         if response.status_code != HTTPStatus.NOT_FOUND:
             expect(response, HTTPStatus.NO_CONTENT)
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Give an account of the realm the language it mails and shows its pages in.
+
+        ``None`` withdraws it: the realm then speaks its own language by default. An account the
+        realm no longer holds has no language left to set. The account is read, then written back
+        whole with its attribute ``locale`` changed: the realm keeps only the attributes it is sent.
+        """
+        user = f"{self._admin}/users/{quote(subject, safe='')}"
+        response = self._as_service("GET", user)
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return
+        held = dict(cast("Mapping[str, Any]", expect(response, HTTPStatus.OK).json()))
+        attributes = dict(cast("Mapping[str, list[str]]", held.get("attributes") or {}))
+        if locale is None:
+            attributes.pop(LOCALE, None)
+        else:
+            attributes[LOCALE] = [locale]
+        written = self._as_service("PUT", user, json={**held, "attributes": attributes})
+        if written.status_code != HTTPStatus.NOT_FOUND:
+            expect(written, HTTPStatus.NO_CONTENT)
 
     def _service_token(self, *, renew: bool = False) -> str:
         with self._token_lock:
@@ -272,7 +463,7 @@ class KeycloakAdmin:
                 f"{self._keycloak.protocol}/token",
                 data={
                     "grant_type": "client_credentials",
-                    "client_id": SERVICE_CLIENT,
+                    "client_id": self._client,
                     "client_secret": self._secret.get_secret_value(),
                 },
             )

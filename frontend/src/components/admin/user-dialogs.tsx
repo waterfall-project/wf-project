@@ -11,15 +11,21 @@
  * `ALREADY_EXISTS` on the address already held) at each field it points at, by the catalogue of the
  * codes of error; any other, under the form, which stays open to be corrected. The dialog may be
  * closed meanwhile: a creation answered is said all the same, and a refusal told above the table, on
- * the reading the form was sent from (`useListReport`).
+ * the reading the form was sent from (`useListReport`). When no invitation went to its holder
+ * (`invitation_sent` false — an installation without mail, a mail server failing), the dialog says
+ * so once the account is created, and offers its link at once, to hand over by another channel (#816).
  *
  * The link is shown whole, read-only, to be copied and handed over by another channel, with the instant
  * it ceases to be valid, in the local time of the workstation: it is never read again. No screen
  * shows, asks or takes a password (WF-ADM-0140).
+ *
+ * The anonymisation of a deactivated account is confirmed first: the dialog names the account and says
+ * the anonymisation irreversible (WF-ADM-0060) — Escape or « Conserver » gives it up, nothing written
+ * —, as the deletion of a role is (`role-commands.tsx`).
  */
 "use client";
 
-import { Copy, Plus, X } from "lucide-react";
+import { Copy, KeyRound, Plus, UserRoundX, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
@@ -27,9 +33,20 @@ import { createUser } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
+import { useAccountNaming } from "@/components/account/account-name";
 import { LocalTime } from "@/components/local-time";
 import { useListReport } from "@/components/reference/reactivation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,6 +64,7 @@ import type { User } from "./admin-grids";
 import { EMAIL_LENGTH, NAME_LENGTH } from "./user-address";
 
 type FieldProblem = components["schemas"]["FieldProblem"];
+type UserCreated = components["schemas"]["UserCreated"];
 
 /** The fields of the creation, in their order, by the name the contract gives each. */
 const FIELDS = [
@@ -94,11 +112,14 @@ function placed(outcome: Outcome<unknown>): {
 /** Render the dialog that creates a local account. */
 export function UserCreation({
   onCreated,
+  onLink,
   onClose,
   onClosed,
 }: {
   /** Take the account created, the dialog open or closed. */
-  readonly onCreated: (user: User) => void;
+  readonly onCreated: (user: UserCreated) => void;
+  /** Ask the link of the account created, which no invitation carried to its holder. */
+  readonly onLink: (user: User) => void;
   readonly onClose: () => void;
   /** Give the focus back where the dialog was opened from, once it has closed. */
   readonly onClosed: () => void;
@@ -113,7 +134,21 @@ export function UserCreation({
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [problems, setProblems] = useState<ReadonlyMap<Field, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // The account created without an invitation, whose link the dialog offers.
+  const [uninvited, setUninvited] = useState<UserCreated>();
   const [pending, startTransition] = useTransition();
+  // The list holds the navigations while the creation answers: the dialog closed meanwhile, its
+  // click is held all the same (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
+  const naming = useAccountNaming();
+  const linkCommand = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // The form gone, its link offered takes the focus.
+    if (uninvited !== undefined) {
+      linkCommand.current?.focus();
+    }
+  }, [uninvited]);
   const controls = useRef<Partial<Record<Field, HTMLInputElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
@@ -155,14 +190,18 @@ export function UserCreation({
       return;
     }
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const answer = await createUser(values).catch(rejected);
+      const answer = await held(createUser(values));
       if (answer.kind === "done") {
         onCreated(answer.data);
-        onClose();
+        if (answer.data.invitation_sent || !open.current) {
+          onClose();
+        } else {
+          setUninvited(answer.data);
+        }
       } else if (!open.current) {
-        list?.report({ outcome: answer, reading, names: {} });
+        list?.report({ outcome: answer, generation, names: {} });
       } else {
         const told = placed(answer);
         refuse(told.refused);
@@ -189,9 +228,39 @@ export function UserCreation({
       >
         <DialogHeader>
           <DialogTitle>{t("create")}</DialogTitle>
-          <DialogDescription>{t("creationHint")}</DialogDescription>
+          <DialogDescription>
+            {uninvited === undefined
+              ? t("creationHint")
+              : t("uninvited", { name: naming.person(uninvited) })}
+          </DialogDescription>
         </DialogHeader>
-        <form aria-label={t("create")} noValidate onSubmit={submit} className="grid gap-3">
+        {uninvited === undefined ? null : (
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              <X aria-hidden="true" />
+              {t("closeLink")}
+            </Button>
+            <Button
+              ref={linkCommand}
+              type="button"
+              onClick={() => {
+                onClose();
+                onLink(uninvited);
+              }}
+            >
+              <KeyRound aria-hidden="true" />
+              {t("giveLink")}
+            </Button>
+          </DialogFooter>
+        )}
+        <form
+          hidden={uninvited !== undefined}
+          inert={uninvited !== undefined}
+          aria-label={t("create")}
+          noValidate
+          onSubmit={submit}
+          className="grid gap-3"
+        >
           {FIELDS.map(([name, label, length]) => {
             const problem = problems.get(name);
             const own = `${id}-${name}`;
@@ -339,5 +408,60 @@ export function SetupLinkDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Render the confirmation of the anonymisation of an account: it names the account and says the
+ * anonymisation irreversible; confirmed, the table asks it (`onConfirm`). Kept rendered while it
+ * closes, its account named the while.
+ */
+export function AnonymizationDialog({
+  name,
+  open,
+  onConfirm,
+  onClose,
+  onClosed,
+}: {
+  /** The name of the account, as the table shows it. */
+  readonly name: string;
+  readonly open: boolean;
+  readonly onConfirm: () => void;
+  readonly onClose: () => void;
+  /** Give the focus back to the grid, once the confirmation has closed. */
+  readonly onClosed: () => void;
+}) {
+  const t = useTranslations("admin.users");
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(opened) => {
+        if (!opened) {
+          onClose();
+        }
+      }}
+    >
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          onClosed();
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("anonymizationTitle", { name })}</AlertDialogTitle>
+          <AlertDialogDescription>{t("anonymizationFinal", { name })}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            <X aria-hidden="true" />
+            {t("keep")}
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            <UserRoundX aria-hidden="true" />
+            {t("anonymize")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

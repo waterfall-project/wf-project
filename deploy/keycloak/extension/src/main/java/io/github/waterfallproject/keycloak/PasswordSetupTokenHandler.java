@@ -29,12 +29,14 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 /**
  * Opens a password setup link: the page of Keycloak that sets the password of the account.
  *
- * <p>It follows the handler of Keycloak's own "execute actions" links, with three differences: the
- * one action is to set the password, the link must be the last one made for the account, and it is
+ * <p>It follows the handler of Keycloak's own "execute actions" links, with four differences: the
+ * one action is to set the password; the link must be the last one made for the account; it is
  * spent as soon as it is confirmed — its nonce leaves the account, in the database, so that neither
- * a restart of Keycloak nor a password set another way makes it valid again. A spent link and a
- * replaced one are refused each in its own words. Once the password is set, the page leads to
- * Waterfall, the home of the front, which asks the person to sign in (#645).
+ * a restart of Keycloak nor a password set another way makes it valid again; and the link of the
+ * installation, valid until it is used, is spent too once the account has a password, however it
+ * was set (#884). A spent link and a replaced one are refused each in its own words. Once the
+ * password is set, the page leads to Waterfall, the home of the front, which asks the person to
+ * sign in (#645).
  */
 public final class PasswordSetupTokenHandler
     extends AbstractActionTokenHandler<PasswordSetupToken> {
@@ -75,7 +77,17 @@ public final class PasswordSetupTokenHandler
             token -> isLastLink(token, context.getAuthenticationSession().getAuthenticatedUser()),
             Errors.EXPIRED_CODE,
             REPLACED_MESSAGE);
-    return new Check[] {sameEmail::test, notSpent::test, lastLink::test};
+    // The link of the installation is for an account without a password: once it has one, by
+    // "forgot password" or the console, the link served its end (#884).
+    Predicate<PasswordSetupToken> noPasswordYet =
+        TokenUtils.checkThat(
+            token ->
+                !PasswordSetupLinkResource.isUntilUsed(token.getExp())
+                    || !PasswordSetupLinkResource.hasPassword(
+                        context.getAuthenticationSession().getAuthenticatedUser()),
+            Errors.EXPIRED_CODE,
+            SPENT_MESSAGE);
+    return new Check[] {sameEmail::test, notSpent::test, lastLink::test, noPasswordYet::test};
   }
 
   /**

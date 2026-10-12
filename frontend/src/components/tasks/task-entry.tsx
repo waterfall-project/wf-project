@@ -37,6 +37,7 @@ import {
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
@@ -277,6 +278,7 @@ export interface TaskEntryProps {
 export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryProps) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
+  const held = useHeldCommand();
   const dismiss = useRef<HTMLButtonElement | null>(null);
   const { key, task, command, interrupted } = entry;
   const setDismiss = useCallback(
@@ -293,7 +295,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       return;
     }
     startTransition(async () => {
-      const outcome = await command().catch(rejected);
+      const outcome = await held(command());
       dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
       if (outcome.kind === "done" || outcome.kind === "stale") {
         // The button pressed goes — with the failure, or with the command refused as stale —:

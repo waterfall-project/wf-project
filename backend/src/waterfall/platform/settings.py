@@ -8,7 +8,7 @@ shows no value.
 """
 
 from contextlib import suppress
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import unquote, unquote_plus, urlsplit
 
 from pydantic import Field, SecretStr, ValidationError
@@ -52,15 +52,12 @@ def _url_secrets(value: str) -> list[str]:
     return found
 
 
-class Settings(BaseSettings):
-    """What a service of the platform reads from its environment."""
+class PlatformSettings(BaseSettings):
+    """What every process of the platform reads from its environment: its database, its logs."""
 
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
     database_url: SecretStr = Field(min_length=1)
-    redis_url: SecretStr = Field(min_length=1)
-    host: str = "127.0.0.1"
-    port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
 
     def secret_values(self) -> tuple[str, ...]:
@@ -74,8 +71,16 @@ class Settings(BaseSettings):
         return tuple(dict.fromkeys(value for value in [*held, *extra] if value))
 
 
-class ServiceSettings(Settings):
-    """What a process that reaches Keycloak reads besides: the API, and the worker after it.
+class Settings(PlatformSettings):
+    """What a service of the platform reads besides: Redis, and where the API listens."""
+
+    redis_url: SecretStr = Field(min_length=1)
+    host: str = "127.0.0.1"
+    port: int = Field(default=8000, ge=1, le=65535)
+
+
+class KeycloakSettings(PlatformSettings):
+    """What a process that reaches Keycloak reads besides.
 
     ``keycloak_address`` is where the browser reaches Keycloak, which names the issuer of every
     token whoever asks for it; ``keycloak_backchannel`` is where this process reaches it, for its
@@ -87,6 +92,47 @@ class ServiceSettings(Settings):
     keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
     keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
     service_client_secret: SecretStr = Field(min_length=1)
+
+
+class ServiceSettings(Settings, KeycloakSettings):
+    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+
+    # The object storage, reached by the standard operations of S3 (PBS-3.3): its address, its
+    # region, the key of the platform, and the bucket of the backups — settings, so that an operator
+    # plugs in the storage they already run (WF-ARC-0050).
+    storage_address: str = Field(min_length=1, pattern="^https?://")
+    storage_region: str = Field(default="us-east-1", min_length=1)
+    storage_access_key: str = Field(min_length=1)
+    storage_secret: SecretStr = Field(min_length=1)
+    backups_bucket: str = Field(default="backups", min_length=1)
+
+
+class WorkerSettings(ServiceSettings):
+    """What the worker reads besides: the owners of the two databases a backup dumps (#701).
+
+    ``owner_database_url`` is the database of Waterfall as the owner of its tables reaches it, the
+    journal of audit included; ``keycloak_database_url``, the database of the identity provider as
+    its own role reaches it. The worker never acts as either but to dump them.
+    """
+
+    owner_database_url: SecretStr = Field(min_length=1)
+    keycloak_database_url: SecretStr = Field(min_length=1)
+
+
+class InstallationSettings(KeycloakSettings):
+    """What the bootstrap of an installation reads, ``waterfall-api install`` (US-0420).
+
+    ``database_url`` designates the owner of the tables, who applies the migrations (#701);
+    ``installation_client_secret`` is the secret of the client of the bootstrap, the only one that
+    makes a link valid until it is used, which neither the API nor the worker holds (#652);
+    ``admin_email`` the address of the first administrator, and ``default_language`` the language
+    of the installation (WF-EXP-0020, WF-INTF-0160). It deposits no task and serves nothing: it
+    reads neither Redis nor where the API listens.
+    """
+
+    installation_client_secret: SecretStr = Field(min_length=1)
+    admin_email: str = Field(min_length=1)
+    default_language: Literal["fr", "en"]
 
 
 def load_settings() -> Settings:
@@ -102,7 +148,17 @@ def load_service_settings() -> ServiceSettings:
     return _load(ServiceSettings)
 
 
-def _load[Kind: Settings](kind: type[Kind]) -> Kind:
+def load_worker_settings() -> WorkerSettings:
+    """Read the settings of the worker, as ``load_settings`` does."""
+    return _load(WorkerSettings)
+
+
+def load_installation_settings() -> InstallationSettings:
+    """Read the settings of the bootstrap, as ``load_settings`` does."""
+    return _load(InstallationSettings)
+
+
+def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:
     # The values come from the environment, which pydantic-settings reads itself.
     from_environment: dict[str, Any] = {}
     try:

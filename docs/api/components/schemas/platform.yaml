@@ -114,9 +114,10 @@ Backup:
     Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du
     fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs
     deux vidages et d'un manifeste — la date, la version de l'application, la révision du
-    schéma, les empreintes. Le journal d'audit n'en fait pas partie : il reste en place à une
-    restauration (WF-ADM-0160). Les fichiers importés ne vivent que le temps de leur import et
-    n'y figurent pas (WF-DAT-0120).
+    schéma, les empreintes. Le journal d'audit en fait partie : il est sauvegardé avec la base
+    de Waterfall (WF-SEC-0030), et une restauration réinscrit celles de ses inscriptions qui
+    suivent la date de la sauvegarde (WF-ADM-0160). Les fichiers importés ne vivent que le temps
+    de leur import et n'y figurent pas (WF-DAT-0120).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     taken_at: { $ref: ../common.yaml#/Timestamp }
@@ -132,7 +133,7 @@ Backup:
       enum: [database]
       description: >-
         Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du
-        fournisseur d'identité (WF-ADM-0150), sauf la table du journal d'audit de la première.
+        fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris.
     origin:
       type: string
       enum: [manual, scheduled]
@@ -330,24 +331,54 @@ RestoreRequest:
 
 IdentitySyncReport:
   type: object
-  required: [created, updated, deactivated, skipped]
+  required: [task_id, finished_at, created, updated, deactivated, skipped, removed]
   description: >-
-    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`).
-    Les comptes créés dans Waterfall ne sont pas concernés, et un compte que WF-ADM-0120
-    interdit de désactiver est conservé actif et signalé (WF-ADM-0070).
+    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou
+    la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas
+    concernés, et un compte que WF-ADM-0120 interdit de désactiver est conservé actif et
+    signalé (WF-ADM-0070).
   properties:
-    created: { type: integer, minimum: 0 }
-    updated: { type: integer, minimum: 0 }
-    deactivated: { type: integer, minimum: 0 }
+    task_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: La tâche de la lecture (`BackgroundTaskRef.task_id`).
+    finished_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: Fin de la lecture.
+    created:
+      type: integer
+      minimum: 0
+      description: Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas.
+    updated:
+      type: integer
+      minimum: 0
+      description: >-
+        Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de
+        l'annuaire a rattachés par leur adresse (#707).
+    deactivated:
+      type: integer
+      minimum: 0
+      description: Comptes désactivés parce que le fournisseur ne les connaît plus.
     skipped:
       type: array
       description: >-
         Les comptes que la lecture a laissés tels quels, chacun avec le motif, un code du
         catalogue : `LAST_ADMINISTRATOR` pour le dernier administrateur que le fournisseur ne
-        connaît plus (WF-ADM-0120).
+        connaît plus (WF-ADM-0120) ; `ALREADY_EXISTS` pour une personne relayée par un
+        fournisseur externe dont l'adresse est déjà portée par un autre compte, ou un compte
+        dont la nouvelle adresse l'est ; `VALIDATION_FAILED` pour un nom ou un prénom vide, ou
+        plus long que ce que Waterfall garde.
       items:
         type: object
         required: [email, code]
         properties:
           email: { type: string }
           code: { $ref: ../common.yaml#/ErrorCode }
+    removed:
+      type: array
+      description: >-
+        Les adresses des comptes locaux que la lecture retire du fournisseur d'identité :
+        inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a
+        pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse
+        nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui
+        échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse.
+      items: { type: string }

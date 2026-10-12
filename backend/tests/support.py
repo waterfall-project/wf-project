@@ -4,7 +4,10 @@
 
 import io
 import json
+import logging
 import time
+from collections.abc import Generator, Iterable
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
+import structlog
 from fastapi.testclient import TestClient
 from httpx2 import Response
 from openapi_core import OpenAPI
@@ -27,7 +31,10 @@ from waterfall.platform.keycloak_admin import (
     PasswordLink,
     ProviderAccount,
 )
+from waterfall.platform.logs import configure_logging
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.storage import Bucket
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 
@@ -42,21 +49,50 @@ DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
 # The two decodings differ on this one: ``unquote`` keeps the plus, ``unquote_plus`` makes a space.
 PLUS_CREDENTIAL = "a+b%40"
 SERVICE_CREDENTIAL = "service-client-pass-6e1b0a"
+STORAGE_CREDENTIAL = "storage-secret-key-8c3d5f"
+OWNER_CREDENTIAL = "owner-pass-2a7e9b"
+KEYCLOAK_DATABASE_CREDENTIAL = "keycloak-db-pass-0d4c6a"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",
     "WATERFALL_SERVICE_CLIENT_SECRET": SERVICE_CREDENTIAL,
+    "WATERFALL_STORAGE_SECRET": STORAGE_CREDENTIAL,
+    "WATERFALL_OWNER_DATABASE_URL": f"postgresql://waterfall:{OWNER_CREDENTIAL}@db:5432/waterfall",
+    "WATERFALL_KEYCLOAK_DATABASE_URL": (
+        f"postgresql://keycloak:{KEYCLOAK_DATABASE_CREDENTIAL}@db:5432/keycloak"
+    ),
 }
-# Where a service of the test platform reaches Keycloak: an address that answers nothing.
-PLATFORM_ADDRESSES = {"WATERFALL_KEYCLOAK_ADDRESS": "http://127.0.0.1:9/auth"}
+# Where a service of the test platform reaches Keycloak and the object storage: addresses that
+# answer nothing.
+PLATFORM_ADDRESSES = {
+    "WATERFALL_KEYCLOAK_ADDRESS": "http://127.0.0.1:9/auth",
+    "WATERFALL_STORAGE_ADDRESS": "http://127.0.0.1:9",
+    "WATERFALL_STORAGE_ACCESS_KEY": "GK000000000000000000000000",
+}
 SECRETS = [
     DB_CREDENTIAL,
     REDIS_CREDENTIAL,
+    STORAGE_CREDENTIAL,
+    OWNER_CREDENTIAL,
+    KEYCLOAK_DATABASE_CREDENTIAL,
     BEARER_JWT,
     SESSION_COOKIE,
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+def nowhere() -> tuple[TaskQueue, Bucket]:
+    """Give a queue and a bucket of the backups that a test which deposits nothing never reaches."""
+    queue = TaskQueue.connect(PLATFORM_SECRETS["WATERFALL_REDIS_URL"], timeout=DEPOSIT_TIMEOUT)
+    bucket = Bucket.connect(
+        "backups",
+        PLATFORM_ADDRESSES["WATERFALL_STORAGE_ADDRESS"],
+        "us-east-1",
+        PLATFORM_ADDRESSES["WATERFALL_STORAGE_ACCESS_KEY"],
+        STORAGE_CREDENTIAL,
+    )
+    return queue, bucket
 
 
 def service_role(database: URL) -> str:
@@ -106,6 +142,21 @@ class Logs:
     def named(self, event: str) -> list[dict[str, Any]]:
         """Return the records of one event."""
         return [record for record in self.records if record["event"] == event]
+
+
+@contextmanager
+def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
+    """Capture the logs in memory, ``secrets`` masked as a service masks its own, then restore."""
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    stream = io.StringIO()
+    configure_logging("DEBUG", stream, secrets)
+    try:
+        yield Logs(stream)
+    finally:
+        root.handlers[:] = handlers
+        root.setLevel(level)
+        structlog.reset_defaults()
 
 
 class ContractClient:
@@ -232,6 +283,11 @@ class Watching(KeycloakAdmin):
         self._note("send_invitation")
         return super().send_invitation(subject)
 
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Note, then give a local account of the realm another identity."""
+        self._note("change_identity")
+        return super().change_identity(subject, identity)
+
     def close_sessions(self, subject: str) -> None:
         """Note, then close the sessions of an account."""
         self._note("close_sessions")
@@ -241,3 +297,8 @@ class Watching(KeycloakAdmin):
         """Note, then have the extension make the password link of an account."""
         self._note("make_password_link")
         return super().make_password_link(subject)
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Note, then give an account of the realm its language."""
+        self._note("set_locale")
+        super().set_locale(subject, locale)

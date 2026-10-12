@@ -15,18 +15,20 @@ transaction (#669): what Waterfall would refuse is refused before the provider i
 account is written once the provider has created it, and withdrawn from the provider if Waterfall
 refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
 withdrawn all its roles, has its sessions closed by the provider once the write is committed
-(WF-SEC-0020).
+(WF-SEC-0020). A local account to anonymise is removed from it before the anonymisation is
+written, once checked: while the provider does not answer, nothing is written (WF-ADM-0060).
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref, audit_actor
-from waterfall.api.authentication import Caller, ServicesOf, Transaction
+from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
@@ -34,7 +36,9 @@ from waterfall.api.contract.models import (
     SortOrder,
     User,
     UserActivationWrite,
+    UserAnonymizationWrite,
     UserCreate,
+    UserCreated,
     UserOrigin,
     UserRolesWrite,
     UserUpdate,
@@ -58,13 +62,17 @@ from waterfall.core.users.interface import (
     AccountColumn,
     AccountFilters,
     AccountSort,
+    AccountState,
     Identity,
     IdentityChange,
     Page,
     account_commands,
     address_holder,
     address_taken,
+    anonymize_account,
     change_account,
+    check_account_anonymization,
+    check_account_change,
     create_local_account,
     display_name,
     identity_faults,
@@ -79,7 +87,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnavailableError
+from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
@@ -90,10 +98,15 @@ logger = get_logger(__name__)
 
 CONSULTATION = "users.read"
 CHANGE = "users.write"
+# Giving or withdrawing a role is managing the roles (FBS-1.2, WF-ADM-0090): who changes the
+# accounts alone does not give himself the administration.
+ROLES_CHANGE = "access_roles.write"
+LOCAL = "local"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 READ = [Depends(Requires(CONSULTATION))]
 CREATE = [Depends(Requires(CHANGE))]
 WRITE = [Depends(Requires(CONSULTATION, CHANGE))]
+ATTRIBUTE = [Depends(Requires(CONSULTATION, CHANGE, ROLES_CHANGE))]
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
@@ -114,6 +127,7 @@ def account_fields(account: Account, roles: Sequence[HeldRole]) -> dict[str, obj
         "last_name": account.last_name,
         "first_name": account.first_name,
         "email": account.email,
+        "anonymized_at": account.anonymized_at,
         "is_active": account.is_active,
         "origin": account.origin,
         "org_node_id": None,
@@ -135,14 +149,16 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
     """Describe accounts for the table, each with its roles and the commands its reader may use."""
     held = roles_held_by(session, [account.user_id for account in accounts])
     may_change = CHANGE in actor.permissions
+    may_attribute = may_change and ROLES_CHANGE in actor.permissions
     last = sole_administrator(session) if may_change else None
     described: list[User] = []
     for account in accounts:
-        commands = account_commands(
+        state = AccountState(
             is_active=account.is_active,
+            is_anonymized=account.anonymized_at is not None,
             is_last_administrator=account.user_id == last,
-            may_change=may_change,
         )
+        commands = account_commands(state, may_change=may_change, may_attribute=may_attribute)
         fields = account_fields(account, held[account.user_id])
         fields["available_commands"] = [
             {
@@ -297,11 +313,14 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
     status_code=201,
     response_model_exclude_unset=True,
 )
-def post_user(body: UserCreate, account: Caller, actor: Acting, services: ServicesOf) -> User:
+def post_user(
+    body: UserCreate, account: Caller, actor: Acting, services: ServicesOf
+) -> UserCreated:
     """Create a local account in the provider and in Waterfall, and invite its holder.
 
     A local account is born without a password: its holder sets one by the link the extension
-    mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140).
+    mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140). The answer
+    says whether the mail left: when it did not, the link is given by hand (#816).
     """
     org_node_id = None if body.org_node_id is None else body.org_node_id.root
     identity = Identity(body.last_name, body.first_name, body.email, org_node_id)
@@ -323,15 +342,18 @@ def post_user(body: UserCreate, account: Caller, actor: Acting, services: Servic
     except Exception:
         withdraw(admin, subject)
         raise
-    invite(admin, subject, created.user_id.root)
-    return created
+    sent = invite(admin, subject, created.user_id.root)
+    return UserCreated.model_validate(
+        {**created.model_dump(exclude_unset=True), "invitation_sent": sent}
+    )
 
 
-def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
+def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> bool:
     """Have the extension mail the holder of an account just created the link of its password.
 
     The account exists whether the mail leaves or not: one that does not is said in the log with
     its reason, and the link of the account may be obtained by hand (WF-ADM-0140, WF-CMP-0030).
+    Give whether it left.
     """
     try:
         reason = admin.send_invitation(subject)
@@ -339,9 +361,11 @@ def invite(admin: KeycloakAdmin, subject: str, user_id: UUID) -> None:
         logger.exception(
             "account.invitation_not_sent", user_id=str(user_id), reason="provider_error"
         )
-        return
+        return False
     if reason is not None:
         logger.warning("account.invitation_not_sent", user_id=str(user_id), reason=reason)
+        return False
+    return True
 
 
 def identity_change(body: UserUpdate) -> IdentityChange:
@@ -365,12 +389,77 @@ def identity_change(body: UserUpdate) -> IdentityChange:
     response_model_exclude_unset=True,
 )
 def patch_user(
-    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, session: Transaction
+    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, services: ServicesOf
 ) -> User:
-    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050)."""
+    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050).
+
+    For a local account Waterfall is the authority (WF-ADM-0050): its new identity is carried to
+    the provider, which signs it in and mails it by its address (#810), out of any transaction
+    (#669) — checked first, carried, then written; a write refused after all gives the provider
+    back the identity Waterfall holds then, read again in a short transaction. It gives back the
+    one read before the change if the account cannot be read again, which is logged
+    (``account.identity_not_reread``), or if it is no longer the local account the provider knows
+    by that subject (#707).
+    """
+    sent = identity_change(body)
+    lock_version = body.lock_version.root
+    with services.database.transaction() as session:
+        held, changed = check_account_change(session, user_id, sent, lock_version)
+    carried = held.origin == "local" and bool(changed)
+    if carried:
+        carry_identity(services.keycloak_admin, held, changed)
     act = Act(audit_actor(account), utc_now())
-    changed = change_account(session, user_id, identity_change(body), body.lock_version.root, act)
-    return users(session, actor, [changed])[0]
+    try:
+        with services.database.transaction() as session:
+            done = change_account(session, user_id, sent, lock_version, act)
+            return users(session, actor, [done])[0]
+    except Exception:
+        if carried:
+            restore_identity(services, held)
+        raise
+
+
+def local_identity(held: Account, changed: Mapping[str, str]) -> LocalIdentity:
+    """Give the identity of a local account, with what a change sends.
+
+    Its names and its address are held: an anonymised account changes none (409).
+    """
+    identity = {"last_name": held.last_name, "first_name": held.first_name, "email": held.email}
+    return LocalIdentity(**{name: value or "" for name, value in {**identity, **changed}.items()})
+
+
+def carry_identity(admin: KeycloakAdmin, held: Account, changed: Mapping[str, str]) -> None:
+    """Give the provider the new identity of a local account; refused if it holds the address."""
+    if not admin.change_identity(held.subject, local_identity(held, changed)):
+        raise address_taken(None)
+
+
+def restore_identity(services: Services, held: Account) -> None:
+    """Give the provider back the identity of a local account whose change Waterfall refused.
+
+    The one Waterfall holds at the refusal, read again in a short transaction: the one read before
+    the change (``held``) may be stale — another administrator, a request sent twice (#810). That
+    one all the same if the account cannot be read again, which is logged, or if it is no longer
+    the local account the provider knows by ``held.subject`` — attached meanwhile to a person of
+    the directory (#707). The refusal is what the caller is told; a provider that cannot be given
+    the identity back, or that holds its address for another account, is logged.
+    """
+    user_id = str(held.user_id)
+    try:
+        with services.database.transaction() as session:
+            read = read_account(session, held.user_id)
+    except SQLAlchemyError:
+        logger.exception("account.identity_not_reread", user_id=user_id)
+        read = held
+    if read.origin != "local" or read.subject != held.subject:
+        read = held
+    try:
+        restored = services.keycloak_admin.change_identity(held.subject, local_identity(read, {}))
+    except (UnavailableError, IdentityProviderError, UnprocessableError):
+        logger.exception("account.identity_not_restored", user_id=user_id)
+        return
+    if not restored:
+        logger.warning("account.identity_not_restored", user_id=user_id, reason="address_taken")
 
 
 def close_sessions(admin: KeycloakAdmin, account: Account) -> None:
@@ -404,6 +493,9 @@ def put_user_activation(
     already: asking again closes those a failure of the provider left open. It notes the moment
     first, with the deactivation: from then on the API refuses every token of a sign-in before
     it, refreshed or not, and a failure of the provider does not outlive a reactivation (#835).
+    A local account anonymised is no longer in the provider: its deactivation asked again closes
+    nothing. One of the directory or of an external provider anonymised is still the provider's,
+    and has its sessions closed again, as any other.
     """
     act = Act(audit_actor(account), utc_now())
     with services.database.transaction() as session:
@@ -415,18 +507,58 @@ def put_user_activation(
                 lock_version=body.lock_version.root,
                 act=act,
             )
-        if not body.is_active:
+        is_closing = not body.is_active and not (
+            changed.anonymized_at is not None and changed.origin == LOCAL
+        )
+        if is_closing:
             note_sessions_closed(session, user_id, utc_now())
         described = users(session, actor, [changed])[0]
-    if not body.is_active:
+    if is_closing:
         close_sessions(services.keycloak_admin, changed)
     return described
+
+
+@router.post(
+    "/users/{user_id}/anonymization",
+    operation_id="anonymizeUser",
+    dependencies=WRITE,
+    response_model_exclude_unset=True,
+)
+def post_user_anonymization(
+    user_id: UUID,
+    body: UserAnonymizationWrite,
+    account: Caller,
+    actor: Acting,
+    services: ServicesOf,
+) -> User:
+    """Anonymise a deactivated account at the request of its holder, for good (WF-ADM-0060).
+
+    Its names, its address and its avatar are removed, and the journal of audit forgets its name
+    (WF-SEC-0030); an active account, or one anonymised already, is refused. A local account is
+    checked in a short transaction, then removed from the provider out of any (#669), then
+    anonymised: while the provider does not answer, 503, nothing is written, and the
+    anonymisation is asked again. An account the write refuses after all — changed meanwhile —
+    is out of the provider all the same; if a reactivation slipped in between the check and the
+    write, it is a local account active out of the provider, which no one can sign in to, until
+    it is deactivated and anonymised again: the provider removes an account it no longer holds.
+    Whether that gap is closed is #868's to decide. The account of the directory or of an
+    external provider is the provider's, which Waterfall does not touch.
+    """
+    with services.database.transaction() as session:
+        checked = check_account_anonymization(session, user_id, body.lock_version.root)
+    if checked.origin == LOCAL:
+        services.keycloak_admin.remove_account(checked.subject)
+        logger.info("account.removed_from_provider", user_id=str(user_id))
+    act = Act(audit_actor(account), utc_now())
+    with services.database.transaction() as session:
+        anonymized = anonymize_account(session, user_id, body.lock_version.root, act)
+        return users(session, actor, [anonymized])[0]
 
 
 @router.put(
     "/users/{user_id}/access-roles",
     operation_id="setUserAccessRoles",
-    dependencies=WRITE,
+    dependencies=ATTRIBUTE,
     response_model_exclude_unset=True,
 )
 def put_user_access_roles(
@@ -434,6 +566,9 @@ def put_user_access_roles(
 ) -> User:
     """Set the roles of an account, which hold at its next request (WF-ADM-0050, WF-ADM-0090).
 
+    Asks for the permission to change the roles besides that to change the accounts: giving a role
+    is managing the roles (FBS-1.2, WF-ADM-0090), and who changes the accounts alone does not give
+    himself the administration (#834).
     Roles that take the administration from the last administrator are refused (WF-ADM-0120). An
     account withdrawn all its roles has its sessions closed (WF-SEC-0020).
     """

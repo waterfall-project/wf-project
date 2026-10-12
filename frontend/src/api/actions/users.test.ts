@@ -12,6 +12,7 @@ import {
 } from "@/test/fixtures";
 
 import {
+  anonymizeUser,
   createPasswordSetupLink,
   createUser,
   setUserAccessRoles,
@@ -32,8 +33,12 @@ function serve(answers: FakeAnswers): FakeClient {
   return client;
 }
 
+// Each account the example answering its write is of.
 const LUCAS = "01926f3a-7c00-7000-8000-000000000305";
 const CAMILLE = "01926f3a-7c00-7000-8000-000000000301";
+const SACHA = "01926f3a-7c00-7000-8000-000000000304";
+const NOE = "01926f3a-7c00-7000-8000-000000000307";
+const ALIX = "01926f3a-7c00-7000-8000-000000000303";
 
 beforeEach(() => {
   refresh.mockReset();
@@ -45,7 +50,7 @@ describe("the server actions of the accounts", () => {
     const user = { last_name: "Garnier", first_name: "Léa", email: "lea.garnier@example.com" };
     expect(await createUser(user)).toMatchObject({
       kind: "done",
-      data: { last_name: "Garnier", origin: "local", lock_version: 1 },
+      data: { last_name: "Garnier", origin: "local", lock_version: 1, invitation_sent: false },
     });
     expect(client.calls.map(({ route, body }) => [route, body])).toEqual([["POST /users", user]]);
     expect(refresh).toHaveBeenCalledOnce();
@@ -88,7 +93,7 @@ describe("the server actions of the accounts", () => {
         { problem: example("user_deactivation_refused") as Problem & { status: 409 } },
       ],
     });
-    expect(await setUserActivation(LUCAS, { is_active: false, lock_version: 1 })).toMatchObject({
+    expect(await setUserActivation(NOE, { is_active: false, lock_version: 1 })).toMatchObject({
       kind: "done",
       data: { is_active: false },
     });
@@ -97,13 +102,13 @@ describe("the server actions of the accounts", () => {
       problem: { code: "STATE_FORBIDS_OPERATION" },
     });
     expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
-      [`/users/${LUCAS}/activation`, { is_active: false, lock_version: 1 }],
+      [`/users/${NOE}/activation`, { is_active: false, lock_version: 1 }],
       [`/users/${CAMILLE}/activation`, { is_active: false, lock_version: 3 }],
     ]);
     expect(refresh).toHaveBeenCalledOnce();
   });
 
-  it("attribute the roles of an account, none included, and tell the last administrator deprived", async () => {
+  it("attribute the roles of an account, none included, and tell the last administrator the API refuses to deprive [WF-ADM-0120-A]", async () => {
     const client = serve({
       "PUT /users/{user_id}/access-roles": [
         "user_access_roles_set",
@@ -112,16 +117,17 @@ describe("the server actions of the accounts", () => {
     });
     const chiffreur = ["01926f3a-7c00-7000-8000-000000000705"];
     expect(
-      await setUserAccessRoles(LUCAS, { access_role_ids: chiffreur, lock_version: 1 }),
+      await setUserAccessRoles(SACHA, { access_role_ids: chiffreur, lock_version: 1 }),
     ).toMatchObject({ kind: "done", data: { access_role_labels: ["Chiffreur"] } });
     expect(
       await setUserAccessRoles(CAMILLE, { access_role_ids: [], lock_version: 3 }),
     ).toMatchObject({
+      kind: "conflict",
       problem: { code: "LAST_ADMINISTRATOR" },
     });
-    expect(client.calls.map(({ body }) => body)).toEqual([
-      { access_role_ids: chiffreur, lock_version: 1 },
-      { access_role_ids: [], lock_version: 3 },
+    expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
+      [`/users/${SACHA}/access-roles`, { access_role_ids: chiffreur, lock_version: 1 }],
+      [`/users/${CAMILLE}/access-roles`, { access_role_ids: [], lock_version: 3 }],
     ]);
     expect(refresh).toHaveBeenCalledOnce();
   });
@@ -145,5 +151,27 @@ describe("the server actions of the accounts", () => {
       `/users/${LUCAS}/password-link`,
     ]);
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("anonymise a deactivated account from the version read, and read the page anew; an active one refused [WF-ADM-0060-A]", async () => {
+    const client = serve({
+      "POST /users/{user_id}/anonymization": [
+        "user_anonymized",
+        { problem: example("user_anonymization_refused") as Problem & { status: 409 } },
+      ],
+    });
+    expect(await anonymizeUser(ALIX, { lock_version: 2 })).toMatchObject({
+      kind: "done",
+      data: { last_name: null, email: null, anonymized_at: "2026-06-03T14:05:00Z" },
+    });
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(await anonymizeUser(NOE, { lock_version: 1 })).toMatchObject({
+      problem: { params: { missing_condition: "is_deactivated_account" } },
+    });
+    expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
+      [`/users/${ALIX}/anonymization`, { lock_version: 2 }],
+      [`/users/${NOE}/anonymization`, { lock_version: 1 }],
+    ]);
+    expect(refresh).toHaveBeenCalledOnce();
   });
 });

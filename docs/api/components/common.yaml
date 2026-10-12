@@ -96,8 +96,11 @@ ActorRef:
       enum: [user, platform]
     user_id: { $ref: '#/Uuid' }
     display_name:
-      type: string
-      description: Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060).
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un
+        compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne
+        rendant aucune phrase (WF-ADM-0060, WF-ARC-0110). Absent pour la plateforme.
 
 Problem:
   type: object
@@ -407,4 +410,7 @@ BackgroundTaskRef:
       anyOf:
         - type: string
         - type: 'null'
-      description: Où lire le résultat, lorsque la tâche en produit un.
+      description: >-
+        Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
+        (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
+        tâche : une lecture achevée depuis l'a remplacé.

@@ -40,6 +40,7 @@ pytestmark = pytest.mark.keycloak
 ADDRESS_VARIABLE = "WATERFALL_TEST_KEYCLOAK_ADDRESS"
 BACKCHANNEL_VARIABLE = "WATERFALL_TEST_KEYCLOAK_BACKCHANNEL"
 SERVICE_CREDENTIAL_VARIABLE = "WATERFALL_SERVICE_CLIENT_SECRET"
+INSTALLATION_CREDENTIAL_VARIABLE = "WATERFALL_INSTALLATION_CLIENT_SECRET"
 ADMIN_CREDENTIAL_VARIABLE = "WATERFALL_KEYCLOAK_ADMIN_PASSWORD"
 FRONT_ADDRESS_VARIABLE = "WATERFALL_TEST_FRONT_ADDRESS"
 REALM = "waterfall"
@@ -119,6 +120,21 @@ def service_token(keycloak: httpx2.Client) -> str:
 
 
 @pytest.fixture(scope="module")
+def installation_token(keycloak: httpx2.Client) -> str:
+    """Obtain a token of the client of the bootstrap, by its client credentials."""
+    response = keycloak.post(
+        "/protocol/openid-connect/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "waterfall-installation",
+            "client_secret": required(INSTALLATION_CREDENTIAL_VARIABLE),
+        },
+    )
+    assert response.status_code == 200, response.text
+    return cast("str", response.json()["access_token"])
+
+
+@pytest.fixture(scope="module")
 def admin(keycloak: httpx2.Client, service_token: str) -> Iterator[httpx2.Client]:
     """Reach the administration API of the realm as the service account."""
     base = str(keycloak.base_url).replace("/realms/", "/admin/realms/")
@@ -131,7 +147,7 @@ def admin(keycloak: httpx2.Client, service_token: str) -> Iterator[httpx2.Client
 def administering() -> Generator[httpx2.Client]:
     """Reach the administration API of the realm as the administrator who applies it.
 
-    The service account may not read the settings of the realm nor its clients.
+    The service account may read the settings of the realm, not change them, nor read its clients.
     """
     address = required(ADDRESS_VARIABLE).rstrip("/")
     response = httpx2.post(
@@ -326,11 +342,20 @@ def claims(token: str) -> dict[str, Any]:
     return cast("dict[str, Any]", json.loads(decoded))
 
 
+def lasts(token: dict[str, Any], seconds: int) -> bool:
+    """Tell whether a token lives ``seconds``, give or take a second.
+
+    Keycloak reads the clock once for its end and once for its issue, in either order: the second
+    may turn between the two (#853).
+    """
+    return token["exp"] - token["iat"] in {seconds - 1, seconds, seconds + 1}
+
+
 def test_the_realm_lends_tokens_of_five_minutes_to_the_service_account(
     service_token: str,
 ) -> None:
     read = claims(service_token)
-    assert read["exp"] - read["iat"] == 300
+    assert lasts(read, 300)
     assert read["azp"] == "waterfall-service"
 
 
@@ -455,6 +480,56 @@ def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(
     page = Browser().get(second.json()["url"])
     assert page.status_code == 200
     assert confirmation_target(page).startswith(f"{realm}/login-actions/action-token?key=")
+
+
+def test_the_client_of_the_bootstrap_gets_a_link_valid_until_used_and_sends_no_invitation(
+    backchannel: httpx2.Client,
+    service_token: str,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # The link of the installation (#652): no end but the farthest a token of Keycloak can say,
+    # under the nonce of the account, so that it replaces the link before it as any link does.
+    hourly = link_of(backchannel, local_account.id, service_token).json()["url"]
+    made = link_of(backchannel, local_account.id, installation_token)
+    assert made.status_code == 200, made.text
+    assert list(made.json()) == ["url"]
+    assert action_token(made.json()["url"])["exp"] == 2**31 - 1
+    assert refused_as(Browser().get(hourly)) == "replaced"
+    invitation = invite(backchannel, local_account.id, installation_token)
+    assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
+
+
+def test_the_client_of_the_bootstrap_gets_no_link_for_an_account_with_a_password(
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    service_token: str,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # The link of the installation is for an account without a password (#884); the link of an
+    # hour, which an administrator gives, is not.
+    set_password(admin, local_account.id, PASSWORD)
+    refused = link_of(backchannel, local_account.id, installation_token)
+    assert (refused.status_code, refused.json()) == (409, {"error": "has_password"})
+    assert link_of(backchannel, local_account.id, service_token).status_code == 200
+
+
+def test_the_link_of_the_installation_serves_no_more_once_the_account_has_a_password(
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # A password set another way — the console here, or "forgot password" — spends the link of
+    # the installation, which no longer opens the form (#884).
+    made = link_of(backchannel, local_account.id, installation_token)
+    assert made.status_code == 200, made.text
+    url = made.json()["url"]
+    # Opened, not confirmed: it is valid, and not spent.
+    assert Browser().get(url).status_code == 200
+    set_password(admin, local_account.id, PASSWORD)
+    assert refused_as(Browser().get(url)) == "spent"
 
 
 def refused_as(page: httpx2.Response) -> str:

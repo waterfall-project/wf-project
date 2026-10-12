@@ -8,7 +8,8 @@ of an action against them (WF-ADM-0110); the first roles of an account created, 
 an account set, under the guard (``attributions``); the description of the three predefined roles,
 for the bootstrap (WF-ADM-0010); the guard of the last administrator, which every write that may
 take the administration from an account runs under, the deactivation of an account by its own
-refusal, and that account read (WF-ADM-0120); and what the table of the accounts filters and sorts
+refusal, that account read, and the lock of the rule, which a write of many accounts takes before
+any of their rows (WF-ADM-0120); and what the table of the accounts filters and sorts
 of the roles each one holds (``listUsers``).
 """
 
@@ -16,6 +17,7 @@ from waterfall.core.access_roles.administrators import (
     LAST_ADMINISTRATOR,
     guard_deactivation,
     guard_last_administrator,
+    lock_administrators,
     sole_administrator,
 )
 from waterfall.core.access_roles.attributions import (
@@ -28,9 +30,10 @@ from waterfall.core.access_roles.attributions import (
 from waterfall.core.access_roles.evaluation import (
     PERMISSION_MISSING,
     Actor,
+    Holding,
     actor_of,
     effective_permissions,
-    granted_permissions,
+    holding,
     require,
 )
 from waterfall.core.access_roles.predefined import PredefinedRole, predefined_roles
@@ -66,6 +69,7 @@ __all__ = [
     "Attribution",
     "CataloguePermission",
     "HeldRole",
+    "Holding",
     "PredefinedRole",
     "RoleFilters",
     "RoleSort",
@@ -77,13 +81,14 @@ __all__ = [
     "delete_role",
     "effective_permissions",
     "give_first_roles",
-    "granted_permissions",
     "guard_deactivation",
     "guard_last_administrator",
+    "holding",
     "holding_one_of",
     "labels_held",
     "list_permissions",
     "list_roles",
+    "lock_administrators",
     "predefined_roles",
     "read_role",
     "require",

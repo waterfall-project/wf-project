@@ -5,6 +5,7 @@
     "last_name": "Lefèvre",
     "first_name": "Sacha",
     "email": "sacha.lefevre@example.com",
+    "anonymized_at": null,
     "is_active": true,
     "origin": "identity_provider",
     "org_node_id": null,

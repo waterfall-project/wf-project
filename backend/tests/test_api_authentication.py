@@ -8,6 +8,7 @@ unknown to Waterfall, and closing sessions, need Keycloak itself:
 ``test_keycloak_authentication.py``; what is done with the person read is tried here.
 """
 
+import math
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -21,7 +22,7 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm, new_key
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, bearer, raw_account
+from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services, admit, signed_in_before_sessions_closed
@@ -213,6 +214,17 @@ def test_a_token_without_a_moment_of_issue_or_of_sign_in_is_refused(
             assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REQUIRED")
 
 
+@pytest.mark.parametrize("moment", [1e20, -1e20, math.inf, math.nan], ids=repr)
+def test_a_moment_of_sign_in_beyond_any_date_is_refused_as_no_session(
+    moment: float, api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # Signed by the realm, a number no date holds is no moment: refused in the envelope, not a 500.
+    account(database)
+    for claim in ("iat", "auth_time"):
+        token = realm.token(SUBJECT, KEY, claims={claim: moment})
+        assert refusal(api.get(ME, headers=bearer(token))) == (401, "SESSION_REQUIRED")
+
+
 @pytest.mark.requirement("WF-SEC-0020-A")
 def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
     api: ContractClient, database: Database, realm: TestRealm
@@ -238,11 +250,13 @@ def test_a_sign_out_refuses_every_token_of_a_sign_in_before_it_refreshed_or_not(
     assert api.get(ME, headers=bearer(again)).status_code == 200
 
 
+@pytest.mark.requirement("WF-SEC-0020-A")
 def test_a_token_without_a_moment_of_sign_in_is_told_by_its_moment_of_issue(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    # A token without ``auth_time`` — a client of the realm whose scopes do not give it — is
-    # dated by its issue: issued before the sign-out, it is refused; after, it is taken (#835).
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » A token without
+    # ``auth_time`` — a client of the realm whose scopes do not give it — is dated by its issue:
+    # issued before the sign-out, it is refused; after, it is taken (#835).
     account(database)
     before = realm.token(SUBJECT, KEY, claims={"iat": int(time.time()) - 1})
     assert refusal(api.delete(SESSIONS, headers=bearer(before))) == (503, "COMPONENT_UNAVAILABLE")
@@ -544,7 +558,7 @@ def test_no_connection_is_held_while_keycloak_is_asked_for_a_caller_or_her_sessi
 ) -> None:
     # The realm of test serves no administration API: Keycloak fails, after it is asked (#669).
     watching = Watching(keycloak, realm_settings, database)
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     client = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
     unknown = client.get(ME, headers=bearer(realm.token("a-person-of-the-directory", KEY)))
     assert refusal(unknown) == (503, "COMPONENT_UNAVAILABLE")

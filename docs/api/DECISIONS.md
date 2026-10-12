@@ -3691,6 +3691,20 @@ blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contr
 `VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
 serait resté sur les noms d'un compte et les libellés du référentiel.
 
+## Les préférences d'affichage ont une taille bornée (EP-03, #874)
+
+Décision de l'auteur du 2026-10-11. `DisplayPreferences` ne bornait ni le nombre de grilles, ni la
+taille de leurs filtres, ni la longueur des noms : chaque `updateMyPreferences` pouvait ajouter des
+grilles, et les préférences sont relues avec le compte à chaque requête de son titulaire et dans la
+liste des comptes. Bornes : cent grilles ; un nom de grille, de colonne ou de filtre de 64
+caractères ; par grille, 64 colonnes masquées et 64 largeurs ; 20 filtres, chacun un texte de 500
+caractères au plus. Les noms d'aujourd'hui en ont moins de vingt, et la recherche elle-même s'arrête
+à 200 caractères. Un filtre devient un texte, ce que le front écrit déjà : la valeur du paramètre de
+l'adresse qui le porte. Le service, dont les modèles sont engendrés du contrat, refuse une borne
+passée par 422 `VALUE_TOO_LONG` ; un nom trop long l'est au pointeur de l'objet qui le porte, comme
+un NUL dans un nom, une clé n'étant pas un champ. Écarté : une borne sur la taille du document
+entier, que le contrat ne sait pas dire et qu'un code d'erreur par champ ne pointerait pas.
+
 ## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
 
 Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma
@@ -3705,6 +3719,99 @@ pour la place d'un paramètre ou les propriétés d'un corps.
 quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse aussi une adresse
 ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
 resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
+
+## Attribuer un rôle, et l'invitation d'un compte créé (EP-03/US-0360/L2b, #834, #816)
+
+**Attribuer un rôle exige la permission de modifier les rôles** (#834 ; décision de l'auteur du
+2026-10-11). `setUserAccessRoles` n'exigeait que `users.write` : qui la portait sans
+`access_roles.write` lisait l'identifiant du rôle administrateur dans les `access_role_ids` d'un
+compte, se le donnait, et obtenait la gestion des rôles. Le corps de WF-ADM-0090 (FBS-1.2) range
+« attribuer ou retirer des rôles aux comptes » parmi ce que fait l'utilisateur habilité aux rôles :
+l'opération exige désormais, outre `users.write`, `access_roles.write`, et refuse sans elle par 403
+`PERMISSION_MISSING`. La commande `set_access_roles` d'un compte ne se liste que pour qui porte les
+deux, ce qui amende « Toutes suivent `users.write` » (EP-02/L42d). Écartés : refuser seulement un
+rôle qui porte une permission que l'appelant n'a pas, une règle de plus à tenir à chaque
+modification d'un rôle ; assumer l'élévation par écrit, contraire à WF-ADM-0090.
+
+**`createUser` dit si l'invitation est partie** (#816 ; décision de l'auteur du 2026-10-11). Quand
+le courriel qui porte le lien de fixation ne part pas — royaume sans messagerie (WF-CMP-0030),
+serveur de courriel en échec, fournisseur injoignable —, le compte existe tout de même et `createUser`
+rendait 201 sans le dire : la personne attendait un courriel qui ne viendrait pas. La réponse est
+désormais `UserCreated`, le compte (`User`) et `invitation_sent`, un booléen exigé ; faux, l'écran
+des comptes propose aussitôt le lien de fixation (`createPasswordSetupLink`). Écarté : une règle
+d'écran qui propose toujours le lien, que l'administrateur remettrait aussi à qui l'a déjà reçu.
+
+## L'anonymisation d'un compte (EP-03/US-0360/L2b, #702, #832)
+
+**Un compte anonymisé garde sa ligne, ses noms et son adresse à nul** (#832 ; décision de l'auteur
+du 2026-10-11). `UserAccount` rend `last_name`, `first_name` et `email` nuls pour un compte
+anonymisé seulement, et `anonymized_at`, exigé, nul tant qu'il ne l'est pas ; `ActorRef.display_name`
+et `AuditActorFacet.display_name` sont nuls pour lui, `AuditObject.label` aussi. Le front présente
+un nom nul d'un compte sous le libellé neutre de son catalogue : l'API ne rend aucune phrase
+(WF-ARC-0110). Écartés : un libellé neutre écrit en base, une phrase que l'API rendrait ; une
+adresse de remplacement, une valeur qu'aucune personne ne porte.
+
+**`anonymizeUser`, `POST /users/{user_id}/anonymization`** : l'anonymisation est irréversible, et
+mérite un verbe comme le marquage (« Forme des chemins ») ; elle porte le `lock_version` lu, d'où
+son 412, et rend le compte (`User`) ; aucune confirmation côté API, l'écran la demande. Elle
+refuse un compte actif par 409 `STATE_FORBIDS_OPERATION`, `missing_condition` à
+`is_deactivated_account`, une condition de plus, miroir de `is_active_account`, et un compte déjà
+anonymisé par `is_not_anonymized` (#856 ; décision de l'auteur du 2026-10-11). La commande
+`anonymize` ne se liste que pour un compte désactivé, comme `reactivate` qu'elle suit : disponible
+tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante. Un compte
+local est retiré du fournisseur d'identité **avant** l'écriture, hors transaction (#669), après
+une vérification sous transaction courte — le compte, son état, sa version — : si le fournisseur
+ne répond pas, 503 et rien n'est écrit, et l'anonymisation se redemande ; un compte que le
+fournisseur ne tient déjà plus est retiré. Une modification glissée entre la vérification et
+l'écriture fait refuser l'écriture, le compte étant déjà retiré du fournisseur : si c'est une
+réactivation, le compte local est actif hors du fournisseur, et personne ne s'y connecte, jusqu'à
+ce qu'on le désactive puis l'anonymise de nouveau, le retrait étant sans effet sur un compte que
+le fournisseur ne tient plus. Fermer cet écart est à trancher (#868). Un compte de l'annuaire ou
+d'un fournisseur externe n'est pas touché dans le fournisseur, et la lecture des comptes ne le
+recrée pas (WF-ADM-0070). Écarté : retirer le compte local après la validation, un échec du
+fournisseur seulement journalisé, qui laisse un compte anonymisé dans le fournisseur sans que
+personne le sache. La commande `reactivate` d'un compte anonymisé est indisponible,
+`is_not_anonymized` manquante, que `setUserActivation` nomme dans son 409 ; `updateUser` la nomme
+aussi pour un nom, un prénom ou une adresse envoyés à un compte anonymisé, que la contrainte de la
+table refuserait. `user_anonymize` s'ajoute à `AuditAction` (WF-SEC-0030), l'objet le compte, sans
+libellé ni paramètre. La base n'admet l'oubli d'un nom dans le journal que pour un compte anonymisé
+(#865) : le déclencheur du journal n'admet que le passage à nul de `actor_display_name` ou
+`object_label`, l'un au moins, le reste de la ligne inchangé, et un déclencheur du module des
+comptes sur le journal refuse ce passage quand le compte désigné n'a pas `anonymized_at` ; la
+plateforme ne lit la table d'aucun module (`docs/dev/sql.md`). Écarté : laisser la vérification au
+service seul, qu'une écriture qui le contourne ne rencontre pas.
+`User.available_commands` admet trois commandes.
+
+## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
+
+Décision de l'auteur du 2026-10-10 (#705), suivant WF-SEC-0030 révisée : le journal d'audit est
+sauvegardé avec la base de Waterfall. `Backup`, `Backup.scope` et `startBackup` le disent, à la
+place de « à l'exception du journal d'audit » qu'écrivait la décision 9 d'US-0350/L1 ; la
+restauration, qui relit les inscriptions postérieures à la sauvegarde et les réinscrit, reste à
+dire par son lot (US-0440/L2). `startBackup` est sous `backups.write`, comme toute écriture de la
+fonction ; `downloadBackup` demande `backups.read` puis `backups.write` : l'archive porte les deux
+bases entières, comptes et réglages du fournisseur d'identité compris, et son 403 déclaré n'avait
+pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
+plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
+
+## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
+
+`IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
+`finished_at`) : la plateforme en planifie une chaque jour, et l'écran des comptes montre la
+dernière qui a abouti, demandée ou non. Il nomme aussi, dans `removed`, les adresses des comptes
+locaux que la lecture retire du fournisseur d'identité — inconnus de Waterfall, sans mot de
+passe, laissés par une création interrompue —, décision de l'auteur du 2026-10-11 (#811). Le
+compte rendu s'inscrit dans la transaction de la lecture, et le retrait ne suit que sa
+validation : une adresse de `removed` est celle d'un compte retiré, ou à retirer. Un retrait qui
+échoue est journalisé, et la lecture suivante, qui retrouve le compte, nomme de nouveau son
+adresse. Un
+rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
+les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
+adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXISTS` et
+`VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un compte laissé tel quel.
+`startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
+`getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
+compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
 
 ## Collage et annulation
 

@@ -14,7 +14,9 @@ from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import SettingsError, load_service_settings
+from waterfall.platform.storage import Bucket
 
 NAME = "waterfall-api"
 
@@ -22,7 +24,8 @@ NAME = "waterfall-api"
 def main(argv: Sequence[str] | None = None) -> int:
     """Start the API service, or say why it cannot start (WF-SEC-0010).
 
-    The service takes no argument but ``--version``: any other one is refused with status 2.
+    The service takes no argument but ``--version``: any other one is refused with status 2, but
+    ``install``, which ``waterfall.bootstrap`` takes before it (US-0420).
     """
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
@@ -30,7 +33,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if arguments:
         sys.stderr.write(
-            f"usage: {NAME} [--version]\n{NAME}: unexpected argument: {arguments[0]}\n"
+            f"usage: {NAME} [--version | install]\n{NAME}: unexpected argument: {arguments[0]}\n"
         )
         return 2
     try:
@@ -44,15 +47,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     keycloak = Keycloak(settings)
+    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
+    administration = KeycloakAdmin(keycloak, settings)
+    services = Services(database, keycloak, administration, queue, Bucket.of_backups(settings))
     try:
         uvicorn.run(
-            create_app(Services(database, keycloak, KeycloakAdmin(keycloak, settings))),
+            create_app(services),
             host=settings.host,
             port=settings.port,
             log_config=None,
             access_log=False,
         )
     finally:
+        queue.close()
         keycloak.close()
         database.dispose()
     return 0

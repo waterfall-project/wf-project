@@ -43,11 +43,14 @@
   },
   "accountMenu": {
     "label": "Compte de {name}",
-    "name": "{first} {last}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
+  },
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Compte anonymisé"
   },
   "account": {
     "details": "Informations du compte",
@@ -168,6 +171,7 @@
       "holders": "Comptes porteurs",
       "modify": "Modifier",
       "delete": "Supprimer",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -1012,12 +1016,18 @@
       "title": "Compte désactivé",
       "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
     },
+    "notAdmitted": {
+      "title": "Compte non admis",
+      "explanation": "Waterfall n’admet pas ce compte : l’écran n’est pas accessible. Contactez un administrateur."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
     },
+    "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "signOut": "Se déconnecter"
   },
   "loading": {
     "label": "Chargement de l’écran"
@@ -1225,7 +1235,8 @@
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
       "create": "Créer un compte local",
-      "named": "{firstName} {lastName}",
+      "anonymize": "Anonymiser",
+      "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
       "stateFilter": "État du compte",
@@ -1234,7 +1245,7 @@
       "inactiveAccounts": "Comptes désactivés",
       "told": "Commandes des comptes",
       "created": "Compte « {name} » créé.",
-      "creationHint": "Le compte naît sans mot de passe : son porteur le fixe par le lien de fixation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
+      "creationHint": "Le compte naît sans mot de passe : son porteur le fixe par le lien de fixation, que le fournisseur d’identité lui envoie par courriel, ou, faute d’invitation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
       "deactivated": "« {name} » désactivé.",
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
@@ -1248,7 +1259,15 @@
       "copyLink": "Copier le lien",
       "closeLink": "Fermer",
       "linkCopied": "Lien copié.",
-      "linkSelected": "Lien sélectionné : copiez-le au clavier."
+      "linkSelected": "Lien sélectionné : copiez-le au clavier.",
+      "renamed": "« {name} » renommé.",
+      "createdUninvited": "Compte « {name} » créé ; aucune invitation n’est partie : remettez-lui son lien de fixation.",
+      "uninvited": "Le compte « {name} » est créé, mais aucune invitation ne lui est partie : remettez à son porteur son lien de fixation, par un autre canal.",
+      "giveLink": "Remettre le lien",
+      "anonymized": "Compte anonymisé.",
+      "anonymizationTitle": "Anonymiser « {name} » ?",
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
+      "keep": "Conserver"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
@@ -1731,6 +1750,7 @@
       "user_update": "Modification d’un compte",
       "user_deactivate": "Désactivation d’un compte",
       "user_reactivate": "Réactivation d’un compte",
+      "user_anonymize": "Anonymisation d’un compte",
       "password_link_create": "Lien de mot de passe engendré",
       "access_role_create": "Création d’un rôle",
       "access_role_update": "Modification d’un rôle",
@@ -1825,7 +1845,9 @@
       "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
       "is_local_account": "compte créé dans Waterfall",
-      "is_active_account": "compte actif"
+      "is_active_account": "compte actif",
+      "is_deactivated_account": "compte désactivé",
+      "is_not_anonymized": "compte non anonymisé"
     },
     "ProjectExit": {
       "to_state": {
@@ -2135,6 +2157,7 @@
     "UserCommand": {
       "deactivate": "Désactiver le compte",
       "reactivate": "Réactiver le compte",
+      "anonymize": "Anonymiser le compte",
       "set_access_roles": "Attribuer les rôles du compte"
     },
     "RiskComputedField": {

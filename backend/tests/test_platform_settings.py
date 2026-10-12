@@ -17,7 +17,12 @@ from support import (
     SERVICE_CREDENTIAL,
 )
 
-from waterfall.platform.settings import Settings, SettingsError, load_settings
+from waterfall.platform.settings import (
+    Settings,
+    SettingsError,
+    load_installation_settings,
+    load_settings,
+)
 
 
 def start_api(environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
@@ -81,6 +86,21 @@ def test_the_settings_read_the_secrets_of_the_environment(
         settings.database_url.get_secret_value() == platform_environment["WATERFALL_DATABASE_URL"]
     )
     assert (settings.host, settings.port, settings.log_level) == ("127.0.0.1", 8000, "INFO")
+
+
+@pytest.mark.usefixtures("platform_environment")
+def test_the_bootstrap_reads_its_settings_without_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    # It deposits no task: Redis, which the API and the worker need, it does not ask for (US-0420).
+    monkeypatch.delenv("WATERFALL_REDIS_URL")
+    monkeypatch.setenv("WATERFALL_INSTALLATION_CLIENT_SECRET", "installation-secret")
+    monkeypatch.setenv("WATERFALL_ADMIN_EMAIL", "administrateur@waterfall.test")
+    monkeypatch.setenv("WATERFALL_DEFAULT_LANGUAGE", "en")
+    settings = load_installation_settings()
+    assert (settings.admin_email, settings.default_language) == (
+        "administrateur@waterfall.test",
+        "en",
+    )
+    assert "redis_url" not in type(settings).model_fields
 
 
 @pytest.mark.usefixtures("platform_environment")

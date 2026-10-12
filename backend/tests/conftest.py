@@ -2,15 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The fixtures of the tests of the service."""
 
-import io
 import json
-import logging
 import os
 from collections.abc import Iterator
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import pytest
-import structlog
 from fastapi.testclient import TestClient
 from openapi_core import Config, OpenAPI
 from realm import KEY, TestRealm
@@ -22,6 +20,8 @@ from support import (
     PLATFORM_SECRETS,
     ContractClient,
     Logs,
+    captured_logs,
+    nowhere,
     service_role,
 )
 
@@ -32,9 +32,9 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
+from waterfall.platform.storage import Bucket
 
 
 @pytest.fixture
@@ -60,7 +60,8 @@ def services(platform_settings: ServiceSettings) -> Iterator[Services]:
     """Give the services of the API of the test platform, which reach nothing until asked to."""
     database = Database(create_database_engine(platform_settings.database_url.get_secret_value()))
     keycloak = Keycloak(platform_settings)
-    yield Services(database, keycloak, KeycloakAdmin(keycloak, platform_settings))
+    administration = KeycloakAdmin(keycloak, platform_settings)
+    yield Services(database, keycloak, administration, *nowhere())
     keycloak.close()
     database.dispose()
 
@@ -93,21 +94,21 @@ def api(
     contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
 ) -> ContractClient:
     """Give a client of the application on the database of test and the realm of test."""
-    app = create_app(Services(database, keycloak, KeycloakAdmin(keycloak, realm_settings)))
+    administration = KeycloakAdmin(keycloak, realm_settings)
+    app = create_app(Services(database, keycloak, administration, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
 @pytest.fixture
 def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
     """Capture the logs in memory, as a service of the test platform writes them, then restore."""
-    root = logging.getLogger()
-    handlers, level = list(root.handlers), root.level
-    stream = io.StringIO()
-    configure_logging("DEBUG", stream, platform_settings.secret_values())
-    yield Logs(stream)
-    root.handlers[:] = handlers
-    root.setLevel(level)
-    structlog.reset_defaults()
+    with captured_logs(platform_settings.secret_values()) as logs:
+        yield logs
+
+
+def binary_text(content: bytes | str) -> str:
+    """Read a binary content as the string its schema declares, each byte one character."""
+    return content.decode("latin-1") if isinstance(content, bytes) else content
 
 
 @pytest.fixture(scope="session")
@@ -115,9 +116,17 @@ def contract() -> OpenAPI:
     """Read the interface contract, once.
 
     A refusal answers in ``application/problem+json``, JSON that openapi-core does not read by
-    itself: without this, no refusal could be checked against its schema.
+    itself: without this, no refusal could be checked against its schema. An image, a binary text
+    for the contract, is read as the text of its bytes, each one a character.
     """
-    config = Config(extra_media_type_deserializers={"application/problem+json": json.loads})
+    config = Config(
+        extra_media_type_deserializers={
+            "application/problem+json": json.loads,
+            "image/png": binary_text,
+            "image/jpeg": binary_text,
+            "application/octet-stream": binary_text,
+        }
+    )
     return OpenAPI.from_file_path(str(CONTRACT), config=config)
 
 
@@ -269,3 +278,32 @@ def platform_queue(redis_url: str) -> Iterator[TaskQueue]:
 def service_environment(service_database_url: str, redis_url: str) -> dict[str, str]:
     """Give a process of the platform the database of the tests, as the service, and their Redis."""
     return {"WATERFALL_DATABASE_URL": service_database_url, "WATERFALL_REDIS_URL": redis_url}
+
+
+TEST_STORAGE_VARIABLE = "WATERFALL_TEST_STORAGE_URL"
+
+
+@pytest.fixture(scope="session")
+def backups_bucket() -> Iterator[Bucket]:
+    """Give a bucket of its own on the object storage of the tests, emptied and deleted after them.
+
+    ``WATERFALL_TEST_STORAGE_URL`` designates the storage and the key of the tests, as
+    ``http://<key>:<secret>@<host>:<port>``; without it, a test that needs the storage fails and
+    says so: no other stands in for it.
+    """
+    address = os.environ.get(TEST_STORAGE_VARIABLE)
+    if not address:
+        pytest.fail(
+            f"{TEST_STORAGE_VARIABLE} is not set: give it the URL of an object storage and of a "
+            "key that may create buckets (the guide, 'Tests', says how)",
+            pytrace=False,
+        )
+    parts = urlsplit(address)
+    endpoint = f"{parts.scheme}://{parts.hostname}:{parts.port}"
+    name = f"waterfall-test-{uuid4().hex}"
+    bucket = Bucket.connect(name, endpoint, "us-east-1", parts.username or "", parts.password or "")
+    bucket.client.create_bucket(Bucket=name)
+    yield bucket
+    for listed in bucket.client.list_objects_v2(Bucket=name).get("Contents", []):
+        bucket.client.delete_object(Bucket=name, Key=listed.get("Key", ""))
+    bucket.client.delete_bucket(Bucket=name)

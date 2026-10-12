@@ -173,12 +173,12 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
-test("enters the table of the accounts — a state on its switch, the roles of an account, a local account created, a link given — and offers to delete none [WF-ADM-0060-A]", async ({
+test("enters the table of the accounts — a state on its switch, the roles of an account, a local account created, a link given, a deactivated one anonymised once confirmed — and offers to delete none [WF-ADM-0060-A]", async ({
   page,
 }) => {
   // The fake back answers each write by its example, and keeps nothing: the accounts written are
-  // those the examples write — Noé Vidal deactivated, a role given to Sacha Lefèvre, Léa Garnier
-  // created —, shown as answered over the page read anew.
+  // those the examples write — Noé Vidal deactivated, Alix Moreau anonymised, a role given to Sacha
+  // Lefèvre, Léa Garnier created —, shown as answered over the page read anew.
   await page.goto("/admin/users");
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   const told = page.getByRole("status", { name: "Commandes des comptes" });
@@ -191,6 +191,17 @@ test("enters the table of the accounts — a state on its switch, the roles of a
     await expect(told).toHaveText("«\u00a0Noé Vidal\u00a0» désactivé.", { timeout: 1_000 });
   }).toPass({ timeout: WORKING });
   await expect(vidal).not.toBeChecked();
+
+  // A deactivated account lists its anonymisation — Alix Moreau, and Noé Vidal once deactivated —;
+  // the active ones do not. Irreversible, it is confirmed first (WF-ADM-0060).
+  await expect(accounts.getByRole("button", { name: /^Anonymiser «/ })).toHaveCount(2);
+  await accounts.getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }).click();
+  const confirmation = page.getByRole("alertdialog", {
+    name: "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0?",
+  });
+  await expect(confirmation).toContainText("est irréversible");
+  await confirmation.getByRole("button", { name: "Anonymiser" }).click();
+  await expect(told).toHaveText("Compte anonymisé.");
 
   // The last administrator, as the account lists its commands: her deactivation unavailable,
   // naming the condition she lacks (WF-ADM-0120).
@@ -217,7 +228,15 @@ test("enters the table of the accounts — a state on its switch, the roles of a
   await creation.getByLabel("Prénom", { exact: true }).fill("Léa");
   await creation.getByLabel("Adresse électronique").fill("lea.garnier@example.com");
   await creation.getByRole("button", { name: "Créer", exact: true }).click();
-  await expect(told).toHaveText("Compte «\u00a0Léa Garnier\u00a0» créé.");
+  // No invitation went, as the fake back answers: the link is offered at once (#816).
+  await expect(told).toHaveText(/^Compte «\u00a0Léa Garnier\u00a0» créé\u00a0; aucune invitation/);
+  await page.getByRole("button", { name: "Remettre le lien" }).click();
+  const given = page.getByRole("dialog", {
+    name: "Lien de fixation du mot de passe de «\u00a0Léa Garnier\u00a0»",
+  });
+  await expect(given.getByRole("textbox", { name: "Lien" })).toHaveValue(/^https:\/\//);
+  await given.getByRole("button", { name: "Fermer" }).click();
+  await expect(given).toHaveCount(0);
 
   // The link of a local account, given once, to hand over by another channel (WF-ADM-0140).
   await accounts

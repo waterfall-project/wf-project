@@ -1,10 +1,11 @@
 {
-  "summary": "Le compte local de Léa Garnier, créé aujourd'hui par Camille Martin de son nom, de son prénom et de son adresse, sans rôle ni rattachement : il ne se connecte qu'une fois son mot de passe fixé par le lien de fixation (WF-ADM-0050, WF-ADM-0140).",
+  "summary": "Le compte local de Léa Garnier, créé aujourd'hui par Camille Martin de son nom, de son prénom et de son adresse, sans rôle ni rattachement, sur une installation sans messagerie : aucune invitation n'est partie, et son lien de fixation se remet à la main ; il ne se connecte qu'une fois son mot de passe fixé (WF-ADM-0050, WF-ADM-0140, WF-CMP-0030).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000308",
     "last_name": "Garnier",
     "first_name": "Léa",
     "email": "lea.garnier@example.com",
+    "anonymized_at": null,
     "is_active": true,
     "origin": "local",
     "org_node_id": null,
@@ -38,6 +39,7 @@
         "display_name": "Camille Martin"
       }
     },
-    "lock_version": 1
+    "lock_version": 1,
+    "invitation_sent": false
   }
 }

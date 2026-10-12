@@ -21,6 +21,7 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
 import { UnmetConditions } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useTrackTask } from "@/components/tasks/task-tracker";
@@ -82,6 +83,8 @@ function OfferedExports({
   const [depth, setDepth] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // A link clicked while the export is asked waits for it, and is not followed when refused.
+  const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending || offer?.is_available !== true) {
@@ -99,7 +102,7 @@ function OfferedExports({
     };
     const command = () => requestFileExport(projectId, request);
     startTransition(async () => {
-      const result = await command();
+      const result = await held(command());
       if (result.kind === "done") {
         setOutcome(undefined);
         track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });

@@ -238,6 +238,22 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
+  it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation and its anonymisation unavailable [WF-ADM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /users": "users_anonymized" };
+    const page = rendered(await UsersPage(searched({ is_active: "false" })));
+    expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
+      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Condition non remplie : compte non anonymisé. Anonymiser Condition non remplie : compte non anonymisé.",
+    ]);
+    expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
+    // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.
+    expect(page).toMatch(
+      /<[^>]*aria-label="Compte de «\u00a0Compte anonymisé\u00a0» actif"[^>]*aria-disabled="true"/,
+    );
+    expect(page).toMatch(
+      /<[^>]*aria-label="Anonymiser «\u00a0Compte anonymisé\u00a0»"[^>]*aria-disabled="true"/,
+    );
+  });
+
   it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
     server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
     const page = text(
@@ -250,13 +266,14 @@ describe("the accounts", () => {
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
-  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry, « Créer un compte local » at its head", async () => {
+  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry, « Créer un compte local » at its head, and the anonymisation of a deactivated one", async () => {
     const page = rendered(await UsersPage(searched()));
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Lien de fixation",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Lien de fixation Anonymisation",
     );
+    expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
     expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0»"');
     expect(page).toContain(
@@ -282,7 +299,9 @@ describe("the accounts", () => {
   it("offer no command of the accounts to a session that may not modify them", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
-    expect(buttons(page).filter((name) => /Supprimer|Créer|Lien/.test(name))).toEqual([]);
+    expect(buttons(page).filter((name) => /Supprimer|Créer|Lien|Anonymiser/.test(name))).toEqual(
+      [],
+    );
     expect(page).not.toContain('role="switch"');
     expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });

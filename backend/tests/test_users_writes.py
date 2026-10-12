@@ -22,7 +22,7 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, bearer, wait_for_a_lock
+from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -33,7 +33,6 @@ from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.interface import Identity, is_address
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditActor, AuditEntry
-from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import ConflictError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak
@@ -85,11 +84,11 @@ def client(
     contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
 ) -> ContractClient:
     """Give a client of the API whose administration client is watched."""
-    app = create_app(Services(database, keycloak, watching))
+    app = create_app(Services(database, keycloak, watching, *nowhere()))
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
-def accounts(database: Database) -> list[str]:
+def accounts(database: Database) -> list[str | None]:
     """Give the addresses of the accounts, in the order of their creation."""
     with database.transaction() as session:
         return list(session.scalars(select(UserAccount.email).order_by(UserAccount.created_at)))
@@ -257,7 +256,8 @@ def test_a_local_account_is_written_with_its_first_roles_and_both_are_inscribed(
             session, (identity, "kc-jeanne"), [pilot, estimator, pilot], Actor(CALLER, CHANGE), act
         )
     # The address as written; the roles by label, the one sent twice held once.
-    assert (user.last_name, user.first_name, user.email, user.origin.value) == (
+    written = user.model_dump(mode="json")
+    assert (written["last_name"], written["first_name"], written["email"], written["origin"]) == (
         "Montgolfier",
         "Jeanne",
         "Jeanne@Mairie.LOCAL",
@@ -360,35 +360,28 @@ def change(client: ContractClient, headers: dict[str, str], user_id: UUID, **sen
     return client.patch(f"{USERS}/{user_id}", headers=headers, json=sent)
 
 
-def test_a_local_account_changes_its_names_and_its_address_and_the_change_is_inscribed(
-    client: ContractClient, database: Database, headers: dict[str, str]
+def test_a_change_of_a_local_account_the_provider_does_not_take_writes_nothing(
+    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
 ) -> None:
+    # Waterfall is the authority on a local account, and carries its new identity to the provider
+    # first, out of any transaction (#810, #669): the realm of test answers nothing of it. That the
+    # provider takes it, and the change is then written and inscribed, is tried on the platform.
     jeanne = account(database, "Montgolfier", "Jeanne")
     response = change(
-        client,
-        headers,
-        jeanne,
-        last_name="Montgolfier-Durand",
-        first_name="Jeanne",
-        email="Jeanne.Durand@Mairie.LOCAL",
+        client, headers, jeanne, last_name="Montgolfier-Durand", email="Jeanne.Durand@Mairie.LOCAL"
     )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert (body["last_name"], body["first_name"], body["email"]) == (
-        "Montgolfier-Durand",
-        "Jeanne",
-        "Jeanne.Durand@Mairie.LOCAL",
+    assert (response.status_code, response.json()["params"]) == (
+        503,
+        {"component": "identity_provider"},
     )
-    assert (body["lock_version"], body["audit"]["updated_by"]["user_id"]) == (1, str(CALLER))
-    [entry] = journal(database)
-    # The fields changed, by their names alone: the journal keeps no name nor address.
-    assert (entry.action, entry.object_id, entry.object_label, entry.params) == (
-        "user_update",
-        jeanne,
-        "Jeanne Montgolfier-Durand",
-        {"fields": ["last_name", "email"]},
-    )
-    assert entry.correlation_id == response.headers[HEADER]
+    assert watching.held == [("change_identity", 0)]
+    with database.transaction() as session:
+        held = session.get_one(UserAccount, jeanne)
+        assert (held.last_name, held.lock_version) == ("Montgolfier", 0)
+    assert journal(database) == []
+    # A change of nothing the provider holds does not ask it.
+    unchanged = change(client, headers, jeanne, first_name="Jeanne", org_node_id=None)
+    assert (unchanged.status_code, watching.held) == (200, [("change_identity", 0)])
 
 
 @pytest.mark.requirement("WF-ADM-0050-A")

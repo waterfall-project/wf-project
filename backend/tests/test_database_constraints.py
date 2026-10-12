@@ -22,11 +22,22 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.users.tables import UserAccount
+from waterfall.core.backups.tables import Backup
+from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
+
+ANONYMIZED = datetime(2026, 10, 8, 9, 30, tzinfo=UTC)
+# An anonymised account as the database holds it: deactivated, without its names nor its address.
+FORGOTTEN: dict[str, object] = {
+    "anonymized_at": ANONYMIZED,
+    "state": "deactivated",
+    "last_name": None,
+    "first_name": None,
+    "email": None,
+}
 
 
 def constraint_of(error: IntegrityError) -> str:
@@ -102,6 +113,20 @@ def test_two_accounts_with_the_same_subject_of_the_identity_provider_are_rejecte
         ({"first_name": "x" * 101}, "ck_user_account_first_name_length"),
         ({"email": ""}, "ck_user_account_email_not_empty"),
         ({"idp_subject": ""}, "ck_user_account_idp_subject_not_empty"),
+        # The names and the address are null for an anonymised account, and for it alone; it
+        # stays deactivated, without its avatar (WF-ADM-0060).
+        ({"last_name": None}, "ck_user_account_identity_unless_anonymized"),
+        ({"email": None}, "ck_user_account_identity_unless_anonymized"),
+        (
+            {"anonymized_at": ANONYMIZED, "state": "deactivated"},
+            "ck_user_account_identity_unless_anonymized",
+        ),
+        ({**FORGOTTEN, "first_name": "Claire"}, "ck_user_account_identity_unless_anonymized"),
+        ({**FORGOTTEN, "state": "active"}, "ck_user_account_anonymized_deactivated"),
+        (
+            {**FORGOTTEN, "avatar": b"x", "avatar_media_type": "image/png"},
+            "ck_user_account_anonymized_deactivated",
+        ),
     ],
     ids=lambda value: value if isinstance(value, str) else "",
 )
@@ -109,6 +134,15 @@ def test_the_database_refuses_an_account_that_breaks_a_check(
     database: Database, overrides: dict[str, object], constraint: str
 ) -> None:
     assert refusal(database, write_account(**overrides)) == constraint
+
+
+def test_two_anonymized_accounts_hold_no_address_and_are_both_accepted(database: Database) -> None:
+    # The index of the addresses admits several null ones (#832).
+    for _ in range(2):
+        insert_account(database, **FORGOTTEN)
+    with database.engine.connect() as connection:
+        held = connection.execute(text("SELECT count(*) FROM user_account WHERE email IS NULL"))
+        assert held.scalar_one() == 2
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
@@ -168,8 +202,10 @@ def test_an_account_that_authored_another_cannot_be_deleted(
 
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_the_installation_holds_one_row_in_one_language_under_the_bound_of_the_avatar(
-    database: Database, owner: Engine
+    owner: Engine,
 ) -> None:
+    # The bootstrap writes the row, as the owner of the tables (#701).
+    database = Database(owner)
     good = {
         "id": 1,
         "default_language": "fr",
@@ -223,7 +259,7 @@ def write_inscription(**overrides: object) -> Executable:
     [
         ({"action": "access_role_rename"}, "ck_audit_entry_action_known"),
         ({"object_kind": "task"}, "ck_audit_entry_object_kind_known"),
-        ({"actor_user_id": uuid4()}, "ck_audit_entry_actor_named"),
+        # The platform has no name.
         ({"actor_display_name": "Claire Martin"}, "ck_audit_entry_actor_named"),
         ({"project_id": uuid4(), "project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
         ({"project_code": "PRJ-001", "project_label": "Poste"}, "ck_audit_entry_project_named"),
@@ -239,6 +275,23 @@ def test_the_database_refuses_an_inscription_that_breaks_a_check(
     database: Database, overrides: dict[str, object], constraint: str
 ) -> None:
     assert refusal(database, write_inscription(**overrides)) == constraint
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_anonymized_account_is_named_by_no_label_as_author_or_as_object(
+    database: Database,
+) -> None:
+    # An account that lost its name to its anonymisation is still the author and the object, by
+    # its identifier (WF-ADM-0060); any other object keeps its label.
+    forgotten = uuid4()
+    statement = write_inscription(
+        actor_user_id=forgotten, object_kind="user", object_id=forgotten, object_label=None
+    )
+    with database.engine.begin() as connection:
+        connection.execute(statement)
+    assert refusal(database, write_inscription(object_label=None)) == (
+        "ck_audit_entry_object_labeled"
+    )
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
@@ -413,3 +466,81 @@ def test_the_database_refuses_a_task_that_breaks_a_rule(
     database: Database, overrides: dict[str, object], constraint: str
 ) -> None:
     assert refusal(database, write_task(**overrides)) == constraint
+
+
+def write_backup(of_task: object, **overrides: object) -> Executable:
+    """Give the insertion of a backup by hand, verified, with the changes asked for."""
+    columns: dict[str, object] = {
+        "id": uuid4(),
+        "taken_at": ENDED,
+        "size_bytes": 2048,
+        "verification": "passed",
+        "origin": "manual",
+        "is_retained": False,
+        "object_key": f"backup-{of_task}.tar",
+        "application_version": "0.1.0",
+        "schema_revision": "0010",
+        "task_id": of_task,
+    }
+    return insert(Backup).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"verification": "skipped"}, "ck_backup_verification_known"),
+        ({"origin": "imported"}, "ck_backup_origin_known"),
+        ({"size_bytes": -1}, "ck_backup_size_bytes_not_negative"),
+        ({"task_id": uuid4()}, "fk_backup_task_id_background_task"),
+        ({"object_key": "taken.tar"}, "uq_backup_object_key"),
+        ({}, "uq_backup_task_id"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_backup_that_breaks_a_rule(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    task_id, other = uuid4(), uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(write_task(id=task_id, kind="backup"))
+        connection.execute(write_task(id=other, kind="backup"))
+        connection.execute(write_backup(other, object_key="taken.tar"))
+        if not overrides:
+            connection.execute(write_backup(task_id, object_key="first.tar"))
+    assert refusal(database, write_backup(task_id, **overrides)) == constraint
+
+
+def write_report(of_task: object, **overrides: object) -> Executable:
+    """Give the insertion of the report of a reading of the accounts, with the changes asked for."""
+    columns: dict[str, object] = {
+        "task_id": of_task,
+        "finished_at": ENDED,
+        "created": 1,
+        "updated": 0,
+        "deactivated": 0,
+        "skipped": [],
+        "removed": [],
+    }
+    return insert(IdentitySyncReport).values(**{**columns, **overrides})
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"created": -1}, "ck_identity_sync_report_counts_not_negative"),
+        ({"deactivated": -1}, "ck_identity_sync_report_counts_not_negative"),
+        ({"skipped": {"email": "a@b"}}, "ck_identity_sync_report_skipped_array"),
+        ({"removed": "a@b"}, "ck_identity_sync_report_removed_array"),
+        ({"task_id": uuid4()}, "fk_identity_sync_report_task_id_background_task"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_a_report_of_a_reading_that_breaks_a_rule(
+    database: Database, overrides: dict[str, object], constraint: str
+) -> None:
+    task_id = uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(write_task(id=task_id, kind="identity_sync"))
+    assert refusal(database, write_report(task_id, **overrides)) == constraint

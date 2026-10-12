@@ -24,8 +24,23 @@ router = APIRouter(tags=["tasks"])
 NOT_FOUND = "NOT_FOUND"
 
 
+# Where a task that succeeded gives its result, by its kind: the backup it took, the report of the
+# reading of the accounts. The exports, whose result is a file to download, add theirs (EP-07).
+BACKUPS = "/api/v1/backups"
+IDENTITY_SYNC_REPORT = "/api/v1/identity-syncs/latest"
+
+
+def result_url(row: BackgroundTask) -> str | None:
+    """Give where to read the result of a task, once it has succeeded and if it gives one."""
+    if row.status != "succeeded":
+        return None
+    if row.kind == "backup" and row.result is not None:
+        return f"{BACKUPS}/{row.result['backup_id']}"
+    return IDENTITY_SYNC_REPORT if row.kind == "identity_sync" else None
+
+
 def task_ref(row: BackgroundTask) -> BackgroundTaskRef:
-    """Describe a task as the contract does: no result to download yet (exports, EP-07)."""
+    """Describe a task as the contract does, with where to read its result if it gives one."""
     return BackgroundTaskRef.model_validate(
         {
             "task_id": row.id,
@@ -35,7 +50,7 @@ def task_ref(row: BackgroundTask) -> BackgroundTaskRef:
             "submitted_at": row.submitted_at,
             "finished_at": row.finished_at,
             "problem": row.problem,
-            "result_url": None,
+            "result_url": result_url(row),
         }
     )
 

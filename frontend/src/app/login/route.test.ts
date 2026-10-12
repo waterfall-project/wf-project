@@ -1,9 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { randomUUID } from "node:crypto";
+
 import { createClient } from "@redis/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createIdentityProvider } from "@/session/provider";
+import { armSignOut, closeStore } from "@/session/store";
 import { FRONT_CLIENT } from "@/session/settings";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { withTestRedis } from "@/test/session";
@@ -18,8 +21,8 @@ vi.mock("@/session/provider", async (original) => ({
 withTestRedis();
 
 /** Ask for the sign-in route, with the query a refusal for want of a session writes. */
-function login(query = ""): Promise<Response> {
-  return GET(new Request(`http://front.example/login${query}`));
+function login(query = "", headers: HeadersInit = {}): Promise<Response> {
+  return GET(new Request(`http://front.example/login${query}`, { headers }));
 }
 
 /** What Redis keeps of a sign-in under way, and for how long. */
@@ -84,9 +87,71 @@ describe("the sign-in route on the identity provider", () => {
     expect(signIn.value).toMatchObject({ target: screen, nonce: query.get("nonce") });
     expect(signIn.ttl).toBeGreaterThan(0);
     expect(signIn.ttl).toBeLessThanOrEqual(15 * 60);
+    expect(query.has("prompt")).toBe(false);
+    expect(signIn.value).toMatchObject({ signOut: false });
+    // The cookie of the session the browser held is forgotten here, where the sign-out leads (#724).
     expect(response.headers.getSetCookie()).toEqual([
       `wf_sign_in_${query.get("state") ?? ""}=1; Path=/auth/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=900`,
+      "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
     ]);
+  });
+
+  it("signs in silently for the sign-out of a session the front lost, its return to close the sessions of the account, the ticket the sign-out armed taken once, by the browser whose cookie it is bound to only (#689)", async () => {
+    const [mine, theirs] = [randomUUID(), randomUUID()];
+    const ticket = await armSignOut(mine);
+    // Another browser, or one without the cookie — a victim led to the ticket a third party armed
+    // for a cookie of its own —, signs in like any other, and leaves the ticket in place.
+    for (const headers of [{ Cookie: `wf_session=${theirs}` }, {}]) {
+      const query = new URL(
+        (await login(`?sign_out=${ticket}`, headers)).headers.get("Location") ?? "",
+      ).searchParams;
+      expect(query.has("prompt")).toBe(false);
+      expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
+    }
+    const response = await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` });
+    const query = new URL(response.headers.get("Location") ?? "").searchParams;
+    expect(query.get("prompt")).toBe("none");
+    expect((await kept(query.get("state") ?? "")).value).toMatchObject({
+      signOut: true,
+      target: "/",
+    });
+    // Spent: the same address again is a sign-in like any other.
+    const again = new URL(
+      (await login(`?sign_out=${ticket}`, { Cookie: `wf_session=${mine}` })).headers.get(
+        "Location",
+      ) ?? "",
+    );
+    expect(again.searchParams.has("prompt")).toBe(false);
+  });
+
+  it.each(["1", "unknown-ticket", ""])(
+    "takes a sign-out no server action armed — a link of another site — for an ordinary sign-in: no silent sign-in, nothing closed at its return: %j",
+    async (ticket) => {
+      const response = await login(`?sign_out=${ticket}`, { Cookie: "wf_session=held" });
+      const query = new URL(response.headers.get("Location") ?? "").searchParams;
+      expect(query.has("prompt")).toBe(false);
+      expect((await kept(query.get("state") ?? "")).value).toMatchObject({ signOut: false });
+    },
+  );
+
+  it("says the sign-in could not be made when Redis is out of reach, rather than fail bare, and forgets the cookie of the session, which the page would read Redis for (#687)", async () => {
+    // A Redis nobody serves: the connection is refused.
+    await closeStore();
+    vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
+    try {
+      const response = await login(`?next=${encodeURIComponent("/account?tab=1")}`, {
+        Cookie: "wf_session=held",
+      });
+      expect(response.status).toBe(307);
+      expect(response.headers.get("Location")).toBe(
+        `/login/unavailable?next=${encodeURIComponent("/account?tab=1")}`,
+      );
+      expect(response.headers.getSetCookie()).toEqual([
+        "wf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+      ]);
+    } finally {
+      await closeStore();
+    }
   });
 
   it("keeps the home page in place of another site", async () => {

@@ -19,6 +19,7 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 
 import { updateDisplay } from "@/api/actions/preferences";
 import type { Outcome } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -85,14 +86,16 @@ function Choice<V extends string>({
 /** Render the preferences of the account, and record them when saved. */
 export function PreferencesForm({ language, theme }: PreferencesFormProps) {
   const t = useTranslations();
-  const [held, setHeld] = useState({ language, theme });
+  const [read, setRead] = useState({ language, theme });
   const [chosen, setChosen] = useState({ language, theme });
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // A link clicked while the choice is recorded waits for it, and is not followed when refused.
+  const held = useHeldCommand();
   // The page rendered again holds other preferences — saved here, or chosen in the menu —: the
   // choice starts again from them.
-  if (held.language !== language || held.theme !== theme) {
-    setHeld({ language, theme });
+  if (read.language !== language || read.theme !== theme) {
+    setRead({ language, theme });
     setChosen({ language, theme });
   }
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -101,7 +104,7 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
       return;
     }
     startTransition(async () => {
-      setOutcome(await updateDisplay(chosen));
+      setOutcome(await held(updateDisplay(chosen)));
     });
   };
   return (
