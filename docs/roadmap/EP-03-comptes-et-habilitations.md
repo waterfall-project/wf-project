@@ -922,6 +922,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | La lecture des comptes rétablit dans Keycloak l'identité des comptes locaux, Waterfall faisant foi (WF-ADM-0050 ; auteur, 2026-10-12, #919) | consigner le désaccord sans le réconcilier : un report resté sans réponse laisserait Keycloak et Waterfall en désaccord sans fin |
 | Le compte rendu de la lecture ne garde d'un compte de Waterfall que son identifiant, le nom relu à la consultation (auteur, 2026-10-12, #920) | effacer l'adresse des comptes rendus à l'anonymisation : une donnée personnelle copiée qu'il faudrait poursuivre partout où elle a été écrite |
 | Les tables des comptes et des rôles reçoivent les colonnes d'audit, triables et filtrables, par US-0360/L4 (auteur, 2026-10-12, #936) | les laisser sans elles : l'écart de WF-ADM-0060-A, qui promet un compte désactivé nommé dans ces colonnes, ne se constaterait nulle part en EP-03 |
+| Le lien « mot de passe oublié » refusé une fois le mot de passe fixé après son émission, par une pièce de l'extension (auteur, 2026-10-11, #852) | accepter le risque, borné à l'heure du lien et à un redémarrage dans cette heure : un lien employé redevient valable pour quiconque lit le courriel |
 
 ### Issues à ouvrir avec la conception
 

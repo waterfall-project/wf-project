@@ -98,4 +98,5 @@ Un défaut trouvé en revue et qui peut revenir s'ajoute ici, comme dans `python
 1. **Une marque d'usage unique qui ne vit qu'en mémoire.** Keycloak marque un jeton d'action
    employé dans Infinispan seul : un redémarrage l'efface, et un lien employé redevient valable
    jusqu'à son heure. Ce qui rend un lien inemployable s'écrit en base — l'attribut du compte
-   retiré dès la confirmation.
+   retiré dès la confirmation — ou, pour un lien de Keycloak qu'on ne forge pas, une date que
+   Keycloak garde en base, comme celle du mot de passe (reset-credentials, #852).

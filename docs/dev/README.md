@@ -2098,10 +2098,10 @@ sessions par le royaume (`session.spec.ts`) ; chaque sorte de compte qui agit se
 session inactive qui ramène à la connexion puis à l'écran visé, le compte non admis
 (`sign-in.spec.ts`) ; le compte local créé, son lien de fixation, les règles du mot de passe et le
 verrouillage (`password.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écran des comptes
-(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API d'administration, en
-administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une durée raccourcie le
-temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —, et demandent un
-jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API
+d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
+durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
+et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux

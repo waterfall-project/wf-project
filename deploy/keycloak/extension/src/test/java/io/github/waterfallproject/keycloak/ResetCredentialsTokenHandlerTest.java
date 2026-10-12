@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionTokenHandler;
 
 class ResetCredentialsTokenHandlerTest {
 
@@ -44,6 +45,6 @@ class ResetCredentialsTokenHandlerTest {
   void theHandlerComesBeforeKeycloaksOwn() {
     ResetCredentialsTokenHandler handler = new ResetCredentialsTokenHandler();
     assertEquals("reset-credentials", handler.getId());
-    assertTrue(handler.order() > 0);
+    assertTrue(handler.order() > new ResetCredentialsActionTokenHandler().order());
   }
 }
