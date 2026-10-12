@@ -2787,7 +2787,7 @@ export interface components {
             finished_at?: components["schemas"]["Timestamp"] | null;
             /** @description Motif de l'échec, absent tant que la tâche n'a pas échoué. */
             problem?: components["schemas"]["Problem"] | null;
-            /** @description Où lire le résultat, lorsque la tâche en produit un. */
+            /** @description Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la tâche : une lecture achevée depuis l'a remplacé. */
             result_url?: string | null;
         };
         PaginationMeta: {

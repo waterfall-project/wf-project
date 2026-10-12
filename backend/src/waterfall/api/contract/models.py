@@ -315,7 +315,10 @@ class BackgroundTaskRef(ContractModel):
         Field(description="Motif de l'échec, absent tant que la tâche n'a pas échoué."),
     ] = None
     result_url: Annotated[
-        str | None, Field(description="Où lire le résultat, lorsque la tâche en produit un.")
+        str | None,
+        Field(
+            description="Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la tâche : une lecture achevée depuis l'a remplacé."
+        ),
     ] = None
 
 
