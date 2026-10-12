@@ -2,14 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { PendingAddress } from "@/components/grid/pending-address";
-import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
+import {
+  account,
+  accounts,
+  createGarnier,
+  grid,
+  heldActivation,
+  holdRoute,
+  openCreation,
+  roles,
+  told,
+  users,
+  writes,
+} from "@/test/accounts";
 import { expectAccessible } from "@/test/axe";
 import {
   example,
@@ -20,9 +30,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { UserList } from "./account-lists";
-import type { AccessRole, User } from "./admin-grids";
-import { USER_KEPT } from "./user-address";
+import type { User } from "./admin-grids";
 
 // The server of Next, as far as the screen needs it: the fake back, the address it reads and the
 // navigations it asks.
@@ -42,12 +50,7 @@ vi.mock("next/navigation", async (original) => ({
 
 type Schemas = components["schemas"];
 
-const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const anonymized = (example("users_anonymized") as { items: User[] }).items;
-const roles = (example("access_roles") as AccessRole[]).map((role) => ({
-  id: role.access_role_id,
-  label: role.label,
-}));
 const CHIFFREUR = "01926f3a-7c00-7000-8000-000000000705";
 const DIRECTION = "01926f3a-7c00-7000-8000-000000000701";
 const AUDITEUR = "01926f3a-7c00-7000-8000-000000000707";
@@ -57,92 +60,6 @@ function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
   const client = fakeClient({ "PATCH /me/preferences": "preferences", ...answers }, timing);
   server.client = client;
   return client;
-}
-
-/** The calls the screen made, but the settings of its grid. */
-function writes(client: FakeClient) {
-  return client.calls
-    .filter(({ route }) => route !== "PATCH /me/preferences")
-    .map(({ route, path, body }) => [route, path, body]);
-}
-
-/** The accounts of the witness, in French, as a session that may modify them, or not, reads them. */
-function accounts(editable = true, shown: readonly User[] = users.items, kept?: GridPreferences) {
-  return (
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PendingAddress kept={USER_KEPT}>
-        <UserList
-          users={shown}
-          page={users.meta}
-          query={{ sort: undefined, search: undefined }}
-          preferences={kept}
-          origins={[]}
-          nodes={[]}
-          orgNode={undefined}
-          roles={roles}
-          accessRoles={[]}
-          active={undefined}
-          editable={editable}
-        />
-      </PendingAddress>
-    </NextIntlClientProvider>
-  );
-}
-
-/** The grid of the accounts. */
-function grid(): HTMLElement {
-  return screen.getByRole("grid", { name: "Comptes utilisateurs" });
-}
-
-/** The region of the table that says what its last command did, by its name. */
-function told(): HTMLElement {
-  return screen.getByRole("status", { name: "Commandes des comptes" });
-}
-
-/** Hold the answers of a route until released: a write under way. */
-function holdRoute(held: string): { readonly timing: FakeTiming; readonly release: () => void } {
-  const settles: (() => void)[] = [];
-  const until = new Promise<void>((settle) => {
-    settles.push(settle);
-  });
-  return {
-    timing: {
-      hold: (route) => (route === held ? until : undefined),
-    },
-    release: () => {
-      for (const settle of settles) {
-        settle();
-      }
-    },
-  };
-}
-
-/** Hold the deactivations until released: a write of a row under way. */
-function heldActivation() {
-  return holdRoute("PUT /users/{user_id}/activation");
-}
-
-/** Open the creation of a local account, and give its form. */
-async function openCreation(): Promise<HTMLElement> {
-  await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-  return screen.findByRole("form", { name: "Créer un compte local" });
-}
-
-/** Fill the creation of Léa Garnier, and send it. */
-async function createGarnier(form: HTMLElement) {
-  await userEvent.type(within(form).getByLabelText("Nom"), "Garnier");
-  await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
-  await userEvent.type(within(form).getByLabelText("Adresse électronique"), "l@example.com");
-  await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-}
-
-/** An account of the witness, by its last name. */
-function account(lastName: string): User {
-  const found = users.items.find((user) => user.last_name === lastName);
-  if (found === undefined) {
-    throw new Error(`no account ${lastName} in the witness`);
-  }
-  return found;
 }
 
 beforeEach(() => {
@@ -855,153 +772,6 @@ describe("the creation of a local account", () => {
     expect(email).toHaveAccessibleDescription(CATALOGUES.fr.errors.ALREADY_EXISTS);
     expect(within(form).queryByRole("alert")).toBeNull();
   });
-});
-
-describe("the link to set the password", () => {
-  it("gives the link of a local account in a dialog, whole and selected, with the instant it ceases to be valid; the focus back on its cell once closed", async () => {
-    const client = serve({
-      "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" },
-    });
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
-    });
-    await userEvent.click(command);
-    const dialog = await screen.findByRole("dialog", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
-    });
-    const link = (example("password_setup_link") as Schemas["PasswordSetupLink"]).url;
-    const field = within(dialog).getByRole("textbox", { name: "Lien" });
-    expect(field).toHaveValue(link);
-    expect(field).toHaveAttribute("readonly");
-    expect(dialog.querySelector("time")).toHaveAttribute("datetime", "2026-06-03T15:05:00Z");
-    expect(writes(client).map(([, path]) => path)).toEqual([
-      `/users/${account("Martin").user_id}/password-link`,
-    ]);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
-    await waitFor(() => {
-      expect(command.closest("td")).toHaveFocus();
-    });
-    // Given once, the link is shown no more.
-    expect(screen.queryByDisplayValue(link)).toBeNull();
-  });
-
-  it("presents the link of a deactivated local account unavailable, naming the condition it lacks, and asks nothing", async () => {
-    const client = serve({});
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Alix Moreau »",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie : compte actif.");
-    await userEvent.click(command);
-    expect(told().textContent).toBe(
-      "Lien de fixation du mot de passe de « Alix Moreau » : Condition non remplie : compte actif.",
-    );
-    expect(writes(client)).toEqual([]);
-  });
-
-  it("marks the link of an account busy and unavailable while its deactivation is asked, a press asking nothing", async () => {
-    const held = heldActivation();
-    const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de «\u00a0Noé Vidal\u00a0»",
-    });
-    await userEvent.click(
-      within(grid()).getByRole("switch", { name: "Compte de «\u00a0Noé Vidal\u00a0» actif" }),
-    );
-    await waitFor(() => {
-      expect(command).toHaveAttribute("aria-busy", "true");
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    await userEvent.click(command);
-    expect(screen.queryByRole("dialog")).toBeNull();
-    held.release();
-    // Deactivated, the account is given no link: the command stays unavailable.
-    await waitFor(() => {
-      expect(command).toHaveAttribute("aria-busy", "false");
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
-  });
-
-  it("asks one link at a time, the other commands of the link busy and unavailable the while", async () => {
-    const held = holdRoute("POST /users/{user_id}/password-link");
-    const client = serve(
-      { "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" } },
-      held.timing,
-    );
-    render(accounts());
-    const martin = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-    });
-    const petit = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
-    });
-    await userEvent.click(martin);
-    await userEvent.click(petit);
-    expect(petit).toHaveAttribute("aria-busy", "true");
-    expect(petit).toHaveAttribute("aria-disabled", "true");
-    held.release();
-    const dialog = await screen.findByRole("dialog", {
-      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-    });
-    expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(writes(client).map(([, path]) => path)).toEqual([
-      `/users/${account("Martin").user_id}/password-link`,
-    ]);
-    // The link closed, the other commands of the link are available again.
-    await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
-    await waitFor(() => {
-      expect(petit).toHaveAttribute("aria-busy", "false");
-    });
-    expect(petit).not.toHaveAttribute("aria-disabled");
-    await userEvent.click(petit);
-    expect(
-      await screen.findByRole("dialog", {
-        name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
-      }),
-    ).toBeInTheDocument();
-    expect(writes(client).map(([, path]) => path)).toEqual([
-      `/users/${account("Martin").user_id}/password-link`,
-      `/users/${account("Petit").user_id}/password-link`,
-    ]);
-  });
-
-  it.each([
-    [
-      "the account deactivated since it was read",
-      example("password_link_deactivated") as Problem & { status: 409 },
-      "Condition non remplie : compte actif.",
-    ],
-    [
-      "the identity provider silent",
-      {
-        code: "COMPONENT_UNAVAILABLE",
-        status: 503,
-        params: { component: "identity_provider" },
-      } satisfies Problem & { status: 503 },
-      "Fournisseur d’identité",
-    ],
-  ])(
-    "tells above the table the link the server refuses — %s —, the focus back on its command once dismissed",
-    async (_, problem, said) => {
-      serve({ "POST /users/{user_id}/password-link": { problem } });
-      render(accounts());
-      const command = within(grid()).getByRole("button", {
-        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-      });
-      await userEvent.click(command);
-      const alert = await screen.findByRole("alert");
-      expect(alert).toHaveTextContent(said);
-      expect(screen.queryByRole("dialog")).toBeNull();
-      expect(command).not.toHaveAttribute("aria-disabled");
-      await userEvent.click(within(alert).getByRole("button", { name: /Fermer l’avis/ }));
-      expect(screen.queryByRole("alert")).toBeNull();
-      expect(command).toHaveFocus();
-    },
-  );
 });
 
 describe("the filters of the table", () => {
