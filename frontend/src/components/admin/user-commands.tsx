@@ -125,6 +125,14 @@ export function UserCommands({ children }: { readonly children: ReactNode }) {
   );
 }
 
+/**
+ * An opening of the creation, from the command pressed: each its own, so that a dialog closes its
+ * opening alone, never one opened since.
+ */
+interface Opening {
+  readonly trigger: HTMLElement;
+}
+
 /** A link given, the account it is for, and the command that asked it. */
 interface Given {
   readonly link: SetupLink;
@@ -168,7 +176,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
   // The last write of each row under way, settled whatever its outcome: the next one waits for it.
   const asking = useRef(new Map<string, Promise<unknown>>());
-  const [creating, setCreating] = useState<HTMLElement>();
+  const [creating, setCreating] = useState<Opening>();
   const [given, setGiven] = useState<Given>();
   const [linking, setLinking] = useState<ReadonlySet<string>>(() => new Set());
   // The account whose anonymisation is asked — kept while the confirmation closes —, and whether
@@ -276,6 +284,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
     },
     [list],
   );
+  const create = useCallback((trigger: HTMLElement) => {
+    setCreating({ trigger });
+  }, []);
   const anonymize = useCallback((user: User, back: HTMLElement | null) => {
     setAnonymizing({ user, back, open: true });
   }, []);
@@ -287,13 +298,13 @@ function Writes({ children }: { readonly children: ReactNode }) {
       latest,
       run,
       queue: reserve,
-      create: setCreating,
+      create,
       giveLink,
       linking,
       anonymize,
       say,
     }),
-    [answered, asked, busy, latest, run, reserve, giveLink, linking, anonymize, say],
+    [answered, asked, busy, latest, run, reserve, create, giveLink, linking, anonymize, say],
   );
   return (
     <WritesContext value={writes}>
@@ -313,13 +324,13 @@ function Writes({ children }: { readonly children: ReactNode }) {
             say(t(user.invitation_sent ? "created" : "createdUninvited", { name }));
           }}
           onLink={(user) => {
-            giveLink(user, naming.person(user), creating);
+            giveLink(user, naming.person(user), creating.trigger);
           }}
           onClose={() => {
-            setCreating(undefined);
+            setCreating((current) => (current === creating ? undefined : current));
           }}
           onClosed={() => {
-            focusBack(creating, list?.refocus);
+            focusBack(creating.trigger, list?.refocus);
           }}
         />
       )}

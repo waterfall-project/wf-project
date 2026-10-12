@@ -99,15 +99,15 @@ function told(): HTMLElement {
   return screen.getByRole("status", { name: "Commandes des comptes" });
 }
 
-/** Hold the deactivations until released: a write of a row under way. */
-function heldActivation(): { readonly timing: FakeTiming; readonly release: () => void } {
+/** Hold the answers of a route until released: a write under way. */
+function holdRoute(held: string): { readonly timing: FakeTiming; readonly release: () => void } {
   const settles: (() => void)[] = [];
   const until = new Promise<void>((settle) => {
     settles.push(settle);
   });
   return {
     timing: {
-      hold: (route) => (route === "PUT /users/{user_id}/activation" ? until : undefined),
+      hold: (route) => (route === held ? until : undefined),
     },
     release: () => {
       for (const settle of settles) {
@@ -115,6 +115,25 @@ function heldActivation(): { readonly timing: FakeTiming; readonly release: () =
       }
     },
   };
+}
+
+/** Hold the deactivations until released: a write of a row under way. */
+function heldActivation() {
+  return holdRoute("PUT /users/{user_id}/activation");
+}
+
+/** Open the creation of a local account, and give its form. */
+async function openCreation(): Promise<HTMLElement> {
+  await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
+  return screen.findByRole("form", { name: "Créer un compte local" });
+}
+
+/** Fill the creation of Léa Garnier, and send it. */
+async function createGarnier(form: HTMLElement) {
+  await userEvent.type(within(form).getByLabelText("Nom"), "Garnier");
+  await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
+  await userEvent.type(within(form).getByLabelText("Adresse électronique"), "l@example.com");
+  await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
 }
 
 /** An account of the witness, by its last name. */
@@ -679,6 +698,38 @@ describe("the creation of a local account", () => {
       `/users/${lea.user_id}/password-link`,
     ]);
   });
+
+  it.each([
+    ["user_created_invited", "Compte «\u00a0Léa Garnier\u00a0» créé."],
+    [
+      "user_created",
+      "Compte «\u00a0Léa Garnier\u00a0» créé\u00a0; aucune invitation n’est partie\u00a0: remettez-lui son lien de fixation.",
+    ],
+  ] as const)(
+    "keeps the creation opened anew while the one closed before it is answered, its entry kept — %s",
+    async (created, said) => {
+      const held = holdRoute("POST /users");
+      const client = serve({ "POST /users": { status: 201, example: created } }, held.timing);
+      render(accounts());
+      await createGarnier(await openCreation());
+      await waitFor(() => {
+        expect(writes(client)).toHaveLength(1);
+      });
+      await userEvent.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+      const form = await openCreation();
+      await userEvent.type(within(form).getByLabelText("Nom"), "Petit");
+      held.release();
+      await waitFor(() => {
+        expect(told().textContent).toBe(said);
+      });
+      expect(screen.getByRole("form", { name: "Créer un compte local" })).toBe(form);
+      expect(within(form).getByLabelText("Nom")).toHaveValue("Petit");
+      expect(writes(client)).toHaveLength(1);
+    },
+  );
 
   it("refuses at their fields a name left blank and an address left empty, and asks nothing [WF-ADM-0050-A]", async () => {
     const client = serve({});

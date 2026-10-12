@@ -10,8 +10,9 @@
  * one refused taking the focus; the rest is the server's to judge: a refusal by field (422, or 409
  * `ALREADY_EXISTS` on the address already held) at each field it points at, by the catalogue of the
  * codes of error; any other, under the form, which stays open to be corrected. The dialog may be
- * closed meanwhile: a creation answered is said all the same, and a refusal told above the table, on
- * the reading the form was sent from (`useListReport`). When no invitation went to its holder
+ * closed meanwhile: a creation answered is said all the same — the creation opened since, its entry
+ * kept —, and a refusal told above the table, on the reading the form was sent from
+ * (`useListReport`). When no invitation went to its holder
  * (`invitation_sent` false — an installation without mail, a mail server failing), the dialog says
  * so once the account is created, and offers its link at once, to hand over by another channel (#816).
  *
@@ -195,7 +196,11 @@ export function UserCreation({
       const answer = await held(createUser(values));
       if (answer.kind === "done") {
         onCreated(answer.data);
-        if (answer.data.invitation_sent || !open.current) {
+        if (!open.current) {
+          // Closed meanwhile, the dialog has nothing left to close: a creation opened since stays.
+          return;
+        }
+        if (answer.data.invitation_sent) {
           onClose();
         } else {
           setUninvited(answer.data);
