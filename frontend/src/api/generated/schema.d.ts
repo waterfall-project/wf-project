@@ -2971,7 +2971,7 @@ export interface components {
                 email: string;
                 code: components["schemas"]["ErrorCode"];
             }[];
-            /** @description Les adresses des comptes locaux que la lecture a retirés du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). */
+            /** @description Les adresses des comptes locaux que la lecture retire du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse. */
             removed: string[];
         };
         Permission: {
