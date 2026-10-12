@@ -8,11 +8,12 @@ examples written by hand, not the Vérif of a requirement: none cites one (WF-QU
 """
 
 import json
+import re
 from typing import Any, cast
 
 import pytest
 
-from wftools import mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
+from wftools import REPOSITORY, mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
 from wftools.mockids import hex_identifier, universe
 from wftools.mocktext import PAGE
 from wftools.mockwitness import INSTALLED, TODAY, fixture
@@ -31,6 +32,16 @@ def journal() -> dict[str, Node]:
 
 def _events(answer: Node) -> list[Node]:
     return cast("list[Node]", answer["items"])
+
+
+def _answered(operation: str, status: str) -> list[Node]:
+    """Return the values of the examples the contract gives for one answer of an operation."""
+    text = (REPOSITORY / "docs/api/paths/access.yaml").read_text(encoding="utf-8")
+    block = text.split(f"operationId: {operation}\n", 1)[1].split(f"'{status}':", 1)[1]
+    block = re.split(r"\n      '\d{3}':", block, maxsplit=1)[0]
+    names = re.findall(r"fixtures/api/(\w+)\.json", block)
+    assert names, operation
+    return [cast("Node", fixture(name)) for name in names]
 
 
 def test_the_journal_reads_the_latest_first_each_inscription_once_since_the_installation(
@@ -708,3 +719,27 @@ def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
         for name, text in written.items():
             assert event["audit_event_id"] not in text, name
             assert event["correlation_id"] not in text, name
+
+
+def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
+    journal: dict[str, Node],
+) -> None:
+    # No example of updateAccessRole renames a role and changes its permissions at once: the
+    # modification of « Manager » that does both is a variant, its state after written by
+    # mockaudit, and what it grants and withdraws is read from it as the service reads it (#961).
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    for answer in _answered("updateAccessRole", "200"):
+        held = roles[answer["access_role_id"]]
+        assert answer["label"] == held["label"] or answer["permissions"] == held["permissions"]
+    administration = _events(journal["audit_events_administration"])[::-1]
+    [combined] = [event for event in administration if "previous_label" in event["params"]]
+    before = cast("list[str]", roles[combined["object"]["object_id"]]["permissions"])
+    updated = cast("list[str]", fixture("access_role_updated")["permissions"])
+    after = [code for code in updated if code not in mockaudit.WITHDRAWN]
+    granted = combined["params"]["permissions_granted"]
+    withdrawn = combined["params"]["permissions_withdrawn"]
+    assert withdrawn == list(mockaudit.WITHDRAWN)
+    assert set(withdrawn) <= set(before)
+    assert not set(granted) & set(before)
+    kept = [code for code in before if code not in withdrawn]
+    assert sorted([*kept, *granted], key=updated.index) == after

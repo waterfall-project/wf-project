@@ -498,19 +498,23 @@ def _administered_roles() -> list[Inscription]:
     (`access_role_created`), then saved as it is, which changes nothing of it; « Manager » renamed
     « Responsable d'équipe » (`access_role_renamed`) and given the modification of the planning
     (`access_role_updated`) by the same modification, which withdraws from it the writing of the
-    settings of costs and resources (``WITHDRAWN``). By the one who created the role.
+    settings of costs and resources (``WITHDRAWN``). That combined modification is a variant no
+    example of updateAccessRole answers: each of them renames or changes the permissions, never
+    both. Its state after is written here, and what it grants and withdraws is read from it as
+    the service reads it, in the order of the catalogue. Each by the one who last updated the
+    example it is read from.
     """
     created = fixture("access_role_created")
     renamed = fixture("access_role_renamed")
+    updated = fixture("access_role_updated")
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     before = cast("list[str]", roles[renamed["access_role_id"]]["permissions"])
-    after = cast("list[str]", fixture("access_role_updated")["permissions"])
-    actor = cast("JsonObject", created["audit"]["created_by"])
+    after = [code for code in cast("list[str]", updated["permissions"]) if code not in WITHDRAWN]
 
     def role(action: str, changed: JsonObject, params: JsonObject) -> Inscription:
         return Inscription(
             TODAY,
-            actor,
+            cast("JsonObject", changed["audit"]["updated_by"]),
             action,
             "access_role",
             cast("str", changed["access_role_id"]),
@@ -531,7 +535,7 @@ def _administered_roles() -> list[Inscription]:
             {
                 "previous_label": roles[renamed["access_role_id"]]["label"],
                 "permissions_granted": [code for code in after if code not in before],
-                "permissions_withdrawn": [code for code in before if code in WITHDRAWN],
+                "permissions_withdrawn": [code for code in before if code not in after],
             },
         ),
     ]
@@ -780,7 +784,8 @@ def examples() -> dict[str, JsonObject]:
             "écriture par une requête à elle, les plus récentes d'abord. Par Camille Martin, "
             "« Contrôle de gestion » créé sans permission, puis enregistré sans rien changer ; "
             "« Manager » renommé « Responsable d'équipe », doté de la modification de la "
-            "planification et privé de celle des paramètres de coûts et de ressources ; le "
+            "planification et privé de celle des paramètres de coûts et de ressources par une "
+            "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
             "compte local de Léa Garnier créé avec son premier rôle, « Chiffreur », que la "
             "requête de la création inscrit après elle, sous sa corrélation ; le nom de Lucas "
             "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
