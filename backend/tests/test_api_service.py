@@ -23,6 +23,7 @@ from support import (
     BEARER_JWT,
     PLATFORM_SECRETS,
     SESSION_COOKIE,
+    AmbiguousCompositionError,
     ContractClient,
     Logs,
     UndeclaredPropertyError,
@@ -205,6 +206,100 @@ def test_an_object_the_contract_leaves_open_may_hold_any_property(contract: Open
 
     response = ContractClient(TestClient(app), contract).get("/api/v1/health")
     assert response.json() == body
+
+
+def minimal_contract(schema: dict[str, object]) -> OpenAPI:
+    """Declare a single operation, ``GET /api/v1/health``, whose answer has the schema."""
+    return OpenAPI.from_dict(
+        {
+            "openapi": "3.1.0",
+            "info": {"title": "minimal", "version": "1"},
+            "servers": [{"url": "/api/v1"}],
+            "paths": {
+                "/health": {
+                    "get": {
+                        "operationId": "health",
+                        "responses": {
+                            "200": {
+                                "description": "the answer",
+                                "content": {"application/json": {"schema": schema}},
+                            }
+                        },
+                    }
+                }
+            },
+        }
+    )
+
+
+def two_objects(part: str) -> dict[str, object]:
+    """Compose two objects, each requiring the property it declares."""
+    return {
+        part: [
+            {"type": "object", "required": ["a"], "properties": {"a": {"type": "string"}}},
+            {"type": "object", "required": ["b"], "properties": {"b": {"type": "string"}}},
+        ]
+    }
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(
+    ("schema", "body"),
+    [
+        (two_objects("oneOf"), {"a": "x"}),
+        (two_objects("anyOf"), {"a": "x"}),
+        (
+            {
+                "type": "object",
+                "properties": {
+                    "c": {"anyOf": [two_objects("oneOf"), {"type": "null"}]},
+                },
+            },
+            {"c": {"a": "x"}},
+        ),
+        (
+            {
+                "oneOf": [
+                    {"type": "array", "items": {"type": "string"}},
+                    {"type": "array", "items": {"type": "integer"}},
+                ]
+            },
+            ["x"],
+        ),
+    ],
+    ids=["a oneOf of two objects", "an anyOf of two objects", "below a property", "two lists"],
+)
+def test_a_composition_of_which_more_than_one_branch_describes_an_object_is_refused(
+    schema: dict[str, object], body: object
+) -> None:
+    # Held to both branches at once, an object of the first would be allowed what only the
+    # second declares: the client refuses to read the composition rather than open it.
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body)
+
+    with pytest.raises(AmbiguousCompositionError):
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_nullable_object_stays_closed() -> None:
+    # The composition of shapes the contract writes, a schema or null, is read as its schema.
+    schema = {
+        "type": "object",
+        "properties": {"c": {"anyOf": [two_objects("allOf"), {"type": "null"}]}},
+    }
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse({"c": {"a": "x", "b": "y", "hint": "Phrase"}})
+
+    with pytest.raises(UndeclaredPropertyError) as rejected:
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+    assert rejected.value.pointers == ["/c/hint"]
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")

@@ -160,22 +160,51 @@ class UndeclaredPropertyError(AssertionError):
         self.pointers = pointers
 
 
+class AmbiguousCompositionError(AssertionError):
+    """A composition offers more than one branch an object, or a list, may follow.
+
+    The client holds a value to every branch at once: one branch would declare the properties
+    of another, or open them all. It reads no such composition rather than reading it too wide;
+    the nullable one, a schema and ``{type: null}``, has a single branch of each shape.
+    """
+
+    def __init__(self, schema: SchemaPath, part: str, shape: str) -> None:
+        super().__init__(f"{schema}: more than one branch of its {part} describes {shape}")
+
+
+# What a branch says of an object, then of a list.
+SHAPES = {"an object": ("properties", "additionalProperties"), "a list": ("items",)}
+
+
 def branches(schemas: list[SchemaPath]) -> list[SchemaPath]:
-    """Give the schemas and each schema they compose, the composed ones' in turn."""
+    """Give the schemas and each schema they compose, the composed ones' in turn.
+
+    The schemas of an ``allOf`` all hold at once; of the branches of an ``anyOf`` or a
+    ``oneOf``, a single one may describe an object, and a single one a list.
+    """
     found: list[SchemaPath] = []
     for schema in schemas:
         found.append(schema)
-        for part in ("allOf", "anyOf", "oneOf"):
-            if part in schema:
-                found.extend(branches(list(schema / part)))
+        if "allOf" in schema:
+            found.extend(branches(list(schema / "allOf")))
+        for part in ("anyOf", "oneOf"):
+            if part not in schema:
+                continue
+            composed = [branches([each]) for each in schema / part]
+            for shape, keys in SHAPES.items():
+                shaped = [b for b in composed if any(key in each for each in b for key in keys)]
+                if len(shaped) > 1:
+                    raise AmbiguousCompositionError(schema, part, shape)
+            for each in composed:
+                found.extend(each)
     return found
 
 
 def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str]:
     """Point at each property of the value that none of its schemas declares.
 
-    A value that more than one branch of a composition may describe is held to all of them
-    together: a property one of them declares is declared. An object whose schema says
+    A value is held to its schemas and to all they compose together, a single branch of a
+    composition describing an object or a list (``AmbiguousCompositionError``). An object whose schema says
     ``additionalProperties`` — ``true``, or the schema of its values — is open to properties it
     does not name, ``Problem.params`` and ``FieldProblem.params`` among them.
     """
