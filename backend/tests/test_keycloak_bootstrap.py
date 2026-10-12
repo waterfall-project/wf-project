@@ -539,6 +539,30 @@ def test_an_administrator_the_realm_no_longer_holds_is_refused(
     assert logs.named("installation.failed") == []
 
 
+def test_an_anonymised_administrator_is_refused_and_its_address_ignored(
+    admin: httpx2.Client, owner: Engine, database_url: str, address: str, logs: Logs
+) -> None:
+    # Anonymised since the installation: its row keeps no address, and the realm no longer holds
+    # the local account (WF-ADM-0060). The address given again is not its own, and no link is made.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    with owner.begin() as connection:
+        subject = connection.scalar(select(UserAccount.idp_subject))
+        connection.execute(
+            update(UserAccount).values(
+                state="deactivated",
+                last_name=None,
+                first_name=None,
+                email=None,
+                anonymized_at=func.now(),
+            )
+        )
+    assert admin.delete(f"/users/{subject}").status_code == 204
+    assert refused(settings, logs) == "administrator_not_in_provider"
+    (ignored,) = logs.named("installation.admin_email_ignored")
+    assert ignored["level"] == "warning"
+
+
 def test_a_keycloak_that_does_not_answer_stops_the_installation(
     database_url: str, address: str, logs: Logs
 ) -> None:

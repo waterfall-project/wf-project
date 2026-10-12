@@ -197,7 +197,11 @@ def _bootstrap(
         if administrator is None:
             raise InstallationRefusedError(NO_ADMINISTRATOR)
         logger.info("installation.already_installed")
-        if administrator.email.lower() != settings.admin_email.lower():
+        # An anonymised administrator holds no address: whichever the settings give is not its own.
+        if (
+            administrator.email is None
+            or administrator.email.lower() != settings.admin_email.lower()
+        ):
             logger.warning("installation.admin_email_ignored", user_id=str(administrator.user_id))
         return administrator, language
     roles = predefined_roles(settings.default_language)
