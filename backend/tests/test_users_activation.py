@@ -11,6 +11,7 @@ itself is tried against the platform (``test_keycloak_authentication.py``).
 
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -105,6 +106,12 @@ def journal(database: Database) -> list[tuple[str, UUID, dict[str, Any]]]:
     with database.transaction() as session:
         entries = session.scalars(select(AuditEntry).order_by(AuditEntry.id))
         return [(entry.action, entry.object_id, entry.params) for entry in entries]
+
+
+def closed_at(database: Database, user_id: UUID) -> datetime | None:
+    """Read when the sessions of an account were last closed, if ever."""
+    with database.transaction() as session:
+        return session.get_one(UserAccount, user_id).sessions_closed_at
 
 
 def row(database: Database, user_id: UUID) -> tuple[str, int, UUID | None]:
@@ -202,7 +209,7 @@ def test_a_token_refreshed_after_a_deactivation_then_a_reactivation_is_refused(
     assert activate(client, headers, paul, is_active=True, lock_version=1).status_code == 200
     after = int(time.time()) + 1
     refreshed = bearer(realm.token("kc-paul", KEY, claims={"auth_time": signed_in, "iat": after}))
-    assert problem(client.get(ME, headers=refreshed))[:2] == (401, "SESSION_EXPIRED")
+    assert problem(client.get(ME, headers=refreshed))[:2] == (401, "SESSION_REVOKED")
     # The account reactivated signs in again.
     again = bearer(realm.token("kc-paul", KEY, claims={"auth_time": after, "iat": after}))
     assert client.get(ME, headers=again).status_code == 200
@@ -306,24 +313,45 @@ def test_the_roles_of_an_account_are_replaced_and_the_attribution_inscribed(
             },
         )
     ]
-    # Roles remain: the sessions of the account are not closed.
-    assert watching.held == []
+    # Roles remain: the sessions of the account are not closed, nor their closing noted.
+    assert (watching.held, closed_at(database, paul)) == ([], None)
     # The same roles again change nothing, and write nothing.
     assert give(client, managing, paul, estimator, auditor).json()["lock_version"] == 1
     assert len(journal(database)) == 1
 
 
-def test_an_account_withdrawn_all_its_roles_has_its_sessions_closed(
-    client: ContractClient, database: Database, managing: dict[str, str], watching: Watching
+@pytest.mark.requirement("WF-ARC-0030-A")
+def test_an_account_withdrawn_all_its_roles_has_its_sessions_closed_and_signs_in_again(
+    client: ContractClient,
+    database: Database,
+    realm: TestRealm,
+    managing: dict[str, str],
+    watching: Watching,
 ) -> None:
+    # « Le retrait d'un rôle prend effet à la requête suivante, sans attendre l'expiration du
+    # jeton. » — and the withdrawal of all of them closes the sessions, its moment noted first,
+    # as a deactivation's: the realm of test closes none, as a Keycloak that fails, and the session
+    # left open does not resume with a role given back. Its holder signs in again (#855).
     pilot = role(database, "Pilote", permissions=("planning.read",))
-    paul = account(database, "Durand", "Paul", roles=(pilot,))
+    paul = account(database, "Durand", "Paul", roles=(pilot,), idp_subject="kc-paul")
+    signed_in = int(time.time()) - 60
+    office = bearer(realm.token("kc-paul", KEY, claims={"auth_time": signed_in}))
+    assert client.get(ME, headers=office).status_code == 200
     response = give(client, managing, paul)
     assert (response.status_code, response.json()["access_role_ids"]) == (200, [])
     assert watching.held == [("close_sessions", 0)]
+    closed = closed_at(database, paul)
+    assert closed is not None
+    assert problem(client.get(ME, headers=office))[:2] == (401, "SESSION_REVOKED")
     # An account that held none and still holds none loses nothing: its sessions stay.
     assert give(client, managing, paul).status_code == 200
-    assert watching.held == [("close_sessions", 0)]
+    assert (watching.held, closed_at(database, paul)) == ([("close_sessions", 0)], closed)
+    assert give(client, managing, paul, pilot).status_code == 200
+    after = int(time.time()) + 1
+    refreshed = bearer(realm.token("kc-paul", KEY, claims={"auth_time": signed_in, "iat": after}))
+    assert problem(client.get(ME, headers=refreshed))[:2] == (401, "SESSION_REVOKED")
+    again = bearer(realm.token("kc-paul", KEY, claims={"auth_time": after, "iat": after}))
+    assert client.get(ME, headers=again).json()["access_role_ids"] == [str(pilot)]
 
 
 def test_a_role_the_installation_lacks_or_deleted_is_refused_at_its_rank(

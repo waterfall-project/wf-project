@@ -45,7 +45,10 @@
       Ferme toutes les sessions du compte, sur tous ses postes, et non la seule du navigateur
       qui le demande : la déconnexion « sur tous ses postes » de WF-SEC-0020. L'API demande au
       fournisseur d'identité de fermer les sessions du compte, qui le notifie au front ; les
-      jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). La
+      jetons de ces sessions ne permettent plus d'agir (WF-SEC-0020, WF-ARC-0030). L'heure de
+      la fermeture est notée avant l'appel au fournisseur : un jeton d'une connexion qui la
+      précède est refusé par 401 `SESSION_REVOKED`, même si le fournisseur a manqué la
+      fermeture, et la personne se reconnecte en redonnant ses identifiants (#855). La
       désactivation d'un compte et le retrait de tous ses rôles suivent le même chemin
       (`setUserActivation`, `setUserAccessRoles`).
     responses:

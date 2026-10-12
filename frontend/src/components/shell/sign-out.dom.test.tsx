@@ -40,7 +40,7 @@ vi.mock("@/session/store", async (original) => ({
 }));
 // The cookie of the session the front lost, to which the ticket is bound.
 vi.mock("next/headers", () => ({
-  cookies: () => Promise.resolve(cookieJar({ wf_session: "lost" })),
+  cookies: () => Promise.resolve(cookieJar({ "__Host-wf_session": "lost" })),
 }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),

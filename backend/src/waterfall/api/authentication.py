@@ -6,7 +6,10 @@ The API takes nothing from the token but its subject and the moment of its sign-
 the account is read in the base by ``idp_subject``, and its state with it, so that a deactivated
 account is refused at its next request even if the closing of its sessions was lost
 (WF-SEC-0020); a token of a sign-in before the account last closed its sessions — signed out
-(#668) or deactivated (#835) — is refused, whichever client it was lent to, refreshed or not.
+(#668), deactivated (#835) or withdrawn all its roles (#855) — is refused as revoked, whichever
+client it was lent to, refreshed or not: not as expired, since a session of Keycloak the closing
+missed would give back a token of the same sign-in, and only a sign-in that asks for the
+identifiers again renews it (#855).
 A subject Waterfall does not know yet is a person of the directory before the first reading of
 the accounts, or a person relayed by an external provider: her account is created without any
 role, after her origin is read from the administration API of Keycloak (WF-ADM-0180) — or, for a
@@ -38,7 +41,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnauthenticatedError
-from waterfall.platform.keycloak import SESSION_EXPIRED, SESSION_REQUIRED, Bearer, Keycloak
+from waterfall.platform.keycloak import SESSION_REQUIRED, Bearer, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 from waterfall.platform.queue import TaskQueue
@@ -46,6 +49,7 @@ from waterfall.platform.storage import Bucket
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
 ACCOUNT_NOT_ADMITTED = "ACCOUNT_NOT_ADMITTED"
+SESSION_REVOKED = "SESSION_REVOKED"
 SCHEME = "bearer"
 
 logger = get_logger(__name__)
@@ -96,7 +100,9 @@ def identify(request: Request, services: ServicesOf) -> Account:
     """Give the account of the caller, created if the provider admits it, or refuse it (401).
 
     A token of a sign-in that precedes the last closing of the sessions of the account — its
-    holder's sign-out (#668), its deactivation (#835) — is refused as an expired one.
+    holder's sign-out (#668), its deactivation (#835), the withdrawal of all its roles — is refused
+    as revoked, ``SESSION_REVOKED``, on which alone the front asks for the identifiers again
+    (#855).
     """
     bearer = services.keycloak.validate(bearer_token(request))
     subject = bearer.subject
@@ -109,7 +115,7 @@ def identify(request: Request, services: ServicesOf) -> Account:
     if not account.is_active:
         raise UnauthenticatedError(ACCOUNT_DEACTIVATED)
     if signed_in_before_sessions_closed(bearer, account.sessions_closed_at):
-        raise UnauthenticatedError(SESSION_EXPIRED)
+        raise UnauthenticatedError(SESSION_REVOKED)
     return account
 
 
@@ -120,7 +126,7 @@ def signed_in_before_sessions_closed(bearer: Bearer, sessions_closed_at: datetim
     is refused all the same, and an account deactivated then reactivated signs in again (#835).
     The moment is written to the second: a sign-in of the very second of the closing may precede
     it, and is refused, rather than let a session the closing missed act on — the person signs in
-    again, as after any closing.
+    again, giving her identifiers, as after any closing (#855).
     """
     return sessions_closed_at is not None and bearer.signed_in_at <= sessions_closed_at
 

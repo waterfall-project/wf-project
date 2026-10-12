@@ -335,7 +335,7 @@ construit l'image à chaque modification de `deploy/keycloak/`.
 gestionnaire de route qui démarre le flux : `state`, `nonce` et le vérificateur PKCE sont
 écrits dans Redis avec l'adresse visée, quinze minutes au plus ; `/auth/callback` échange le
 code, vérifie l'état, et ouvre la session du front : un identifiant opaque dans le témoin
-`wf_session` (`httpOnly`, `Secure`, `SameSite=Lax`), les jetons dans Redis sous cet
+`__Host-wf_session` (`httpOnly`, `Secure`, `SameSite=Lax`, #887), les jetons dans Redis sous cet
 identifiant, avec une durée calée sur la session de Keycloak. L'adresse visée ne passe que si
 `returnTarget` l'accepte (`frontend/src/navigation/login.ts`) : un chemin du front, sinon
 l'accueil. `serverClient()` reste le seul endroit qui porte le jeton à l'API (EP-02) ; il
@@ -356,18 +356,26 @@ retour (`/auth/backchannel-logout`, une route du front, pas une opération de l'
 front efface les sessions Redis de ce compte. La déconnexion demandée par l'utilisateur est
 une opération du contrat (`closeMySessions`, ci-dessous) : le front ne parle pas à l'API
 d'administration de Keycloak. Indépendamment, l'API lit l'état du compte à chaque requête :
-un compte désactivé est refusé même si la notification se perd. La déconnexion et la
-désactivation notent aussi leur heure dans le compte (`sessions_closed_at`), avant d'appeler
-Keycloak : l'API refuse par 401 `SESSION_EXPIRED` un jeton dont la connexion la précède ou tombe
-dans sa seconde (`auth_time`, que le rafraîchissement ne change pas ; à défaut, `iat`), y
-compris celui d'une application voisine, sans attendre son expiration et sans appel de plus,
-puisqu'elle lit déjà le compte à chaque requête (#668). Une session que Keycloak n'a pas fermée
-ne reprend donc pas par un jeton rafraîchi, ni après la réactivation du compte, qui se
-reconnecte (#835).
+un compte désactivé est refusé même si la notification se perd. La déconnexion, la
+désactivation et le retrait de tous les rôles notent aussi leur heure dans le compte
+(`sessions_closed_at`), avant d'appeler Keycloak : l'API refuse par 401 `SESSION_REVOKED` un
+jeton dont la connexion la précède ou tombe dans sa seconde (`auth_time`, que le rafraîchissement
+ne change pas ; à défaut, `iat`), y compris celui d'une application voisine, sans attendre son
+expiration et sans appel de plus, puisqu'elle lit déjà le compte à chaque requête (#668). Une
+session que Keycloak n'a pas fermée ne reprend donc pas par un jeton rafraîchi, ni après la
+réactivation du compte ou un rôle rendu, qui se reconnecte (#835). Sur `SESSION_REVOKED`
+seulement, le front mène à une connexion qui force l'authentification (`prompt=login`) :
+Keycloak, dont la session peut vivre encore, redemande les identifiants et renouvelle
+`auth_time` ; une simple expiration, `SESSION_EXPIRED`, ne les redemande pas (#855).
 Si la session du front est perdue alors que celle de Keycloak vit encore, « Se déconnecter »
 obtient d'abord un jeton par une connexion silencieuse (`prompt=none`), puis appelle
 `closeMySessions` : la déconnexion ferme ainsi tous les postes, comme le veut WF-SEC-0020
 (#689). Sans session de Keycloak non plus, il n'y a plus de poste à fermer.
+Un poste dont la session est révoquée n'a plus de droits : « Se déconnecter » y mène à la
+connexion, qui redemande les identifiants, mais ne ferme pas les postes du même compte
+reconnectés depuis la fermeture, dont la connexion suit `sessions_closed_at`. Ce cas suppose
+une fermeture que Keycloak a manquée ; l'écart est accepté (#931, écart de WF-SEC-0020 à
+US-0350).
 
 **L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
 cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
@@ -1050,6 +1058,11 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
 - `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. »
+- écart : `WF-SEC-0020-A` — la déconnexion « sur tous ses postes » : un poste dont la session
+  est révoquée n'a plus de droits ; « Se déconnecter » y mène à la connexion, qui redemande
+  les identifiants, mais ne ferme pas les postes du même compte reconnectés depuis la
+  fermeture, dont la connexion suit `sessions_closed_at`. Ce cas suppose une fermeture que
+  Keycloak a manquée ; l'auteur accepte l'écart (#931).
 - propre à l'US — **retour à l'écran visé** : la session expirée ramène à la page de
   connexion du fournisseur d'identité, puis, reconnecté, à l'écran visé avec son adresse
   entière, paramètres compris, et cela pour un compte local, un compte de l'annuaire comme

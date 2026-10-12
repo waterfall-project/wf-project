@@ -22,9 +22,11 @@ import { type FrontSession, openSession, readSession } from "./store";
 import {
   bearerOf,
   closeRequestSessions,
+  forgottenSessionCookie,
   REFRESH_MARGIN,
   requestBearer,
   SESSION_COOKIE,
+  sessionCookie,
   sessionIdOf,
 } from "./tokens";
 
@@ -236,17 +238,34 @@ describe("the token of a request", () => {
   });
 });
 
+describe("the cookie of the session", () => {
+  it.each([
+    ["given", sessionCookie("abc")],
+    ["forgotten", forgottenSessionCookie()],
+  ])(
+    "is %s under the prefix __Host-: over HTTPS only, for the whole front, by its host alone, never a neighbouring subdomain (#887)",
+    (_, cookie) => {
+      const [pair = "", ...attributes] = cookie.split("; ");
+      expect(pair.startsWith("__Host-wf_session=")).toBe(true);
+      expect(attributes).toEqual(expect.arrayContaining(["Secure", "Path=/", "HttpOnly"]));
+      expect(attributes.filter((attribute) => /^domain=/i.test(attribute))).toEqual([]);
+    },
+  );
+});
+
 describe("the session a request to a route holds", () => {
   it.each([
-    ["wf_session=abc", "abc"],
-    ["wf_sign_in_s=1; wf_session=abc; wf_last_project=p", "abc"],
+    ["__Host-wf_session=abc", "abc"],
+    ["wf_sign_in_s=1; __Host-wf_session=abc; wf_last_project=p", "abc"],
     ["not_wf_session=abc", undefined],
-    ["wf_session=", undefined],
+    // The name it had before its prefix (#887): a cookie of that name is anyone's to set.
+    ["wf_session=abc", undefined],
+    ["__Host-wf_session=", undefined],
     ["", undefined],
     // As `cookies()` of Next reads it, which arms the ticket: the cookie given twice, at its last.
-    ["wf_session=first; wf_session=last", "last"],
+    ["__Host-wf_session=first; __Host-wf_session=last", "last"],
     // Its value decoded, as `cookies()` gives it.
-    ["wf_session=a%2Fb%3D", "a/b="],
+    ["__Host-wf_session=a%2Fb%3D", "a/b="],
   ])(
     "is read from its cookies as Next reads them, none without the cookie of the session: %j",
     (cookie, id) => {

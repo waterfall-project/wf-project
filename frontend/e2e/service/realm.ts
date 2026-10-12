@@ -30,6 +30,8 @@ const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 export interface Person {
   /** What she types in the field of her identifier. */
   readonly login: string;
+  /** Her username in the realm, when it is not what she types: the `uid` of the directory. */
+  readonly username?: string;
   /** Her address, by which Waterfall knows her. */
   readonly email: string;
   readonly password: string;
@@ -42,6 +44,7 @@ export interface Person {
 /** The person of the test directory, admitted at her first request (WF-ADM-0180). */
 export const DIRECTORY: Person = {
   login: "dominique.annuaire@waterfall.test",
+  username: "dominique.annuaire",
   email: "dominique.annuaire@waterfall.test",
   password: "development-only-directory-password",
   name: "Dominique",
@@ -61,10 +64,18 @@ export function under(prefix: string): RegExp {
   return new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`);
 }
 
+/**
+ * The button that signs in on the sign-in page of the realm: exactly named, the page that asks for
+ * the password again holding « Redémarrer la connexion » beside it.
+ */
+function signInButton(page: Page) {
+  return page.getByRole("button", { name: "Connexion", exact: true });
+}
+
 /** The sign-in page of the realm, where a person gives her identifiers. */
 export async function expectSignInPage(page: Page): Promise<void> {
   await expect(page).toHaveURL(under(`${REALM}/`));
-  await expect(page.getByRole("button", { name: "Connexion" })).toBeVisible();
+  await expect(signInButton(page)).toBeVisible();
 }
 
 /** Give the identifiers of a person on the sign-in page of the realm, or of her provider. */
@@ -73,7 +84,7 @@ export async function giveIdentifiers(page: Page, person: Person): Promise<void>
   if (person.provider === undefined) {
     await page.getByLabel("Courriel").fill(person.login);
     await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
-    await page.getByRole("button", { name: "Connexion" }).click();
+    await signInButton(page).click();
     return;
   }
   await page.getByRole("link", { name: person.provider }).click();
@@ -81,6 +92,19 @@ export async function giveIdentifiers(page: Page, person: Person): Promise<void>
   await page.getByLabel("Username or email").fill(person.login);
   await page.getByLabel("Password", { exact: true }).fill(person.password);
   await page.getByRole("button", { name: "Sign In" }).click();
+}
+
+/**
+ * Give her password again on the sign-in page of the realm, which asks for it though its session
+ * lives (`prompt=login`, #855): no field of the identifier, but the username of the person the
+ * session holds, read-only, and the password alone to give.
+ */
+export async function reauthenticate(page: Page, person: Person): Promise<void> {
+  await expectSignInPage(page);
+  await expect(page.getByLabel("Courriel")).toHaveCount(0);
+  await expect(page.locator("#kc-attempted-username")).toHaveValue(person.username ?? person.login);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(person.password);
+  await signInButton(page).click();
 }
 
 /** Sign a person in from `/login`, aiming at a screen, and land on it, whole. */
@@ -351,6 +375,25 @@ commit;
 `,
     { email },
   );
+}
+
+/**
+ * Close the sessions of an account in Waterfall, as a sign-out or a deactivation notes it, while the
+ * realm misses it — its sessions left alive, as when Keycloak fails to close them (#855): the moment
+ * noted, in milliseconds since the epoch. The account must exist: Waterfall creates it at its first
+ * request.
+ */
+export function closeSessionsMissedByTheRealm(email: string): number {
+  const moment = sql(
+    `update user_account set sessions_closed_at = now() where email = :'email'
+  returning (extract(epoch from sessions_closed_at) * 1000)::bigint;
+`,
+    { email },
+  );
+  if (moment === "") {
+    throw new Error(`${email} has no account in Waterfall: has it made its first request?`);
+  }
+  return Number(moment);
 }
 
 /** Withdraw the roles of an account, as an administrator would. */

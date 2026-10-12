@@ -5,7 +5,8 @@
 Each kind of account — local, of the directory, of an external provider — signs in through the
 page of the realm, as the front signs a person in, and acts in Waterfall according to its roles
 (WF-ARC-0030, WF-ADM-0180); the password of a local account follows the rules of WF-ADM-0140; a
-session left idle ends (WF-SEC-0020). Run by ``make test-keycloak``, with the variables of
+session left idle ends, a sign-out ends them all, and a session revoked signs in again by giving
+its identifiers (WF-SEC-0020, US-0350/L5c). Run by ``make test-keycloak``, with the variables of
 ``test_keycloak_authentication.py``, whose helpers it takes; the API is served in the process of
 the tests, on a database of their own. A test that changes a setting of the realm gives it back
 its value, whatever happens. What the browser shows of it — the screens, the return to the screen
@@ -34,17 +35,18 @@ from test_keycloak_authentication import (
     ME,
     NOBODY,
     USERS,
+    FrontBrowser,
     bearer,
     callback,
     changing_accounts,
     collected,
     created,
+    exchanged,
     jeanne,
     known,
     new_address,
     realm_address,
     refreshed,
-    refused_sign_in,
     served_api,
     served_settings,
     service_admin,
@@ -72,9 +74,10 @@ from test_keycloak_platform import (
     set_by_link,
 )
 
+from waterfall.core.users import interface
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
+from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
@@ -83,6 +86,7 @@ pytestmark = pytest.mark.keycloak
 # The roles of WF-ARC-0030: one that lets its holder consult the accounts, one that does not.
 CONSULTING = "users.read"
 PLANNING = "planning.read"
+SESSIONS = "/api/v1/me/sessions"
 
 
 @pytest.fixture
@@ -139,6 +143,17 @@ def realm_set(**settings: object) -> Generator[httpx2.Client]:
         finally:
             restored = realm.put("", json=kept)
             assert restored.status_code == 204, restored.text
+
+
+def refused_sign_in(username: str, password: str) -> httpx2.Response:
+    """Try to sign in through the login page of the realm; give the page that refuses it."""
+    browser = FrontBrowser()
+    page, _ = browser.login_page()
+    response = browser.submit(page, {"username": username, "password": password})
+    # The login page again, with its error, and no way back to the front.
+    assert response.status_code == 200, response.headers.get("Location")
+    assert 'name="password"' in response.text
+    return response
 
 
 def link_path(user_id: str) -> str:
@@ -581,6 +596,60 @@ def test_a_refresh_token_idle_beyond_its_two_hours_is_refused(local_account: Acc
         time.sleep(2.1)
         again = refreshed(tokens["refresh_token"])
     assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+
+
+# --- WF-SEC-0020: a sign-out, and a session revoked ---------------------------------------------
+
+
+@pytest.mark.requirement("WF-SEC-0020-A")
+def test_closing_my_sessions_closes_them_on_every_device(
+    api: ContractClient, database: Database, local_account: Account
+) -> None:
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » Neither the refresh
+    # tokens of his devices, which Keycloak refuses, nor their access tokens, which the API
+    # refuses without waiting for their expiry (#668), as revoked (#855).
+    known(database, local_account)
+    office = tokens_of(local_account.email, PASSWORD)
+    home = tokens_of(local_account.email, PASSWORD)
+    assert api.get(ME, headers=bearer(home)).status_code == 200
+    response = api.delete(SESSIONS, headers=bearer(office))
+    assert response.status_code == 204, response.text
+    for device in (office, home):
+        again = refreshed(device["refresh_token"])
+        assert (again.status_code, again.json()["error"]) == (400, "invalid_grant")
+        acting = api.get(ME, headers=bearer(device))
+        assert (acting.status_code, acting.json()["code"]) == (401, "SESSION_REVOKED")
+    # Signed in again, from the next second on: the sign-in is dated to the second.
+    time.sleep(1.1)
+    assert api.get(ME, headers=bearer(tokens_of(local_account.email, PASSWORD))).status_code == 200
+
+
+@pytest.mark.requirement("WF-SEC-0020-A")
+def test_a_session_the_closing_missed_signs_in_again_by_giving_its_identifiers(
+    api: ContractClient, database: Database, local_account: Account
+) -> None:
+    # « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. » — nor with those of a
+    # session Keycloak failed to close, which lives on: the API noted the closing, the realm did
+    # nothing. Signed in as usual, the realm gives a token of the same sign-in, refused again; on
+    # SESSION_REVOKED the front forces the authentication (prompt=login), and the realm asks for
+    # the identifiers, renews the moment of the sign-in in the same session, and the token is
+    # admitted (#855).
+    row = known(database, local_account)
+    browser = FrontBrowser()
+    first = exchanged(*browser.sign_in(local_account.email, PASSWORD))
+    assert api.get(ME, headers=bearer(first)).status_code == 200
+    with database.transaction() as session:
+        interface.note_sessions_closed(session, row["id"], utc_now())
+    time.sleep(1.1)
+    same = exchanged(*browser.signed_in_again())
+    forced = exchanged(*browser.sign_in(local_account.email, PASSWORD, prompt="login"))
+    before, again, renewed = (claims(each["access_token"]) for each in (first, same, forced))
+    assert again["auth_time"] == before["auth_time"] < renewed["auth_time"]
+    assert before["sid"] == again["sid"] == renewed["sid"]
+    for revoked in (first, same):
+        refused = api.get(ME, headers=bearer(revoked))
+        assert (refused.status_code, refused.json()["code"]) == (401, "SESSION_REVOKED")
+    assert api.get(ME, headers=bearer(forced)).status_code == 200
 
 
 # --- The link, as the service reads the answer of the extension ---------------------------------
