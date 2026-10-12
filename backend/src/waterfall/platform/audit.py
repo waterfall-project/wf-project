@@ -80,6 +80,9 @@ type AuditObjectKind = Literal[
     "external_backup_upload",
 ]
 ACTIONS: tuple[str, ...] = get_args(AuditAction.__value__)
+# The natures of objects an inscription may name without a label: a backup, which has none, and an
+# account, whose name an anonymisation forgets (WF-ADM-0060).
+UNLABELED_KINDS = ("backup", "user")
 OBJECT_KINDS: tuple[str, ...] = get_args(AuditObjectKind.__value__)
 
 # What the data of an inscription may hold: codes, identifiers in text, numbers, never a float.
@@ -120,7 +123,8 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
-            "object_label IS NOT NULL OR object_kind IN ('backup', 'user')", name="object_labeled"
+            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)}",
+            name="object_labeled",
         ),
         CheckConstraint(
             "object_revision_id IS NOT NULL OR object_revision_label IS NULL",
@@ -238,8 +242,8 @@ def record(session: Session, inscription: Inscription) -> UUID:
 
     The correlation identifier is the one bound to the logs of the request or of the task
     (WF-OBS-0020): an action done outside any is a defect, refused. A field of ``params`` whose
-    name evokes a secret is refused too, at any depth, and an object without a label but a backup,
-    which the table refuses as well.
+    name evokes a secret is refused too, at any depth, and an object without a label but a backup
+    or an account — an anonymised one has lost its name —, which the table refuses as well.
     """
     correlation_id = get_contextvars().get("correlation_id")
     if not isinstance(correlation_id, str):
@@ -251,8 +255,8 @@ def record(session: Session, inscription: Inscription) -> UUID:
         message = f"an inscription does not carry a secret: field {secret!r}"
         raise AuditError(message)
     actor, audited, project = inscription.actor, inscription.audited, inscription.project
-    if audited.label is None and audited.kind != "backup":
-        message = f"an object of kind {audited.kind!r} is inscribed with its label"
+    if audited.label is None and audited.kind not in UNLABELED_KINDS:
+        message = f"an object of kind {audited.kind!r} is inscribed without its label"
         raise AuditError(message)
     identifier = new_id()
     revision = audited.revision

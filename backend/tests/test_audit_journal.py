@@ -26,6 +26,7 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     ACTIONS,
     OBJECT_KINDS,
+    UNLABELED_KINDS,
     AuditActor,
     AuditEntry,
     AuditError,
@@ -172,8 +173,8 @@ def test_an_inscription_refuses_a_field_named_as_a_secret_at_any_depth(
     assert count(database) == 0
 
 
-@pytest.mark.parametrize("kind", [kind for kind in OBJECT_KINDS if kind != "backup"])
-def test_an_object_without_a_label_but_a_backup_is_a_defect_said_before_the_database(
+@pytest.mark.parametrize("kind", [kind for kind in OBJECT_KINDS if kind not in UNLABELED_KINDS])
+def test_an_object_without_a_label_but_a_backup_or_an_account_is_a_defect_said_first(
     kind: str,
 ) -> None:
     # Refused by the module as its other rules are, not by the constraint of the table: the
