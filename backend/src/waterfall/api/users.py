@@ -503,12 +503,16 @@ def put_user_access_roles(
     is managing the roles (FBS-1.2, WF-ADM-0090), and who changes the accounts alone does not give
     himself the administration (#834).
     Roles that take the administration from the last administrator are refused (WF-ADM-0120). An
-    account withdrawn all its roles has its sessions closed (WF-SEC-0020).
+    account withdrawn all its roles has its sessions closed (WF-SEC-0020), the moment noted first,
+    with the attribution, as a deactivation does: a failure of the provider does not outlive a
+    role given back, and the token of a sign-in before it stays refused (#855).
     """
     act = Act(audit_actor(account), utc_now())
     role_ids = [role_id.root for role_id in body.access_role_ids]
     with services.database.transaction() as session:
         attribution = set_access_roles(session, user_id, role_ids, body.lock_version.root, act)
+        if attribution.withdraws_all:
+            note_sessions_closed(session, user_id, utc_now())
         changed = read_account(session, user_id)
         described = users(session, actor, [changed])[0]
     if attribution.withdraws_all:

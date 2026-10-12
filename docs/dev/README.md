@@ -2285,10 +2285,11 @@ ses paramètres, jamais une phrase.
   `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
   n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
   et après l'appel. Un jeton absent ou invalide est
-  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, comme un jeton dont la
+  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, un jeton dont la
   connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
-  tombe dans sa seconde — `closeMySessions` et la désactivation en notent l'heure,
-  `sessions_closed_at`, avant d'appeler Keycloak (#668, #835) —, un compte désactivé un 401
+  tombe dans sa seconde, un 401 `SESSION_REVOKED` — `closeMySessions`, la désactivation et le
+  retrait de tous les rôles en notent l'heure, `sessions_closed_at`, avant d'appeler Keycloak
+  (#668, #835, #855) —, un compte désactivé un 401
   `ACCOUNT_DEACTIVATED` ; un compte que Waterfall ne connaît pas encore est créé sans rôle s'il
   vient de l'annuaire ou d'un fournisseur externe, refusé sinon par un 401
   `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au seul journal. L'appelant devient l'auteur
