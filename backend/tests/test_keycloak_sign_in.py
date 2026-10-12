@@ -16,8 +16,10 @@ aimed at — is proved by the paths against the service (``frontend/e2e/service/
 import html
 import secrets
 import subprocess
+import threading
 import time
 from collections.abc import Generator, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
@@ -270,6 +272,64 @@ def test_a_locked_account_signs_in_again_once_its_lock_is_over(
         with httpx2.Client(base_url=realm_address(), timeout=30) as realm:
             unlocked = password_grant(realm, local_account, PASSWORD)
     assert unlocked.status_code == 200, unlocked.text
+
+
+# Rounds of two sign-ins at once: one would let a race pass unseen (#972).
+SIMULTANEOUS_ROUNDS = 10
+
+
+def simultaneous_sign_ins(account: Account) -> list[httpx2.Response]:
+    """Open the login page in two browsers, then give both the password of ``account`` at once.
+
+    Give the answer of each to its form: the return to the front, or the login page again.
+    """
+    browsers = [FrontBrowser(), FrontBrowser()]
+    pages = [browser.login_page() for browser in browsers]
+    start = threading.Barrier(len(browsers))
+    fields = {"username": account.email, "password": PASSWORD}
+
+    def submitted(index: int) -> httpx2.Response:
+        start.wait(timeout=30)
+        return browsers[index].submit(pages[index][0], fields)
+
+    with ThreadPoolExecutor(len(browsers)) as pool:
+        answers = list(pool.map(submitted, range(len(browsers))))
+    for browser, (_, verifier), answer in zip(browsers, pages, answers, strict=True):
+        if answer.status_code == 302:
+            exchanged(browser.returned(answer), verifier)
+    return answers
+
+
+class RefusedWhileAnotherSignsInError(AssertionError):
+    """A sign-in with the password is refused while another of the same account is under way."""
+
+
+@pytest.mark.xfail(
+    reason=(
+        "#972: Keycloak's brute force protection refuses a sign-in of an account while another"
+        " of it is being checked (allowConcurrentRequests, a server option, off); to be decided"
+    ),
+    raises=RefusedWhileAnotherSignsInError,
+    strict=True,
+)
+def test_two_simultaneous_sign_ins_of_one_account_with_its_password_both_succeed(
+    admin: httpx2.Client, local_account: Account
+) -> None:
+    # #972: a person who signs in from two devices at the same instant is signed in on both. The
+    # realm's events say why one is refused: ``user_temporarily_disabled``, with no failure
+    # counted — the guard of Keycloak against guesses sent at once, not the count of failures.
+    with realm_set(eventsEnabled=True) as realm:
+        for _ in range(SIMULTANEOUS_ROUNDS):
+            answers = simultaneous_sign_ins(local_account)
+            query = {"user": local_account.id, "type": "LOGIN_ERROR"}
+            causes = {event.get("error") for event in realm.get("/events", params=query).json()}
+            returned = [answer.status_code for answer in answers]
+            state = admin.get(f"/attack-detection/brute-force/users/{local_account.id}").json()
+            assert (state["disabled"], state["numFailures"]) == (False, 0), state
+            # The defect alone is expected — the guard's refusal: any other cause fails the test.
+            if causes == {"user_temporarily_disabled"} and sorted(returned) == [200, 302]:
+                raise RefusedWhileAnotherSignsInError(returned)
+            assert (returned, causes) == ([302, 302], set()), (returned, causes)
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")
