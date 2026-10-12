@@ -3855,6 +3855,14 @@ Décision de l'auteur du 2026-10-12 (#892) : une tâche que la restauration trou
 cours dans la base restaurée échoue par `TASK_INTERRUPTED_BY_RESTORE` (409), code propre, sans
 reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle.
 
+Décisions de l'auteur du 2026-10-12 (#953, #954, #955) : la restauration est exécutée par un
+service à part, seul à tenir l'adresse du propriétaire des bases et le client d'administration
+du fournisseur d'identité, et non par le worker ; le contrat n'en change pas — `startRestore`
+dépose toujours une tâche `restore`, que la sonde de vie suit. Après le remplacement des bases, le
+royaume de l'installation qui restaure est réappliqué : la description de `startRestore` dit que
+ses clients et ses adresses restent ceux de la cible, ses comptes et leurs mots de passe ceux de
+la sauvegarde (#955).
+
 ## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
 
 `IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,

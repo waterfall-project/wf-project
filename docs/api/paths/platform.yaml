@@ -286,7 +286,9 @@
       en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Les tâches restaurées encore en file ou
       en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892) ; la liste des
       sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893,
-      #894).
+      #894). Le royaume du fournisseur d'identité garde la configuration de l'installation qui
+      restaure — ses clients et ses adresses — ; ses comptes et leurs mots de passe sont ceux de
+      la sauvegarde (#955).
     requestBody:
       required: true
       content:

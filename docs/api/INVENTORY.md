@@ -15,7 +15,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/health` | Sonde de vivacité | — |
+| GET | `/health` | Sonde de vivacité, et la maintenance d'une restauration | WF-ADM-0160 |
 | GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
