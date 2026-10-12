@@ -764,25 +764,27 @@ describe("the creation of a local account", () => {
     expect(told().textContent).toBe("");
   });
 
-  it("refuses at their fields a name left blank and an address left empty, and asks nothing [WF-ADM-0050-A]", async () => {
-    const client = serve({});
-    render(accounts());
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    const form = await screen.findByRole("form", { name: "Créer un compte local" });
-    await userEvent.type(within(form).getByLabelText("Nom"), "   ");
-    await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    const last = within(form).getByLabelText("Nom");
-    expect(last).toHaveFocus();
-    expect(last).toHaveAttribute("aria-invalid", "true");
-    expect(last).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
-    expect(within(form).getByLabelText("Adresse électronique")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(within(form).getByLabelText("Prénom")).not.toHaveAttribute("aria-invalid");
-    expect(writes(client)).toEqual([]);
-  });
+  it.each(["Nom", "Prénom", "Adresse électronique"])(
+    "refuses at its field the %s left blank, the others filled, and asks nothing [WF-ADM-0050-A]",
+    async (blank) => {
+      const client = serve({});
+      render(accounts());
+      const form = await openCreation();
+      const filled = { Nom: "Garnier", Prénom: "Léa", "Adresse électronique": "l@example.com" };
+      for (const [label, value] of Object.entries(filled)) {
+        await userEvent.type(within(form).getByLabelText(label), label === blank ? "   " : value);
+      }
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      const refused = within(form).getByLabelText(blank);
+      expect(refused).toHaveFocus();
+      expect(refused).toHaveAttribute("aria-invalid", "true");
+      expect(refused).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
+      for (const label of Object.keys(filled).filter((each) => each !== blank)) {
+        expect(within(form).getByLabelText(label)).not.toHaveAttribute("aria-invalid");
+      }
+      expect(writes(client)).toEqual([]);
+    },
+  );
 
   it("says at its field the address another account holds, the dialog open to correct it [WF-ADM-0050-A]", async () => {
     serve({
