@@ -8,7 +8,7 @@ librement dans le document.
 
 Les trente-six entrées de la passe du 2026-10-03 sont tranchées et intégrées ; leurs
 décisions se lisent dans l'historique Git de ce fichier (dernière version complète au
-commit d314a11). Trois attendent leur tour.
+commit d314a11). Quatre attendent leur tour.
 
 ## 1. Les formats Excel de l'annexe B
 
@@ -65,3 +65,32 @@ commit d314a11). Trois attendent leur tour.
   file (WF-ARC-0090) ; le worker la prend comme les autres. » ; et TFX-10 retiré du tableau 8,
   ou réécrit « Tâches planifiées (PBS-5.3) → Base de données et file — inscription et mise en
   file par la commande du worker ».
+
+## 4. La restauration réinscrit le journal par identifiant (#892, #893, #894)
+
+- **Où** : WF-ADM-0160, son corps et son Vérif.
+- **Quoi** : la conception d'EP-03 (PR #939), sur les décisions de l'auteur du 2026-10-12,
+  s'écarte de la lettre de l'exigence en trois points, relevés par la revue d'US-0440/L1 :
+  - **le journal par identifiant** (#894) : le corps dit les inscriptions « postérieures à la
+    date de la sauvegarde » relues avant le remplacement des bases et réinscrites après lui, et
+    que la restauration « remplace l'intégralité des deux bases ». Le vidage n'étant pas
+    instantané au regard de cette date, une inscription faite pendant lui serait doublée ou
+    perdue : la restauration réinscrit les inscriptions dont l'identifiant manque au journal
+    restauré. Sur la même installation, le résultat est celui du corps ; sur une autre, les
+    inscriptions de la cible antérieures à la date de la sauvegarde sont gardées aussi. Le
+    corps et le Vérif (« rien de postérieur, hors le journal d'audit ») sont à mettre d'accord
+    avec cette réinscription ;
+  - **la table des sauvegardes est gardée** (#893) : relue et réinscrite comme le journal,
+    sans quoi la liste perdrait les sauvegardes prises après celle qu'on restaure, dont les
+    archives restent sur le stockage objet ;
+  - **les tâches restaurées en cours passent en échec** (#892) : une tâche restaurée en file
+    ou en cours passe en échec avant la reprise du worker, sans quoi la sauvegarde en cours au
+    moment du vidage se relancerait et écraserait son archive.
+  Décidé par l'auteur le 2026-10-12 : à intégrer à la prochaine passe.
+- **Texte proposé**, pour le corps : « … Le journal d'audit (WF-SEC-0030) est conservé à
+  travers la restauration : ses inscriptions absentes du journal restauré sont relues avant
+  le remplacement des bases et réinscrites après lui, de même que la liste des sauvegardes ;
+  les traitements en attente ou en cours dans les bases restaurées sont terminés en échec ; la
+  restauration elle-même s'inscrit au journal une fois faite. » ; et pour le Vérif : « … et
+  rien de postérieur, hors le journal d'audit et la liste des sauvegardes, qui gardent leurs
+  inscriptions et leurs sauvegardes ; le journal nomme la restauration. »
