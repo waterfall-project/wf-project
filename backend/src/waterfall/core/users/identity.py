@@ -132,7 +132,8 @@ def inscribed_actor(session: Session, author: UUID | None) -> AuditActor | None:
     just before the inscription: a write on the account of its own author already holds its row. A
     transaction that inscribes twice takes the locks of its second write before its first
     inscription — the creation of an account with roles takes the lock of the last administrator
-    before it is written.
+    before it is written. The lock of the forgetting alone comes after: an anonymisation takes it
+    once it holds the account it anonymises, and names its author before.
     """
     if author is None:
         return None
@@ -151,7 +152,6 @@ def inscribe(
         "user_update",
         "user_deactivate",
         "user_reactivate",
-        "user_anonymize",
         "password_link_create",
     ],
     account: UserAccount,

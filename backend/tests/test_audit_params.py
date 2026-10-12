@@ -53,6 +53,7 @@ WRITERS = {
     "waterfall.core.access_roles.roles",
     "waterfall.core.backups.interface",
     "waterfall.core.users.identity",
+    "waterfall.core.users.states",
 }
 
 

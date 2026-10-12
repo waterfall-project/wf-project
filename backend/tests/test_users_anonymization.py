@@ -21,12 +21,17 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.users.interface import anonymize_account, inscribe_password_link
+from waterfall.core.users.interface import (
+    anonymize_account,
+    inscribe_password_link,
+    lock_account_for_change,
+)
 from waterfall.platform.audit import Act, AuditActor, AuditObject, Inscription, record
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak
@@ -228,6 +233,43 @@ def test_an_anonymization_waits_for_a_write_in_flight_of_its_account_and_forgets
     anonymizing.join()
     assert links_inscribed(database) == [(str(paul), None)]
     assert row(database, paul)["anonymized_at"] is not None
+
+
+@pytest.mark.usefixtures("headers")
+def test_an_anonymization_by_an_account_being_anonymized_waits_and_neither_deadlocks(
+    database: Database, paul: UUID
+) -> None:
+    # Paul, deactivated with a request in flight, anonymises Jeanne while Camille anonymises him:
+    # Camille holds his row, then takes the lock of the forgetting. Paul's anonymisation names its
+    # author before taking that lock, and waits for his row holding nothing Camille waits for;
+    # it then inscribes no name. Named after, it would hold the lock and both would wait. Paul
+    # changed Jeanne last: her anonymisation, stamped with his identifier, checks no key of his.
+    jeanne = account(database, "Montgolfier", "Jeanne", state="deactivated", updated_by=paul)
+    failures: list[DBAPIError] = []
+
+    def anonymize_jeanne() -> None:
+        with logging_context(correlation_id="req-paul"):
+            try:
+                with database.transaction() as session:
+                    anonymize_account(session, jeanne, 0, Act(paul, utc_now()))
+            except DBAPIError as error:
+                failures.append(error)
+
+    with logging_context(correlation_id="req-camille"), Session(database.engine) as anonymizing:
+        lock_account_for_change(anonymizing, paul, 0)
+        writing = threading.Thread(target=anonymize_jeanne)
+        writing.start()
+        wait_for_a_lock(database)
+        anonymize_account(anonymizing, paul, 0, Act(CALLER, utc_now()))
+        anonymizing.commit()
+    writing.join(timeout=10)
+    assert not writing.is_alive()
+    assert failures == []
+    assert [
+        (entry["object_id"], entry["actor_user_id"], entry["actor_display_name"])
+        for entry in journal(database)
+        if entry["action"] == "user_anonymize"
+    ] == [(str(paul), str(CALLER), "Camille Martin"), (str(jeanne), str(paul), None)]
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
