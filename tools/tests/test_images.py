@@ -82,7 +82,9 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     document = workflow()
     assert document["permissions"] == {"contents": "read"}
     jobs = document["jobs"]
-    assert list(jobs) == ["publish"]
+    # The trial of the production platform on the images published reads them alone (US-0430/L2).
+    assert list(jobs) == ["publish", "trial"]
+    assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]
     assert job["permissions"] == {"contents": "read", "packages": "write"}
     publish = job["steps"][-1]
@@ -94,7 +96,8 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
 
 
 def test_every_action_of_the_workflow_is_pinned_by_the_digest_of_its_commit() -> None:
-    for step in workflow()["jobs"]["publish"]["steps"]:
+    jobs = workflow()["jobs"]
+    for step in [*jobs["publish"]["steps"], *jobs["trial"]["steps"]]:
         if "uses" in step:
             assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", step["uses"])
 
@@ -456,10 +459,13 @@ def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
     assert docker.pushed() == [f"ghcr.io/waterfall-project/front:{COMMIT}"]
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.usefixtures("checkout")
 def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_named(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # « Une recherche des secrets connus dans le dépôt, les images publiées et les journaux ne les
+    # trouve pas. » : for the images, in the file system of each one before it is published (#824).
     docker = Docker(holding=b"WATERFALL_REDIS_PASSWORD=chain-only-redis\n")
     assert docker.main("epic/EP-03", "--push") == 2
     assert docker.pushed() == []
@@ -468,20 +474,23 @@ def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_
     assert "chain-only-redis" not in error
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_a_value_is_found_across_two_chunks_of_an_image() -> None:
     values = {"mark": "development-only"}
     assert images.held([b"xx develop", b"ment-only yy"], values) == ["mark"]
     assert images.held([b"xx develop", b"ment yy"], values) == []
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_values_searched_are_the_secrets_of_the_chain_and_the_mark_of_the_development() -> None:
     values = images.development_values()
     job = yaml.safe_load(images.WORKSTATION_SECRETS.read_text(encoding="utf-8"))["jobs"]["check"]
     secrets = {value for name, value in job["env"].items() if SECRET_NAME.search(name)}
-    assert len(secrets) == 10
+    assert len(secrets) == 11
     assert set(values.values()) == secrets | {images.DEVELOPMENT_MARK}
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_every_value_of_the_development_platform_carries_the_mark_searched() -> None:
     development = REPOSITORY / "deploy" / "keycloak" / "development"
     values = [

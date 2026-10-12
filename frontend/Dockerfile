@@ -7,8 +7,9 @@
 # - `production`, the last stage, built when none is named: the front built by `next build`,
 #   served by Node alone from the standalone output of Next, which the chain publishes (US-0430).
 #   The addresses of the API, of Keycloak and of Redis, and the secret of the client of the front,
-#   are read from the environment of the container when a request needs them, never while
-#   building (WF-SEC-0010). `next build` does write keys of its own into its output, and so into
+#   are read from the environment of the container, never while building (WF-SEC-0010): the
+#   server checks them as it starts and stops naming the one that is missing (#825,
+#   `src/instrumentation.ts`). `next build` does write keys of its own into its output, and so into
 #   the image: the key of the closures of the server actions (`encryptionKey`,
 #   `.next/server/server-reference-manifest.*`) and those of the draft mode (`previewMode*`,
 #   `.next/prerender-manifest.json`), which whoever pulls the image reads. Next compares
@@ -19,9 +20,9 @@
 #   holds. The key of the server actions protects nothing as long as the front has no closure for
 #   Next to encrypt — no server action written inline in a function, no `"use cache"` —, and that
 #   of the draft mode would let anyone enter it if the front had one — it has no `draftMode` and no
-#   router of pages —, which `src/next-config.test.ts` holds. The key of the server actions is to
-#   be set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of
-#   the build (#825).
+#   router of pages —, which `src/next-config.test.ts` holds. The key of the server actions is
+#   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
+#   build, and without which the server does not start (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
 FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node
 

@@ -54,16 +54,18 @@ DECODED_CREDENTIAL = "p@ss/w:rd#1\\x"
 PLUS_CREDENTIAL = "a+b%40"
 SERVICE_CREDENTIAL = "service-client-pass-6e1b0a"
 STORAGE_CREDENTIAL = "storage-secret-key-8c3d5f"
-OWNER_CREDENTIAL = "owner-pass-2a7e9b"
+BACKUP_CREDENTIAL = "backup-pass-2a7e9b"
 KEYCLOAK_DATABASE_CREDENTIAL = "keycloak-db-pass-0d4c6a"
 PLATFORM_SECRETS = {
     "WATERFALL_DATABASE_URL": f"postgresql://waterfall:{DB_CREDENTIAL}@db:5432/waterfall",
     "WATERFALL_REDIS_URL": f"redis://:{REDIS_CREDENTIAL}@redis:6379/0",
     "WATERFALL_SERVICE_CLIENT_SECRET": SERVICE_CREDENTIAL,
     "WATERFALL_STORAGE_SECRET": STORAGE_CREDENTIAL,
-    "WATERFALL_OWNER_DATABASE_URL": f"postgresql://waterfall:{OWNER_CREDENTIAL}@db:5432/waterfall",
+    "WATERFALL_BACKUP_DATABASE_URL": (
+        f"postgresql://waterfall_backup:{BACKUP_CREDENTIAL}@db:5432/waterfall"
+    ),
     "WATERFALL_KEYCLOAK_DATABASE_URL": (
-        f"postgresql://keycloak:{KEYCLOAK_DATABASE_CREDENTIAL}@db:5432/keycloak"
+        f"postgresql://waterfall_backup:{KEYCLOAK_DATABASE_CREDENTIAL}@db:5432/keycloak"
     ),
 }
 # Where a service of the test platform reaches Keycloak and the object storage: addresses that
@@ -77,7 +79,7 @@ SECRETS = [
     DB_CREDENTIAL,
     REDIS_CREDENTIAL,
     STORAGE_CREDENTIAL,
-    OWNER_CREDENTIAL,
+    BACKUP_CREDENTIAL,
     KEYCLOAK_DATABASE_CREDENTIAL,
     BEARER_JWT,
     SESSION_COOKIE,

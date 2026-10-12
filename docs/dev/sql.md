@@ -153,7 +153,8 @@ par la base où elle s'applique, jamais en dur :
 `EXECUTE format('GRANT SELECT, INSERT ON <table> TO %I', current_database() || '_service')`, dans
 un bloc `DO`. La migration `0002` le crée,
 sans droit de connexion, si le serveur ne l'a pas ; le déploiement lui donne son mot de passe
-(`deploy/compose/service-database-role.sql`). Les tests du service s'y connectent aussi,
+(`deploy/compose/service-database-role.sql`). En production, c'est
+`deploy/compose/waterfall-database.sql` qui crée `waterfall_service`, avant les migrations. Les tests du service s'y connectent aussi,
 par un rôle de connexion qui en est membre, créé pour la session de tests (fixture `database`) :
 un droit oublié y échoue comme il échouerait en service.
 
