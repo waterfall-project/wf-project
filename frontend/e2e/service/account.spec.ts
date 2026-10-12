@@ -156,7 +156,10 @@ test("a local account leads to its page at the realm, which holds its password",
   await page.context().close();
 });
 
-test("a user puts, replaces and withdraws the avatar of the account herself, which shows its initials without one [WF-ADM-0080-A]", async ({
+// Fixme until the bench passes a binary body (#973): Prism, the proxy of the contract on the
+// service platform, reads any body that is not JSON as UTF-8 text and spoils the image. The test
+// leaves the fixme once the bench is corrected.
+test.fixme("a user puts, replaces and withdraws the avatar of the account herself, which shows its initials without one [WF-ADM-0080-A]", async ({
   browser,
 }) => {
   const page = await workstation(browser, "fr-FR");
