@@ -455,9 +455,11 @@ class KeycloakAdmin:
         ``error-user-attribute-required``, and sets first and last name to ``null`` when only the
         email goes with it. Writing ``locale`` alone is therefore not possible here.
 
-        The window this leaves is accepted (#923): an identity an administrator writes between the
-        GET and the PUT is overwritten by the one read before it. It lasts a few milliseconds and
-        opens only if the person changes their language at that very moment. The reverse window is
+        The window this leaves is accepted (#923): what is written to the account between the GET
+        and the PUT and that the PUT sends back — its identity, which an administrator changes in
+        Waterfall — is overwritten by what was read before. Waterfall and the realm then disagree on
+        that identity until the next write of it. The window lasts a few milliseconds and opens only
+        if the person changes their language at that very moment. The reverse window is
         closed: ``change_identity`` sends no ``attributes``, so it keeps ``locale``. Closing this
         one would take an entry point of the Java extension that writes ``locale`` alone.
         """
