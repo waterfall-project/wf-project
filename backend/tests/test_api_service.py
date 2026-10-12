@@ -288,7 +288,7 @@ def test_a_composition_of_which_more_than_one_branch_describes_an_object_is_refu
 @pytest.mark.requirement("WF-ARC-0110-A")
 def test_a_nullable_object_stays_closed() -> None:
     # The composition of shapes the contract writes, a schema or null, is read as its schema.
-    schema = {
+    schema: dict[str, object] = {
         "type": "object",
         "properties": {"c": {"anyOf": [two_objects("allOf"), {"type": "null"}]}},
     }

@@ -209,9 +209,10 @@ def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str
     """Point at each property of the value that none of its schemas declares.
 
     A value is held to its schemas and to all they compose together, a single branch of a
-    composition describing an object or a list (``AmbiguousCompositionError``). An object whose schema says
-    ``additionalProperties`` — ``true``, or the schema of its values — is open to properties it
-    does not name, ``Problem.params`` and ``FieldProblem.params`` among them.
+    composition describing an object or a list (``AmbiguousCompositionError``). An object
+    whose schema says ``additionalProperties`` — ``true``, or the schema of its values — is
+    open to properties it does not name, ``Problem.params`` and ``FieldProblem.params`` among
+    them.
     """
     every = branches(schemas)
     if isinstance(value, list):
