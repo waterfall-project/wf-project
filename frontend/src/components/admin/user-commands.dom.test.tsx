@@ -944,14 +944,28 @@ describe("the link to set the password", () => {
     expect(petit).toHaveAttribute("aria-busy", "true");
     expect(petit).toHaveAttribute("aria-disabled", "true");
     held.release();
-    expect(
-      await screen.findByRole("dialog", {
-        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-      }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(writes(client).map(([, path]) => path)).toEqual([
       `/users/${account("Martin").user_id}/password-link`,
+    ]);
+    // The link closed, the other commands of the link are available again.
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
+    await waitFor(() => {
+      expect(petit).toHaveAttribute("aria-busy", "false");
+    });
+    expect(petit).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(petit);
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
+      }),
+    ).toBeInTheDocument();
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/password-link`,
+      `/users/${account("Petit").user_id}/password-link`,
     ]);
   });
 
