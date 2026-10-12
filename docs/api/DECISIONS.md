@@ -3788,10 +3788,12 @@ Décision de l'auteur du 2026-10-10. `AuditEvent` disait qui avait changé les r
 pas lesquels : l'« afin de » d'US-0410, dire après coup qui a donné quel droit, ne se lisait pas,
 quand l'inscription garde ces données depuis US-0410/L1. Il rend `params`, un `AuditParams` : un
 seul objet fermé, dont chaque propriété dit l'action qui la porte — l'origine d'un compte créé,
-les champs d'une identité modifiée, les permissions d'un rôle créé, données ou retirées par sa
-modification et son libellé d'avant, les rôles donnés ou retirés à un compte, chacun par son
-identifiant et son libellé du moment —, en codes, en identifiants et en libellés, jamais en
-phrase (WF-ARC-0110). Une action qui n'a rien à dire de plus que son objet rend un objet vide.
+les champs d'une identité modifiée et, quand la modification le rattache à une personne de
+l'annuaire qui porte son adresse, ce rattachement (`attached`, #707), les permissions d'un rôle
+créé, données ou retirées par sa modification et son libellé d'avant, les rôles donnés ou
+retirés à un compte, chacun par son identifiant et son libellé du moment —, en codes, en
+identifiants et en libellés, jamais en phrase (WF-ARC-0110). Une action qui n'a rien à dire de
+plus que son objet rend un objet vide.
 Écarté : un schéma par action, choisi par `action` (`oneOf` à discriminant), que le discriminant
 d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
@@ -3822,8 +3824,9 @@ validation : une adresse de `removed` est celle d'un compte retiré, ou à retir
 adresse. Un
 rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
 les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
-adresse, et s'inscrit au journal comme une modification du compte. `ALREADY_EXISTS` et
-`VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un compte laissé tel quel.
+adresse, et s'inscrit au journal comme une modification du compte, `params.attached` à vrai.
+`ALREADY_EXISTS` et `VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un
+compte laissé tel quel.
 `startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
 `getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
 compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
