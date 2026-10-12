@@ -390,6 +390,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "anonymizeUser": ("users.read", "users.write"),
     "setUserAccessRoles": ("users.read", "users.write", CHANGE),
     "createPasswordSetupLink": ("users.read", "users.write"),
+    "startIdentitySync": ("users.write",),
+    "getLatestIdentitySync": ("users.read",),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),

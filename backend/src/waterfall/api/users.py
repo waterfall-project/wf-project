@@ -19,15 +19,16 @@ withdrawn all its roles, has its sessions closed by the provider once the write 
 written, once checked: while the provider does not answer, nothing is written (WF-ADM-0060).
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref, audit_actor
-from waterfall.api.authentication import Caller, ServicesOf, Transaction
+from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
@@ -71,6 +72,7 @@ from waterfall.core.users.interface import (
     anonymize_account,
     change_account,
     check_account_anonymization,
+    check_account_change,
     create_local_account,
     display_name,
     identity_faults,
@@ -85,7 +87,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnavailableError
+from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
@@ -387,12 +389,77 @@ def identity_change(body: UserUpdate) -> IdentityChange:
     response_model_exclude_unset=True,
 )
 def patch_user(
-    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, session: Transaction
+    user_id: UUID, body: UserUpdate, account: Caller, actor: Acting, services: ServicesOf
 ) -> User:
-    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050)."""
+    """Change the names and the address of a local account, the attachment of any (WF-ADM-0050).
+
+    For a local account Waterfall is the authority (WF-ADM-0050): its new identity is carried to
+    the provider, which signs it in and mails it by its address (#810), out of any transaction
+    (#669) — checked first, carried, then written; a write refused after all gives the provider
+    back the identity Waterfall holds then, read again in a short transaction. It gives back the
+    one read before the change if the account cannot be read again, which is logged
+    (``account.identity_not_reread``), or if it is no longer the local account the provider knows
+    by that subject (#707).
+    """
+    sent = identity_change(body)
+    lock_version = body.lock_version.root
+    with services.database.transaction() as session:
+        held, changed = check_account_change(session, user_id, sent, lock_version)
+    carried = held.origin == "local" and bool(changed)
+    if carried:
+        carry_identity(services.keycloak_admin, held, changed)
     act = Act(audit_actor(account), utc_now())
-    changed = change_account(session, user_id, identity_change(body), body.lock_version.root, act)
-    return users(session, actor, [changed])[0]
+    try:
+        with services.database.transaction() as session:
+            done = change_account(session, user_id, sent, lock_version, act)
+            return users(session, actor, [done])[0]
+    except Exception:
+        if carried:
+            restore_identity(services, held)
+        raise
+
+
+def local_identity(held: Account, changed: Mapping[str, str]) -> LocalIdentity:
+    """Give the identity of a local account, with what a change sends.
+
+    Its names and its address are held: an anonymised account changes none (409).
+    """
+    identity = {"last_name": held.last_name, "first_name": held.first_name, "email": held.email}
+    return LocalIdentity(**{name: value or "" for name, value in {**identity, **changed}.items()})
+
+
+def carry_identity(admin: KeycloakAdmin, held: Account, changed: Mapping[str, str]) -> None:
+    """Give the provider the new identity of a local account; refused if it holds the address."""
+    if not admin.change_identity(held.subject, local_identity(held, changed)):
+        raise address_taken(None)
+
+
+def restore_identity(services: Services, held: Account) -> None:
+    """Give the provider back the identity of a local account whose change Waterfall refused.
+
+    The one Waterfall holds at the refusal, read again in a short transaction: the one read before
+    the change (``held``) may be stale — another administrator, a request sent twice (#810). That
+    one all the same if the account cannot be read again, which is logged, or if it is no longer
+    the local account the provider knows by ``held.subject`` — attached meanwhile to a person of
+    the directory (#707). The refusal is what the caller is told; a provider that cannot be given
+    the identity back, or that holds its address for another account, is logged.
+    """
+    user_id = str(held.user_id)
+    try:
+        with services.database.transaction() as session:
+            read = read_account(session, held.user_id)
+    except SQLAlchemyError:
+        logger.exception("account.identity_not_reread", user_id=user_id)
+        read = held
+    if read.origin != "local" or read.subject != held.subject:
+        read = held
+    try:
+        restored = services.keycloak_admin.change_identity(held.subject, local_identity(read, {}))
+    except (UnavailableError, IdentityProviderError, UnprocessableError):
+        logger.exception("account.identity_not_restored", user_id=user_id)
+        return
+    if not restored:
+        logger.warning("account.identity_not_restored", user_id=user_id, reason="address_taken")
 
 
 def close_sessions(admin: KeycloakAdmin, account: Account) -> None:

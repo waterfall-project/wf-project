@@ -95,7 +95,7 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     monkeypatch.setattr(worker_main, "serve", serve)
     assert worker_main.main([]) == 0
     (worker,) = served
-    assert set(worker.handlers) == {"backup"}
+    assert set(worker.handlers) == {"backup", "identity_sync"}
     assert worker.consumer
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]

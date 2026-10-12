@@ -259,7 +259,9 @@ porte :
 - les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
   retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
   des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
-  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ; `admin-cli`,
+  rôles `manage-users`, `view-users`, `query-users`, `view-realm` — pour trouver les annuaires
+  que le royaume fédère, dont la lecture des comptes demande la synchronisation, leurs secrets
+  masqués — et le rôle de l'extension) ; `admin-cli`,
   que Keycloak crée dans chaque royaume, sans connexion directe par mot de passe
   (`directAccessGrantsEnabled: false`, #644) : la plateforme de développement déclare seule un
   client de test pour les jetons dont ses tests ont besoin ;
@@ -477,15 +479,31 @@ garde le compte actif et le signale.
   aucun appel au fournisseur d'identité ne se fait dans une transaction (#669).
   L'identification lit, et au besoin admet, dans ses propres transactions courtes, l'appel à
   Keycloak se faisant entre les deux ; `closeMySessions` ferme les sessions chez Keycloak hors
-  transaction. Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
+  transaction. `updateUser` reporte dans Keycloak, par son API d'administration, le nom, le
+  prénom et l'adresse changés d'un compte local, dont Waterfall fait foi (motif de WF-ADM-0050) :
+  le royaume connecte et écrit au compte par l'adresse qu'il tient (#810). Le changement est
+  vérifié dans une transaction courte, reporté, puis écrit dans une seconde, qui revérifie le
+  `lock_version` ; refusé alors, il est défait dans Keycloak, qui reprend l'identité que
+  Waterfall tient au moment du refus, relue dans une transaction courte — celle lue avant le
+  report peut avoir changé depuis. Il reprend l'identité lue avant le report si le compte ne
+  peut être relu, ce qui est journalisé (`account.identity_not_reread`), ou s'il n'est plus le
+  compte local que le royaume connaît par ce sujet — rattaché entre-temps à une personne de
+  l'annuaire (#707). Un échec de ce retour, dont un compte du royaume qui tient entre-temps
+  l'adresse, est journalisé (`account.identity_not_restored`). Si Keycloak applique le report
+  sans répondre à temps, ou si le processus tombe entre le report et la seconde transaction,
+  Keycloak garde l'identité nouvelle et Waterfall l'ancienne jusqu'à la lecture des comptes
+  suivante, qui rétablit dans Keycloak celle que Waterfall tient (auteur, 2026-10-12, #919).
+  Une connexion prise pendant un appel lent épuiserait le pool, et des requêtes
   qui n'ont pas besoin de Keycloak finiraient en 500 (WF-EXP-0040).
 - Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
   un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
-- Deux rôles de base (#701) : l'API et le worker se connectent par un rôle de service, qui
+- Les rôles de base (#701, #895) : l'API et le worker se connectent par un rôle de service, qui
   n'a sur le journal d'audit que `INSERT` et `SELECT` ; le propriétaire des tables, seul à
-  pouvoir créer, migrer et recréer, sert aux migrations, à l'amorçage, à la sauvegarde et à la
-  restauration, jamais à une requête. Le propriétaire pourrait se rendre les droits ou couper
-  le déclencheur du journal : c'est pourquoi le service ne l'est pas. Toute écriture au journal
+  pouvoir créer, migrer et recréer, sert aux migrations, à l'amorçage et à la restauration,
+  jamais à une requête. Le propriétaire pourrait se rendre les droits ou couper
+  le déclencheur du journal : c'est pourquoi le service ne l'est pas. La sauvegarde a son
+  propre rôle, membre de `pg_read_all_data`, qui ne peut ni écrire ni couper un déclencheur
+  (auteur, 2026-10-12, #895). Toute écriture au journal
   porte une corrélation, y compris celles de `waterfall-api install` et des tâches du worker.
   Sur un PostgreSQL externe, le rôle de service est créé d'avance par l'exploitant (EP-13).
 
@@ -518,9 +536,49 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
 - **La lecture des comptes** demande d'abord à Keycloak une synchronisation complète de
   chaque annuaire fédéré, puis lit les comptes du royaume par pages : elle crée les absents
   sans rôle, met à jour nom, prénom et adresse des comptes fédérés, désactive ceux que
-  Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne touche
-  aucun compte local (WF-ADM-0070). Ses écritures portent la plateforme comme auteur
-  (WF-DAT-0070).
+  Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne modifie
+  dans Waterfall aucun compte local (WF-ADM-0070) : c'est dans Keycloak qu'elle rétablit le nom,
+  le prénom et l'adresse d'un compte local qui y diffèrent, puisque Waterfall en fait foi
+  (WF-ADM-0050 ; auteur, 2026-10-12, #919). Ses écritures portent la plateforme comme auteur
+  (WF-DAT-0070). Précisions de sa réalisation (US-0370/L2) :
+  - une personne de l'annuaire dont l'adresse est portée par un compte y est rattachée, comme à
+    sa première requête (#707) : le compte prend son identifiant chez Keycloak, son nom, son
+    prénom et son adresse, vient désormais de l'annuaire, et garde ses rôles et son état ; une
+    nouvelle fédération, qui donne aux personnes d'autres identifiants, retrouve ainsi leurs
+    comptes. Une personne relayée par un fournisseur externe à l'adresse déjà portée est laissée
+    et signalée (`ALREADY_EXISTS`) ;
+  - un compte anonymisé n'est ni modifié ni recréé : la lecture le rapproche par l'identifiant
+    que l'anonymisation conserve (WF-ADM-0070, WF-ADM-0060) ;
+  - un compte que la liste ne nomme plus n'est désactivé qu'après que Keycloak a dit, à sa
+    lecture, ne plus le connaître : une page déplacée par une écriture concurrente ne désactive
+    personne ;
+  - les comptes locaux du royaume que Waterfall ne connaît pas et qui n'ont jamais eu de mot de
+    passe — laissés par une création que Waterfall n'a pas menée à son terme, Keycloak ayant
+    créé le compte puis répondu trop tard — sont retirés du royaume (#811), une fois âgés d'une
+    heure : une création en cours est chez Keycloak avant d'être dans Waterfall. Ils sont nommés
+    dans le compte rendu, inscrit dans la transaction de la lecture ; leur retrait de Keycloak
+    n'a lieu qu'après la validation de cette transaction. Une lecture arrêtée avant ne retire donc
+    rien ; un retrait qui échoue est journalisé, et la lecture suivante, qui retrouve l'orphelin,
+    le nomme de nouveau et tente son retrait ;
+  - tout ce qui se demande à Keycloak — synchronisation, lecture — précède les écritures, les
+    retraits des orphelins mis à part, qui les suivent. Le verrou de la règle du dernier
+    administrateur est pris avant elles, avant toute ligne d'un compte, dans l'ordre des routes
+    qui modifient un compte : verrou consultatif, puis lignes ; chaque désactivation s'écrit sous
+    la garde, et un compte ne se verrouille que pour être écrit, relu sous le verrou. Le compte
+    rendu est gardé dans `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche
+    réussie y renvoie.
+
+  Décisions de l'auteur du 2026-10-12, que réalise US-0370/L2b, le contrat d'abord :
+  - **une personne sans adresse** n'est plus ignorée en silence : une entrée de `skipped` la
+    nomme par son identifiant chez le fournisseur et son nom, motif `EMAIL_MISSING` (#918) ;
+  - **l'identité des comptes locaux** : la lecture compare le nom, le prénom et l'adresse que
+    Keycloak tient d'un compte local à ceux de Waterfall, et rétablit dans Keycloak ceux de
+    Waterfall, hors transaction comme le report d'`updateUser` (#669) ; c'est ce qui réconcilie
+    un report resté sans réponse (#919) ;
+  - **aucune donnée personnelle d'un compte connu dans le compte rendu** : une entrée de
+    `skipped` qui désigne un compte de Waterfall — le dernier administrateur gardé, par
+    exemple — n'en garde que l'identifiant ; son nom est relu à la consultation, et un compte
+    anonymisé depuis s'y lit par le libellé neutre (WF-ADM-0060 ; #920).
 
 ### Journal d'audit
 
@@ -629,6 +687,10 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   Keycloak et keycloak-config-cli ; des volumes nommés pour les données ;
 - **les secrets** : un fichier `.env` que l'exploitant remplit d'après un modèle versionné,
   lu au démarrage ; un service qui en manque s'arrête en nommant la variable ;
+- **le rôle de sauvegarde** (auteur, 2026-10-12, #895), que réalise US-0430/L2 : le worker
+  vide les bases par un rôle membre de `pg_read_all_data`, qui ne peut ni écrire ni couper un
+  déclencheur, et ne tient plus pour la sauvegarde l'adresse du superutilisateur ; un test
+  fait un vidage par ce rôle ;
 - **l'amorçage** : `docker compose run --rm api waterfall-api install`, qui écrit le lien du
   premier administrateur ;
 - **la notice** : `deploy/compose/README.md` — installer, amorcer, mettre à jour (tirer une
@@ -654,7 +716,8 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 ### Sauvegarde et restauration
 
 - **La sauvegarde** est une tâche du worker (`backup`) : `pg_dump` de chaque base, au format
-  personnalisé, chacune dans un instantané cohérent, sous le rôle propriétaire (#701) ; le
+  personnalisé, chacune dans un instantané cohérent, sous le rôle de sauvegarde, membre de
+  `pg_read_all_data` (#701 ; auteur, 2026-10-12, #895) ; le
   journal d'audit est sauvegardé avec la base de Waterfall (WF-SEC-0030, #705) ; une archive des deux vidages et d'un manifeste — date, version de
   l'application, révision du schéma, empreintes — est écrite dans le compartiment
   `backups` du stockage objet, puis vérifiée (relecture de l'archive et des empreintes,
@@ -667,14 +730,34 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 - **La restauration** est une tâche du worker (`restore`), demandée avec la date de la
   sauvegarde confirmée : elle refuse une archive d'une version plus récente que
   l'installation ; met la plateforme en maintenance — l'API répond 503
-  `COMPONENT_UNAVAILABLE`, et toutes les sessions sont fermées ; relit les inscriptions du
-  journal postérieures à la date de la sauvegarde ; recrée les deux bases depuis les vidages,
-  journal compris, sous le rôle propriétaire ; réinscrit les inscriptions relues (WF-ADM-0160,
-  #705) — sur une autre installation, ce sont celles de l'installation cible, qui gardent ainsi
-  la trace de ce qui s'y est fait depuis la date de la sauvegarde ; applique les migrations
+  `COMPONENT_UNAVAILABLE`, et toutes les sessions sont fermées ; relit le journal d'audit et la
+  table `backup` ; recrée les deux bases depuis les vidages, journal compris, sous le rôle
+  propriétaire ; réinscrit les inscriptions relues dont l'identifiant manque au journal
+  restauré (WF-ADM-0160, #705, #894) — sur une autre installation, ce sont celles de
+  l'installation cible, qui garde ainsi la trace de ce qui s'y est fait ; réinscrit de même
+  les lignes de `backup` relues qui manquent à la table restaurée (#893) ; passe `failed`,
+  avec un code propre, les tâches restaurées encore `queued` ou `running`, avant de relancer
+  le worker (#892) ; applique les migrations
   postérieures à la sauvegarde ; vide les caches de Keycloak par son API d'administration et Redis ; inscrit la
   restauration au journal ; lève la maintenance. Une restauration interrompue reprend depuis le
   début et ne lève la maintenance qu'une fois finie (WF-ARC-0090).
+- **Décisions de l'auteur du 2026-10-12**, que réalise US-0440/L2 :
+  - **les tâches restaurées** (#892) : le vidage porte la ligne de la sauvegarde en cours, à
+    l'état `running` ; redéposée par le worker, elle relancerait la sauvegarde et écraserait son
+    archive. Toute tâche restaurée `queued` ou `running` passe donc `failed` avant la relance du
+    worker. Test : restaurer, faire un pas du worker ; l'archive restaurée garde son empreinte,
+    et aucune ligne `backup` ne s'ajoute ;
+  - **la liste des sauvegardes** (#893) : la table `backup` est relue puis réinscrite, comme le
+    journal d'audit ; sans quoi la liste perdrait les sauvegardes prises après celle qu'on
+    restaure, dont les archives restent dans le compartiment. Test : deux sauvegardes,
+    restaurer la première ; les deux restent listées et téléchargeables ;
+  - **le journal par identifiant** (#894) : le vidage n'est pas instantané au regard de la date
+    de la sauvegarde, et une inscription faite pendant lui serait, par la date, réinscrite en
+    double ou perdue. Le journal est réinscrit par identifiant, pour les inscriptions absentes
+    du journal restauré, et non plus par date ; la date du manifeste reste celle prise avant le
+    vidage, et aucune exemption de la règle S603 de Ruff n'est faite. Test : une inscription
+    faite pendant la sauvegarde est présente une fois exactement après la restauration, et
+    l'inscription de la sauvegarde l'est aussi.
 - **Reproduire une installation** est une restauration entière : la seconde installation
   devient une copie de la première, comptes et fournisseur d'identité compris (WF-ADM-0160,
   décision de l'auteur du 2026-10-09).
@@ -731,6 +814,15 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    pour `hidden_columns` et `sort.column`) ; par grille, 64 colonnes masquées
    (`maxItems: 64`), 64 largeurs et 20 filtres (`maxProperties`) ; un filtre est un texte, la
    valeur du paramètre de l'adresse que le front garde, de 500 caractères au plus.
+12. **Compte rendu de la lecture des comptes** (auteur, 2026-10-12, #918, #920), porté par
+   US-0370/L2b : une entrée de `IdentitySyncReport.skipped` désigne une personne du
+   fournisseur par son identifiant chez lui et son nom — l'adresse n'y est plus exigée, et le
+   motif `EMAIL_MISSING` entre —, et un compte de Waterfall par son seul identifiant, son nom
+   étant relu à la consultation.
+13. **Colonnes d'audit des tables** (auteur, 2026-10-12, #936), portées par US-0360/L4 : sur
+   `listUsers` et `listAccessRoles`, « Créé le », « Créé par », « Modifié le » et « Modifié
+   par » se trient (`sort_by`) et se filtrent (WF-IHM-0060, WF-IHM-0130) ; les exemples du
+   témoin comptent un compte ou un rôle écrit par Alix Moreau (303, désactivée).
 
 ### Conformité au contrat et parcours contre le service
 
@@ -815,6 +907,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Une déconnexion sans session du front passe par une connexion silencieuse avant `closeMySessions` (auteur, 2026-10-10, #689) | ne fermer que le poste : contraire à WF-SEC-0020, « sur tous ses postes » |
 | Une navigation attend l'écriture en cours, et un refus est dit sur place avant de partir (auteur, 2026-10-10, #688) | un avis qui survit à la navigation et à la connexion : plus fragile, et la personne ne choisit plus |
 | Une table qui déclare ses filtres les garde en préférence d'affichage, retrouvés à l'ouverture d'une adresse qui ne dit rien d'elle, une adresse qui les dit passant avant (auteur, 2026-10-11, #836). Un lien sans filtre ouvert dans un nouvel onglet ramène donc aux filtres que le compte garde : accepté, la conservation en préférence l'emporte (auteur, 2026-10-11, #836, #883) | exclure les filtres des préférences, comme le guide le disait le 2026-10-09 : contraire à WF-IHM-0060 et aux critères d'US-0360 et d'US-0380 |
+| À la restauration, les tâches restaurées `queued` ou `running` passent `failed` avant la relance du worker (auteur, 2026-10-12, #892) | les laisser telles que le vidage les porte : le worker redéposerait la sauvegarde en cours au moment du vidage, qui écraserait son archive |
+| La table `backup` relue avant la restauration et réinscrite après, comme le journal d'audit (auteur, 2026-10-12, #893) | la laisser remplacer par le vidage : la liste perdrait les sauvegardes prises ensuite, dont les archives restent dans le compartiment |
+| Le journal d'audit réinscrit par identifiant, pour les inscriptions absentes du journal restauré ; défait « postérieures à la sauvegarde » de la décision du 2026-10-10 (auteur, 2026-10-12, #894, #705) | la réinscription par date : le vidage n'est pas instantané, une inscription faite pendant lui serait doublée ou perdue ; dater exactement le vidage par `pg_dump --snapshot` : une exemption de la règle S603 de Ruff, qui change les règles de codage |
+| Un rôle de sauvegarde membre de `pg_read_all_data` tient la sauvegarde, à la place du superutilisateur ; défait « sauvegarde par le propriétaire » de la décision du 2026-10-10 (auteur, 2026-10-12, #895, #701) | l'adresse du superutilisateur dans le worker : elle lève toute restriction, dont celle du journal d'audit ; le propriétaire : il peut se rendre les droits ou couper le déclencheur du journal |
+| Une personne du fournisseur sans adresse figure dans `skipped` par son identifiant chez lui et son nom, motif `EMAIL_MISSING` (auteur, 2026-10-12, #918) | l'ignorer sans la nommer : l'administrateur ne saurait pas pourquoi elle n'a pas de compte ; une liste à part dans le compte rendu : une seconde forme pour un même signalement |
+| La lecture des comptes rétablit dans Keycloak l'identité des comptes locaux, Waterfall faisant foi (WF-ADM-0050 ; auteur, 2026-10-12, #919) | consigner le désaccord sans le réconcilier : un report resté sans réponse laisserait Keycloak et Waterfall en désaccord sans fin |
+| Le compte rendu de la lecture ne garde d'un compte de Waterfall que son identifiant, le nom relu à la consultation (auteur, 2026-10-12, #920) | effacer l'adresse des comptes rendus à l'anonymisation : une donnée personnelle copiée qu'il faudrait poursuivre partout où elle a été écrite |
+| Les tables des comptes et des rôles reçoivent les colonnes d'audit, triables et filtrables, par US-0360/L4 (auteur, 2026-10-12, #936) | les laisser sans elles : l'écart de WF-ADM-0060-A, qui promet un compte désactivé nommé dans ces colonnes, ne se constaterait nulle part en EP-03 |
 
 ### Issues à ouvrir avec la conception
 
@@ -1015,7 +1115,8 @@ cessent d'être attribuables.
 - `WF-ADM-0060-A` — « La connexion d’un compte désactivé est refusée. »
 - écart : `WF-ADM-0060-A` — « Une révision marquée par un compte depuis désactivé affiche toujours son auteur. » : la révision marquée arrive en EP-04, qui clôt
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
-  d'audit des comptes et des rôles qu'il a écrits.
+  d'audit des comptes et des rôles qu'il a écrits — colonnes que les deux tables reçoivent par
+  US-0360/L4 (auteur, 2026-10-12, #936).
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
 - `WF-ADM-0060-A` — « Après anonymisation d’un compte désactivé, aucun écran — journal d’audit compris — ne présente plus son nom ni son adresse ; les révisions qu’il a marquées affichent le libellé neutre comme auteur ; sa réactivation est refusée. » : pour les écrans des comptes, l'auteur
   des colonnes d'audit et le refus de réactivation ; la révision marquée arrive en EP-04, qui
@@ -1378,9 +1479,16 @@ réglages — sur une autre machine.
 - propre à l'US : une sauvegarde couvre les deux bases, Waterfall et le fournisseur
   d'identité, chacune dans un état cohérent, le journal d'audit compris, sauvegardé avec la
   base de Waterfall (WF-SEC-0030, #705), et vit dans le compartiment des sauvegardes du
-  stockage objet (WF-DAT-0120) ; une restauration relit les inscriptions du journal
-  postérieures à la sauvegarde avant de remplacer les bases, les réinscrit ensuite, et y
-  inscrit la restauration une fois faite (WF-ADM-0160).
+  stockage objet (WF-DAT-0120) ; une restauration relit le journal avant de remplacer les
+  bases, réinscrit ensuite les inscriptions dont l'identifiant manque au journal restauré, et
+  y inscrit la restauration une fois faite (WF-ADM-0160, #894) ; elle garde de même la liste
+  des sauvegardes (#893), et aucune tâche restaurée en file ou en cours ne reprend (#892).
+- écart : `WF-ADM-0160` (corps) — « ses inscriptions postérieures à la date de la sauvegarde sont relues avant le remplacement des bases et réinscrites après lui » : le journal est réinscrit par identifiant, et non par date (auteur,
+  2026-10-12, #894) ; sur la même installation, le résultat est celui du corps, sans doublon
+  ni perte pour une inscription faite pendant le vidage ; sur une autre installation, les
+  inscriptions de la cible antérieures à la date de la sauvegarde sont gardées aussi. De même,
+  « remplace l'intégralité des deux bases » : la table des sauvegardes est gardée (#893), et
+  les tâches restaurées en file ou en cours passent `failed` (#892).
 - propre à l'US : une sauvegarde prise sur une installation, téléchargée, puis déposée sur une
   autre installation de même version ou plus récente et restaurée, y rend les comptes, les
   rôles et les réglages de la première, et l'administrateur de la première s'y connecte ; une

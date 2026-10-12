@@ -390,12 +390,14 @@ def test_a_person_of_the_directory_is_created_without_any_role_at_her_first_requ
     assert (response.json()["email"], response.json()["origin"]) == (DIRECTORY_EMAIL, "directory")
     account = created(database, tokens)
     assert account is not None
-    # With the names and the address the provider transmits (WF-ADM-0180).
+    # With the names and the address the provider transmits (WF-ADM-0180): the first name is the
+    # directory's givenName, not its cn (#667).
     held = admin.get(f"/users/{account.subject}").json()
+    assert (held["firstName"], held["lastName"]) == ("Dominique", "Annuaire")
     assert (account.email, account.first_name, account.last_name, account.origin) == (
         DIRECTORY_EMAIL,
-        held["firstName"],
-        held["lastName"],
+        "Dominique",
+        "Annuaire",
         "directory",
     )
     assert (account.is_active, account.created_by) == (True, None)

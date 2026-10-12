@@ -147,7 +147,7 @@ def admin(keycloak: httpx2.Client, service_token: str) -> Iterator[httpx2.Client
 def administering() -> Generator[httpx2.Client]:
     """Reach the administration API of the realm as the administrator who applies it.
 
-    The service account may not read the settings of the realm nor its clients.
+    The service account may read the settings of the realm, not change them, nor read its clients.
     """
     address = required(ADDRESS_VARIABLE).rstrip("/")
     response = httpx2.post(

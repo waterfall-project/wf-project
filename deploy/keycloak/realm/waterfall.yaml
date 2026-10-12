@@ -197,6 +197,9 @@ users:
         - manage-users
         - view-users
         - query-users
+        # To find the directories the realm federates, whose synchronisation the reading of the
+        # accounts asks for (WF-ADM-0070): a view of the realm, which masks their credentials.
+        - view-realm
   # The bootstrap gives the realm the language of the installation (#873): `manage-realm`, which
   # the secret of the client of the bootstrap alone carries, held by the operator beside that of
   # the administrator of the master realm.
