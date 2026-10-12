@@ -101,7 +101,7 @@ describe("the screen of the account", () => {
       const page = html(await AccountPage());
       const realm = "https://keycloak.example/auth/realms/waterfall/account";
       expect(page.includes(`href="${realm}"`)).toBe(offered);
-      expect(text(page).includes("Gérer mon mot de passe")).toBe(offered);
+      expect(text(page).includes("Ouvrir mon compte du fournisseur d’identité")).toBe(offered);
     } finally {
       vi.unstubAllEnvs();
     }

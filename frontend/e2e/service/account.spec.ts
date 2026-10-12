@@ -149,10 +149,9 @@ test("a local account leads to its page at the realm, which holds its password",
 }) => {
   const page = await workstation(browser, "fr-FR");
   await signInAt(page, second, ACCOUNT);
-  await expect(page.getByRole("link", { name: "Gérer mon mot de passe" })).toHaveAttribute(
-    "href",
-    `${REALM}/account`,
-  );
+  await expect(
+    page.getByRole("link", { name: "Ouvrir mon compte du fournisseur d’identité" }),
+  ).toHaveAttribute("href", `${REALM}/account`);
   await page.context().close();
 });
 

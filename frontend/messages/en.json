@@ -62,8 +62,8 @@
     "save": "Save",
     "saved": "Your preferences are saved.",
     "signIn": "Sign-in",
-    "signInHelp": "Your password is set and changed on the page of your account at the identity provider.",
-    "realmPage": "Manage my password",
+    "signInHelp": "Your sign-in credentials are set and changed on the page of your account at the identity provider.",
+    "realmPage": "Open my account at the identity provider",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",

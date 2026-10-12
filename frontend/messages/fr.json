@@ -62,8 +62,8 @@
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
     "signIn": "Connexion",
-    "signInHelp": "Votre mot de passe se fixe et se change sur la page de votre compte du fournisseur d’identité.",
-    "realmPage": "Gérer mon mot de passe",
+    "signInHelp": "Vos identifiants de connexion se fixent et se changent sur la page de votre compte du fournisseur d’identité.",
+    "realmPage": "Ouvrir mon compte du fournisseur d’identité",
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
