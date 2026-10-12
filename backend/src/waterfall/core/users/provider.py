@@ -147,24 +147,20 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
 
     Her account is created or attached if she has none; else, unless it is local, its name, its
     first name and its address follow the provider's, refused if another account holds the address.
+    An account is locked only to be written, then read again under the lock: the reading holds no
+    row it leaves as it was.
     """
     found = find_account_of_subject(session, provider.subject)
     if found is None:
         admitted = admit(session, provider, at)
         return admitted if isinstance(admitted, NotAdmitted) else admitted[1]
+    changed = _changes(found, provider)
+    if not isinstance(changed, dict):
+        return changed
     account = lock_account(session, found.id)
-    # Waterfall's own, or anonymised for good (WF-ADM-0060): the reading changes neither.
-    if account.origin == LOCAL or account.anonymized_at is not None:
-        return "unchanged"
-    refusal = _refusal(provider)
-    if refusal is not None:
-        return refusal
-    identity = _identity(provider)
-    changed = {
-        name: identity[name] for name in IDENTITY_FIELDS if identity[name] != getattr(account, name)
-    }
-    if not changed:
-        return "unchanged"
+    changed = _changes(account, provider)
+    if not isinstance(changed, dict):
+        return changed
     stamp = Stamp(None, at)
     try:
         with unique_address(session, provider.email):
@@ -173,6 +169,30 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
         return NotAdmitted.ADDRESS_TAKEN
     inscribe(session, "user_update", account, Act(None, at), {"fields": list(changed)})
     return "updated"
+
+
+def _changes(
+    account: UserAccount, provider: ProviderAccount
+) -> dict[str, str] | Literal["unchanged"] | NotAdmitted:
+    """Give what of the identity of an account would follow the provider's, if anything.
+
+    Waterfall's own, anonymised for good (WF-ADM-0060), or attached meanwhile to another subject:
+    the reading changes none.
+    """
+    if (
+        account.origin == LOCAL
+        or account.anonymized_at is not None
+        or account.idp_subject != provider.subject
+    ):
+        return "unchanged"
+    refusal = _refusal(provider)
+    if refusal is not None:
+        return refusal
+    identity = _identity(provider)
+    changed = {
+        name: identity[name] for name in IDENTITY_FIELDS if identity[name] != getattr(account, name)
+    }
+    return changed or "unchanged"
 
 
 @dataclass(frozen=True, slots=True)

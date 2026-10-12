@@ -12,16 +12,19 @@ that Waterfall does not know and that never had a password — left by a creatio
 complete (#811) — are removed from the provider, once old enough that no creation is still under
 way. Every write of Waterfall is the platform's (WF-DAT-0070), and the report is kept.
 
-What the provider is asked comes before the guard is taken: no administrator waits on Keycloak.
+What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
+lock of the rule of the last administrator is taken before any row of an account, as the routes
+that change an account take it: the reading and a route never wait each on what the other holds.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from waterfall.core.access_roles.interface import guard_deactivation
+from waterfall.core.access_roles.interface import guard_deactivation, lock_administrators
 from waterfall.core.users.interface import (
+    HeldAccount,
     NotAdmitted,
     SyncReport,
     deactivate_unheld,
@@ -83,29 +86,7 @@ class IdentitySync:
             for account in unheld_accounts(session, held)
             if self.admin.read_account(account.subject) is None
         ]
-        at = utc_now()
-        counts = {"created": 0, "updated": 0, "unchanged": 0, "deactivated": 0}
-        skipped: list[tuple[str, str]] = []
-        for person in people:
-            followed = follow(session, person, at)
-            if isinstance(followed, NotAdmitted):
-                code = REPORTED.get(followed)
-                if code is not None:
-                    skipped.append((person.email, code))
-                logger.info("identity_sync.not_followed", subject=person.subject, reason=followed)
-            else:
-                counts[followed] += 1
-        for account in unheld:
-            try:
-                with session.begin_nested(), guard_deactivation(session):
-                    deactivated = deactivate_unheld(session, account, at)
-            except ConflictError:
-                skipped.append((account.email, LAST_ADMINISTRATOR))
-                logger.warning(
-                    "identity_sync.last_administrator_kept", user_id=str(account.user_id)
-                )
-            else:
-                counts["deactivated"] += deactivated
+        counts, skipped = write_accounts(session, people, unheld, utc_now())
         report = SyncReport(
             task.task_id,
             utc_now(),
@@ -157,3 +138,35 @@ class IdentitySync:
             logger.info("identity_sync.orphan_removed", subject=account.subject)
             removed.append(account.email)
         return removed
+
+
+def write_accounts(
+    session: Session, people: list[ProviderAccount], unheld: list[HeldAccount], at: datetime
+) -> tuple[dict[str, int], list[tuple[str, str]]]:
+    """Follow the persons, then deactivate the accounts no longer held; give counts and skipped.
+
+    Under the lock of the rule, taken before any row: each deactivation runs under the guard of the
+    last administrator, who is kept and reported (WF-ADM-0120).
+    """
+    lock_administrators(session)
+    counts = {"created": 0, "updated": 0, "unchanged": 0, "deactivated": 0}
+    skipped: list[tuple[str, str]] = []
+    for person in people:
+        followed = follow(session, person, at)
+        if isinstance(followed, NotAdmitted):
+            code = REPORTED.get(followed)
+            if code is not None:
+                skipped.append((person.email, code))
+            logger.info("identity_sync.not_followed", subject=person.subject, reason=followed)
+        else:
+            counts[followed] += 1
+    for account in unheld:
+        try:
+            with session.begin_nested(), guard_deactivation(session):
+                deactivated = deactivate_unheld(session, account, at)
+        except ConflictError:
+            skipped.append((account.email, LAST_ADMINISTRATOR))
+            logger.warning("identity_sync.last_administrator_kept", user_id=str(account.user_id))
+        else:
+            counts["deactivated"] += deactivated
+    return counts, skipped

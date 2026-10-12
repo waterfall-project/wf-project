@@ -5,18 +5,23 @@
 What the provider holds of a person is followed, by the platform, on the accounts it holds; one it
 no longer holds is deactivated; a local account is left alone (WF-ADM-0070). What the worker asks
 of Keycloak is tried against the platform (``test_keycloak_identity_sync.py``); its writes are
-tried here, under the correlation of a task.
+tried here, under the correlation of a task, with a change of roles at once.
 """
 
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import insert, select
+from access_rows import role
+from sqlalchemy import insert, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
-from support import raw_account
+from support import raw_account, wait_for_a_lock
+
+from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
 
 from waterfall.core.users.interface import (
     HeldAccount,
@@ -31,9 +36,12 @@ from waterfall.core.users.interface import (
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
+from waterfall.platform.database import Database
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.worker import identity_sync
+from waterfall.worker.identity_sync import write_accounts
 
 NOON = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 CORRELATION = "reading-of-the-accounts"
@@ -208,3 +216,54 @@ def test_the_report_read_is_that_of_the_latest_reading(session: Session) -> None
         record_report(session, report)
         reports.append(report)
     assert latest_report(session) == reports[0]
+
+
+def test_the_reading_and_a_change_of_roles_queue_without_a_deadlock(
+    database: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The reading follows an account, the roles of which an administrator sets meanwhile, then
+    # deactivates another under the guard of the last administrator. It takes the lock of the rule
+    # before any row, as the change of roles does: the change waits for the reading, then passes —
+    # in the other order, each would wait on what the other holds.
+    with database.transaction() as session:
+        renamed = held(session)
+        gone = held(session, email="gone@example.org")
+    planning = role(database, "Planification", permissions=("planning.read",))
+    outcomes: list[object] = []
+
+    def give_roles() -> None:
+        try:
+            with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+                session.execute(text("SET LOCAL lock_timeout = '10s'"))
+                set_access_roles(session, renamed["id"], [planning], 1, Act(None, NOON))
+        except DBAPIError as error:
+            outcomes.append(error)
+        else:
+            outcomes.append("given")
+
+    concurrent = threading.Thread(target=give_roles)
+
+    def follow_then_give_roles(session: Session, person: ProviderAccount, at: datetime) -> object:
+        followed = follow(session, person, at)
+        concurrent.start()
+        wait_for_a_lock(database)
+        return followed
+
+    monkeypatch.setattr(identity_sync, "follow", follow_then_give_roles)
+    with database.transaction() as session:
+        session.execute(text("SET LOCAL lock_timeout = '10s'"))
+        written = write_accounts(
+            session,
+            [of_provider(renamed, last_name="Martin-Dupont")],
+            [HeldAccount(gone["id"], gone["idp_subject"], gone["email"])],
+            NOON,
+        )
+    concurrent.join(15)
+    assert written == ({"created": 0, "updated": 1, "unchanged": 0, "deactivated": 1}, [])
+    assert outcomes == ["given"]
+    with database.transaction() as session:
+        stored = session.get_one(UserAccount, renamed["id"])
+        assert (stored.last_name, stored.lock_version) == ("Martin-Dupont", 2)
+        held_roles = roles_held_by(session, [renamed["id"]])[renamed["id"]]
+        assert [each.access_role_id for each in held_roles] == [planning]
+        assert session.get_one(UserAccount, gone["id"]).state == "deactivated"

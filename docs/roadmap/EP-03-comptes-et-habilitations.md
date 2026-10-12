@@ -533,8 +533,11 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
     créé le compte puis répondu trop tard — sont retirés du royaume et nommés dans le compte rendu
     (#811), une fois âgés d'une heure : une création en cours est chez Keycloak avant d'être dans
     Waterfall ;
-  - tout ce qui se demande à Keycloak — synchronisation, lecture, retraits — précède la garde du
-    dernier administrateur, prise à chaque désactivation ; le compte rendu est gardé dans
+  - tout ce qui se demande à Keycloak — synchronisation, lecture, retraits — précède les
+    écritures. Le verrou de la règle du dernier administrateur est pris avant elles, avant toute
+    ligne d'un compte, dans l'ordre des routes qui modifient un compte : verrou consultatif, puis
+    lignes ; chaque désactivation s'écrit sous la garde, et un compte ne se verrouille que pour
+    être écrit, relu sous le verrou. Le compte rendu est gardé dans
     `identity_sync_report`, lu par `getLatestIdentitySync`, et la tâche réussie y renvoie.
 
 ### Journal d'audit
