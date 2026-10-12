@@ -29,10 +29,10 @@ import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import Engine, delete, insert, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, nowhere, raw_account
+from support import ContractClient, Logs, Watching, captured_logs, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -113,6 +113,17 @@ def admin() -> Iterator[httpx2.Client]:
     """Reach the administration API of the realm as the service account, as the API does."""
     with service_admin(served_settings()) as client:
         yield client
+
+
+@pytest.fixture
+def logs() -> Iterator[Logs]:
+    """Capture the logs in memory, the secrets of the realm masked, then restore them.
+
+    The fixture of ``conftest.py`` would give the process the secrets of a platform of test, which
+    ``served_settings`` reads from then on and the Keycloak of the platform refuses.
+    """
+    with captured_logs(served_settings().secret_values()) as captured:
+        yield captured
 
 
 @pytest.fixture
@@ -495,14 +506,16 @@ def test_a_person_relayed_at_the_address_an_account_holds_is_not_admitted_and_it
 
 @pytest.mark.usefixtures("realm_known")
 def test_a_person_relayed_whose_account_cannot_be_written_is_left_and_reported(
-    database: Database, reading: IdentitySync, admin: httpx2.Client
+    database: Database, owner: Engine, reading: IdentitySync, admin: httpx2.Client
 ) -> None:
     # Relayed by the external provider at the address an account of Waterfall holds, a person is
     # not attached (#707): ``ALREADY_EXISTS``. With a name longer than a column holds:
-    # ``VALIDATION_FAILED``. Both are left, and the report names them.
+    # ``VALIDATION_FAILED``. Both are left, and the report names them. The account ``realm_known``
+    # gave her, which the service may not delete, the owner deletes.
     tokens_of(EXTERNAL_USERNAME, EXTERNAL_CREDENTIAL, provider=EXTERNAL_PROVIDER)
+    with owner.begin() as connection:
+        connection.execute(delete(UserAccount).where(UserAccount.email == EXTERNAL_EMAIL))
     with database.transaction() as session:
-        session.execute(delete(UserAccount).where(UserAccount.email == EXTERNAL_EMAIL))
         session.execute(insert(UserAccount).values(**raw_account(email=EXTERNAL_EMAIL)))
     long_address = f"long-{uuid4().hex[:8]}@example.org"
     user = {"username": long_address, "email": long_address, "enabled": True}

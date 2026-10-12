@@ -4,7 +4,10 @@
 
 import io
 import json
+import logging
 import time
+from collections.abc import Generator, Iterable
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
+import structlog
 from fastapi.testclient import TestClient
 from httpx2 import Response
 from openapi_core import OpenAPI
@@ -27,6 +31,7 @@ from waterfall.platform.keycloak_admin import (
     PasswordLink,
     ProviderAccount,
 )
+from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
@@ -137,6 +142,21 @@ class Logs:
     def named(self, event: str) -> list[dict[str, Any]]:
         """Return the records of one event."""
         return [record for record in self.records if record["event"] == event]
+
+
+@contextmanager
+def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
+    """Capture the logs in memory, ``secrets`` masked as a service masks its own, then restore."""
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    stream = io.StringIO()
+    configure_logging("DEBUG", stream, secrets)
+    try:
+        yield Logs(stream)
+    finally:
+        root.handlers[:] = handlers
+        root.setLevel(level)
+        structlog.reset_defaults()
 
 
 class ContractClient:

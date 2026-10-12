@@ -2,16 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The fixtures of the tests of the service."""
 
-import io
 import json
-import logging
 import os
 from collections.abc import Iterator
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 import pytest
-import structlog
 from fastapi.testclient import TestClient
 from openapi_core import Config, OpenAPI
 from realm import KEY, TestRealm
@@ -23,6 +20,7 @@ from support import (
     PLATFORM_SECRETS,
     ContractClient,
     Logs,
+    captured_logs,
     nowhere,
     service_role,
 )
@@ -34,7 +32,6 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 from waterfall.platform.storage import Bucket
@@ -105,14 +102,8 @@ def api(
 @pytest.fixture
 def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
     """Capture the logs in memory, as a service of the test platform writes them, then restore."""
-    root = logging.getLogger()
-    handlers, level = list(root.handlers), root.level
-    stream = io.StringIO()
-    configure_logging("DEBUG", stream, platform_settings.secret_values())
-    yield Logs(stream)
-    root.handlers[:] = handlers
-    root.setLevel(level)
-    structlog.reset_defaults()
+    with captured_logs(platform_settings.secret_values()) as logs:
+        yield logs
 
 
 def binary_text(content: bytes | str) -> str:
