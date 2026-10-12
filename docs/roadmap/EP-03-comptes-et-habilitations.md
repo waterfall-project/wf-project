@@ -579,6 +579,11 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
     identité relue juste avant dans une transaction courte qui ne verrouille rien — une
     modification validée entre-temps est celle que Keycloak reçoit, un compte anonymisé
     entre-temps est laissé —, et un échec, journalisé, est repris par la lecture suivante.
+    Avec `updateUser`, une course reste, dans l'ordre inverse de celle que la seconde
+    transaction d'`updateUser` défait : la modification reporte la nouvelle identité dans
+    Keycloak, la lecture relit l'ancienne, que Waterfall tient encore, et la rétablit, puis la
+    modification valide la nouvelle ; Keycloak tient alors l'ancienne et Waterfall la nouvelle,
+    jusqu'à la lecture suivante, qui rétablit dans Keycloak celle que Waterfall tient.
     L'adresse se compare sans égard à la casse, que Keycloak ne garde pas ;
   - **aucune donnée personnelle d'un compte connu dans le compte rendu** : une entrée de
     `skipped` qui désigne un compte de Waterfall — le dernier administrateur gardé, par
