@@ -44,7 +44,8 @@ const categories = example("volume/cost_categories_page") as {
 const first = (example("volume/cost_categories") as { items: CostCategory[] }).items.slice(0, 3);
 
 /** The sentence of the bar of the shell for one write refused once no longer shown. */
-const UNTOLD = "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.";
+const UNTOLD =
+  "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.";
 
 /**
  * The list of the categories, for a session that may modify the cost settings, and the bar of the
@@ -88,9 +89,7 @@ function refusedOnRelease(): () => void {
 
 /** Send the modification of the subcontracting from its dialog: the dialog, still open. */
 async function sent(): Promise<HTMLElement> {
-  await userEvent.click(
-    screen.getByRole("button", { name: "Modifier « Sous-traitance »" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Modifier « Sous-traitance »" }));
   const form = screen.getByRole("dialog", { name: "Modifier « Sous-traitance »" });
   await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
   return form;
