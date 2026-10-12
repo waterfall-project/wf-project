@@ -225,16 +225,19 @@ séparerait plus.
   module des comptes, #867) : l'anonymisation, qui la tient `FOR UPDATE`, attend l'inscription
   puis l'oublie, ou se fait attendre et le nom lu est nul. Un écrivain du journal ne reçoit de
   son appelant que l'identifiant de l'auteur (`Act`). Ce `FOR SHARE` vient après **tous** les
-  autres verrous de la transaction — de ligne comme consultatifs — : une écriture qui prendrait
-  un verrou après lui interbloquerait avec celle qui prend ce verrou puis verrouille la ligne
-  de l'auteur (désactivation, attribution de ses rôles). Une transaction qui inscrit deux fois
-  prend donc les verrous de sa seconde écriture avant sa première inscription : la création
-  d'un compte avec des rôles prend le verrou du dernier administrateur avant d'écrire le
-  compte. Seule exception, le verrou de l'oubli, que l'anonymisation prend **après** avoir
-  verrouillé le compte qu'elle anonymise : elle nomme son auteur avant de le prendre, sans quoi
-  l'anonymisation de cet auteur, qui tient sa ligne et attend ce verrou, l'attendrait en retour ;
-  et après avoir vidé les noms du compte, sans quoi un compte qui s'anonymise lui-même garderait
-  son nom dans l'inscription de son anonymisation.
+  autres verrous que la transaction attend — de ligne comme consultatifs — : une écriture qui
+  attendrait un verrou après lui interbloquerait avec celle qui prend ce verrou puis verrouille
+  la ligne de l'auteur (désactivation, attribution de ses rôles). Une transaction qui inscrit
+  deux fois prend donc les verrous de sa seconde écriture avant sa première inscription : la
+  création d'un compte avec des rôles prend le verrou du dernier administrateur avant d'écrire
+  le compte. En écrivant ensuite ses rôles, elle ne prend plus que des verrous qu'elle
+  n'attend pas — la garde, qu'elle tient déjà, et le `FOR KEY SHARE` implicite des clés
+  étrangères de `user_access_role` vers `access_role`, des lignes que cette garde protège, leur
+  suppression la prenant d'abord. Seule exception, le verrou de l'oubli, que l'anonymisation
+  prend **après** avoir verrouillé le compte qu'elle anonymise : elle nomme son auteur avant de
+  le prendre, sans quoi l'anonymisation de cet auteur, qui tient sa ligne et attend ce verrou,
+  l'attendrait en retour ; et après avoir vidé les noms du compte, sans quoi un compte qui
+  s'anonymise lui-même garderait son nom dans l'inscription de son anonymisation.
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.
