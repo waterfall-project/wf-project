@@ -20,8 +20,10 @@ import {
   rememberSignIn,
   SIGN_IN_LIFETIME,
   SIGN_OUT_LIFETIME,
+  StoreUnreachable,
   takeSignIn,
   takeSignOut,
+  unreached,
 } from "./store";
 
 withTestRedis();
@@ -34,6 +36,13 @@ async function ttl(key: string): Promise<number> {
   } finally {
     await client.close();
   }
+}
+
+/** The address of the Redis of the tests, its user and password, or its database, changed. */
+function testAddress(change: (address: URL) => void): string {
+  const address = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
+  change(address);
+  return address.href;
 }
 
 /** A session of an account, its access token good for five minutes. */
@@ -127,5 +136,56 @@ describe("the store of the sessions of the front", () => {
     process.env.WATERFALL_REDIS_URL = address;
     expect(await readSession(randomUUID())).toBeUndefined();
     error.mockRestore();
+  });
+
+  it("fails as Redis out of reach when the connection is lost once made, Redis killing it, and connects again after", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // The store connects as a user of its own, whose connection only is killed, never another test's.
+    const [user, password] = [`store-${randomUUID()}`, randomUUID()];
+    const admin = await createClient({ url: process.env.WATERFALL_TEST_REDIS_URL ?? "" }).connect();
+    await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
+    await closeStore();
+    vi.stubEnv(
+      "WATERFALL_REDIS_URL",
+      testAddress((address) => Object.assign(address, { username: user, password })),
+    );
+    try {
+      expect(await readSession(randomUUID())).toBeUndefined();
+      expect(await admin.clientKill({ filter: "USER", username: user })).toBe(1);
+      await expect(readSession(randomUUID())).rejects.toBeInstanceOf(StoreUnreachable);
+      await vi.waitFor(async () => {
+        expect(await readSession(randomUUID())).toBeUndefined();
+      });
+    } finally {
+      await closeStore();
+      vi.unstubAllEnvs();
+      await admin.aclDelUser(user);
+      await admin.close();
+      error.mockRestore();
+    }
+  });
+});
+
+describe("a failure to reach Redis", () => {
+  /** An error of the system, as Node gives it for a socket. */
+  function systemError(code: string): Error {
+    return Object.assign(new Error(`write ${code}`), { code, syscall: "write" });
+  }
+
+  it.each(["EPIPE", "ENETUNREACH", "ENETDOWN", "EHOSTDOWN", "ECONNABORTED", "ENETRESET"])(
+    "is told by the error of its socket, %s, alone, as a cause, or gathered with others",
+    (code) => {
+      const failure = systemError(code);
+      expect(unreached(failure)).toBe(true);
+      expect(unreached(new Error("the command failed", { cause: failure }))).toBe(true);
+      expect(unreached(new AggregateError([new Error("another"), failure]))).toBe(true);
+    },
+  );
+
+  it("is not told by an error of another kind: a defect is thrown as it is", () => {
+    expect(
+      unreached(Object.assign(new TypeError("Invalid URL"), { code: "ERR_INVALID_URL" })),
+    ).toBe(false);
+    expect(unreached(new Error("a defect"))).toBe(false);
   });
 });

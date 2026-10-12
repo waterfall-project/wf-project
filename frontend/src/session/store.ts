@@ -34,6 +34,7 @@ import {
   SocketTimeoutError,
 } from "@redis/client";
 
+import { LOST_CONNECTION, UNMADE_CONNECTION } from "./network";
 import { redisAddress } from "./settings";
 
 /** How long a sign-in may take, from the request to the return: fifteen minutes, in seconds. */
@@ -144,15 +145,11 @@ const CONNECTION_FAILURES = [
   ReconnectStrategyError,
 ];
 
-/** The errors of the system that say the network failed: refused, cut, unknown or silent. */
-const NETWORK_FAILURES = new Set([
-  "ECONNREFUSED",
-  "ECONNRESET",
-  "ENOTFOUND",
-  "EHOSTUNREACH",
-  "ETIMEDOUT",
-  "EAI_AGAIN",
-]);
+/**
+ * The errors of the system that say the network failed: a connection not made, or lost once made —
+ * a command in flight fails with the error of its socket, as it is.
+ */
+const NETWORK_FAILURES: ReadonlySet<unknown> = new Set([...UNMADE_CONNECTION, ...LOST_CONNECTION]);
 
 /** How deep the causes of an error are looked into: a chain that loops ends there. */
 const CAUSES = 8;
@@ -163,15 +160,14 @@ const CAUSES = 8;
  * each address of a host, and gathers their refusals). Anything else — a variable missing, an
  * address badly written, a defect — is not, and is thrown as it is.
  */
-function unreached(error: unknown, depth = 0): boolean {
+export function unreached(error: unknown, depth = 0): boolean {
   if (!(error instanceof Error) || depth > CAUSES) {
     return false;
   }
   if (CONNECTION_FAILURES.some((failure) => error instanceof failure)) {
     return true;
   }
-  const code = (error as { code?: unknown }).code;
-  if (typeof code === "string" && NETWORK_FAILURES.has(code)) {
+  if ("code" in error && NETWORK_FAILURES.has(error.code)) {
     return true;
   }
   const gathered = error instanceof AggregateError ? (error.errors as unknown[]) : [];
@@ -179,9 +175,9 @@ function unreached(error: unknown, depth = 0): boolean {
 }
 
 /**
- * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read
- * nor written. A refusal of Redis itself, an answer, is not this, but a defect; nor is an address
- * missing or badly written.
+ * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
+ * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
+ * Redis itself, an answer, is not this, but a defect; nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */

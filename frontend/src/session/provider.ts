@@ -18,6 +18,7 @@ import "server-only";
 import { createRemoteJWKSet, customFetch as keysFetch, errors, jwtVerify } from "jose";
 import * as oidc from "openid-client";
 
+import { UNMADE_CONNECTION } from "./network";
 import { FRONT_CLIENT, type SessionSettings, sessionSettings } from "./settings";
 
 /** What the realm gives at a sign-in or a refresh. */
@@ -117,15 +118,11 @@ export class RealmUnreachable extends Error {
 }
 
 /**
- * The codes of a connection that was never made — refused, its host unknown or out of reach, not
- * made in time, or its certificate not trusted —: the request did not leave.
+ * The codes of a connection that was never made — refused, its host or network unknown, out of
+ * reach or down, not made in time, or its certificate not trusted —: the request did not leave.
  */
 const NOT_SENT: ReadonlySet<unknown> = new Set([
-  "ECONNREFUSED",
-  "ENOTFOUND",
-  "EAI_AGAIN",
-  "ENETUNREACH",
-  "EHOSTUNREACH",
+  ...UNMADE_CONNECTION,
   "UND_ERR_CONNECT_TIMEOUT",
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
   "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
