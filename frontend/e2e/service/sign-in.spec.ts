@@ -3,9 +3,12 @@
 /*
  * Signing in with the account one has (US-0350, WF-ARC-0030, WF-ADM-0180): a local account, one of
  * the directory, one of the external provider the realm relays — each signs in at the realm, is
- * admitted by Waterfall, and acts as its roles allow, which the database of the platform gives
- * until the bootstrap of an installation (US-0420). A session left idle beyond the life of its
- * refresh token leads back to the sign-in page, then to the screen aimed at, its address whole.
+ * admitted by Waterfall, and acts as its roles allow. The bootstrap of the installation (US-0420)
+ * makes one administrator only, that of the installation, and the accounts of these paths are
+ * admitted with no role; no path signs in as that administrator, so the path writes the role in
+ * the database of the platform itself, once the account exists. A session left idle beyond the
+ * life of its refresh token leads back to the sign-in page, then to the screen aimed at, its
+ * address whole.
  */
 import { type Browser, expect, type Page, test } from "@playwright/test";
 
