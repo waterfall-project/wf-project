@@ -1416,7 +1416,7 @@ traîne dans une procédure, et que la relancer soit sans danger.
 ## US-0430 — Déployer une plateforme de démonstration
 
 - **statut** : fini
-- **exigences** : `WF-ARC-0050-A`
+- **exigences** : `WF-ARC-0050-A`, `WF-SEC-0010-A`
 - **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
 - **issue** : #564
 
@@ -1440,6 +1440,11 @@ d'images que la chaîne publie, derrière un frontal HTTPS, **afin de** montrer 
   de fichiers de chaque image, avant sa publication, des valeurs de développement connues — la
   marque `development-only` et les secrets de poste de la chaîne (auteur, 2026-10-11, #824) ; le
   dépôt et les journaux restent un écart d'US-0330.
+- écart : `WF-SEC-0010-A` — « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de métriques, qui n'est pas joignable hors du cluster. » : le chiffrement entre les services
+  relève d'EP-13 ; ici, le navigateur ne parle qu'en HTTPS, et y revient seul (HSTS).
+- écart : `WF-SEC-0010-A` — « Le démarrage d'un service sans les secrets attendus échoue en le disant, plutôt que de démarrer sans. » : constaté par US-0330 ; le Compose de
+  production refuse de même de démarrer un service dont un secret manque à son fichier de
+  réglages, en le nommant.
 - propre à l'US : le Compose de production démarre sur une machine neuve, à partir d'un
   fichier de réglages et de secrets que l'exploitant remplit, la plateforme complète —
   frontal TLS, front, API, worker, planificateur, PostgreSQL, Redis, stockage objet, Keycloak
