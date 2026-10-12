@@ -6,10 +6,11 @@ The trial of the production platform (``wftools.production``) holds, once its fi
 has signed in, that:
 
 - a backup asked for by the API (``startBackup``) is taken, and listed verified;
+- a role made after it (``createAccessRole``) marks what the restoration must take away;
 - its restoration asked for by the API (``startRestore``), its date confirmed, puts the platform in
-  maintenance, which the liveness probe says, and ends: the probe says ``ok`` again, the
-  administrator signs in again — the restoration closed every session —, and the task of the
-  restoration has succeeded.
+  maintenance, which the liveness probe must say, and ends: the probe says ``ok`` again, the
+  administrator signs in again — the restoration closed every session —, the task of the
+  restoration has succeeded, and the role made after the backup is no more (404).
 
 The API is not published: Caddy serves the front and Keycloak alone. It is asked inside its
 container, at the loopback, as the front asks it, with a token of the first administrator: the
@@ -36,13 +37,17 @@ GUARD = "WATERFALL_TRIAL_RESTORATION"
 CLIENT = "waterfall-front"
 REALM = "/auth/realms/waterfall/protocol/openid-connect"
 OK = 200
+CREATED = 201
 ACCEPTED = 202
+NOT_FOUND = 404
 REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 UNAUTHORIZED = 401
 UNAVAILABLE = 503
 PATIENCE = 600.0
 """How long, in seconds, a backup or a restoration may take on the platform of the trial."""
 PAUSE = 2.0
+MARKER = "Essai de restauration : fait après la sauvegarde"
+"""The label of the role made after the backup, which its restoration takes away."""
 API_CALL = """
 import json, sys, urllib.error, urllib.request
 asked = json.load(sys.stdin)
@@ -233,17 +238,37 @@ class RestorationTrial:
         self.ended(token, backing_up)
         backup = self.latest_backup(token)
         print(f"  a backup asked of the API is taken and listed verified: {backup['backup_id']}")
+        marker = self.marked(token)
         confirmed = {
             "backup_id": backup["backup_id"],
             "confirmed": True,
             "acknowledged_backup_taken_at": backup["taken_at"],
         }
         restoring = self.accepted("/restores", token, confirmed)
-        seen = self.restored(restoring)
-        maintenance = "the probe said the maintenance, then ok" if seen else "the probe says ok"
+        self.forgotten(self.restored(restoring), marker)
         print(
-            f"  its restoration asked of the API has ended: {maintenance}, the administrator back"
+            "  its restoration asked of the API has ended: the probe said the maintenance, then ok,"
+            " the administrator back, the role made after the backup gone"
         )
+
+    def marked(self, token: str) -> str:
+        """Make a role after the backup, which its restoration must take away; give its id."""
+        made: dict[str, Any] = {"label": MARKER, "permissions": []}
+        status, role = self.api.call("POST", "/access-roles", token, made)
+        if status != CREATED or "access_role_id" not in as_object(role):
+            message = f"POST /access-roles answered {status}, not {CREATED}: {role!r}"
+            raise TrialError(message)
+        return str(as_object(role)["access_role_id"])
+
+    def forgotten(self, token: str, marker: str) -> None:
+        """Hold that the role made after the backup is no more once it is restored (404)."""
+        status, role = self.api.call("GET", f"/access-roles/{marker}", token)
+        if status != NOT_FOUND:
+            message = (
+                f"the role {marker} made after the backup reads after its restoration "
+                f"({status}), not {NOT_FOUND}: {role!r}"
+            )
+            raise TrialError(message)
 
     def accepted(self, path: str, token: str, body: Mapping[str, Any] | None = None) -> str:
         """Ask for a task; give its identifier, or fail if it is not accepted (202)."""
@@ -288,31 +313,34 @@ class RestorationTrial:
             raise TrialError(message)
         return backup
 
-    def restored(self, task_id: str) -> bool:
-        """Follow a restoration to its end; tell whether the maintenance was seen.
+    def restored(self, task_id: str) -> str:
+        """Follow a restoration to its end, through the maintenance; give a token taken after it.
 
-        In maintenance the probe says so, and the API answers 503; the restoration closes every
-        session, after which the token is refused (401) and the administrator signs in again. It
-        has ended when the probe says ``ok`` and its task has succeeded.
+        The probe must say the maintenance, in which the API answers 503; until it does, the
+        restoration has not begun. The restoration closes every session before it lifts the
+        maintenance: the administrator signs in again at the first ``ok`` after it, and again,
+        after a pause, if the token is refused (401). It has ended when its task has succeeded.
         """
-        token = self.administrator.token()
         seen = False
+        token: str | None = None
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
-            said = self.probe()
-            if said == "maintenance":
+            if self.probe() == "maintenance":
                 seen = True
-            else:
+            elif seen:
+                token = token or self.administrator.token()
                 status, task = self.api.call("GET", f"/tasks/{task_id}", token)
                 if status == UNAUTHORIZED:
-                    token = self.administrator.token()
-                    continue
-                if status == OK and self.finished(as_object(task)):
-                    return seen
-                if status not in {OK, UNAVAILABLE}:
+                    token = None
+                elif status == OK and self.finished(as_object(task)):
+                    return token
+                elif status not in {OK, UNAVAILABLE}:
                     message = f"the task of the restoration does not read ({status}): {task!r}"
                     raise TrialError(message)
             self.clock.pause(PAUSE)
+        if not seen:
+            message = f"the liveness probe did not say the maintenance in {PATIENCE:.0f} s"
+            raise TrialError(message)
         message = f"the restoration did not end in {PATIENCE:.0f} s"
         raise TrialError(message)
 
