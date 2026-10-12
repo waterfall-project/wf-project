@@ -183,7 +183,6 @@ def test_what_waits_for_the_commit_is_dropped_with_the_savepoint_rolled_back(
     assert ran == ["root"]
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_what_waits_for_the_commit_runs_once_after_it_and_never_after_a_rollback(
     database: Database,
 ) -> None:
