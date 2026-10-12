@@ -14,7 +14,8 @@ password — left by a creation Waterfall did not complete (#811) — are remove
 once old enough that no creation is still under way. Every write of Waterfall is the platform's
 (WF-DAT-0070), and the report is kept; it names an account of Waterfall by its identifier alone, a
 person of the provider as it holds her — but for one whose address an account bears, named by her
-subject and that account (#918, #920).
+subject and that account (#918, #920). A local account the provider holds of a directory is never
+given back its identity there: it is logged.
 
 What the provider is asked comes before the guard is taken: no administrator waits on Keycloak. The
 lock of the rule of the last administrator is taken before any row of an account, as the routes

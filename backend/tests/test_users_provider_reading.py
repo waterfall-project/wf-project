@@ -21,7 +21,7 @@ from access_rows import ADMINISTRATION, role
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
-from support import raw_account, wait_for_a_lock
+from support import Logs, raw_account, wait_for_a_lock
 
 from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
 from waterfall.core.users.interface import (
@@ -51,6 +51,7 @@ from waterfall.worker.identity_sync import Written, write_accounts
 
 NOON = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 CORRELATION = "reading-of-the-accounts"
+FEDERATED = "identity_sync.local_account_federated"
 
 
 @pytest.fixture(autouse=True)
@@ -154,6 +155,26 @@ def test_a_local_account_the_provider_holds_alike_or_anonymized_is_left_alone(
     named = {"last_name": "Roux", "first_name": "Inès", "email": "ines.roux@example.org"}
     gone = held(session, **dict.fromkeys(named), anonymized_at=NOON, state="deactivated")
     assert follow(session, of_provider(gone, **named, is_federated=False), NOON) == "unchanged"
+
+
+def test_a_local_account_the_provider_holds_of_a_directory_is_never_given_back(
+    database: Database, logs: Logs
+) -> None:
+    # Waterfall's own, though the provider holds it otherwise, and of a directory: the provider is
+    # not written, which is logged (#919).
+    with database.transaction() as session:
+        local = held(session, origin="local")
+    federated = of_provider(local, last_name="Annuaire", is_federated=True)
+    with database.transaction() as session:
+        assert follow(session, federated, NOON) == "unchanged"
+        written = write_accounts(session, [federated], [], NOON)
+    assert (written.restorable, written.counts["restored"], written.counts["unchanged"]) == (
+        [],
+        0,
+        1,
+    )
+    told = [(each["user_id"], each["subject"]) for each in logs.named(FEDERATED)]
+    assert told == [(str(local["id"]), local["idp_subject"])] * 2
 
 
 def test_the_identity_given_back_is_the_one_a_local_account_holds_when_it_is_read(

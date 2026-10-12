@@ -41,10 +41,13 @@ from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.audit import Act, AuditValue
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak_admin import LocalIdentity, ProviderAccount
+from waterfall.platform.logs import get_logger
 
 NAME_MAX_LENGTH = 100
 DIRECTORY = "directory"
 DEACTIVATED = "deactivated"
+
+logger = get_logger(__name__)
 
 # What the reading did of a person of the provider; ``restored``, a local account whose identity
 # the provider holds otherwise, for it to take back Waterfall's (#919).
@@ -163,7 +166,8 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
 
     Her account is created or attached if she has none; else its name, its first name and its
     address follow the provider's, refused if another account holds the address — unless it is
-    local: Waterfall's identity is then the provider's to take back, if it holds another (#919).
+    local: Waterfall's identity is then the provider's to take back, if it holds another (#919),
+    unless the provider holds it of its directory — then it is never written there, but logged.
     A person refused for her address another account bears is told with that account (#920).
     An account is locked only to be written, then read again under the lock: the reading holds no
     row it leaves as it was.
@@ -177,9 +181,17 @@ def follow(session: Session, provider: ProviderAccount, at: datetime) -> Followe
                 admitted, None, address_holder(session, provider.email) if taken else None
             )
         return admitted[1]
-    if found.origin == LOCAL:
-        return "restored" if _held_otherwise(found, provider) else "unchanged"
-    return _follow_account(session, found, provider, at)
+    if found.origin != LOCAL:
+        return _follow_account(session, found, provider, at)
+    if provider.is_federated:
+        # Waterfall's own, which the provider holds of a directory: never given back there.
+        logger.warning(
+            "identity_sync.local_account_federated",
+            user_id=str(found.id),
+            subject=found.idp_subject,
+        )
+        return "unchanged"
+    return "restored" if _held_otherwise(found, provider) else "unchanged"
 
 
 def _follow_account(
@@ -294,7 +306,9 @@ def identity_to_restore(session: Session, subject: str) -> LocalIdentity | None:
     """Read the identity Waterfall holds of a local account, for the provider to take it back.
 
     ``None`` if no local account bears the subject, or if it is anonymised: it is out of the
-    provider, which is never given its identity back (WF-ADM-0060, #919).
+    provider, which is never given its identity back (WF-ADM-0060, #919). Asked only of a subject
+    the reading found local in the provider too: one the provider holds of a directory is never
+    given back (``follow``).
     """
     account = find_account_of_subject(session, subject)
     if account is None or account.origin != LOCAL or account.anonymized_at is not None:
