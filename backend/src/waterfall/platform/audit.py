@@ -19,7 +19,7 @@ dates and their actions do not change (``forget_account``, WF-SEC-0030, WF-ADM-0
 the service may update those two columns alone, and the trigger of the journal admits that update
 alone, one label at least made null; that the account is anonymised, the module of the accounts
 checks, by a trigger of its own on this table, for the platform reads no table of a module
-(migration ``0010``).
+(migration ``0011``).
 
 The texts that the journal sorts on are compared code point by code point, as the contract
 sorts them: their collation is ``C``, which the indexes share. A search that lowers one of them

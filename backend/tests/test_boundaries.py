@@ -17,6 +17,7 @@ import pytest
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 LAYOUT = {
+    "bootstrap.py": "",
     "api/__init__.py": "",
     "worker/__init__.py": "",
     "migrations/__init__.py": "",
@@ -117,6 +118,20 @@ def test_the_platform_may_not_import_the_core_the_api_or_the_worker(
 def test_the_core_may_not_import_the_migrations(sample: Path) -> None:
     result = lint(sample, "core.projects.tables", "from sample import migrations\n")
     assert result.returncode == 1
+
+
+def test_the_bootstrap_may_apply_the_migrations(sample: Path) -> None:
+    # The bootstrap applies the migrations, which the API may not import (US-0420).
+    imports = "import sample.migrations\nimport sample.api\nimport sample.core.accounts.interface\n"
+    result = lint(sample, "bootstrap", imports)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("module", ["api.__init__", "migrations.__init__", "core.projects.tables"])
+def test_nothing_imports_the_bootstrap(sample: Path, module: str) -> None:
+    result = lint(sample, module, "import sample.bootstrap\n")
+    assert result.returncode == 1
+    assert f"sample.{module.removesuffix('.__init__')} -> sample.bootstrap" in result.stdout
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

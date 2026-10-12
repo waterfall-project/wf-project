@@ -237,7 +237,7 @@ def test_the_service_may_rename_nothing_in_an_inscription_but_forget_the_name_of
     database: Database, statement: str
 ) -> None:
     # The service may update the two labels that name an account, and the trigger admits no other
-    # change of them than making null the name of an anonymised account (migration 0010).
+    # change of them than making null the name of an anonymised account (migration 0011).
     inscribe(database, role_created())
     with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
         connection.execute(text(statement))
@@ -360,9 +360,9 @@ def read_labels(database: Database) -> list[str | None]:
 # What the service needs on each table, and why; a table the code declares and this does not
 # fails the test below, which says so (docs/dev/sql.md, "Le rôle du service").
 SERVICE_RIGHTS: dict[str, set[str]] = {
-    # Read by getInstallation, its settings changed by an administrator, its row inserted by the
-    # bootstrap (US-0420); never deleted: it is the installation.
-    "installation": {"SELECT", "INSERT", "UPDATE"},
+    # Read by getInstallation, its settings changed by an administrator; its row inserted by the
+    # bootstrap, as the owner (US-0420, #701); never deleted: it is the installation.
+    "installation": {"SELECT", "UPDATE"},
     # Created, read, changed, deactivated; never deleted (WF-DAT-0080).
     "user_account": {"SELECT", "INSERT", "UPDATE"},
     # Inscribed and read; neither changed nor deleted (WF-SEC-0030).

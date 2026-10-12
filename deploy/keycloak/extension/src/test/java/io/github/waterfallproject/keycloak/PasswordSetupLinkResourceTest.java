@@ -18,6 +18,13 @@ class PasswordSetupLinkResourceTest {
   }
 
   @Test
+  void onlyTheLinkOfTheInstallationLastsUntilItIsUsed() {
+    assertTrue(PasswordSetupLinkResource.isUntilUsed((long) Integer.MAX_VALUE));
+    assertFalse(PasswordSetupLinkResource.isUntilUsed(1_780_495_500L));
+    assertFalse(PasswordSetupLinkResource.isUntilUsed(null));
+  }
+
+  @Test
   void aRealmSendsMailOnlyWhenItsSettingsNameAServer() {
     assertTrue(PasswordSetupLinkResource.hasMailServer(Map.of("host", "mailpit", "port", "1025")));
     // A realm never given a mail server has empty settings; one whose server was removed, a blank.
