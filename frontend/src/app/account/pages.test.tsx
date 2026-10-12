@@ -100,7 +100,12 @@ describe("the screen of the account", () => {
       server.answers = { ...server.answers, "GET /me": me };
       const page = html(await AccountPage());
       const realm = "https://keycloak.example/auth/realms/waterfall/account";
-      expect(page.includes(`href="${realm}"`)).toBe(offered);
+      const links = [...page.matchAll(/<a [^>]*>/g)].map(([tag]) => tag);
+      // Another site, in another tab, which gets no hold on this one.
+      const apart = /^(?=.* target="_blank")(?=.* rel="[^"]*\b(noopener|noreferrer)\b)/;
+      expect(links.filter((tag) => tag.includes(`href="${realm}"`))).toEqual(
+        offered ? [expect.stringMatching(apart)] : [],
+      );
       expect(text(page).includes("Ouvrir mon compte du fournisseur d’identité")).toBe(offered);
     } finally {
       vi.unstubAllEnvs();
