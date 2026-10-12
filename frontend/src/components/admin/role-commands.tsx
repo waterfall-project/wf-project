@@ -119,7 +119,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   const confirmed = (role: AccessRole) => {
     const id = role.access_role_id;
     // The reading the role is deleted from: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     setDeleting((before) => new Set(before).add(id));
     void deleteAccessRole(id)
       .catch(rejected)
@@ -132,7 +132,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
         if (outcome.kind === "done") {
           say?.(t("deleted", { name: role.label }));
         } else {
-          list?.report({ outcome, reading, names: {}, target: `delete ${id}` });
+          list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
         }
       });
   };
@@ -216,7 +216,7 @@ export function CreateRole() {
           return;
         }
         // The reading the role is created from: its refusal is told on it alone.
-        const reading = list?.reading ?? "";
+        const generation = list?.generation ?? 0;
         const asked = label;
         setRefused(undefined);
         startTransition(async () => {
@@ -229,7 +229,7 @@ export function CreateRole() {
           const at = "problem" in outcome ? outcome.problem.fields : undefined;
           const own = at?.find(({ pointer }) => pointer === "/label");
           if (own === undefined) {
-            list?.report({ outcome, reading, names: {} });
+            list?.report({ outcome, generation, names: {} });
             return;
           }
           setRefused(problemMessage(own, { locale, messages }));

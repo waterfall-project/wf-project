@@ -27,10 +27,12 @@ editUsernameAllowed: false
 resetPasswordAllowed: true
 rememberMe: false
 
-# The pages of Keycloak and its mails speak French and English, French first (WF-ADM-0140).
+# The pages of Keycloak and its mails speak French and English (WF-ADM-0140); to an account that
+# chose neither, the language of the installation (WF-INTF-0160), which its bootstrap gives the
+# realm (#873). `defaultLocale` is therefore not declared here: applied at each deployment, this
+# file would put back another one, and what it does not declare, it leaves as it is.
 internationalizationEnabled: true
 supportedLocales: [fr, en]
-defaultLocale: fr
 loginTheme: waterfall
 emailTheme: waterfall
 # The administration API answers a refused password in the words of this theme, console or not.
@@ -85,6 +87,10 @@ roles:
       description: >-
         Asks the extension of Waterfall for the password setup link of a local account
         (password-setup-link). Held by the service account of Waterfall alone.
+    - name: waterfall-installation-link
+      description: >-
+        Asks the extension of Waterfall for the link of the installation, valid until it is used
+        (password-setup-link, WF-EXP-0020). Held by the client of the bootstrap alone.
 
 clients:
   # The front: the authorization code flow with PKCE, on the server of Next (#215); Keycloak
@@ -158,6 +164,21 @@ clients:
     directAccessGrantsEnabled: false
     serviceAccountsEnabled: true
 
+  # The client of the bootstrap, `waterfall-api install`, and of it alone: the link of the first
+  # administrator, valid until it is used (#652). Its secret is given to the bootstrap only, never
+  # to the API nor to the worker, whose service account makes links of an hour.
+  - clientId: waterfall-installation
+    name: Waterfall installation
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: $(env:WATERFALL_INSTALLATION_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+
   # The client every realm has for its command line: no sign-in by password, which would be a way
   # around the page of the realm the conception does not plan (#644). The platform of the
   # workstation declares its own client of test for the tokens its tests need.
@@ -179,3 +200,14 @@ users:
         # To find the directories the realm federates, whose synchronisation the reading of the
         # accounts asks for (WF-ADM-0070): a view of the realm, which masks their credentials.
         - view-realm
+  # The bootstrap gives the realm the language of the installation (#873): `manage-realm`, which
+  # the secret of the client of the bootstrap alone carries, held by the operator beside that of
+  # the administrator of the master realm.
+  - username: service-account-waterfall-installation
+    enabled: true
+    serviceAccountClientId: waterfall-installation
+    realmRoles:
+      - waterfall-installation-link
+    clientRoles:
+      realm-management:
+        - manage-realm

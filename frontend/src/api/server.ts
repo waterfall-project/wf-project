@@ -42,13 +42,27 @@ export function isMockAuthentication(): boolean {
   return true;
 }
 
+/** The address of the API, as configured. */
+function apiAddress(): string {
+  return process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS;
+}
+
 /**
  * Make a client of the API at the configured address: the one place that carries the token of
  * the session to the API.
  */
 export function serverClient(): ApiClient {
   return createApiClient({
-    address: process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS,
+    address: apiAddress(),
     bearer: isMockAuthentication() ? () => MOCK_TOKEN : requestBearer,
   });
+}
+
+/**
+ * Make a client of the API that carries a token the server of Next has just obtained, outside any
+ * session of the front: the sign-out of a session the front lost, whose silent sign-in gives the
+ * token that closes the sessions of the account (#689). Kept nowhere.
+ */
+export function tokenClient(token: string): ApiClient {
+  return createApiClient({ address: apiAddress(), bearer: () => token });
 }

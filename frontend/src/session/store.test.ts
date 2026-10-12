@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { withTestRedis } from "@/test/session";
 
 import {
+  armSignOut,
   closeStore,
   type FrontSession,
   forgetAccount,
@@ -18,7 +19,9 @@ import {
   renewSession,
   rememberSignIn,
   SIGN_IN_LIFETIME,
+  SIGN_OUT_LIFETIME,
   takeSignIn,
+  takeSignOut,
 } from "./store";
 
 withTestRedis();
@@ -47,13 +50,23 @@ function sessionOf(subject: string): FrontSession {
 describe("the store of the sessions of the front", () => {
   it("keeps a sign-in under way fifteen minutes at most, and gives it once", async () => {
     const state = randomUUID();
-    const signIn = { verifier: "v", nonce: "n", target: "/projects?sort_by=code" };
+    const signIn = { verifier: "v", nonce: "n", target: "/projects?sort_by=code", signOut: false };
     await rememberSignIn(state, signIn);
     const left = await ttl(`wf:sign-in:${state}`);
     expect(left).toBeGreaterThan(SIGN_IN_LIFETIME - 5);
     expect(left).toBeLessThanOrEqual(15 * 60);
     expect(await takeSignIn(state)).toEqual(signIn);
     expect(await takeSignIn(state)).toBeUndefined();
+  });
+
+  it("keeps the sign-out of a lost session a minute at most, bound to the cookie that armed it: another cookie leaves it in place, and it is taken once (#689)", async () => {
+    const [mine, theirs] = [randomUUID(), randomUUID()];
+    const ticket = await armSignOut(mine);
+    expect(await ttl(`wf:sign-out:${ticket}`)).toBeGreaterThan(SIGN_OUT_LIFETIME - 5);
+    expect(await ttl(`wf:sign-out:${ticket}`)).toBeLessThanOrEqual(60);
+    expect(await takeSignOut(ticket, theirs)).toBe(false);
+    expect(await takeSignOut(ticket, mine)).toBe(true);
+    expect(await takeSignOut(ticket, mine)).toBe(false);
   });
 
   it("keeps a session as long as Keycloak does, and closes every session of an account, not another's", async () => {

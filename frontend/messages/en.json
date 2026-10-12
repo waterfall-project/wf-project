@@ -1015,12 +1015,18 @@
       "title": "Account deactivated",
       "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
     },
+    "notAdmitted": {
+      "title": "Account not admitted",
+      "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
+    "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "signOut": "Sign out"
   },
   "loading": {
     "label": "Loading the screen"

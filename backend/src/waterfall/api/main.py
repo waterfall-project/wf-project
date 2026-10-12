@@ -24,7 +24,8 @@ NAME = "waterfall-api"
 def main(argv: Sequence[str] | None = None) -> int:
     """Start the API service, or say why it cannot start (WF-SEC-0010).
 
-    The service takes no argument but ``--version``: any other one is refused with status 2.
+    The service takes no argument but ``--version``: any other one is refused with status 2, but
+    ``install``, which ``waterfall.bootstrap`` takes before it (US-0420).
     """
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
@@ -32,7 +33,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if arguments:
         sys.stderr.write(
-            f"usage: {NAME} [--version]\n{NAME}: unexpected argument: {arguments[0]}\n"
+            f"usage: {NAME} [--version | install]\n{NAME}: unexpected argument: {arguments[0]}\n"
         )
         return 2
     try:

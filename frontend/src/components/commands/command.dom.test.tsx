@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decode, type Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
+import { useNavigationHold } from "@/components/shell/navigation-hold";
+import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient, type Problem } from "@/test/fixtures";
@@ -283,6 +285,67 @@ describe("the outcome of a command", () => {
     );
     expect(client.calls).toHaveLength(1);
     await expectAccessible(container);
+  });
+
+  it("holds a navigation clicked while it runs, and drops it when the server refuses it: the refusal is told beside the command (#688)", async () => {
+    const conflict = refusal("conflict", { code: "STATE_FORBIDS_OPERATION", status: 409 });
+    let answer: (outcome: Outcome<unknown>) => void = () => undefined;
+    renderHook(() => {
+      useNavigationHold();
+    });
+    french(
+      available(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      ),
+    );
+    const followed = vi.fn((event: MouseEvent) => {
+      event.preventDefault();
+    });
+    const link = document.createElement("a");
+    link.href = "/portfolio";
+    link.addEventListener("click", followed);
+    document.body.append(link);
+
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    fireEvent.pointerDown(link);
+    link.click();
+    await act(async () => {
+      answer(conflict);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "L’état actuel ne permet pas cette opération.",
+    );
+    expect(followed).not.toHaveBeenCalled();
+    link.remove();
+  });
+
+  it("says a session lost when its server action rejects with the digest of one, and offers the sign-in by a link", async () => {
+    const lost = Object.assign(new Error("Server Components render"), {
+      digest: SESSION_LOST_DIGEST,
+    });
+    french(available(() => Promise.reject(lost)));
+
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.SESSION_REQUIRED);
+    expect(within(alert).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      `/login?next=${encodeURIComponent(`/projects/${PROJECT}/lifecycle`)}`,
+    );
+  });
+
+  it("says the service out of reach when the browser cannot reach its server action", async () => {
+    french(available(() => Promise.reject(new TypeError("Failed to fetch"))));
+
+    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
   });
 
   it("explains a conflict, naming the object in conflict", async () => {

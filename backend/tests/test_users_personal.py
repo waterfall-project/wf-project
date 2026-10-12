@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import pytest
 from access_rows import account, role
 from realm import KEY, TestRealm
-from sqlalchemy import insert, select, update
+from sqlalchemy import Engine, insert, select, update
 from support import ContractClient, bearer, wait_for_a_lock
 
 from waterfall.core.users.interface import image_type
@@ -51,10 +51,10 @@ def person(database: Database, realm: TestRealm, *roles: UUID, **columns: object
     return user_id, bearer(realm.token(subject, KEY))
 
 
-def installed(database: Database, *, avatar_max_bytes: int = BOUND) -> None:
-    """Write the row of the installation, as its bootstrap does (US-0420)."""
-    with database.transaction() as session:
-        session.execute(
+def installed(owner: Engine, *, avatar_max_bytes: int = BOUND) -> None:
+    """Write the row of the installation, as its bootstrap does: as the owner (US-0420, #701)."""
+    with owner.begin() as connection:
+        connection.execute(
             insert(Installation).values(
                 id=THE_ROW,
                 default_language="en",
@@ -63,6 +63,12 @@ def installed(database: Database, *, avatar_max_bytes: int = BOUND) -> None:
                 installed_at=utc_now(),
             )
         )
+
+
+@pytest.fixture
+def installation(owner: Engine) -> None:
+    """Write the row of the installation, at the bound of these tests."""
+    installed(owner)
 
 
 def preferences_of(database: Database, user_id: UUID) -> dict[str, Any]:
@@ -373,12 +379,12 @@ def test_two_changes_at_once_of_two_grids_each_keep_the_other(
 
 
 @pytest.mark.requirement("WF-ADM-0080-A")
+@pytest.mark.usefixtures("installation")
 def test_a_user_puts_replaces_and_withdraws_his_avatar_alone(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
     # « Un utilisateur ajoute, remplace et retire son avatar sans intervention d'un
     # administrateur. » : an account without any role does it.
-    installed(database)
     user_id, headers = person(database, realm)
     assert put(api, headers, PNG, "image/png").status_code == 204
     assert api.get(ME, headers=headers).json()["has_avatar"] is True
@@ -398,12 +404,12 @@ def test_a_user_puts_replaces_and_withdraws_his_avatar_alone(
 
 
 @pytest.mark.requirement("WF-ADM-0080-A")
+@pytest.mark.usefixtures("installation")
 def test_a_user_cannot_change_the_avatar_of_another(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
     # « Il ne peut pas modifier celui d'un autre. » : his own changes alone, and no operation
     # reaches another's, not even for whom may change the accounts.
-    installed(database)
     administration = role(
         database, "Gestion des comptes", permissions=("users.read", "users.write")
     )
@@ -424,10 +430,10 @@ def test_a_user_cannot_change_the_avatar_of_another(
     assert api.get(address, headers=hers).content == PNG
 
 
+@pytest.mark.usefixtures("installation")
 def test_an_image_is_kept_with_the_type_its_content_shows_whatever_its_request_says(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    installed(database)
     user_id, headers = person(database, realm)
     assert put(api, headers, JPEG, "image/png").status_code == 204
     assert avatar_of(database, user_id) == (JPEG, "image/jpeg")
@@ -456,6 +462,7 @@ UNFIT: list[tuple[tuple[Any, str], tuple[int, str, list[dict[str, str]]]]] = [
 
 
 @pytest.mark.parametrize(("sent", "refused"), UNFIT)
+@pytest.mark.usefixtures("installation")
 def test_an_image_the_avatar_cannot_be_is_refused_and_the_avatar_kept(
     api: ContractClient,
     database: Database,
@@ -465,26 +472,23 @@ def test_an_image_the_avatar_cannot_be_is_refused_and_the_avatar_kept(
 ) -> None:
     # Neither a PNG nor a JPEG by its content, a type the contract does not declare, nothing, or
     # beyond the bound of the installation — said by its length, or passed while it is read.
-    installed(database)
     user_id, headers = person(database, realm, avatar=PNG, avatar_media_type="image/png")
     assert refusal(put(api, headers, *sent)) == refused
     assert avatar_of(database, user_id) == (PNG, "image/png")
 
 
+@pytest.mark.usefixtures("installation")
 def test_an_image_of_the_bound_of_the_installation_is_admitted(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
-    installed(database)
     user_id, headers = person(database, realm)
     image = PNG + b"\x00" * (BOUND - len(PNG))
     assert put(api, headers, image, "image/png").status_code == 204
     assert avatar_of(database, user_id) == (image, "image/png")
 
 
-def test_an_avatar_is_not_read_for_a_request_without_a_session(
-    api: ContractClient, database: Database
-) -> None:
-    installed(database)
+@pytest.mark.usefixtures("database", "installation")
+def test_an_avatar_is_not_read_for_a_request_without_a_session(api: ContractClient) -> None:
     response = put(api, {}, PNG, "image/png")
     assert refusal(response)[:2] == (401, "SESSION_REQUIRED")
     assert api.get(f"/api/v1/users/{uuid4()}/avatar").status_code == 401
@@ -499,10 +503,9 @@ def test_an_account_without_avatar_or_unknown_has_none_to_serve(
         assert refusal(response)[:2] == (404, "NOT_FOUND")
 
 
-def test_the_installation_is_read_without_a_session(
-    api: ContractClient, database: Database
-) -> None:
-    installed(database, avatar_max_bytes=512 * 1024)
+@pytest.mark.usefixtures("database")
+def test_the_installation_is_read_without_a_session(api: ContractClient, owner: Engine) -> None:
+    installed(owner, avatar_max_bytes=512 * 1024)
     response = api.get(INSTALLATION)
     assert response.status_code == 200, response.text
     assert response.json() == {

@@ -28,8 +28,9 @@ COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compos
 # Caddy at each start: what the front (NODE_EXTRA_CA_CERTS, added to the authorities it trusts)
 # and the tests of the platform (SSL_CERT_FILE, the only one they trust) trust. Ignored by git.
 KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
-# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it.
-KEYCLOAK_ADDRESS = $${WATERFALL_KEYCLOAK_ADDRESS:-https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth}
+# Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it: its
+# port alone moves, its front end serving localhost and 127.0.0.1 only (#735).
+KEYCLOAK_ADDRESS = https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth
 # The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
 KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
@@ -49,7 +50,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-logs service-down migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
 	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
@@ -169,6 +170,14 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
 
+# The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
+# administrator on the standard output, alone — its image built quietly first, and no terminal,
+# which would mix the logs in —, and nothing on an installation whose administrator has set a
+# password.
+service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE)
+	@$(COMPOSE_SERVICE) build --quiet install
+	@$(COMPOSE_SERVICE) run --rm --no-TTY install
+
 keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
 	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))
 	@$(COMPOSE_SERVICE) cp keycloak-front-end:/data/caddy/pki/authorities/local/root.crt $(KEYCLOAK_AUTHORITY)
@@ -178,7 +187,7 @@ service-logs: ## Print the logs of the services of the platform (SERVICES, all o
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
 service-down: ## Stop the service platform, the proxy of e2e-service included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
-	@$(COMPOSE_SERVICE) --profile e2e down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+	@$(COMPOSE_SERVICE) --profile e2e --profile install down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -189,8 +198,9 @@ lint-compose: ## Validate the Compose files
 	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
+		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
-		$(COMPOSE_SERVICE) --profile e2e config --quiet
+		$(COMPOSE_SERVICE) --profile e2e --profile install config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
@@ -210,16 +220,17 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # trust: at the address the browser knows it by, and at another one, 127.0.0.1, as a service
 # reaches it. Those that serve the API in their process create their database on the PostgreSQL
 # of the platform, unless WATERFALL_TEST_DATABASE_URL names another server. They measure the
-# administration API of Keycloak, which the measure of the back leaves out, to the thresholds of
-# the back (coverage-keycloak.toml). Their environment is synchronised first, outside of
+# administration API of Keycloak and the bootstrap that creates the first administrator in it,
+# which the measure of the back leaves out, to the thresholds of the back (coverage-keycloak.toml). Their environment is synchronised first, outside of
 # SSL_CERT_FILE: uv reads it too, and would trust no other authority to download Python or the
-# packages (#737).
-test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens included, measuring its administration client (needs the secrets of service-up)
+# packages (#737). One of them restarts Keycloak, whose container is named to it (#852).
+test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) run --rm keycloak-realm
 	@cd $(BACK) && uv sync --frozen
-	@cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
+	@WATERFALL_TEST_KEYCLOAK_CONTAINER=$$($(COMPOSE_SERVICE) ps --quiet keycloak) && export WATERFALL_TEST_KEYCLOAK_CONTAINER && \
+		cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \
 		WATERFALL_TEST_KEYCLOAK_BACKCHANNEL=https://127.0.0.1:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth \
 		SSL_CERT_FILE=$(KEYCLOAK_AUTHORITY) \
 		WATERFALL_TEST_FRONT_ADDRESS=$${WATERFALL_FRONT_ADDRESS:-http://localhost:3000} \
@@ -374,24 +385,37 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # it trusts the authority of Keycloak's front end and keeps its sessions in the Redis of the
 # platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
 # are the harness's, whatever the environment exports; the variables of the front go through the
-# environment, never the command line, which would show the password of Redis to anyone.
+# environment, never the command line, which would show the password of Redis to anyone. The paths
+# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give an
+# account other than the first administrator a role, as an administrator would. The platform is
+# bootstrapped (US-0420, #730): the paths read the address of its first administrator in
+# E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password — empty once a
+# path has set it, the administrator then signing in with the password the paths gave it. The
+# address must be the one the platform was first bootstrapped with: a bootstrap run again ignores
+# another one (the guide, « Un parcours de bout en bout »).
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
+E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
 e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL := http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_FRONT_PORT := $(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
 e2e-service: export E2E_PART = service
+e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: install-front ## End-to-end paths of the project `service` against the real service, through Prism as a proxy (needs the secrets of service-up and a browser, make e2e-browsers)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+	@$(COMPOSE_SERVICE) build --quiet install
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
-		export E2E_CONTRACT_PROXY WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM) exec playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails

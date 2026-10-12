@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What of the shell frames the page the browser shows: the side bar, the bar above the page and
- * the panel of the background tasks. The page keeps its place in the tree.
+ * the panel of the background tasks. The page keeps its place in the tree. A navigation waits for
+ * the writes under way, and does not take place when one is refused (`useNavigationHold`).
  */
 "use client";
 
@@ -10,6 +11,8 @@ import type { ReactNode } from "react";
 
 import { TaskPanel } from "@/components/tasks/task-tracker";
 import { SidebarInset } from "@/components/ui/sidebar";
+
+import { useNavigationHold } from "./navigation-hold";
 
 /**
  * The page bounded to the height of the window when its screen fills it (`Screen`, `fill`) —
@@ -26,8 +29,9 @@ export interface ShellFrameProps {
   readonly children: ReactNode;
 }
 
-/** Render the page in the frame of the shell. */
+/** Render the page in the frame of the shell, its navigations held while a write is under way. */
 export function ShellFrame({ navigation, bar, children }: ShellFrameProps) {
+  useNavigationHold();
   return (
     <>
       {navigation}

@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -809,6 +810,46 @@ describe("a block pasted from a spreadsheet", () => {
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(labels()).toEqual(READ);
+  });
+
+  it("holds a navigation clicked while it is applied, and drops it when the server refuses it: the refusal is told on the grid (#688)", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    const answered = new Promise((resolve) => {
+      answer = resolve;
+    });
+    server.client = fakeClient(
+      {
+        [PREVIEW]: "paste_plan",
+        [APPLY]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },
+      },
+      { hold: (route) => (route === APPLY ? answered : undefined) },
+    );
+    renderHook(() => {
+      useNavigationHold();
+    });
+    renderGrid();
+    const followed = vi.fn((event: MouseEvent) => {
+      event.preventDefault();
+    });
+    const link = document.createElement("a");
+    link.href = "/portfolio";
+    link.addEventListener("click", followed);
+    document.body.append(link);
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
+    );
+    fireEvent.pointerDown(link);
+    link.click();
+    await act(async () => {
+      answer();
+      await answered;
+    });
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(followed).not.toHaveBeenCalled();
+    expect(labels()).toEqual(READ);
+    link.remove();
   });
 
   it("tells the API out of reach, and takes nothing pasted in an entry under way", async () => {

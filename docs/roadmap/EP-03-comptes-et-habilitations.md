@@ -303,7 +303,10 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
 - le lien d'installation (#652) : un second rôle, `waterfall-installation-link`, que seul
   l'amorçage porte, fait rendre au même point d'entrée un lien qui vaut jusqu'à son emploi
   (WF-ADM-0140), à usage unique et soumis au même nonce ; le compte de service ordinaire ne
-  produit que des liens d'une heure ;
+  produit que des liens d'une heure. Ce lien ne vaut que pour un compte sans mot de passe
+  (#884) : le point d'entrée refuse de le fabriquer pour un compte qui en a un (409
+  `has_password`), et refuse de l'ouvrir, comme un lien déjà servi, dès que le compte en a un,
+  quelle que soit la voie qui l'a posé — « mot de passe oublié », console ;
 - `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte » ;
 - `local-account-only` (#650) : la règle de politique qui refuse tout mot de passe à un compte
   qui porte une identité relayée ou un lien de fédération, quelle que soit la voie —
@@ -1008,7 +1011,10 @@ appliqué de façon idempotente par keycloak-config-cli ; la base de Keycloak di
 même serveur PostgreSQL. La plateforme de développement porte un annuaire et un fournisseur
 externe de test, pour que la Définition de fini se constate. Cette US ferme #152 et #155,
 sans objet : la page de connexion n'a plus de liste de fournisseurs à présenter, et les
-règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
+règles du mot de passe sont celles du fournisseur, qui les dit sur sa page. Ses lots L1 à L5b
+faits, deux phrases de `WF-ADM-0180-A` — le retrait de l'annuaire suivi d'une synchronisation, puis
+la réactivation après une nouvelle fédération — ne se constatent qu'avec la lecture des comptes du
+fournisseur (US-0370/L2) : l'US reste `en cours` tant que #844 n'a pas tranché où elles s'éprouvent.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 
@@ -1301,7 +1307,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API

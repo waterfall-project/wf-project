@@ -12,6 +12,10 @@
 # Keycloak reaches itself at localhost:8080, inside its container.
 realm: waterfall
 
+# The platform of development speaks French until a bootstrap gives the realm the language of its
+# installation (#873), and again at each start: its tests read the pages of the realm in French.
+defaultLocale: fr
+
 smtpServer:
   host: mailpit
   port: "1025"

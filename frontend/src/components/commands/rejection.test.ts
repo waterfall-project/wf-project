@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
   correlationDigest,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
@@ -49,13 +50,19 @@ describe("a server action whose promise rejected", () => {
     }
   });
 
-  it("is a refusal that says the account deactivated, not a session lost, by its digest", () => {
-    expect(rejected(thrown(ACCOUNT_DEACTIVATED_DIGEST))).toEqual({
-      kind: "refused",
-      problem: { code: "ACCOUNT_DEACTIVATED", status: 401 },
-      conflictingObjectId: null,
-    });
-  });
+  it.each([
+    ["ACCOUNT_DEACTIVATED", ACCOUNT_DEACTIVATED_DIGEST],
+    ["ACCOUNT_NOT_ADMITTED", ACCOUNT_NOT_ADMITTED_DIGEST],
+  ] as const)(
+    "is a refusal that says the account refused (%s), not a session lost, by its digest",
+    (code, digest) => {
+      expect(rejected(thrown(digest))).toEqual({
+        kind: "refused",
+        problem: { code, status: 401 },
+        conflictingObjectId: null,
+      });
+    },
+  );
 
   it("is the unexpected error with the correlation identifier of the API, its prefix left out", () => {
     expect(rejected(thrown(correlationDigest("req-01926f3a.7c00")))).toEqual(

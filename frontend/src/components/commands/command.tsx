@@ -8,7 +8,8 @@
  * An unavailable command stays in the order of the keyboard, marked `aria-disabled`, so that
  * its description is heard; pressing it does nothing. Greying it out is a convenience, not a
  * protection: an available command runs its server action, and the refusal the server may
- * still oppose is told like any outcome (`OutcomeNotice`).
+ * still oppose is told like any outcome (`OutcomeNotice`). The navigations of the page wait for its
+ * outcome, and do not take place when it is refused (`useHeldCommand`, #688).
  */
 "use client";
 
@@ -19,6 +20,7 @@ import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
+import { useHeldCommand } from "./held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
 
@@ -102,6 +104,7 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
   const id = useId();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  const held = useHeldCommand();
   if (offer === undefined) {
     return null;
   }
@@ -118,7 +121,7 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
       return;
     }
     startTransition(async () => {
-      setOutcome(await action());
+      setOutcome(await held(action()));
     });
   };
   return (
