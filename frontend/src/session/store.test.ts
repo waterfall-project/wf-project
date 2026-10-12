@@ -190,7 +190,7 @@ describe("the store of the sessions of the front", () => {
     },
   );
 
-  it("fails naming the variable, never quoting the address and its password, when the address of Redis is badly written [WF-SEC-0010-A]", async () => {
+  it("fails naming the variable, never quoting the address and its password, when the address of Redis is badly written [WF-SEC-0010-A] [WF-OBS-0020-A]", async () => {
     await closeStore();
     vi.stubEnv("WATERFALL_REDIS_URL", "redis://waterfall:s3cret-of-redis@[127.0.0.1:6379/0");
     try {
