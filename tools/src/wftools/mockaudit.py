@@ -485,6 +485,11 @@ DIRECTORY_LAST_NAME = "Vidal-Roux"
 attachment of the administration gives his account: a liberty of that variant (#707, #961)."""
 
 
+def _updater(example: JsonObject) -> JsonObject:
+    """Return the one who last updated an example, the author of the write it answers."""
+    return cast("JsonObject", cast("JsonObject", example["audit"])["updated_by"])
+
+
 def _role_named(role: JsonObject) -> JsonObject:
     """Return a role as an attribution names it (`AuditAccessRole`): its identifier, its label."""
     return {"access_role_id": role["access_role_id"], "label": role["label"]}
@@ -519,7 +524,7 @@ def _administered_roles() -> list[Inscription]:
     def role(action: str, changed: JsonObject, params: JsonObject) -> Inscription:
         return Inscription(
             TODAY,
-            cast("JsonObject", changed["audit"]["updated_by"]),
+            _updater(changed),
             action,
             "access_role",
             cast("str", changed["access_role_id"]),
@@ -567,7 +572,7 @@ def _administered_accounts() -> list[Inscription]:
     [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
     [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
     attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
-    actor = cast("JsonObject", created["audit"]["updated_by"])
+    actor = _updater(created)
 
     def changed(after: JsonObject) -> list[JsonValue]:
         before = users[after["user_id"]]
@@ -588,7 +593,7 @@ def _administered_accounts() -> list[Inscription]:
         _account(
             renamed,
             "user_update",
-            cast("JsonObject", renamed["audit"]["updated_by"]),
+            _updater(renamed),
             {"fields": changed(renamed)},
         ),
         _account(
@@ -597,7 +602,7 @@ def _administered_accounts() -> list[Inscription]:
         _account(
             cleared,
             "user_access_roles_set",
-            cast("JsonObject", cleared["audit"]["updated_by"]),
+            _updater(cleared),
             {
                 "access_roles_granted": [],
                 "access_roles_withdrawn": [
