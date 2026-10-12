@@ -57,6 +57,11 @@ def template() -> dict[str, str]:
     return {name.lstrip("# "): value for name, _, value in pairs}
 
 
+def required(name: str) -> str:
+    """Return how the production Compose reads a variable it does not start without."""
+    return f"${{{name}:?set {name} in .env}}"
+
+
 def environment(service: str) -> dict[str, str]:
     """Read the environment of a service, its anchors merged."""
     return dict(services()[service].get("environment", {}))
@@ -126,6 +131,58 @@ def test_caddy_is_the_only_door_and_serves_the_front_at_the_root_and_keycloak_un
     assert re.search(r"handle \{\s*reverse_proxy front:3000\s*\}", caddyfile)
 
 
+def site(caddyfile: str, address: str) -> str:
+    """Return the body of the block of a site of the Caddyfile, without its comments."""
+    block = rf"^{re.escape(address)} \{{\n(.*?)^\}}$"
+    found = re.search(block, caddyfile, re.MULTILINE | re.DOTALL)
+    assert found is not None, address
+    return "\n".join(
+        line.strip() for line in found.group(1).splitlines() if not line.strip().startswith("#")
+    )
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_every_answer_in_https_keeps_the_browser_in_https_and_its_pages_to_themselves() -> None:
+    # The browser speaks HTTPS alone, and comes back in HTTPS alone (HSTS); the headers of Caddy
+    # replace those of the services, on every answer. SAMEORIGIN, not DENY: Keycloak frames its own
+    # pages, under /auth. Between the services, the encryption is EP-13's.
+    served = site(CADDYFILE.read_text(encoding="utf-8"), "{$WATERFALL_DOMAIN}")
+    headers = re.search(r"^header \{\n(.*?)\n\}$", served, re.MULTILINE | re.DOTALL)
+    assert headers is not None
+    assert headers.group(1).splitlines() == [
+        'Strict-Transport-Security "max-age=31536000"',
+        "X-Content-Type-Options nosniff",
+        "Referrer-Policy strict-origin-when-cross-origin",
+        "X-Frame-Options SAMEORIGIN",
+        "defer",
+    ]
+    assert {
+        name: value.strip('"')
+        for name, _, value in (line.partition(" ") for line in headers.group(1).splitlines()[:-1])
+    } == production.SECURITY_HEADERS
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_http_sends_to_the_published_address_its_port_included() -> None:
+    plain = site(CADDYFILE.read_text(encoding="utf-8"), "http://{$WATERFALL_DOMAIN}")
+    assert plain == "redir {$WATERFALL_ADDRESS}{uri} 308"
+    caddy = environment("caddy")
+    assert caddy["WATERFALL_ADDRESS"] == environment("front")["WATERFALL_FRONT_ADDRESS"]
+    assert caddy["WATERFALL_ADDRESS"].endswith("${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}")
+
+
+def test_the_console_of_keycloak_and_its_realm_master_are_not_served() -> None:
+    # Their administrator holds every realm: reached on the machine alone (README.md). The 404 is
+    # handled before Keycloak's /auth/*, which would serve them.
+    served = site(CADDYFILE.read_text(encoding="utf-8"), "{$WATERFALL_DOMAIN}")
+    hidden = "/auth/admin /auth/admin/* /auth/realms/master /auth/realms/master/*"
+    assert f"@keycloak-admin path {hidden}" in served
+    refused = served.index("handle @keycloak-admin {\nrespond 404\n}")
+    assert refused < served.index("handle /auth/* {")
+    for path in production.HIDDEN:
+        assert any(path.rstrip("/") == kept.removesuffix("/*") for kept in hidden.split()), path
+
+
 def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_platform() -> None:
     # Keycloak is under /auth, and so are three routes of the front: those the browser opens pass
     # to the front; its back channel, which Keycloak reaches at front:3000, is not served (#731).
@@ -150,7 +207,7 @@ def test_every_secret_comes_from_the_file_of_settings_and_none_has_a_default() -
     # The identifier of the key of the storage is no secret.
     assert secrets & defaulted == {"WATERFALL_STORAGE_ACCESS_KEY"}
     for name in secrets - defaulted:
-        assert f"${{{name}:?set {name} in .env}}" in text
+        assert required(name) in text
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -201,6 +258,43 @@ def test_the_worker_backs_up_as_the_role_of_the_backup_and_the_owner_migrates_al
     assert "NOSUPERUSER" in script
 
 
+def test_the_owner_of_the_tables_is_no_superuser_and_the_administrator_initialises_alone() -> None:
+    # #701, #895: postgres is the administrator of the server; waterfall owns the database and its
+    # tables, and can create neither a role nor a database. The password of the administrator is
+    # held by the server and the services that create the roles and the databases, then stop.
+    assert environment("postgres")["POSTGRES_USER"] == "postgres"
+    assert "POSTGRES_DB" not in environment("postgres")
+    administrator = required("WATERFALL_POSTGRES_ADMIN_PASSWORD")
+    initialising = {
+        "waterfall-database",
+        "service-database-role",
+        "backup-database-role",
+        "keycloak-database",
+    }
+    holders = {
+        name
+        for name, service in services().items()
+        if administrator in [str(value) for value in dict(service.get("environment", {})).values()]
+    }
+    assert holders == {"postgres", *initialising}
+    for name in initialising:
+        assert services()[name]["restart"] == "no", name
+        assert environment(name)["PGUSER"] == "postgres", name
+    script = (COMPOSE / "waterfall-database.sql").read_text(encoding="utf-8")
+    assert (
+        "ALTER ROLE waterfall LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+        in script
+    )
+    assert "CREATE DATABASE waterfall OWNER waterfall" in script
+    assert "CREATE ROLE waterfall_service NOLOGIN" in script
+    owner = required("WATERFALL_POSTGRES_PASSWORD")
+    assert environment("waterfall-database")["OWNER_DATABASE_PASSWORD"] == owner
+    assert f"postgresql://waterfall:{owner}@" in environment("migrate")["WATERFALL_DATABASE_URL"]
+    assert services()["migrate"]["depends_on"] == {
+        "waterfall-database": {"condition": "service_completed_successfully"}
+    }
+
+
 @pytest.mark.requirement("WF-ARC-0050-A")
 def test_the_bootstrap_is_a_service_of_its_own_never_started_by_up() -> None:
     # The bootstrap holds the secret of its client alone (#652), as the owner of the tables (#701):
@@ -208,6 +302,15 @@ def test_the_bootstrap_is_a_service_of_its_own_never_started_by_up() -> None:
     install = services()["install"]
     assert install["profiles"] == ["install"]
     assert install["command"] == ["waterfall-api", "install"]
+    # Run alone, it waits for the schema migrated and for the realm whose client it uses.
+    done = {"condition": "service_completed_successfully"}
+    healthy = {"condition": "service_healthy"}
+    assert install["depends_on"] == {
+        "postgres": healthy,
+        "migrate": done,
+        "keycloak": healthy,
+        "keycloak-realm": done,
+    }
     holders = [
         name
         for name, service in services().items()
@@ -297,21 +400,38 @@ def fixed(status: int, body: str = "", **headers: str | list[str]) -> Route:
 
 
 class FakePlatform:
-    """The front and Keycloak as a test plays them, by path; it records each request."""
+    """Caddy, the front and Keycloak as a test plays them, by path; it records each request.
 
-    def __init__(self, routes: Mapping[str, Route]) -> None:
+    Caddy sends HTTP to the same page at ``address``, sets ``secured`` on every answer in HTTPS,
+    and answers 404 for the console of Keycloak and its realm master, unless a route serves them.
+    """
+
+    def __init__(
+        self,
+        routes: Mapping[str, Route],
+        *,
+        address: str = ADDRESS,
+        secured: Mapping[str, str] = production.SECURITY_HEADERS,
+    ) -> None:
         self.routes = routes
+        self.address = address
+        self.secured = secured
         self.requests: list[tuple[str, str, dict[str, str]]] = []
 
     def send(self, method: str, url: str, body: bytes | None, headers: Mapping[str, str]) -> Answer:
         parts = urlsplit(url)
         if parts.scheme == "http":
-            # Caddy, in HTTP: to the same page in HTTPS.
-            return answer(308, Location=f"https://{parts.hostname}{parts.path}")
+            return answer(308, Location=f"{self.address}{parts.path}")
+        if parts.path in production.HIDDEN and parts.path not in self.routes:
+            return self.secure(answer(404))
         form = {key: values[0] for key, values in parse_qs((body or b"").decode()).items()}
         self.requests.append((method, parts.path, dict(headers)))
         asked = Asked(method, parts.query, form, headers.get("Cookie", ""))
-        return self.routes[parts.path](asked)
+        return self.secure(self.routes[parts.path](asked))
+
+    def secure(self, given: Answer) -> Answer:
+        """Add the headers Caddy sets on every answer in HTTPS."""
+        return Answer(given.status, (*given.headers, *self.secured.items()), given.body)
 
 
 LOGIN = f"{ADDRESS}/auth/realms/waterfall/protocol/openid-connect/auth?client_id=waterfall-front"
@@ -434,14 +554,67 @@ def test_an_account_that_does_not_name_the_administrator_fails() -> None:
         production.check_signed_in(browser, PLATFORM, EMAIL)
 
 
-def test_http_must_send_to_https() -> None:
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_http_must_send_to_the_same_page_at_the_published_address() -> None:
     production.check_https_alone(Browser(FakePlatform({}).send), PLATFORM)
+    moved = Platform("waterfall.localhost", 44443, 44080)
+    sent = FakePlatform({}, address=moved.address)
+    production.check_https_alone(Browser(sent.send), moved)
 
     def clear(_method: str, _url: str, _body: bytes | None, _headers: Mapping[str, str]) -> Answer:
         return answer(200, "the front in clear")
 
     with pytest.raises(ProductionError, match="HTTP answered 200"):
         production.check_https_alone(Browser(clear), PLATFORM)
+
+
+def test_a_redirection_to_https_that_leaves_out_the_published_port_fails() -> None:
+    # Caddy's own redirection names the port of the container, 443: the browser would knock on a
+    # port the machine does not publish.
+    moved = Platform("waterfall.localhost", 44443, 44080)
+    portless = FakePlatform({}, address="https://waterfall.localhost")
+    with pytest.raises(
+        ProductionError,
+        match=r"to 'https://waterfall.localhost/login', not a redirection to "
+        r"https://waterfall.localhost:44443/login",
+    ):
+        production.check_https_alone(Browser(portless.send), moved)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_an_answer_in_https_carries_hsts_and_the_headers_of_caddy() -> None:
+    production.check_security_headers(Browser(FakePlatform(realm_routes()).send), PLATFORM)
+
+
+@pytest.mark.parametrize(
+    ("secured", "said"),
+    [
+        ({}, "Strict-Transport-Security: None"),
+        (
+            {**production.SECURITY_HEADERS, "Strict-Transport-Security": "max-age=0"},
+            "Strict-Transport-Security: 'max-age=0'",
+        ),
+        (
+            {**production.SECURITY_HEADERS, "X-Frame-Options": "ALLOWALL"},
+            "X-Frame-Options: 'ALLOWALL'",
+        ),
+    ],
+    ids=["no-hsts", "hsts-off", "framed"],
+)
+def test_an_answer_in_https_without_hsts_or_a_header_of_caddy_fails(
+    secured: dict[str, str], said: str
+) -> None:
+    fake = FakePlatform(realm_routes(), secured=secured)
+    with pytest.raises(ProductionError, match=f"/login answered {said} in HTTPS"):
+        production.check_security_headers(Browser(fake.send), PLATFORM)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_console_of_keycloak_and_its_realm_master_must_not_be_served() -> None:
+    production.check_console_hidden(Browser(FakePlatform({}).send), PLATFORM)
+    served = FakePlatform({path: fixed(200) for path in production.HIDDEN})
+    with pytest.raises(ProductionError, match="/auth/admin/ answered 200, not 404"):
+        production.check_console_hidden(Browser(served.send), PLATFORM)
 
 
 class Docker:
@@ -453,9 +626,11 @@ class Docker:
         up: int = 0,
         installed: str = f"{LINK}\n",
         live: str = '{"status": "ok"}',
+        rights: str = "f|f|f\n",
         failing: bool = False,
     ) -> None:
         self.failing = failing
+        self.rights = rights
         self.up = up
         self.installed = installed
         self.live = live
@@ -472,7 +647,7 @@ class Docker:
         if "install" in command:
             return 0, self.installed
         if "exec" in command:
-            return 0, self.live
+            return 0, self.rights if "postgres" in command else self.live
         if "cp" in command:
             Path(command[-1]).write_text("root", encoding="utf-8")
         return 0, ""
@@ -506,13 +681,37 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     docker = Docker()
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 0
-    assert docker.verbs() == ["up", "run", "exec", "cp", "down"]
+    assert docker.verbs() == ["up", "run", "exec", "exec", "cp", "down"]
     assert docker.ran[0][:5] == ["docker", "compose", "--project-name", "trial-a3", "--file"]
     assert docker.ran[0][-4:] == ["up", "--detach", "--wait", "--quiet-pull"]
     assert docker.ran[-1][-2:] == ["down", "--volumes"]
     said = capsys.readouterr().out
     assert f"the images {TAG}, at https://waterfall.localhost" in said
+    assert "HTTP sends to https://waterfall.localhost\n" in said
+    assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
+    assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
+
+
+def test_the_owner_of_the_tables_must_be_no_superuser(capsys: pytest.CaptureFixture[str]) -> None:
+    production.check_owner("f|f|f\n")
+    for rights in ("t|f|f", "f|t|f", "f|f|t", ""):
+        with pytest.raises(ProductionError, match="waterfall, is a superuser"):
+            production.check_owner(rights)
+    docker = Docker(rights="t|t|t\n")
+    fake = FakePlatform(realm_routes())
+    assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 1
+    asked = docker.ran[3]
+    assert asked[asked.index("exec") :][:6] == [
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "--username=postgres",
+        "--no-psqlrc",
+    ]
+    assert f"--command={production.OWNER_RIGHTS}" in asked
+    assert "is a superuser" in capsys.readouterr().err
 
 
 def test_a_platform_that_does_not_start_is_said_and_removed() -> None:

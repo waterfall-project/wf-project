@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The front end of the production platform (US-0430): the only door to it. It obtains alone the
-# certificates of WATERFALL_DOMAIN from Let's Encrypt, and sends every request in HTTP to HTTPS: the
-# browser speaks HTTPS alone (WF-SEC-0010). The front is served at the root, Keycloak under /auth. A
-# local name — localhost, *.localhost, *.internal, an address — gets its certificate from Caddy's
-# own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
+# certificates of WATERFALL_DOMAIN from Let's Encrypt, and sends every request in HTTP to HTTPS, at
+# the address the platform is published at, WATERFALL_ADDRESS: the browser speaks HTTPS alone
+# (WF-SEC-0010). The front is served at the root, Keycloak under /auth, but its console and its
+# realm master. A local name — localhost, *.localhost, *.internal, an address — gets its certificate
+# from Caddy's own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
 {
 	# The account Let's Encrypt writes to before a certificate expires.
 	email {$WATERFALL_ACME_EMAIL}
@@ -20,8 +21,26 @@
 	}
 }
 
+# In HTTP, the same page in HTTPS, at the published address — its port of HTTPS included, which the
+# redirection Caddy makes by itself would leave out. Let's Encrypt is still answered here.
+http://{$WATERFALL_DOMAIN} {
+	redir {$WATERFALL_ADDRESS}{uri} 308
+}
+
 {$WATERFALL_DOMAIN} {
 	encode zstd gzip
+
+	# On every answer, whoever made it: the browser comes back in HTTPS alone for a year, takes no
+	# answer for another type than the one it says, sends no path to another site, and lets no other
+	# site frame a page — Keycloak frames its own, under /auth, hence SAMEORIGIN. Set as the answer
+	# leaves, they replace what the front or Keycloak said.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		defer
+	}
 
 	# The routes of the front under /auth: the return from the realm, and the end of its session.
 	# Its back channel, which Keycloak reaches inside the network of the platform, is not served
@@ -31,7 +50,15 @@
 		reverse_proxy front:3000
 	}
 
-	# Keycloak, built under /auth: its pages, its endpoints, its console.
+	# The console of Keycloak and its realm master, whose administrator holds every realm, are not
+	# served: they are reached on the machine alone (README.md, « Administrer Keycloak »). The API and
+	# the worker reach the administration API of the realm inside the network, at keycloak:8080.
+	@keycloak-admin path /auth/admin /auth/admin/* /auth/realms/master /auth/realms/master/*
+	handle @keycloak-admin {
+		respond 404
+	}
+
+	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall.
 	handle /auth/* {
 		reverse_proxy keycloak:8080
 	}

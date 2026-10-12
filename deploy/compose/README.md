@@ -9,10 +9,10 @@ Cette notice installe Waterfall sur une machine seule, à partir des images que 
 sur `ghcr.io/waterfall-project`, derrière un frontal HTTPS (US-0430, WF-ARC-0050). Le fichier
 Compose est `compose.prod.yaml` ; les autres fichiers de ce répertoire servent la plateforme de
 développement et la plateforme de service, sauf ceux qu'il monte : `Caddyfile.prod`,
-`garage.toml`, `storage-buckets.sh` et les scripts SQL des rôles et de la base de Keycloak.
+`garage.toml`, `storage-buckets.sh` et les scripts SQL des rôles et des bases.
 
 La plateforme compte un frontal Caddy, seul port ouvert, qui obtient ses certificats de Let's
-Encrypt et sert le front à la racine et Keycloak sous `/auth` ; le front, l'API, le worker et le
+Encrypt et sert le front à la racine et Keycloak sous `/auth`, hors sa console ; le front, l'API, le worker et le
 planificateur de ses tâches ; PostgreSQL, qui porte deux bases, celle de Waterfall et celle de
 Keycloak ; Redis ; Garage, le stockage objet, et ses compartiments `backups` et `imports` ;
 Keycloak et l'application de son royaume. Les données vivent dans des volumes nommés.
@@ -55,11 +55,22 @@ Puis :
    docker compose -f compose.prod.yaml up --detach --wait
    ```
 
-   Compose tire les images, puis démarre les services dans l'ordre : PostgreSQL, les rôles et la
-   base de Keycloak, les migrations, l'API, le worker, Keycloak, l'application du royaume, le
+   Compose tire les images, puis démarre les services dans l'ordre : PostgreSQL, la base de
+   Waterfall et son propriétaire, les rôles et la base de Keycloak, les migrations, l'API, le worker, Keycloak, l'application du royaume, le
    front. Un réglage ou un secret absent de `.env` arrête la commande en nommant la variable. Au
    premier démarrage, Caddy obtient le certificat du nom : la plateforme répond ensuite sur
-   `https://<nom>`.
+   `https://<nom>`. En HTTP, Caddy renvoie à la même page sur cette adresse ; en HTTPS, il demande
+   au navigateur de ne plus revenir qu'en HTTPS pendant un an (HSTS), et interdit à un autre site
+   d'encadrer ses pages.
+
+PostgreSQL a son administrateur, `postgres`, dont le mot de passe,
+`WATERFALL_POSTGRES_ADMIN_PASSWORD`, ne sert qu'aux services d'initialisation qui créent, à chaque
+démarrage et s'ils manquent, les rôles et les bases (`waterfall-database.sql`,
+`keycloak-database.sql` et les scripts des rôles) ; il n'est lu qu'au premier démarrage, qui le
+crée. Les migrations et l'amorçage passent par `waterfall`, propriétaire de la base et de ses
+tables, qui n'est pas superutilisateur et ne crée ni rôle ni base (`WATERFALL_POSTGRES_PASSWORD`) ;
+l'API, le worker et le planificateur, par le rôle du service, qui ne tient que ce que les tables lui
+accordent ; les sauvegardes, par le rôle de sauvegarde.
 
 ## Amorcer
 
@@ -79,6 +90,39 @@ L'amorçage est un service à lui, `install`, que `up` ne démarre jamais : il p
 propriétaire des tables (#701) et tient seul le secret du client de l'amorçage (#652), que ni
 l'API ni le worker ne tiennent. C'est la même image que l'API, sous la commande
 `waterfall-api install`.
+
+## Administrer Keycloak
+
+La console d'administration de Keycloak et son royaume `master`, dont l'administrateur `admin`
+tient tous les royaumes, ne sont pas servis par Caddy : `/auth/admin` et `/auth/realms/master`
+répondent 404. Le royaume `waterfall` se règle par son fichier, que `keycloak-realm` applique à
+chaque démarrage ; un réglage fait à la main dans la console y revient.
+
+Pour ouvrir la console quand même, le temps d'une intervention, une surcharge Compose locale
+publie Keycloak sur la seule boucle locale de la machine, et lui dit que sa console s'y trouve.
+Elle s'écrit à côté des autres, sous le nom `compose.admin.yaml` par exemple :
+
+```yaml
+services:
+  keycloak:
+    environment:
+      KC_HOSTNAME_ADMIN: http://localhost:8080/auth
+    ports:
+      - "127.0.0.1:8080:8080"
+```
+
+```sh
+docker compose -f compose.prod.yaml -f compose.admin.yaml up --detach --wait keycloak
+```
+
+Depuis un poste, un tunnel SSH y mène : `ssh -L 8080:127.0.0.1:8080 <machine>`, puis
+`http://localhost:8080/auth/admin/` dans le navigateur du poste, avec l'utilisateur `admin` et le
+mot de passe `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`. L'intervention finie, Keycloak redémarre sans la
+surcharge, et le port se referme :
+
+```sh
+docker compose -f compose.prod.yaml up --detach --wait keycloak
+```
 
 ## Mettre à jour
 
@@ -142,6 +186,7 @@ déplacent les ports publiés ; un port HTTPS autre que 443 entre dans l'adresse
 `make production-trial` fait ainsi l'essai de la chaîne (`wftools.production`) : sur les images de
 `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut, que `make images` construit —, sous le nom
 `waterfall.localhost`, il démarre la plateforme, l'amorce, vérifie la sonde de vie de l'API, que
-HTTP renvoie vers HTTPS, et que le premier administrateur fixe son mot de passe par le lien, se
+HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS répond avec HSTS et les
+autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se
 connecte par le front et Keycloak et que le front le nomme ; puis il retire la plateforme et ses
 volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.

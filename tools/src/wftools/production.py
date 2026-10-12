@@ -13,7 +13,12 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 
 - the bootstrap, ``docker compose run --rm install``, writes the link of the first administrator;
 - the API answers its liveness probe, ``status`` ``ok``;
-- the platform answers in HTTP by sending to HTTPS alone (WF-SEC-0010);
+- the owner of the tables, ``waterfall``, is no superuser, and can create neither a role nor a
+  database: the administrator of the server is ``postgres``, the services' of initialisation alone;
+- the platform answers in HTTP by sending to the same page in HTTPS, at its published address
+  (WF-SEC-0010); in HTTPS, with the headers that keep the browser there and its pages to
+  themselves, HSTS first;
+- the console of Keycloak and its realm master are not served (404);
 - the first administrator sets their password by the link, signs in through the front, at the root
   of the domain, and Keycloak under ``/auth``, and the front opens the session: its cookie set, a
   page of the front that names them.
@@ -54,12 +59,26 @@ LIVENESS = (
     "print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"
     ".read().decode())"
 )
+OWNER_RIGHTS = (
+    "SELECT rolsuper, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname = 'waterfall'"
+)
+"""What the owner of the tables may do on the server, asked as its administrator."""
 SESSION_COOKIE = "__Host-wf_session"
 HTTPS_PORT = 443
 HTTP_PORT = 80
 REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 MOST_REDIRECTIONS = 20
 OK = 200
+NOT_FOUND = 404
+SECURITY_HEADERS = {
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Frame-Options": "SAMEORIGIN",
+}
+"""The headers Caddy sets on every answer in HTTPS (Caddyfile.prod)."""
+HIDDEN = ("/auth/admin/", "/auth/realms/master/")
+"""The console of Keycloak and its realm master, which Caddy does not serve."""
 TIMEOUT = 30.0
 _LINK = re.compile(r"^https://\S+$", re.MULTILINE)
 _FORM_ACTION = re.compile(r'<form[^>]*\baction="([^"]*)"')
@@ -191,14 +210,43 @@ def check_liveness(output: str) -> None:
         raise ProductionError(message)
 
 
+def check_owner(output: str) -> None:
+    """Hold that the owner of the tables is no superuser, and creates neither a role nor a base."""
+    if output.strip() != "f|f|f":
+        message = (
+            "the owner of the tables, waterfall, is a superuser, creates a role or a database: "
+            f"{output.strip()!r} (rolsuper|rolcreaterole|rolcreatedb)"
+        )
+        raise ProductionError(message)
+
+
 def check_https_alone(browser: Browser, platform: Platform) -> None:
-    """Hold that the platform answers in HTTP by sending to the same page in HTTPS."""
+    """Hold that the platform answers in HTTP by sending to the same page at its HTTPS address."""
     plain = f"http://{platform.domain}:{platform.http_port}/login"
     answer = browser.request("GET", plain)
-    location = answer.header("Location") or ""
-    if answer.status not in REDIRECTIONS or urlsplit(location).scheme != "https":
-        message = f"HTTP answered {answer.status}, not a redirection to HTTPS ({location!r})"
+    location = answer.header("Location")
+    expected = f"{platform.address}/login"
+    if answer.status not in REDIRECTIONS or location != expected:
+        message = f"HTTP answered {answer.status} to {location!r}, not a redirection to {expected}"
         raise ProductionError(message)
+
+
+def check_security_headers(browser: Browser, platform: Platform) -> None:
+    """Hold that an answer in HTTPS carries the headers of Caddy, HSTS first."""
+    answer = browser.request("GET", f"{platform.address}/login")
+    for name, value in SECURITY_HEADERS.items():
+        if (said := answer.header(name)) != value:
+            message = f"/login answered {name}: {said!r} in HTTPS, not {value!r}"
+            raise ProductionError(message)
+
+
+def check_console_hidden(browser: Browser, platform: Platform) -> None:
+    """Hold that the console of Keycloak and its realm master are not served."""
+    for path in HIDDEN:
+        answer = browser.request("GET", f"{platform.address}{path}")
+        if answer.status != NOT_FOUND:
+            message = f"{path} answered {answer.status}, not {NOT_FOUND}: it is served"
+            raise ProductionError(message)
 
 
 def set_password(browser: Browser, link: str, password: str) -> None:
@@ -270,12 +318,21 @@ def trial(
     probe = [*compose, "exec", "-T", "api", "python", "-c", LIVENESS]
     check_liveness(_output(read, probe))
     print("  the API answers its liveness probe: ok")
+    psql = [*compose, "exec", "-T", "postgres", "psql", "--username=postgres", "--no-psqlrc"]
+    rights = [*psql, "--tuples-only", "--no-align", f"--command={OWNER_RIGHTS}"]
+    check_owner(_output(read, rights))
+    print("  the owner of the tables, waterfall, is no superuser")
     with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
         authority = Path(folder) / "root.crt"
         _output(read, [*compose, "cp", AUTHORITY, str(authority)])
-        browser = Browser(send(authority))
-        check_https_alone(browser, platform)
-        print("  HTTP sends to HTTPS")
+        sent = send(authority)
+        check_https_alone(Browser(sent), platform)
+        print(f"  HTTP sends to {platform.address}")
+        check_security_headers(Browser(sent), platform)
+        print(f"  HTTPS answers with {', '.join(SECURITY_HEADERS)}")
+        check_console_hidden(Browser(sent), platform)
+        print(f"  {' and '.join(HIDDEN)} answer {NOT_FOUND}")
+        browser = Browser(sent)
         password = f"Trial-{secrets.token_urlsafe(18)}"
         set_password(browser, link, password)
         print("  the first administrator sets their password by the link")

@@ -26,10 +26,15 @@ x-postgres-image: &postgres-image postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce
 
 # The API, the worker and the schedule connect as the role of the service, which holds only what the
 # tables grant it, waterfall_service (#701); the migrations and the bootstrap, as waterfall, the
-# owner of the tables.
+# owner of the tables, no superuser. The administrator of the server, postgres, is the services' of
+# initialisation alone, which create the roles and the databases (x-administrator).
 x-back-environment: &back-environment
   WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall
   WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
+x-administrator: &administrator
+  PGHOST: postgres
+  PGUSER: postgres
+  PGPASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
 x-owner-database-url: &owner-database-url postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}@postgres:5432/waterfall
 
 # The issuer of every token is the address the browser reaches Keycloak at; the API and the worker
@@ -62,6 +67,8 @@ services:
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
     environment:
       WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
+      # Where HTTP sends to: the published address, its port of HTTPS included.
+      WATERFALL_ADDRESS: *address
       WATERFALL_ACME_EMAIL: ${WATERFALL_ACME_EMAIL:?set WATERFALL_ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile.prod:ro
@@ -101,17 +108,17 @@ services:
       timeout: 5s
       retries: 30
 
+  # The administrator of the server, postgres, made at the first start alone, as is its password.
   postgres:
     image: *postgres-image
     environment:
-      POSTGRES_USER: waterfall
-      POSTGRES_DB: waterfall
-      POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username waterfall --dbname waterfall"]
+      test: ["CMD-SHELL", "pg_isready --username postgres --dbname postgres"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -130,6 +137,22 @@ services:
       timeout: 3s
       retries: 30
 
+  # The database of Waterfall and its owner, no superuser, created when missing, with the role of
+  # the service, which the owner may not create (waterfall-database.sql).
+  waterfall-database:
+    image: *postgres-image
+    user: postgres
+    command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/waterfall-database.sql"]
+    environment:
+      <<: *administrator
+      PGDATABASE: postgres
+      OWNER_DATABASE_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./waterfall-database.sql:/waterfall-database.sql:ro
+    restart: "no"
+    depends_on:
+      postgres: *healthy
+
   # Applies the migrations as the owner of the tables, then stops: at each start, so that a new tag
   # migrates the schema before the API starts on it (#701, WF-DAT-0140).
   migrate:
@@ -140,7 +163,7 @@ services:
     command: ["waterfall-migrate"]
     restart: "no"
     depends_on:
-      postgres: *healthy
+      waterfall-database: *done
 
   # Lets the role of the service, which the migrations create, sign in with its password.
   service-database-role:
@@ -148,10 +171,8 @@ services:
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
     environment:
-      PGHOST: postgres
-      PGUSER: waterfall
+      <<: *administrator
       PGDATABASE: waterfall
-      PGPASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
       SERVICE_DATABASE_PASSWORD: ${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}
     volumes:
       - ./service-database-role.sql:/service-database-role.sql:ro
@@ -166,16 +187,14 @@ services:
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
     environment:
-      PGHOST: postgres
-      PGUSER: waterfall
+      <<: *administrator
       PGDATABASE: waterfall
-      PGPASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
       BACKUP_DATABASE_PASSWORD: ${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}
     volumes:
       - ./backup-database-role.sql:/backup-database-role.sql:ro
     restart: "no"
     depends_on:
-      postgres: *healthy
+      waterfall-database: *done
 
   # The database of Keycloak on the same server, with its role, created when missing.
   keycloak-database:
@@ -183,10 +202,8 @@ services:
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/keycloak-database.sql"]
     environment:
-      PGHOST: postgres
-      PGUSER: waterfall
-      PGDATABASE: waterfall
-      PGPASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
+      <<: *administrator
+      PGDATABASE: postgres
       KEYCLOAK_DATABASE_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
     volumes:
       - ./keycloak-database.sql:/keycloak-database.sql:ro
@@ -246,7 +263,8 @@ services:
   # The bootstrap (US-0420): `docker compose -f compose.prod.yaml run --rm install` once the platform
   # is up. The migrations, then what nobody may enter without, and the link of the first
   # administrator, alone on its standard output. As the owner of the tables (#701), and the only
-  # service that holds the secret of the client of the bootstrap (#652). Never started by `up`.
+  # service that holds the secret of the client of the bootstrap (#652). Never started by `up`; run
+  # alone, it waits for the schema migrated and for the realm applied, whose client it uses.
   install:
     image: *waterfall-image
     profiles: [install]
@@ -260,7 +278,9 @@ services:
     restart: "no"
     depends_on:
       postgres: *healthy
+      migrate: *done
       keycloak: *healthy
+      keycloak-realm: *done
 
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
   # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
