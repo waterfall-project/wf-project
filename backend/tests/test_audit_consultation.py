@@ -229,11 +229,20 @@ def test_an_inscription_is_read_as_it_was_written_by_its_codes_and_its_data(
     assert (marked["params"], events[str(identifiers[4])]["actor"]) == ({}, {"kind": "platform"})
 
 
-COLUMNS = ["occurred_at", "actor", "action", "object_kind", "object_label", "project"]
+# The seven columns of the journal, the correlation among them.
+COLUMNS = [
+    "occurred_at",
+    "actor",
+    "action",
+    "object_kind",
+    "object_label",
+    "project",
+    "correlation_id",
+]
 
 
 @pytest.mark.requirement("WF-IHM-0060-A")
-@pytest.mark.parametrize("column", [*COLUMNS, "correlation_id"])
+@pytest.mark.parametrize("column", COLUMNS)
 @pytest.mark.parametrize("order", ["asc", "desc"])
 def test_each_column_of_the_journal_sorts_in_both_directions(
     api: ContractClient, database: Database, reader: dict[str, str], column: str, order: str
