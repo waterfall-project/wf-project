@@ -130,9 +130,10 @@ export async function GET(request: Request): Promise<Response> {
       throw error;
     }
     console.error("A sign-in could not be made", error);
-    // The cookie forgotten too: the layout of the page would read Redis for it, out of reach. The
-    // sign-in offered again does not ask for the identifiers: a return comes from a sign-in the
-    // realm made, which gave its session a moment of its own, past any closing (#855).
+    // The cookie forgotten too: the layout of the page would read Redis for it, out of reach. Not
+    // asked again: a return that followed `prompt=login` comes after the realm signed her in anew,
+    // which renewed `auth_time`; any other return loses nothing, a token of a session closed since
+    // being refused `SESSION_REVOKED`, whose sign-in asks for the identifiers (#855).
     return redirect(
       signInUnavailableHref(target),
       forgottenSessionCookie(),
