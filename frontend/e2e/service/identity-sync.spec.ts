@@ -2,25 +2,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The reading of the accounts of the identity provider asked from the screen of the accounts,
- * against the service (US-0370): an administrator of the accounts — the person of the directory —
+ * against the service (US-0370): an administrator of the accounts — a local account of the path —
  * presses « Lire les comptes »; the service queues the task and gives the hand back at once, the
  * worker reads the realm, and the tracker of the shell follows the task to its end, which it
  * announces (WF-ARC-0090); the screen read anew shows the report of that reading, ended after the
  * one it showed before (WF-ADM-0070).
  *
- * The roles of the person of the directory are written in the database of the platform once her
- * account is Waterfall's (`accountAdministrator`), as an administrator would give them.
+ * The local account is created by the administrator of the installation, its password set by its
+ * link (`localAccount`); its role — reading the accounts and modifying them, which the command asks
+ * — is given by the administrator (`Administrator.give`), and withdrawn at the end.
  */
 import { expect, type Locator, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
 import { WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
-import { accountAdministrator, DIRECTORY, signIn } from "./realm";
+import { accountAdministrator, localAccount, signIn, withdrawRoles } from "./realm";
 
 heldToTheContract();
 
 const USERS = "/admin/users";
+const SYNCHRONISER = "Lecture des comptes du fournisseur (parcours)";
 
 test.beforeEach(async ({ request }) => {
   await compileAnswered(request, "/auth/callback", USERS);
@@ -51,12 +53,15 @@ test("the reading of the accounts asked from the screen gives the hand back at o
   page,
   playwright,
 }) => {
-  // The worker reads the realm after the directory has been synchronised: a minute at most.
-  test.setTimeout(120_000);
+  // An account created and its password set, then the worker reads the realm after the directory
+  // has been synchronised: a minute at most.
+  test.setTimeout(150_000);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   const administrator = await accountAdministrator(browser, calls);
+  const holder = await localAccount(browser, administrator);
   try {
-    await signIn(page, DIRECTORY, USERS);
+    await administrator.give(holder.id, SYNCHRONISER, ["users.read", "users.write"]);
+    await signIn(page, holder, USERS);
     const reading = page.getByRole("region", {
       name: "Lecture des comptes du fournisseur d’identité",
     });
@@ -94,7 +99,7 @@ test("the reading of the accounts asked from the screen gives the hand back at o
       reading.getByRole("button", { name: "Détails de la dernière lecture" }),
     ).toBeVisible();
   } finally {
-    administrator.done();
+    withdrawRoles(holder.email);
     await calls.dispose();
   }
 });
