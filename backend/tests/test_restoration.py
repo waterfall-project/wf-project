@@ -47,6 +47,7 @@ from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
+from waterfall.platform.restoration import begin_keeping, keep
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
@@ -392,6 +393,34 @@ def test_a_restoration_taken_up_after_an_interruption_writes_back_what_it_kept_t
     assert count(installation.database, AuditEntry.id == after) == 1
     with installation.database.transaction() as session:
         assert session.scalar(select(func.count()).select_from(Backup)) == 1
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_keeping_cut_short_before_the_replacement_is_made_again_whole(
+    installation: Installation,
+    take: Take,
+    backups_api: ContractClient,
+    realm: TestRealm,
+    tmp_path: Path,
+) -> None:
+    # A keeping committed on the way — the journal kept, nothing else — and cut short: the
+    # database is not replaced yet, and the restoration taken up keeps all again. The backups,
+    # an inscription made after the backup and the rights of the role of the service come back.
+    subject = f"subject-{uuid4()}"
+    held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
+    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    backup_task = take()
+    after = inscribe(installation.database, "Après la sauvegarde")
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        begin_keeping(connection)
+        keep(connection, AuditEntry)
+    owner.dispose()
+    restore(installation, backup_task, tmp_path)
+    assert count(installation.database, AuditEntry.id == after) == 1
+    listed = backups_api.get(BACKUPS, headers=bearer(realm.token(subject, KEY)))
+    assert listed.status_code == 200
+    assert listed.json()["meta"]["total"] == 1
 
 
 def test_an_archive_of_a_newer_version_than_the_installation_is_refused_before_anything_changes(

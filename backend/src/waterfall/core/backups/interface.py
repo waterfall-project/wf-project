@@ -29,7 +29,14 @@ from waterfall.platform.audit import (
 )
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.restoration import begin_keeping, end_keeping, is_kept, keep, write_back
+from waterfall.platform.restoration import (
+    begin_keeping,
+    end_keeping,
+    is_kept,
+    keep,
+    keep_grants,
+    write_back,
+)
 from waterfall.platform.tasks import keep_tasks, write_back_tasks
 
 NOT_FOUND = "NOT_FOUND"
@@ -137,6 +144,11 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     restoration and those of the backups, and the rights of the role of the service, copied aside
     in the database the restoration replaces; a restoration taken up finds them kept already, and
     does not read again a database half replaced.
+
+    ``connection`` holds one transaction, which the caller commits before it replaces anything: the
+    rows kept are then those of one instant. The rights are kept last, and mark the whole kept; a
+    keeping cut short — by a caller that committed on the way — is made again from the beginning,
+    the database not being replaced yet.
     """
     if is_kept(connection):
         return
@@ -144,6 +156,7 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     keep(connection, AuditEntry)
     keep(connection, Backup)
     keep_tasks(connection, [restoration, *connection.scalars(select(Backup.task_id))])
+    keep_grants(connection)
 
 
 def write_back_after_restoration(connection: Connection, restoration: UUID, at: datetime) -> None:
