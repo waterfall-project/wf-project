@@ -200,6 +200,11 @@ def branches(schemas: list[SchemaPath]) -> list[SchemaPath]:
     return found
 
 
+def segment(name: str) -> str:
+    """Escape a property name as a segment of a JSON pointer (RFC 6901): ``~`` then ``/``."""
+    return name.replace("~", "~0").replace("/", "~1")
+
+
 def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str]:
     """Point at each property of the value that none of its schemas declares.
 
@@ -229,12 +234,13 @@ def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str
             elif isinstance(more.read_value(), dict):
                 extra.append(more)
     for name, below in cast("dict[str, object]", value).items():
+        at = f"{pointer}/{segment(name)}"
         if name in declared:
-            yield from walk(declared[name], below, f"{pointer}/{name}")
+            yield from walk(declared[name], below, at)
         elif extra:
-            yield from walk(extra, below, f"{pointer}/{name}")
+            yield from walk(extra, below, at)
         elif not open_:
-            yield f"{pointer}/{name}"
+            yield at
 
 
 class ContractClient:

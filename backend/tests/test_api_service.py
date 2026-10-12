@@ -167,8 +167,9 @@ def test_a_response_that_the_contract_does_not_describe_is_rejected(
             },
             "/fields/0/message",
         ),
+        (200, {"status": "ok", "a/b~c": "Phrase"}, "/a~1b~0c"),
     ],
-    ids=["at the top of the body", "in an object of a list"],
+    ids=["at the top of the body", "in an object of a list", "escaped as RFC 6901 says"],
 )
 def test_an_answer_that_holds_a_property_its_schema_does_not_declare_is_rejected(
     contract: OpenAPI, status: int, body: dict[str, object], pointer: str
