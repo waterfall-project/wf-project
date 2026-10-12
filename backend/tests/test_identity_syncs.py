@@ -10,6 +10,7 @@ runs once its transaction is committed, never if what registered it is rolled ba
 """
 
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -146,8 +147,13 @@ def test_the_report_read_is_that_of_the_latest_reading_ended(
     assert api.get(LATEST, headers=outside).status_code == 404
 
 
-class Undone(Exception):
-    """What undoes the savepoint of a test."""
+class UndoneError(Exception):
+    """What undoes the savepoint, or the transaction, of a test."""
+
+
+def undone() -> None:
+    """Undo the savepoint, or the transaction, this runs in."""
+    raise UndoneError
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
@@ -159,20 +165,17 @@ def test_what_waits_for_the_commit_is_dropped_with_the_savepoint_rolled_back(
     # though the worker commits the end of the task after.
     ran: list[str] = []
     with database.transaction() as session:
-        try:
+        with suppress(UndoneError), session.begin_nested():
+            after_commit(session, lambda: ran.append("savepoint"))
             with session.begin_nested():
-                after_commit(session, lambda: ran.append("savepoint"))
-                with session.begin_nested():
-                    after_commit(session, lambda: ran.append("within"))
-                raise Undone
-        except Undone:
-            pass
+                after_commit(session, lambda: ran.append("within"))
+            undone()
         after_commit(session, lambda: ran.append("root"))
     assert ran == ["root"]
 
     def failing(session: Session, _task: Task) -> None:
         after_commit(session, lambda: ran.append("task"))
-        raise Undone
+        undone()
 
     task_id = deposit(database, queue)
     assert Worker(database, queue, {"identity_sync": failing}, "worker").run_task(task_id)
@@ -189,15 +192,17 @@ def test_what_waits_for_the_commit_runs_once_after_it_and_never_after_a_rollback
         with session.begin_nested():
             after_commit(session, lambda: ran.append("released"))
         assert ran == []
-        try:
-            with session.begin_nested():
-                raise Undone
-        except Undone:
-            pass
+        with suppress(UndoneError), session.begin_nested():
+            undone()
     assert ran == ["released"]
-    with pytest.raises(Undone), database.transaction() as session:
-        after_commit(session, lambda: ran.append("root"))
-        with session.begin_nested():
-            after_commit(session, lambda: ran.append("savepoint"))
-        raise Undone
+
+    def rolled_back() -> None:
+        with database.transaction() as session:
+            after_commit(session, lambda: ran.append("root"))
+            with session.begin_nested():
+                after_commit(session, lambda: ran.append("savepoint"))
+            undone()
+
+    with pytest.raises(UndoneError):
+        rolled_back()
     assert ran == ["released"]
