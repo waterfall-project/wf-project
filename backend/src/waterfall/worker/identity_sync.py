@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import event
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, SessionTransaction
 from structlog.contextvars import get_contextvars
 
 from waterfall.core.access_roles.interface import guard_deactivation, lock_administrators
@@ -191,15 +191,28 @@ def write_accounts(
 def after_commit(session: Session, action: Callable[[], None]) -> None:
     """Run an action once the transaction of a session is committed, under the logs' context.
 
-    Not at the release of a savepoint of it, nor if it is rolled back. The session ends with its
-    transaction (``Database.transaction``): the action runs once.
+    Not at the release of a savepoint of it, nor if the transaction it is registered in is rolled
+    back: neither the savepoint active then, nor any it is within, nor the root. A savepoint rolled
+    back under a root then committed — the worker's run of a task that fails — undoes the action.
+    The session ends with its transaction (``Database.transaction``): the action runs once.
     """
     context = get_contextvars()
+    registered = session.get_nested_transaction() or session.get_transaction()
+    within: set[SessionTransaction] = set()
+    while registered is not None:
+        within.add(registered)
+        registered = registered.parent
+    undone = False
+
+    def undo(_session: Session, rolled_back: SessionTransaction) -> None:
+        nonlocal undone
+        undone = undone or rolled_back in within
 
     def run(committed: Session) -> None:
-        if committed.get_nested_transaction() is not None:
+        if undone or committed.get_nested_transaction() is not None:
             return
         with logging_context(**context):
             action()
 
+    event.listen(session, "after_soft_rollback", undo)
     event.listen(session, "after_commit", run)

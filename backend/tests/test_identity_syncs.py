@@ -4,7 +4,9 @@
 
 A reading is deposited for the worker and the request answers at once (WF-ARC-0090); its report is
 read apart. Keycloak is the realm of test, which the reading never reaches here: what the worker
-reads of Keycloak is tried against the platform (``test_keycloak_identity_sync.py``).
+reads of Keycloak is tried against the platform (``test_keycloak_identity_sync.py``). What the
+reading does once committed — the removal of the orphans — is tried here against PostgreSQL: it
+runs once its transaction is committed, never if what registered it is rolled back.
 """
 
 from collections.abc import Callable
@@ -17,6 +19,7 @@ from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import update
+from sqlalchemy.orm import Session
 from support import ContractClient, bearer, nowhere
 from task_handlers import deposit, task
 
@@ -28,7 +31,9 @@ from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings
-from waterfall.platform.tasks import BackgroundTask
+from waterfall.platform.tasks import BackgroundTask, Task
+from waterfall.worker.identity_sync import after_commit
+from waterfall.worker.runner import Worker
 
 SYNCS = "/api/v1/identity-syncs"
 LATEST = f"{SYNCS}/latest"
@@ -139,3 +144,60 @@ def test_the_report_read_is_that_of_the_latest_reading_ended(
     # The accounts not consulted, the report does not exist for the caller.
     _, outside = person("users.write")
     assert api.get(LATEST, headers=outside).status_code == 404
+
+
+class Undone(Exception):
+    """What undoes the savepoint of a test."""
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_what_waits_for_the_commit_is_dropped_with_the_savepoint_rolled_back(
+    database: Database, queue: TaskQueue
+) -> None:
+    # « L'arrêt du worker pendant une tâche laisse la base inchangée » : a reading that fails
+    # leaves the realm as it was too — what it registered in the savepoint of its run never runs,
+    # though the worker commits the end of the task after.
+    ran: list[str] = []
+    with database.transaction() as session:
+        try:
+            with session.begin_nested():
+                after_commit(session, lambda: ran.append("savepoint"))
+                with session.begin_nested():
+                    after_commit(session, lambda: ran.append("within"))
+                raise Undone
+        except Undone:
+            pass
+        after_commit(session, lambda: ran.append("root"))
+    assert ran == ["root"]
+
+    def failing(session: Session, _task: Task) -> None:
+        after_commit(session, lambda: ran.append("task"))
+        raise Undone
+
+    task_id = deposit(database, queue)
+    assert Worker(database, queue, {"identity_sync": failing}, "worker").run_task(task_id)
+    assert task(database, task_id).status == "failed"
+    assert ran == ["root"]
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_what_waits_for_the_commit_runs_once_after_it_and_never_after_a_rollback(
+    database: Database,
+) -> None:
+    ran: list[str] = []
+    with database.transaction() as session:
+        with session.begin_nested():
+            after_commit(session, lambda: ran.append("released"))
+        assert ran == []
+        try:
+            with session.begin_nested():
+                raise Undone
+        except Undone:
+            pass
+    assert ran == ["released"]
+    with pytest.raises(Undone), database.transaction() as session:
+        after_commit(session, lambda: ran.append("root"))
+        with session.begin_nested():
+            after_commit(session, lambda: ran.append("savepoint"))
+        raise Undone
+    assert ran == ["released"]
