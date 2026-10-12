@@ -131,7 +131,9 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
  * Render the action of an inscription, in words, and under it what it did to its object, in the
  * language of the reader — its whole sentence on hover, the cell cutting it short; the action alone
  * when its object says it all. The column sorts by the action: what it did is a part of it, never a
- * column of its own, which the server could not sort (WF-IHM-0060).
+ * column of its own, which the server could not sort (WF-IHM-0060). Its two lines of small type hold
+ * in a row (`ROW_REM`) by a line as high as the type; each cuts its text short across only
+ * (`overflow-x: clip`), for the descenders and the accents, which pass the line, to show whole.
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
@@ -140,8 +142,11 @@ export function ActionCell({ event }: { readonly event: AuditEvent }) {
     t(event.action)
   ) : (
     <span className="flex flex-col text-xs leading-3">
-      <span className="truncate">{t(event.action)}</span>
-      <span title={details} className="truncate text-muted-foreground">
+      <span className="overflow-x-clip text-ellipsis whitespace-nowrap">{t(event.action)}</span>
+      <span
+        title={details}
+        className="overflow-x-clip text-ellipsis whitespace-nowrap text-muted-foreground"
+      >
         {details}
       </span>
     </span>
