@@ -35,6 +35,7 @@ from waterfall.platform.database import Base, UtcDateTime, utc_now
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import get_logger
 from waterfall.platform.queue import TaskQueue
+from waterfall.platform.restoration import keep, write_back
 
 # The kinds and the states of the contract (``BackgroundTaskRef.kind``, ``BackgroundTaskStatus``),
 # in its order; a new one is a change of the contract, then a migration of the constraint.
@@ -200,12 +201,20 @@ def list_tasks(
     return list(session.scalars(page)), total or 0
 
 
-def fail_interrupted(connection: Connection, spared: UUID, at: datetime) -> None:
-    """Fail every task a restored database holds queued or running, but the restoration's (#892).
+def keep_tasks(connection: Connection, task_ids: Collection[UUID]) -> None:
+    """Keep, before a restoration, the tasks it writes back: its own, and the backups' (#893)."""
+    keep(connection, BackgroundTask, BackgroundTask.id.in_(task_ids))
 
-    A backup that ran while its own database was dumped would otherwise run again, and write
-    over its archive. Each fails under its own correlation.
+
+def write_back_tasks(connection: Connection, restoration: UUID, at: datetime) -> None:
+    """Write back the tasks kept that the restored database lacks, then fail those it holds pending.
+
+    A task kept comes back without its requester where the restored database lacks the account.
+    Every task the restored database holds queued or running fails, under its own correlation, but
+    the restoration's (#892): run again, the backup the dump caught running would write over its
+    archive.
     """
+    write_back(connection, BackgroundTask, unsure={"requested_by"})
     problem = func.jsonb_build_object(
         "code",
         INTERRUPTED["code"],
@@ -216,6 +225,6 @@ def fail_interrupted(connection: Connection, spared: UUID, at: datetime) -> None
     )
     connection.execute(
         update(BackgroundTask)
-        .where(BackgroundTask.status.in_(PENDING), BackgroundTask.id != spared)
+        .where(BackgroundTask.status.in_(PENDING), BackgroundTask.id != restoration)
         .values(status="failed", problem=problem, finished_at=at)
     )

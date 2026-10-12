@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import UUID
@@ -30,27 +30,19 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from waterfall import __version__
-from waterfall.core.backups.interface import NOT_FOUND, keep_backups, write_back_backups
+from waterfall.core.backups.interface import (
+    NOT_FOUND,
+    keep_for_restoration,
+    write_back_after_restoration,
+)
 from waterfall.core.users.interface import inscribed_actor
-from waterfall.migrations.runner import upgrade
-from waterfall.platform.audit import AuditActor, AuditEntry, AuditObject, Inscription, record
+from waterfall.platform.audit import AuditActor, AuditObject, Inscription, record
 from waterfall.platform.database import create_database_engine, utc_now
 from waterfall.platform.errors import NotFoundError, UnprocessableError
-from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import get_logger
 from waterfall.platform.maintenance import Maintenance, Restoring
-from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
-from waterfall.platform.restoration import (
-    begin_keeping,
-    end_keeping,
-    is_kept,
-    keep,
-    write_back,
-)
-from waterfall.platform.settings import WorkerSettings
 from waterfall.platform.storage import Bucket, MissingObjectError
-from waterfall.platform.tasks import BackgroundTask, Task, fail_interrupted
+from waterfall.platform.tasks import Task
 from waterfall.worker.backup import (
     CHUNK,
     DATABASES,
@@ -163,24 +155,13 @@ class RestoreTask:
         bucket: Bucket,
         maintenance: Maintenance,
         provider: IdentityProvider,
+        migrate: Callable[[Engine], None],
     ) -> None:
         self.databases = databases
+        self.migrate = migrate
         self.bucket = bucket
         self.maintenance = maintenance
         self.provider = provider
-
-    @classmethod
-    def of(cls, settings: WorkerSettings) -> "RestoreTask":
-        """Restore the databases the settings name, as their owners, from the bucket of backups."""
-        owners = (settings.owner_database_url, settings.keycloak_database_url)
-        addresses = (owner.get_secret_value() for owner in owners)
-        queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
-        return cls(
-            dict(zip(DATABASES, addresses, strict=True)),
-            Bucket.of_backups(settings),
-            Maintenance.of(queue),
-            KeycloakAdmin(Keycloak(settings), settings),
-        )
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
         """Read the archive, hold the maintenance, replace, write back, inscribe, then lift.
@@ -206,14 +187,10 @@ class RestoreTask:
                 for name in DATABASES:
                     replace(name, dumps[name], self.databases[name], folder)
                 self.provider.clear_caches()
-                upgrade(owner)
+                self.migrate(owner)
                 at = utc_now()
                 with owner.begin() as written:
-                    write_back(written, BackgroundTask, unsure={"requested_by"})
-                    write_back_backups(written)
-                    write_back(written, AuditEntry)
-                    fail_interrupted(written, task.task_id, at)
-                    end_keeping(written)
+                    write_back_after_restoration(written, task.task_id, at)
             finally:
                 owner.dispose()
         self.provider.close_every_session()
@@ -251,9 +228,4 @@ class RestoreTask:
     def keep(self, owner: Engine, task_id: UUID) -> None:
         """Keep, once, what the restoration writes back: the journal, the backups, their tasks."""
         with owner.begin() as kept:
-            if is_kept(kept):
-                return
-            begin_keeping(kept)
-            keep(kept, AuditEntry)
-            tasks = [task_id, *keep_backups(kept)]
-            keep(kept, BackgroundTask, BackgroundTask.id.in_(tasks))
+            keep_for_restoration(kept, task_id)

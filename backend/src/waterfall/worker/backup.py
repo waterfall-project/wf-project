@@ -112,9 +112,10 @@ def unavailable_database() -> UnavailableError:
 def dump(name: str, address: str, folder: Path) -> Dumped:
     """Dump a database in the custom format, in one snapshot, once it has been reached.
 
-    A database reached that ``pg_dump`` cannot dump — a right it lacks, a version it does not read
-    — is not a component out of reach: the dump fails as an internal error, and says why to the
-    journal of the service.
+    A database that stops answering while it is dumped — PostgreSQL restarted, its connections
+    spent — is a component out of reach (503, #907): the dump that fails reaches the database
+    again. One that still answers and that ``pg_dump`` cannot dump — a right it lacks, a version it
+    does not read — is an internal error, which says why to the journal of the service.
 
     The tools of PostgreSQL are those of the system, which Debian and Ubuntu put in ``/usr/bin``.
     """
@@ -130,6 +131,7 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
         )
     if done.returncode != 0:
         said = done.stderr.decode(errors="replace").strip()
+        reached(address)
         logger.error("backup.dump_failed", database=name, said=said)
         raise DumpError(name)
     return Dumped(name, path, path.stat().st_size, digest(path))

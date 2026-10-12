@@ -26,7 +26,7 @@ from openapi_core.templating.responses.finders import ResponseFinder
 from openapi_core.testing import MockRequest, MockResponse
 from sqlalchemy import URL, QueuePool, text
 
-from waterfall.platform.database import Database
+from waterfall.platform.database import Database, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import (
     InvitationFailure,
@@ -108,6 +108,13 @@ def service_role(database: URL) -> str:
     no role of the service.
     """
     return f"{database.database}_service"
+
+
+def as_backup(address: str, role: tuple[str, str]) -> str:
+    """Give the address of a database as the role of the backup reaches it."""
+    name, password = role
+    url = engine_url(address).set(username=name, password=password)
+    return url.render_as_string(hide_password=False)
 
 
 HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
