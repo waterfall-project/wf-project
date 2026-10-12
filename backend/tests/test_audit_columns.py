@@ -253,6 +253,12 @@ def problem(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
     return response.status_code, body["code"], body.get("fields", [])
 
 
+def as_expected(given: list[dict[str, Any]], fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Give the fields of a refusal by the keys each expected one names, one for one, in order."""
+    pairs = zip(given, fields, strict=True)
+    return [{key: field[key] for key in expected} for field, expected in pairs]
+
+
 @pytest.mark.parametrize("table", TABLES)
 @pytest.mark.parametrize(
     ("query", "fields"),
@@ -305,5 +311,37 @@ def test_a_filter_of_the_columns_of_audit_the_tables_refuse_is_named(
     # one named, the start given; a value outside the schema of a parameter refused at its field.
     status, code, given = problem(api.get(f"{table}{query}", headers=rows))
     assert (status, code) == (422, "VALIDATION_FAILED")
-    pairs = zip(given, fields, strict=True)
-    assert [{key: field[key] for key in expected} for field, expected in pairs] == fields
+    assert as_expected(given, fields) == fields
+
+
+# A period of creation inverted, and the fault the contract gives it.
+INVERTED = f"created_at_from={stamp(instant(3))}&created_at_to={stamp(instant(1))}"
+INVERTED_FAULT = {
+    "pointer": "/query/created_at_to",
+    "code": "VALUE_OUT_OF_RANGE",
+    "params": {"minimum": "2026-03-01T00:00:00Z"},
+}
+
+
+def test_an_account_query_with_an_unknown_origin_and_an_inverted_period_names_both(
+    api: ContractClient, rows: dict[str, str]
+) -> None:
+    # A query that commits several faults sees each named, those of the table with those of its
+    # columns of audit, in one refusal.
+    query = f"?origins=local,elsewhere&{INVERTED}"
+    status, code, given = problem(api.get(f"{USERS}{query}", headers=rows))
+    assert (status, code) == (422, "VALIDATION_FAILED")
+    fields = [{"pointer": "/query/origins", "code": "VALIDATION_FAILED"}, INVERTED_FAULT]
+    assert as_expected(given, fields) == fields
+
+
+def test_a_role_query_with_inverted_bounds_and_an_inverted_period_names_both(
+    api: ContractClient, rows: dict[str, str]
+) -> None:
+    # The same for the roles: the upper bound under the lower one, and the period of creation.
+    query = f"?holder_count_min=2&holder_count_max=1&{INVERTED}"
+    status, code, given = problem(api.get(f"{ROLES}{query}", headers=rows))
+    assert (status, code) == (422, "VALIDATION_FAILED")
+    bounds = {"pointer": "/query/holder_count_max", "code": "VALUE_OUT_OF_RANGE"}
+    fields = [{**bounds, "params": {"minimum": 2}}, INVERTED_FAULT]
+    assert as_expected(given, fields) == fields

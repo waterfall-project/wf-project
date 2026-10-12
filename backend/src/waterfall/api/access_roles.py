@@ -23,7 +23,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Requires
-from waterfall.api.queries import Search, audit_column_filters
+from waterfall.api.queries import FiltersRead, Search, audit_column_filters, refuse_query
 from waterfall.core.access_roles.interface import (
     Act,
     RoleFilters,
@@ -40,11 +40,10 @@ from waterfall.core.access_roles.interface import (
 )
 from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import FieldError
 
 router = APIRouter(tags=["access"])
 
-VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # The greatest integer PostgreSQL represents (``bigint``).
@@ -93,13 +92,15 @@ def get_permissions(session: Transaction) -> list[Permission]:
 
 def role_filters(
     *,
-    audit: Annotated[AuditColumnFilters, Depends(audit_column_filters)],
+    audit: Annotated[FiltersRead[AuditColumnFilters], Depends(audit_column_filters)],
     search: Search = None,
     is_predefined: bool | None = None,
     holder_count_min: int | None = None,
     holder_count_max: int | None = None,
 ) -> RoleFilters:
     """Read the filters of the table; a bound that is negative, or inverted, is refused (422).
+
+    Its faults are named with those of the columns of audit, all in one refusal.
 
     The contract calls a negative bound a malformed number (``NUMBER_INVALID``), and an upper
     bound under the lower one out of its range, the lower one as its minimum. It sets no maximum:
@@ -123,14 +124,13 @@ def role_filters(
         faults.append(
             FieldError("/query/holder_count_max", VALUE_OUT_OF_RANGE, {"minimum": holder_count_min})
         )
-    if faults:
-        raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
+    refuse_query((*faults, *audit.faults))
     return RoleFilters(
         search,
         is_predefined,
         None if holder_count_min is None else min(holder_count_min, GREATEST_COUNT),
         None if holder_count_max is None else min(holder_count_max, GREATEST_COUNT),
-        audit,
+        audit.filters,
     )
 
 

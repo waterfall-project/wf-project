@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The parameters of a query that several operations of the API share, typed once."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -22,19 +23,34 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 Search = Annotated[Text | None, Query(min_length=1, max_length=200)]
 
 
-def listed[T](name: str, text: str | None, read: Callable[[str], T]) -> tuple[T, ...] | None:
-    """Read a list of the query, its values separated by commas (``explode: false``).
+def refuse_query(faults: Iterable[FieldError]) -> None:
+    """Refuse a query at every parameter at fault, all named at once (422); none, nothing."""
+    named = tuple(faults)
+    if named:
+        raise UnprocessableError(VALIDATION_FAILED, fields=named)
+
+
+def read_list[T](
+    name: str, text: str | None, read: Callable[[str], T]
+) -> tuple[tuple[T, ...] | None, tuple[FieldError, ...]]:
+    """Read a list of the query, its values separated by commas (``explode: false``), and its fault.
 
     ``None`` when the parameter is absent. A value that ``read`` refuses (``ValueError``), an empty
-    one included, refuses the parameter (422).
+    one included, is the fault of the parameter, which the caller names with its others.
     """
     if text is None:
-        return None
+        return None, ()
     try:
-        return tuple(read(value) for value in text.split(","))
+        return tuple(read(value) for value in text.split(",")), ()
     except ValueError:
-        fault = FieldError(f"/query/{name}", VALIDATION_FAILED)
-        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,)) from None
+        return None, (FieldError(f"/query/{name}", VALIDATION_FAILED),)
+
+
+def listed[T](name: str, text: str | None, read: Callable[[str], T]) -> tuple[T, ...] | None:
+    """Read a list of the query, as ``read_list`` does; its fault refuses the parameter (422)."""
+    values, faults = read_list(name, text, read)
+    refuse_query(faults)
+    return values
 
 
 class AuditColumnsQuery(BaseModel):
@@ -61,25 +77,38 @@ def _author(user_id: UUID | None, kind: AuditActorKind | None) -> AuthorFilter:
     return AuthorFilter(user_id, None if kind is None else kind.value)
 
 
-def audit_column_filters(query: Annotated[AuditColumnsQuery, Query()]) -> AuditColumnFilters:
+@dataclass(frozen=True, slots=True)
+class FiltersRead[T]:
+    """Filters as the query gives them, and its faults, given rather than raised.
+
+    The table that reads several of them names all their faults at once (``refuse_query``).
+    """
+
+    filters: T
+    faults: tuple[FieldError, ...] = ()
+
+
+def audit_column_filters(
+    query: Annotated[AuditColumnsQuery, Query()],
+) -> FiltersRead[AuditColumnFilters]:
     """Read the filters of the columns of audit of a flat table (WF-IHM-0130, #936).
 
-    A period whose end precedes its start is refused at its end, the start named (422), the rule
-    of every period of the contract; both are named if both are.
+    A period whose end precedes its start is a fault at its end, the start named, the rule of
+    every period of the contract; both are if both are. The faults are given, not raised: the
+    table names them with its own, in one refusal (422).
     """
-    faults = [
+    faults = tuple(
         fault
         for fault in (
             _inverted("created_at", query.created_at_from, query.created_at_to),
             _inverted("updated_at", query.updated_at_from, query.updated_at_to),
         )
         if fault is not None
-    ]
-    if faults:
-        raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
-    return AuditColumnFilters(
+    )
+    filters = AuditColumnFilters(
         created=Period(query.created_at_from, query.created_at_to),
         created_by=_author(query.created_by_user_id, query.created_by_kind),
         updated=Period(query.updated_at_from, query.updated_at_to),
         updated_by=_author(query.updated_by_user_id, query.updated_by_kind),
     )
+    return FiltersRead(filters, faults)

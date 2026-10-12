@@ -5437,7 +5437,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `VALIDATION_FAILED`, `fields[]` désignant chaque paramètre refusé : une valeur hors de son schéma ; un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID` ; une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. Aucune liste vide ne tient lieu de refus. */
+            /** @description `VALIDATION_FAILED`, `fields[]` désignant chaque paramètre refusé par son schéma : une valeur hors de son schéma ; un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID`. Une incohérence entre paramètres, une fois les schémas tenus : une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. Aucune liste vide ne tient lieu de refus. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5882,7 +5882,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. Un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID` ; une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. */
+            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. Un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID` ; une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. `fields[]` désigne chaque paramètre refusé par son schéma, et une incohérence entre paramètres une fois les schémas tenus. */
             422: {
                 headers: {
                     [name: string]: unknown;

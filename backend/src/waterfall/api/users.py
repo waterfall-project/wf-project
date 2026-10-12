@@ -45,7 +45,13 @@ from waterfall.api.contract.models import (
     UserUpdate,
 )
 from waterfall.api.evaluation import Acting, Requires
-from waterfall.api.queries import Search, audit_column_filters, listed
+from waterfall.api.queries import (
+    FiltersRead,
+    Search,
+    audit_column_filters,
+    read_list,
+    refuse_query,
+)
 from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
@@ -204,25 +210,33 @@ def account_filters(
     origins: Text | None = None,
     org_node_id: UUID | None = None,
     access_role_ids: Text | None = None,
-) -> AccountFilters:
-    """Read the filters of the table; a list holds its values separated by commas."""
-    kept_origins = listed("origins", origins, UserOrigin)
-    roles = listed("access_role_ids", access_role_ids, UUID)
-    return AccountFilters(
+) -> FiltersRead[AccountFilters]:
+    """Read the filters of the table; a list holds its values separated by commas.
+
+    A list refused is a fault, given rather than raised: the table names it with the others.
+    """
+    kept_origins, origins_faults = read_list("origins", origins, UserOrigin)
+    roles, roles_faults = read_list("access_role_ids", access_role_ids, UUID)
+    filters = AccountFilters(
         search=search,
         origins=None if kept_origins is None else frozenset(kept_origins),
         states=states,
         org_node_id=org_node_id,
         held=None if roles is None else holding_one_of(roles),
     )
+    return FiltersRead(filters, (*origins_faults, *roles_faults))
 
 
 def table_filters(
-    filters: Annotated[AccountFilters, Depends(account_filters)],
-    audit: Annotated[AuditColumnFilters, Depends(audit_column_filters)],
+    accounts: Annotated[FiltersRead[AccountFilters], Depends(account_filters)],
+    audit: Annotated[FiltersRead[AuditColumnFilters], Depends(audit_column_filters)],
 ) -> AccountFilters:
-    """Add to the filters of the columns of the accounts those of their columns of audit (#936)."""
-    return replace(filters, audit=audit)
+    """Add to the filters of the columns of the accounts those of their columns of audit (#936).
+
+    The faults of both are named together, in one refusal (422).
+    """
+    refuse_query((*accounts.faults, *audit.faults))
+    return replace(accounts.filters, audit=audit.filters)
 
 
 def account_sort(
