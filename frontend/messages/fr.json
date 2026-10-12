@@ -1293,7 +1293,8 @@
       "noneRemoved": "Aucun compte local retiré.",
       "unnamed": "Sans nom chez le fournisseur",
       "address": "Adresse : {email}",
-      "subject": "Identifiant chez le fournisseur : {subject}"
+      "subject": "Identifiant chez le fournisseur : {subject}",
+      "carrier": "Adresse portée par le compte <name></name>"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",

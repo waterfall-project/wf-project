@@ -1293,7 +1293,8 @@
       "noneRemoved": "No local account removed.",
       "unnamed": "No name at the provider",
       "address": "Address: {email}",
-      "subject": "Identifier at the provider: {subject}"
+      "subject": "Identifier at the provider: {subject}",
+      "carrier": "Address held by the account <name></name>"
     },
     "accessRoles": {
       "title": "Access roles",

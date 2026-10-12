@@ -15,18 +15,20 @@
  *
  * An account of Waterfall left as it was is named as it reads now, the neutral label for one
  * anonymised since (WF-ADM-0060, #920); a person of the provider without an account by her name and
- * her identifier there, her address when she has one (#918). Every figure as the API gives it.
+ * her identifier there, her address when she has one (#918) — save one whose address an account
+ * holds, by her identifier and the account as it reads now (#920). Every figure as the API gives it.
  * Every prop is data (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
 import { ChevronDown, ChevronRight, UserRoundSearch } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { type ReactNode, useId, useState, useTransition } from "react";
 
 import { startIdentitySync } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName } from "@/components/account/anonymized-name";
 import { useHeldCommand } from "@/components/commands/held";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -43,37 +45,58 @@ type Skipped = components["schemas"]["IdentitySyncSkipped"];
 /** The counts of a report, each said by a sentence of the catalogue. */
 const COUNTS = ["created", "updated", "deactivated", "restored"] as const;
 
-/** Who an entry of what was left names: an account as it reads now, or a person of the provider. */
-function Who({ entry }: { readonly entry: Skipped }) {
+/**
+ * An account of Waterfall as it reads now — the one left as it was, or the one that holds the
+ * address of a person of the provider —: the neutral label for one anonymised since (WF-ADM-0060).
+ */
+function AccountName({ entry }: { readonly entry: Skipped }) {
+  const naming = useAccountNaming();
+  return entry.first_name === null || entry.last_name === null ? (
+    <AnonymizedName />
+  ) : (
+    naming.person(entry)
+  );
+}
+
+/** A person of the provider by the name it holds of her, and says so when it holds none. */
+function PersonName({ entry }: { readonly entry: Skipped }) {
   const t = useTranslations();
   const { first_name: first, last_name: last } = entry;
-  if (entry.kind === "account" && (first === null || last === null)) {
-    return <AnonymizedName />;
-  }
   if (!first && !last) {
     return t("admin.identitySync.unnamed");
   }
   return t("accountName.full", { first: first ?? "", last: last ?? "" });
 }
 
-/** One thing the reading left as it was: who, what, how the provider knows it, and why. */
+/**
+ * One thing the reading left as it was: who, what, how the provider knows it, and why. A person whose
+ * address an account of Waterfall holds (`ALREADY_EXISTS`) keeps nothing of her own but her
+ * identifier at the provider: the entry names the account that holds it, as it reads now, and only
+ * her identifier when none held it any more (#920).
+ */
 function SkippedEntry({ entry }: { readonly entry: Skipped }) {
   const t = useTranslations();
+  const held = entry.kind === "person" && entry.code === "ALREADY_EXISTS";
+  let who: ReactNode = null;
+  let address: ReactNode = null;
+  if (held) {
+    address =
+      entry.user_id === null
+        ? null
+        : t.rich("admin.identitySync.carrier", { name: () => <AccountName entry={entry} /> });
+  } else {
+    who = entry.kind === "account" ? <AccountName entry={entry} /> : <PersonName entry={entry} />;
+    address = entry.email === null ? null : t("admin.identitySync.address", { email: entry.email });
+  }
   return (
     <li className="space-y-0.5">
-      <p>
-        <span className="font-medium">
-          <Who entry={entry} />
-        </span>
-        <span className="ml-2 text-muted-foreground">
+      <p className="flex flex-wrap gap-x-2">
+        {who === null ? null : <span className="font-medium">{who}</span>}
+        <span className="text-muted-foreground">
           {t(`enums.IdentitySyncSkipped.kind.${entry.kind}`)}
         </span>
       </p>
-      {entry.email === null ? null : (
-        <p className="text-muted-foreground">
-          {t("admin.identitySync.address", { email: entry.email })}
-        </p>
-      )}
+      {address === null ? null : <p className="text-muted-foreground">{address}</p>}
       {entry.subject === null ? null : (
         <p className="text-muted-foreground">
           {t("admin.identitySync.subject", { subject: entry.subject })}
@@ -103,7 +126,7 @@ function Details({ id, report }: { readonly id: string; readonly report: Identit
         ) : (
           <ul className="space-y-2">
             {report.skipped.map((entry, index) => (
-              <SkippedEntry key={entry.user_id ?? entry.subject ?? index} entry={entry} />
+              <SkippedEntry key={entry.subject ?? entry.user_id ?? index} entry={entry} />
             ))}
           </ul>
         )}

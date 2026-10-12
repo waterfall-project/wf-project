@@ -175,24 +175,39 @@ describe("the reading of the accounts", () => {
     expect(screen.queryByRole("region", { name: "Détails de la dernière lecture" })).toBeNull();
   });
 
-  it("names an account anonymised since by the neutral label, never by a name nor an address, and a person the provider gives no name [WF-ADM-0060-A]", async () => {
+  it("names an account anonymised since by the neutral label, never by a name nor an address, the person whose address it held by her identifier, and a person the provider gives no name [WF-ADM-0060-A]", async () => {
     serve({});
-    const flagged = report("identity_sync_report_flagged");
-    const [administrator, person] = flagged.skipped;
-    if (administrator === undefined || person === undefined) {
-      throw new Error("the example reports an account and a person");
-    }
-    // The same report read after the account was anonymised: its names and its address null, as
-    // the API gives them; the person as a provider that holds no name gives her.
-    const anonymised = { ...administrator, last_name: null, first_name: null, email: null };
-    open({ ...flagged, skipped: [anonymised, { ...person, last_name: "", first_name: "" }] });
+    open(report("identity_sync_report_anonymized"));
     const shown = await details();
-    const [account, unnamed] = within(shown).getAllByRole("listitem");
-    expect(account?.querySelector("[data-anonymized]")?.textContent).toBe("Compte anonymisé");
-    expect(account?.textContent).not.toMatch(/Bernard|Dominique|@/);
-    expect(unnamed?.querySelector("p")?.textContent).toBe(
-      "Sans nom chez le fournisseurPersonne du fournisseur d’identité",
-    );
+    const entries = within(within(shown).getByRole("region", { name: "Laissés tels quels" }))
+      .getAllByRole("listitem")
+      .map((item) => [...item.querySelectorAll("p")].map((line) => line.textContent));
+    expect(entries).toEqual([
+      ["Compte anonymiséCompte Waterfall", "Les données saisies ne sont pas valides."],
+      [
+        "Sans nom chez le fournisseurPersonne du fournisseur d’identité",
+        "Adresse : contact.chantier@example.com",
+        "Identifiant chez le fournisseur : 8e3f1c2a-6b4d-4f0e-a1c9-7d2e5b8f3a61",
+        "Les données saisies ne sont pas valides.",
+      ],
+      [
+        "Personne du fournisseur d’identité",
+        "Adresse portée par le compte Compte anonymisé",
+        "Identifiant chez le fournisseur : c47a2e9b-1d5f-4b8c-9e3a-6f0d2c8b5e14",
+        "Cet élément existe déjà.",
+      ],
+      [
+        "Personne du fournisseur d’identité",
+        "Identifiant chez le fournisseur : 2f9d6b1e-8a3c-4e7f-b5d2-9c1a4e6f8b03",
+        "Cet élément existe déjà.",
+      ],
+    ]);
+    // The neutral label is the one rendering of an anonymised account, for the account left as it
+    // was as for the one that held the address of a person.
+    expect(
+      [...shown.querySelectorAll("[data-anonymized]")].map((label) => label.textContent),
+    ).toEqual(["Compte anonymisé", "Compte anonymisé"]);
+    expect(shown.textContent).not.toMatch(/Moreau|Alix/);
   });
 
   it("says nothing was left nor removed when the reading reports nothing", async () => {
