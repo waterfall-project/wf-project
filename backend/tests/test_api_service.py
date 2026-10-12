@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
@@ -151,42 +151,135 @@ def test_a_response_that_the_contract_does_not_describe_is_rejected(
         ContractClient(TestClient(app), contract).get("/api/v1/health")
 
 
+# A failed background task, as the contract's example ``task_failed`` gives it.
+FAILED_TASK = {
+    "task_id": "01926f3a-7c00-7000-8000-000000000931",
+    "kind": "revision_mark",
+    "status": "failed",
+    "progress": 40,
+    "submitted_at": "2026-06-03T14:05:00Z",
+    "finished_at": "2026-06-03T14:07:00Z",
+    "result_url": None,
+}
+
+# The current account, as the contract's example ``me_grid_settings`` gives it, its
+# permissions cut short.
+ME = {
+    "user_id": "01926f3a-7c00-7000-8000-000000000301",
+    "last_name": "Martin",
+    "first_name": "Camille",
+    "email": "camille.martin@example.com",
+    "anonymized_at": None,
+    "is_active": True,
+    "origin": "local",
+    "org_node_id": None,
+    "org_node_label": None,
+    "access_role_ids": ["01926f3a-7c00-7000-8000-000000000701"],
+    "access_role_labels": ["Direction de projet"],
+    "has_avatar": False,
+    "audit": {
+        "created_at": "2025-09-01T09:00:00Z",
+        "created_by": {"kind": "platform"},
+        "updated_at": "2026-06-03T14:05:00Z",
+        "updated_by": {"kind": "platform"},
+    },
+    "lock_version": 3,
+    "permissions": ["users.read"],
+}
+
+# A refusal whose field problem carries a sentence the contract does not declare.
+REFUSAL_WITH_A_MESSAGE = {
+    "code": "COMPONENT_UNAVAILABLE",
+    "status": 503,
+    "params": {"component": "database"},
+    "correlation_id": "front-7f3a",
+    "fields": [{"pointer": "/x", "code": "VALUE_REQUIRED", "message": "Champ requis"}],
+}
+
+
 @pytest.mark.requirement("WF-ARC-0110-A")
 @pytest.mark.parametrize(
-    ("status", "body", "pointer"),
+    ("route", "status", "body", "pointer"),
     [
-        (200, {"status": "ok", "hint": "Le compte est désactivé"}, "/hint"),
         (
-            503,
-            {
-                "code": "COMPONENT_UNAVAILABLE",
-                "status": 503,
-                "params": {"component": "database"},
-                "correlation_id": "front-7f3a",
-                "fields": [{"pointer": "/x", "code": "VALUE_REQUIRED", "message": "Champ requis"}],
-            },
-            "/fields/0/message",
+            "/api/v1/health",
+            200,
+            {"status": "ok", "hint": "Le compte est désactivé"},
+            "/hint",
         ),
-        (200, {"status": "ok", "a/b~c": "Phrase"}, "/a~1b~0c"),
+        ("/api/v1/health", 503, REFUSAL_WITH_A_MESSAGE, "/fields/0/message"),
+        (
+            "/api/v1/health",
+            200,
+            {"status": "ok", "a/b~c": "Phrase"},
+            "/a~1b~0c",
+        ),
+        (
+            "/api/v1/tasks/{task_id}",
+            200,
+            {
+                **FAILED_TASK,
+                "problem": {
+                    "code": "HOURLY_RATE_MISSING",
+                    "status": 422,
+                    "detail": "Taux horaire manquant",
+                },
+            },
+            "/problem/detail",
+        ),
+        (
+            "/api/v1/me",
+            200,
+            {
+                **ME,
+                "display_preferences": {
+                    "grids": {
+                        "g": {
+                            "sort": {"column": "label", "order": "asc", "msg": "Trié par nom"},
+                        }
+                    }
+                },
+            },
+            "/display_preferences/grids/g/sort/msg",
+        ),
     ],
-    ids=["at the top of the body", "in an object of a list", "escaped as RFC 6901 says"],
+    ids=[
+        "at the top of the body",
+        "in an object of a list",
+        "escaped as RFC 6901 says",
+        "in a nullable object",
+        "in the value of an open object",
+    ],
 )
 def test_an_answer_that_holds_a_property_its_schema_does_not_declare_is_rejected(
-    contract: OpenAPI, status: int, body: dict[str, object], pointer: str
+    contract: OpenAPI, route: str, status: int, body: dict[str, object], pointer: str
 ) -> None:
     # « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur » : a sentence
     # the contract does not declare, which openapi-core lets pass, fails the client of the tests.
     app = FastAPI()
-
     media = "application/json" if status == 200 else "application/problem+json"
 
-    @app.get("/api/v1/health")
-    def health() -> JSONResponse:
+    @app.get(route)
+    def answer() -> JSONResponse:
         return JSONResponse(body, status_code=status, media_type=media)
 
     with pytest.raises(UndeclaredPropertyError) as rejected:
-        ContractClient(TestClient(app), contract).get("/api/v1/health")
+        ContractClient(TestClient(app), contract).get(route.format(task_id=FAILED_TASK["task_id"]))
     assert rejected.value.pointers == [pointer]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_an_answer_that_is_not_json_is_validated_without_being_walked(contract: OpenAPI) -> None:
+    # The Prometheus exposition is text: it holds no property, and the client lets it pass.
+    app = FastAPI()
+    exposition = "# HELP up Whether the service answers.\nup 1\n"
+
+    @app.get("/api/v1/metrics")
+    def metrics() -> PlainTextResponse:
+        return PlainTextResponse(exposition)
+
+    response = ContractClient(TestClient(app), contract).get("/api/v1/metrics")
+    assert (response.status_code, response.text) == (200, exposition)
 
 
 @pytest.mark.requirement("WF-ARC-0110-A")
