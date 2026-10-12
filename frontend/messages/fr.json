@@ -1275,6 +1275,26 @@
       "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
       "keep": "Conserver"
     },
+    "identitySync": {
+      "title": "Lecture des comptes du fournisseur d’identité",
+      "start": "Lire les comptes",
+      "none": "Aucune lecture des comptes n’a encore abouti.",
+      "finished": "Dernière lecture achevée le <time></time>.",
+      "created": "{count, plural, =0 {Aucun compte créé} one {# compte créé, sans rôle} other {# comptes créés, sans rôle}}",
+      "updated": "{count, plural, =0 {Aucun compte mis à jour} one {# compte mis à jour} other {# comptes mis à jour}}",
+      "deactivated": "{count, plural, =0 {Aucun compte désactivé} one {# compte désactivé} other {# comptes désactivés}}",
+      "restored": "{count, plural, =0 {Aucune identité rétablie dans le fournisseur} one {# identité de compte local rétablie dans le fournisseur} other {# identités de comptes locaux rétablies dans le fournisseur}}",
+      "removed": "{count, plural, =0 {Aucun compte local retiré du fournisseur} one {# compte local retiré du fournisseur} other {# comptes locaux retirés du fournisseur}}",
+      "skipped": "{count, plural, =0 {Rien de signalé} one {# signalé, laissé tel quel} other {# signalés, laissés tels quels}}",
+      "details": "Détails de la dernière lecture",
+      "skippedTitle": "Laissés tels quels",
+      "noneSkipped": "Rien n’a été laissé tel quel.",
+      "removedTitle": "Comptes locaux retirés du fournisseur d’identité",
+      "noneRemoved": "Aucun compte local retiré.",
+      "unnamed": "Sans nom chez le fournisseur",
+      "address": "Adresse : {email}",
+      "subject": "Identifiant chez le fournisseur : {subject}"
+    },
     "accessRoles": {
       "title": "Rôles d’habilitation",
       "predefined": "Prédéfini",

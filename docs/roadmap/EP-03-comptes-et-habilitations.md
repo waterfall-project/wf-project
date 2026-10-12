@@ -1180,7 +1180,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
 - **opérations** : `startIdentitySync`, `getLatestIdentitySync`, `getBackgroundTask`,
   `listBackgroundTasks`
@@ -1212,7 +1212,9 @@ qu'elle se soit connectée.
 
 **Notes de réalisation.** Le worker et la file servent ensuite le marquage (EP-04), les
 imports (EP-06, EP-07, EP-09) et la sauvegarde planifiée (EP-13) : le genre d'une tâche est déjà une
-énumération du contrat (`BackgroundTaskRef.kind`).
+énumération du contrat (`BackgroundTaskRef.kind`). L'écran des comptes demande la lecture et en
+présente le compte rendu, que le suivi des tâches de la coquille annonce à son aboutissement
+(US-0370/L2b). Ses lots L1, L2 et L2b fusionnés, l'US est finie.
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
 

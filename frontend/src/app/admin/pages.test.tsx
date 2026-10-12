@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import {
@@ -56,11 +57,11 @@ function text(markup: string): string {
     .trim();
 }
 
-/** Render a page of the administration in French. */
+/** Render a page of the administration in French, within the shell that follows the tasks. */
 function rendered(page: unknown): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      {page as ReactNode}
+      <TaskTracker>{page as ReactNode}</TaskTracker>
     </NextIntlClientProvider>,
   );
 }
@@ -119,6 +120,7 @@ beforeEach(() => {
   server.answers = {
     "GET /me": "me",
     "GET /users": "users",
+    "GET /identity-syncs/latest": "identity_sync_report",
     "GET /reference/org-nodes": "org_nodes",
     "GET /access-roles": "access_roles",
     "GET /permissions": "permissions",
@@ -131,6 +133,33 @@ beforeEach(() => {
 describe("the accounts", () => {
   it("title the tab with the function", async () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
+  });
+
+  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one [WF-ADM-0070-A]", async () => {
+    const page = rendered(await UsersPage(searched()));
+    const said = text(page);
+    expect(said).toContain(
+      "Lecture des comptes du fournisseur d’identité Lire les comptes Dernière lecture achevée le .",
+    );
+    expect(said).toContain(
+      "Aucun compte créé Aucun compte mis à jour Aucun compte désactivé Aucune identité rétablie dans le fournisseur Aucun compte local retiré du fournisseur Rien de signalé",
+    );
+    expect(page).toContain('<time dateTime="2026-06-03T02:00:00Z">');
+    expect(said.indexOf("Lire les comptes")).toBeLessThan(said.indexOf("Comptes utilisateurs"));
+    expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
+  });
+
+  it("offer no reading of the accounts to a session that may not modify them, and say so when no reading has ended yet", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_estimator",
+      "GET /identity-syncs/latest": NOT_FOUND,
+    };
+    const page = rendered(await UsersPage(searched()));
+    expect(buttons(page)).not.toContain("Lire les comptes");
+    expect(text(page)).toContain(
+      "Lecture des comptes du fournisseur d’identité Aucune lecture des comptes n’a encore abouti.",
+    );
   });
 
   it("present each account with its origin, its roles and its node as the server names them, deactivated ones listed, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {

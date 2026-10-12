@@ -1275,6 +1275,26 @@
       "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
       "keep": "Keep"
     },
+    "identitySync": {
+      "title": "Reading of the identity provider accounts",
+      "start": "Read the accounts",
+      "none": "No reading of the accounts has ended yet.",
+      "finished": "Last reading ended on <time></time>.",
+      "created": "{count, plural, =0 {No account created} one {# account created, without a role} other {# accounts created, without a role}}",
+      "updated": "{count, plural, =0 {No account updated} one {# account updated} other {# accounts updated}}",
+      "deactivated": "{count, plural, =0 {No account deactivated} one {# account deactivated} other {# accounts deactivated}}",
+      "restored": "{count, plural, =0 {No identity restored in the provider} one {# local account identity restored in the provider} other {# local account identities restored in the provider}}",
+      "removed": "{count, plural, =0 {No local account removed from the provider} one {# local account removed from the provider} other {# local accounts removed from the provider}}",
+      "skipped": "{count, plural, =0 {Nothing reported} one {# reported, left as it was} other {# reported, left as they were}}",
+      "details": "Details of the last reading",
+      "skippedTitle": "Left as they were",
+      "noneSkipped": "Nothing was left as it was.",
+      "removedTitle": "Local accounts removed from the identity provider",
+      "noneRemoved": "No local account removed.",
+      "unnamed": "No name at the provider",
+      "address": "Address: {email}",
+      "subject": "Identifier at the provider: {subject}"
+    },
     "accessRoles": {
       "title": "Access roles",
       "predefined": "Predefined",

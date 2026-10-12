@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
+import { IdentitySync } from "@/components/admin/identity-sync";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
 import {
   ACCESS_ROLES,
@@ -117,7 +118,7 @@ export default async function UsersPage({
     ACCESS_ROLES,
     roles.map((role) => role.id),
   );
-  const [users, nodes] = await Promise.all([
+  const [users, nodes, report] = await Promise.all([
     readOrFail("listUsers", () =>
       serverClient().GET("/users", {
         params: {
@@ -126,12 +127,17 @@ export default async function UsersPage({
       }),
     ),
     readNodes(),
+    // No reading of the accounts has ended yet: the screen says so.
+    readUnlessRefused("getLatestIdentitySync", [{ status: 404 }], () =>
+      serverClient().GET("/identity-syncs/latest"),
+    ),
   ]);
   return (
     <Screen density={FUNCTION_DENSITY.users} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress kept={USER_KEPT}>
         <UsersHeader />
+        <IdentitySync report={report} startable={editable} />
         <UserList
           users={users.items}
           page={users.meta}
