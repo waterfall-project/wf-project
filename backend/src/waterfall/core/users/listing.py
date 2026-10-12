@@ -14,6 +14,13 @@ Equals keep the order of the table unsorted, the name then the first name, then 
 ascending whatever the direction: no account is read twice nor skipped from one page to the next
 (contract, ``listUsers``, #741).
 
+The columns of audit are filtered and sorted as the others (#936): the dates by their instant, the
+authors as the journal of audit sorts its own — an account by its displayed name, the first name
+then the name, in the order of the code points; in the ascending order, an account anonymised,
+which has no name any more, after the names, and the platform, which has none, after the accounts.
+The author of a row of another module is sorted so too (``author_order``): an expression on the
+table of the accounts, given the column of its author.
+
 The roles an account holds are those of the module of the roles, which reads the accounts: what the
 table filters and sorts of them is an expression that module writes on its own tables, given the
 column of the identifier of an account (``AccountExpression``), and no table of it is named here
@@ -21,14 +28,15 @@ column of the identifier of an account (``AccountExpression``), and no table of 
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, false, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from waterfall.core.users.tables import ORIGINS, UserAccount
+from waterfall.platform.audit_columns import AuditColumnFilters, AuditColumns, audit_criteria
 from waterfall.platform.database import contains
 
 # What another module says of an account in a query of the accounts: an expression on its own
@@ -36,9 +44,23 @@ from waterfall.platform.database import contains
 type AccountExpression[T] = Callable[[SQLColumnExpression[UUID]], ColumnElement[T]]
 
 # The columns of the table the accounts hold themselves; the roles are another module's.
-type AccountColumn = Literal["last_name", "first_name", "email", "origin", "org_node", "is_active"]
+type AccountColumn = Literal[
+    "last_name",
+    "first_name",
+    "email",
+    "origin",
+    "org_node",
+    "is_active",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+]
 
 ACTIVE = "active"
+AUDIT = AuditColumns(
+    UserAccount.created_at, UserAccount.created_by, UserAccount.updated_at, UserAccount.updated_by
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +68,7 @@ class AccountFilters:
     """What the table keeps; a filter absent keeps everything (WF-IHM-0130).
 
     ``states`` keeps the active accounts alone unless asked for more. ``held`` is the criterion of
-    another module, the roles an account holds.
+    another module, the roles an account holds. ``audit``, the filters of the columns of audit.
     """
 
     search: str | None = None
@@ -54,6 +76,7 @@ class AccountFilters:
     states: frozenset[str] = frozenset({ACTIVE})
     org_node_id: UUID | None = None
     held: AccountExpression[bool] | None = None
+    audit: AuditColumnFilters = field(default_factory=AuditColumnFilters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,22 +113,45 @@ def _criteria(filters: AccountFilters) -> list[ColumnElement[bool]]:
         criteria.append(false())
     if filters.held is not None:
         criteria.append(filters.held(UserAccount.id))
+    criteria += audit_criteria(AUDIT, filters.audit)
     return criteria
 
 
-def _key(key: AccountColumn | AccountExpression[Any]) -> SQLColumnExpression[Any] | None:
-    """Give what a sort compares; ``None`` when every account is equal on it."""
+def author_order(author: SQLColumnExpression[UUID | None]) -> tuple[SQLColumnExpression[Any], ...]:
+    """Give what a sort on an author compares, in turn, given the column of the author.
+
+    The platform, ``None``, after the accounts, and an account by its displayed name. PostgreSQL
+    puts a null last in the ascending order and first in the descending one, as the contract does:
+    the name of an account anonymised, null, after the names.
+    """
+    writer = aliased(UserAccount)
+    name = (
+        select(writer.first_name + " " + writer.last_name)
+        .where(writer.id == author)
+        .scalar_subquery()
+    )
+    return (author.is_(None), name)
+
+
+def _keys(key: AccountColumn | AccountExpression[Any]) -> tuple[SQLColumnExpression[Any], ...]:
+    """Give what a sort compares, in turn; nothing when every account is equal on it."""
     if callable(key):
-        return key(UserAccount.id)
-    keys: dict[AccountColumn, SQLColumnExpression[Any] | None] = {
-        "last_name": UserAccount.last_name,
-        "first_name": UserAccount.first_name,
-        "email": UserAccount.email,
-        "origin": case({name: rank for rank, name in enumerate(ORIGINS)}, value=UserAccount.origin),
+        return (key(UserAccount.id),)
+    keys: dict[AccountColumn, tuple[SQLColumnExpression[Any], ...]] = {
+        "last_name": (UserAccount.last_name,),
+        "first_name": (UserAccount.first_name,),
+        "email": (UserAccount.email,),
+        "origin": (
+            case({name: rank for rank, name in enumerate(ORIGINS)}, value=UserAccount.origin),
+        ),
         # False before true: the active accounts first in the ascending order.
-        "is_active": UserAccount.state != ACTIVE,
+        "is_active": (UserAccount.state != ACTIVE,),
         # No account is attached to a node before EP-05: they are all equal.
-        "org_node": None,
+        "org_node": (),
+        "created_at": (UserAccount.created_at,),
+        "created_by": author_order(UserAccount.created_by),
+        "updated_at": (UserAccount.updated_at,),
+        "updated_by": author_order(UserAccount.updated_by),
     }
     return keys[key]
 
@@ -119,10 +165,8 @@ def find_accounts(
     """
     criteria = _criteria(filters)
     total = session.scalars(select(func.count()).select_from(UserAccount).where(*criteria)).one()
-    key = None if sort.key is None else _key(sort.key)
-    order: list[SQLColumnExpression[Any]] = []
-    if key is not None:
-        order.append(key.desc() if sort.descending else key)
+    keys = () if sort.key is None else _keys(sort.key)
+    order: list[SQLColumnExpression[Any]] = [key.desc() if sort.descending else key for key in keys]
     order += [UserAccount.last_name, UserAccount.first_name, UserAccount.id]
     rows = session.scalars(
         select(UserAccount).where(*criteria).order_by(*order).limit(page.limit).offset(page.offset)

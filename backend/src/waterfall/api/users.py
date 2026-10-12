@@ -20,6 +20,7 @@ written, once checked: while the provider does not answer, nothing is written (W
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -44,7 +45,7 @@ from waterfall.api.contract.models import (
     UserUpdate,
 )
 from waterfall.api.evaluation import Acting, Requires
-from waterfall.api.queries import Search, listed
+from waterfall.api.queries import Search, audit_column_filters, listed
 from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
@@ -87,6 +88,7 @@ from waterfall.core.users.interface import (
     set_account_activation,
 )
 from waterfall.platform.audit import Act
+from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError
@@ -113,7 +115,17 @@ DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 
 type UserColumn = Literal[
-    "last_name", "first_name", "email", "origin", "access_roles", "org_node", "is_active"
+    "last_name",
+    "first_name",
+    "email",
+    "origin",
+    "access_roles",
+    "org_node",
+    "is_active",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
 ]
 
 
@@ -205,6 +217,14 @@ def account_filters(
     )
 
 
+def table_filters(
+    filters: Annotated[AccountFilters, Depends(account_filters)],
+    audit: Annotated[AuditColumnFilters, Depends(audit_column_filters)],
+) -> AccountFilters:
+    """Add to the filters of the columns of the accounts those of their columns of audit (#936)."""
+    return replace(filters, audit=audit)
+
+
 def account_sort(
     sort_by: UserColumn | None = None, sort_order: SortOrder = SortOrder.asc
 ) -> AccountSort:
@@ -229,7 +249,7 @@ def page_of(
 def get_users(
     actor: Acting,
     session: Transaction,
-    filters: Annotated[AccountFilters, Depends(account_filters)],
+    filters: Annotated[AccountFilters, Depends(table_filters)],
     sort: Annotated[AccountSort, Depends(account_sort)],
     page: Annotated[Page, Depends(page_of)],
 ) -> dict[str, object]:

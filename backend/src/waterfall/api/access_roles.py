@@ -23,7 +23,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Requires
-from waterfall.api.queries import Search
+from waterfall.api.queries import Search, audit_column_filters
 from waterfall.core.access_roles.interface import (
     Act,
     RoleFilters,
@@ -38,6 +38,7 @@ from waterfall.core.access_roles.interface import (
     read_role,
     update_role,
 )
+from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnprocessableError
 
@@ -92,6 +93,7 @@ def get_permissions(session: Transaction) -> list[Permission]:
 
 def role_filters(
     *,
+    audit: Annotated[AuditColumnFilters, Depends(audit_column_filters)],
     search: Search = None,
     is_predefined: bool | None = None,
     holder_count_min: int | None = None,
@@ -128,6 +130,7 @@ def role_filters(
         is_predefined,
         None if holder_count_min is None else min(holder_count_min, GREATEST_COUNT),
         None if holder_count_max is None else min(holder_count_max, GREATEST_COUNT),
+        audit,
     )
 
 
