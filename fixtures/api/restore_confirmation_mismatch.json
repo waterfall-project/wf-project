@@ -1,0 +1,8 @@
+{
+  "summary": "Une restauration de la sauvegarde planifiée du 2 juin 2026 à 1 h, confirmée à la date du 3 juin à 1 h, celle d'une autre sauvegarde : la confirmation ne nomme pas la date de la sauvegarde désignée, et rien n'est mis en file (WF-ADM-0160).",
+  "value": {
+    "code": "CONFIRMATION_REQUIRED",
+    "status": 400,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001053"
+  }
+}

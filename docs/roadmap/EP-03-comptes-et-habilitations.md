@@ -699,7 +699,9 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   arrêter ;
 - **la preuve** : un travail de la chaîne démarre ce Compose sur les images qu'elle vient de
   publier, sur un nom local, amorce, et vérifie la sonde de vie, la connexion du premier
-  administrateur et une sauvegarde.
+  administrateur et une sauvegarde. La sauvegarde passe à US-0440/L2, qui ajoute à
+  `make production-trial` une sauvegarde puis une restauration demandées par l'API, la
+  restauration suivie par la sonde de vie jusqu'à la levée de la maintenance (#948, point 2).
 
 ### Stockage objet
 
@@ -758,6 +760,37 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     vidage, et aucune exemption de la règle S603 de Ruff n'est faite. Test : une inscription
     faite pendant la sauvegarde est présente une fois exactement après la restauration, et
     l'inscription de la sauvegarde l'est aussi.
+- **Ce qu'en fait US-0440/L2** (#604, #907) :
+  - **la demande** (`startRestore`, sous `platform_restore`) nomme la sauvegarde et sa date :
+    une date qui n'est pas la sienne est une confirmation qui ne la nomme pas, 400
+    `CONFIRMATION_REQUIRED` ; une restauration déjà en file ou en cours, 409
+    `STATE_FORBIDS_OPERATION`. La tâche porte la clé de l'archive : elle ne lit pas la base
+    qu'elle remplace pour la trouver ;
+  - **la maintenance** est tenue hors de la base que la restauration recrée, dans Redis, sous
+    une clé de la plateforme qui nomme la tâche de restauration ; tant qu'elle y est, toute
+    opération répond 503 `COMPONENT_UNAVAILABLE` (`component` à `database`), sauf `getLiveness`,
+    publique, qui dit `maintenance` puis `ok` à sa levée : c'est elle que le front interroge
+    pour savoir quand la restauration a abouti (#604), `getBackgroundTask` n'étant pas servie
+    pendant la maintenance ;
+  - **les sessions** : la tâche ferme toutes celles du fournisseur d'identité, puis celles du
+    front, que Redis garde ; elle les ferme de nouveau à la fin, avec les caches ;
+  - **ce qui est gardé** — le journal, la table `backup`, la ligne de la tâche de restauration
+    et celles des tâches des sauvegardes gardées, et les droits du rôle du service — est copié,
+    une fois, dans un schéma à part de la même base, que le remplacement ne touche pas : une
+    restauration reprise après une interruption le retrouve, et ne relit pas une base déjà à
+    demi remplacée ; il est réinscrit, puis le schéma supprimé, dans une seule transaction.
+    Une ligne gardée dont le demandeur manque à la base restaurée y revient sans demandeur ;
+  - **le remplacement** : le schéma de la base de Waterfall est supprimé et recréé, puis le
+    vidage restauré en une transaction, sans propriétaire ni droits de la source
+    (`pg_restore --no-owner --no-privileges`) — le rôle du service d'une autre installation
+    porte un autre nom ; les droits gardés sont rendus au rôle du service de l'installation
+    après les migrations. La base du fournisseur d'identité est remplacée de même ;
+  - **la reprise** : le worker qui reprend une restauration interrompue lit la tâche dans la
+    clé de la maintenance quand la base n'en a pas, ou plus, la ligne ; pendant la maintenance,
+    il n'exécute pas d'autre tâche ;
+  - **un vidage dont la base cesse de répondre** (#907) échoue en composant injoignable, 503,
+    et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
+    l'erreur interne que si elle répond.
 - **Reproduire une installation** est une restauration entière : la seconde installation
   devient une copie de la première, comptes et fournisseur d'identité compris (WF-ADM-0160,
   décision de l'auteur du 2026-10-09).
@@ -803,7 +836,15 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    les deux bases, Waterfall et le fournisseur d'identité (WF-ADM-0150), et que la restauration
    laisse le journal d'audit en place et s'y inscrit (WF-ADM-0160 révisée) ; le refus d'une
    sauvegarde d'une version plus récente se nomme ; `BackgroundTaskRef.kind` gagne ce qui
-   manque pour suivre la restauration jusqu'à la levée de la maintenance.
+   manque pour suivre la restauration jusqu'à la levée de la maintenance. Décision de l'auteur
+   du 2026-10-10 (#604), portée par US-0440/L2 : rien, `restore` y est déjà ; c'est
+   `getLiveness`, publique, qui dit la maintenance (`status` à `maintenance`) et sa fin (`ok`),
+   l'état de maintenance ne dépendant pas de la base que la restauration recrée ; toute autre
+   opération répond 503 `COMPONENT_UNAVAILABLE` pendant la maintenance. `startRestore` déclare
+   aussi son 404 (sauvegarde ou dépôt inconnus), son 400 `CONFIRMATION_REQUIRED` (une date qui
+   n'est pas celle de la sauvegarde) et son 409 (une restauration déjà en file ou en cours) ; le
+   code `TASK_INTERRUPTED_BY_RESTORE` dit l'échec d'une tâche restaurée en file ou en cours
+   (#892).
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
    une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
 11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque

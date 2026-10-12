@@ -1,0 +1,4 @@
+{
+  "summary": "Une restauration tient la plateforme en maintenance : toute autre opération répond 503 COMPONENT_UNAVAILABLE jusqu'à sa levée, que le front attend en interrogeant cette sonde (WF-ADM-0160, #604).",
+  "value": { "status": "maintenance" }
+}

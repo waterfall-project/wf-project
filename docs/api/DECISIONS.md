@@ -3811,6 +3811,29 @@ bases entières, comptes et réglages du fournisseur d'identité compris, et son
 pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
 plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
 
+## La restauration et sa maintenance (EP-03/US-0440/L2, #604, #892)
+
+Décision de l'auteur du 2026-10-10 (#604) : `getLiveness`, publique, dit la maintenance d'une
+restauration (`status` à `maintenance`) et sa levée (`ok`), et le front l'interroge pour savoir
+quand la restauration a abouti. L'état de maintenance ne dépend pas de la base que la
+restauration recrée, où vit la tâche ; `getBackgroundTask` n'est pas servie pendant la
+maintenance, et toute opération autre que la sonde répond 503 `COMPONENT_UNAVAILABLE`,
+`component` à `database`. La sonde reste à 200 en maintenance : la plateforme est vivante, et un
+orchestrateur qui la redémarrerait interromprait la restauration. Écarté : `getBackgroundTask`
+servie pendant la maintenance, sa ligne réécrite dans la base restaurée, qui ferait lire à l'API la
+base qu'on remplace.
+
+`startRestore` déclare ce qu'elle refuse : une date confirmée qui n'est pas celle de la sauvegarde
+désignée est une confirmation qui ne la nomme pas, 400 `CONFIRMATION_REQUIRED` (WF-ADM-0160 : « La
+confirmation nomme la date de la sauvegarde ») ; une sauvegarde ou un dépôt inconnus, 404 ; une
+restauration déjà en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Écarté : un 422 par champ
+sur `acknowledged_backup_taken_at`, qui dirait la valeur invalide quand c'est la confirmation qui
+manque.
+
+Décision de l'auteur du 2026-10-12 (#892) : une tâche que la restauration trouve en file ou en
+cours dans la base restaurée échoue par `TASK_INTERRUPTED_BY_RESTORE` (409), code propre, sans
+reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle.
+
 ## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
 
 `IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
