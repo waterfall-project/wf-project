@@ -81,53 +81,63 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-export function useAuditDetails(): (action: AuditAction, params: AuditParams) => string | undefined {
+export function useAuditDetails(): (
+  action: AuditAction,
+  params: AuditParams,
+) => string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
-  const locale = useLocale();
-  const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" });
+  const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
   const listed = (items: readonly string[]) => list.format(items);
   const permissions = (codes: readonly PermissionCode[]) =>
     listed(codes.map((code) => t(`permissions.${code}`)));
   const roles = (held: readonly AuditAccessRole[]) => listed(held.map((role) => role.label));
-  return (action, params) => {
-    const parts: string[] = [];
-    if (params.origin !== undefined) {
-      parts.push(t(`enums.UserOrigin.${params.origin}`));
-    }
-    if (params.fields !== undefined && params.fields.length > 0) {
-      const fields = listed(params.fields.map((field) => t(`enums.AuditUserField.${field}`)));
-      parts.push(said("fields", { count: params.fields.length, fields }));
-    }
-    if (params.attached === true) {
-      parts.push(said("attached"));
-    }
-    if (params.previous_label !== undefined) {
-      parts.push(said("renamed", { label: params.previous_label }));
-    }
-    if (params.permissions !== undefined) {
-      const count = params.permissions.length;
-      parts.push(said("permissions", { count, permissions: permissions(params.permissions) }));
-    }
-    for (const [key, codes] of [
-      ["permissionsGranted", params.permissions_granted],
-      ["permissionsWithdrawn", params.permissions_withdrawn],
-    ] as const) {
-      if (codes !== undefined && codes.length > 0) {
-        parts.push(said(key, { count: codes.length, permissions: permissions(codes) }));
-      }
-    }
+  // An account: its origin, the fields of its identity changed, its attachment to the directory.
+  const account = ({ origin, fields = [], attached }: AuditParams): (string | false)[] => [
+    origin !== undefined && t(`enums.UserOrigin.${origin}`),
+    fields.length > 0 &&
+      said("fields", {
+        count: fields.length,
+        fields: listed(fields.map((field) => t(`enums.AuditUserField.${field}`))),
+      }),
+    attached === true && said("attached"),
+  ];
+  // A role: the label it bore before, its permissions, those granted and withdrawn.
+  const role = (params: AuditParams): (string | false)[] => [
+    params.previous_label !== undefined && said("renamed", { label: params.previous_label }),
+    params.permissions !== undefined &&
+      said("permissions", {
+        count: params.permissions.length,
+        permissions: permissions(params.permissions),
+      }),
+    ...(
+      [
+        ["permissionsGranted", params.permissions_granted ?? []],
+        ["permissionsWithdrawn", params.permissions_withdrawn ?? []],
+      ] as const
+    ).map(
+      ([key, codes]) =>
+        codes.length > 0 && said(key, { count: codes.length, permissions: permissions(codes) }),
+    ),
+  ];
+  // An attribution: the roles granted and withdrawn, or that it changed none.
+  const attribution = (action: AuditAction, params: AuditParams): (string | false)[] => {
     const granted = params.access_roles_granted ?? [];
     const withdrawn = params.access_roles_withdrawn ?? [];
-    if (granted.length > 0) {
-      parts.push(said("rolesGranted", { count: granted.length, roles: roles(granted) }));
-    }
-    if (withdrawn.length > 0) {
-      parts.push(said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }));
-    }
-    if (action === "user_access_roles_set" && granted.length === 0 && withdrawn.length === 0) {
-      parts.push(said("noRoleChanged"));
-    }
+    return [
+      granted.length > 0 && said("rolesGranted", { count: granted.length, roles: roles(granted) }),
+      withdrawn.length > 0 &&
+        said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }),
+      action === "user_access_roles_set" &&
+        granted.length === 0 &&
+        withdrawn.length === 0 &&
+        said("noRoleChanged"),
+    ];
+  };
+  return (action, params) => {
+    const parts = [...account(params), ...role(params), ...attribution(action, params)].filter(
+      (part) => part !== false,
+    );
     return parts.length === 0
       ? undefined
       : parts.reduce((first, second) => said("then", { first, second }));

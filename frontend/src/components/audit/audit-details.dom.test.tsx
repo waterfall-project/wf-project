@@ -19,8 +19,10 @@ const events = (example("audit_events") as { items: AuditEvent[] }).items;
 /** The inscription of the witness journal of an action, about an object of that label. */
 function inscription(action: AuditEvent["action"], label: string): AuditEvent {
   const found = events.find((event) => event.action === action && event.object.label === label);
-  expect(found).toBeDefined();
-  return found as AuditEvent;
+  if (found === undefined) {
+    throw new Error(`the witness journal keeps no ${action} of ${label}`);
+  }
+  return found;
 }
 
 /** The attribution of her role to Camille Martin, which the witness journal keeps. */
