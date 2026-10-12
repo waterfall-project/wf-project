@@ -1045,7 +1045,11 @@ toute fonction par sa permission de consulter, et `WritableFunction` celles qui 
 permission de modifier, seules que `platformOffer` accepte. L'écran est gardé par `audit_log.read`,
 introuvable sans elle comme une adresse qui ne mène nulle part (WF-ADM-0110). Il présente une page
 des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`audit-columns.tsx`,
-préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action, la nature et
+préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
+ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
+des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
+aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
+de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
 le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
@@ -1071,7 +1075,8 @@ actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'his
 levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
 qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
 l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
-(`listProjects`, tous états) — : le projet, une révision d'un tel projet, et un objet qui vit dans
+(`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
+ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans
 une révision, vers son écran propre dans celle que l'inscription nomme (`AuditObject.revision`) —
 un risque vers les risques de la révision, son détail ouvert (`risk`), l'import d'un planning, d'un
 devis ou d'un reste à engager vers ses échanges, son compte rendu montré (`import`), le
@@ -2095,7 +2100,9 @@ verrouillage (`password.spec.ts`) ; la langue décidée par le navigateur jusqu'
 choisisse une, puis retrouvée d'un poste à l'autre, appliquée sans reconnexion, l'avatar déposé,
 remplacé et retiré, les colonnes masquées, les largeurs et les filtres des tables retrouvés à la
 réouverture, chaque compte voyant les siens (`account.spec.ts`, US-0400) — ces réglages lus dans la
-base (`gridPreferences`), où le front les écrit après une pause. Ils règlent le royaume par son API d'administration, en
+base (`gridPreferences`), où le front les écrit après une pause ; une attribution de rôle faite par
+le service, que le journal d'audit, filtré sur son auteur et son action, présente à chaque lecteur
+dans sa langue (`audit.spec.ts`). Ils règlent le royaume par son API d'administration, en
 administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une durée raccourcie le
 temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —, et demandent un
 jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).

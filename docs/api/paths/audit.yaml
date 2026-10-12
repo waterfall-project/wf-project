@@ -136,6 +136,7 @@
               search: { $ref: ../../../fixtures/api/audit_events_search.json }
               anonymized_object: { $ref: ../../../fixtures/api/audit_events_anonymized_object.json }
               anonymized_actor: { $ref: ../../../fixtures/api/audit_events_anonymized_actor.json }
+              administration: { $ref: ../../../fixtures/api/audit_events_administration.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':

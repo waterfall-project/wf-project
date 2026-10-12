@@ -1387,6 +1387,17 @@
       "history": "Histoire de « {object} »",
       "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "details": {
+        "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
+        "attached": "Origine désormais : {origin}",
+        "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",
+        "renamed": "Auparavant « {label} »",
+        "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
+        "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "then": "{first} ; {second}"
+      },
       "filters": {
         "label": "Filtres du journal",
         "period": "Période",
