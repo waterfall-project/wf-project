@@ -9,9 +9,9 @@ deactivated, the last administrator kept and reported (WF-ADM-0070, WF-ADM-0180)
 directory is attached by her address to the account that holds it (#707); the local accounts of the
 realm Waterfall does not know and that never had a password are removed (#811); the reading gives
 the realm back the identity of a local account it holds otherwise (#919), which a change of the
-identity carries to it (#810, ``test_keycloak_identity_change.py``). Run by ``make test-keycloak``, with the
-variables of ``test_keycloak_authentication.py``, whose helpers it takes. A test that changes the
-federation of the realm gives it back, whatever happens.
+identity carries to it (#810, ``test_keycloak_identity_change.py``). Run by
+``make test-keycloak``, with the variables of ``test_keycloak_authentication.py``, whose helpers it
+takes. A test that changes the federation of the realm gives it back, whatever happens.
 
 The realm keeps the accounts of other tests and of its own installation, that the database of the
 test does not know: each test of a reading makes Waterfall know them first (``realm_known``), as
