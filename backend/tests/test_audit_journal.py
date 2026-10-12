@@ -298,6 +298,21 @@ def test_the_name_of_another_account_stays_when_an_account_is_anonymized(
     assert (row["actor_display_name"], row["object_label"]) == ("Paul Durand", None)
 
 
+def test_the_trigger_of_the_journal_fires_before_that_of_the_accounts(database: Database) -> None:
+    # PostgreSQL fires the triggers of one event by the order of their names: the journal's refuses
+    # first any change but a label made null, then the accounts' says whose (#876). A trigger
+    # renamed, or added among them, changes the order and the refusal a change meets. A detail of
+    # the realisation: it cites no requirement.
+    query = text(
+        "SELECT tgname FROM pg_trigger WHERE tgrelid = 'audit_entry'::regclass "
+        "AND NOT tgisinternal AND tgtype & 1 = 1 AND tgtype & 2 = 2 AND tgtype & 16 = 16 "
+        "ORDER BY tgname"
+    )
+    with database.engine.connect() as connection:
+        names = list(connection.execute(query).scalars())
+    assert names == ["audit_entry_refuse_row_change", "user_account_forget_anonymized"]
+
+
 def rows(database: Database) -> list[dict[str, Any]]:
     """Read every inscription whole, in the order of the journal."""
     with database.engine.connect() as connection:

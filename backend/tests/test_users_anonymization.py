@@ -342,7 +342,8 @@ def test_a_reactivation_slipped_before_the_write_leaves_the_account_active_until
 ) -> None:
     # The gap #868 is to close: the account is out of the provider, the write refused, and the
     # local account active; deactivated, then anonymised again, it is removed once more, which
-    # the provider takes for done, and anonymised.
+    # the provider takes for done, and anonymised. A detail of the realisation, whose Vérif no
+    # requirement says: it cites none.
     local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
     slipping = Slipping(keycloak, realm_settings, database, local)
     app = create_app(Services(database, keycloak, slipping, *nowhere()))
@@ -402,7 +403,9 @@ def test_the_deactivation_of_a_local_account_anonymized_asked_again_closes_no_se
     logs: Logs,
 ) -> None:
     # A call made by hand: the account is deactivated already, which answers 200; a local account
-    # anonymised is no longer in the provider, which is not asked to close its sessions.
+    # anonymised is no longer in the provider, which is not asked to close its sessions. The Vérif
+    # of WF-SEC-0020 asks the next request refused, which the state of the account does: it cites
+    # none.
     client, administration = removing
     local = account(database, "Roux", "Inès", state="deactivated", idp_subject="kc-ines")
     assert anonymize(client, headers, local, 0).status_code == 200
@@ -423,7 +426,8 @@ def test_the_deactivation_of_an_account_of_the_directory_anonymized_asked_again_
 ) -> None:
     # An account of the directory anonymised is still the provider's: asking its deactivation
     # again closes the sessions a failure of the provider left open, as for any other. The realm
-    # of test closes none: the failure is said in the log.
+    # of test closes none: the failure is said in the log. The Vérif of WF-SEC-0020 asks the next
+    # request refused, which the state of the account does: it cites none.
     assert anonymize(client, headers, paul, 0).status_code == 200
     deactivation = {"is_active": False, "lock_version": 1}
     path = f"{USERS}/{paul}/activation"
