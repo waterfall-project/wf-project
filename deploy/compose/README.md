@@ -116,9 +116,9 @@ docker compose -f compose.prod.yaml -f compose.admin.yaml up --detach --wait key
 ```
 
 Depuis un poste, un tunnel SSH y mène : `ssh -L 8080:127.0.0.1:8080 <machine>`, puis
-`http://localhost:8080/auth/admin/` dans le navigateur du poste, avec l'utilisateur `admin` et le
-mot de passe `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`. L'intervention finie, Keycloak redémarre sans la
-surcharge, et le port se referme :
+`http://localhost:8080/auth/admin/master/console/` dans le navigateur du poste, avec
+l'utilisateur `admin` et le mot de passe `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`. L'intervention
+finie, Keycloak redémarre sans la surcharge, et le port se referme :
 
 ```sh
 docker compose -f compose.prod.yaml up --detach --wait keycloak
