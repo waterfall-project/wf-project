@@ -30,6 +30,7 @@ from installations import (
 )
 from openapi_core import OpenAPI
 from realm import TestRealm
+from redis.exceptions import RedisError
 from sqlalchemy import Engine, insert, select
 from support import ContractClient, Logs, nowhere
 from task_handlers import Runs, deposit, held_run
@@ -410,6 +411,39 @@ def test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_b
     assert service.provider.steps[:3] == ["apply_realm", "close_sessions", "keep_for_restoration"]
     assert service.maintenance.current() is None
     assert service.api.get("/api/v1/health").json() == {"status": "ok"}
+
+
+def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_no_more(
+    installation: Installation, take: Take, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The task succeeded and the restoration inscribed, committed, then the maintenance not lifted
+    # — Redis out of reach, the process stopped —: the entry is left. Taken over, the restoration
+    # lifts the maintenance and runs nothing again; the journal names it once.
+    lift = service.restorer.maintenance.lift
+    lifts: list[int] = []
+
+    def lifting() -> None:
+        lifts.append(1)
+        if len(lifts) == 1:
+            message = "Redis out of reach"
+            raise RedisError(message)
+        lift()
+
+    monkeypatch.setattr(service.restorer.maintenance, "lift", lifting)
+    take()
+    backup = taken(installation)
+    answer = service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    assert service.restorer.step()
+    assert service.maintenance.current() is not None
+    assert service.restorer.step()
+    assert service.maintenance.current() is None
+    assert len(lifts) == 2
+    assert service.provider.steps.count("keep_for_restoration") == 1
+    assert read_task(installation, answer.json()["task_id"]).status == "succeeded"
+    with installation.database.transaction() as session:
+        restored = session.scalars(select(AuditEntry).where(AuditEntry.action == "restore")).all()
+    assert len(restored) == 1
+    assert not service.restorer.queue.waiting()
 
 
 def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance(

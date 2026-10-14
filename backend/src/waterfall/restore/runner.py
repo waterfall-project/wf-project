@@ -22,7 +22,7 @@ and nothing has changed.
 import dataclasses
 from uuid import UUID
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, inspect, select
 from sqlalchemy.orm import Session
 
 from waterfall.platform.database import Database
@@ -110,11 +110,32 @@ class Restorer(Worker):
         return True
 
     def start(self, task_id: UUID) -> Task | None:
-        """Start one more attempt of a restoration: counted in the maintenance once it holds one."""
+        """Start one more attempt of a restoration: counted in the maintenance once it holds one.
+
+        A restoration whose task has succeeded already, the maintenance not lifted after — Redis
+        out of reach, the process stopped —, lifts it and runs nothing again.
+        """
         restoring = self.restoring()
         if restoring is not None and restoring.task_id == task_id:
+            if self.succeeded_already(task_id):
+                self.maintenance.lift()
+                logger.info("restore.maintenance_lifted", task_id=str(task_id))
+                return None
             return self.resume(restoring)
         return super().start(task_id)
+
+    def succeeded_already(self, task_id: UUID) -> bool:
+        """Tell whether the task of a restoration has succeeded, as the database says it.
+
+        A database being replaced, its tables not made again, holds no task.
+        """
+        with self.database.transaction() as session:
+            if not inspect(session.connection()).has_table(BackgroundTask.__tablename__):
+                return False
+            status = session.scalar(
+                select(BackgroundTask.status).where(BackgroundTask.id == task_id)
+            )
+        return status == "succeeded"
 
     def resume(self, restoring: Restoring) -> Task | None:
         """Take up the restoration a maintenance holds; ``None`` once its attempts are spent."""

@@ -959,7 +959,8 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     Refusée avant la maintenance — archive plus récente ou illisible —, la tâche échoue et rien
     ne change. La maintenance n'est levée qu'une fois la tâche passée `succeeded` et la
     restauration inscrite, validées : ce qui se fait ensuite vient après la restauration dans le
-    journal ;
+    journal ; une restauration reprise dont la tâche a déjà réussi — la levée manquée — lève la
+    maintenance sans rien refaire ;
   - **un vidage dont la base cesse de répondre** (L2, #907) échoue en composant injoignable,
     503, et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
     l'erreur interne que si elle répond.
